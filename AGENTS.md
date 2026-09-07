@@ -56,8 +56,13 @@ tests, configuration, and history record implementation.
   substitute `/latest/`. This project uses Expo SDK 57, React Native 0.86, and
   React 19.2; also consult installed package types when confirming APIs.
   Add packages with `npx expo install`.
-- New source filenames use kebab case. Keep framework-reserved filenames and
-  platform-specific suffixes.
+- Commit generated Convex output under `convex/_generated/`. Run
+  `npx convex codegen` after a Convex schema or backend function-signature
+  change.
+- Keep shared `src/lib/` modules framework-free so client and Convex code can
+  reuse them.
+- New source filenames use kebab case; Convex modules use camel case. Keep
+  framework-reserved filenames and platform-specific suffixes.
 
 ## Design
 
