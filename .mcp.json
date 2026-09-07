@@ -15,6 +15,14 @@
       ],
       "env": {}
     },
+    "huggingface": {
+      "type": "http",
+      "url": "https://huggingface.co/mcp?login"
+    },
+    "tavily": {
+      "type": "http",
+      "url": "https://mcp.tavily.com/mcp/"
+    },
     "XcodeBuildMCP": {
       "type": "stdio",
       "command": "npx",
@@ -23,15 +31,21 @@
         "xcodebuildmcp@latest",
         "mcp"
       ],
+      "env": {
+        "XCODEBUILDMCP_ENABLED_WORKFLOWS": "simulator,ui-automation,debugging"
+      }
+    },
+    "nebius": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.13",
+        "--refresh-package",
+        "nebius-mcp-server",
+        "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main"
+      ],
       "env": {}
-    },
-    "huggingface": {
-      "type": "http",
-      "url": "https://huggingface.co/mcp?login"
-    },
-    "tavily": {
-      "type": "http",
-      "url": "https://mcp.tavily.com/mcp/"
     }
   }
 }
