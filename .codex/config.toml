@@ -1,0 +1,19 @@
+[mcp_servers.expo]
+url = "https://mcp.expo.dev/mcp"
+
+[mcp_servers.convex]
+command = "npx"
+args = ["-y", "convex@latest", "mcp", "start"]
+startup_timeout_sec = 60
+
+[mcp_servers.XcodeBuildMCP]
+command = "npx"
+args = ["-y", "xcodebuildmcp@latest", "mcp"]
+startup_timeout_sec = 60
+tool_timeout_sec = 600
+
+[mcp_servers.huggingface]
+url = "https://huggingface.co/mcp?login"
+
+[mcp_servers.tavily]
+url = "https://mcp.tavily.com/mcp/"
