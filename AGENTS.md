@@ -61,6 +61,10 @@ tests, configuration, and history record implementation.
   change.
 - New source filenames use kebab case; Convex modules use camel case. Keep
   framework-reserved filenames and platform-specific suffixes.
+- When adding a variable to `.env.local`, document it in `.env.example` using
+  a non-secret placeholder and set the same variable to the same value in the
+  Conductor root repository's `.env.local`. Locate that repository via
+  `CONDUCTOR_ROOT_PATH`, or the primary checkout in `git worktree list` if unset.
 
 ## Design
 
