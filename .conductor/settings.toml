@@ -1,0 +1,28 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[prompts]
+create_pr = """
+Before creating the pull request, rename the current workspace branch to a concise, descriptive name based on the completed work, unless it already has an appropriate descriptive name. Follow the repository's existing branch naming conventions. Then push the renamed branch and create the pull request against the configured default branch.
+
+Title the pull request as a Conventional Commit: `type(scope): summary`. Keep the summary imperative, lowercase, and without a trailing period.
+
+- Type: one of `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, or `chore`.
+- Scope: run `gh pr list --state all --limit 40 --json title` first and reuse the scope of the closest prior pull request whenever one fits.
+- When no prior scope fits, choose from `app` (routes, layouts, navigation), `ui` (components, styling, themes, platform variants), `config` (`app.json`, TypeScript, ESLint, environment), `deps` (dependencies and lockfile), `agents` (`AGENTS.md`, `docs/agents/`, `.agents/skills/`), or `conductor` (`.conductor/`).
+- Introduce a new scope only when the change genuinely belongs to none of the above, and name it after the directory or subsystem it owns.
+- Omit the scope for a repository-wide change rather than inventing a vague one.
+"""
+
+[scripts]
+setup = "npm ci --no-audit --no-fund"
+# No workspace-specific resources exist outside the checkout.
+archive = ":"
+# iOS launches share the default Simulator and Expo Go instance.
+run_mode = "nonconcurrent"
+
+[scripts.run.ios]
+available_in = ["local"]
+# Suppress Expo prompts without CI mode, which disables live reload.
+command = 'set -o pipefail; npm run ios -- --port "$CONDUCTOR_PORT" | cat'
+default = true
+icon = "smartphone"
