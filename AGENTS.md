@@ -59,8 +59,6 @@ tests, configuration, and history record implementation.
 - Commit generated Convex output under `convex/_generated/`. Run
   `npx convex codegen` after a Convex schema or backend function-signature
   change.
-- Keep shared `src/lib/` modules framework-free so client and Convex code can
-  reuse them.
 - New source filenames use kebab case; Convex modules use camel case. Keep
   framework-reserved filenames and platform-specific suffixes.
 
