@@ -1,0 +1,42 @@
+{
+  "endpoint": "map",
+  "params": {
+    "url": "https://www.clevelandart.org/art/collection/search",
+    "max_breadth": 100,
+    "allow_external": false,
+    "include_usage": true,
+    "timeout": 150,
+    "select_paths": [
+      "^/art/[0-9]{4}\\.[^/]+$"
+    ],
+    "max_depth": 2,
+    "limit": 2000
+  },
+  "context": {
+    "museum": "Cleveland Museum of Art",
+    "reason": "Replacement admitted by spike 00.05; native object paths replace the eMuseum example"
+  },
+  "started_at": "2026-09-08T11:17:26.085418+00:00",
+  "status": "complete",
+  "reserved_credits": 200,
+  "budget_charge": 0,
+  "elapsed_seconds": 0.484,
+  "response": {
+    "base_url": "https://www.clevelandart.org/art/collection/search",
+    "results": [],
+    "response_time": 0.16,
+    "usage": {
+      "credits": 0
+    },
+    "request_id": "723960e3-fad6-4a72-b28f-67cd92a1a995"
+  },
+  "reported_credits": 0,
+  "metrics": {
+    "returned": 0,
+    "unique": 0,
+    "matching_paths": 0,
+    "matching_fraction": null,
+    "external_urls": [],
+    "unexpected_paths": []
+  }
+}

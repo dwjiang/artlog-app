@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Hetain Patel exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Hetain Patel",
+    "cohort": "local",
+    "region": "new-york",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:15:20.825864+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 3.348,
+  "response": {
+    "query": "Hetain Patel exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Hetain Patel's exhibition is not mentioned in the provided data. The most recent relevant information pertains to an exhibition highlighting Gordon Parks’s creative community at the Jack Shainman Gallery, which emphasizes the reciprocity between photographer and subject.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.nytimes.com/2026/08/20/arts/design/from-india-a-god-of-your-choice-to-display-at-home.html",
+        "title": "From India, a God of Your Choice, to Display at Home - The New York Times",
+        "score": 0.072328284,
+        "published_date": "Thu, 20 Aug 2026 09:00:08 GMT",
+        "content": "Skip to contentSkip to site index. Art & Design|From India, a God of Your Choice, to Display at Home. https://www.nytimes.com/2026/08/20/arts/design/from-india-a-god-of-your-choice-to-display-at-home.html. You have a preview view of this article while we are checking your access. When we have confirmed access, the full article content will load. # From India, a God of Your Choice, to Display at Home. Image 1: An Indian print from the late 19th century depicts two goddesses, one dressed in red and green and the other in gold. A chromolithograph from the Calcutta Art Studio in West Bengal, made circa 1885-90, depicts, from left, the goddesses Bhuvanesvari and Bagala.Credit...The Metropolitan Museum of Art. Aug. You don’t need be a believer to find God at the Metropolitan Museum of Art. Of course the museum teems with epiphanies from all over the world. (In keeping with this effect of oversaturation, the museum is showing the prints in four rotations, and some of these may have been replaced by others by the time you visit.).",
+        "raw_content": null,
+        "id": "56dc76-00"
+      },
+      {
+        "url": "https://www.nytimes.com/2026/08/17/t-magazine/pakistan-diaspora-artists.html",
+        "title": "These Artists May Have Left Pakistan, but It’s Still Present in Their Work - The New York Times",
+        "score": 0.05751986,
+        "published_date": "Mon, 17 Aug 2026 09:04:22 GMT",
+        "content": "T Magazine|These Artists May Have Left Pakistan, but It’s Still Present in Their Work. *   The Morning Make sense of the day’s news and ideas. *   The Evening Catch up on big news, and wind down to end your day. *   The Daily The biggest stories of our time, in 20 minutes a day. *   The World A guide to understanding the news, made for readers around the globe. *   Your Places: Global Update The latest news for any part of the world you select. *   The Opinions You've heard the news, here's what to make of it. From the haunting voice of the musician Arooj Aftab to the pastorals of the writers Daniyal Mueenuddin and Taymour Soomro, or the lambent note of protest in the expressive nudes of the painter Hiba Schahbaz and the sly subversiveness of the director Saim Sadiq’s film “Joyland” (2022), the meeting of Pakistan and the West, on both sides of the Atlantic, has brought forth a dazzling generation of artists.",
+        "raw_content": null,
+        "id": "5297ff-01"
+      },
+      {
+        "url": "https://www.nytimes.com/athletic/7536030/2026/08/25/carolina-panthers-training-camp-goals-week-1/",
+        "title": "The Carolina Panthers have 5 big questions to answer before the season begins - The New York Times",
+        "score": 0.04621015,
+        "published_date": "Tue, 25 Aug 2026 11:09:00 GMT",
+        "content": "Could he land one of the final WR spots for the Panthers? As he does after every practice, the Carolina Panthers’ veteran running back was catching hundreds of balls shot at him out of a JUGS machine by a member of the equipment staff. It doesn’t matter that Hubbard hasn’t practiced in a couple of weeks because of a hamstring strain. … As time went on, more guys just want to get more work.”. I think the coaches and training staff are just trying to take care of me,” he said. Getting a healthy Hubbard to the starting line is one of the most important issues facing the Panthers as they wrap up their preseason work with a joint practice with the Houston Texans on Wednesday before hosting the Texans two nights later in the exhibition finale. A look at four other items on the Panthers’ to-do list during the final week of training camp:.",
+        "raw_content": null,
+        "id": "f1fadc-02"
+      },
+      {
+        "url": "https://www.nytimes.com/athletic/7512894/2026/08/14/raiders-fernando-mendoza-preseason-debut/",
+        "title": "Sizing up Fernando Mendoza’s preseason debut, according to the rookie QB and his coach - nytimes.com",
+        "score": 0.043305162,
+        "published_date": "Fri, 14 Aug 2026 12:00:45 GMT",
+        "content": "# Sizing up Fernando Mendoza’s preseason debut, according to the rookie QB and his coach. — Fernando Mendoza did much to impress in his preseason debut. Mendoza led the Raiders down the field on his second possession, finishing the drive with his first professional touchdown (albeit in exhibition action), connecting with receiver Jack Bech in the end zone for a six-yard score. Finding poise to throw a touchdown a few plays after running into a sack also showed the resiliency that’s needed to play the position at this level. But at the end of an evening that served, in part, as a celebration of the franchise’s new era, he chose to focus on his faults. Subbing in after Cousins led the starters on a touchdown drive, Mendoza said he felt sped up on his first snaps. Mendoza was more interested in talking about his missed reads on his third drive — a three-and-out that concluded with a pair of incompletions — than his first professional touchdown pass.",
+        "raw_content": null,
+        "id": "00d99f-03"
+      },
+      {
+        "url": "https://www.nytimes.com/2026/09/03/t-magazine/gordon-parks-exhibition-jack-shainman-gallery.html",
+        "title": "A New Exhibition at the Jack Shainman Gallery Highlights Gordon Parks’s Creative Community - The New York Times",
+        "score": 0.04248727,
+        "published_date": "Thu, 03 Sep 2026 16:22:54 GMT",
+        "content": "T Magazine|A New Exhibition Highlights Gordon Parks’s Creative Community. https://www.nytimes.com/2026/09/03/t-magazine/gordon-parks-exhibition-jack-shainman-gallery.html. You have a preview view of this article while we are checking your access. When we have confirmed access, the full article content will load. ## T Magazine. # A New Exhibition Highlights Gordon Parks’s Creative Community. Plus: the Southern grape exciting chefs, a new stay inside a converted 1930s L.A. church and more recommendations from T Magazine. Welcome to the T List, a newsletter from the editors of T Magazine. ## In Silver Lake, Los Angeles, a Colorful Hotel in a Converted Church. Parks’s approach emphasized a reciprocity between photographer and subject, a dynamic that’s explored in “Voice in the Mirror,” a survey that considers the artist’s work 20 years after his death. The filmmaker Ava DuVernay, who worked as a publicist on “Half Past Autumn,” a documentary about Parks, describes his work as “painterly and tender.” She’s especially drawn to a series Parks took in his hometown in 1963.",
+        "raw_content": null,
+        "id": "1a436f-04"
+      }
+    ],
+    "response_time": 3.25,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "f07cf3d0-d119-458e-b17c-51d8bf63ed80"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 271,
+    "answer_sentences": 2,
+    "first_sentence": "Hetain Patel's exhibition is not mentioned in the provided data.",
+    "result_count": 5,
+    "top_score": 0.072328284,
+    "top_url": "https://www.nytimes.com/2026/08/20/arts/design/from-india-a-god-of-your-choice-to-display-at-home.html",
+    "top_published_date": "Thu, 20 Aug 2026 09:00:08 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

@@ -55,7 +55,9 @@ Design §4.2 "The crawler": one scheduled pipeline indexes any museum with a col
 
 `discover.py`: returns an ordered list of object-page URLs and a `method`: (1) platform API/IIIF (`emuseum` JSON if enabled: `/objects/json?page=N`; `iiif` collection manifests) → (2) `sitemap.xml` (+ index) filtered by `objectPathRegex` → (3) Tavily Map with `select_paths: [objectPathRegex]`, `allow_external: False`, `limit: page-cap`, on-view listing first when `onViewListingUrl` exists (map it with `max_depth: 1`) → (4) Tavily Crawl only when `useTavilyCrawl`. Cap at `--page-cap` (2,000); record `pagesMapped`; dedupe URLs; remember the method on the run.
 
-**Verify**: tests: sitemap parsing (index + children, `lastmod` captured), regex filtering, Map call shape (mock), on-view-first ordering.
+Apply [decision 007](../../decisions/007-tavily.md): its Cleveland Map probes returned no object URLs, and a broad control included a sibling shop host despite `allow_external: false`. Enforce the approved exact host, scheme, object path, deduplication, and page cap client-side, including after subsequent fetch redirects. Empty mapping is not successful indexing. Cleveland's on-view discovery should use its official API. Reserve each request's worst-case credits through the shared spend system before dispatch; a 2,000-page Map does not fit the free-tier default daily cap.
+
+**Verify**: tests: sitemap parsing (index + children, `lastmod` captured), regex filtering, Map call shape (mock), sibling-host rejection, empty mapping does not mark the venue complete, on-view-first ordering.
 
 ### Step 3: Fetch and extract
 

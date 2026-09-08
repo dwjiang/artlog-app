@@ -1,0 +1,55 @@
+{
+  "endpoint": "map",
+  "params": {
+    "url": "https://www.clevelandart.org/",
+    "max_breadth": 100,
+    "allow_external": false,
+    "include_usage": true,
+    "timeout": 150,
+    "select_paths": [
+      ".*"
+    ],
+    "max_depth": 1,
+    "limit": 20
+  },
+  "context": {
+    "museum": "Cleveland Museum of Art",
+    "reason": "Replacement admitted by spike 00.05; native object paths replace the eMuseum example"
+  },
+  "started_at": "2026-09-08T11:19:04.730532+00:00",
+  "status": "complete",
+  "reserved_credits": 2,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.622,
+  "response": {
+    "base_url": "https://www.clevelandart.org/",
+    "results": [
+      "https://www.clevelandart.org/",
+      "https://www.clevelandart.org/learn-with-us",
+      "https://www.clevelandart.org/performing-arts",
+      "https://www.clevelandart.org/transformer-station",
+      "https://www.clevelandart.org/exhibitions/spectacular-freedom-andrew-wyeth-and-modern-american-watercolor",
+      "https://www.clevelandart.org/exhibitions/ten-kings-hell-afterlife-medieval-korea",
+      "https://www.clevelandart.org/exhibitions/artlens-reimagined-intersection-art-technology-and-innovation",
+      "https://www.clevelandart.org/whats-on/all?when=Today",
+      "https://www.clevelandart.org/whats-on/all?when=Upcoming",
+      "https://shop.clevelandart.org/"
+    ],
+    "response_time": 1.33,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "da5249a1-d46d-4b0e-a290-17639e4a9194"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "returned": 10,
+    "unique": 10,
+    "matching_paths": 10,
+    "matching_fraction": 1.0,
+    "external_urls": [
+      "https://shop.clevelandart.org/"
+    ],
+    "unexpected_paths": []
+  }
+}

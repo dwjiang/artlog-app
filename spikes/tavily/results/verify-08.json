@@ -1,0 +1,137 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"A Bigger Splash\" David Hockney",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "tate.org.uk"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "A Bigger Splash",
+    "artist": "David Hockney",
+    "museum": "Tate",
+    "domain": "tate.org.uk"
+  },
+  "started_at": "2026-09-08T11:15:59.043006+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.837,
+  "response": {
+    "query": "A Bigger Splash David Hockney",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://media.tate.org.uk/art/images/work/T/T03/T03254_10.jpg",
+      "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-600_2zGhHxk.jpg",
+      "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_U1RypWM.format-jpeg.jpg",
+      "https://media.tate.org.uk/art/images/work/T/T03/T03254_7.jpg",
+      "https://shop.tate.org.uk/dw/image/v2/BBPB_PRD/on/demandware.static/-/Sites-TateMasterShop/default/dwd9237f7c/hockney-bigger-splash-poster-19587-large.jpg?sw=556"
+    ],
+    "results": [
+      {
+        "url": "http://www.tate.org.uk/art/artworks/hockney-a-bigger-splash-t03254/understanding-david-hockneys-bigger-splash",
+        "title": "Understanding David Hockney's A Bigger Splash | Tate",
+        "content": "Title: Understanding David Hockney's A Bigger Splash | Tate\n# Understanding David Hockney's A Bigger Splash. Focusing on David Hockney's iconic painting *A Bigger Splash* we look at the ideas, themes, and inspirations that make Hockney such a great picture-maker. Painted in 1967, *A Bigger Splash* is perhaps David Hockney's best-known artwork. Unusually for Hockney's paintings from this time, there is no-one in sight and the scene is almost entirely still … apart from the splash. Hockney painted the picture from a photograph of a splash taken by someone else. David Hockney isn’t the only artist who has experimented with representing a splash. Hockney took two weeks to paint the splash in *A Bigger Splash*. David Hockney used acrylic paint on white cotton duck canvas to paint *A Bigger Splash*. Jack Hazan A Bigger Splash 1974 Courtesy Jack Hazan and David Mingay, distributed by the British Film Institute © Buzzy Enterprises Ltd. David Hockney painting *Portrait of an Artist (Pool with Two Figures)* 1972 A still from Jack Hazan's film *A Bigger Splash* 1974. But to paint *A Bigger Splash* Hockney stapled the canvas to a wall. Detail of 'A Bigger Splash' by David Hockney. If we compare *A Bigger Splash* to a painting Hockney made in 1960, the paintings look as if they could be by different artists. In many of David Hockney’s paintings from the mid to late 1960s, the subject matter is a combination of photographic images and observed details. *A Bigger Splash* is inspired by a photograph Hockney found in a book about building a swimming pool, while the building in the background is taken from one of Hockney’s drawings of Californian buildings. David Hockney is interested in exploring ways of translating the real world into paint, pencil or print. In Hockney's depictions of swimming pools, garden sprinklers and people showering we see him trying lots of different approaches, techniques and materials to capture and visually describe what water looks (and feels) like. David Hockney's paintings have also proved inspirational for fashion and fabric designers. ## David Hockney. Artist David Hockney reflects on making art for over 60 years. Artist David Hockney reflects on making art for over 60 years.",
+        "score": 0.8737439,
+        "raw_content": null,
+        "images": [],
+        "id": "bd7687-00"
+      },
+      {
+        "url": "https://www.tate.org.uk/art/artworks/hockney-a-bigger-splash-t03254/understanding-david-hockneys-bigger-splash",
+        "title": "Understanding David Hockney's A Bigger Splash | Tate",
+        "content": "In many of David Hockney’s paintings from the mid to late 1960s, the subject matter is a combination of photographic images and observed details. A Bigger Splash is inspired by a photograph Hockney found in a book about building a swimming pool, while the building in the background is taken from one of Hockney’s drawings of Californian buildings. It wasn’t just ‘found’ photographs that Hockney used as inspiration. In 1967 he purchased his first 35mm camera and began taking photographs as source [...] Painted in 1967, A Bigger Splash is perhaps David Hockney's best-known artwork. What is it that makes this painting so iconic and seductive – and still very modern-looking fifty years after it was made? [...] David Hockney  \nStudy for ‘Mr and Mrs Clark and Percy’ (1970)  \nTate\n\n© Estate of David Hockney\n\nYou will need:\n\nHockney took two weeks to paint the splash in A Bigger Splash. He worked from a photograph of a splash and used small brushes to copy its shapes, shades and details. (He probably experimented with brush strokes and marks to work out the best way of representing the different bits of the splash).",
+        "score": 0.8588255,
+        "raw_content": null,
+        "images": [
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-600_2zGhHxk.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-840_0WSjX9w.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_4hcZ7zF.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_Ugk1OwM.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_1VdXDmU.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_EghhIiJ.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/pierodellafrancescathebaptismofchrist1450segg.width-1440.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_lCsoEAu.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_REsFnde.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_tlLiq8z.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_GyEjPuJ.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_oVPFehY.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/splash_detail_02_crop.width-1440.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_lyPGAzK.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_Dk8p6FN.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_b5LLDRq.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_xvAXrQM.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_b0501yF.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_mxO6hex.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_BSe8lYF.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_AScSXg4.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/640px-aswan_egypt_westbanktombs_2007jan15._14_.width-840.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_Tcz80kp.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/davidhockneyphotographedbysnowdoninlondon1978.width-1200.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/028_2_3.width-840.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_wvhBA6z.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_2Qa0k4f.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_43Dzf4R.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-1440_SENmCzW.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/images/.width-420_veeeoFK.jpg",
+          "https://media.tate.org.uk/aztate-prd-ew-dg-wgtail-st1-ctr-data/original_images/Lead_image_-_Le_Rodeur_Lubaina_Himid_.original_1.jpg"
+        ],
+        "id": "13a71e-01"
+      },
+      {
+        "url": "https://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html?cgid=Gifts",
+        "title": "David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate",
+        "content": "Title: David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate\nDavid Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). # David Hockney A Bigger Splash silk scarf. https://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html. Large silk scarf featuring David Hockney’s Californian swimming pool scene, *A Bigger Splash*, 1967. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 30 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 30 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings.",
+        "score": 0.8380581,
+        "raw_content": null,
+        "images": [],
+        "id": "9f63da-02"
+      },
+      {
+        "url": "https://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html?cgid=tate-britain-shop-collection",
+        "title": "David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate",
+        "content": "Title: David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate\nDavid Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). # David Hockney A Bigger Splash silk scarf. https://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html. Large silk scarf featuring David Hockney’s Californian swimming pool scene, *A Bigger Splash*, 1967. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 60 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 60 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings.",
+        "score": 0.8380581,
+        "raw_content": null,
+        "images": [],
+        "id": "41bd73-03"
+      },
+      {
+        "url": "http://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html?cgid=tate-britain-shop-collection",
+        "title": "David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate",
+        "content": "Title: David Hockney A Bigger Splash silk scarf | Scarves | Tate Shop | Tate\nDavid Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf. David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). David Hockney A Bigger Splash silk scarf). # David Hockney A Bigger Splash silk scarf. https://shop.tate.org.uk/david-hockney-a-bigger-splash-silk-scarf/28471.html. Large silk scarf featuring David Hockney’s Californian swimming pool scene, *A Bigger Splash*, 1967. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 30 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings. ## Delivery & returns. Our Goldfinger x Tate furniture collection is made to order, with a production lead time of 12-14 weeks. This means that if you order these items alongside other shop products, they won’t all arrive together, and you’ll get several deliveries. If the delivery time frame for each item has ended and you’re still waiting for something from your order, please get in touch and we’ll investigate for you. We currently offer free standard delivery on **UK orders over £60**. If you are not completely happy with your order, you can return any items to us, free of charge within 30 days of purchase, and we will be happy to offer you a full refund, replacement or exchange on any items excluding custom prints, furniture and pierced earrings.",
+        "score": 0.8380581,
+        "raw_content": null,
+        "images": [],
+        "id": "c8c0de-04"
+      }
+    ],
+    "response_time": 2.75,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "91683c68-f7a4-4904-918f-f002c0e12319"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.8737439,
+    "top_url": "http://www.tate.org.uk/art/artworks/hockney-a-bigger-splash-t03254/understanding-david-hockneys-bigger-splash",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

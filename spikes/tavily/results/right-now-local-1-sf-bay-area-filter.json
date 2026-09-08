@@ -1,0 +1,84 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Rupy C. Tut exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "sfmoma.org",
+      "famsf.org",
+      "asianart.org",
+      "museum.stanford.edu",
+      "museumca.org",
+      "bampfa.org",
+      "sjmusart.org",
+      "kqed.org",
+      "sfchronicle.com",
+      "berkeleyside.org",
+      "mercurynews.com",
+      "48hills.org"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Rupy C. Tut",
+    "cohort": "local",
+    "region": "sf-bay-area",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:56.767911+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.067,
+  "response": {
+    "query": "Rupy C. Tut exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Rupy C. Tut's exhibition or news is not mentioned in the provided data sources. The most recent information available pertains to the Artists of SFMOMA's 2024 SECA Show and a guide for an arts-filled Martin Luther King Jr. Day on January 15, 2025. There is no mention of Rupy C. Tut or any related exhibition or news.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.kqed.org/arts/category/the-do-list?page=48",
+        "title": "The Do List",
+        "content": "The Artists of SFMOMA's 2024 SECA Show Stand the Test of Time. Jan 15, 2025. Your Guide to an Arts-Filled Martin Luther King Jr. Day. Jan 15, 2025.",
+        "score": 0.026257854,
+        "published_date": "Tue, 11 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "6ca56b-00"
+      },
+      {
+        "url": "https://www.kqed.org/arts/tag/featured-arts?page=69",
+        "title": "featured-arts",
+        "content": "KQED provides public radio, television, and independent reporting on issues that matter to the Bay Area. We're the NPR and PBS member station for Northern",
+        "score": 0.01478686,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "033a68-01"
+      }
+    ],
+    "response_time": 0.97,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "8645e048-279f-41e5-b82a-a99044b97b2c"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 317,
+    "answer_sentences": 4,
+    "first_sentence": "Rupy C. Tut's exhibition or news is not mentioned in the provided data sources.",
+    "result_count": 2,
+    "top_score": 0.026257854,
+    "top_url": "https://www.kqed.org/arts/category/the-do-list?page=48",
+    "top_published_date": "Tue, 11 Aug 2026 11:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

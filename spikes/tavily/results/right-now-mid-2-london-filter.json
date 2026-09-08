@@ -1,0 +1,75 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Njideka Akunyili Crosby exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Njideka Akunyili Crosby",
+    "cohort": "mid",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:43.741124+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.224,
+  "response": {
+    "query": "Njideka Akunyili Crosby exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Njideka Akunyili Crosby was recognized for her artistic contributions when she was awarded a MacArthur “genius” grant in 2017, acknowledging her \"extraordinary originality.\" While specific details about her exhibition or recent news are not available in the provided data, her recognition highlights her significant impact in the art world. For the most current information on her exhibitions or recent activities, it is recommended to visit her official website or follow her on social media.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.theartnewspaper.com/2026/08/19/a-brush-with-dawoud-bey",
+        "title": "A brush with… Dawoud Bey - The Art Newspaper - International art news and events",
+        "content": "Lorna Simpson talks to Ben Luke about her influences—from writers to musicians and, of course, other artists—and the cultural experiences that have shaped her life and work\n\nHosted by Ben Luke. Produced by David Clack and Aimee Dawson\n\nSponsored by Bloomberg Connects\n\n\n\nPrizesnews\n\n11 October 2017#### Three artists awarded $625,000 MacArthur “genius” grants\n\nDawoud Bey, Njideka Akunyili Crosby, and Trevor Paglen recognised for “extraordinary originality”\n\nJames H. Miller [...] Artist interviewpodcast\n\n2 February 2022#### A brush with... Dayanita Singh\n\nAn in-depth interview on the artist's influences and cultural experiences, from the poetry of Rainer Maria Rilke to being photographed by her mother\n\nHosted by Ben Luke. Produced by Julia Michalska, Aimee Dawson, David Clack and Henrietta Bentall\n\nSponsored by Bloomberg Connects\n\n\n\nA brush with...podcastpodcast\n\n8 April 2026#### A Brush With... Lorna Simpson—podcast [...] ### Subscribe to our daily newsletter\n\nA brush with...podcastArtist interviewDawoud Bey\n\nShare\n\n#### Related content\n\n\n\nA brush with...podcastpodcast\n\n15 April 2026#### A Brush With... Hurvin Anderson—podcast\n\nHurvin Anderson talks to Ben Luke about his influences—from writers to musicians, and, of course, other artists—and the cultural experiences that have shaped his life and work\n\nHosted by Ben Luke. Produced by David Clack and Aimee Dawson\n\nSponsored by Bloomberg Connects",
+        "score": 0.4703723,
+        "published_date": "Wed, 19 Aug 2026 09:27:09 GMT",
+        "raw_content": null,
+        "id": "5e73c3-00"
+      }
+    ],
+    "response_time": 1.14,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "f5536c1a-517e-4d6a-a8e2-aa42b5035368"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 493,
+    "answer_sentences": 3,
+    "first_sentence": "Njideka Akunyili Crosby was recognized for her artistic contributions when she was awarded a MacArthur “genius” grant in 2017, acknowledging her \"extraordinary originality.\"",
+    "result_count": 1,
+    "top_score": 0.4703723,
+    "top_url": "https://www.theartnewspaper.com/2026/08/19/a-brush-with-dawoud-bey",
+    "top_published_date": "Wed, 19 Aug 2026 09:27:09 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

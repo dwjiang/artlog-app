@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Julie Mehretu exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Julie Mehretu",
+    "cohort": "mid",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:35.827828+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 3.822,
+  "response": {
+    "query": "Julie Mehretu exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Based on the provided data, there is no specific mention of Julie Mehretu's exhibition or news. The sources focus on various art exhibitions and events, including those at the Nasher Museum of Art, Durham’s new art gallery, and the Edinburgh art festival, but none specifically highlight Julie Mehretu. For the most current and detailed information on Julie Mehretu, it is recommended to visit her official website or check recent art news publications.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.theguardian.com/artanddesign/gallery/2026/aug/19/turn-the-volume-up-nasher-museum-of-art",
+        "title": "‘Jim Crow must go’: the artists and everyday heroes who fought injustice – in pictures - The Guardian",
+        "score": 0.0487536,
+        "published_date": "Wed, 19 Aug 2026 09:00:12 GMT",
+        "content": "# ‘Jim Crow must go’: the artists and everyday heroes who fought injustice – in pictures. at the Nasher Museum of Art at Duke University highlights the activism of everyday people who have confronted injustice. New York’s mayor, Zohran Mamdani, quoting the Bronx rapper KRS-One’s song Turn the Volume Up during his election-day victory speech inspired the name of the exhibit. Featuring work by artists such as Kara Walker, Carrie Mae Weems and the Guerrilla Girls, the show examines how protests and collective action can create and inspire social change. opens on 27 August and runs through 11 July 2027. Bruce Davidson, Time of Change, 1963-1965 Photograph: Bruce Davidson. Curated by Briana Ellis-Gibbs. Wed 19 Aug 2026 10.00 BST. Explore more on these topics. ## Most viewed.",
+        "raw_content": null,
+        "id": "e6ef50-00"
+      },
+      {
+        "url": "https://www.theguardian.com/artanddesign/2026/aug/28/the-week-in-art-yayoi-kusama",
+        "title": "A gallery glow up, spooky sculpture and a magical modern – the week in art - The Guardian",
+        "score": 0.044435676,
+        "published_date": "Fri, 28 Aug 2026 13:47:01 GMT",
+        "content": "# A gallery glow up, spooky sculpture and a magical modern – the week in art. A grand survey of light art illuminates Durham, St Ives gets macabre and London goes big on land art – all in your weekly dispatch. ## Exhibition of the week. Luminous works by Olafur Eliasson, Ceal Floyer and many more mark the opening of Durham’s new art gallery. The Light, Durham, until 17 January. **Ana Mendieta**Don’t on any account miss this magical journey through the imagination of a great modern artist. ## Image of the week. One of the most prolific and beloved artists of our age, Yayoi Kusama died this week at 97. The Japanese artist became a global superstar many times over in different eras for her sculptural works, her political artistic “happenings” and the spotty style and selfie-inducing infinity mirror rooms that came to be synonymous with her name. Kusama’s work was often centred on ideas of the infinite and “self-obliteration”, a concept inspired by the hallucinations that would engulf her.",
+        "raw_content": null,
+        "id": "f3a9e5-01"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/08/31/metropolitan-museum-costume-institute-john-galliano-exhibition-cancelled",
+        "title": "Metropolitan Museum and designer John Galliano cancel planned Costume Institute exhibition amid backlash - The Art Newspaper",
+        "score": 0.042582717,
+        "published_date": "Mon, 31 Aug 2026 21:42:03 GMT",
+        "content": "The Metropolitan Museum of Art in New York and the British fashion designer John Galliano have called off an exhibition honouring Galliano that was planned for next spring, following a wave of opposition in light of the designer’s history of antisemitic statements. In a statement on Monday (31 August), Max Hollein, the director and chief executive of the Met, said: “Following thoughtful discussions with John Galliano, we have together decided not to proceed with the exhibition.”. Champions of his work over the years have included Anna Wintour, the former editor-in-chief of *Vogue*, a trustee of the Met and the chair of the Met Gala since 1999, and Andrew Bolton, the curator in charge of the Met’s Costume Institute and lead organiser of the planned exhibition, *John Galliano: Horizons*. According to *The New York Times*, the decision to cancel the exhibition came just hours before planned meetings on Monday of select members of the museum’s board and the full Met leadership and board of trustees to discuss the exhibition’s future and matters related to the Costume Institute.",
+        "raw_content": null,
+        "id": "eede6a-02"
+      },
+      {
+        "url": "https://www.theguardian.com/artanddesign/2026/aug/14/the-week-in-art-volcano-edinburgh-brussels-lautrec",
+        "title": "Volcanic raunch hits Edinburgh, blooms sweep Brussels and Henri does the can-can: the week in art - The Guardian",
+        "score": 0.04177788,
+        "published_date": "Fri, 14 Aug 2026 11:00:27 GMT",
+        "content": "# Volcanic raunch hits Edinburgh, blooms sweep Brussels and Henri does the can-can: the week in art. Edinburgh art festival erupts with Del LaGrace Volcano, Belgium lays down a marker for public art and Toulouse-Lautrec captures a dancer – all in your weekly dispatch. ## Exhibition of the week. **Edinburgh art festival**Science-minded artist Katie Paterson finds a natural home in the Collective Gallery’s repurposed observatory on Calton Hill, while Del LaGrace Volcano, Eva Rothschild and more show in the many other memorable places this city can boast. Edinburgh venues until 30 August. Laing Art Gallery, Newcastle, until 5 September. ## Image of the week. ## Masterpiece of the week. Toulouse-Lautrec is her pal and she doesn’t have to perform for him. This intimacy and honesty is typical of his portraits of female friends, and anyone who thinks he just did colourful posters is missing out, for Toulouse-Lautrec is a profound and subtle artist who sees the solitude and sadness behind the can-can.",
+        "raw_content": null,
+        "id": "a04f49-03"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/09/07/come-to-the-british-librarys-agatha-christie-showif-you-dare",
+        "title": "Come to the British Library’s Agatha Christie show—if you dare - The Art Newspaper",
+        "score": 0.040895566,
+        "published_date": "Mon, 07 Sep 2026 13:56:35 GMT",
+        "content": "# Come to the British Library’s Agatha Christie show—if you dare. ## London exhibition will examine the life of the crime fiction writer and how she created her most famous characters. That is, planned an exhibition dedicated to the queen of crime fiction, Agatha Christie. The show in London later this year (30 October-20 June 2027) promises to “go behind the books to explore how Christie’s life, travels and interests informed her work and the creation of her iconic characters”, revealing the author behind classic detective novels such as *Murder on the Orient Express* and *Death on the Nile*. The exhibition includes photographs of Christie as a child, with her family at their home in Torquay on England’s south coast, and “roller skating with friends”. (Who knew?) Christie has been immortalised by artists and sculptors, including Elisabeth Hadley, who unveiled her effigy of the crime supremo—alongside her favourite dog, Peter—in Torquay last year. The gallery has launched an exhibition dedicated to the capital, featuring artists including Jenny Saville and Peter Doig.",
+        "raw_content": null,
+        "id": "a5e20f-04"
+      }
+    ],
+    "response_time": 3.73,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "792ff76a-ef10-414a-a78b-d3430a3c318a"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 453,
+    "answer_sentences": 3,
+    "first_sentence": "Based on the provided data, there is no specific mention of Julie Mehretu's exhibition or news.",
+    "result_count": 5,
+    "top_score": 0.0487536,
+    "top_url": "https://www.theguardian.com/artanddesign/gallery/2026/aug/19/turn-the-volume-up-nasher-museum-of-art",
+    "top_published_date": "Wed, 19 Aug 2026 09:00:12 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

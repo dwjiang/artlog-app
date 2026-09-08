@@ -1,0 +1,93 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Claude Monet exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Claude Monet",
+    "cohort": "famous",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:25.836915+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.619,
+  "response": {
+    "query": "Claude Monet exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "The National Gallery in London will feature Monet's \"The Beach at Trouville\" as the Picture of the Month for September 2026. Additionally, Monet's \"Bathers at La Grenouillère\" will be part of the Renoir and Love exhibition, displayed alongside Pierre-Auguste Renoir's \"La Grenouillère,\" marking the first time in 19 years that these works are shown together. The gallery also includes Monet's \"The Water-Lily Pond\" among its permanent collection.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.nationalgallery.org.uk/about-us/press-and-media/press-releases-archive/exclusive-preview-of-the-national-gallery-s-autumn-blockbuster-exhibition-renoir-and-love",
+        "title": "Exclusive preview of the National Gallery’s autumn blockbuster exhibition Renoir and Love | Press releases archive | National Gallery, London",
+        "content": "For a limited period, Claude Monet's Bathers at La Grenouillère and Pierre-Auguste Renoir's 'La Grenouillère' (both 1869) will be displayed together at the Gallery for the first time in 19 years. Painted side by side from a very similar viewpoint, the works capture a defining moment in the birth of Impressionism, offering a first glimpse into the artistic friendships, emotional storytelling and spirit of experimentation that will be explored throughout 'Renoir and Love'. [...] 2/2\n\nPierre-Auguste Renoir, 'La Grenouillère', 1869 © Nationalmuseum, Stockholm. Gift 1924 unknown donor through Nationalmusei Vänner.\n\nClaude Monet, 'Bathers at La Grenouillère', 1869\n\nClaude Monet, 'Bathers at La Grenouillère', 1869\n\n2/2\n\n2/2\n\n1\n\nPierre-Auguste Renoir, 'La Grenouillère', 1869 © Nationalmuseum, Stockholm. Gift 1924 unknown donor through Nationalmusei Vänner.\n\nClaude Monet, 'Bathers at La Grenouillère', 1869\n\n## Notes to editors\n\n#### Image credits [...] #### Image credits\n\nClaude Monet, 'Bathers at La Grenouillère', 1869 © The National Gallery, London. Bequeathed by Mrs M.S. Walzer as part of the Richard and Sophie Walzer Bequest, 1979.\n\nPierre-Auguste Renoir, 'La Grenouillère', 1869 © On loan from Nationalmuseum, Stockholm. Gift 1924 unknown donor through Nationalmusei Vänner.\n\n#### The National Gallery",
+        "score": 0.61196244,
+        "published_date": "Mon, 10 Aug 2026 18:00:00 GMT",
+        "raw_content": null,
+        "id": "61a879-00"
+      },
+      {
+        "url": "https://www.nationalgallery.org.uk/about-us/press-and-media/press-releases-archive/for-the-first-time-a-new-online-tour-shows-all-the-picture-displays-in-the-national-gallery",
+        "title": "For the first time a new online tour shows all the picture displays in the National Gallery | Press releases archive | National Gallery, London",
+        "content": "Room 34 A Distinct Style: British Painting 1740–1800  \n\nRoom 46 Claude Monet (1840–1926)  \n\nCentral Hall Image and Identity: Full-Length Portraits 1550–1900  \n\nRoom 52 Creating Illusion: Netherlandish Painting 1420–1480 [...] in a Straw Hat, Edouard Manet's portrait of the artist Eva Gonzalès, Sir Thomas Lawrence’s The Red Boy and Claude Monet's The Water-Lily Pond. [...] The National Gallery is one of the greatest art galleries in the world. Founded by Parliament in 1824, the Gallery houses the nation’s collection of paintings in the Western European tradition from the late 13th to the early 20th century. The collection includes works by Artemisia Gentileschi, Bellini, Cezanne, Degas, Leonardo, Monet, Raphael, Rembrandt, Renoir, Rubens, Titian, Turner, Van Dyck, Van Gogh and Velázquez. The Gallery’s key objectives are to care for and enhance the collection and",
+        "score": 0.37751824,
+        "published_date": "Tue, 18 Aug 2026 00:00:00 GMT",
+        "raw_content": null,
+        "id": "f937aa-01"
+      },
+      {
+        "url": "https://www.nationalgallery.org.uk/paintings/picture-of-the-month/picture-of-the-month-september-2026",
+        "title": "Picture of the month: September 2026 | Picture of the month | National Gallery, London",
+        "content": "## More like this\n\nClaude Monet’s ‘The Beach at Trouville’\n\n### Claude Monet’s ‘The Beach at Trouville’\n\n#### Picture of the month August 2026\n\nEscape to the Normandy coast with Lily Le Brun as she reflects on this seaside scene by Claude Monet.\n\nArticle\n\nClaude Monet’s ‘The Beach at Trouville’: Read more\n\nPintoricchio’s ‘Penelope with the Suitors’\n\n### Pintoricchio’s ‘Penelope with the Suitors’\n\n#### Picture of the month July 2026 [...] Article\n\nCaravaggio’s ‘Boy bitten by a Lizard’: Read more\n\nSavoldo's 'Mary Magdalene'\n\n### Savoldo's 'Mary Magdalene'\n\n#### Picture of the month April 2025\n\nLook beyond the dazzling silver shawl to discover the identity of this enigmatic woman\n\nVideo\n\nSavoldo's 'Mary Magdalene': Read more\n\nMonet's 'Bathers at La Grenouillère'\n\n### Monet's 'Bathers at La Grenouillère'\n\n#### Picture of the month February 2025 [...] What do schoolchildren think of Monet’s ‘Bathers at La Grenouillère’, and what do they want to know?\n\nVideo\n\nMonet's 'Bathers at La Grenouillère': Read more\n\nPieter Bruegel the Elder's 'The Adoration of the Kings'\n\n### Pieter Bruegel the Elder's 'The Adoration of the Kings'\n\n#### Picture of the month January 2025\n\nDelve into this sacred moment, filled with curious characters\n\nArticle\n\nPieter Bruegel the Elder's 'The Adoration of the Kings': Read more",
+        "score": 0.37127393,
+        "published_date": "Tue, 01 Sep 2026 01:00:00 GMT",
+        "raw_content": null,
+        "id": "46739c-02"
+      }
+    ],
+    "response_time": 1.52,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "2af38322-ba94-48de-aee7-9f7438d796e8"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 446,
+    "answer_sentences": 3,
+    "first_sentence": "The National Gallery in London will feature Monet's \"The Beach at Trouville\" as the Picture of the Month for September 2026.",
+    "result_count": 3,
+    "top_score": 0.61196244,
+    "top_url": "https://www.nationalgallery.org.uk/about-us/press-and-media/press-releases-archive/exclusive-preview-of-the-national-gallery-s-autumn-blockbuster-exhibition-renoir-and-love",
+    "top_published_date": "Mon, 10 Aug 2026 18:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

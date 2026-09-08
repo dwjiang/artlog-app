@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Yayoi Kusama",
+    "cohort": "famous",
+    "region": "new-york",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:13:53.122913+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.455,
+  "response": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "As of August 9, 2026, Yayoi Kusama, the renowned Japanese artist, passed away at the age of 97 in Tokyo. Her career spanned several decades, marked by her innovative contributions to various art forms including painting, sculpture, installation, and performance. Kusama's work, characterized by themes of infinity, accumulation, and polka dots, gained global recognition in recent years, with significant exhibitions and collaborations, including her museum in Tokyo and her partnership with Louis Vuitton. Despite her reclusive nature in her later years, her influence on contemporary art remains profound.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.nytimes.com/2026/09/02/arts/design/yayoi-kusama-final-years.html",
+        "title": "The Mysterious and Lonely Final Decade of Yayoi Kusama’s Life - The New York Times",
+        "content": "In April, the gallerist David Zwirner will exhibit a selection of Kusama’s final works in New York.\n\n“We’re so excited about the last decade,” the dealer said. “Arguably, this was the most extraordinary and successful decade of her career.”\n\nIt was also the most elusive, as the artist receded from view. [...] One of Kusama’s last public appearances was in 2017 at the opening of her museum in Tokyo. Longtime friends, curators and collectors said that she stopped receiving most guests in 2019 at the psychiatric hospital where she had lived for decades.\n\nYet her studio — a small group of assistants meant to carry out her artistic vision — was more prolific than ever, producing dozens of paintings and sculptures with her signature. [...] In 2024, a new pumpkin sculpture on the Yayoi Kusama Museum’s Tokyo rooftop prompted questions. Although it was signed and dated by the artist, it was created at a time when, according to those closest to her, she was mostly bedridden and making paintings with the help of assistants who carried small canvases to her.\n\nWe are having trouble retrieving the article content.\n\nPlease enable JavaScript in your browser settings.",
+        "score": 0.7125728,
+        "published_date": "Wed, 02 Sep 2026 15:14:25 GMT",
+        "raw_content": null,
+        "id": "55d7bc-00"
+      },
+      {
+        "url": "https://www.nytimes.com/interactive/2026/09/01/arts/yayoi-kusama-art-pieces.html",
+        "title": "The Genius of Yayoi Kusama in Three Works - The New York Times",
+        "content": "In December 1963, Kusama showed her first known immersive installation, “Aggregation: One Thousand Boats Show,” in a solo exhibition at Gertrude Stein Gallery, on Manhattan’s East 81st Street. [...] The mesmerizing art of Yayoi Kusama —who died in Tokyo on Aug. 14, at 97 — has in recent decades become ubiquitous, visible inblockbuster exhibitions and public spaces across the world,splashed across the facades of high-end luxury stores and snapped in thousands of selfies. But the characteristic motifs and themes — accumulation, infinity, love, life, death — of the artist born in 1929 in rural Japan, where creative expectations for women were nonexistent, have dominated her oeuvre since she [...] “I will keep painting until I die,” she told The Associated Press in 2012, and she did. Kusama also innovated across mediums including sculpture, installation, film, performance, fashion and literature. We look at three defining works in detail.\n\nPhoto of “Aggregation: One Thousand Boats Show” installation in New York, featuring a rowboat ornamented with white soft-sculpture protrusions.\n\nAggregation: One Thousand Boats Show",
+        "score": 0.7043437,
+        "published_date": "Tue, 01 Sep 2026 16:32:32 GMT",
+        "raw_content": null,
+        "id": "eb4605-01"
+      },
+      {
+        "url": "https://www.nytimes.com/2026/09/06/opinion/yayoi-kusama-art-tokyo.html",
+        "title": "Opinion | Yayoi Kusama’s Fame Eclipsed Her Art",
+        "content": "In 1988, when I met her, Yayoi Kusama had been living in a psychiatric hospital in Tokyo for over a decade, and was nearly forgotten by the art world in New York. As a graduate student researching postwar Japanese art, I had been invited to curate the opening exhibition at a new institution in New York, the Center for International Contemporary Arts (CICA). I chose Ms. Kusama, with the ambition to wrest her from obscurity. [...] Supported by\n\nGuest Essay\n\n# She Changed the World From an Asylum in Tokyo\n\nBy Alexandra Munroe\n\nMs. Munroe is a writer and senior curator at the Guggenheim Museum and organized Yayoi Kusama’s first retrospective exhibition. [...] There has been an outpouring of tributes to her after her death, at 97, in Tokyo. Everyone notes how she had a role in the Minimalism and Pop Art movements of the 1960s avant-garde when she lived in New York City before moving back to Tokyo in 1973. And they mention her late-in-life career revival, with record-smashing auction prices as a female artist, the crowds lined up at her mirrored immersive installations and the signature range of polka-dot luxury goods she designed — twice — for Louis",
+        "score": 0.5758033,
+        "published_date": "Sun, 06 Sep 2026 10:00:23 GMT",
+        "raw_content": null,
+        "id": "1e80d3-02"
+      },
+      {
+        "url": "https://www.nytimes.com/section/arts/design?page=4",
+        "title": "Art and Design - Page 4",
+        "content": "The monarch was invited to see the historic embroidery days before a major British Museum exhibition, almost 40 years after seeing it in France with Diana.\n\nBy\n\nThe Genius of Yayoi Kusama in Three Works\n\nMarking the artist’s death, and ahead of a retrospective at Amsterdam’s Stedelijk Museum, a critic chooses epic works that highlight Kusama’s creative range and impact.\n\nBy\n\nArt Gallery Shows to See in September [...] After several delays, George Lucas’s legacy project is finally ready to open. There’s less “Star Wars” than you might expect.\n\nBy Matt StevensRobin Pogrebin and\n\nAmbassador Who Removed Kehinde Wiley Work Described It as a Lesbian Picnic\n\nTrump officials recently removed a painting from the U.S. Embassy in the Dominican Republic without explaining why. An interview by Ambassador Leah Campos shed some light.\n\nBy\n\nThe Mysterious and Lonely Final Decade of Yayoi Kusama’s Life [...] Advertisement\n\nElaborate coffins, produced by Ghanaian artisans, are the centerpieces of funerals that celebrate the life of the deceased and get them to the afterlife in style.\n\nBy Patricia Leigh Brown\n\nIn her mass-produced ubiquity, Kusama became one of her own dots, spreading her image into every corner of our culture.\n\nBy Blake Gopnik",
+        "score": 0.5608546,
+        "published_date": "Sat, 22 Aug 2026 10:00:00 GMT",
+        "raw_content": null,
+        "id": "39bead-03"
+      },
+      {
+        "url": "https://www.nytimes.com/video/obituaries/100000003009467/the-last-word-gloria-steinem-obituary.html",
+        "title": "In Her Words: Gloria Steinem - The New York Times",
+        "content": "# In Her Words: Gloria Steinem\n\n## Watch Today’s Videos\n\n## More in Obituaries ›\n\nThe Philanthropic Life of Dolly Parton\n\n### The Philanthropic Life of Dolly Parton\n\nThe Japanese Artist Yayoi Kusama Dies at 97\n\n### The Japanese Artist Yayoi Kusama Dies at 97\n\nThe British Actor Tim Curry Dies at 80\n\n### The British Actor Tim Curry Dies at 80\n\nHayden Panettiere, Known for ‘Nashville’ and ‘Heroes,’ Dies at 36\n\n### Hayden Panettiere, Known for ‘Nashville’ and ‘Heroes,’ Dies at 36",
+        "score": 0.12814304,
+        "published_date": "Thu, 03 Sep 2026 10:07:10 GMT",
+        "raw_content": null,
+        "id": "b320b7-04"
+      }
+    ],
+    "response_time": 1.36,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "841a14ce-a24e-47fb-80f4-9882d4179c95"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 607,
+    "answer_sentences": 4,
+    "first_sentence": "As of August 9, 2026, Yayoi Kusama, the renowned Japanese artist, passed away at the age of 97 in Tokyo.",
+    "result_count": 5,
+    "top_score": 0.7125728,
+    "top_url": "https://www.nytimes.com/2026/09/02/arts/design/yayoi-kusama-final-years.html",
+    "top_published_date": "Wed, 02 Sep 2026 15:14:25 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

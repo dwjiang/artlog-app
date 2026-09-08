@@ -1,0 +1,222 @@
+{
+  "reviewer": "coding agent; qualitative inspection, not an independent human rating",
+  "rubric": "On-topic means a substantive artist-specific exhibition/news answer rather than a no-information message, unrelated answer, or generic biography. It does NOT mean correct, grounded, current, or geographically local.",
+  "cases": {
+    "empty-filter": {
+      "on_topic": false,
+      "note": "Fabricated-name control returned an unrelated Kusama/SFMOMA story, not an empty answer."
+    },
+    "empty-none": {
+      "on_topic": false,
+      "note": "Acknowledges no exact match but continues with an unrelated Lee Bul exhibition."
+    },
+    "right-now-famous-1-global-none": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Answers across modes contradict one another about death dates and whether the artist is alive."
+    },
+    "right-now-famous-1-london-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Answers across modes contradict one another about death dates and whether the artist is alive."
+    },
+    "right-now-famous-1-london-filter": {
+      "on_topic": true,
+      "note": "Reader recollections; first sentence supported, later retrospective wording does not establish current exhibitions."
+    },
+    "right-now-famous-1-new-york-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Answers across modes contradict one another about death dates and whether the artist is alive."
+    },
+    "right-now-famous-1-new-york-filter": {
+      "on_topic": true,
+      "note": "Answer invents August 9 death date; another retrieved snippet says August 14. Highest filtered score still fails grounding."
+    },
+    "right-now-famous-1-sf-bay-area-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Answers across modes contradict one another about death dates and whether the artist is alive."
+    },
+    "right-now-famous-1-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Artist-specific obituary and SFMOMA retrospective; first sentence supported by top snippet."
+    },
+    "right-now-famous-2-global-none": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-2-london-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-2-london-filter": {
+      "on_topic": true,
+      "note": "Current book story mixed with June obituary from related-content boilerplate."
+    },
+    "right-now-famous-2-new-york-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-2-new-york-filter": {
+      "on_topic": false,
+      "note": "Explicit no-information answer with unrelated streaming/category results."
+    },
+    "right-now-famous-2-sf-bay-area-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-2-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "June obituary from a recently dated category/archive page; not a new event inside the month."
+    },
+    "right-now-famous-3-global-none": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-3-london-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-3-london-filter": {
+      "on_topic": true,
+      "note": "Los Angeles museum and an LP auction; no London exhibition established."
+    },
+    "right-now-famous-3-new-york-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-3-new-york-filter": {
+      "on_topic": true,
+      "note": "Old street-art tour retold using a recently dated archive article; publication metadata is not event recency."
+    },
+    "right-now-famous-3-sf-bay-area-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims."
+    },
+    "right-now-famous-3-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Artist-specific museum opening in Los Angeles, outside the requested metro."
+    },
+    "right-now-famous-4-global-none": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Top story covers garden heat damage; some answers instead begin with exhibitions from other sources."
+    },
+    "right-now-famous-4-london-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Top story covers garden heat damage; some answers instead begin with exhibitions from other sources."
+    },
+    "right-now-famous-4-london-filter": {
+      "on_topic": true,
+      "note": "First sentence refers to a different painting than the top result; top-result attribution would be wrong."
+    },
+    "right-now-famous-4-new-york-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Top story covers garden heat damage; some answers instead begin with exhibitions from other sources."
+    },
+    "right-now-famous-4-new-york-filter": {
+      "on_topic": true,
+      "note": "French garden news plus merchandise; top source is a bag listing, not the source for the first sentence."
+    },
+    "right-now-famous-4-sf-bay-area-boost": {
+      "on_topic": true,
+      "note": "Artist-specific response, primarily outside the requested metro; topicality does not verify its claims. Top story covers garden heat damage; some answers instead begin with exhibitions from other sources."
+    },
+    "right-now-famous-4-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Museum-store results transformed into a claim that an exhibition is currently running; unsupported."
+    },
+    "right-now-local-1-london-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-1-new-york-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-1-sf-bay-area-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-2-london-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-2-new-york-filter": {
+      "on_topic": true,
+      "note": "Artist/work pairing supported in Met exhibition page; a different retrieved result is unrelated actor/film archive material."
+    },
+    "right-now-local-2-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Roundup answer blends descriptions of other artists into this artist; unsuitable without grounding."
+    },
+    "right-now-local-3-london-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-3-new-york-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-3-sf-bay-area-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-4-london-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-4-new-york-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-local-4-sf-bay-area-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-mid-1-london-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-mid-1-new-york-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-mid-1-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Local press mentions replacement of Mehretu atrium works; useful subject-specific local result."
+    },
+    "right-now-mid-2-london-filter": {
+      "on_topic": false,
+      "note": "Generic 2017 grant biography plus explicit lack of current exhibition information."
+    },
+    "right-now-mid-2-new-york-filter": {
+      "on_topic": true,
+      "note": "Museum exhibition includes the named work; official overview separately confirms ongoing on-view status."
+    },
+    "right-now-mid-2-sf-bay-area-filter": {
+      "on_topic": true,
+      "note": "Invented attribution of Objects: USA to Crosby; results include a sports-name collision."
+    },
+    "right-now-mid-3-london-filter": {
+      "on_topic": true,
+      "note": "Upcoming exhibition found, but answer uses past tense and copies a byline/venue text join as BECourtauld."
+    },
+    "right-now-mid-3-new-york-filter": {
+      "on_topic": false,
+      "note": "Generic diaspora-art narrative without a specific exhibition or news fact."
+    },
+    "right-now-mid-3-sf-bay-area-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-mid-4-london-filter": {
+      "on_topic": true,
+      "note": "Gallery selling exhibition; official page confirms June 5 to September 30, 2026."
+    },
+    "right-now-mid-4-new-york-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    },
+    "right-now-mid-4-sf-bay-area-filter": {
+      "on_topic": false,
+      "note": "No-information/abstention answer or unrelated results; no substantive artist-specific news."
+    }
+  }
+}

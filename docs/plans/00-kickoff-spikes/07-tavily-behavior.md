@@ -45,9 +45,13 @@ Design §7 makes three live Tavily calls part of the product and one background 
 
 ## Done criteria
 
-- [ ] Decision record exists with all six answers
-- [ ] `spikes/tavily/` committed; credit total recorded
-- [ ] `docs/plans/README.md` status row updated
+- [x] Decision record exists with all six answers
+- [x] `spikes/tavily/` committed; credit total recorded
+- [x] `docs/plans/README.md` status row updated
+
+Completed 2026-09-08: [decision 007](../../decisions/007-tavily.md), 71 requests,
+65 response-reported credits. Strict-host Map stop recorded; object-scale
+mapping and account usage reconciliation remain unverified. Keep Right now off.
 
 ## STOP conditions
 

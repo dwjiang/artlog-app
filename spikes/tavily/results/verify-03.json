@@ -1,0 +1,153 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"Water Lilies\" Claude Monet",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "metmuseum.org"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "Water Lilies",
+    "artist": "Claude Monet",
+    "museum": "Metropolitan Museum of Art",
+    "domain": "metmuseum.org"
+  },
+  "started_at": "2026-09-08T11:15:49.455471+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.891,
+  "response": {
+    "query": "Water Lilies Claude Monet",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/source",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted",
+      "https://vitruvius.museumseven.com/render/600-600@2/dp-489064-30.jpg",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/1546155/source",
+      "https://cdn.sanity.io/images/cctd4ker/production/89b9127d3bd39bc6aa10da96339ff32b848f96d5-810x1016.png"
+    ],
+    "results": [
+      {
+        "url": "https://www.metmuseum.org/art/collection/search/437137",
+        "title": "Claude Monet - Water Lilies - The Metropolitan Museum of Art",
+        "content": "# Water Lilies\n\nWater Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\n\n## Artwork Details\n\n## More Artwork\n\nBridge over a Pond of Water Lilies, Claude Monet  French, Oil on canvas\nViolin or Viola Bow, Brazilwood, other materials, French\nThe Afternoon Meal (La Merienda), Luis Meléndez  Spanish, Oil on canvas\nThe Bodmer Oak, Fontainebleau Forest, Claude Monet  French, Oil on canvas\nGlass Horn, Glass, French\n\n## Related Content\n\n### Perspectives [...] ### Perspectives\n\nArticles, audio, and video from The Met's online magazine.\n\n \n\n##### Exploring Late Monet with Art Historian Kathryn Calley Galitz\n\n##### George Condo on Claude Monet's The Path through the Irises\n\n### Timeline of Art History\n\nEntries and chronologies from The Met's art encyclopedia.\n\nWater lilies with red blooms float atop a green and blue water surface.\n\n##### Claude Monet (1840–1926)\n\n### Publications\n\nBooks, guides, and catalogues published by The Met.",
+        "score": 0.8380581,
+        "raw_content": null,
+        "images": [
+          "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437137/2018391/restricted",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DP-40794-001.jpg",
+          "https://images.metmuseum.org/CRDImages/mi/web-large/238693.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1570.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1560.jpg",
+          "https://images.metmuseum.org/CRDImages/mi/web-large/DP-15058-001.jpg",
+          "https://cdn.sanity.io/images/cctd4ker/production/3ff67a6c75da93b3aa6b180e3e6444edbe384621-250x304.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "9aae39-00"
+      },
+      {
+        "url": "https://customprints.metmuseum.org/detail/489058/monet-water-lilies",
+        "title": "Water Lilies by Claude Monet | Paper Print | Met Custom Prints",
+        "content": "As part of his extensive gardening plans at Giverny, Monet had a pond dug and planted with lilies in 1893. From 1899 on, he repeatedly turned to the subject, attempting to capture every observation, impression, and reflection of the flowers and water. By the time he began this work in the late teens, Monet had achieved a completely new, fluid, and somewhat audacious style of painting in which the water-lily pond became the point of departure for an almost abstract art. [...] Water Lilies, 1916-19. Claude Monet. Oil on canvas. Gift of Louise Reinhardt Smith, 1983. [...] Customize by size, choice of paper or canvas, and framing style.\n\nMet Custom Prints\n\nHome\n\n# Claude Monet\n\n## Water Lilies\n\nHome About Help View Bag Shop The Met Store\n\nExplore the Collection\n\nView All Prints\n\nArtists\n\nSubjects\n\nFeatured Categories\n\nPopular Themes\n\nAbstract\n\nFlowers\n\nHuman Figure\n\nInteriors\n\nLandscapes\n\nVintage Posters\n\nWaterscapes\n\nPopular Artists\n\nMary Cassatt\n\nEdward Hopper\n\nHenri Matisse\n\nClaude Monet\n\nWilliam Morris\n\nAuguste Renoir\n\nVincent van Gogh\n\nFeatured Movements",
+        "score": 0.79769903,
+        "raw_content": null,
+        "images": [
+          "https://customprints.metmuseum.org/vitruvius/render/1200/489058.jpg",
+          "https://customprints.metmuseum.org/img/museum_web/met/met-store-custom-prints-1000-4.png",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489052.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/488817.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489523.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/488801.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489069.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/494482.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489517.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489520.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/488788.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489181.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/489061.jpg",
+          "https://customprints.metmuseum.org/vitruvius/render/300/488790.jpg"
+        ],
+        "id": "258f7e-01"
+      },
+      {
+        "url": "https://www.metmuseum.org/perspectives/monet-conversation",
+        "title": "Exploring Late Monet with Art Historian Kathryn Calley Galitz - The Metropolitan Museum of Art",
+        "content": "Water Lilies (1916–19) by Monet\n\nClaude Monet (French, 1840–1926). Water Lilies, 1916–19. Oil on canvas, 351 1/4 x 79 in. (130.2 x 200.7 cm). The Metropolitan Museum of Art, New York, Gift of Louise Reinhardt Smith, 1983 (1983.532)\n\nPac Pobric: When did those financial concerns begin to disappear? [...] Monet's unfinished Luncheon on the Grass (1865–66)\n\nClaude Monet (French, 1840–1926). Luncheon on the Grass, 1865–66 (unfinished). Oil on canvas, 97 9/10 x 95 4/5 in. (248.7 x 218 cm). Musée d'Orsay, Paris (RF 1987 12)\n\nPac Pobric: What about the size of Water Lilies? It's quite big. There is some precedent for Monet working at this scale. I'm thinking of his Luncheon on the Grass from 1865–66 at the Musée d'Orsay. [...] Pac Pobric: What happened to some of the other water lily paintings at the time of Monet's death?\n\nKathy Galitz: Monet was friends with Georges Clemenceau [the Prime Minister of France during World War I] and after the signing of the Armistice in 1918, Monet presented his water lilies to France as a bouquet of flowers. During the war, while he was working in his studio in Giverny, he could hear the trains going to the front. That's pretty powerful.",
+        "score": 0.79119295,
+        "raw_content": null,
+        "images": [
+          "https://cdn.sanity.io/images/cctd4ker/production/cca3f8a98beb107f9c647bb946bbbe3b6740b6ed-3200x1800.jpg?w=600&q=75&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/02de1c442248d6af567f74124266df74f445b92a-720x540.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/f42946abe2ffc2c294153ca72d47c5c6192c3551-720x1085.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/fe219f0f6e64547d9d9fb32119aeecc8f40e921f-720x770.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/c99fbb57ab53f1957a13842757ddc684fae5f062-355x543.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/7d347d1d5433a2bd9896cd563f01bd1ca40efe36-720x265.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/0cd59e186d37ebb4863c502aeba86024432104cd-720x466.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/02de1c442248d6af567f74124266df74f445b92a-720x540.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "394f6e-02"
+      },
+      {
+        "url": "https://www.metmuseum.org/art/collection/search/438008",
+        "title": "Claude Monet - Water Lilies - The Metropolitan Museum of Art",
+        "content": "# Water Lilies\n\nWater Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\n\n## Artwork Details\n\n## Audio\n\nCover Image for 9503. Water Lilies\n\n# 9503. Water Lilies\n\n## Ellsworth Kelly [...] ##### Creating Access beyond metmuseum.org: The Met Collection on Wikipedia\n\n##### Explore Claude Monet's Paintings with Discoveries\n\n##### MetKids: Live from the Galleries\n\n### Timeline of Art History\n\nEntries and chronologies from The Met's art encyclopedia.\n\nWater lilies with red blooms float atop a green and blue water surface.\n\n##### Claude Monet (1840–1926)\n\n### Publications\n\nBooks, guides, and catalogues published by The Met. [...] ## More Artwork\n\nBridge over a Pond of Water Lilies, Claude Monet  French, Oil on canvas\nViolin or Viola Bow, Brazilwood, other materials, French\nThe Afternoon Meal (La Merienda), Luis Meléndez  Spanish, Oil on canvas\nWheat Field with Cypresses, Vincent van Gogh  Dutch, Oil on canvas\nThe Bodmer Oak, Fontainebleau Forest, Claude Monet  French, Oil on canvas\n\n## Related Content\n\n### Perspectives\n\nArticles, audio, and video from The Met's online magazine.",
+        "score": 0.78334314,
+        "raw_content": null,
+        "images": [
+          "https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DP-40794-001.jpg",
+          "https://images.metmuseum.org/CRDImages/mi/web-large/238693.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1570.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1560.jpg",
+          "https://cdn.sanity.io/images/cctd4ker/production/3ff67a6c75da93b3aa6b180e3e6444edbe384621-250x304.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "aae5dc-03"
+      },
+      {
+        "url": "https://www.metmuseum.org/art/collection/search/437127",
+        "title": "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
+        "content": "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas [...] Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\nBridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas [...] he built a Japanese style wooden bridge, to which he later added on a wisteria-covered trellis. Monet painted his garden over and over again. This picture, which is unusual in its vertical format, shows the Japanese bridge arching from one side of the composition to the other. You see the trees and the foliage above it, but you also see the reflection on the water surface. It's actually very difficult to paint water, and what Monet has tried to do is show the water lilies resting on the surface",
+        "score": 0.7610953,
+        "raw_content": null,
+        "images": [
+          "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/restricted",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1560.jpg",
+          "https://images.metmuseum.org/CRDImages/mi/web-large/DP-12679-017.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT1570.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DP130800.jpg",
+          "https://images.metmuseum.org/CRDImages/ep/web-large/DT48.jpg",
+          "https://cdn.sanity.io/images/cctd4ker/production/3ff67a6c75da93b3aa6b180e3e6444edbe384621-250x304.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "b09e9a-04"
+      }
+    ],
+    "response_time": 1.8,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "8a270ef9-b7dc-401c-a4b9-0ae4d20446df"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.8380581,
+    "top_url": "https://www.metmuseum.org/art/collection/search/437137",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

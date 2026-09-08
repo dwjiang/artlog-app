@@ -1,0 +1,102 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "David Hockney exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "boost"
+  },
+  "context": {
+    "artist": "David Hockney",
+    "cohort": "famous",
+    "region": "new-york",
+    "mode": "boost"
+  },
+  "started_at": "2026-09-08T11:14:07.278605+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.753,
+  "response": {
+    "query": "David Hockney exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "The David Hockney: Portraits in Print exhibition is on display at the National Gallery of Australia from September 5, 2026 to May 9, 2027. The exhibition highlights Hockney's early works and his experiences as a gay man finding his identity. The NGA holds one of the most significant collections of Hockney's works in the Southern Hemisphere.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.abc.net.au/news/2026-09-05/act-david-hockney-national-gallery-portrait-print-exhibition/107111980",
+        "title": "Before David Hockney painted the pool, he faked his art college diploma",
+        "content": "\"We will be making announcements about further engagement with the collection, our immense holdings of David Hockney,\" he says.\n\n\"As a gallery director, you have to keep things up your sleeve.\"\n\nTwo people looking at four color lithographs in a neo-cubist style hanging on the wall of an art gallery.\n\nThe David Hockney: Portraits in Print exhibition will be on display at the National Gallery of Australia from September 5, 2026 to May 9, 2027.(ABC News: Matt Roberts) [...] Early works of Hockney's, such as We Two Boys Together Clinging and Two Men in a Shower, celebrated gay relationships when homosexuality was still illegal in Britain, and while those are not featured in this exhibition, his experiences are tracked through sketches as a gay man finding his identity in his early career.\n\nHockney piece in the exhibition. \n\nHockney's A Rake's Progress, a semi-autobiographical series of 16 etchings.(ABC News: Matt Roberts) [...] Portrait of an Artist (Pool with Two Figures), painted by David Hockney (not featured in the NGA exhibition) sold for more than $124 million at auction in 2018. (Supplied: Christie's/David Hockney)\n\nThe exhibition underscores Hockney's pivotal collaboration with master printmaker Tyler.\n\nThe NGA holds more than 1,000 Hockney works, in what it describes as one of the most significant collections of Hockney in the Southern Hemisphere.",
+        "score": 0.82048416,
+        "published_date": "Fri, 04 Sep 2026 22:09:28 GMT",
+        "raw_content": null,
+        "id": "feed96-00"
+      },
+      {
+        "url": "https://www.reutersconnect.com/item/exhibition-david-hockney-25-at-the-fondation-vuitton-in-paris/dGFnOnJldXRlcnMuY29tLDIwMjU6bmV3c21sX1JDMkxUREFDNk5HUA",
+        "title": "Licensable picture: Exhibition \"David Hockney 25\" at the Fondation Vuitton in Paris | Reuters Connect",
+        "content": "# Exhibition \"David Hockney 25\" at the Fondation Vuitton in Paris\n\n## Licensable picture:\n\nA visitor looks at the painting \"Garrowby Hill, 1998\", reflected on a glass, by British painter David Hockney during a press visit ahead of the opening of the exhibition \"David Hockney 25\" at the Fondation Louis Vuitton in Paris, France, April 8, 2025. REUTERS/Gonzalo Fuentes [...] A visitor looks at the painting \"Garrowby Hill, 1998\", reflected on a glass, by British painter David Hockney during a press visit ahead of the opening of the exhibition \"David Hockney 25\" at the Fondation Louis Vuitton in Paris, France, April 8, 2025. REUTERS/Gonzalo Fuentes\n\n© 2026 Thomson Reuters.  \nAll rights reserved\n\nImage\n\n## Details\n\nDimensions & Size\n\n3952 x 2548 / 2.7MB\n\nCredit\n\nREUTERS\n\nSource\n\nREUTERS\n\nUSN\n\nRC2LTDAC6NGP\n\nByline\n\nGonzalo Fuentes\n\nCity\n\nPARIS\n\nCountry Name\n\nFRANCE [...] FRANCE\n\nSlug\n\nFRANCE-ART/DAVID HOCKNEY\n\n## Related content\n\n## Content loading",
+        "score": 0.7610953,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "03c70a-01"
+      },
+      {
+        "url": "https://www.myartbroker.com/artist-david-hockney/guides/a-buyers-guide-to-david-hockney-prints",
+        "title": "A Buyer’s Guide To David Hockney",
+        "content": "Exhibition posters and unsigned works form a separate category within the Hockney print market. While they do not carry the same long-term resale potential as numbered editions, original period posters can provide an accessible entry point for new collectors.\n\nBuyers should distinguish clearly between original exhibition posters and later reproductions, and verify condition carefully before purchase.\n\n“David Hockney is continually reaching out for that flame and he is endlessly curious.” [...] Other high-performing works include Afternoon Swimming (edition of 55), which has traded around £360,000, and digital landscapes such as A Bigger Green Valley, which has surpassed £300,000. Within Moving Focus, standout compositions such as Caribbean Tea Time have also exceeded £300,000. [...] These works feature vivid colour, layered composition, and strong visual immediacy. Not all digital prints were produced in identical edition sizes, and smaller editions tend to command stronger buyer interest. Institutional exhibitions have further reinforced the relevance of this category.\n\n### Posters and Accessible Works",
+        "score": 0.4475333,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "58c6bb-02"
+      },
+      {
+        "url": "https://news.artnet.com/art-world/david-hockney-betty-freeman-2803383",
+        "title": "The Story Behind One of David Hockney’s Most Beguiling Paintings",
+        "content": "_ from 1972.\n\nOverlooked in that canon is a stranger, more private painting: _Beverly Hills Housewife_, a 12-foot portrait that Hockney painted between 1966 and ’67. A new book by critic and curator James Cahill, out in the U.K. now and in the U.S. on November 3, argues the painting captures the artist’s new, “crystalline realist” style, and ultimately reveals two people—the artist and the subject—caught in a moment of transformation.\n\n### The best of Artnet News in your inbox. [...] _The Beverly Hills Housewife: Hockney’s Californian Muse and the World Beyond the Pool_ (Thames & Hudson) is out in the U.K. It publishes on November 3, 2026 in the U.S., and is available for pre-order.\n\nImage 7\n\n#### Jo Lawson-Tancred ##### European News Editor\n   \n   Deutsch\n   Francais\n\n   Facebook\n   Instagram\n   Twitter\n   Pinterest\n   LinkedIn\n   YouTube\n   Weibo\n\n©2026 Artnet Worldwide Corporation. All Rights Reserved.\n\n✓\n\nThanks for sharing!\n\nAddToAny\n\nMore…\n\nImage 22 [...] Sign up for our daily newsletter.\n\n   ## The best of Artnet News in your inbox.\n\n Sign up for our daily newsletter.    Please enter a valid email address Signup failed. Please try again later.   Thank you!You have successfully subscribed to Artnet News.",
+        "score": 0.42534322,
+        "published_date": "Tue, 01 Sep 2026 15:13:03 GMT",
+        "raw_content": null,
+        "id": "8b9214-03"
+      }
+    ],
+    "response_time": 2.65,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "2cdfb988-7e3d-4d6d-824c-d13d10a78a59"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 342,
+    "answer_sentences": 3,
+    "first_sentence": "The David Hockney: Portraits in Print exhibition is on display at the National Gallery of Australia from September 5, 2026 to May 9, 2027.",
+    "result_count": 4,
+    "top_score": 0.82048416,
+    "top_url": "https://www.abc.net.au/news/2026-09-05/act-david-hockney-national-gallery-portrait-print-exhibition/107111980",
+    "top_published_date": "Fri, 04 Sep 2026 22:09:28 GMT",
+    "top_in_window": true,
+    "outside_domains": 4
+  }
+}
