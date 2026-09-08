@@ -68,7 +68,9 @@ not accepted as robots, TDM JSON, or a sitemap. Absence of a TDM signal on a
 policy endpoint does not prove absence on unvisited object pages.
 
 Tests cover count boundaries, robots errors and path matching, sitemap
-classification, and rate-limit handling without network access. The source
+classification, interrupted rate-limit responses, cached CSV reuse, and failed
+type discovery without network access. Both venue probes share robots-response
+validation. The source
 score configuration is in `jobs/config/source-scores.json`; plan 02.06 creates
 `jobs/config/venues.seed.json` from the decision table after rechecking policy.
 

@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from protego import Protego
 
 from probe import Probe, UA, now, save
+from robots import robots_policy
 
 
 def object_urls(locations):
@@ -26,13 +27,15 @@ def run():
     probe = Probe(interval=10)
     output = {"started_at": now(), "object_pages_fetched": 0}
     origin = "https://www.clevelandart.org"
-    record, robots = probe.request(origin + "/robots.txt")
+    record, robots = probe.request(origin + "/robots.txt", max_bytes=512_000)
     output["robots"] = record
-    if record["status"] != 200:
+    policy = robots_policy(record, robots, origin + "/")
+    output["robots_policy"] = policy
+    if policy["verdict"] not in ("parsed", "not_present"):
         save("replacement", output)
         return
-    rules = Protego.parse(robots)
-    probe.interval = max(10, rules.crawl_delay(UA) or 0)
+    rules = Protego.parse(robots if policy["verdict"] == "parsed" else "")
+    probe.interval = max(10, policy.get("crawl_delay") or 0)
     for path in ["/sitemap.xml?page=1", "/sitemap.xml?page=2", "/art/1927.393"]:
         url = origin + path
         if not rules.can_fetch(url, UA):
@@ -55,10 +58,11 @@ def run():
         output[path] = evidence
     # Separate, documented public API origin; never use the disallowed website /api path.
     api = "https://openaccess-api.clevelandart.org"
-    record, body = probe.request(api + "/robots.txt")
-    output["api_robots"] = {"request": record, "body": body if record["status"] == 200 else None}
-    allowed = record["status"] in (404, 410) or (record["status"] == 200 and "<html" not in body.lower() and Protego.parse(body).can_fetch(api + "/api/artworks/", UA))
-    if allowed:
+    record, body = probe.request(api + "/robots.txt", max_bytes=512_000)
+    policy = robots_policy(record, body, api + "/api/artworks/")
+    output["api_robots"] = {"request": record, "policy": policy, "body": body if policy["verdict"] == "parsed" else None}
+    probe.interval = max(probe.interval, policy.get("crawl_delay") or 0)
+    if policy.get("allowed"):
         record, data = probe.json(api + "/api/artworks/?type=Painting&cc0&currently_on_view&limit=1&fields=id,accession_number,title,url,share_license_status,current_location")
         output["on_view_api"] = {"request": record, "response": data}
     save("replacement", output)

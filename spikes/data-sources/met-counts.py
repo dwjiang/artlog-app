@@ -34,12 +34,16 @@ def run():
     parser.add_argument("--sample-size", type=int, default=30, choices=range(1, 101))
     args = parser.parse_args()
     probe = Probe()
-    _, commit = probe.json("https://api.github.com/repos/metmuseum/openaccess/commits/master")
-    revision = commit["sha"]
-    url = f"https://media.githubusercontent.com/media/metmuseum/openaccess/{revision}/MetObjects.csv"
-    output = {"started_at": now(), "csv_url": url}
+    output = {"started_at": now()}
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     if not args.csv.exists():
+        _, commit = probe.json("https://api.github.com/repos/metmuseum/openaccess/commits/master")
+        if not commit or not commit.get("sha"):
+            output.update(counts=None, reason="CSV revision discovery failed; no local snapshot is available.", requests=probe.records)
+            save("met", output)
+            return
+        revision = commit["sha"]
+        url = f"https://media.githubusercontent.com/media/metmuseum/openaccess/{revision}/MetObjects.csv"
         with httpx.stream("GET", url, headers={"User-Agent": UA}, timeout=65, follow_redirects=True) as response:
             response.raise_for_status()
             partial = args.csv.with_suffix(".partial")
@@ -61,11 +65,11 @@ def run():
     output["primary_image_small_count"] = None
     output["primary_image_small_reason"] = "CSV has no image URLs; bounded API sample is not a census."
     output["sample"] = {"method": "random.sample on sorted eligible IDs; seed 5", "objects": []}
+    output["requests"] = probe.records.copy()
     fields = ["objectID", "classification", "isPublicDomain", "primaryImageSmall", "GalleryNumber", "objectWikidata_URL", "accessionNumber"]
     for object_id in random.Random(5).sample(eligible, min(args.sample_size, len(eligible))):
         record, data = probe.json(BASE + f"/objects/{object_id}")
         output["sample"]["objects"].append({"request": record, "data": {k: data.get(k) for k in fields} if data else None})
-    output["requests"] = probe.records[:1]
     save("met", output)
 
 

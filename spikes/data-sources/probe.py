@@ -48,31 +48,32 @@ class Probe:
             return record, ""
         time.sleep(max(0, self.last.get(host, 0) + self.interval - time.monotonic()))
         started = time.monotonic()
-        record = {"url": url, "checked_at": now(), "method": method, "user_agent": ua}
+        record = {"url": url, "checked_at": now(), "method": method, "user_agent": ua, "status": None}
         self.last[host] = started
+        body = bytearray()
         try:
             with self.client.stream(method, url, headers={"User-Agent": ua, **(headers or {})}) as response:
-                body = bytearray()
-                for chunk in response.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > max_bytes:
-                        break
                 record.update(
                     status=response.status_code,
                     headers={k: v for k, v in response.headers.items() if k in {
                         "content-type", "content-length", "content-signal", "tdm-reservation",
                         "retry-after", "etag", "last-modified", "location", "server", "content-range",
                     }},
-                    bytes_read=len(body),
-                    truncated=len(body) > max_bytes,
-                    sha256=hashlib.sha256(body).hexdigest(),
                 )
-                text = body.decode("utf-8", errors="replace")
                 if response.status_code == 429:
                     self.blocked_hosts.add(host)
+                for chunk in response.iter_bytes():
+                    body.extend(chunk)
+                    if len(body) > max_bytes:
+                        break
         except httpx.HTTPError as error:
-            record.update(status=None, error=f"{type(error).__name__}: {error}")
-            text = ""
+            record["error"] = f"{type(error).__name__}: {error}"
+        record.update(
+            bytes_read=len(body),
+            truncated="error" in record or len(body) > max_bytes,
+            sha256=hashlib.sha256(body).hexdigest(),
+        )
+        text = body.decode("utf-8", errors="replace")
         record["elapsed_seconds"] = round(time.monotonic() - started, 3)
         self.records.append(record)
         print(f"{record['status']} {url[:140]}", flush=True)

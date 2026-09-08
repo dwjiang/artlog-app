@@ -5,6 +5,13 @@ from probe import Probe, now, save
 
 BASE = "https://api.artic.edu/api/v1"
 FIELDS = "id,title,artwork_type_title,artwork_type_id,image_id,is_public_domain,is_on_view,gallery_title,copyright_notice,main_reference_number"
+COUNT_FILTERS = {
+    "paintings": [],
+    "paintings_with_image": [{"exists": {"field": "image_id"}}],
+    "paintings_with_image_public_domain": [{"exists": {"field": "image_id"}}, {"term": {"is_public_domain": True}}],
+    "paintings_with_image_on_view": [{"exists": {"field": "image_id"}}, {"term": {"is_on_view": True}}],
+    "paintings_with_image_public_domain_on_view": [{"exists": {"field": "image_id"}}, {"term": {"is_public_domain": True}}, {"term": {"is_on_view": True}}],
+}
 
 
 def run():
@@ -13,19 +20,16 @@ def run():
     output = {"started_at": now(), "counts": {}, "samples": {}}
     _, types = probe.json(BASE + "/artwork-types?limit=100", headers=headers)
     output["artwork_types"] = types
-    painting = next(row for row in types["data"] if row["title"] == "Painting")
+    painting = next((row for row in types.get("data", []) if row["title"] == "Painting"), None) if types else None
+    if painting is None:
+        reason = "Painting type discovery failed; dependent counts were not queried."
+        output["counts"] = {name: {"count": None, "reason": reason} for name in COUNT_FILTERS}
+        output["requests"] = probe.records
+        save("aic", output)
+        return
     filters = [{"term": {"artwork_type_id": painting["id"]}}]
-    image = {"exists": {"field": "image_id"}}
-    public = {"term": {"is_public_domain": True}}
-    on_view = {"term": {"is_on_view": True}}
-    for name, clauses in {
-        "paintings": filters,
-        "paintings_with_image": filters + [image],
-        "paintings_with_image_public_domain": filters + [image, public],
-        "paintings_with_image_on_view": filters + [image, on_view],
-        "paintings_with_image_public_domain_on_view": filters + [image, public, on_view],
-    }.items():
-        params = {"query": {"bool": {"filter": clauses}}, "limit": 0}
+    for name, clauses in COUNT_FILTERS.items():
+        params = {"query": {"bool": {"filter": filters + clauses}}, "limit": 0}
         record, data = probe.json(BASE + "/artworks/search?" + urlencode({"params": json.dumps(params)}), headers=headers)
         output["counts"][name] = {"params": params, "count": data["pagination"]["total"] if data else None, "request": record}
     for label, object_id in [("public_domain", 27992)]:

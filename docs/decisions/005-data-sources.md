@@ -376,7 +376,7 @@ paywalls or interpret a high score as an access grant.
 
 ## Verification and remaining work
 
-- Reproducible probes, `uv.lock`, and **13 passing offline tests** are under
+- Reproducible probes, `uv.lock`, and **32 passing offline tests** are under
   [spikes/data-sources](../../spikes/data-sources/README.md). Raw bulk metadata,
   native build products, and screenshots stay in ignored `.context/`.
 - `npx tsc --noEmit` was run. It fails in unchanged app files on missing CSS
