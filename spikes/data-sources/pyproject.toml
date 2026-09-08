@@ -1,0 +1,16 @@
+[project]
+name = "artlog-data-sources-spike"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28,<0.29",
+    "protego>=0.5,<0.6",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+python_files = ["*.test.py"]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]

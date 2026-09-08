@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-09-08",
+  "contacts_sent": [],
+  "met_inquiry": {
+    "recipient": "openaccess@metmuseum.org",
+    "status": "draft_unsent",
+    "reason": "No email connector or sender identity is available in this session. This is not a no-reply observation.",
+    "draft": "../met-inquiry.md"
+  }
+}
