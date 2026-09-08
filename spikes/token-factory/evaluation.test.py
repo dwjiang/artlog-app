@@ -9,6 +9,7 @@ from evaluation import (
     summarize,
     token_cost,
     reserve,
+    request_reservation,
 )
 
 
@@ -64,6 +65,30 @@ def test_budget_reserves_before_a_request_and_refuses_an_overrun():
         {"prompt_tokens": 1000, "completion_tokens": 100},
         {"input_per_million": 0.3, "output_per_million": 0.9},
     ) == pytest.approx(0.00039)
+
+
+def test_model_bound_fits_remaining_budget_without_releasing_failed_calls():
+    model = {
+        "input_per_million": 0.95,
+        "output_per_million": 4,
+        "max_model_len": 262144,
+        "reservation_usd": 0.30,
+    }
+    amount = request_reservation(model, 2048, 1.0)
+    assert reserve(4.041965018, amount, 4.5) == pytest.approx(4.341965018)
+    with pytest.raises(ValueError, match="budget"):
+        reserve(4.041965018, request_reservation({}, 2048, 1.0), 4.5)
+
+
+def test_model_reservation_must_cover_full_context_and_output_ceiling():
+    model = {
+        "input_per_million": 0.95,
+        "output_per_million": 4,
+        "max_model_len": 262144,
+        "reservation_usd": 0.25,
+    }
+    with pytest.raises(ValueError, match="maximum token cost"):
+        request_reservation(model, 2048, 1.0)
 
 
 def test_invalid_output_does_not_get_credit_for_null_fields():

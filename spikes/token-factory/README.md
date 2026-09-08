@@ -18,7 +18,7 @@ cd spikes/token-factory
 uv sync --locked
 uv run pytest -q
 uv run --env-file ../../.env.local python list-models.py
-uv run --env-file ../../.env.local python label-eval.py
+uv run --env-file ../../.env.local python label-eval.py --model kimi
 uv run --env-file ../../.env.local python docent-eval.py
 uv run --env-file ../../.env.local python factsheet-eval.py
 uv run --env-file ../../.env.local python moderation-eval.py
@@ -30,7 +30,9 @@ agent guide; these correspond to the underscore names proposed by the plan.
 
 Each script supports `--limit 1` for a pilot, `--model <alias>` for one candidate,
 `--mode json_schema|json_object`, and `--tag <name>` for a separate experiment.
-The default is `json_schema`, with thinking disabled. `--default-thinking`
+The default is `json_schema`, with thinking disabled using the model's template
+parameter (`thinking: false` for Kimi, `enable_thinking: false` for the original
+candidates). `--default-thinking`
 omits that optional chat-template override; it was used for the final GLM
 availability probe. Rerunning an unchanged protocol resumes the
 remaining fixtures without duplicating recorded requests. Recorded failures
@@ -48,11 +50,22 @@ uv run python moderation-eval.py --score-only
 
 The scripts serialize requests with a local lock, disable SDK retries, and stop
 on an API error. The timeout is 180 seconds; the first GLM pilot used 55 seconds.
-`results/budget.json` reserves $1 before every call against a $4.50 ceiling,
-then replaces it with the usage-based estimate on success. Unknown billing
+`results/budget.json` reserves $1 by default before a call against a $4.50
+ceiling, then replaces it with the usage-based estimate on success. Kimi uses
+a $0.30 reservation: the provider's listed maximum context of 262,144 tokens
+at $0.95/M input plus the 2,048-token output ceiling at $4/M costs at most
+$0.257229 at those rates, conservatively counting the full context as input.
+The runner rejects a model-specific reservation below that calculated bound.
+All four $1 GLM failure reservations remain in the ledger; neither the ledger
+nor the ceiling was reset to run Kimi. Unknown billing
 after a timeout keeps the full reservation. An initial $0.01 allowance covers
 three setup probes. Rates are recorded in `config.json`; token counts include
 reasoning tokens in the provider's completion count and assume uncached input.
+The [public metadata snapshot](results/public-models-info.json) records current
+provider rates, modalities and context limits. It is available without a
+browser through the URLs advertised by the Token Factory pricing page:
+`https://tokenfactory.nebius.com/api/public/models_info` and
+`https://tokenfactory.nebius.com/model-catalog.md`.
 The ledger is a conservative local estimate, not the provider's invoice or a
 cap on other clients using the same account. Do not delete it to resume this
 spike. The $0.50 margin and per-call reservation protect the plan's $5 budget

@@ -102,6 +102,19 @@ def reserve(spent, amount, limit):
     return spent + amount
 
 
+def request_reservation(model, max_tokens, default):
+    if "reservation_usd" not in model:
+        return default
+    amount = model["reservation_usd"]
+    maximum_cost = token_cost(
+        {"prompt_tokens": model["max_model_len"], "completion_tokens": max_tokens},
+        model,
+    )
+    if not math.isfinite(amount) or amount < maximum_cost:
+        raise ValueError("Model reservation must cover its maximum token cost")
+    return amount
+
+
 def client():
     key = os.environ.get("NEBIUS_API_KEY")
     if not key or key == "your-nebius-api-key":
@@ -293,8 +306,15 @@ def run(suite):
         fcntl.flock(lock, fcntl.LOCK_EX)
         for model_key in [args.model] if args.model else settings["models"]:
             model = config["models"][model_key]
+            reservation = request_reservation(
+                model, settings["max_tokens"], config["reservation_usd"]
+            )
             output = results / f"{suite}-{model_key}-{args.mode}-{args.tag}.json"
-            template = None if args.default_thinking else {"enable_thinking": False}
+            template = (
+                None
+                if args.default_thinking
+                else model.get("chat_template_kwargs", {"enable_thinking": False})
+            )
             protocol = {
                 "suite": suite,
                 "model": model,
@@ -344,7 +364,7 @@ def run(suite):
                         )
                         before = budget["estimated_spend_usd"]
                         budget["estimated_spend_usd"] = reserve(
-                            before, config["reservation_usd"], config["budget_usd"]
+                            before, reservation, config["budget_usd"]
                         )
                         write_json(budget_path, budget)
                         start = time.monotonic()
@@ -352,7 +372,7 @@ def run(suite):
                             "fixture_id": fixture["id"],
                             "repeat": repeat,
                             "started_at": datetime.now(timezone.utc).isoformat(),
-                            "estimated_usd": config["reservation_usd"],
+                            "estimated_usd": reservation,
                         }
                         try:
                             response = api.chat.completions.create(
@@ -409,7 +429,7 @@ def run(suite):
                             raise SystemExit(
                                 f"API failure recorded (HTTP {record.get('http_status')}); stopped without retry"
                             )
-                        if record["estimated_usd"] > config["reservation_usd"]:
+                        if record["estimated_usd"] > reservation:
                             raise SystemExit(
                                 "Request exceeded its conservative cost reservation; stopped"
                             )

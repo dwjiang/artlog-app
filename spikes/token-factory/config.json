@@ -1,6 +1,6 @@
 {
   "pricing_date": "2026-09-08",
-  "pricing_basis": "Plan 00.04 recorded public list rates; estimates exclude cache discounts and are not invoice totals.",
+  "pricing_basis": "Nebius public models_info fetched 2026-09-08 (results/public-models-info.json); original candidates' rates match the plan. Estimates exclude cache discounts and are not invoice totals.",
   "budget_usd": 4.5,
   "reservation_usd": 1.0,
   "models": {
@@ -8,10 +8,19 @@
     "minicpm": {"id": "openbmb/MiniCPM-V-4_5", "input_per_million": 0.658, "output_per_million": 1.11},
     "lightning": {"id": "nvidia/Nemotron-3_5-Lightning", "input_per_million": 0.06, "output_per_million": 0.24},
     "nano": {"id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B", "input_per_million": 0.06, "output_per_million": 0.24},
-    "super": {"id": "nvidia/nemotron-3-super-120b-a12b", "input_per_million": 0.3, "output_per_million": 0.9}
+    "super": {"id": "nvidia/nemotron-3-super-120b-a12b", "input_per_million": 0.3, "output_per_million": 0.9},
+    "kimi": {
+      "id": "moonshotai/Kimi-K2.6",
+      "input_per_million": 0.95,
+      "output_per_million": 4,
+      "max_model_len": 262144,
+      "reservation_usd": 0.3,
+      "pricing_basis": "Nebius public models_info, fetched 2026-09-08; results/public-models-info.json",
+      "chat_template_kwargs": {"thinking": false}
+    }
   },
   "suites": {
-    "label": {"models": ["glm", "minicpm"], "manifest": "labels/manifest.json", "repeats": 1, "max_tokens": 2048},
+    "label": {"models": ["glm", "minicpm", "kimi"], "manifest": "labels/manifest.json", "repeats": 1, "max_tokens": 2048},
     "docent": {"models": ["lightning", "nano"], "manifest": "fixtures/docent.json", "repeats": 3, "max_tokens": 1024},
     "factsheet": {"models": ["super"], "manifest": "fixtures/factsheet.json", "repeats": 1, "max_tokens": 4096},
     "moderation": {"models": ["lightning"], "manifest": "fixtures/moderation.json", "repeats": 1, "max_tokens": 256}
