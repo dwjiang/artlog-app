@@ -38,16 +38,15 @@ printed by the CLI. Generate the temporary deploy key into that ignored file:
 ```sh
 npx convex deployment token create vector-scale-spike --deployment YOUR_TEAM:artlog-spike-vectors:scale-spike --save-env .env.spike.local
 npx convex dev --once --env-file .env.spike.local
-set -a
-source .env.spike.local
-set +a
-npx convex codegen
+uv run --env-file .env.spike.local npx convex codegen
 ```
 
-Keep these variables scoped to the spike shell. Do not replace the app's
-deployment configuration. The scripts check that `CONVEX_DEPLOYMENT` is `dev:`
-and matches `CONVEX_URL`. All backend functions are internal; the Python client
-uses `set_admin_auth(CONVEX_DEPLOY_KEY)`.
+These commands load `.env.spike.local` as dotenv data and keep its variables
+scoped to the invoked process. The CLI writes an unquoted deploy key containing
+`|`, so sourcing the file as a shell script would interpret the key as a
+pipeline. The scripts check that
+`CONVEX_DEPLOYMENT` is `dev:` and matches `CONVEX_URL`. All backend functions are
+internal; the Python client uses `set_admin_auth(CONVEX_DEPLOY_KEY)`.
 
 ## Full Pro run
 
@@ -57,15 +56,15 @@ Only one writer may append a given version. Do not manually change vector rows
 or checkpoints. A deleted version cannot be seeded again in the same deployment.
 
 ```sh
-uv run python seed.py --target 5000 --batch-size 1000 --output results/pro/insert-1000.jsonl
-uv run python seed.py --target 10000 --batch-size 500 --output results/pro/insert-500.jsonl
-uv run python seed.py --target 100000 --output results/pro/insert-100k.jsonl
-uv run python bench.py --rows 100000 --output results/pro/search-100k.jsonl
-uv run python seed.py --target 300000 --output results/pro/insert-300k.jsonl
-uv run python bench.py --rows 300000 --output results/pro/search-300k.jsonl
-uv run python seed.py --target 1000000 --output results/pro/insert-1m.jsonl
-uv run python bench.py --rows 1000000 --output results/pro/search-1m.jsonl
-uv run python bench.py --rows 1000000 --migration --output results/pro/migration.jsonl
+uv run --env-file .env.spike.local python seed.py --target 5000 --batch-size 1000 --output results/pro/insert-1000.jsonl
+uv run --env-file .env.spike.local python seed.py --target 10000 --batch-size 500 --output results/pro/insert-500.jsonl
+uv run --env-file .env.spike.local python seed.py --target 100000 --output results/pro/insert-100k.jsonl
+uv run --env-file .env.spike.local python bench.py --rows 100000 --output results/pro/search-100k.jsonl
+uv run --env-file .env.spike.local python seed.py --target 300000 --output results/pro/insert-300k.jsonl
+uv run --env-file .env.spike.local python bench.py --rows 300000 --output results/pro/search-300k.jsonl
+uv run --env-file .env.spike.local python seed.py --target 1000000 --output results/pro/insert-1m.jsonl
+uv run --env-file .env.spike.local python bench.py --rows 1000000 --output results/pro/search-1m.jsonl
+uv run --env-file .env.spike.local python bench.py --rows 1000000 --migration --output results/pro/migration.jsonl
 ```
 
 Record the dashboard's database and search storage after **each** stable size,
@@ -76,7 +75,8 @@ The migration runner starts the doubled measurement immediately after insertion,
 then deletes v2; capture storage concurrently or run those phases manually via
 the functions in `benchmark.py` when dashboard accounting needs time.
 
-For the 30k fallback, seed v1 to 15,000, run `bench.py --rows 15000 --migration`,
+For the 30k fallback, use the same `uv run --env-file .env.spike.local python`
+prefix: seed v1 to 15,000, run `bench.py --rows 15000 --migration`,
 then append v1 to 30,000 and run `bench.py --rows 30000`. This measures a smaller
 15k→30k migration without exceeding the fallback row count. Do not run 100k
 on Free: its raw float payload alone is 1.229 GB.
