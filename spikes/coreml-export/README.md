@@ -93,13 +93,22 @@ To obtain the full disjoint sets when access is restored:
 .venv/bin/python calibration.py prepare --size 448
 ```
 
-Collection uses the Met's paginated v1.1 search, a deterministic hash ordering,
-four download workers, public-domain painting filtering and image-byte/URL
-deduplication. It stops on an access refusal; it does not evade one. Successful
-completion writes 200 calibration URLs and 2,000 different index URLs. Partial
-progress is cached under `artifacts/`; existing committed lists are replaced only
-when a complete set exists. `prepare` downloads missing images from the chosen
-list and writes hashed `.rgb` buffers and manifests under `artifacts/`.
+Collection uses the Met's paginated v1.1 search, deterministic hash ordering,
+public-domain painting filtering and image-byte/URL deduplication. A single
+session spaces request starts at least one second apart. Intermittent HTTP 403,
+429, server errors and connection failures get at most four attempts with
+15/30/60-second cooldowns. A longer `Retry-After` is honored; waits over five
+minutes stop the run for a later resume. HTTP 401 stops immediately, and missing
+objects (404/410) are skipped.
+
+Search pages, metadata and image downloads are cached under `artifacts/`.
+`collection-state.json` saves the frozen candidate order, accepted images and
+next object after each completed object using atomic replacement. Re-running
+the same command resumes at a failed object without repeating earlier requests.
+Persistent failures leave the published lists intact. Successful completion
+writes 200 calibration URLs and 2,000 different index URLs. `prepare` downloads
+missing images from the chosen list and writes hashed `.rgb` buffers and
+manifests under `artifacts/`.
 
 ```sh
 .venv/bin/python drift_check.py --size 512 --torch-device mps
@@ -177,8 +186,9 @@ xcodebuild -project BenchApp/BenchApp.xcodeproj -scheme BenchApp \
   -derivedDataPath artifacts/build CODE_SIGNING_ALLOWED=NO
 ```
 
-The tests cover cosine/nearest-neighbor semantics, invalid vectors, letterbox
-pixels, and equality between compressed CoreML constants and the recovered
-PyTorch checkpoint. The real-model drift runs validate every measured output for
+The tests cover paced requests, retry limits and cooldowns, collection resumption,
+cosine/nearest-neighbor semantics, invalid vectors, letterbox pixels, and equality
+between compressed CoreML constants and the recovered PyTorch checkpoint.
+The real-model drift runs validate every measured output for
 finite values. No Expo package, application route or product model-version file
 is changed by this spike.
