@@ -1,0 +1,75 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Julie Mehretu exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Julie Mehretu",
+    "cohort": "mid",
+    "region": "new-york",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:34.607258+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.215,
+  "response": {
+    "query": "Julie Mehretu exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "The provided data sources do not contain specific information about Julie Mehretu's exhibition or news. The data focuses on Rashid Johnson and his exhibitions, as well as related events and analyses. For the most up-to-date information on Julie Mehretu's exhibition or news, I recommend checking reputable art news sources directly, such as the official website of the museum hosting her exhibition or major art publications like The New York Times or Artforum.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.nytimes.com/topic/rashid-johnson",
+        "title": "Rashid Johnson - The New York Times",
+        "content": "By Holland Cotter\n\nA major exhibition by the acclaimed artist will fill Frank Lloyd Wright’s rotunda with plants and artwork. Johnson stepped down from the Guggenheim’s board last year.\n\nBy Hilarie M. Sheets\n\nThe artist, and his wife, Sheree Hovsepian, hosted a party at their East Hampton home on Saturday to benefit Creative Time, a public art nonprofit that is celebrating its 50th anniversary.\n\nBy Alex Vadukul [...] ### An Art World Soiree in a Secret Garden on Minorca\n\nJust before the opening of an exhibition Rashid Johnson organized on the island, he and Sheree Hovsepian invited people over to their new residency.\n\nBy Chantel Tattoli\n\nJust before the opening of an exhibition Rashid Johnson organized on the island, he and Sheree Hovsepian invited people over to their new residency.\n\nBy Chantel Tattoli [...] By Rachel Sherman\n\nHauser & Wirth artists have major exhibitions everywhere you look, as a new analysis shows the rising influence of powerful art galleries on the city’s top museums.\n\nBy Zachary Small and Julia Halperin\n\nThe artist’s first major museum survey fills Frank Lloyd Wright’s spiral with a rich mix of media, a view of the polymathic flux of a 25-year career, and a sense of healing.\n\nBy Holland Cotter",
+        "score": 0.030516557,
+        "published_date": "Fri, 14 Aug 2026 00:00:00 GMT",
+        "raw_content": null,
+        "id": "a56b89-00"
+      }
+    ],
+    "response_time": 1.12,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "075fdb22-2c2b-4cf8-80d5-a32ee3a471ca"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 461,
+    "answer_sentences": 3,
+    "first_sentence": "The provided data sources do not contain specific information about Julie Mehretu's exhibition or news.",
+    "result_count": 1,
+    "top_score": 0.030516557,
+    "top_url": "https://www.nytimes.com/topic/rashid-johnson",
+    "top_published_date": "Fri, 14 Aug 2026 00:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

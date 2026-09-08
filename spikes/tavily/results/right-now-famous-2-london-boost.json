@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "David Hockney exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "boost"
+  },
+  "context": {
+    "artist": "David Hockney",
+    "cohort": "famous",
+    "region": "london",
+    "mode": "boost"
+  },
+  "started_at": "2026-09-08T11:14:10.033415+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.192,
+  "response": {
+    "query": "David Hockney exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "David Hockney's exhibition \"David Hockney: Portraits in Print\" is on display at the National Gallery of Australia from September 5, 2026, to May 9, 2027. The exhibition highlights Hockney's early works and his experiences as a gay man finding his identity. The National Gallery of Australia holds one of the most significant collections of Hockney's works in the Southern Hemisphere. Additionally, the National Gallery, London, will host a tour titled \"David Hockney through the collection: A lifelong source of inspiration\" on November 18, 2026, exploring Hockney's inspirations from the gallery's collection.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.abc.net.au/news/2026-09-05/act-david-hockney-national-gallery-portrait-print-exhibition/107111980",
+        "title": "Before David Hockney painted the pool, he faked his art college diploma",
+        "content": "\"We will be making announcements about further engagement with the collection, our immense holdings of David Hockney,\" he says.\n\n\"As a gallery director, you have to keep things up your sleeve.\"\n\nTwo people looking at four color lithographs in a neo-cubist style hanging on the wall of an art gallery.\n\nThe David Hockney: Portraits in Print exhibition will be on display at the National Gallery of Australia from September 5, 2026 to May 9, 2027.(ABC News: Matt Roberts) [...] Early works of Hockney's, such as We Two Boys Together Clinging and Two Men in a Shower, celebrated gay relationships when homosexuality was still illegal in Britain, and while those are not featured in this exhibition, his experiences are tracked through sketches as a gay man finding his identity in his early career.\n\nHockney piece in the exhibition. \n\nHockney's A Rake's Progress, a semi-autobiographical series of 16 etchings.(ABC News: Matt Roberts) [...] Portrait of an Artist (Pool with Two Figures), painted by David Hockney (not featured in the NGA exhibition) sold for more than $124 million at auction in 2018. (Supplied: Christie's/David Hockney)\n\nThe exhibition underscores Hockney's pivotal collaboration with master printmaker Tyler.\n\nThe NGA holds more than 1,000 Hockney works, in what it describes as one of the most significant collections of Hockney in the Southern Hemisphere.",
+        "score": 0.82048416,
+        "published_date": "Fri, 04 Sep 2026 22:09:28 GMT",
+        "raw_content": null,
+        "id": "8ff49e-00"
+      },
+      {
+        "url": "https://www.nationalgallery.org.uk/events/tour-david-hockney-through-the-collection-a-lifelong-source-of-inspiration-18-11-2026",
+        "title": "David Hockney through the collection: A lifelong source of inspiration | Events | National Gallery, London",
+        "content": "The National Gallery logo\n\nMy basket \nSign in\n\nMy basket  My account\nSign out\n\nImage: Detail from Piero della Francesca, 'The Baptism of Christ', probably about 1437–1445\n\n# David Hockney through the collection\n\n## A lifelong source of inspiration\n\nTours\n\nDate\n\nWednesday, 18 November 2026\n\nTime\n\nSession times\n\n 1.30 - 2.30 pm\n 3.30 - 4.30 pm\n\nLocation\n\nSainsbury Wing Foyer\n\nAudience\n\nFor Members\n\n### Tickets\n\n|  |  |\n --- |\n| Members: | £20 | [...] This event is available to those with a Member, Member & Guest, Exhibition or House Membership.\n\nPlease meet in the Sainsbury Wing Foyer to collect your headsets and meet your host for the guided walking tour.\n\n#### Become a Member\n\nJoin today\n\n### David Hockney through the collection\n\n#### Tickets\n\n|  |  |\n --- |\n| Members: | £20 |\n\n##### Select session\n\nWednesday, 18 November 2026\n\n1.30 - 2.30 pm\n\nBook\n\nWednesday, 18 November 2026\n\n3.30 - 4.30 pm\n\nBook\n\n### About [...] The technological experimentation that characterised Hockney’s 50-year career, from Polaroids to photocopiers and iPads was nonetheless inspired by the greats of art history and especially those in the National Gallery collection.\n\nJoin us on a tour of the collection from the first image which inspired Hockney in his childhood home, the works which he incorporated into his own pieces and his later versions of famous work which allowed him to explore his own groundbreaking ideas on perspective.",
+        "score": 0.53123426,
+        "published_date": "Fri, 04 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "94ce72-01"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/09/01/when-hockney-met-betty-new-book-uncovers-mysterious-beverly-hills-housewife-in-famous-los-angeles-painting",
+        "title": "When Hockney met Betty: new book uncovers mysterious Beverly Hills Housewife in famous Los Angeles painting",
+        "content": "José da Silva\n\n\n\nDavid Hockneynews\n\n15 June 2026#### The art world honours David Hockney, ‘who flew the flag higher than any other British artist’\n\nFrom Tracey Emin to Nicholas Serota, tributes have poured in for the painter since his death at 88 years old on 11 June\n\nGareth Harris",
+        "score": 0.5046147,
+        "published_date": "Tue, 01 Sep 2026 09:09:28 GMT",
+        "raw_content": null,
+        "id": "6a3feb-02"
+      },
+      {
+        "url": "https://www.myartbroker.com/artist-david-hockney/guides/a-buyers-guide-to-david-hockney-prints",
+        "title": "A Buyer’s Guide To David Hockney",
+        "content": "Exhibition posters and unsigned works form a separate category within the Hockney print market. While they do not carry the same long-term resale potential as numbered editions, original period posters can provide an accessible entry point for new collectors.\n\nBuyers should distinguish clearly between original exhibition posters and later reproductions, and verify condition carefully before purchase.\n\n“David Hockney is continually reaching out for that flame and he is endlessly curious.”",
+        "score": 0.4475333,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "3421df-03"
+      },
+      {
+        "url": "https://news.artnet.com/art-world/david-hockney-betty-freeman-2803383",
+        "title": "The Story Behind One of David Hockney’s Most Beguiling Paintings",
+        "content": "_ from 1972.\n\nOverlooked in that canon is a stranger, more private painting: _Beverly Hills Housewife_, a 12-foot portrait that Hockney painted between 1966 and ’67. A new book by critic and curator James Cahill, out in the U.K. now and in the U.S. on November 3, argues the painting captures the artist’s new, “crystalline realist” style, and ultimately reveals two people—the artist and the subject—caught in a moment of transformation.\n\n### The best of Artnet News in your inbox. [...] _The Beverly Hills Housewife: Hockney’s Californian Muse and the World Beyond the Pool_ (Thames & Hudson) is out in the U.K. It publishes on November 3, 2026 in the U.S., and is available for pre-order.\n\nImage 7\n\n#### Jo Lawson-Tancred ##### European News Editor\n   \n   Deutsch\n   Francais\n\n   Facebook\n   Instagram\n   Twitter\n   Pinterest\n   LinkedIn\n   YouTube\n   Weibo\n\n©2026 Artnet Worldwide Corporation. All Rights Reserved.\n\n✓\n\nThanks for sharing!\n\nAddToAny\n\nMore…\n\nImage 22 [...] Sign up for our daily newsletter.\n\n   ## The best of Artnet News in your inbox.\n\n Sign up for our daily newsletter.    Please enter a valid email address Signup failed. Please try again later.   Thank you!You have successfully subscribed to Artnet News.",
+        "score": 0.42534322,
+        "published_date": "Tue, 01 Sep 2026 15:13:03 GMT",
+        "raw_content": null,
+        "id": "4fcaf0-04"
+      }
+    ],
+    "response_time": 2.09,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "d4305cca-391f-4e91-b17f-c8161363f8fc"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 610,
+    "answer_sentences": 4,
+    "first_sentence": "David Hockney's exhibition \"David Hockney: Portraits in Print\" is on display at the National Gallery of Australia from September 5, 2026, to May 9, 2027.",
+    "result_count": 5,
+    "top_score": 0.82048416,
+    "top_url": "https://www.abc.net.au/news/2026-09-05/act-david-hockney-national-gallery-portrait-print-exhibition/107111980",
+    "top_published_date": "Fri, 04 Sep 2026 22:09:28 GMT",
+    "top_in_window": true,
+    "outside_domains": 3
+  }
+}

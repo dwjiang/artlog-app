@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "boost"
+  },
+  "context": {
+    "artist": "Yayoi Kusama",
+    "cohort": "famous",
+    "region": "new-york",
+    "mode": "boost"
+  },
+  "started_at": "2026-09-08T11:13:57.407018+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.716,
+  "response": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Yayoi Kusama, renowned for her iconic polka-dot art and immersive installations, passed away on August 27, 2026, at the age of 97. Her final decade was marked by a retreat from public life, yet her studio continued to produce her signature works. In the U.S., her art was on display at the Cincinnati Art Museum until October 18, 2026, featuring her \"Infinity Mirror Room\" and pumpkin paintings. Upcoming exhibitions include a major show at Amsterdam's Stedelijk Museum starting September 11, 2026, and a retrospective in New York by David Zwirner in April showcasing her final decade's work.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.timeout.com/usa/news/where-to-see-yayoi-kusama-art-installation-in-the-u-s-082726",
+        "title": "Where to See Yayoi Kusama Art Installations in the U.S.",
+        "content": "And if you're traveling outside the U.S., there are even more opportunities to see Kusama's work. Her official site lists a major exhibition opening at Amsterdam's Stedelijk Museum on September 11, 2026.\n\nFor more information, click here.\n\nBeen there, done that? Think again, my friend.\n\nBy entering your email address you agree to our Terms of Use and Privacy Policy and consent to receive emails from Time Out about news, events, offers and partner promotions.\n\n🙌  \nAwesome, you're subscribed! [...] ## Cincinnati: Cincinnati Art Museum\n\nKusama's \"All the Eternal Love I Have for the Pumpkins\" is currently on view at the Cincinnati Art Museum through October 18.\n\nThe 2016 Infinity Mirror Room surrounds visitors with yellow pumpkins covered in black polka dots, creating the illusion of an endless field of gourds. The exhibition also includes a rare group of 12 pumpkin paintings dating from 1990 to 2004. [...] News\n Things to Do\n Food & Drink\n Culture\n Travel\n Hotels\n Time Out Market\n\n Newsletter\n\nfacebooktwitter\n\nNews\n\n# Where to see Yayoi Kusama art installations in the U.S.\n\nMirror, mirror, on the wall: Where can we see Kusama's works this fall?\n\nWritten by Mark Peikert\n\nFacebookTwitterPinterestEmailWhatsApp\n\nPhotograph: Michael Juliano for Time Out | Yayoi Kusama’s Infinity Mirrored Room—The Souls of Millions of Light Years Away\n\nAdvertising",
+        "score": 0.7286136,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "f39f21-00"
+      },
+      {
+        "url": "https://www.nytimes.com/2026/09/02/arts/design/yayoi-kusama-final-years.html",
+        "title": "The Mysterious and Lonely Final Decade of Yayoi Kusama’s Life",
+        "content": "In April, the gallerist David Zwirner will exhibit a selection of Kusama’s final works in New York.\n\n“We’re so excited about the last decade,” the dealer said. “Arguably, this was the most extraordinary and successful decade of her career.”\n\nIt was also the most elusive, as the artist receded from view. [...] One of Kusama’s last public appearances was in 2017 at the opening of her museum in Tokyo. Longtime friends, curators and collectors said that she stopped receiving most guests in 2019 at the psychiatric hospital where she had lived for decades.\n\nYet her studio — a small group of assistants meant to carry out her artistic vision — was more prolific than ever, producing dozens of paintings and sculptures with her signature.",
+        "score": 0.70823324,
+        "published_date": "Wed, 02 Sep 2026 15:14:25 GMT",
+        "raw_content": null,
+        "id": "7cad8e-01"
+      },
+      {
+        "url": "https://www.nytimes.com/interactive/2026/09/01/arts/yayoi-kusama-art-pieces.html",
+        "title": "The Genius of Yayoi Kusama in Three Works",
+        "content": "In December 1963, Kusama showed her first known immersive installation, “Aggregation: One Thousand Boats Show,” in a solo exhibition at Gertrude Stein Gallery, on Manhattan’s East 81st Street. [...] The mesmerizing art of Yayoi Kusama —who died in Tokyo on Aug. 14, at 97 — has in recent decades become ubiquitous, visible inblockbuster exhibitions and public spaces across the world,splashed across the facades of high-end luxury stores and snapped in thousands of selfies. But the characteristic motifs and themes — accumulation, infinity, love, life, death — of the artist born in 1929 in rural Japan, where creative expectations for women were nonexistent, have dominated her oeuvre since she [...] “I will keep painting until I die,” she told The Associated Press in 2012, and she did. Kusama also innovated across mediums including sculpture, installation, film, performance, fashion and literature. We look at three defining works in detail.\n\nPhoto of “Aggregation: One Thousand Boats Show” installation in New York, featuring a rowboat ornamented with white soft-sculpture protrusions.\n\nAggregation: One Thousand Boats Show",
+        "score": 0.6654328,
+        "published_date": "Tue, 01 Sep 2026 16:32:32 GMT",
+        "raw_content": null,
+        "id": "7806ab-02"
+      },
+      {
+        "url": "https://unframed.lacma.org/2026/09/04/remembering-yayoi-kusama",
+        "title": "Remembering Yayoi Kusama",
+        "content": ", in which a group of naked hippies performed uninvited in the pools in the museum’s sculpture garden. The guards kicked them out but, by chance, a photojournalist was there, and she and her entourage appeared in a large photograph on the cover of the next day’s New York Daily News. Having been forcibly removed from MoMA, it seemed only right for her to return by invitation. The Walker Art Gallery in Minneapolis also displayed the exhibition, and by the time it was ready to open, I was getting [...] Kusama arrived in New York in 1958, and by 1959 she had a solo exhibition at Brata Gallery on the city’s Lower East Side that consisted of five white-on-white paintings the size of the gallery walls. In them, a single element created a net-like pattern that seemed to continue beyond the frame. The reviews of the show, by the many of the most important critics of the time, were glowing. Donald Judd, better known then as a critic than an artist, praised the show, and he and Kusama became close [...] Los Angeles County Museum of Art\n\nUnframed\n\nSeptember 4, 2026\n\nUnframed\n\nSubscribe\n\nTwitter   Facebook   Share Email   \n Print; \"Print\")   \n\nGoogle+   Tumblr   Linkedin   Pinterest\n\nYayoi Kusama at LACMA, 1998, © Yayoi Kusama, photo © Museum Associates/LACMA\n\n## Remembering Yayoi Kusama\n\nSeptember 4, 2026\n\nLynn Zelevansky",
+        "score": 0.6150191,
+        "published_date": "Fri, 04 Sep 2026 23:51:00 GMT",
+        "raw_content": null,
+        "id": "848fe2-03"
+      },
+      {
+        "url": "https://www.aljazeera.com/news/2026/8/27/yayoi-kusama-japans-queen-of-polka-dots-dies-at-97",
+        "title": "Yayoi Kusama, Japan’s ‘queen of polka dots’, dies at 97",
+        "content": "Live\n\nLive\n\nNews|Arts and Culture\n\n# Yayoi Kusama, Japan’s ‘queen of polka dots’, dies at 97\n\nKusama turned her hallucinations into work that ranged from dot-covered paintings and pumpkin sculptures to infinity mirror room installations.\n\nSave\n\nShare\n\nFILE PHOTO: Japanese artist Yayoi Kusama poses for a photograph inside her Infinity Mirrored Room installation titled [...] Japanese artist Yayoi Kusama in her Infinity Mirrored Room installation titled 'The Souls of Millions of Light Years Away' [File: Mike Segar/Reuters]\n\n\n\nBy Al Jazeera Staff, AP and Reuters\n\nPublished On 27 Aug 202627 Aug 2026\n\nYayoi Kusama, the Japanese artist known for her polka-dot paintings, pumpkin sculptures and immersive “Infinity Mirror Rooms”, has died at the age of 97. [...] As her fame grew, her international exhibitions attracted huge crowds and her works commanded lofty prices. One painting, Untitled (Nets) (1959), sold for $10.5m in 2022.\n\nShe received the Order of Culture, Japan’s highest honour for artists, in 2016.\n\nDavid Zwirner, an art dealer who represented Kusama for 15 years, said she “was without a doubt the most famous living artist in the world” at the time of her passing.",
+        "score": 0.6041426,
+        "published_date": "Thu, 27 Aug 2026 07:52:42 GMT",
+        "raw_content": null,
+        "id": "2b4c46-04"
+      }
+    ],
+    "response_time": 1.62,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "607cd62f-c504-4511-846a-5ceaff40ecbc"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 592,
+    "answer_sentences": 4,
+    "first_sentence": "Yayoi Kusama, renowned for her iconic polka-dot art and immersive installations, passed away on August 27, 2026, at the age of 97.",
+    "result_count": 5,
+    "top_score": 0.7286136,
+    "top_url": "https://www.timeout.com/usa/news/where-to-see-yayoi-kusama-art-installation-in-the-u-s-082726",
+    "top_published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 3
+  }
+}

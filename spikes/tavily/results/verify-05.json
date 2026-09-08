@@ -1,0 +1,150 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"Nighthawks\" Edward Hopper",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "artic.edu"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "Nighthawks",
+    "artist": "Edward Hopper",
+    "museum": "Art Institute of Chicago",
+    "domain": "artic.edu"
+  },
+  "started_at": "2026-09-08T11:15:53.142148+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.715,
+  "response": {
+    "query": "Nighthawks Edward Hopper",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/843,/0/default.jpg",
+      "https://shop.artic.edu/cdn/shop/files/276361_2_1024x616.jpg?v=1781735403",
+      "https://shop.artic.edu/cdn/shop/files/276361_2_1200x600_crop_center.jpg?v=1781735403",
+      "https://shop.artic.edu/cdn/shop/files/276361_2_1200x722.jpg?v=1781735403",
+      "https://artic-web.imgix.net/c80048ed-4c6d-473e-b986-40110a5a8e01/Hopper_Nighthawks.jpg?rect=51%2C0%2C2904%2C1635&auto=format%2Ccompress&q=80&fit=crop&crop=faces%2Ccenter&w=1200&h=676?w=1200&h=675&fit=crop"
+    ],
+    "results": [
+      {
+        "url": "https://www.artic.edu/videos/21/edward-hoppers-nighthawks-art-institute-essentials-tour",
+        "title": "Edward Hopper's Nighthawks | Art Institute Essentials Tour",
+        "content": "On this episode of Art Institute Essentials Tour, take a closer look at Nighthawks, painted by Edward Hopper in 1942. Inspired by “a restaurant on New",
+        "score": 0.73846215,
+        "raw_content": null,
+        "images": [],
+        "id": "ce208c-00"
+      },
+      {
+        "url": "https://www.artic.edu/articles/808/nighthawks-as-a-symbol-of-hope",
+        "title": "Nighthawks as a Symbol of Hope | The Art Institute of Chicago",
+        "content": "What many people do not know is that Nighthawks was Hopper’s response to one of the greatest crises of his generation: the bombing of Pearl Harbor on December 7, 1941, and the entrance of the United States into World War II. Hopper enjoyed walking the city, but the experience must have felt remarkably different during those grim months that followed.\n\nBlack and whilte photo of Times Square At Night in the 1940s\n\nNew York’s Times Square from the 1940s—before the blackout [...] The enduring power of Hopper’s Nighthawks is that we cannot know. We can only ever attempt to fill the void of uncertainty with our own interpretations—to find in the painting what we need to see. Hence the multitude of parodies, cartoons, and photoshopped images of Nighthawks that endeavor to give voice to this silent painting. Hopper’s artwork, and its equally parodied cousin American Gothic, have been sites of social and political commentary for decades, their compositions serving as [...] Fearing attack by the Nazis, New Yorkers were subject to blackout drills and dimmed lights in public spaces. Hopper’s walks were thus taken around a city literally and figuratively darkened by crisis. He later recalled how this darkness inspired Nighthawks andimagined what it would be like to come across a brightly lit diner in the middle of the night, with people—the “nighthawks”—within.",
+        "score": 0.7318455,
+        "raw_content": null,
+        "images": [
+          "https://artic-web.imgix.net/c80048ed-4c6d-473e-b986-40110a5a8e01/Hopper_Nighthawks.jpg?rect=51%2C0%2C2904%2C1635&auto=format%2Ccompress&q=80&fit=crop&crop=faces%2Ccenter&w=1200&h=676?w=1200&h=675&fit=crop",
+          "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/200",
+          "https://artic-web.imgix.net/null9f5d4f30-4660-467a-9033-4c6c8c32cea9/TimesSquareatnight1940s.jpg?rect=0%2C0%2C2485%2C1810&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=546&blur=1200&sat=20",
+          "https://www.artic.edu/iiif/2/68578236-1ff6-419a-5fc3-a2c4d95a86b8/full/200",
+          "https://artic-web.imgix.net/f2187cc0-22c9-46ed-b0c6-2cbe750e487d/1952.1112-Sketchbook.jpg?rect=0%2C0%2C3000%2C1687&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://artic-web.imgix.net/a2b3f71b-ad46-4917-8808-c7d66bb0ec2d/IMG_0257.jpg?rect=314%2C485%2C2572%2C1448&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://artic-web.imgix.net/8ced953f-e5ad-47e2-a03c-0edc74ebd7ce/DeKooning1-Press300ppi%2C3000px%2CsRGB%2CJPEG.jpg?rect=0%2C14%2C3000%2C1687&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://artic-web.imgix.net/1c4637b0-0831-4802-959d-bfc6c635c4a3/J2096-int-Press300ppi%2C3000px%2CsRGB%2CJPEG.jpg?rect=535%2C51%2C2414%2C1357&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://artic-web.imgix.net/c80048ed-4c6d-473e-b986-40110a5a8e01/Hopper_Nighthawks.jpg?rect=1433%2C384%2C1506%2C966&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=481&blur=1200&sat=20",
+          "https://artic-web.imgix.net/b55a24a5-ab1c-453e-9ecd-e30ee5473f6e/navigation-thumbnail-visit.jpg?auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=auto&blur=1200&sat=20",
+          "https://artic-web.imgix.net/c80048ed-4c6d-473e-b986-40110a5a8e01/Hopper_Nighthawks.jpg?rect=51%2C0%2C2904%2C1635&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20"
+        ],
+        "id": "1309d0-01"
+      },
+      {
+        "url": "https://www.artic.edu/galleries/2147478064/gallery-262",
+        "title": "Gallery 262 | The Art Institute of Chicago",
+        "content": "Scene in a diner, viewed through wrap-around glass windows, at night on an empty urban street. A light-skinned man and woman, he in a suit and she in a red dress, sit together at a triangular wood bar, eyes downcast. At left sits another man, his back to the viewer. Behind the counter is a light-skinned man in a white uniform. The interior lights cast a yellow glow that spills onto the street in pale green. Above the diner a sign reads,     Nighthawks, 1942    \n   Edward Hopper [...] Edward Hopper\n Painting of figures construction project amid smoky destruction, middle is pink crater.    The Rock, 1944–48    \n   Peter Blume\n Portrait of an older woman holding a mirror and makeup pad, sitting in a dark dressing room in a pink slip and a blue and red skirt. Her flesh is mottled and pasty white, its contours in dark shadows that make it appear almost bruised. She gazes to the left forlornly.    Into the World There Came a Soul Called Ida, 1929–30    \n   Ivan Albright [...] is no dimension to indicate one or the other, so it almost seems to be both.    Contemporary American Sculpture, 1940",
+        "score": 0.72465646,
+        "raw_content": null,
+        "images": [
+          "https://artic-web.imgix.net/905abd91-5c0d-451b-9319-f7cd1505bc33/IM026911_002-web.jpg?w=1200&h=800&fit=crop",
+          "https://artic-web.imgix.net/b55a24a5-ab1c-453e-9ecd-e30ee5473f6e/navigation-thumbnail-visit.jpg?auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=auto&blur=1200&sat=20"
+        ],
+        "id": "bb0664-02"
+      },
+      {
+        "url": "https://www.artic.edu/artists/34996/edward-hopper",
+        "title": "Edward Hopper | The Art Institute of Chicago",
+        "content": "### Page secondary navigation\n\n## Related Content\n\nHopper Nighthawks\n\nThe artist imagined what it would be like to come across a brightly lit diner in the middle of the night, with people—the “nighthawks”—within.\n\n1942 51\n1944.159 Edward Hopper House Tops\n\n## Explore Further\n\n## More\n\n#### More options\n\n### Related artworks [...] A work made of watercolor with touches of gouache, over graphite, on ivory wove paper.\nA work made of watercolor, over graphite, on ivory wove paper.\nA work made of etching on off-white wove paper.\nA work made of etching on ivory wove paper.\nA work made of etching on ivory wove paper.\nA work made of watercolor, with touches of gouache, over graphite, on cream wove paper.\nA work made of etching on white wove paper.\nA work made of etching on white wove paper. [...] A work made of etching on off-white wove paper.\nA work made of etching on ivory wove paper.",
+        "score": 0.71088976,
+        "raw_content": null,
+        "images": [
+          "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/1200,/0/default.jpg?w=1200&h=655&fit=crop",
+          "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/200",
+          "https://www.artic.edu/iiif/2/b6a9d052-6e12-1e5b-a129-0dd57f7a7b19/full/200",
+          "https://www.artic.edu/iiif/2/d74e6f47-50f0-6671-3e57-07a3dcffd8fd/full/200",
+          "https://www.artic.edu/iiif/2/21bd734d-9181-7bec-14a6-74618dbc5ecb/full/200",
+          "https://www.artic.edu/iiif/2/2101b1c8-b813-89d9-cff0-5ed5c36e192c/full/200",
+          "https://www.artic.edu/iiif/2/82181b79-9234-0218-c59e-0cc8ddcc9f2d/full/200",
+          "https://www.artic.edu/iiif/2/d9039dae-ebae-028a-99fd-15f505ebf848/full/200",
+          "https://www.artic.edu/iiif/2/c29ad146-91fa-7331-8dbe-44ed1a57da11/full/200",
+          "https://www.artic.edu/iiif/2/1a315bed-8a0a-4187-11be-e03d376c7af0/full/200",
+          "https://www.artic.edu/iiif/2/903a0ba1-7262-55c0-f22b-488c49bed035/full/200",
+          "https://artic-web.imgix.net/c80048ed-4c6d-473e-b986-40110a5a8e01/Hopper_Nighthawks.jpg?rect=51%2C0%2C2904%2C1635&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://artic-web.imgix.net/7609a52c-3f0d-4776-9a88-92a6dbc57a41/1942.51.jpg?rect=%2C%2C%2C&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://www.artic.edu/iiif/2/d58d7e2d-a735-a07d-6625-6aea4f58e27b/full/200",
+          "https://www.artic.edu/iiif/2/148a2743-d99a-3f21-4f4b-cf9ac435ecfb/full/200",
+          "https://www.artic.edu/iiif/2/00d0b5b6-4e27-ba6d-025a-c8c92c0a3b71/full/200",
+          "https://www.artic.edu/iiif/2/6327b93a-62f1-3224-2a02-c4679c4b6892/full/200",
+          "https://www.artic.edu/iiif/2/a8d399ed-300b-cfbc-4e34-56ddacfa3a66/full/200",
+          "https://www.artic.edu/iiif/2/546ee7e9-9aba-1ca4-28a1-9278413b46ed/full/200",
+          "https://www.artic.edu/iiif/2/1c9f3f79-8791-03e0-4764-9283da786ec3/full/200",
+          "https://artic-web.imgix.net/917e10cd-ad4f-45bb-a979-48c364b11b7a/1944.159EdwardHopperHouseTops.jpg?rect=436%2C690%2C1707%2C960&auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=422&blur=1200&sat=20",
+          "https://www.artic.edu/iiif/2/27d0cfdf-14ff-2e8e-8ae4-28561bfec16f/full/200",
+          "https://www.artic.edu/iiif/2/f145d8ce-846b-1a7b-e659-fde3bd80dc01/full/200",
+          "https://www.artic.edu/iiif/2/1f06b914-c837-07ec-640c-04d82a1a434e/full/200",
+          "https://www.artic.edu/iiif/2/9b021eec-626e-c230-2a6e-a79da5cb2b2e/full/200",
+          "https://www.artic.edu/iiif/2/30f4496e-3634-d3f0-ee97-c4355f147f19/full/200",
+          "https://www.artic.edu/iiif/2/52eabd42-fb8a-e4f5-a1a9-9d060726cd02/full/200",
+          "https://www.artic.edu/iiif/2/418ebcd9-b6f0-4736-14c3-04a1042fff47/full/200",
+          "https://artic-web.imgix.net/b55a24a5-ab1c-453e-9ecd-e30ee5473f6e/navigation-thumbnail-visit.jpg?auto=format&q=1&fit=crop&crop=faces%2Ccenter&w=750&h=auto&blur=1200&sat=20"
+        ],
+        "id": "7654a3-03"
+      },
+      {
+        "url": "https://www.artic.edu/artworks/111628/nighthawks",
+        "title": "Nighthawks | The Art Institute of Chicago",
+        "content": "1942 Artist: Edward Hopper (American, 1882–1967) I was painting the loneliness of a large city.” Made 1942 Medium Oil on canvas",
+        "score": 0.65252984,
+        "raw_content": null,
+        "images": [],
+        "id": "c55b46-04"
+      }
+    ],
+    "response_time": 1.61,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "5cbc0534-c93c-4d8c-8ae2-62df73d579f2"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.73846215,
+    "top_url": "https://www.artic.edu/videos/21/edward-hoppers-nighthawks-art-institute-essentials-tour",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

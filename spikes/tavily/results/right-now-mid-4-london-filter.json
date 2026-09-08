@@ -1,0 +1,75 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Firelei Báez exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Firelei Báez",
+    "cohort": "mid",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:53.832258+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.925,
+  "response": {
+    "query": "Firelei Báez exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Firelei Báez is featured in the \"SLG Forever at Christie's | Online Selling Exhibition\" at the South London Gallery, alongside artists such as Nairy Baghramian, Alvaro Barrington, Leonardo Drew, and Tracey.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.southlondongallery.org/exhibitions/slg-forever-at-christies-online-selling-exhibition",
+        "title": "SLG Forever at Christie's | Online Selling Exhibition - South London ...",
+        "content": "Many of the artists in the exhibition have had solo shows at the SLG, including Firelei Báez, Nairy Baghramian, Alvaro Barrington, Leonardo Drew, Tracey",
+        "score": 0.5709301,
+        "raw_content": null,
+        "published_date": "Tue, 11 Aug 2026 00:00:00 GMT",
+        "id": "ba969a-00"
+      }
+    ],
+    "response_time": 2.83,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "2c94380c-3ac8-40f6-82da-153745300ce8"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 206,
+    "answer_sentences": 1,
+    "first_sentence": "Firelei Báez is featured in the \"SLG Forever at Christie's | Online Selling Exhibition\" at the South London Gallery, alongside artists such as Nairy Baghramian, Alvaro Barrington, Leonardo Drew, and…",
+    "result_count": 1,
+    "top_score": 0.5709301,
+    "top_url": "https://www.southlondongallery.org/exhibitions/slg-forever-at-christies-online-selling-exhibition",
+    "top_published_date": "Tue, 11 Aug 2026 00:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}
