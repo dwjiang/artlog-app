@@ -1,0 +1,211 @@
+{
+  "started_at": "2026-09-08T10:56:18.073088+00:00",
+  "commons_imageinfo": {
+    "request": {
+      "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&titles=File%3AMona+Lisa%2C+by+Leonardo+da+Vinci%2C+from+C2RMF+retouched.jpg&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=330",
+      "checked_at": "2026-09-08T10:56:17.814302+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "server": "mw-api-ext.codfw.main-549b8d785b-jvqbj",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "bytes_read": 19162,
+      "truncated": false,
+      "sha256": "bf518dd8bfe51a2f69606207c3f3259236074f56164fb8395eaf43235adabf44",
+      "elapsed_seconds": 0.259
+    },
+    "response": {
+      "continue": {
+        "iistart": "2011-08-18T16:19:34Z",
+        "continue": "||"
+      },
+      "query": {
+        "pages": {
+          "15442524": {
+            "pageid": 15442524,
+            "ns": 6,
+            "title": "File:Mona Lisa, by Leonardo da Vinci, from C2RMF retouched.jpg",
+            "imagerepository": "local",
+            "imageinfo": [
+              {
+                "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                "thumbwidth": 330,
+                "thumbheight": 492,
+                "responsiveUrls": {
+                  "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/960px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+                },
+                "thumbattribs": {
+                  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+                  "decoding": "async",
+                  "loading": "lazy",
+                  "width": 330,
+                  "height": 492,
+                  "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/960px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+                },
+                "url": "https://upload.wikimedia.org/wikipedia/commons/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+                "descriptionurl": "https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg",
+                "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=15442524",
+                "extmetadata": {
+                  "DateTime": {
+                    "value": "2011-08-18 17:33:23",
+                    "source": "mediawiki-metadata",
+                    "hidden": ""
+                  },
+                  "ObjectName": {
+                    "value": "<div class=\"fn\">\n<div style=\"font-size:0.9em;display:inline-block;\">Polish:  <div style=\"display:inline-block\" dir=\"ltr\" lang=\"pl\"><i>Mona Lisa <span class=\"mw-valign-text-top noprint\" typeof=\"mw:File/Frameless\"><a href=\"https://www.wikidata.org/wiki/Q12418#P1476\" title=\"Edit this at Wikidata\"><img alt=\"Edit this at Wikidata\" src=\"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=commons.wikimedia.org&amp;utm_campaign=parser&amp;utm_content=thumbnail\" decoding=\"async\" loading=\"lazy\" width=\"10\" height=\"10\" class=\"mw-file-element\" data-file-width=\"20\" data-file-height=\"20\"></a></span></i></div></div><br><div style=\"font-weight:bold;display:inline-block;\"><div style=\"display:inline-block\" dir=\"ltr\" lang=\"en\"><i>Mona Lisa</i></div></div><div style=\"display: none;\">title QS:P1476,pl:\"Mona Lisa <span class=\"mw-valign-text-top noprint\" typeof=\"mw:File/Frameless\"><a href=\"https://www.wikidata.org/wiki/Q12418#P1476\" title=\"Edit this at Wikidata\"><img alt=\"Edit this at Wikidata\" src=\"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=commons.wikimedia.org&amp;utm_campaign=parser&amp;utm_content=thumbnail\" decoding=\"async\" loading=\"lazy\" width=\"10\" height=\"10\" class=\"mw-file-element\" data-file-width=\"20\" data-file-height=\"20\"></a></span>\"</div><div style=\"display: none;\">label QS:Lpl,\"Mona Lisa <span class=\"mw-valign-text-top noprint\" typeof=\"mw:File/Frameless\"><a href=\"https://www.wikidata.org/wiki/Q12418#P1476\" title=\"Edit this at Wikidata\"><img alt=\"Edit this at Wikidata\" src=\"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=commons.wikimedia.org&amp;utm_campaign=parser&amp;utm_content=thumbnail\" decoding=\"async\" loading=\"lazy\" width=\"10\" height=\"10\" class=\"mw-file-element\" data-file-width=\"20\" data-file-height=\"20\"></a></span>\"</div><div style=\"display: none;\">label QS:Lrsk,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lszl,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lis,\"Móna Lísa\"</div><div style=\"display: none;\">label QS:Lks,\"مونا لیزا\"</div><div style=\"display: none;\">label QS:Lms,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lps,\"مونالیزا\"</div><div style=\"display: none;\">label QS:Ltr,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lur,\"مونا لیزہ\"</div><div style=\"display: none;\">label QS:Lsk,\"Mona Líza\"</div><div style=\"display: none;\">label QS:Luk,\"Мона Ліза\"</div><div style=\"display: none;\">label QS:Lzh-cn,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Luz,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Las,\"মনালিছা\"</div><div style=\"display: none;\">label QS:Lmk,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lbs,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lfr,\"La Joconde\"</div><div style=\"display: none;\">label QS:Lhr,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lcbk-zam,\"Monalisa\"</div><div style=\"display: none;\">label QS:Lmr,\"मोनालिसा\"</div><div style=\"display: none;\">label QS:Lglk,\"ژؤکؤند\"</div><div style=\"display: none;\">label QS:Lor,\"ମୋନା ଲିସା\"</div><div style=\"display: none;\">label QS:Lsr,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lzu,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Llb,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lnb,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Laz,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Lhif,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lgor,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lar,\"موناليزا\"</div><div style=\"display: none;\">label QS:Lbr,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lmy,\"မိုနာလီဆာ\"</div><div style=\"display: none;\">label QS:Lyue,\"蒙娜麗莎\"</div><div style=\"display: none;\">label QS:Last,\"La Gioconda\"</div><div style=\"display: none;\">label QS:Lca,\"La Gioconda\"</div><div style=\"display: none;\">label QS:Lba,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lcy,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lga,\"An Mona Lisa\"</div><div style=\"display: none;\">label QS:Lsr-ec,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lzh,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Lda,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lka,\"მონა ლიზა\"</div><div style=\"display: none;\">label QS:Lja,\"モナ・リザ\"</div><div style=\"display: none;\">label QS:Lha,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Larz,\"موناليزا\"</div><div style=\"display: none;\">label QS:Lsi,\"මොනාලිසා\"</div><div style=\"display: none;\">label QS:Lla,\"Iucunda\"</div><div style=\"display: none;\">label QS:Lhi,\"मॉना लिसा\"</div><div style=\"display: none;\">label QS:Lwuu,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Lpa,\"ਮੋਨਾ ਲੀਜ਼ਾ\"</div><div style=\"display: none;\">label QS:Lhyw,\"Լիզա տէլ Ճոքոնտօ\"</div><div style=\"display: none;\">label QS:Lli,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lta,\"மோனா லிசா\"</div><div style=\"display: none;\">label QS:Lbe-tarask,\"Мона Ліза\"</div><div style=\"display: none;\">label QS:Lscn,\"Gioconda\"</div><div style=\"display: none;\">label QS:Lth,\"โมนาลิซา\"</div><div style=\"display: none;\">label QS:Lsh,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lrue,\"Мона Ліза\"</div><div style=\"display: none;\">label QS:Lvec,\"Ła Joconda\"</div><div style=\"display: none;\">label QS:Lrki,\"မိုနာလီဆာ\"</div><div style=\"display: none;\">label QS:Lco,\"Giuconda\"</div><div style=\"display: none;\">label QS:Lbcl,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lpcm,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lro,\"Gioconda\"</div><div style=\"display: none;\">label QS:Lzh-hk,\"蒙娜麗莎\"</div><div style=\"display: none;\">label QS:Lso,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lsv,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lig,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lzh-hant,\"蒙娜麗莎\"</div><div style=\"display: none;\">label QS:Llo,\"ລາໂຊກົງ\"</div><div style=\"display: none;\">label QS:Lko,\"모나리자\"</div><div style=\"display: none;\">label QS:Lfo,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Leo,\"La Gioconda\"</div><div style=\"display: none;\">label QS:Lan,\"A Gioconda\"</div><div style=\"display: none;\">label QS:Lbn,\"মোনা লিসা\"</div><div style=\"display: none;\">label QS:Ljv,\"Monalisa\"</div><div style=\"display: none;\">label QS:Lcv,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lgcr,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lyi,\"מאנא ליסע\"</div><div style=\"display: none;\">label QS:Lvi,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Llv,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Lilo,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lsco,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lmn,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lnan,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lkn,\"ಮೋನ ಲೀಸ\"</div><div style=\"display: none;\">label QS:Lckb,\"مۆنالیزا\"</div><div style=\"display: none;\">label QS:Len,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lhu,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lam,\"ሞና ሊዛ\"</div><div style=\"display: none;\">label QS:Lbo,\"མོ་ན་ལི་ས།\"</div><div style=\"display: none;\">label QS:Leu,\"Gioconda\"</div><div style=\"display: none;\">label QS:Lel,\"Μόνα Λίζα\"</div><div style=\"display: none;\">label QS:Lfrr,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lru,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lszy,\"Mong-na-li-sa\"</div><div style=\"display: none;\">label QS:Lmai,\"मोना लिजा\"</div><div style=\"display: none;\">label QS:Lzh-sg,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Lbe,\"Мона Ліза\"</div><div style=\"display: none;\">label QS:Lhy,\"Մոնա Լիզա\"</div><div style=\"display: none;\">label QS:Laf,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lku,\"Mona Lîza\"</div><div style=\"display: none;\">label QS:Lne,\"मोना लिजा\"</div><div style=\"display: none;\">label QS:Lzh-my,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Lnl,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lwar,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lie,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lhe,\"מונה ליזה\"</div><div style=\"display: none;\">label QS:Ltt,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lkab,\"Monna Liza\"</div><div style=\"display: none;\">label QS:Lkm,\"ម៉ូណាលីសា\"</div><div style=\"display: none;\">label QS:Lte,\"మోనాలిసా\"</div><div style=\"display: none;\">label QS:Lpnb,\"مونا لیزا\"</div><div style=\"display: none;\">label QS:Lkaa,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lfa,\"مونالیزا\"</div><div style=\"display: none;\">label QS:Lbg,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lit,\"La Gioconda\"</div><div style=\"display: none;\">label QS:Lksh,\"Mona Lisa (Beld)\"</div><div style=\"display: none;\">label QS:Loc,\"La Joconda\"</div><div style=\"display: none;\">label QS:Lht,\"La Joconde\"</div><div style=\"display: none;\">label QS:Lzh-mo,\"蒙娜麗莎\"</div><div style=\"display: none;\">label QS:Lid,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lpt,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lnn,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lsu,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Les,\"La Gioconda\"</div><div style=\"display: none;\">label QS:Lkk,\"Мона Лиза\"</div><div style=\"display: none;\">label QS:Lsr-el,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Lmt,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Let,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lbjn,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Llt,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Lsl,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Ltl,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lcs,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Ltw,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lsw,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lml,\"മോണാലിസ\"</div><div style=\"display: none;\">label QS:Lzh-tw,\"蒙娜麗莎\"</div><div style=\"display: none;\">label QS:Lsq,\"Mona Liza\"</div><div style=\"display: none;\">label QS:Lsat,\"ᱢᱚᱱᱟᱞᱤᱥᱟ\"</div><div style=\"display: none;\">label QS:Lsd,\"مونا ليزا\"</div><div style=\"display: none;\">label QS:Lfy,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lgl,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lfi,\"Mona Lisa\"</div><div style=\"display: none;\">label QS:Lzh-hans,\"蒙娜丽莎\"</div><div style=\"display: none;\">label QS:Lde,\"Mona Lisa\"</div></div>",
+                    "source": "commons-desc-page"
+                  },
+                  "CommonsMetadataExtension": {
+                    "value": 1.2,
+                    "source": "extension",
+                    "hidden": ""
+                  },
+                  "Categories": {
+                    "value": "Mona Lisa|PD-user|Images with annotations|PD-old-100-expired|Featured pictures on Wikipedia, English|PD-Art (PD-old-100-expired)|Artworks with Wikidata item|Artworks with known accession number|Images with extracted images|Large images|Featured pictures on Wikipedia, Azeri|Featured pictures on Wikipedia, Persian|Featured pictures on Wikipedia, Spanish|High-resolution images from C2RMF|CC-PD-Mark|Artworks with accession number from Wikidata|On OSM|Featured pictures of the Musée du Louvre|Featured pictures of paintings by Leonardo da Vinci|Files with coordinates missing SDC location of creation (48° N, 2° E)|Featured pictures in the public domain|Artworks digital representation of 2D work|Artworks with digital representation of different depicts|Featured pictures on Wikipedia, Arabic|Files with Assessments template missing SDC Commons valued image assessment|Pictures of the Year/2011 (finalist)",
+                    "source": "commons-categories",
+                    "hidden": ""
+                  },
+                  "Assessments": {
+                    "value": "featured|valued|potd|poty",
+                    "source": "commons-categories",
+                    "hidden": ""
+                  },
+                  "GPSLatitude": {
+                    "value": "48.860100",
+                    "source": "commons-desc-page"
+                  },
+                  "GPSLongitude": {
+                    "value": "2.335400",
+                    "source": "commons-desc-page"
+                  },
+                  "GPSMapDatum": {
+                    "value": "WGS-84",
+                    "source": "commons-desc-page",
+                    "hidden": ""
+                  },
+                  "Artist": {
+                    "value": "<bdi><a href=\"https://en.wikipedia.org/wiki/en:Leonardo_da_Vinci\" class=\"extiw\" title=\"w:en:Leonardo da Vinci\"><span title=\"Italian Renaissance polymath (1452−1519)\">Leonardo da Vinci</span></a></bdi>",
+                    "source": "commons-desc-page"
+                  },
+                  "DateTimeOriginal": {
+                    "value": "between 1503 and 1506<div style=\"display: none;\">date QS:P,+1503-00-00T00:00:00Z/8,P1319,+1503-00-00T00:00:00Z/9,P1326,+1506-00-00T00:00:00Z/9</div> <span class=\"mw-valign-text-top noprint\" typeof=\"mw:File/Frameless\"><a href=\"https://www.wikidata.org/wiki/Q12418#P571\" title=\"Edit this at Wikidata\"><img alt=\"Edit this at Wikidata\" src=\"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=commons.wikimedia.org&amp;utm_campaign=parser&amp;utm_content=thumbnail\" decoding=\"async\" loading=\"lazy\" width=\"10\" height=\"10\" class=\"mw-file-element\" data-file-width=\"20\" data-file-height=\"20\"></a></span>",
+                    "source": "commons-desc-page"
+                  },
+                  "Credit": {
+                    "value": "Cropped and relevelled from <a href=\"//commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF.jpg\" title=\"File:Mona Lisa, by Leonardo da Vinci, from C2RMF.jpg\">File:Mona Lisa, by Leonardo da Vinci, from C2RMF.jpg</a>. Originally C2RMF: <a rel=\"nofollow\" class=\"external text\" href=\"http://web.archive.org/web/20120524155855/http://www.technologies.c2rmf.fr/imaging/showcase\">Galerie de tableaux en très haute définition</a>: <a rel=\"nofollow\" class=\"external text\" href=\"http://www.technologies.c2rmf.fr/iipimage/showcase/zoom/cop29\">image page</a>",
+                    "source": "commons-desc-page"
+                  },
+                  "LicenseShortName": {
+                    "value": "Public domain",
+                    "source": "commons-desc-page",
+                    "hidden": ""
+                  },
+                  "UsageTerms": {
+                    "value": "Public domain",
+                    "source": "commons-desc-page"
+                  },
+                  "AttributionRequired": {
+                    "value": "false",
+                    "source": "commons-desc-page",
+                    "hidden": ""
+                  },
+                  "Copyrighted": {
+                    "value": "False",
+                    "source": "commons-desc-page",
+                    "hidden": ""
+                  },
+                  "Restrictions": {
+                    "value": "",
+                    "source": "commons-desc-page",
+                    "hidden": ""
+                  },
+                  "License": {
+                    "value": "pd",
+                    "source": "commons-templates",
+                    "hidden": ""
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "images": [
+    {
+      "name": "Met",
+      "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19712-001.jpg",
+      "requests": [
+        {
+          "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19712-001.jpg",
+          "checked_at": "2026-09-08T10:56:18.073118+00:00",
+          "method": "HEAD",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-length": "141038",
+            "content-type": "image/jpeg",
+            "last-modified": "Thu, 30 Jan 2025 16:55:09 GMT",
+            "etag": "\"137a63b83773db1:0\"",
+            "server": "Microsoft-IIS/10.0"
+          },
+          "bytes_read": 0,
+          "truncated": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "elapsed_seconds": 0.391
+        }
+      ],
+      "final_url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19712-001.jpg"
+    },
+    {
+      "name": "AIC",
+      "url": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+      "requests": [
+        {
+          "url": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+          "checked_at": "2026-09-08T10:56:18.463688+00:00",
+          "method": "HEAD",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 403,
+          "headers": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "cloudflare"
+          },
+          "bytes_read": 0,
+          "truncated": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "elapsed_seconds": 0.438
+        }
+      ],
+      "final_url": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
+    },
+    {
+      "name": "Commons",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "requests": [
+        {
+          "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+          "checked_at": "2026-09-08T10:56:18.901409+00:00",
+          "method": "HEAD",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "etag": "004efcee9096642ec98a79a0330205d2",
+            "server": "ATS/9.2.15",
+            "content-type": "image/jpeg",
+            "last-modified": "Thu, 16 Jul 2026 09:29:33 GMT",
+            "content-length": "47581"
+          },
+          "bytes_read": 0,
+          "truncated": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "elapsed_seconds": 0.099
+        }
+      ],
+      "final_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "spikeTests": {
+    "command": "npm test (spikes/convex-vector-scale)",
+    "passed": 7,
+    "convex": 3,
+    "python": 4
+  },
+  "spikeTypecheck": {
+    "command": "npm run typecheck (spikes/convex-vector-scale)",
+    "exitCode": 0
+  },
+  "spikeNpmAudit": {
+    "exitCode": 0,
+    "vulnerabilities": 0
+  },
+  "rootTypecheck": {
+    "command": "npx tsc --noEmit",
+    "exitCode": 2,
+    "preExistingErrors": [
+      "src/components/animated-icon.web.tsx: unresolved ./animated-icon.module.css",
+      "src/constants/theme.ts: unresolved side-effect @/global.css"
+    ],
+    "reproducedWithUnchangedAppSourcesOnly": true
+  },
+  "lint": "ESLint dependencies/configuration absent; not run",
+  "ios": "No app behavior changed; backend-only spike",
+  "convexCodegen": "Succeeded; generated bindings included",
+  "convexDevOnce": "Succeeded on dev:quick-schnauzer-888"
+}

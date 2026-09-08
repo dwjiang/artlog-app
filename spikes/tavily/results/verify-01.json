@@ -1,0 +1,123 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"The Starry Night\" Vincent van Gogh",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "moma.org"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "The Starry Night",
+    "artist": "Vincent van Gogh",
+    "museum": "MoMA",
+    "domain": "moma.org"
+  },
+  "started_at": "2026-09-08T11:15:44.328714+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.214,
+  "response": {
+    "query": "The Starry Night Vincent van Gogh",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f",
+      "https://cdn.shopify.com/s/files/1/0623/7962/2630/files/6326b92d-6d4a-404a-bd0a-aaa40721b06f.jpg?v=1768182166",
+      "https://store.moma.org/cdn/shop/files/a6c2a46e-6a2c-4a44-ac03-b7cc86cdaed2_1296x.jpg?v=1781201336",
+      "https://cdn.sanity.io/images/476nwnl9/production/55e4a9eba137ec07da47931fedbae038a449740e-3360x2100.png?auto=format&fit=crop&h=237&rect=0%2C0%2C3216%2C2100&w=363",
+      "https://www.moma.org/d/assets/W1siZiIsIjIwMjAvMDIvMjYvOWk2MjhsdzFheV84MjVfVmFuX0dvZ2guanBnIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgMjAwMHgyMDAwXHUwMDNlIl1d/825%20Van%20Gogh.jpg?sha=f168743ca45b69ee"
+    ],
+    "results": [
+      {
+        "url": "https://www.moma.org/audio/playlist/3/4289",
+        "title": "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 | MoMA",
+        "content": "The Starry Night is inspired by the view from Vincent van Gogh’s window at an asylum in Saint-Rémy, in southern France, where he spent a year receiving treatment for mental illness. The painting is both an exercise in observation and a departure from it.\n\nVan Gogh applied the paint—mostly deep blues and vivid yellows—in thick layers of rhythmic brushstrokes resulting in a highly textured surface. [...] The scene is dominated by a crescent moon and starry night sky, which fill the upper two thirds of the canvas. The sky is the most dynamic part of the painting. It stands in contrast to a quiet village, nestled below treetops and rolling hills, in the lower third of the painting. On the far left side, a large cypress tree in the foreground commands attention. [...] Curator, Ann Temkin: What's remarkable about _The Starry Night_ is the depiction of the sky itself. We have an intensely turbulent, vibrant, excited, agitated night sky. The stars have radiating concentric rings of light. The moon has the same set of rings around it. And also they're set in a sky which is not like the sky that we look up into at night, but one in which the various blues that Van Gogh uses are positioned into these swirling patterns.",
+        "score": 0.903098,
+        "raw_content": null,
+        "images": [
+          "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f",
+          "https://c1.adform.net/serving/cookie/match?cid=10cbf54c-f147-410d-801f-b09d1650b40e&party=1296&sjrn_lbid=7f632d9538aefec4be8c619f55ad1b61&sjrn_src=1&sjrn_ts=1786243290",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=AllUsers",
+          "https://secure.adnxs.com/seg?add=34571930&t=2&gdpr=0&gdpr_consent=",
+          "https://lex.33across.com/ps/v1/pubtoken/?pid=119&event=rtg&us_privacy=&rnd=1786243291359&ru=https%3A%2F%2Fi.ctnsnet.com%2Fint%2Fintegration%3Fpixel%3D77707446%26nid%3D302660%26cont%3Di%26pixel_id%3D78593803%26ev%3Drtg%26uid%3D24f8e9ea425947d4bfdf340fb1802011%2633xuid%3D%24%7BPUBTOK%7D%26us_privacy%3D%24%7BUS_PRIVACY%7D%26%24rnd%3D%24%7BRANDOM%7D",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=Members"
+        ],
+        "id": "1710d8-00"
+      },
+      {
+        "url": "https://www.moma.org/collection/works/79802",
+        "title": "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889",
+        "content": "_The Starry Night_ is based on van Gogh’s direct observations as well as his imagination, memories, and emotions. The steeple of the church, for example, resembles those common in his native Holland, not in France. The whirling forms in the sky, on the other hand, match published astronomical observations of clouds of dust and gas known as nebulae. At once balanced and expressive, the composition is structured by his ordered placement of the cypress, steeple, and central nebulae, while his [...] This mid-scale, oil-on-canvas painting is dominated by a moon- and star-filled night sky. It takes up three-quarters of the picture plane and appears turbulent, even agitated, with intensely swirling patterns that seem to roll across its surface like waves. It is pocked with bright orbs—including the crescent moon to the far right, and Venus, the morning star, to the left of center—surrounded by concentric circles of radiant white and yellow light. [...] Van Gogh assigned an emotional language to night and nature that took them far from their actual appearances. Dominated by vivid blues and yellows applied with gestural verve and immediacy, _The Starry Night_ also demonstrates how inseparable van Gogh’s vision was from the new procedures of painting he had devised, in which color and paint describe a world outside the artwork even as they telegraph their own status as, merely, color and paint.",
+        "score": 0.8939131,
+        "raw_content": null,
+        "images": [],
+        "id": "d62b5f-01"
+      },
+      {
+        "url": "https://www.moma.org/audio/playlist/296/44",
+        "title": "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 | MoMA",
+        "content": "Curator, Ann Temkin: What's remarkable about The Starry Night is the depiction of the sky itself. We have an intensely turbulent, vibrant, excited, agitated night sky. The stars have radiating concentric rings of light. The moon has the same set of rings around it. And also they're set in a sky which is not like the sky that we look up into at night, but one in which the various blues that Van Gogh uses are positioned into these swirling patterns. [...] # 1880–1950: Works from the Collection\n\n1\n / \n77\n\n## Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 521 [...] And I think one would be able to speculate, rather than being a portrait of what one might see looking up at a night sky in the summer of 1889, it's much more an expression of the turmoil in the artist's own imagination that he's projecting onto that sky.",
+        "score": 0.83742094,
+        "raw_content": null,
+        "images": [
+          "https://www.moma.org/d/p/sa/maximum/moma_renovation_and_expansion.jpg",
+          "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f"
+        ],
+        "id": "cc7d1e-02"
+      },
+      {
+        "url": "https://www.moma.org/audio/playlist/289/340",
+        "title": "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 | MoMA",
+        "content": "# Kids\n\n3\n / \n34\n\n## Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 15\n\nLearning Specialist, Emma Waldman:  This is a very popular painting at the museum, so it might be crowded. See if you can find a good place to see The Starry Night.\n\nIn this painting, the moon is out and shining bright, and the stars are glowing. Which star shines the brightest?\n\nThe whole sky seems to be alive and moving with swirls and waves of color. With your eyes, follow one of the swirls in the sky. [...] Van Gogh once wrote a letter to his brother saying, “Looking at the sky always makes me dream.” Notice how many different colors of blue make up the sky. Some artists blend paint colors together. But van Gogh painted without mixing the colors first. Look closely to see the brushstrokes and the thick paint on the canvas.",
+        "score": 0.826278,
+        "raw_content": null,
+        "images": [
+          "https://www.moma.org/d/p/sa/maximum/moma_renovation_and_expansion.jpg",
+          "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f"
+        ],
+        "id": "1099ee-03"
+      },
+      {
+        "url": "https://store.moma.org/products/van-gogh-the-starry-night-3",
+        "title": "Van Gogh: The Starry Night – MoMA Design Store",
+        "content": "This poster features a reproduction of The Starry Night by Vincent van Gogh, one of the most popular paintings in MoMA's collection.\n\n$9.95 Flat standard shipping fee available.\nLearn More.\n\n### 90 Day Satisfaction Guarantee\n\nYour satisfaction is our goal. If for any reason you are not satisfied with your purchase, you may return the merchandise within 90 days for an exchange or refund in the form of the original payment. Exceptions apply to items that are final sale and non-returnable.",
+        "score": 0.82560414,
+        "raw_content": null,
+        "images": [
+          "http://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9.jpg?v=1704232502",
+          "https://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9_348x.jpg?v=1704232502",
+          "https://cdn.shopify.com/s/files/1/0623/7962/2630/files/appleid_shadow.png?v=1656659758",
+          "https://cdn.shopify.com/s/files/1/0623/7962/2630/files/btn_google_signin_light_normal_web_2x_704f85c7-74b1-4264-a00f-14028438100f.png?v=1656599086"
+        ],
+        "id": "768a69-04"
+      }
+    ],
+    "response_time": 1.89,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "a467add9-3454-4ea5-ba4a-022b5290ac23"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.903098,
+    "top_url": "https://www.moma.org/audio/playlist/3/4289",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

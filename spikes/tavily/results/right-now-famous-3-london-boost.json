@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Banksy exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "boost"
+  },
+  "context": {
+    "artist": "Banksy",
+    "cohort": "famous",
+    "region": "london",
+    "mode": "boost"
+  },
+  "started_at": "2026-09-08T11:14:20.200509+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.494,
+  "response": {
+    "query": "Banksy exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "A massive 200-piece Banksy exhibition, titled \"The Art of Banksy: Without Limits,\" is opening at Atlanta’s Pullman Yards this September, having previously charmed 3 million visitors globally. The Mobile Museum of Art will also feature Banksy alongside Basquiat, Haring, KAWS, and Scharf in an exhibition titled \"GATEWAY: From Graffiti to Gallery\" from September 1, 2026, through September 1, 2027. Additionally, a rare Banksy hand-sprayed LP recently sold for thousands, and the Lucas Museum in Los Angeles is set to open, showcasing a range of art from Star Wars to Banksy.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://secretatlanta.co/the-art-of-banksy-without-limitspullman-yards",
+        "title": "After charming 3 million visitors globally, a massive 200-piece Banksy exhibition is opening at Atlanta’s Pullman Yards",
+        "content": "The Art of Banksy: Without Limits lands at Pullman Yards this September, offering Atlantans a deeper look inside the mind of the mysterious street artist…\n\nAfter charming 3 million visitors globally, a massive 200-piece Banksy exhibition is opening at Atlanta’s Pullman Yards\n\nThe Art of Banksy: Without Limits\n\n in real life, come face-to-face with a hologram of the artist and marvel at a series of murals — some created by Banksy in war-torn Ukraine. [...] The Art of Banksy turns passive observation into an engaging interaction, challenging the way you see art. Premium ticket holders will even get to spray-paint a t-shirt using stencils — a hands-on experience whose proceeds go towards the Louise Michel rescue ship, a cause very dear to Banksy.\n\nThe Art of Banksy: Without Limits\n\n## Close to the artist’s heart [...] Throughout the years, many have praised The Art of Banksy exhibition, describing it as “extensive,” “fantastic” and “immersive”:\n\n The exhibit is incredible! It enabled me to see the power of art as activism and how Banksy has acted on some of his  messages for the benefit of those furthest on the margins. It also made clear the immense courage Banksy has in going to war torn places to offer images of hope and generally in using powerful/iconic cultural symbols to fiercely critique the empire.",
+        "score": 0.7724109,
+        "published_date": "Wed, 12 Aug 2026 13:01:52 GMT",
+        "raw_content": null,
+        "id": "18da76-00"
+      },
+      {
+        "url": "https://mynbc15.com/community/community-events/mobile-museum-of-art-to-open-exhibition-featuring-banksy-basquiat-haring-kaws-scharf",
+        "title": "Mobile Museum of Art to open exhibition featuring Banksy, Basquiat, Haring, KAWS, Scharf",
+        "content": "GATEWAY will be on view at Mobile Museum of Art from September 1, 2026, through September 1, 2027. For more information about the exhibition and related programming, visit MobileMuseumofArt.com/GATEWAY.\n\n## Trending\n\n## NEWS IN PHOTOS: [...] #### topics:\n\nMOBILE, Ala. (NBC 15) — On September 1, 2026, Mobile Museum of Art (MMoA) will open a new special exhibition, GATEWAY: From Graffiti to Gallery. Featuring 28 significant works from some of the most influential names in contemporary street art, MMoA will serve as the exclusive host venue for this year-long blockbuster event.\n\nThis exhibition is presented in collaboration with Masterworks and Level & Co Gallery and is generously sponsored by Lexus of Mobile. [...] MMoA will host a robust schedule of public programming to accompany the year-long exhibition. Highlights begin in 2026 with monthly gallery tours led by MMoA Executive Director Jon Carfagno, a graffiti-themed Family Day on October 24, teen mural workshops, and film screenings. Programming continues into 2027 with an art talk featuring Kenny Scharf in the spring and a GATEWAY-themed Art After Dark on July 22, 2027.",
+        "score": 0.68798697,
+        "published_date": "Wed, 12 Aug 2026 16:55:12 GMT",
+        "raw_content": null,
+        "id": "51527f-01"
+      },
+      {
+        "url": "https://www.al.com/life/2026/08/banksy-basquiat-haring-and-more-mobile-exhibition-lives-up-to-blockbuster-billing.html",
+        "title": "Rare multi-million dollar street art collection debuts at Mobile Museum featuring Banksy",
+        "content": "As visitors approach the exhibition, the first work they glimpse is Banksy’s 2020 work “Stop and Search.” It’s a large, vibrant, eye-catching piece that highlights “Gateway’s” sense of interplay between the featured artists.\n\nThis is not from the series of similarly titled Banksy works that show Dorothy from “The Wizard of Oz” having her basket searched by a policeman in a riot helmet as Toto watches. [...] Through Sept. 1, 2027, the Mobile Museum of Art presents \"Gateway: From Graffiti to Gallery,\" an unprecedented exhibition of works from Keith Haring, Jean-Michel Basquiat, Kenny Scharf, KAWS and Banksy.Lawrence Specker | LSpecker@AL.com\n\n“Gateway” opens to the public Tuesday and runs through Sept. 1, 2027. [...] The exhibition provides additional context in inventive ways. The prime example is a park bench in front of a giant photographic mural of a New York City corner festooned with graffiti. One expects the installation will get as much attention as some of the paintings and that the bench will be an extremely popular spot for selfies.\n\nJohn Carfagno, the museum’s executive director, said the interconnected spirit of the exhibition is fully intentional.",
+        "score": 0.6641271,
+        "published_date": "Sun, 30 Aug 2026 12:00:00 GMT",
+        "raw_content": null,
+        "id": "1f6baf-02"
+      },
+      {
+        "url": "https://www.bbc.co.uk/news/articles/c8rn8nk56e8o",
+        "title": "Rare Banksy hand-sprayed LP sells for thousands",
+        "content": "Follow BBC Bristol on Facebook, external, X, external and Instagram, external. Send your story ideas to us on email or via WhatsApp on 0800 313 4630.\n\n## Related topics\n\n## More on this story\n\nWho is Banksy? Unmasking the elusive street artist\n\nA statue is pictured showing a man holding a flag walking off a plinth. People are surrounding it, taking pictures of it. The statue is placed against the backdrop of historic buildings.\n\nBanksy works cost public almost £150,000 [...] Police hunt after woman killed in hit-and-run near Edinburgh Airport\n\nUK pupils rank highly again in international reading, maths and science tests\n\nAI will cure cancer in our lifetime, claims boss of UK chip giant\n\n## BBC News Services\n\nCopyright © 2026 BBC. The BBC is not responsible for the content of external sites. Read about our approach to external linking. [...] ## Top stories\n\nUK expected to announce sanctions on Israeli settlements in occupied West Bank\n\nWatch: Pupils return to West Bank school behind barbed wire to protect against settlers\n\nHarry and Meghan 'surprised' by King's letter making clear they remain non-working royals\n\n## More to explore\n\nLiam Gallagher's tambourine grin and Charli XCX says bye to Brat - Music Photography Awards 2026 shortlist",
+        "score": 0.20987462,
+        "published_date": "Thu, 13 Aug 2026 15:02:23 GMT",
+        "raw_content": null,
+        "id": "d563d6-03"
+      },
+      {
+        "url": "https://www.bbc.co.uk/news/videos/cg59d9dyn46o",
+        "title": "Watch: Inside the new Lucas Museum set to open in Los Angeles",
+        "content": "# Watch: From Star Wars to Banksy, the art is with you at new Lucas Museum\n\n## To play this video you need to enable JavaScript in your browser.\n\nThis video can not be played [...] ## Explore more\n\nWatch: From Star Wars to Banksy, the art is with you at new Lucas Museum. Video, 00:01:08Watch: From Star Wars to Banksy, the art is with you at new Lucas Museum\n\nThe Lucas Museum is seen in Los Angeles, California.\n\nUp Next. Watch: What happens now after Lindsay Clancy trial jurors deadlocked again? Video, 00:00:38Watch: What happens now after Lindsay Clancy trial jurors deadlocked again?\n\nSplit screen. Left, Ana Faguy. Right, Lindsay Clancy.",
+        "score": 0.20953475,
+        "published_date": "Thu, 03 Sep 2026 01:04:16 GMT",
+        "raw_content": null,
+        "id": "c73f58-04"
+      }
+    ],
+    "response_time": 1.4,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "0836a382-7e58-48ae-b1fd-dfba75ecab39"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 574,
+    "answer_sentences": 3,
+    "first_sentence": "A massive 200-piece Banksy exhibition, titled \"The Art of Banksy: Without Limits,\" is opening at Atlanta’s Pullman Yards this September, having previously charmed 3 million visitors globally.",
+    "result_count": 5,
+    "top_score": 0.7724109,
+    "top_url": "https://secretatlanta.co/the-art-of-banksy-without-limitspullman-yards",
+    "top_published_date": "Wed, 12 Aug 2026 13:01:52 GMT",
+    "top_in_window": true,
+    "outside_domains": 3
+  }
+}

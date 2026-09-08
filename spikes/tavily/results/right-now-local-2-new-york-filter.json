@@ -1,0 +1,84 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Woody De Othello exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Woody De Othello",
+    "cohort": "local",
+    "region": "new-york",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:15:06.036957+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.202,
+  "response": {
+    "query": "Woody De Othello exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Woody De Othello's work, \"Tools,\" is featured in \"The Face of Life: Modern Portraits at The Met\" exhibition at The Metropolitan Museum of Art in New York. The sculpture, made of bronze, glazed ceramic, and wood, stands at 61 × 32 1/2 × 48 inches and was acquired in 2023. De Othello's art often incorporates elements from African cultural traditions, infusing his sculptures with spiritual significance and a cartoonish, exaggerated style.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.metmuseum.org/ru/exhibitions/the-face-of-life-modern-portraits-at-the-met%2Fa-contemporary-presence",
+        "title": "The Face of Life: Modern Portraits at The Met",
+        "content": "A sculpted blue figure sits cross-legged atop a green, wavy wooden shelf. Below, various abstract objects rest on the shelves\n\nWoody De Othello (American, 1991). Tools, 2022. Bronze, glazed ceramic and wood, 61 × 32 1/2 × 48 in. (154.9 × 82.6 × 121.9 cm). The Metropolitan Museum of Art, New York, Purchase, Camilo Miguel Jr., Mike Mauzé, Jeff Yabuki and Alvaro Leal Gifts, 2023 (2023.394a–j). © Woody De Othello [...] De Othello creates intriguing, and often humorous, loosely figurative sculptures that represent both the everyday and the metaphysical. An abstracted, headless figure made of clay sits atop an irregularly shaped ladder. On the six rungs are depictions of common items, rendered larger than life with the same cartoonish sensibility as the ladder. By exaggerating each component’s form and expressive quality, the artist expands the emotional and psychological impact of the work. De Othello is also [...] De Othello is also inspired by the cultural traditions of western Africa and the African diaspora, including those of the Yoruba, Bantu, and Kongo peoples. He has embraced certain aspects of their practices, particularly by endowing the objects and sculptures he makes with spiritual power and significance.",
+        "score": 0.6219319,
+        "published_date": "Sun, 06 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "9d16c1-00"
+      },
+      {
+        "url": "https://www.nytimes.com/topic/ewan-mcgregor?page=7",
+        "title": "Ewan McGregor - Page 7 - The New York Times",
+        "content": "In London, new productions of “Othello” and “Much Ado About Nothing” reveal a common theme: love’s susceptibility to deception.\n\n    By Charles Isherwood\n69. Movie Review | 'Cassandra’s Dream'\n\n    ### In Over Their Heads, With Destiny Looming\n\n    “Cassandra’s Dream,” Woody Allen’s latest excursion to the dark side of human nature, is good enough that you may wonder why he doesn’t just stop making comedies once and for all.\n\n    By Manohla Dargis\n70. FILM IN REVIEW [...] Celebrities have found that taking a stand either way on Scotland's independence referendum can stir anger in about half of its population.\n\n    By Katrin Bennhold\n30. ArtsBeat\n\n    ### Ewan McGregor to Make Broadway Debut in ‘Real Thing’\n\n    He will star in the Roundabout Theater Company revival of Tom Stoppard’s play in October 2014.\n\n    By Allan Kozinn\n31. ### What’s on Tuesday\n\n    A listing of shows to watch on Tuesday.\n\n    By Kathryn Shattuck\n32. ArtsBeat [...] ### Long Career but Still Learning\n\n    After a six-decade stage and film career, Christopher Plummer still has plenty of acting work. “I want to be able to play as many things as possible,” he says, “before I croak.”\n\n    By Melena Ryzik\n59. ArtsBeat\n\n    ### Susan Stroman Signs On to Direct Stage Musical of Tim Burton’s ‘Big Fish’\n\n    The show is aiming to open on Broadway next spring.\n\n    By Patrick Healy\n60. Movie Review | 'Beginners'\n\n    ### Remembering When Dad Came Out",
+        "score": 0.0764423,
+        "published_date": "Sun, 30 Aug 2026 01:00:00 GMT",
+        "raw_content": null,
+        "id": "52ef07-01"
+      }
+    ],
+    "response_time": 1.11,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "7524f69c-e40d-412c-976b-c4cab0fcb36c"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 439,
+    "answer_sentences": 3,
+    "first_sentence": "Woody De Othello's work, \"Tools,\" is featured in \"The Face of Life: Modern Portraits at The Met\" exhibition at The Metropolitan Museum of Art in New York.",
+    "result_count": 2,
+    "top_score": 0.6219319,
+    "top_url": "https://www.metmuseum.org/ru/exhibitions/the-face-of-life-modern-portraits-at-the-met%2Fa-contemporary-presence",
+    "top_published_date": "Sun, 06 Sep 2026 11:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

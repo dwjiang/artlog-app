@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Banksy exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Banksy",
+    "cohort": "famous",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:15.860917+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.221,
+  "response": {
+    "query": "Banksy exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Banksy's work is featured in the new Lucas Museum in Los Angeles, which showcases a diverse range of art from Star Wars to Banksy. Additionally, a rare Banksy hand-sprayed LP recently sold for thousands, highlighting the enduring appeal and value of his art.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.bbc.co.uk/news/videos/cg59d9dyn46o",
+        "title": "Watch: Inside the new Lucas Museum set to open in Los Angeles - BBC News",
+        "content": "# Watch: From Star Wars to Banksy, the art is with you at new Lucas Museum\n\n## To play this video you need to enable JavaScript in your browser.\n\nThis video can not be played [...] ## Explore more\n\nWatch: From Star Wars to Banksy, the art is with you at new Lucas Museum. Video, 00:01:08Watch: From Star Wars to Banksy, the art is with you at new Lucas Museum\n\nThe Lucas Museum is seen in Los Angeles, California.\n\nUp Next. Watch: What happens now after Lindsay Clancy trial jurors deadlocked again? Video, 00:00:38Watch: What happens now after Lindsay Clancy trial jurors deadlocked again?\n\nSplit screen. Left, Ana Faguy. Right, Lindsay Clancy. [...] 'It's hard to balance emotions and professionalism' says Nepal rescuer. Video, 00:01:29'It's hard to balance emotions and professionalism' says Nepal rescuer\n\nBibek Khadka\n\nCup noodles made with cold water? BBC tries Japan's viral snack. Video, 00:01:11Cup noodles made with cold water? BBC tries Japan's viral snack\n\nWoman's hand pouring water from a bottle into a cup noddle sitting an a wooden table outside",
+        "score": 0.36033198,
+        "published_date": "Thu, 03 Sep 2026 01:04:16 GMT",
+        "raw_content": null,
+        "id": "21fe21-00"
+      },
+      {
+        "url": "https://www.bbc.co.uk/news/articles/c8rn8nk56e8o",
+        "title": "Rare Banksy hand-sprayed LP sells for thousands",
+        "content": "Follow BBC Bristol on Facebook, external, X, external and Instagram, external. Send your story ideas to us on email or via WhatsApp on 0800 313 4630.\n\n## Related topics\n\n## More on this story\n\nWho is Banksy? Unmasking the elusive street artist\n\nA statue is pictured showing a man holding a flag walking off a plinth. People are surrounding it, taking pictures of it. The statue is placed against the backdrop of historic buildings.\n\nBanksy works cost public almost £150,000 [...] Police hunt after woman killed in hit-and-run near Edinburgh Airport\n\nUK pupils rank highly again in international reading, maths and science tests\n\nAI will cure cancer in our lifetime, claims boss of UK chip giant\n\n## BBC News Services\n\nCopyright © 2026 BBC. The BBC is not responsible for the content of external sites. Read about our approach to external linking. [...] ## Top stories\n\nUK expected to announce sanctions on Israeli settlements in occupied West Bank\n\nWatch: Pupils return to West Bank school behind barbed wire to protect against settlers\n\nHarry and Meghan 'surprised' by King's letter making clear they remain non-working royals\n\n## More to explore\n\nLiam Gallagher's tambourine grin and Charli XCX says bye to Brat - Music Photography Awards 2026 shortlist",
+        "score": 0.20987462,
+        "published_date": "Thu, 13 Aug 2026 15:02:23 GMT",
+        "raw_content": null,
+        "id": "0d50d0-01"
+      },
+      {
+        "url": "https://www.bbc.co.uk/news/videos/cz7z93zde3po",
+        "title": "US man struck by lightning describes 'horrific' experience",
+        "content": "Up Next. Another White House renovation? A look at Trump's new helipad. Video, 00:01:19Another White House renovation? A look at Trump's new helipad\n\nAerial shot of the White House helipad under construction\n\nWatch: From Star Wars to Banksy, the art is with you at new Lucas Museum. Video, 00:01:08Watch: From Star Wars to Banksy, the art is with you at new Lucas Museum\n\nThe Lucas Museum is seen in Los Angeles, California.\n\n## Editor's recommendations [...] Bibek Khadka\n\nCup noodles made with cold water? BBC tries Japan's viral snack. Video, 00:01:11Cup noodles made with cold water? BBC tries Japan's viral snack\n\nWoman's hand pouring water from a bottle into a cup noddle sitting an a wooden table outside\n\nWatch: Key moments from Andy Burnham's first Commons speech as PM. Video, 00:01:58Watch: Key moments from Andy Burnham's first Commons speech as PM\n\nAndy Burnham speaking in Commons [...] Gloria Steinem talks about her legacy in 2023 BBC interview. Video, 00:01:34Gloria Steinem talks about her legacy in 2023 BBC interview\n\nGloria Steinem smiling during sit-down interview, wears black top\n\nBBC witnesses 'taxi boat' picking up migrants multiple times in a day. Video, 00:01:41BBC witnesses 'taxi boat' picking up migrants multiple times in a day\n\nGroup of people in the sea, some wearing life jackets",
+        "score": 0.18893713,
+        "published_date": "Thu, 03 Sep 2026 10:01:33 GMT",
+        "raw_content": null,
+        "id": "eb8484-02"
+      },
+      {
+        "url": "https://www.theguardian.com/news/2026/aug/31/what-is-replacing-britain-symbols-empire-cotton-capital",
+        "title": "After a reckoning and the toppling, what is replacing Britain’s symbols of empire? | Society | The Guardian",
+        "content": "Immersive … Stormzy’s 2019 Glastonbury vest, designed by Banksy, at the V and A East. Photograph: James Veysey/Shutterstock [...] Finally made it to the V&A East for The Music Is Black exhibition, which traces 125 years of Black British music, and have been rinsing the playlist ever since. It begins with a sombre look at attempts to stifle Black creativity and expression during enslavement, with a slave voyage map showing that more enslaved Africans were taken from the west Africa coast to Brazil than any other country, manumission papers and the “Slaves’ Bible”, which had any passages on freedom and equality edited out [...] equality edited out to curb rebellion. It moves on to the music Black people brought with them through migration – jazz, blues, lover’s rock, trip-hop in Bristol, ska in Coventry, jungle and grime – effortlessly conveying the role Black musicians have played in shaping the music scene in Britain. No stone is left unturned in this thoroughly immersive exhibition. Angela",
+        "score": 0.15925692,
+        "published_date": "Tue, 01 Sep 2026 14:30:00 GMT",
+        "raw_content": null,
+        "id": "edacf4-03"
+      },
+      {
+        "url": "https://www.theguardian.com/thefilter-us/2026/sep/02/samsung-frame-pro-tv-review",
+        "title": "Samsung's Frame Pro isn't just a gorgeous TV, it opened my eyes to art",
+        "content": "When you’re not watching TV or movies on The Frame, it can display a rotating selection of artwork from the Samsung Art Store. For $50 per year (or $5 per month), you’ll have access to thousands of works from museums and galleries around the world. You can also opt for a free version, which cycles through 30 different artworks a month, and about 70 complimentary images available to stream. [...] ## Most viewed\n\n## Most viewed [...] Amazon’s new Ember Artline series runs cheaper: about $900 for a 55in TV. Though the art store is free, it only offers about 2,000 pieces and does not come with as many well-known works. I do like that the basic magnetic frame comes in 10 different colors and is included with these TVs, while Samsung still charges $200 to $300 extra.\n\nAmazon\n\nEmber Artline 55in TV\n\n$624.99\n\n$624.99 at Amazon, originally $825\n\n## If The Frame fits, hang it\n\nPhotograph: Tobey Grumet Segal/The Guardian",
+        "score": 0.03277815,
+        "published_date": "Wed, 02 Sep 2026 14:15:26 GMT",
+        "raw_content": null,
+        "id": "757ccf-04"
+      }
+    ],
+    "response_time": 1.13,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "f2343506-cecc-48ce-a390-f3f853f8131c"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 258,
+    "answer_sentences": 2,
+    "first_sentence": "Banksy's work is featured in the new Lucas Museum in Los Angeles, which showcases a diverse range of art from Star Wars to Banksy.",
+    "result_count": 5,
+    "top_score": 0.36033198,
+    "top_url": "https://www.bbc.co.uk/news/videos/cg59d9dyn46o",
+    "top_published_date": "Thu, 03 Sep 2026 01:04:16 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}
