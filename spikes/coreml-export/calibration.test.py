@@ -1,6 +1,9 @@
 import json
+from hashlib import sha256
+from io import BytesIO
 from unittest.mock import Mock
 
+from PIL import Image
 import pytest
 import requests
 
@@ -136,3 +139,32 @@ def test_collection_resumes_at_failed_object_and_keeps_published_lists_intact(tm
     index = (published / "index-urls.txt").read_text().splitlines()
     assert len(queries) == len(index) == 2
     assert not set(queries) & set(index)
+
+
+def test_prepare_downloads_the_committed_index_and_reuses_cached_images(tmp_path, monkeypatch):
+    artifacts = tmp_path / "artifacts"
+    published = tmp_path / "calibration"
+    published.mkdir()
+    monkeypatch.setattr(calibration, "ARTIFACTS", artifacts)
+    monkeypatch.setattr(calibration, "CALIBRATION", published)
+    image = BytesIO()
+    Image.new("RGB", (4, 2), (255, 12, 7)).save(image, format="PNG")
+    data = image.getvalue()
+    urls = ["https://example.com/query", "https://example.com/index"]
+    (published / "urls.txt").write_text(urls[0] + "\n")
+    (published / "index-urls.txt").write_text(urls[1] + "\n")
+    (published / "manifest.json").write_text(json.dumps([
+        {"url": url, "sha256": sha256(data).hexdigest()} for url in urls
+    ]))
+    downloader = Mock(get=Mock(return_value=data))
+    monkeypatch.setattr(calibration, "Downloader", lambda: downloader)
+    calibration.prepare(448)
+    assert [call.args[0] for call in downloader.get.call_args_list] == urls
+    assert all(calibration.image_path(url).read_bytes() == data for url in urls)
+    prepared = json.loads((artifacts / "calibration-448/manifest.json").read_text())
+    assert [record["url"] for record in prepared] == urls[:1]
+    calibration.prepare(512)
+    assert downloader.get.call_count == 2
+    calibration.image_path(urls[1]).write_bytes(b"changed cached bytes")
+    with pytest.raises(ValueError, match="Image hash mismatch"):
+        calibration.prepare(512)

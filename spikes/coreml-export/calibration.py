@@ -82,6 +82,18 @@ def image_path(url):
     return ARTIFACTS / "images" / (sha256(url.encode()).hexdigest() + ".jpg")
 
 
+def cache_image(url, downloader):
+    path = image_path(url)
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = downloader.get(url)
+        Image.open(BytesIO(data)).verify()
+        temporary = path.with_suffix(".tmp")
+        temporary.write_bytes(data)
+        temporary.replace(path)
+    return path
+
+
 def fetch_record(object_id, downloader):
     cache = ARTIFACTS / "met" / f"{object_id}.json"
     try:
@@ -93,13 +105,7 @@ def fetch_record(object_id, downloader):
         if "painting" not in record.get("classification", "").lower():
             return None
         url = record["primaryImageSmall"]
-        path = image_path(url)
-        if not path.exists():
-            data = downloader.get(url)
-            Image.open(BytesIO(data)).verify()
-            temporary = path.with_suffix(".tmp")
-            temporary.write_bytes(data)
-            temporary.replace(path)
+        path = cache_image(url, downloader)
         return {"objectID": object_id, "url": url, "isPublicDomain": True,
                 "classification": record["classification"], "sha256": sha256(path.read_bytes()).hexdigest()}
     except PermissionError:
@@ -161,15 +167,19 @@ def collect():
 def prepare(size):
     downloader = Downloader()
     urls = (CALIBRATION / "urls.txt").read_text().splitlines()
+    index_file = CALIBRATION / "index-urls.txt"
+    index_urls = index_file.read_text().splitlines() if index_file.exists() else []
+    hashes = {record["url"]: record["sha256"]
+              for record in json.loads((CALIBRATION / "manifest.json").read_text())}
+    for url in urls + index_urls:
+        path = cache_image(url, downloader)
+        if sha256(path.read_bytes()).hexdigest() != hashes[url]:
+            raise ValueError(f"Image hash mismatch: {url}")
     destination = ARTIFACTS / f"calibration-{size}"
-    destination.mkdir(exist_ok=True)
+    destination.mkdir(parents=True, exist_ok=True)
     manifest = []
     for i, url in enumerate(urls):
-        path = image_path(url)
-        path.parent.mkdir(exist_ok=True)
-        if not path.exists():
-            path.write_bytes(downloader.get(url))
-        image = letterbox(Image.open(path), size)
+        image = letterbox(Image.open(image_path(url)), size)
         name = f"{i:03}.rgb"
         (destination / name).write_bytes(image.tobytes())
         manifest.append({"url": url, "file": name, "pixel_sha256": sha256(image.tobytes()).hexdigest()})

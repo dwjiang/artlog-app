@@ -235,7 +235,7 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
 
 ## Verification
 
-- Nineteen focused Python tests pass; the pinned Python environment is consistent.
+- Twenty focused Python tests pass; the pinned Python environment is consistent.
 - Both 448 and 512 real-model shape checks pass; all five real CoreML models
   pass the 200-image finite-output/drift check on macOS.
 - BenchApp builds for iOS in Release, signs, installs, and runs on the physical

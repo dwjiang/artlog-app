@@ -84,13 +84,21 @@ at both resolutions. `manifest.json` records each object's public-domain flag,
 classification, source URL and downloaded-byte hash. Images and weights are
 ignored. The separate 2,000-image retrieval index is still being collected.
 
-To collect or resume the full disjoint sets:
+To download the exact committed dataset and prepare device inputs:
 
 ```sh
-.venv/bin/python calibration.py collect
 .venv/bin/python calibration.py prepare --size 512
 .venv/bin/python calibration.py prepare --size 448
 ```
+
+To select a fresh dataset, or resume an interrupted collection:
+
+```sh
+.venv/bin/python calibration.py collect
+```
+
+Selecting a new dataset requires preparing its pixels and rerunning the iPhone
+references before comparing drift.
 
 Collection uses the Met's paginated v1.1 search, deterministic hash ordering,
 public-domain painting filtering and image-byte/URL deduplication. A single
@@ -106,8 +114,9 @@ next object after each completed object using atomic replacement. Re-running
 the same command resumes at a failed object without repeating earlier requests.
 Persistent failures leave the published lists intact. Successful completion
 writes 200 calibration URLs and 2,000 different index URLs. `prepare` downloads
-missing images from the chosen list and writes hashed `.rgb` buffers and
-manifests under `artifacts/`.
+missing images from both committed lists and checks their bytes against the
+manifest hashes, including cached images. Only calibration images become hashed
+`.rgb` buffers for the device; the retrieval index uses cached source images.
 
 ```sh
 .venv/bin/python drift_check.py --size 512 --torch-device mps
@@ -186,6 +195,7 @@ xcodebuild -project BenchApp/BenchApp.xcodeproj -scheme BenchApp \
 ```
 
 The tests cover paced requests, retry limits and cooldowns, collection resumption,
+downloading the pinned image sets and rejecting changed bytes,
 cosine/nearest-neighbor semantics, invalid vectors, letterbox pixels, and equality
 between compressed CoreML constants and the recovered PyTorch checkpoint.
 The real-model drift runs validate every measured output for
