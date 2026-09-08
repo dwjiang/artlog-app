@@ -1,0 +1,1225 @@
+{
+  "note": "20 hand-authored fictional fact sheets, 8 facts each. Artist names, artworks, institutions, and events are synthetic evaluation data, not historical claims. Includes uncertain attributions, negations, acquisition dates, conservation history, and unidentified subjects. Tests adherence to the supplied sheet independently of real-world model knowledge.",
+  "cases": [
+    {
+      "id": "docent-01",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Harbor at Dawn is an oil painting by Mira Vale.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It was painted in 1912.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It depicts three fishing boats.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "A pale orange sun appears above the harbor.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The canvas measures 60 by 80 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The painting entered the North Gallery in 1951.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "A 1988 treatment removed discolored varnish.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The identity of the boat owners is unknown.",
+          "sourceUrl": "https://museum.example/fixture/1",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-02",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "The Blue Room is attributed to Elias Rowan.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The attribution remains disputed.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The painting dates to about 1870.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "It is painted in oil on a wood panel.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A single empty chair stands beside a window.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The room contains no human figures.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The panel was acquired in 1922.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "No commission document is known.",
+          "sourceUrl": "https://museum.example/fixture/2",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-03",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Orchard in Snow was painted by Hana Mori in 1926.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The medium is ink and color on silk.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "Five bare trees dominate the scene.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The work is a hanging scroll.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A red seal appears at the lower left.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The inscription records a winter visit.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It was donated by the Finch family in 1980.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The orchard location has not been identified.",
+          "sourceUrl": "https://museum.example/fixture/3",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-04",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Portrait of a Reader is by Lucia Ferri.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "Ferri painted it in 1698.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The sitter holds a closed book.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The sitter has not been identified.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The medium is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The frame was added in the nineteenth century.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work entered the collection in 1974.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The painting is not a self-portrait.",
+          "sourceUrl": "https://museum.example/fixture/4",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-05",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Red Square Study is by Anton Belov.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The work dates to 1931.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The support is cardboard.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Its medium is gouache.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A red square overlaps a black circle.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The composition has no depicted architecture.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work measures 24 by 18 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "It was acquired through a gift in 2003.",
+          "sourceUrl": "https://museum.example/fixture/5",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-06",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "River Bend is by Ada Brooks.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The watercolor was made in 1884.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It shows a river curving behind reeds.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The distant structure is a mill.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The sheet measures 31 by 46 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The artist left portions of the paper unpainted.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work was exhibited in 1890.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "Its location between 1890 and 1930 is undocumented.",
+          "sourceUrl": "https://museum.example/fixture/6",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-07",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Still Life with Pears is attributed to the workshop of Matteo Serra.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It is not attributed directly to Serra.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The painting dates to approximately 1620.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "It is oil on oak.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "Four pears rest on a folded cloth.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "A repaired split crosses the panel.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It was purchased in 1965.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The original buyer is unknown.",
+          "sourceUrl": "https://museum.example/fixture/7",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-08",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Evening Tram is a painting by Leila Nadir.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It was completed in 1958.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is tempera on board.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "A yellow tram occupies the center.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The figures waiting beside it are anonymous.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The scene is set after sunset.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The museum received it in 1987.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "It was first exhibited in 1959.",
+          "sourceUrl": "https://museum.example/fixture/8",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-09",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Mountain Pass is by Tomas Ibarra.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The painting was made between 1904 and 1906.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "Its medium is oil on linen.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "A narrow path climbs a rocky slope.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "No mountain name is given in the artist records.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The work measures 92 by 110 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It was relined in 1971.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The original stretcher survives separately.",
+          "sourceUrl": "https://museum.example/fixture/9",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-10",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Two Sisters is by Isabel Cruz.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The double portrait dates to 1811.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The sitters are Alma and Teresa Vidal.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Alma is seated on the left.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "Teresa holds a small fan.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The painting is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The Vidal family donated it in 1948.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The sisters were not twins.",
+          "sourceUrl": "https://museum.example/fixture/10",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-11",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Window with Rain is by Noor Abbas.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It dates to 1972.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is acrylic on canvas.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Vertical blue marks suggest rain.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A red sill crosses the lower edge.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The painting contains no written text.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It was included in the artist first solo exhibition.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The museum bought it in 1975.",
+          "sourceUrl": "https://museum.example/fixture/11",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-12",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "The Lantern Seller is by Victor Hale.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "Hale painted it in 1839.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It depicts a street vendor at night.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The lanterns are the principal depicted light sources.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The work is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "It was acquired in 1907.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "A 1995 examination found an earlier composition beneath it.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The underlying composition has not been identified.",
+          "sourceUrl": "https://museum.example/fixture/12",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-13",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Untitled (Green Bands) is by Eva Lind.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The parenthetical title was assigned by the museum.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The painting dates to 1964.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The medium is acrylic on raw canvas.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "Three green bands cross the surface.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The edges of the bands are uneven.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work measures 150 by 150 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "It entered the collection in 1992.",
+          "sourceUrl": "https://museum.example/fixture/13",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-14",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Market Morning is by Farid Mansur.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It was painted in 1897.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The scene includes fruit stalls.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A child carries an empty basket.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The city shown has not been established.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "A handwritten label records an exhibition in 1901.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The painting was donated in 1960.",
+          "sourceUrl": "https://museum.example/fixture/14",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-15",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Study of a Hand is by Celia Grant.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The work dates to around 1785.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It is red chalk on paper.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "It depicts a right hand resting on a ledge.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The sheet is a preparatory study.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The related painting has not been found.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The paper bears a watermark.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The museum acquired it in 1936.",
+          "sourceUrl": "https://museum.example/fixture/15",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-16",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Storm over the Coast is by Oskar Venn.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The painting dates to 1919.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Dark clouds fill most of the composition.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A lighthouse appears at the right edge.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The sea is painted with thick strokes.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work was cleaned in 2009.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The title does not identify a particular storm.",
+          "sourceUrl": "https://museum.example/fixture/16",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-17",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Gold Ground Madonna is by an unknown artist.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It was made in northern Italy about 1450.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is tempera and gold on panel.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The infant rests on the seated figure left arm.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The gold ground includes punched decoration.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The lower edge has been trimmed.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "The work was acquired in 1928.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "Its original church is unknown.",
+          "sourceUrl": "https://museum.example/fixture/17",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-18",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "City Grid is by Samir Doss.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It dates to 1982.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is enamel on aluminum.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Black lines divide the surface into rectangles.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "Several rectangles are filled with yellow.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The work was made as a unique object.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It is not part of a numbered edition.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The museum purchased it in 1983.",
+          "sourceUrl": "https://museum.example/fixture/18",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-19",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "Garden Wall is by Amélie Roche.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "It was painted in 1908.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "The medium is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "Pink flowers climb a low wall.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "A blue gate is partly open.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The work measures 45 by 55 centimeters.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "It was lent to a retrospective in 1956.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "The painter retained it until her death in 1941.",
+          "sourceUrl": "https://museum.example/fixture/19",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    },
+    {
+      "id": "docent-20",
+      "facts": [
+        {
+          "id": "f1",
+          "text": "The Returned Letter is by Daniel Moss.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f2",
+          "text": "The work dates to 1863.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f3",
+          "text": "It depicts a woman holding a sealed envelope.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f4",
+          "text": "The letter contents are not visible.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f5",
+          "text": "The medium is oil on canvas.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f6",
+          "text": "The work was purchased in 1910.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f7",
+          "text": "An old attribution to another painter was rejected in 1998.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        },
+        {
+          "id": "f8",
+          "text": "No evidence identifies the sitter as the artist wife.",
+          "sourceUrl": "https://museum.example/fixture/20",
+          "sourceLabel": "Fictional museum fixture",
+          "sourceScore": 1
+        }
+      ]
+    }
+  ]
+}

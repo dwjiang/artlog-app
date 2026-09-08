@@ -53,9 +53,25 @@ Schema: { title: string|null, artist: string|null, artist_dates: string|null, wo
 
 ## Done criteria
 
-- [ ] Decision record exists with model IDs and the corrections section
-- [ ] `spikes/token-factory/` committed (scripts, manifest, results; no keys, no non-licensed images)
-- [ ] `docs/plans/README.md` status row updated
+- [x] Decision record exists with model IDs and the corrections section
+- [x] `spikes/token-factory/` committed (scripts, manifest, results; no keys, no non-licensed images)
+- [x] `docs/plans/README.md` status row updated
+
+## Execution — 2026-09-08
+
+[Decision 004](../../decisions/004-token-factory-models.md) records all four
+model choices and exact design corrections. After MiniCPM reached 68% joint
+title-and-artist accuracy and four GLM attempts failed, the user requested a
+different model. Kimi K2.6 completed the same 25 labels with 96% joint accuracy
+and valid JSON in every response, resolving the label-selection blocker.
+Lightning remains selected for docent/moderation and Super for fact sheets.
+
+Kimi's 25 calls cost an estimated $0.050918. Public Nebius pricing/context
+metadata supports a $0.30 reservation per Kimi call; all four $1 GLM failure
+reservations remain intact. The conservative ledger is $4.092883 under the
+unchanged $4.50 local ceiling and $5 plan budget. Nine Python tests pass.
+App integration remains the responsibility of the downstream implementation
+plans; this spike does not deploy the selected model settings.
 
 ## STOP conditions
 
