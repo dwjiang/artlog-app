@@ -1,0 +1,24 @@
+{"kind": "insert_error", "at": 1788864796.197166, "start": 0, "version": "v1", "batch": 1000, "error": "400 BadJsonBody: Failed to buffer the request body: length limit exceeded"}
+{"kind": "insert_error", "at": 1788864814.135137, "start": 0, "version": "v1", "batch": 1000, "error": "400 BadJsonBody: Failed to buffer the request body: length limit exceeded"}
+{"kind": "insert_error", "at": 1788864816.420296, "start": 0, "version": "v1", "batch": 500, "error": "400 BadJsonBody: Failed to buffer the request body: length limit exceeded"}
+{"kind": "insert", "at": 1788864818.4196968, "version": "v1", "start": 0, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9809530839556828}
+{"kind": "insert", "at": 1788864820.388174, "version": "v1", "start": 250, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9571945000207052}
+{"kind": "insert", "at": 1788864822.422266, "version": "v1", "start": 500, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.025427040993236}
+{"kind": "insert", "at": 1788864824.274206, "version": "v1", "start": 750, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.8386445000069216}
+{"kind": "insert", "at": 1788864826.586421, "version": "v1", "start": 1000, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.297827874950599}
+{"kind": "insert", "at": 1788864828.4118788, "version": "v1", "start": 1250, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.8170970830251463}
+{"kind": "insert", "at": 1788864830.357741, "version": "v1", "start": 1500, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9333278749836609}
+{"kind": "insert", "at": 1788864832.292931, "version": "v1", "start": 1750, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9275555409840308}
+{"kind": "insert", "at": 1788864834.509862, "version": "v1", "start": 2000, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.2051707499776967}
+{"kind": "insert", "at": 1788864836.7147038, "version": "v1", "start": 2250, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.1929659169982187}
+{"kind": "insert", "at": 1788864838.598628, "version": "v1", "start": 2500, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.876086958043743}
+{"kind": "insert", "at": 1788864840.601003, "version": "v1", "start": 2750, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9900336250429973}
+{"kind": "insert", "at": 1788864842.4567611, "version": "v1", "start": 3000, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.8453362080035731}
+{"kind": "insert", "at": 1788864844.262665, "version": "v1", "start": 3250, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.7914246250293218}
+{"kind": "insert", "at": 1788864846.25314, "version": "v1", "start": 3500, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9778289170353673}
+{"kind": "insert", "at": 1788864848.8948119, "version": "v1", "start": 3750, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.6320634580333717}
+{"kind": "insert", "at": 1788864851.6551628, "version": "v1", "start": 4000, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 2.7500734589993954}
+{"kind": "insert", "at": 1788864853.605978, "version": "v1", "start": 4250, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9389330829726532}
+{"kind": "insert", "at": 1788864855.428999, "version": "v1", "start": 4500, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.8125462919706479}
+{"kind": "insert", "at": 1788864857.343137, "version": "v1", "start": 4750, "rows": 250.0, "batch": 250, "requestedBatch": 1000, "rpcSeconds": 1.9072055410360917}
+{"kind": "seed_summary", "version": "v1", "from": 0, "target": 5000, "requestedBatch": 1000, "finalBatch": 250, "wallSeconds": 47.55624658399029, "rowsPerSecond": 105.13865914900104}

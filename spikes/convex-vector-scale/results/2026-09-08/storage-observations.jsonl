@@ -1,0 +1,5 @@
+{"at": 1788864964.048823, "projectId": 2956347, "deployment": "quick-schnauzer-888", "phase": "migration-start", "database": [], "search": []}
+{"at": 1788865100.749897, "projectId": 2956347, "deployment": "quick-schnauzer-888", "phase": "doubled-30000", "database": [], "search": []}
+{"at": 1788865223.8384, "projectId": 2956347, "deployment": "quick-schnauzer-888", "phase": "doubled-accounting-recheck", "database": [], "search": []}
+{"at": 1788865926.7851431, "projectId": 2956347, "deployment": "quick-schnauzer-888", "phase": "final-30000", "database": [], "search": []}
+{"at": 1788866095.006461, "projectId": 2956347, "deployment": "quick-schnauzer-888", "phase": "final-accounting-recheck", "database": [], "search": []}
