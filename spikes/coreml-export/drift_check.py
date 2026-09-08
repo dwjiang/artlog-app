@@ -80,7 +80,8 @@ def main():
     images = [letterbox(Image.open(image_path(url)), args.size) for url in urls]
     report = {"size": args.size, "calibration_count": len(urls), "required_calibration_count": 200,
               "calibration_manifest_sha256": sha256((CALIBRATION / "manifest.json").read_bytes()).hexdigest(),
-              "scope": "macOS CPU_AND_NE; not iPhone evidence", "torch_device": args.torch_device,
+              "scope": "CoreML variants: macOS CPU_AND_NE; iphone_int8: physical iPhone CPU_AND_NE when supplied",
+              "torch_device": args.torch_device,
               "cosines": {}, "mac_load_ms": {}}
     fp32 = pytorch_embeddings(build(), images, device=args.torch_device)
     quantized = build()
@@ -130,7 +131,7 @@ def main():
             index = pytorch_embeddings(quantized, index_images, half=True, device=args.torch_device)
             np.savez(cache, signature=signature, vectors=index)
         report["top1_agreement_percent"] = {name: agreement(fp32, values, index) for name, values in batches.items() if name != "pytorch_fp32"}
-    report["acceptance"] = "provisional: full calibration, iPhone drift, latency and retrieval evidence required"
+    report["acceptance"] = "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
     destination = ARTIFACTS / f"drift-{args.size}.json"
     destination.write_text(json.dumps(report, indent=2) + "\n")
     np.savez(ARTIFACTS / f"embeddings-{args.size}.npz", urls=urls, **batches)

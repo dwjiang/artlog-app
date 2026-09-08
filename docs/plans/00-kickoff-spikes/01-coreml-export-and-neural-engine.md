@@ -10,11 +10,12 @@
 
 ## Status
 
-- **Execution (2026-09-08)**: BLOCKED on full calibration/retrieval data. See
+- **Execution (2026-09-08)**: IN PROGRESS. See
   [decision 001](../../decisions/001-embedding-model-export.md): five exports,
-  all ten physical iPhone benchmark configurations, and 26-image Mac/iPhone drift
-  measured. The remaining device runs completed after unlocking the phone.
-  Retrying Met collection still returned HTTP 403 before a full dataset existed.
+  all ten physical iPhone benchmark configurations, and full 200-image Mac/iPhone
+  drift at both resolutions measured. The int8 drift gate passes. Paced,
+  resumable Met collection is downloading the disjoint 2,000-image index for
+  the remaining nearest-neighbor comparison.
 - **Priority**: P0 (gates 03.03 and 02.04; also fixes `embeddingDim`/`inputSize`)
 - **Effort**: M (2 days)
 - **Risk**: MED (export may hit unsupported ops; ANE may reject parts of the graph)

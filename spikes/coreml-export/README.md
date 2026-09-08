@@ -79,13 +79,12 @@ accuracy check and is not the chosen recipe.
 
 ## Calibration and drift
 
-The committed URL list currently contains **26**, not 200, paintings. The Met API
-returned HTTP 403 during both collection attempts. `manifest.json` records each
-object's public-domain flag, classification, source URL and downloaded-byte hash. Images
-and weights are ignored. Do not treat this subset as the completed calibration
-or silently use it as the 2,000-image retrieval index.
+The committed URL list contains **200** paintings, measured on Mac and iPhone
+at both resolutions. `manifest.json` records each object's public-domain flag,
+classification, source URL and downloaded-byte hash. Images and weights are
+ignored. The separate 2,000-image retrieval index is still being collected.
 
-To obtain the full disjoint sets when access is restored:
+To collect or resume the full disjoint sets:
 
 ```sh
 .venv/bin/python calibration.py collect
@@ -117,7 +116,7 @@ manifests under `artifacts/`.
 
 The report compares fp32 PyTorch, fp16 PyTorch with recovered int8 weights, and
 each CoreML variant with `CPU_AND_NE` on macOS. It rejects zero/nonfinite vectors.
-Reports record the sample count and stay provisional. When `index-urls.txt`
+Reports record the sample count; acceptance belongs in the decision record. When `index-urls.txt`
 exists, it must contain exactly 2,000 unique URLs disjoint from calibration;
 the index is embedded once using the recovered weights and cached with a
 weight/URL signature. Agreement@1 compares query variants against that **same**
@@ -173,9 +172,9 @@ Check the iPhone reference against the GPU and macOS outputs:
 The embedding file must have a sibling `*-report.json`; size, model-weight hash,
 compute configuration, URL set and vector dimensions are validated. The committed
 `calibration/iphone-embeddings.json` and `iphone-report.json`, when present, are
-the 512/int8 reference from this provisional run. The committed report keeps
+the full 200-image 512/int8 reference. The committed report keeps
 timings and assignment counts; full per-operation reports remain in
-`artifacts/iphone/`. Replace both reference files after rerunning the full set.
+`artifacts/iphone/`. Keep the reference embeddings and report together.
 
 ## Checks
 

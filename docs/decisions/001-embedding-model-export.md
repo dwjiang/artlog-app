@@ -1,6 +1,6 @@
 # 001 Embedding model export
 
-Date: 2026-09-08 · Status: **provisional; full calibration and retrieval gate blocked**
+Date: 2026-09-08 · Status: **provisional; retrieval comparison pending**
 
 ## Decision
 
@@ -9,18 +9,19 @@ per-channel int8 Linear weights and fp16 compute** as the candidate for the next
 stage. Candidate `modelVersion`: **`c-radiov3-b-int8-512-dinov2-v1`**.
 This is not approval to build the full index or claim the full accuracy gate passed.
 
-On the available iPhone 16 Pro, the 512/int8 package predicts in about **66 ms**
+On the available iPhone 16 Pro, the 512/int8 package predicts in about **67 ms**
 with `CPU_AND_NE`. Its minimum cosine against PyTorch with the recovered weights
-is **0.99475** on **26** paintings. Loading costs approximately **3.5–3.8 seconds**.
+is **0.99292** on **200** paintings. The latest load costs approximately **4.1 seconds**.
 Reject the tested 4-bit palette: its mean cosine against fp32 is approximately
-**0.761**, far below the drift target. Other 4-bit recipes were not investigated.
+**0.740**, far below the drift target. Other 4-bit recipes were not investigated.
 
-The Met API returned HTTP 403 during collection. A subsequent retry answered the
-initial access check but again returned HTTP 403 before completing the dataset.
-Consequently, the required 200-image calibration and 2,000-image nearest-neighbor
-comparison remain unmeasured. The measured 26-image subset supports a provisional
-choice, not a recall conclusion. All ten planned configurations on the available
-iPhone are now measured.
+The Met API initially returned intermittent HTTP 403. Serial request pacing,
+15/30/60-second retry cooldowns and resumable checkpoints allowed collection to
+continue. All 200 calibration images are now measured on Mac and iPhone at both
+resolutions. The disjoint 2,000-image retrieval index is still downloading, so
+nearest-neighbor agreement remains pending. All ten planned device configurations
+were measured on the initial subset; both int8 CPU + NE cases were rerun on the
+full calibration set.
 
 ## Environment and reproducibility
 
@@ -66,7 +67,7 @@ are committed; they live under the ignored `artifacts/` directory.
 All five packages convert through `torch.jit.trace` to an iOS 17 ML Program.
 No unsupported conversion op was encountered; `torch.export` was not needed.
 Fixed-shape tracing warnings about resolution branches are expected because each
-package accepts only its declared resolution. The 26-image macOS runs returned
+package accepts only its declared resolution. The 200-image macOS runs returned
 finite, nonzero embeddings for every variant.
 
 | Input | Weights | Package MB | Export seconds |
@@ -101,6 +102,17 @@ include extracting the output array. Calibration embeddings follow timing.
 | 512 | int8 | All | 65.86 | 3521 | 249.8 / 257.8 | 2 / 442 |
 | 512 | int8 | CPU + NE | 65.85 | 3812 | 168.6 / 180.1 | 2 / 442 |
 
+The table above preserves the original 26-image runs. The full calibration uses
+a different first painting; follow-up int8 measurements are:
+
+| Input | Units | Median ms | Load ms | Loaded / sampled max RSS MB | Images exported |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 448 | CPU + NE | 41.28 | 3250 | 168.4 / 180.9 | 200 |
+| 512 | CPU + NE | 66.64 | 4127 | 168.9 / 183.1 | 200 |
+
+These runs retain the same 312 Neural Engine, 2 CPU and 442 unassigned operation
+counts. Both original and follow-up samples are saved in `iphone.json`.
+
 All measured rows remained at nominal thermal state (0 → 0). “Loaded / sampled
 max RSS” is process resident memory, not guaranteed peak memory or total Neural
 Engine allocation. Samples are taken after loading and predictions, including
@@ -124,12 +136,12 @@ timings per completed row are retained in
 ## Accuracy and drift
 
 The [URL list](../../spikes/coreml-export/calibration/urls.txt) and
-[manifest](../../spikes/coreml-export/calibration/manifest.json) contain 26 unique
+[manifest](../../spikes/coreml-export/calibration/manifest.json) contain 200 unique
 Met paintings with `isPublicDomain=true`. Filtering also checks painting
 classification and deduplicates downloaded bytes. The
 [Met API](https://metmuseum.github.io/) supplies `primaryImageSmall` and the
-public-domain flag. Full collection stopped on access refusal; no replacement
-dataset was silently substituted.
+public-domain flag. Collection now continues through the original Met source
+using paced, cached requests; the 2,000-image index remains separate.
 
 The reference comparison is PyTorch **MPS** fp32 versus MPS fp16 with the actual
 CoreML-dequantized weights. Here fp32 describes execution after loading the
@@ -140,23 +152,23 @@ the future camera preprocessing path is not covered.
 
 | Input | Compared pair | Mean cosine | Minimum cosine | Images |
 | --- | --- | ---: | ---: | ---: |
-| 448 | PyTorch fp32 ↔ fakequant fp16 | 0.998867 | 0.998191 | 26 |
-| 448 | PyTorch fp32 ↔ macOS CoreML fp16 | 0.996820 | 0.995000 | 26 |
-| 448 | PyTorch fp32 ↔ macOS CoreML int8 | 0.995733 | 0.993348 | 26 |
-| 448 | PyTorch fakequant fp16 ↔ macOS CoreML int8 | 0.996814 | 0.994915 | 26 |
-| 448 | PyTorch fakequant fp16 ↔ iPhone CoreML int8 | 0.996814 | 0.994915 | 26 |
-| 512 | PyTorch fp32 ↔ fakequant fp16 | 0.998870 | 0.998242 | 26 |
-| 512 | PyTorch fp32 ↔ macOS CoreML fp16 | 0.996842 | 0.994606 | 26 |
-| 512 | PyTorch fp32 ↔ macOS CoreML int8 | 0.995795 | 0.993510 | 26 |
-| 512 | PyTorch fp32 ↔ macOS CoreML 4-bit | 0.760775 | 0.530246 | 26 |
-| 512 | PyTorch fp32 ↔ iPhone CoreML 4-bit (both unit settings) | 0.760775 | 0.530246 | 26 |
-| 512 | PyTorch fakequant fp16 ↔ macOS CoreML int8 | 0.996845 | 0.994753 | 26 |
-| 512 | PyTorch fakequant fp16 ↔ iPhone CoreML int8 | 0.996845 | 0.994753 | 26 |
+| 448 | PyTorch fp32 ↔ fakequant fp16 | 0.998907 | 0.997714 | 200 |
+| 448 | PyTorch fp32 ↔ macOS CoreML fp16 | 0.996967 | 0.992700 | 200 |
+| 448 | PyTorch fp32 ↔ macOS CoreML int8 | 0.995966 | 0.990785 | 200 |
+| 448 | PyTorch fakequant fp16 ↔ macOS CoreML int8 | 0.996978 | 0.992746 | 200 |
+| 448 | PyTorch fakequant fp16 ↔ iPhone CoreML int8 | 0.996978 | 0.992746 | 200 |
+| 512 | PyTorch fp32 ↔ fakequant fp16 | 0.998920 | 0.998140 | 200 |
+| 512 | PyTorch fp32 ↔ macOS CoreML fp16 | 0.997007 | 0.993080 | 200 |
+| 512 | PyTorch fp32 ↔ macOS CoreML int8 | 0.996012 | 0.991329 | 200 |
+| 512 | PyTorch fp32 ↔ macOS CoreML 4-bit | 0.740254 | 0.158753 | 200 |
+| 512 | PyTorch fakequant fp16 ↔ macOS CoreML int8 | 0.997011 | 0.992918 | 200 |
+| 512 | PyTorch fakequant fp16 ↔ iPhone CoreML int8 | 0.997011 | 0.992918 | 200 |
 
-The iPhone int8 outputs equal the macOS `CPU_AND_NE` outputs on this subset.
-The resumed 512/fp16 All and 512/4-bit runs also match their corresponding macOS
-outputs exactly; the 4-bit result is the same with All and CPU + NE. All returned
-26 finite, nonzero vectors. The tested 4-bit package takes approximately 67 ms
+The iPhone int8 outputs equal the macOS `CPU_AND_NE` outputs on all 200 images
+at both resolutions. Earlier 26-image 512/fp16 All and 512/4-bit iPhone runs also
+matched their corresponding macOS outputs exactly; the 4-bit result was the same
+with All and CPU + NE. Those earlier 4-bit phone runs had mean/minimum cosine
+0.760775 / 0.530246 against fp32. All measured vectors are finite and nonzero. The tested 4-bit package takes approximately 67 ms
 on iPhone, providing no prediction-speed advantage over int8 while substantially
 degrading numerical agreement.
 For int8, minimum cosine exceeds 0.99 at both resolutions. MPS is a local GPU proxy;
@@ -168,15 +180,16 @@ difference, not evidence that CUDA will behave the same way.
 
 | Required larger evaluation | Result |
 | --- | --- |
-| All 200 calibration images | Not measured: Met API HTTP 403; measured subset remains 26 images |
-| At least 50 on-device reference images | Not measured at required count: all 26 selected calibration images were exported |
-| Agreement@1 on a disjoint 2,000-image mini-index | Not measured: collection blocked before the index set existed |
+| All 200 calibration images | Measured at 448 and 512; int8 minimum cosine exceeds 0.99 |
+| At least 50 on-device reference images | All 200 calibration images exported at both resolutions |
+| Agreement@1 on a disjoint 2,000-image mini-index | Pending: paced index collection is in progress |
 | True recognition recall on museum captures | Not measured: this spike compares numerical agreement |
 
 The committed [iPhone embeddings](../../spikes/coreml-export/calibration/iphone-embeddings.json)
 and [reference report](../../spikes/coreml-export/calibration/iphone-report.json)
-are explicitly this **26-image, 512/int8, CPU_AND_NE** run. They do not fulfill
-plan 02.04's 200-image input requirement.
+are the **200-image, 512/int8, CPU_AND_NE** reference. Plan 02.04 can reuse
+these calibration inputs, but acceptance still awaits the retrieval comparison
+and its build hardware must pass the CUDA drift check.
 
 ## Exact fake-quant recipe
 
@@ -216,15 +229,15 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
   than the design's ~90 MB estimate. App Store compression and whole-app size
   are not measured by this spike.
 - Reject this 4-bit recipe; do not use its smaller package to solve app size.
-- Resume the 200 + 2,000 Met collection when authorized API access works, rerun
-  both sizes and the device references, then decide whether the candidate can
-  be accepted. The spike is recorded as blocked until that evidence exists.
+- Finish the disjoint 2,000-image Met index and measure nearest-neighbor
+  agreement at both sizes before accepting the candidate. The full 200-image
+  device drift gate has passed.
 
 ## Verification
 
-- Nine focused Python tests pass; the pinned Python environment is consistent.
+- Nineteen focused Python tests pass; the pinned Python environment is consistent.
 - Both 448 and 512 real-model shape checks pass; all five real CoreML models
-  pass the 26-image finite-output/drift check on macOS.
+  pass the 200-image finite-output/drift check on macOS.
 - BenchApp builds for iOS in Release, signs, installs, and runs on the physical
   iPhone in light mode. Product Expo code is unchanged; `npm run ios` launches
   the unrelated starter app, so verification uses this native benchmark.

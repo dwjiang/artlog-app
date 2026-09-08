@@ -1,57 +1,57 @@
 {
   "size": 512,
-  "calibration_count": 26,
+  "calibration_count": 200,
   "required_calibration_count": 200,
-  "calibration_manifest_sha256": "d8c457c40bedb9f81e88076e1371594657e5e74911b8980d8092fc369edd898c",
-  "scope": "macOS CPU_AND_NE; not iPhone evidence",
+  "calibration_manifest_sha256": "3412f3c122de8cda620c524d61aaabbc9bbe2df3b351cf3d724e528e5fbeccf9",
+  "scope": "CoreML variants: macOS CPU_AND_NE; iphone_int8: physical iPhone CPU_AND_NE when supplied",
   "torch_device": "mps",
   "cosines": {
     "fp32_fakequant": {
-      "mean": 0.9988704291716407,
-      "min": 0.9982422657168992,
-      "count": 26
+      "mean": 0.9989196824471471,
+      "min": 0.9981402996241586,
+      "count": 200
     },
     "fp32_coreml_fp16": {
-      "mean": 0.9968415393166724,
-      "min": 0.9946060435209796,
-      "count": 26
+      "mean": 0.9970068391061366,
+      "min": 0.9930797488098696,
+      "count": 200
     },
     "fakequant_coreml_fp16": {
-      "mean": 0.9956630116634843,
-      "min": 0.9932997238631457,
-      "count": 26
+      "mean": 0.9958829525945933,
+      "min": 0.9912769807390127,
+      "count": 200
     },
     "fp32_coreml_int8": {
-      "mean": 0.9957945669204664,
-      "min": 0.9935104140462847,
-      "count": 26
+      "mean": 0.9960117680107266,
+      "min": 0.9913293773242098,
+      "count": 200
     },
     "fakequant_coreml_int8": {
-      "mean": 0.9968446300780525,
-      "min": 0.9947525656597098,
-      "count": 26
+      "mean": 0.9970114922774965,
+      "min": 0.9929182559716901,
+      "count": 200
     },
     "fp32_coreml_int4": {
-      "mean": 0.7607754731107257,
-      "min": 0.5302463049558482,
-      "count": 26
+      "mean": 0.7402537232366249,
+      "min": 0.15875341613617677,
+      "count": 200
     },
     "fakequant_coreml_int4": {
-      "mean": 0.7604749435669772,
-      "min": 0.528435420806751,
-      "count": 26
+      "mean": 0.7397345076443907,
+      "min": 0.1602505304717471,
+      "count": 200
     },
     "fakequant_iphone_int8": {
-      "mean": 0.9968446300780525,
-      "min": 0.9947525656597098,
-      "count": 26
+      "mean": 0.9970114922774965,
+      "min": 0.9929182559716901,
+      "count": 200
     }
   },
   "mac_load_ms": {
-    "fp16": 2677.3286670213565,
-    "int8": 2437.744249997195,
-    "int4": 2311.9690000312403
+    "fp16": 2681.025707977824,
+    "int8": 2948.7477079965174,
+    "int4": 2230.7832920341752
   },
   "top1_agreement_percent": "not measured: 2000-image mini-index unavailable",
-  "acceptance": "provisional: full calibration, iPhone drift, latency and retrieval evidence required"
+  "acceptance": "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
 }

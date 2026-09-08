@@ -1,108 +1,10 @@
 [
   {
-    "objectID": 250934,
-    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP251189.jpg",
-    "isPublicDomain": true,
-    "classification": "Miscellaneous-Paintings",
-    "sha256": "d47cdbc294263e3950c3d950bb0537c44521f25aa658a60a0ba94ba063d53065"
-  },
-  {
-    "objectID": 36091,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153915.jpg",
+    "objectID": 816206,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19321-002.jpg",
     "isPublicDomain": true,
     "classification": "Paintings",
-    "sha256": "427fe1fcf93afcf3bef83abfc75c4ab24b728704efb2ff12a3238bd63a03c2ed"
-  },
-  {
-    "objectID": 37888,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT6442.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "6292b43df723b9230f31a60cbd07f11528042908217b718e32af9c14f236a183"
-  },
-  {
-    "objectID": 37971,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT6724.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "8b652249b33e38b34b39a254df6bb3d9d0ca55d94987dd347c72270b16b7f8f2"
-  },
-  {
-    "objectID": 38016,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT3844.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "aa23876d695548750e7391bdef0ac64e3c7a885973690667f446d4f37ec57473"
-  },
-  {
-    "objectID": 39543,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-13657-002.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "8c86c6e4775577496e21074bd93415f5ea4768c8b6610e7b3e4a7d9d346ed1ac"
-  },
-  {
-    "objectID": 40439,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP235490.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "267581923d38f1af6cb150159c7844064fb987071a1bbb53b953c28a14ecf8f3"
-  },
-  {
-    "objectID": 435806,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep32.100.1.bw.R.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "ac2845e1eb9924c89448038818fe284af06eb2a5ffe69b2d003e666ff00712af"
-  },
-  {
-    "objectID": 436496,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP375435.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "1ef49ab3226dbd6fc9c06164162c13e5e21c179f1b5eaa8d330830b9527b50bf"
-  },
-  {
-    "objectID": 436557,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145926.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "35f8d344e7d0b7fe16b42c38196c158374a85d1cabe5c59d08ab7f07ec01eab0"
-  },
-  {
-    "objectID": 437056,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-44362-005.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "02cf46dd4faf873ca528a06f82859027272ae18b532e5580d4c84d18017bbe2b"
-  },
-  {
-    "objectID": 437395,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP121330.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "fab2a1798c1b6166d7c309cba92a71b084a8fe9420e79861c788e46c3c41fc10"
-  },
-  {
-    "objectID": 437807,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep43.85.23.bw.R.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "1ea5148a260c2bd2975907d7d92dddaa180565563ba148d4ca11d1b8e9101fc9"
-  },
-  {
-    "objectID": 437810,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP287645.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "3820127d8d6b8cecce841a02238987384e75eb32b1c91e7943f8fd3251848e18"
-  },
-  {
-    "objectID": 437916,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1989.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "a22bff9a053ee0f0515c9050b6ee0ca14953dc82f65437292af931c06db6e8d2"
+    "sha256": "e5964c0b3717e6de5f90370047ee7f792816d2cacfa49dc4e0de4f833cbdfc81"
   },
   {
     "objectID": 438009,
@@ -112,25 +14,18 @@
     "sha256": "9a3d6336e8316fccdf62112dcd2f9c0cff77a73ae60060262eea29c93f71d977"
   },
   {
-    "objectID": 440888,
-    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP231820.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "2733b16e5174d9ced9320ed9328b2b7877ccc098bfcc9361c57bb40b6c99ca79"
-  },
-  {
-    "objectID": 45042,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP221202.jpg",
-    "isPublicDomain": true,
-    "classification": "Paintings",
-    "sha256": "13930bb97b49bf6b0a8cafed8d57290d597de1c242e1a78335084502d5a78645"
-  },
-  {
     "objectID": 458954,
     "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP-14829-001.jpg",
     "isPublicDomain": true,
     "classification": "Paintings",
     "sha256": "c981911a8650c755d8c6c08f9227f238c8d6ac4513a8a766cf49dbfb35ea1bc8"
+  },
+  {
+    "objectID": 40439,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP235490.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "267581923d38f1af6cb150159c7844064fb987071a1bbb53b953c28a14ecf8f3"
   },
   {
     "objectID": 458963,
@@ -147,11 +42,102 @@
     "sha256": "1da8ec46abd5dc786d0f3cc2ab5ba49d8c62c4009f76d2386f4877586478cab7"
   },
   {
+    "objectID": 437916,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1989.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a22bff9a053ee0f0515c9050b6ee0ca14953dc82f65437292af931c06db6e8d2"
+  },
+  {
+    "objectID": 250934,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP251189.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "d47cdbc294263e3950c3d950bb0537c44521f25aa658a60a0ba94ba063d53065"
+  },
+  {
+    "objectID": 45042,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP221202.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "13930bb97b49bf6b0a8cafed8d57290d597de1c242e1a78335084502d5a78645"
+  },
+  {
+    "objectID": 437807,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep43.85.23.bw.R.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1ea5148a260c2bd2975907d7d92dddaa180565563ba148d4ca11d1b8e9101fc9"
+  },
+  {
+    "objectID": 437056,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-44362-005.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "02cf46dd4faf873ca528a06f82859027272ae18b532e5580d4c84d18017bbe2b"
+  },
+  {
+    "objectID": 437810,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP287645.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "3820127d8d6b8cecce841a02238987384e75eb32b1c91e7943f8fd3251848e18"
+  },
+  {
+    "objectID": 39543,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-13657-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8c86c6e4775577496e21074bd93415f5ea4768c8b6610e7b3e4a7d9d346ed1ac"
+  },
+  {
+    "objectID": 437395,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP121330.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "fab2a1798c1b6166d7c309cba92a71b084a8fe9420e79861c788e46c3c41fc10"
+  },
+  {
+    "objectID": 435806,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep32.100.1.bw.R.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ac2845e1eb9924c89448038818fe284af06eb2a5ffe69b2d003e666ff00712af"
+  },
+  {
     "objectID": 50811,
     "url": "https://images.metmuseum.org/CRDImages/as/web-large/1999.161.jpg",
     "isPublicDomain": true,
     "classification": "Paintings",
     "sha256": "a0f9d2ca2deb9481732f7ac4ab9d35e77efff9c0fa6fbc26e3982439b62e77ce"
+  },
+  {
+    "objectID": 853188,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-25340-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "28948901a848bd68f6777a1142d94614c9973304903deeac13781f1cf7d956e0"
+  },
+  {
+    "objectID": 37888,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT6442.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6292b43df723b9230f31a60cbd07f11528042908217b718e32af9c14f236a183"
+  },
+  {
+    "objectID": 436496,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP375435.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1ef49ab3226dbd6fc9c06164162c13e5e21c179f1b5eaa8d330830b9527b50bf"
+  },
+  {
+    "objectID": 37971,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT6724.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8b652249b33e38b34b39a254df6bb3d9d0ca55d94987dd347c72270b16b7f8f2"
   },
   {
     "objectID": 712098,
@@ -161,6 +147,20 @@
     "sha256": "7ce7806afb8053445aa1b06508c2f09482a7ab3897cd6c2b266cf8e1d83e0231"
   },
   {
+    "objectID": 36091,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153915.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "427fe1fcf93afcf3bef83abfc75c4ab24b728704efb2ff12a3238bd63a03c2ed"
+  },
+  {
+    "objectID": 436557,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145926.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "35f8d344e7d0b7fe16b42c38196c158374a85d1cabe5c59d08ab7f07ec01eab0"
+  },
+  {
     "objectID": 770595,
     "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-15505-001.jpg",
     "isPublicDomain": true,
@@ -168,17 +168,1235 @@
     "sha256": "82fd8fb52c9a3ce6925cd32b4cfb9ca7a25c145e2343f69f58539c17d24f39ea"
   },
   {
-    "objectID": 816206,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19321-002.jpg",
+    "objectID": 38016,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT3844.jpg",
     "isPublicDomain": true,
     "classification": "Paintings",
-    "sha256": "e5964c0b3717e6de5f90370047ee7f792816d2cacfa49dc4e0de4f833cbdfc81"
+    "sha256": "aa23876d695548750e7391bdef0ac64e3c7a885973690667f446d4f37ec57473"
   },
   {
-    "objectID": 853188,
-    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-25340-002.jpg",
+    "objectID": 440888,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP231820.jpg",
     "isPublicDomain": true,
     "classification": "Paintings",
-    "sha256": "28948901a848bd68f6777a1142d94614c9973304903deeac13781f1cf7d956e0"
+    "sha256": "2733b16e5174d9ced9320ed9328b2b7877ccc098bfcc9361c57bb40b6c99ca79"
+  },
+  {
+    "objectID": 49452,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP161402.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "c5dcf94b1bb3fd29503434fbd28f74b94bdc7418046bd21de92be85d34a28c79"
+  },
+  {
+    "objectID": 189436,
+    "url": "https://images.metmuseum.org/CRDImages/es/web-large/DP277529.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Decorative",
+    "sha256": "f0fd3c01308fb563c87893f59cc7b2e302475f342ae7f397e3c404037f8499f8"
+  },
+  {
+    "objectID": 33284,
+    "url": "https://images.metmuseum.org/CRDImages/aa/web-large/DP162146.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings & Portraits",
+    "sha256": "0b9d4bd9de3b2dbbd3b8dbf0d66c668a39fc4eaa465eff012d857685e082211d"
+  },
+  {
+    "objectID": 435626,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-17243-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "0a752a6178ddad780c630fb425d72c6e04af58905e330e5f4b3dbfa744448a5d"
+  },
+  {
+    "objectID": 437402,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145910.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f3a7f4cfb9111472c49fed9406675171b6e0f7da6ffb8a5cd7c3e565495ac551"
+  },
+  {
+    "objectID": 437995,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT10260.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6205e3be5eeb67e2d6c04afd137dfd15582e2ff789f225ecbbbf0504682214e0"
+  },
+  {
+    "objectID": 782303,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-15573-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f9b09e274dc73a77040753f428e2984ab81fd248c117c8c70a1adf9962feee94"
+  },
+  {
+    "objectID": 436969,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/EP358.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "571626102d58aa6d05eeb0ebea0a4426c777eb802126fd2f1f43fa159c134448"
+  },
+  {
+    "objectID": 437219,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT228197.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ce6b96cb806bcdc387e5001ff75a053b9a3d88a99b08feb0ec2ad4517c84f2e9"
+  },
+  {
+    "objectID": 253331,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP112913.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "04b75f303f46c8ba35714c0e378f0bf0c7d5b1845299c55c3ad35b6882e5257a"
+  },
+  {
+    "objectID": 437639,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP164861.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9624ccd4a5d5755e92c68c43165c405d3973a48db469803bd710d02eebd54b35"
+  },
+  {
+    "objectID": 45377,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-17329-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "33cf5fcdd3aa6701d3d442bab79fa73a7e5085c0556142afa7fbdf7e93fb5072"
+  },
+  {
+    "objectID": 459078,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP159773.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2a0c84db44a1dbd77ad1f2a48709d2b48ff0d6661a72f43199dcf97a3eb341b0"
+  },
+  {
+    "objectID": 57233,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/LC-37_119_6-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "883d7ff35ca95b9bf6ef2fc81b7e48374a1ebbc2113f970331e28332c63d84fa"
+  },
+  {
+    "objectID": 51584,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP105145.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "104eda1a8cf24dff1aa0f18b461a285d81af20ffc69c9df31dee7eef4c4fbc79"
+  },
+  {
+    "objectID": 53576,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP154518.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4bf084b1b1d6e6f0f5ace87452c9212466e8b99941277ed13e0e67d6d2d40d89"
+  },
+  {
+    "objectID": 910391,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-36365-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1b80e6ec3feda0e37c89db0d4cddccf184094d1f820cc269954bf0ea7f5de23e"
+  },
+  {
+    "objectID": 189656,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-44694-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "dad717ff66466465a915dc17add1eebb54d4c2e700894cd11550b3dae01de594"
+  },
+  {
+    "objectID": 53404,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-12232-250.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4d7c1a573d3b03f919147c356fceab8dcabbbe05a5cbfe065b16858f895f9af9"
+  },
+  {
+    "objectID": 435832,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP208015.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "cb740a74460c6b808b376e19693ae89466285ab9b04273972d9217ea93079632"
+  },
+  {
+    "objectID": 39937,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153501.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "816a1187795ad7238a7b45acc37715e3ef1d574f5aa54c6eb92f1d64effc55c8"
+  },
+  {
+    "objectID": 929167,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-44457-006-Main_image.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "5738cf45405efed4e41d08940be4fbe98f4751e434ea681dfab91877b106d667"
+  },
+  {
+    "objectID": 816260,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-25765-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "67b06279bcbf70fcb247ba075e2d9b0da16681135b34c4b5fd4b87a21208ca74"
+  },
+  {
+    "objectID": 437826,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19299-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "fe46cf9c40ad4671a0e9ed460a4a540a0914e4255725b6dc07e374898e6b8081"
+  },
+  {
+    "objectID": 671000,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-12232-260.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9be37fc825e9431976827407f38af36b8a60145a70d4f9db4b5db2fbb52b4e79"
+  },
+  {
+    "objectID": 44634,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-24853-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8cde233f4105b8778bd01e13c6d3b4b0058da9a38274268a2f0064ba21d722c2"
+  },
+  {
+    "objectID": 690059,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-757-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "7ec3b1e8b478103bad94b2b35fd7b39ee3bca1392b7a7b3a67eeb306e47cf82c"
+  },
+  {
+    "objectID": 437965,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT239221.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9d1c41a020da6e8225d521a91dbc78fcf244432629cabe57f29dec2fafeb70fd"
+  },
+  {
+    "objectID": 437659,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19197-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "3baa1fac1e8f7587840974120eb6580faf99614ba56452fa39e85eedc156cfdc"
+  },
+  {
+    "objectID": 437308,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1863.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f1922fba205301800b6e2c9b54bc892bf8b86f8386607844f37a880303c2f04a"
+  },
+  {
+    "objectID": 752010,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-16218-028.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "3fc02aed6e851d24ad5ccc17fd136c2790a4f4145a2454087626ca1e7172e6d5"
+  },
+  {
+    "objectID": 45655,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT235402.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "afd5fdeb63866c5b8521ed4adb8413c0114450578cbbdbf5a40b3be799bbb368"
+  },
+  {
+    "objectID": 436580,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-12954-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "82cc66bc150655d81dceb88b0f144a92778f38a61ff5e63880ac50d338c19bf9"
+  },
+  {
+    "objectID": 437544,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep32.100.42.bw.R.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a54885f128c6d8bfdc18ea052833f7b026d609a4579d19a18b3bb844830ec2b0"
+  },
+  {
+    "objectID": 436576,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-17641-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "edabb7d6591afaa63186c4b61e24508225723b8bf4bda825cef0ca2d6297b279"
+  },
+  {
+    "objectID": 436336,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1433.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f9563bfa6b8a599b60a5da1ecf410f4bfc630d980812f5ffb29391af2488bf84"
+  },
+  {
+    "objectID": 436535,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "af0e3486621c210b54932d055294051b5601aa3362af4b84ab97e2831f8163bc"
+  },
+  {
+    "objectID": 437728,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22886-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a473475617d7b0f25ba44134364b7b5851059923b54470770ef5a53721ee109d"
+  },
+  {
+    "objectID": 435824,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-46034-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "df3b0afb33c3f5c0d20618874cad288458fe966018c77e88ba2fe82209b4a2dc"
+  },
+  {
+    "objectID": 437636,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT11332.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a499f4ba0b5ba35f8d68880072264b676560b81bb1b904b845f9df81a5dbd608"
+  },
+  {
+    "objectID": 45624,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP234261_CRD.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "714f701043935f8ff841763344da87b1627fe95d413b6287380688f96e2a767e"
+  },
+  {
+    "objectID": 440723,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP243839.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "484806485ed81ea6cde02d3bee848a42341577fa2a212968d0e095411f4fefc3"
+  },
+  {
+    "objectID": 40326,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/30_32_98.JPG",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a02d9faa494ae905c9952dcbbe1b562d9cacc8377dfcfb255995a2fe195838a7"
+  },
+  {
+    "objectID": 209267,
+    "url": "https://images.metmuseum.org/CRDImages/es/web-large/LC-14_114_11-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Decorative",
+    "sha256": "e2e6b6aba9f5e56c199c876822b0e0fe12cad29be7bcbdb45d93ffe43e09f2c2"
+  },
+  {
+    "objectID": 38035,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153170.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "10109f01f44c76d98c4e671ebd66bf1d4c111067a2ff4a222232db2fde8f1a2d"
+  },
+  {
+    "objectID": 437973,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-23367-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "829624cfdc2fa0dc03a50d06cefa7ee332fb3f7d97741524464caeb5f955d26c"
+  },
+  {
+    "objectID": 39486,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP12791-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "5fd4660ea8822b2f9b863a3f0d6508902fbf9459cca9bc2ada15fda417d89afe"
+  },
+  {
+    "objectID": 453283,
+    "url": "https://images.metmuseum.org/CRDImages/is/web-large/DT5774.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "452537d036cadaedc0887ffe9a886632198a28ab76378dc2b375a55c320ca4ff"
+  },
+  {
+    "objectID": 309529,
+    "url": "https://images.metmuseum.org/CRDImages/ao/web-large/68.128_a.JPG",
+    "isPublicDomain": true,
+    "classification": "Wood-Paintings",
+    "sha256": "df671ee0e952ff0be519c06b30d9ab0c6bb4c3d9aa17753b35302692b679d048"
+  },
+  {
+    "objectID": 74719,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP166111.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "b686a9a33e3d7461c917f997b2e246030740a55a01683585405c57eb36d1ee66"
+  },
+  {
+    "objectID": 437618,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14405-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "eb9d2859672ff0b287f5aca07933615a02687380521520a2c51f1b0c0b2a9180"
+  },
+  {
+    "objectID": 436196,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP366371.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "550acf90e5d520a085c6543307393d6ada9a88cc69243e3de7ff76be12a8d156"
+  },
+  {
+    "objectID": 676034,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-14823-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ba5e5d079c064da9200079a433aaae775cad695b33e040d92068281660c294a1"
+  },
+  {
+    "objectID": 436140,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14936-033.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "937933591d3c6e2f557bdbddd88c92d296b8139df694694f06aaeaf85b26f407"
+  },
+  {
+    "objectID": 816214,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19317-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f5c4768ff1aa9fa7c700e996c3b453edb152155b5b681c49757f40832d2b3213"
+  },
+  {
+    "objectID": 436080,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19019-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "fab42dc0119868ec4dbc15ec9182dedcdc93a88ee14049cf0556391e9c41ee6a"
+  },
+  {
+    "objectID": 49003,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT5293.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "5811968d63fe04b6ad9e2985989bf7e2d73d40333c625d1841662c0274428e1e"
+  },
+  {
+    "objectID": 841644,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19476-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "84a892c23c9a4804a2768d3ced684849d1d7bd840bb4713a557ba337bcf57b57"
+  },
+  {
+    "objectID": 822852,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-18170-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "97b8194feb400f1bb64315972684a0da193abb30a3999b2ec2c10ab47c75ac28"
+  },
+  {
+    "objectID": 39556,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP235702_CRD.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "127aee1dd42b8c6106b94a1b1f6f8b50c1fca796ad8666c65a0ad808b446f8b5"
+  },
+  {
+    "objectID": 853894,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-37217-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "52cc3a4bc91340a4aea7ecec32062067ec28a5f8878871e0d03dec3f07e5b91d"
+  },
+  {
+    "objectID": 45693,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT1589.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "59d89e63cd78757ded9030693333b0fa37728e2e21f6e57a6977d758361138c6"
+  },
+  {
+    "objectID": 54576,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/LC-14_76_11_jps-004.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "e7ec6499029ec7294e1e1807fa4c678620c293fb985e744355074dc822432f82"
+  },
+  {
+    "objectID": 441359,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14274-009.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "e885defcf38a7d6b96f6ea55daebf21967b82d8276502667e7dc8e7d32f7ea47"
+  },
+  {
+    "objectID": 437343,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14201-031.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8ac31bd2635c7638a0bf970ed82efe08a413c23cee09e09222d146b9aa86b11a"
+  },
+  {
+    "objectID": 37916,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP156167.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "dde8a0a2cded5700f9672141f8cc9b0cf61d5b3df321ba1b09f1ba52f48171ff"
+  },
+  {
+    "objectID": 437492,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT241494.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "95a115488747363a5f31ec44b95838bd23ce16aad32736ac65b59c4475fdd638"
+  },
+  {
+    "objectID": 209272,
+    "url": "https://images.metmuseum.org/CRDImages/es/web-large/LC-14_114_19-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Decorative",
+    "sha256": "9fe12511287cf1b307c8c1c673af2f984a46073d2caa89fb077cb854e347ebd6"
+  },
+  {
+    "objectID": 437209,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT8858.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "bc4928195d4fdd07795f0e0ffca5dca1c78807b61fd1d2aa348ac340353a628f"
+  },
+  {
+    "objectID": 671046,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-12232-174.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "74bc63f86a3485926416064534bad92ec565e1072491913237d7501e66f5e2d2"
+  },
+  {
+    "objectID": 436414,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22750-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "494d02eb009ae11c52ddf68260110f966729123037ff43a1303723262b0b3167"
+  },
+  {
+    "objectID": 440726,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP232136.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a1505d38927169303c7a3435e6ba6c8e3a8140c633c15ab355b5d876f3a770a8"
+  },
+  {
+    "objectID": 816204,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-25762-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "51a60a3b768c6c2520e7fe5c5dabbf7bc24c756394869997cc9e5c1d538117c2"
+  },
+  {
+    "objectID": 440847,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP226424.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ebb6e910a09f54eab707a47ec94b950c152c44d48b2c248824514bd9d609c6a3"
+  },
+  {
+    "objectID": 912940,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42761-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "0d9e86a4dde3d4681394043ff75562bbd037b100957f09a405a5a23a80c09017"
+  },
+  {
+    "objectID": 45610,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/44_35_3_O1_sf.JPG",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "69d30c404cd13cf7d3a1527192161e90c9b2348fd3b72274549a8873f5fe7a65"
+  },
+  {
+    "objectID": 437383,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-20339-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "97d880d5fbc73f6b252b73152e933ac47b3535a3bd2d2c571dce9c9362003e8d"
+  },
+  {
+    "objectID": 438158,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-33707-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "c7442502a3af2ecd2bf5098743f45877ef4a98298191b943393eaa4391920bab"
+  },
+  {
+    "objectID": 45326,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP279663.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "36b9477f03d9c57080b352fbff14b671c3ae953ecea8dac5b60df70aea2b2790"
+  },
+  {
+    "objectID": 438677,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP169468.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "d59aaa4ff0f36edd93497a19e24a2ef90939965cb36754f5d6c323f302d94138"
+  },
+  {
+    "objectID": 437465,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP275490.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4e0ca0d27366fb837ca49a14f4f2c66ebd401feecaed5688c0711016d1b4f6fa"
+  },
+  {
+    "objectID": 248130,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP165470.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "4bf33f1b949e989755aa3df0f58d95249496905f33e55794cf39bcb12aab5183"
+  },
+  {
+    "objectID": 39895,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP151528.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9a4b8c64f8386f8d803349b9c520c8d2b756d0486b6ed41a79ee044e5341daa7"
+  },
+  {
+    "objectID": 435730,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/EP256.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "d0154078f96a0b3882893b9c886d2172e221421812f3a98e76e70c31dd66ad70"
+  },
+  {
+    "objectID": 247005,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP165161.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "3ed630b4c17e17430c42600d8dbdea088163456b031818530f56c33d3311f0d6"
+  },
+  {
+    "objectID": 57298,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/56_124_5_O1.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "01bcc27fd4f5fcd54d51bc7ca3a2e8a82f78a84ddd29d289a53b06127e927ac8"
+  },
+  {
+    "objectID": 49183,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP279492.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8da86670ecf380175afc8a35b0b681f8f9d7b0ff02bc15eb7d2aba389faea9c7"
+  },
+  {
+    "objectID": 459110,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP-17279-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "520a9fe1669f66eb45719f0b6a3803bbc36083dc18934afcb624cef3b892a65f"
+  },
+  {
+    "objectID": 829412,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/LC-TR_240_35_1ab_2019_sr1-007_crop.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "e6150e0acdfbc11b383633333cd97c39cd2eebd32798fefc047db6db2b76402a"
+  },
+  {
+    "objectID": 437250,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-18296-031.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8bc117038de387c2f353bd8783bfdfcbfeec90fe6ec3b841ec4e887e5cb67c6c"
+  },
+  {
+    "objectID": 437824,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-17398-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "744a24e43a932b1cc360afe0b8e21f5ff99f470d16485a17ec741c175479ccea"
+  },
+  {
+    "objectID": 437032,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT262309.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "89b42c1002ac28df133da4b1f45a466102863c2f93b1717807e3e594001641c7"
+  },
+  {
+    "objectID": 437040,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22428-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "130e63e1ed9807b94797ae3462f4138f12f4e298bf38712186e67bd9d5c2660a"
+  },
+  {
+    "objectID": 459130,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP-18967-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "3cc55e16a33f6b5a66444eeedb32b3d4ffecdc760046f08bee9904e5eb6de36c"
+  },
+  {
+    "objectID": 437420,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP146443.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "99f9cbeea611d15bc148f32ed4794993354ff09e8cde2893564e03e79024c4a7"
+  },
+  {
+    "objectID": 440729,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP232138.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "eeb03ed76ce44bdf5f0012e6cfaed26f24bec15ba8b9793354bc82722686cb9c"
+  },
+  {
+    "objectID": 436770,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep1976.100.15.bw.R.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "62613bc191302c16dd42cf69b709ac1692e65bfad24449be2f9558481848eae1"
+  },
+  {
+    "objectID": 438032,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP135221.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "bfb2c7e2ff134ef16ce3dc01a193fd3e092ed84a8222e413c2451d4e5af587ec"
+  },
+  {
+    "objectID": 39767,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/ASA96.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "11b1228f8889e4b33107f33d1beb398cd825853e8d74e07ad69d11939a73500a"
+  },
+  {
+    "objectID": 45675,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP205754_CRD.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2be98a65bdbb9c02ade144cc45d77bebcee0b37fd067d46b5033a48cc8fe2edd"
+  },
+  {
+    "objectID": 436051,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT8827.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "098168e19509ad9e7cbdf34c2e6e73941f09af709408ddd234cd00c2b5f68086"
+  },
+  {
+    "objectID": 435759,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP345354.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2c508250a448630be05440651dea4b4842680dc2a667ddfb03a35efa2bb0c8df"
+  },
+  {
+    "objectID": 247106,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP330006.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "ecaa3c14bec3d0238a83c0c5ed2ff219ce4953ab5d75d457c5342fe76934c1bf"
+  },
+  {
+    "objectID": 902223,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-32440-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4e9221c1be4f1316010fd071db476f7ac2a8fec4f55931a47cba847d79cd187b"
+  },
+  {
+    "objectID": 816213,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19316-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6e374db5f390057e889fa30ef78165a6ce46a71fb57f4d97428d199dcbd8d17e"
+  },
+  {
+    "objectID": 437535,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT2737.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1fee042906658086cb128ec50e3835fff81c7208de5dcfb378b965ffaca331b0"
+  },
+  {
+    "objectID": 45744,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT1591.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "b8711c12a87b2a2a3bf6278807460ae36cd9f4de7054b66abb26f2de60ed04f0"
+  },
+  {
+    "objectID": 37852,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP156175.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "a442a9c5d53f31904b64be0d26f877a5df2898bd54b8aad557bc1d445aaab3ee"
+  },
+  {
+    "objectID": 61278,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-35704-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "13a413af22f6dcd90cb22e2e05dd8c60ea751fdce89c5b5ce5cf1bbce2323fa8"
+  },
+  {
+    "objectID": 37799,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-30186-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "28644d876b6ee15b1ceb3624a44e873192368fbe6cb0886bf12eda0017e9f797"
+  },
+  {
+    "objectID": 436138,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP275510.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "00ec0ec433c1acf0f31b0eadd9745efef4baf45a6ecde0063892db665d83642f"
+  },
+  {
+    "objectID": 671051,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-13180-014.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "f8378d6861b07fd39b7227d8a52f3551f7373798f57b3a6e2be4caf5f5c59629"
+  },
+  {
+    "objectID": 435727,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22845-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "835bc91fad9832927a17a6addacc064ebb5c49d18f65532daf76f40cd39846f8"
+  },
+  {
+    "objectID": 437187,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/ep30.58.20.bw.R.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "901ffd73b7a9da9e9545938d313969ae554d5628639a2d854a4e1eabb902bace"
+  },
+  {
+    "objectID": 488126,
+    "url": "https://images.metmuseum.org/CRDImages/ma/web-large/DP-42826-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "31d2216a6e587677b24c68299df7047a13d56db4225d64e781c201fd14bb2122"
+  },
+  {
+    "objectID": 931207,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-44461-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "58471d51d5784d0e6440f002910a96da0a8de632533def914cd8ffa1bfa06426"
+  },
+  {
+    "objectID": 670892,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-13187-007 CRT.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "292b802691204ae0f8b0ef4f079ec2e748dd826813c6330928aeade8f4ae614b"
+  },
+  {
+    "objectID": 438130,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT209325.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4801d7c34edd5c3d8caef96691963ef0825a2c420850fa0396a4246e2207689d"
+  },
+  {
+    "objectID": 436946,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-13655-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6a6f5c01ca12ee23a489c3d854c08182856aa9d3a5d3e5f9e733d47ffef328de"
+  },
+  {
+    "objectID": 437000,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP161261.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "b42be5f10ad5d41312439a47db1115bbd7d97812670d43c19ea619d15c07470e"
+  },
+  {
+    "objectID": 45373,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/LC-33_89_str1-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "b6bbff3e0722937c17d560bad710246ebd33b00b0bc4a9e741a15f391909984a"
+  },
+  {
+    "objectID": 436936,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT8846.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "451253a4badba4ffbd3f0a233f1d81ed17c72a1fcf981424a95d1f9acb76452b"
+  },
+  {
+    "objectID": 437205,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP321072.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "41c8c3dd356400fc060949aa0e8cbc65b375108206a6978a10a9f1a706f367a4"
+  },
+  {
+    "objectID": 40456,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT215.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6735fe26fe396ae634b792097d9f326880170ded9a7b3b66d31f085e883d713f"
+  },
+  {
+    "objectID": 435648,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22990-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2beb1ece98c907fa413aa1958af6be6cecdcff918a9b1b1c5aa8e0a5757a6fee"
+  },
+  {
+    "objectID": 436573,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-17777-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "93f43e853c94e3c687597694639cdc12d77c577e04378ef8063cedfac423085c"
+  },
+  {
+    "objectID": 436675,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145906.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2d565e3f8a455c1b6807a6e6645dff8451b92e31634b90494fd83725a87d5b4b"
+  },
+  {
+    "objectID": 435780,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP169630.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "521e27356f6a50c60b735a13af920426fd3ef14e9789c81573ced56209637a00"
+  },
+  {
+    "objectID": 45776,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP205369_CRD.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "0f5ea741fc88c07b8d60a4f10137e52bcb28e4577eabb6845259c18fb37cb0ca"
+  },
+  {
+    "objectID": 54566,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/LC-14_76_3_jps-006.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "74cff17b1c56e5e3ee43117d481f958d897f0ea700681ed237fa301edea58f39"
+  },
+  {
+    "objectID": 45667,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153539.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "c665cb670bccd3f410dbd57a452fed9077670f807b8b75bfa64a47d50083cef2"
+  },
+  {
+    "objectID": 437001,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT373.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ecd0b12a9e16ad34ac5687bcf43453311c82eebc5a2ddd4e479b237b7d888292"
+  },
+  {
+    "objectID": 48920,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/29_100_535_76424.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2ba1b8cb74e54ee1e6938cc6876ca1b131a65e8918f9da4296475d68464cde1f"
+  },
+  {
+    "objectID": 437894,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-13041-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "75d8d4178e30109d0f5d4b9f018f607e0a50522046dbbc5524fd587c6dbea9cd"
+  },
+  {
+    "objectID": 74462,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP251387.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "b2b3897a3ad21bc290dea2d2df67f96d0d9877ee9b7918b28802af9e13bde86b"
+  },
+  {
+    "objectID": 48974,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/ASA232.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "2359dfd4a262de92f9043ba1ff18481579eb0f8d177508f62d0c7586dca8a3af"
+  },
+  {
+    "objectID": 189755,
+    "url": "https://images.metmuseum.org/CRDImages/es/web-large/DP279055.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Decorative",
+    "sha256": "f04cba14364d33315b8dcbcb6e7ed89c7b8afe8895e768900bda30cdb6e8a1e5"
+  },
+  {
+    "objectID": 437303,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-21955-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9927805d526c4cb883a64cf13959e3382b16b1d2c94177df770dd834ca5857d5"
+  },
+  {
+    "objectID": 436149,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-25620-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "87b871d9ba55547d803570c1c223fb0f3288df3edc537c7fea8ba9c15562ccd3"
+  },
+  {
+    "objectID": 42344,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DT5560.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6e4830a07e486de19cecaa7515710571822f8b4db0d2d677c7eb927b54ae7e39"
+  },
+  {
+    "objectID": 441355,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-16688-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ba5af7313dfe0175c49facb39d28550c549361a369613af618c836d2671dbb3f"
+  },
+  {
+    "objectID": 459043,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DT3071.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "96ba5e62c3e3ce31351603d565e355a67b6ad656a0d5abb09eeb536a91ff037a"
+  },
+  {
+    "objectID": 470920,
+    "url": "https://images.metmuseum.org/CRDImages/cl/web-large/cdi25-120-928.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Panels",
+    "sha256": "110be2e48eb090b3a3569d13665897c1ceb94a9fa30eefc3892506ccdefa4751"
+  },
+  {
+    "objectID": 321291,
+    "url": "https://images.metmuseum.org/CRDImages/ao/web-large/DP326496.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Frescoes",
+    "sha256": "fdd6a877ca08657629e52e3eb2cbb88dd4bf888022fac92f08747faf2d96d026"
+  },
+  {
+    "objectID": 435793,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP167130.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "8c84c63938086fc07a39cfb53f6210e97e980b292022b8609078e330211a3511"
+  },
+  {
+    "objectID": 438024,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP162310.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "c8171bc21820b4324b97787efb94334ac719ffe46301c7b7747358f2edd087cb"
+  },
+  {
+    "objectID": 245848,
+    "url": "https://images.metmuseum.org/CRDImages/gr/web-large/DP112921.jpg",
+    "isPublicDomain": true,
+    "classification": "Miscellaneous-Paintings",
+    "sha256": "540eb76d16128caf5b3f6e545d369cdc468f15cb7ec0c5f15b358d87b3d60d1a"
+  },
+  {
+    "objectID": 437448,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP169382.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "e58f99fb141e3c577d6506e174c7e7b5bb8e6005b7244217ad8cdcb57caeadd7"
+  },
+  {
+    "objectID": 451255,
+    "url": "https://images.metmuseum.org/CRDImages/is/web-large/sf55-121-7a.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "d82d2b2df074079200a1c80fd50b2556c2e8170c8e8766bf683d7fc5de623dca"
+  },
+  {
+    "objectID": 209263,
+    "url": "https://images.metmuseum.org/CRDImages/es/web-large/LC-14_114_7-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Decorative",
+    "sha256": "92cede37a664b7e1f8f5bb7fc6b01566c448861f3cb1c63d21f9be95124f065c"
+  },
+  {
+    "objectID": 435802,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14286-011.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "83bf67b2306e37de2ad3a122aa2bff19b4867a91157c5ef3eabc152ac639e46a"
+  },
+  {
+    "objectID": 437041,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP207320.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "0d8177a29bae71e88ea2f581f93b9b245538516ae17fd6dfb4d927278ec179f0"
+  },
+  {
+    "objectID": 459115,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP-34502-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9be90e18e0940b6f159156154329df94cef4de1450964208933ba13bcbfc75c8"
+  },
+  {
+    "objectID": 437418,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP146456.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "fe8f46fa088e762035697451f5fb99017279e1a9bee7474adf8f4ca328227584"
+  },
+  {
+    "objectID": 36153,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-30200-001_crd.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "21f224d049f7a51984b4fd17a4b234b1d2a85c67020d0f8e328e76e2898af465"
+  },
+  {
+    "objectID": 435762,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-20589-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "6bc134ad6ab255b5f19b74816989d5b5402f08e70e300ae79f4b6ee8bc528899"
+  },
+  {
+    "objectID": 37877,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP153194.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "57131a87a9d51622735291fa10b5fee1e8d769121f18ebe9477a29ae5edcda67"
+  },
+  {
+    "objectID": 437658,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP259921.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "c04403de2d1096d04e83da7b1347543e1b6196edb312f6dd62970236e6ead0f3"
+  },
+  {
+    "objectID": 436451,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14936-043.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4e124b2f9f86d2fcf56edc076c8f66a54b864310aebf4945996caa1c63e50542"
+  },
+  {
+    "objectID": 436144,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-25462-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1a1dbcee37fd8479ece6cfd2c17355737b29d7b687746e3bd03294efed01fce1"
+  },
+  {
+    "objectID": 437445,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP168994.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "3920d3a510718466e8ebde84b2da1cd2e8a5773f4c276556839006cbb7c20455"
+  },
+  {
+    "objectID": 74906,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP238214.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "9d2e5ef584587a70d61657cf6adb70a4eba1be161f92a23b3666fa3f26b111ea"
+  },
+  {
+    "objectID": 436550,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22884-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ae0318cd6d8c5908444c3a9bd152f851222351a1522c2366445ceaba5f253312"
+  },
+  {
+    "objectID": 436489,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1369.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "1ff0515e166b81fe2de91694c7326a6248b176e1643056183d2fa3ce9c6a8a2c"
+  },
+  {
+    "objectID": 40069,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP-1307-002.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "261242b9659826d43d99ea7ad89bbb601747c5f9ad1f6252c19ca0af1d9d0963"
+  },
+  {
+    "objectID": 459042,
+    "url": "https://images.metmuseum.org/CRDImages/rl/web-large/DT3070.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "ba96a2b9bd9382f6c9931c1af6dbd349697ffc2ddecbbc96e5a43b4483714df3"
+  },
+  {
+    "objectID": 822083,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-34698-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "de1f5a6ca585ec605ef3ea37388270e77fc0c132c97d09b26c8f4932cccf691b"
+  },
+  {
+    "objectID": 437006,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1298.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "74809c8f40e415281e417fcfb1a8c5fd574a829e4878013242403586ae00326f"
+  },
+  {
+    "objectID": 816272,
+    "url": "https://images.metmuseum.org/CRDImages/is/web-large/LC-2019_299.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "09f688bd8731ba572c709a4a30b4e40c9582b6f26100906a21a68a2082edc80d"
+  },
+  {
+    "objectID": 437591,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22531-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "93a80aae1765608c79c4ca1f7098776fdf272a2291d20c6f8db928e07dce76c1"
+  },
+  {
+    "objectID": 41470,
+    "url": "https://images.metmuseum.org/CRDImages/as/web-large/DP317447.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "4e4c991dfa89ab68da9af991bbcd3ec494896ff43b0904fecfa001f0b9727560"
+  },
+  {
+    "objectID": 470873,
+    "url": "https://images.metmuseum.org/CRDImages/cl/web-large/cdi25-120-668.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings-Panels",
+    "sha256": "ffa01d79ed02a003c2da110c7dfbbc00766e444e27f1df04265dbe210a77f647"
+  },
+  {
+    "objectID": 437600,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-23427-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "d48b277ba8a52e015b3ed392b8ff79c85ac6730cc9efc045108f656351544977"
+  },
+  {
+    "objectID": 436086,
+    "url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19626-001.jpg",
+    "isPublicDomain": true,
+    "classification": "Paintings",
+    "sha256": "68c6d443bb28f00cdd61ae11e746c9fd2bcb22dfd07d6e10acbc064a1dd347d1"
   }
 ]
