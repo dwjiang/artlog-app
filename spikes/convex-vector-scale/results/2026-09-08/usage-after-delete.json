@@ -1,0 +1,61 @@
+{
+  "metrics": {
+    "actionComputeConvexGbHours": {
+      "unit": "GB-hours",
+      "usage": {
+        "current_day": 0.0027774826388888927,
+        "current_month": 0.00277748263888883
+      }
+    },
+    "actionComputeCpuGbHours": {
+      "unit": "GB-hours",
+      "usage": {
+        "current_day": 0.0026715451388888895,
+        "current_month": 0.0026715451388889555
+      }
+    },
+    "actionComputeNodeJsGbHours": {
+      "unit": "GB-hours",
+      "usage": {
+        "current_day": 0,
+        "current_month": 0
+      }
+    },
+    "dataEgressGb": {
+      "unit": "GB",
+      "usage": {
+        "current_day": 0,
+        "current_month": 0
+      }
+    },
+    "databaseIoGb": {
+      "unit": "GB",
+      "usage": {
+        "current_day": 3.1589007088914514,
+        "current_month": 3.1589007088914514
+      }
+    },
+    "functionCalls": {
+      "unit": "calls",
+      "usage": {
+        "current_day": 3848,
+        "current_month": 3848
+      }
+    },
+    "queryMutationComputeGbHours": {
+      "unit": "GB-hours",
+      "usage": {
+        "current_day": 0.003991076388888897,
+        "current_month": 0.003991076388888898
+      }
+    },
+    "searchQueryGb": {
+      "unit": "Query-GB",
+      "usage": {
+        "current_day": 276.4606475830078,
+        "current_month": 276.4606475830078
+      }
+    }
+  },
+  "seedStatus": "partial"
+}

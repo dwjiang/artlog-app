@@ -1,0 +1,47 @@
+{
+  "stats": [
+    {
+      "count": 15000.0,
+      "deleting": false,
+      "modelVersion": "v1",
+      "nextRow": 15000.0,
+      "seed": 20260908.0
+    },
+    {
+      "count": 15000.0,
+      "deleting": false,
+      "modelVersion": "v2",
+      "nextRow": 15000.0,
+      "seed": 20260908.0
+    }
+  ],
+  "tableCount": 30000.0,
+  "indexes": [
+    {
+      "backfill": {
+        "state": "done"
+      },
+      "fields": {
+        "dimensions": 1536.0,
+        "filterFields": [
+          "modelVersion"
+        ],
+        "vectorField": "vector"
+      },
+      "name": "by_vector",
+      "staged": false
+    },
+    {
+      "backfill": {
+        "state": "done"
+      },
+      "fields": [
+        "objectId",
+        "modelVersion",
+        "_creationTime"
+      ],
+      "name": "by_objectId_modelVersion",
+      "staged": false
+    }
+  ]
+}

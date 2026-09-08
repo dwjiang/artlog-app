@@ -48,10 +48,10 @@ Design §4.2 builds the index from the Met, the AIC, Wikidata and (conditionally
 
 ## Done criteria
 
-- [ ] Decision record exists with all seven answers or explicit "unknown (reason)"
-- [ ] `spikes/data-sources/` committed with scripts and `results/`
-- [ ] Any museum contacted is logged with date and outcome
-- [ ] `docs/plans/README.md` status row updated
+- [x] Decision record exists with all seven answers or explicit "unknown (reason)" — [005-data-sources.md](../../decisions/005-data-sources.md)
+- [x] `spikes/data-sources/` committed with scripts and `results/`
+- [x] Any museum contacted is logged with date and outcome — none contacted; Met inquiry drafted but unsent (no email connector/sender), recorded in `spikes/data-sources/results/contacts.json`
+- [x] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

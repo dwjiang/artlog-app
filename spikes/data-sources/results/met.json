@@ -1,0 +1,816 @@
+{
+  "started_at": "2026-09-08T10:51:56.366850+00:00",
+  "csv_url": "https://media.githubusercontent.com/media/metmuseum/openaccess/6fa206f0df6cf349d4fe558028d4c08e95f44eb6/MetObjects.csv",
+  "revision": "6fa206f0df6cf349d4fe558028d4c08e95f44eb6",
+  "bytes": 317650992,
+  "sha256": "de617b9c947458e426111207f81a65bd1379a151c0077d3ce29cfc22fc0b9183",
+  "csv_fields": [
+    "Object Number",
+    "Is Highlight",
+    "Is Timeline Work",
+    "Is Public Domain",
+    "Object ID",
+    "Gallery Number",
+    "Department",
+    "AccessionYear",
+    "Object Name",
+    "Title",
+    "Culture",
+    "Period",
+    "Dynasty",
+    "Reign",
+    "Portfolio",
+    "Constituent ID",
+    "Artist Role",
+    "Artist Prefix",
+    "Artist Display Name",
+    "Artist Display Bio",
+    "Artist Suffix",
+    "Artist Alpha Sort",
+    "Artist Nationality",
+    "Artist Begin Date",
+    "Artist End Date",
+    "Artist Gender",
+    "Artist ULAN URL",
+    "Artist Wikidata URL",
+    "Object Date",
+    "Object Begin Date",
+    "Object End Date",
+    "Medium",
+    "Dimensions",
+    "Credit Line",
+    "Geography Type",
+    "City",
+    "State",
+    "County",
+    "Country",
+    "Region",
+    "Subregion",
+    "Locale",
+    "Locus",
+    "Excavation",
+    "River",
+    "Classification",
+    "Rights and Reproduction",
+    "Link Resource",
+    "Object Wikidata URL",
+    "Metadata Date",
+    "Repository",
+    "Tags",
+    "Tags AAT URL",
+    "Tags Wikidata URL"
+  ],
+  "counts": {
+    "rows": 484956,
+    "paintings": 9005,
+    "public_domain_paintings": 5286,
+    "public_domain_paintings_on_view": 700,
+    "public_domain_paintings_wikidata": 4931
+  },
+  "primary_image_small_count": null,
+  "primary_image_small_reason": "CSV has no image URLs; bounded API sample is not a census.",
+  "sample": {
+    "method": "random.sample on sorted eligible IDs; seed 5",
+    "objects": [
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/816629",
+          "checked_at": "2026-09-08T10:52:04.663524+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2417,
+          "truncated": false,
+          "sha256": "98105e3e6886963dd2b80abe4febb0b21868c78aeef104bcbb305f7ce652af41",
+          "elapsed_seconds": 0.222
+        },
+        "data": {
+          "objectID": 816629,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19712-001.jpg",
+          "GalleryNumber": "640",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q111272641",
+          "accessionNumber": "2020.263.8"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/57328",
+          "checked_at": "2026-09-08T10:52:05.768557+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2275,
+          "truncated": false,
+          "sha256": "8f815b86533afaf59e3f507e70e1e214b0311a44481e697520823245c2a19ddb",
+          "elapsed_seconds": 0.215
+        },
+        "data": {
+          "objectID": 57328,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-41811-002.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78723016",
+          "accessionNumber": "52.160.2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/435917",
+          "checked_at": "2026-09-08T10:52:06.873512+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2854,
+          "truncated": false,
+          "sha256": "666eec1713c2a39fc1fd9b4e86d0b1b0aac06dc6a8d75cae69b515bca08dff85",
+          "elapsed_seconds": 0.145
+        },
+        "data": {
+          "objectID": 435917,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-23270-001.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q20168278",
+          "accessionNumber": "17.190.3"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/437912",
+          "checked_at": "2026-09-08T10:52:07.979478+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2551,
+          "truncated": false,
+          "sha256": "ad2d39ae291629eebe4df9d0a882e8a2b6a5d41601050c99209c04e0cc8c988c",
+          "elapsed_seconds": 0.18
+        },
+        "data": {
+          "objectID": 437912,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP231371.jpg",
+          "GalleryNumber": "606",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19904860",
+          "accessionNumber": "50.229.1"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/37863",
+          "checked_at": "2026-09-08T10:52:09.081587+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2562,
+          "truncated": false,
+          "sha256": "44156a1ace1aa0dd0643511510839c4bf82352af73741edd247c2ca595bcdcc2",
+          "elapsed_seconds": 0.112
+        },
+        "data": {
+          "objectID": 37863,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP153180.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78913140",
+          "accessionNumber": "1978.540.2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/437199",
+          "checked_at": "2026-09-08T10:52:10.186265+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2335,
+          "truncated": false,
+          "sha256": "59018ea5866621f551619356fc865903a4183f8b001938e339cfd0054f4fdafc",
+          "elapsed_seconds": 0.152
+        },
+        "data": {
+          "objectID": 437199,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DT8850.jpg",
+          "GalleryNumber": "537",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19913005",
+          "accessionNumber": "1982.60.18–19"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/57269",
+          "checked_at": "2026-09-08T10:52:11.287281+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2254,
+          "truncated": false,
+          "sha256": "81e28800e6a40d862ea9e1f28cbfcb75da525b21a0cb06b3c2ce9a10ee0a6650",
+          "elapsed_seconds": 0.118
+        },
+        "data": {
+          "objectID": 57269,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-24986-001.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78726547",
+          "accessionNumber": "56.121.19"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/38068",
+          "checked_at": "2026-09-08T10:52:12.390999+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 1865,
+          "truncated": false,
+          "sha256": "1f947802accf5285580277545c600abede74ec225a8600cce7ed58fdda2dc4bc",
+          "elapsed_seconds": 0.155
+        },
+        "data": {
+          "objectID": 38068,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/63_26_2.JPG",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78873277",
+          "accessionNumber": "63.26.2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/49234",
+          "checked_at": "2026-09-08T10:52:13.491607+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2836,
+          "truncated": false,
+          "sha256": "4e6761fe1b018172aaf3d503ce0007238561d3d3a1cfe647c3ec105a3b621235",
+          "elapsed_seconds": 0.121
+        },
+        "data": {
+          "objectID": 49234,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/23628.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78825156",
+          "accessionNumber": "14.76.7"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/45636",
+          "checked_at": "2026-09-08T10:52:14.596627+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 3137,
+          "truncated": false,
+          "sha256": "e6f5b9df796ebac61b2f584f59afbaeb0d4bd0300be405e9827e0842db0e77a2",
+          "elapsed_seconds": 0.217
+        },
+        "data": {
+          "objectID": 45636,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-19459-002.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78845512",
+          "accessionNumber": "1973.120.8"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436056",
+          "checked_at": "2026-09-08T10:52:15.699744+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2472,
+          "truncated": false,
+          "sha256": "38621c5f09815d2d3198f8e0ee46c6edcc9823ff0475028b20e1954312b7a641",
+          "elapsed_seconds": 0.284
+        },
+        "data": {
+          "objectID": 436056,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DT8828.jpg",
+          "GalleryNumber": "537",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19913223",
+          "accessionNumber": "1982.60.6"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/437235",
+          "checked_at": "2026-09-08T10:52:16.800724+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2155,
+          "truncated": false,
+          "sha256": "1128bf98647994b00918f89545c0416f78f2f955835f25cde1807e0bd04627e4",
+          "elapsed_seconds": 0.26
+        },
+        "data": {
+          "objectID": 437235,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP356142.jpg",
+          "GalleryNumber": "632",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19912263",
+          "accessionNumber": "71.57"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/57247",
+          "checked_at": "2026-09-08T10:52:17.905769+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2154,
+          "truncated": false,
+          "sha256": "a17fab44a23a2c24b6889992cf7b57d85ab4412002dabdd1d57cd0ba824722c1",
+          "elapsed_seconds": 0.233
+        },
+        "data": {
+          "objectID": 57247,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-37663-002.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78729063",
+          "accessionNumber": "57.70.2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436186",
+          "checked_at": "2026-09-08T10:52:19.007267+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2523,
+          "truncated": false,
+          "sha256": "49fb11cdac69312730a88b4a7c1da5039ca283d7151578a69c6c838240cc6c23",
+          "elapsed_seconds": 0.149
+        },
+        "data": {
+          "objectID": 436186,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP283310.jpg",
+          "GalleryNumber": "629",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19912323",
+          "accessionNumber": "64.315"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/438136",
+          "checked_at": "2026-09-08T10:52:20.111821+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2720,
+          "truncated": false,
+          "sha256": "a2e15ed64152acbb33f1d23f0a0f9ee0ed61dd0cd90631c49d483c5bac0f6b8a",
+          "elapsed_seconds": 0.279
+        },
+        "data": {
+          "objectID": 438136,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DT2157.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19911819",
+          "accessionNumber": "2001.473"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/45334",
+          "checked_at": "2026-09-08T10:52:21.216865+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 3050,
+          "truncated": false,
+          "sha256": "1663ee6b62bc98b21fc614c03c8df93904b949314e473c7d02ad1476f9f3cbb8",
+          "elapsed_seconds": 0.203
+        },
+        "data": {
+          "objectID": 45334,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP270184.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78848793",
+          "accessionNumber": "1979.407.2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/459024",
+          "checked_at": "2026-09-08T10:52:22.320929+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2507,
+          "truncated": false,
+          "sha256": "6e75ab43c765a6ff526fd8c1ffbae982690a57de1f8f91595f0a69674078a987",
+          "elapsed_seconds": 0.147
+        },
+        "data": {
+          "objectID": 459024,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/rl/web-large/DT3056.jpg",
+          "GalleryNumber": "954",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q20188051",
+          "accessionNumber": "1975.1.82"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/57271",
+          "checked_at": "2026-09-08T10:52:23.421426+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2132,
+          "truncated": false,
+          "sha256": "35a3e4fce33e2cd6e1d445c44454c99e57b18d0b272dca1d6dd6b743ae2b2d32",
+          "elapsed_seconds": 0.102
+        },
+        "data": {
+          "objectID": 57271,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-24988-001.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78726316",
+          "accessionNumber": "56.121.21"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/36110",
+          "checked_at": "2026-09-08T10:52:24.524085+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2085,
+          "truncated": false,
+          "sha256": "5ee1eb9d1cafd7d5a248e9c669ce02e30a074457767bd5b74027547bac9dc8ae",
+          "elapsed_seconds": 0.255
+        },
+        "data": {
+          "objectID": 36110,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP298231.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78921292",
+          "accessionNumber": "1975.268.141"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/54038",
+          "checked_at": "2026-09-08T10:52:25.625798+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2619,
+          "truncated": false,
+          "sha256": "bb6588f13df4fae42c36b4d44317ca4bdb955d219c4d5ad6ce38eef61239461b",
+          "elapsed_seconds": 0.118
+        },
+        "data": {
+          "objectID": 54038,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DT4667.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78755927",
+          "accessionNumber": "2000.245"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436532",
+          "checked_at": "2026-09-08T10:52:26.728508+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2362,
+          "truncated": false,
+          "sha256": "4077c5a2cd71065f0d53eea07a57fb6e9fdae51c56d5f1a55d85081dfd8d7b1b",
+          "elapsed_seconds": 0.228
+        },
+        "data": {
+          "objectID": 436532,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1502_cropped2.jpg",
+          "GalleryNumber": "825",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19911684",
+          "accessionNumber": "67.187.70a"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/74653",
+          "checked_at": "2026-09-08T10:52:27.830832+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2589,
+          "truncated": false,
+          "sha256": "504bd31f5e62653c442e3fc5494403c32060f3df5477505a567e616c37bc2099",
+          "elapsed_seconds": 0.137
+        },
+        "data": {
+          "objectID": 74653,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP166075.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78710484",
+          "accessionNumber": "2008.359.8"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/51585",
+          "checked_at": "2026-09-08T10:52:28.931121+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 3600,
+          "truncated": false,
+          "sha256": "79e8fbd3b5129593cbde6bb50231f9b3472b3128473e49e78f4129b832310cff",
+          "elapsed_seconds": 0.127
+        },
+        "data": {
+          "objectID": 51585,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP200661_CRD.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78808201",
+          "accessionNumber": "38.31.1"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436280",
+          "checked_at": "2026-09-08T10:52:30.036183+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 1949,
+          "truncated": false,
+          "sha256": "7ba74c37bbd7846c29cce5a89471818963c22833e1f43e8083c2eb2fa310968c",
+          "elapsed_seconds": 0.162
+        },
+        "data": {
+          "objectID": 436280,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/ep1976.100.4.bw.R.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q19913789",
+          "accessionNumber": "1976.100.4"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/49448",
+          "checked_at": "2026-09-08T10:52:31.139985+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2129,
+          "truncated": false,
+          "sha256": "8895d36ab8134ded8f08f3c8bc79738292056e5712df171bf90559c9b7b1b816",
+          "elapsed_seconds": 0.189
+        },
+        "data": {
+          "objectID": 49448,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DT8379.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78823704",
+          "accessionNumber": "1986.267.20"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/40418",
+          "checked_at": "2026-09-08T10:52:32.245018+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2232,
+          "truncated": false,
+          "sha256": "d23f80680e33e93a642485da812d34f5dd26ae8536c9faa0b02e9469036a693a",
+          "elapsed_seconds": 0.177
+        },
+        "data": {
+          "objectID": 40418,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/12301.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78858542",
+          "accessionNumber": "12.37.133"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/48969",
+          "checked_at": "2026-09-08T10:52:33.346521+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 3437,
+          "truncated": false,
+          "sha256": "5f8e06b31fae19ad2aaa7a4d8a28d9b2c933de64561fa672adb70435f6c7004e",
+          "elapsed_seconds": 0.199
+        },
+        "data": {
+          "objectID": 48969,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP205432_CRD.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78833331",
+          "accessionNumber": "1989.363.108"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/786794",
+          "checked_at": "2026-09-08T10:52:34.451017+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 3320,
+          "truncated": false,
+          "sha256": "16a4d847004c7d6e0317ada64fa07e8682602ffaa9aa776f063039acd81bf21c",
+          "elapsed_seconds": 0.181
+        },
+        "data": {
+          "objectID": 786794,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/as/web-large/DP-16226-004.jpg",
+          "GalleryNumber": "",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q126119804",
+          "accessionNumber": "2018.449.1, .2"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/782308",
+          "checked_at": "2026-09-08T10:52:35.556050+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2360,
+          "truncated": false,
+          "sha256": "653831cb16d6e73e83c405e0590de98b25ffc239d671d1941b686b426d2e3071",
+          "elapsed_seconds": 0.311
+        },
+        "data": {
+          "objectID": 782308,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-15575-001.jpg",
+          "GalleryNumber": "556",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q78610935",
+          "accessionNumber": "2018.289.6"
+        }
+      },
+      {
+        "request": {
+          "url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436952",
+          "checked_at": "2026-09-08T10:52:36.661158+00:00",
+          "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "bytes_read": 2400,
+          "truncated": false,
+          "sha256": "666e502c5127addf68fe22ba34b7feafa8045b590ad1c1b3015acf4b4c254699",
+          "elapsed_seconds": 0.235
+        },
+        "data": {
+          "objectID": 436952,
+          "classification": "Paintings",
+          "isPublicDomain": true,
+          "primaryImageSmall": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1931.jpg",
+          "GalleryNumber": "810",
+          "objectWikidata_URL": "https://www.wikidata.org/wiki/Q2494850",
+          "accessionNumber": "10.36"
+        }
+      }
+    ]
+  },
+  "requests": [
+    {
+      "url": "https://api.github.com/repos/metmuseum/openaccess/commits/master",
+      "checked_at": "2026-09-08T10:51:56.036707+00:00",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "etag": "W/\"3d75d8b37f08e91c5de24249830a75b400c39a59ab6a5225867d19c5fbfea83e\"",
+        "last-modified": "Sun, 16 Aug 2026 17:54:46 GMT",
+        "server": "github.com",
+        "content-length": "1911"
+      },
+      "bytes_read": 5343,
+      "truncated": false,
+      "sha256": "0f8f3668d0cb9503938516996bcb15f3e5ca8ca34bd4afb6ab748ca90d808c6c",
+      "elapsed_seconds": 0.33
+    }
+  ]
+}
