@@ -1,0 +1,1851 @@
+{
+  "protocol": {
+    "suite": "label",
+    "model": {
+      "id": "openbmb/MiniCPM-V-4_5",
+      "input_per_million": 0.658,
+      "output_per_million": 1.11
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artist_dates": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "work_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "medium": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "accession": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credit_line": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "artist": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "work_date": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "medium": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "accession": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "title",
+            "artist",
+            "work_date",
+            "medium",
+            "accession"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "title",
+        "artist",
+        "artist_dates",
+        "work_date",
+        "medium",
+        "accession",
+        "credit_line",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "prompt": "You read museum wall labels. Return only JSON matching the schema. Use null for fields not printed on the label. Do not guess.",
+    "manifest_sha256": "3d94ac72ad9bc9fb5a10d89feeba41d6295256fe539359eafdf84398a14dcaa2",
+    "max_tokens": 2048,
+    "temperature": 0,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "response_mode": "json_schema",
+    "repeats": 1
+  },
+  "records": [
+    {
+      "fixture_id": "14816593",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:39.089807+00:00",
+      "estimated_usd": 0.00039923800000000006,
+      "response": {
+        "id": "chatcmpl-9aec99e17bbfe685",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"George Washington on a White Charger\", \"artist\": \"Anonymous\", \"artist_dates\": \"American, 19th century\", \"work_date\": \"ca. 1830\", \"medium\": \"Oil on wood panel\", \"accession\": \"1981.4.7\", \"credit_line\": \"Gift of Edgar William and Bernice Chrysler Garbisch\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866440,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 119,
+          "prompt_tokens": 406,
+          "total_tokens": 525,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 400
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "George Washington on a White Charger",
+        "artist": "Anonymous",
+        "artist_dates": "American, 19th century",
+        "work_date": "ca. 1830",
+        "medium": "Oil on wood panel",
+        "accession": "1981.4.7",
+        "credit_line": "Gift of Edgar William and Bernice Chrysler Garbisch",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 2.153067040955648
+    },
+    {
+      "fixture_id": "14816667",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:42.253432+00:00",
+      "estimated_usd": 0.000778086,
+      "response": {
+        "id": "chatcmpl-8b849c6c02abf05a",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Flying female shaman\", \"artist\": null, \"artist_dates\": null, \"work_date\": \"ca. 1850\", \"medium\": \"Wood and ivory\", \"accession\": \"2007.21.231\", \"credit_line\": \"Bequest of Thomas G. Fowler\", \"confidence\": {\"title\": 1, \"artist\": 0, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866443,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 107,
+          "prompt_tokens": 1002,
+          "total_tokens": 1109,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Flying female shaman",
+        "artist": null,
+        "artist_dates": null,
+        "work_date": "ca. 1850",
+        "medium": "Wood and ivory",
+        "accession": "2007.21.231",
+        "credit_line": "Bequest of Thomas G. Fowler",
+        "confidence": {
+          "title": 1,
+          "artist": 0,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.6157517499523237
+    },
+    {
+      "fixture_id": "14816704",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:44.880499+00:00",
+      "estimated_usd": 0.00047610400000000003,
+      "response": {
+        "id": "chatcmpl-90521ac48709c32b",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Corset\", \"artist\": null, \"artist_dates\": null, \"work_date\": \"Ca. 1775-1790\", \"medium\": \"Linen and whalebone\", \"accession\": \"60.15.2\", \"credit_line\": \"Gift of Mrs. Charles Rucker Wayland\", \"confidence\": {\"title\": 1, \"artist\": 0, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866445,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 110,
+          "prompt_tokens": 538,
+          "total_tokens": 648,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Corset",
+        "artist": null,
+        "artist_dates": null,
+        "work_date": "Ca. 1775-1790",
+        "medium": "Linen and whalebone",
+        "accession": "60.15.2",
+        "credit_line": "Gift of Mrs. Charles Rucker Wayland",
+        "confidence": {
+          "title": 1,
+          "artist": 0,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.0816665000165813
+    },
+    {
+      "fixture_id": "14816789",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:46.967231+00:00",
+      "estimated_usd": 0.0004092280000000001,
+      "response": {
+        "id": "chatcmpl-a0662a1b3a724d86",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Fog over San Quentin State Prison, San Quentin, California (from the Prisionation series)\", \"artist\": \"Sandow Birk\", \"artist_dates\": \"(b. 1962)\", \"work_date\": \"2001\", \"medium\": \"Oil and acrylic on canvas\", \"accession\": \"2002.7\", \"credit_line\": \"Museum purchase, American Art Trust Fund\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866447,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 128,
+          "prompt_tokens": 406,
+          "total_tokens": 534,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Fog over San Quentin State Prison, San Quentin, California (from the Prisionation series)",
+        "artist": "Sandow Birk",
+        "artist_dates": "(b. 1962)",
+        "work_date": "2001",
+        "medium": "Oil and acrylic on canvas",
+        "accession": "2002.7",
+        "credit_line": "Museum purchase, American Art Trust Fund",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.1570631670183502
+    },
+    {
+      "fixture_id": "14826049",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:49.133577+00:00",
+      "estimated_usd": 0.000382588,
+      "response": {
+        "id": "chatcmpl-a391c388fffff775",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Union Rave\", \"artist\": \"Andreas Gursky\", \"artist_dates\": \"(b. 1955)\", \"work_date\": \"1995\", \"medium\": \"Digital color coupler print\", \"accession\": null, \"credit_line\": \"Collection of Trevor Traina\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 0}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866449,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 104,
+          "prompt_tokens": 406,
+          "total_tokens": 510,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Union Rave",
+        "artist": "Andreas Gursky",
+        "artist_dates": "(b. 1955)",
+        "work_date": "1995",
+        "medium": "Digital color coupler print",
+        "accession": null,
+        "credit_line": "Collection of Trevor Traina",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 0
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.002344999986235
+    },
+    {
+      "fixture_id": "14826558",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:51.142558+00:00",
+      "estimated_usd": 0.000391468,
+      "response": {
+        "id": "chatcmpl-a0134a7a799c08bc",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"River and Farms\", \"artist\": \"Wayne Thiebaud\", \"artist_dates\": \"(b. 1920)\", \"work_date\": \"1996\", \"medium\": \"Oil on canvas\", \"accession\": \"L.05.103\", \"credit_line\": \"Collection of Nan McEvoy\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866451,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 112,
+          "prompt_tokens": 406,
+          "total_tokens": 518,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "River and Farms",
+        "artist": "Wayne Thiebaud",
+        "artist_dates": "(b. 1920)",
+        "work_date": "1996",
+        "medium": "Oil on canvas",
+        "accession": "L.05.103",
+        "credit_line": "Collection of Nan McEvoy",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.0235080000129528
+    },
+    {
+      "fixture_id": "14827649",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:53.171410+00:00",
+      "estimated_usd": 0.000666014,
+      "response": {
+        "id": "chatcmpl-bccbef5efbbb62db",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Diagonal Freeway\", \"artist\": \"Wayne Thiebaud\", \"artist_dates\": \"(b. 1920)\", \"work_date\": \"1993\", \"medium\": \"Acrylic on canvas\", \"accession\": \"1998.186\", \"credit_line\": \"Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866453,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 124,
+          "prompt_tokens": 803,
+          "total_tokens": 927,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Diagonal Freeway",
+        "artist": "Wayne Thiebaud",
+        "artist_dates": "(b. 1920)",
+        "work_date": "1993",
+        "medium": "Acrylic on canvas",
+        "accession": "1998.186",
+        "credit_line": "Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.2387777079711668
+    },
+    {
+      "fixture_id": "14828630",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:55.415816+00:00",
+      "estimated_usd": 0.0007825260000000001,
+      "response": {
+        "id": "chatcmpl-9d299c1ae4a76d59",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Skeleton bear (in shamanic transformation)\", \"artist\": null, \"artist_dates\": null, \"work_date\": \"n.d.\", \"medium\": \"Ivory, brass, and pigment\", \"accession\": \"2007.21.268\", \"credit_line\": \"Bequest of Thomas G. Fowler\", \"confidence\": {\"title\": 1, \"artist\": 0, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866455,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 111,
+          "prompt_tokens": 1002,
+          "total_tokens": 1113,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Skeleton bear (in shamanic transformation)",
+        "artist": null,
+        "artist_dates": null,
+        "work_date": "n.d.",
+        "medium": "Ivory, brass, and pigment",
+        "accession": "2007.21.268",
+        "credit_line": "Bequest of Thomas G. Fowler",
+        "confidence": {
+          "title": 1,
+          "artist": 0,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.2423126659705304
+    },
+    {
+      "fixture_id": "14850318",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:57.662993+00:00",
+      "estimated_usd": 0.0006815540000000001,
+      "response": {
+        "id": "chatcmpl-b3f8aaa96cbba556",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Kanbara\", \"artist\": \"Utagawa Hiroshige II\", \"artist_dates\": \"Japan, active 1840-1866\", \"work_date\": \"1863\", \"medium\": \"Woodblock print\", \"accession\": \"2006.19.10\", \"credit_line\": \"Tacoma Art Museum, Gift of Al and Betsy Buck in memory of Alfred Eliab Buck and Ellen Baker Buck\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866458,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 138,
+          "prompt_tokens": 803,
+          "total_tokens": 941,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Kanbara",
+        "artist": "Utagawa Hiroshige II",
+        "artist_dates": "Japan, active 1840-1866",
+        "work_date": "1863",
+        "medium": "Woodblock print",
+        "accession": "2006.19.10",
+        "credit_line": "Tacoma Art Museum, Gift of Al and Betsy Buck in memory of Alfred Eliab Buck and Ellen Baker Buck",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3252899160142988
+    },
+    {
+      "fixture_id": "14850569",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:20:59.998201+00:00",
+      "estimated_usd": 0.0006793340000000001,
+      "response": {
+        "id": "chatcmpl-b37d231bb998840e",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Bush Warbler [Uguisu]\", \"artist\": \"Utagawa Hiroshige\", \"artist_dates\": \"Japan, 1797-1858\", \"work_date\": \"1830-1837\", \"medium\": \"Woodblock print\", \"accession\": \"1971.131.19\", \"credit_line\": \"Tacoma Art Museum, Gift of Mrs. James W. Lyon\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866460,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 136,
+          "prompt_tokens": 803,
+          "total_tokens": 939,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Bush Warbler [Uguisu]",
+        "artist": "Utagawa Hiroshige",
+        "artist_dates": "Japan, 1797-1858",
+        "work_date": "1830-1837",
+        "medium": "Woodblock print",
+        "accession": "1971.131.19",
+        "credit_line": "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.2790517500252463
+    },
+    {
+      "fixture_id": "14850627",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:02.285052+00:00",
+      "estimated_usd": 0.000677114,
+      "response": {
+        "id": "chatcmpl-9e678088eea0c69e",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Children Playing on New Years, 1831\", \"artist\": \"Totoya Hokkei\", \"artist_dates\": \"Japan, 1780-1850\", \"work_date\": \"1831\", \"medium\": \"Woodblock print\", \"accession\": \"1971.143.4\", \"credit_line\": \"Tacoma Art Museum, Gift of Mrs. James W. Lyon\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866462,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 134,
+          "prompt_tokens": 803,
+          "total_tokens": 937,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Children Playing on New Years, 1831",
+        "artist": "Totoya Hokkei",
+        "artist_dates": "Japan, 1780-1850",
+        "work_date": "1831",
+        "medium": "Woodblock print",
+        "accession": "1971.143.4",
+        "credit_line": "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.2651682499563321
+    },
+    {
+      "fixture_id": "39087799",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:04.558542+00:00",
+      "estimated_usd": 0.0006815540000000001,
+      "response": {
+        "id": "chatcmpl-b6f029165fdc66b6",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Cinderella Table\", \"artist\": \"Jeroen Verhoeven\", \"artist_dates\": \"(Dutch, born 1976)\", \"work_date\": \"2004\", \"medium\": \"Birch\", \"accession\": \"Gift of Marie-Josée and Henry R. Kravis in honor of Patricia Phelps de Cisneros, 2006\", \"credit_line\": \"Manufactured by Demakersvan, the Netherlands\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866464,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 138,
+          "prompt_tokens": 803,
+          "total_tokens": 941,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Cinderella Table",
+        "artist": "Jeroen Verhoeven",
+        "artist_dates": "(Dutch, born 1976)",
+        "work_date": "2004",
+        "medium": "Birch",
+        "accession": "Gift of Marie-Josée and Henry R. Kravis in honor of Patricia Phelps de Cisneros, 2006",
+        "credit_line": "Manufactured by Demakersvan, the Netherlands",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.272743416018784
+    },
+    {
+      "fixture_id": "39088296",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:06.837679+00:00",
+      "estimated_usd": 0.000685994,
+      "response": {
+        "id": "chatcmpl-93b0de307e9fa5c5",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Kinematics Dress\", \"artist\": \"Jessica Rosenkrantz and Jesse Louis-Rosenberg\", \"artist_dates\": \"Jessica Rosenkrantz (American, born 1983) Jesse Louis-Rosenberg (American, born 1986)\", \"work_date\": \"2013\", \"medium\": \"Laser-sintered nylon and digital applications\", \"accession\": null, \"credit_line\": \"Committee on Architecture and Design Funds, 2014\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 0}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866467,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 142,
+          "prompt_tokens": 803,
+          "total_tokens": 945,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Kinematics Dress",
+        "artist": "Jessica Rosenkrantz and Jesse Louis-Rosenberg",
+        "artist_dates": "Jessica Rosenkrantz (American, born 1983) Jesse Louis-Rosenberg (American, born 1986)",
+        "work_date": "2013",
+        "medium": "Laser-sintered nylon and digital applications",
+        "accession": null,
+        "credit_line": "Committee on Architecture and Design Funds, 2014",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 0
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3050295000430197
+    },
+    {
+      "fixture_id": "52357341",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:09.152643+00:00",
+      "estimated_usd": 0.000682664,
+      "response": {
+        "id": "chatcmpl-93845c6bd3a91fcc",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Sonata Primitive\", \"artist\": \"SAUL L. BAIZERMAN\", \"artist_dates\": \"American, born Russia (1899-1957)\", \"work_date\": \"1940-48\", \"medium\": \"Copper\", \"accession\": \"1968\", \"credit_line\": \"The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866469,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 139,
+          "prompt_tokens": 803,
+          "total_tokens": 942,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Sonata Primitive",
+        "artist": "SAUL L. BAIZERMAN",
+        "artist_dates": "American, born Russia (1899-1957)",
+        "work_date": "1940-48",
+        "medium": "Copper",
+        "accession": "1968",
+        "credit_line": "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3491618750267662
+    },
+    {
+      "fixture_id": "52357342",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:11.508586+00:00",
+      "estimated_usd": 0.000704864,
+      "response": {
+        "id": "chatcmpl-89938bda40d599ba",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Border Crossing / Cruzando el Río Bravo\", \"artist\": \"LUIS JIMÉNEZ\", \"artist_dates\": \"American (1940–2006)\", \"work_date\": \"1989\", \"medium\": \"Fiberglass with acrylic urethane finish\", \"accession\": \"The San Diego Museum of Art; Joint purchase with the Museum of Contemporary Art San Diego in honor of Jackie and Rea Axline, 2002\", \"credit_line\": \"ART OF THE OPEN AIR / ARTE AL AIRE LIBRE\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866471,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 159,
+          "prompt_tokens": 803,
+          "total_tokens": 962,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Border Crossing / Cruzando el Río Bravo",
+        "artist": "LUIS JIMÉNEZ",
+        "artist_dates": "American (1940–2006)",
+        "work_date": "1989",
+        "medium": "Fiberglass with acrylic urethane finish",
+        "accession": "The San Diego Museum of Art; Joint purchase with the Museum of Contemporary Art San Diego in honor of Jackie and Rea Axline, 2002",
+        "credit_line": "ART OF THE OPEN AIR / ARTE AL AIRE LIBRE",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.464287166018039
+    },
+    {
+      "fixture_id": "52357343",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:13.978276+00:00",
+      "estimated_usd": 0.000703754,
+      "response": {
+        "id": "chatcmpl-a27e72f8a5e1482b",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Night Presence II\", \"artist\": \"LOUISE NEVELSON\", \"artist_dates\": \"American (1899-1988)\", \"work_date\": \"1976\", \"medium\": \"Cor-Ten steel\", \"accession\": \"The San Diego Museum of Art; Museum purchase through the Earle W. Grant Endowment Fund, 1976\", \"credit_line\": \"ART OF THE OPEN AIR ART DE AL AIRE LIBRE Presencia nocturna II, 1976, acero Cor-Ten\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866474,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 158,
+          "prompt_tokens": 803,
+          "total_tokens": 961,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Night Presence II",
+        "artist": "LOUISE NEVELSON",
+        "artist_dates": "American (1899-1988)",
+        "work_date": "1976",
+        "medium": "Cor-Ten steel",
+        "accession": "The San Diego Museum of Art; Museum purchase through the Earle W. Grant Endowment Fund, 1976",
+        "credit_line": "ART OF THE OPEN AIR ART DE AL AIRE LIBRE Presencia nocturna II, 1976, acero Cor-Ten",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.4514118329971097
+    },
+    {
+      "fixture_id": "52357344",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:16.435264+00:00",
+      "estimated_usd": 0.0007081940000000001,
+      "response": {
+        "id": "chatcmpl-9c892c12cb998952",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Two Lines Oblique: San Diego, 1993\", \"artist\": \"GEORGE RICKEY\", \"artist_dates\": \"American (1907-2002)\", \"work_date\": \"1993\", \"medium\": \"Stainless steel\", \"accession\": \"The San Diego Museum of Art; Museum purchase with matching sculpture fund, 1994\", \"credit_line\": \"ART OF THE OPEN AIR ARTE AL AIRE LIBRE Dos lineas oblicuas, 1993, acero inoxidable\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866476,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 162,
+          "prompt_tokens": 803,
+          "total_tokens": 965,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Two Lines Oblique: San Diego, 1993",
+        "artist": "GEORGE RICKEY",
+        "artist_dates": "American (1907-2002)",
+        "work_date": "1993",
+        "medium": "Stainless steel",
+        "accession": "The San Diego Museum of Art; Museum purchase with matching sculpture fund, 1994",
+        "credit_line": "ART OF THE OPEN AIR ARTE AL AIRE LIBRE Dos lineas oblicuas, 1993, acero inoxidable",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.4960229999851435
+    },
+    {
+      "fixture_id": "52357345",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:18.936819+00:00",
+      "estimated_usd": 0.0006804440000000001,
+      "response": {
+        "id": "chatcmpl-9b951b6e2a14e7ce",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Cubi XV, 1963-64\", \"artist\": \"DAVID SMITH\", \"artist_dates\": \"American (1906-1965)\", \"work_date\": \"1963-64\", \"medium\": \"Stainless steel\", \"accession\": null, \"credit_line\": \"The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 0}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866479,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 137,
+          "prompt_tokens": 803,
+          "total_tokens": 940,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Cubi XV, 1963-64",
+        "artist": "DAVID SMITH",
+        "artist_dates": "American (1906-1965)",
+        "work_date": "1963-64",
+        "medium": "Stainless steel",
+        "accession": null,
+        "credit_line": "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 0
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3678185830358416
+    },
+    {
+      "fixture_id": "52357348",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:21.311913+00:00",
+      "estimated_usd": 0.000687104,
+      "response": {
+        "id": "chatcmpl-97963038c1114afd",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Figure for Landscape\", \"artist\": \"BARBARA HEPWORTH\", \"artist_dates\": \"English (1903-1975)\", \"work_date\": \"1960\", \"medium\": \"Bronze\", \"accession\": \"The San Diego Museum of Art; Museum purchase, 1968\", \"credit_line\": \"ART OF THE OPEN AIR ARTE AL AIRE LIBRE Figura para paisaje, 1960, bronce\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866481,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 143,
+          "prompt_tokens": 803,
+          "total_tokens": 946,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Figure for Landscape",
+        "artist": "BARBARA HEPWORTH",
+        "artist_dates": "English (1903-1975)",
+        "work_date": "1960",
+        "medium": "Bronze",
+        "accession": "The San Diego Museum of Art; Museum purchase, 1968",
+        "credit_line": "ART OF THE OPEN AIR ARTE AL AIRE LIBRE Figura para paisaje, 1960, bronce",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3502629160066135
+    },
+    {
+      "fixture_id": "52357349",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:23.672538+00:00",
+      "estimated_usd": 0.0006815540000000001,
+      "response": {
+        "id": "chatcmpl-b70ff60cdbc808dc",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Reclining Figure: Arch Leg, 1969\", \"artist\": \"HENRY MOORE\", \"artist_dates\": \"English (1898-1986)\", \"work_date\": \"1969\", \"medium\": \"Bronze\", \"accession\": \"1971\", \"credit_line\": \"The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1971\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866484,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 138,
+          "prompt_tokens": 803,
+          "total_tokens": 941,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Reclining Figure: Arch Leg, 1969",
+        "artist": "HENRY MOORE",
+        "artist_dates": "English (1898-1986)",
+        "work_date": "1969",
+        "medium": "Bronze",
+        "accession": "1971",
+        "credit_line": "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1971",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.3364752499619499
+    },
+    {
+      "fixture_id": "52358064",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:26.018796+00:00",
+      "estimated_usd": 0.000704864,
+      "response": {
+        "id": "chatcmpl-928437513e2749a0",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Odyssey III, 1973\", \"artist\": \"TONY ROSENTHAL\", \"artist_dates\": \"American (1914–2009)\", \"work_date\": \"1973\", \"medium\": \"Aluminum\", \"accession\": \"The San Diego Museum of Art; Museum purchase with matching funds from the National Endowment for the Arts, 1974\", \"credit_line\": \"ART OF THE OPEN AIR ARTE AL AIRE LIBRE Odisea III, 1973, aluminio\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866486,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 159,
+          "prompt_tokens": 803,
+          "total_tokens": 962,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Odyssey III, 1973",
+        "artist": "TONY ROSENTHAL",
+        "artist_dates": "American (1914–2009)",
+        "work_date": "1973",
+        "medium": "Aluminum",
+        "accession": "The San Diego Museum of Art; Museum purchase with matching funds from the National Endowment for the Arts, 1974",
+        "credit_line": "ART OF THE OPEN AIR ARTE AL AIRE LIBRE Odisea III, 1973, aluminio",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.4201881249900907
+    },
+    {
+      "fixture_id": "52358066",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:28.448490+00:00",
+      "estimated_usd": 0.000699314,
+      "response": {
+        "id": "chatcmpl-bc93f2713c9b2cc9",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"The Prodigal Son\", \"artist\": \"AUGUSTE RODIN\", \"artist_dates\": \"French (1840-1917)\", \"work_date\": \"1905\", \"medium\": \"Bronze\", \"accession\": \"The San Diego Museum of Art; Museum purchase through the Earle W. Grant Acquisition Fund, 1975\", \"credit_line\": \"ART OF THE OPEN AIR ARTE AL AIRE LIBRE El hijo pródigo, 1905, bronce\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 1, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866488,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 154,
+          "prompt_tokens": 803,
+          "total_tokens": 957,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "The Prodigal Son",
+        "artist": "AUGUSTE RODIN",
+        "artist_dates": "French (1840-1917)",
+        "work_date": "1905",
+        "medium": "Bronze",
+        "accession": "The San Diego Museum of Art; Museum purchase through the Earle W. Grant Acquisition Fund, 1975",
+        "credit_line": "ART OF THE OPEN AIR ARTE AL AIRE LIBRE El hijo pródigo, 1905, bronce",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 1,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.4456372499698773
+    },
+    {
+      "fixture_id": "78809357",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:30.905676+00:00",
+      "estimated_usd": 0.000649364,
+      "response": {
+        "id": "chatcmpl-87c553e65a9e4974",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": null, \"artist\": \"Antonio SUSILLO\", \"artist_dates\": \"(Sevilla 1857 - 1896)\", \"work_date\": \"1893\", \"medium\": null, \"accession\": null, \"credit_line\": \"Donación Amigos del Museo (1993)\", \"confidence\": {\"title\": 0, \"artist\": 1, \"work_date\": 1, \"medium\": 0, \"accession\": 0}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866491,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 109,
+          "prompt_tokens": 803,
+          "total_tokens": 912,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": null,
+        "artist": "Antonio SUSILLO",
+        "artist_dates": "(Sevilla 1857 - 1896)",
+        "work_date": "1893",
+        "medium": null,
+        "accession": null,
+        "credit_line": "Donación Amigos del Museo (1993)",
+        "confidence": {
+          "title": 0,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 0,
+          "accession": 0
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.098103541007731
+    },
+    {
+      "fixture_id": "78809392",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:33.009731+00:00",
+      "estimated_usd": 0.000671564,
+      "response": {
+        "id": "chatcmpl-a0e2ff86375a9254",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Retrato de D. Alfonso XIII\", \"artist\": \"Gonzalo BILBAO\", \"artist_dates\": \"(Sevilla 1860 - Madrid 1938)\", \"work_date\": \"(1929)\", \"medium\": null, \"accession\": null, \"credit_line\": \"Depósito de la Exma. Diputación Provincial de Sevilla. (1934)\", \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 0, \"accession\": 0}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866493,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 129,
+          "prompt_tokens": 803,
+          "total_tokens": 932,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Retrato de D. Alfonso XIII",
+        "artist": "Gonzalo BILBAO",
+        "artist_dates": "(Sevilla 1860 - Madrid 1938)",
+        "work_date": "(1929)",
+        "medium": null,
+        "accession": null,
+        "credit_line": "Depósito de la Exma. Diputación Provincial de Sevilla. (1934)",
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 0,
+          "accession": 0
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.2279818749520928
+    },
+    {
+      "fixture_id": "78809403",
+      "repeat": 0,
+      "started_at": "2026-09-08T11:21:35.246859+00:00",
+      "estimated_usd": 0.0006615740000000001,
+      "response": {
+        "id": "chatcmpl-bde1516af0fd9807",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"title\": \"Hasta verte Cristo mío\", \"artist\": \"José GARCÍA RAMOS\", \"artist_dates\": \"(Sevilla 1852 – 1912)\", \"work_date\": \"1895\", \"medium\": null, \"accession\": \"Depósito del Museo del Prado(1962)\", \"credit_line\": null, \"confidence\": {\"title\": 1, \"artist\": 1, \"work_date\": 1, \"medium\": 0, \"accession\": 1}}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": [],
+              "reasoning": null
+            },
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ],
+        "created": 1788866495,
+        "model": "openbmb/MiniCPM-V-4_5",
+        "object": "chat.completion",
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": null,
+        "usage": {
+          "completion_tokens": 120,
+          "prompt_tokens": 803,
+          "total_tokens": 923,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 32
+          }
+        },
+        "prompt_logprobs": null,
+        "prompt_token_ids": null,
+        "kv_transfer_params": null
+      },
+      "parsed": {
+        "title": "Hasta verte Cristo mío",
+        "artist": "José GARCÍA RAMOS",
+        "artist_dates": "(Sevilla 1852 – 1912)",
+        "work_date": "1895",
+        "medium": null,
+        "accession": "Depósito del Museo del Prado(1962)",
+        "credit_line": null,
+        "confidence": {
+          "title": 1,
+          "artist": 1,
+          "work_date": 1,
+          "medium": 0,
+          "accession": 1
+        }
+      },
+      "failure": null,
+      "finish_reason": "stop",
+      "latency_seconds": 1.1851545419776812
+    }
+  ],
+  "summary": {
+    "calls": 25,
+    "valid_outputs": 25,
+    "parse_failures": 0,
+    "schema_failures": 0,
+    "api_failures": 0,
+    "truncated": 0,
+    "estimated_usd": 0.015926060000000002,
+    "latency_p50_seconds": 1.3050295000430197,
+    "latency_p95_seconds": 1.6157517499523237,
+    "fields": {
+      "title": {
+        "correct": 18,
+        "total": 25,
+        "printed_correct": 18,
+        "printed_total": 25
+      },
+      "artist": {
+        "correct": 24,
+        "total": 25,
+        "printed_correct": 21,
+        "printed_total": 22
+      },
+      "artist_dates": {
+        "correct": 3,
+        "total": 25,
+        "printed_correct": 0,
+        "printed_total": 21
+      },
+      "work_date": {
+        "correct": 24,
+        "total": 25,
+        "printed_correct": 24,
+        "printed_total": 25
+      },
+      "medium": {
+        "correct": 25,
+        "total": 25,
+        "printed_correct": 22,
+        "printed_total": 22
+      },
+      "accession": {
+        "correct": 14,
+        "total": 25,
+        "printed_correct": 9,
+        "printed_total": 10
+      },
+      "credit_line": {
+        "correct": 17,
+        "total": 25,
+        "printed_correct": 17,
+        "printed_total": 25
+      }
+    },
+    "title_artist_both_correct": 17,
+    "title_artist_field_accuracy": 0.84,
+    "named_artist_labels": 22,
+    "named_title_artist_both_correct": 14
+  }
+}

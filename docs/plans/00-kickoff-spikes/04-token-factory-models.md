@@ -54,8 +54,20 @@ Schema: { title: string|null, artist: string|null, artist_dates: string|null, wo
 ## Done criteria
 
 - [ ] Decision record exists with model IDs and the corrections section
-- [ ] `spikes/token-factory/` committed (scripts, manifest, results; no keys, no non-licensed images)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `spikes/token-factory/` committed (scripts, manifest, results; no keys, no non-licensed images)
+- [x] `docs/plans/README.md` status row updated
+
+## Execution — 2026-09-08
+
+[Decision 004](../../decisions/004-token-factory-models.md) records the completed
+text evaluations, 25 MiniCPM label reads, three failed GLM attempts, costs and
+exact design corrections. The first done criterion remains open because only
+three of four model choices could be accepted. GLM returned no usable output
+(timeout and HTTP 500, including provider GPU out-of-memory); MiniCPM reached
+68% joint title-and-artist accuracy, versus 84% average field accuracy. The
+decision explains this threshold ambiguity and conservatively leaves label
+selection blocked. Reevaluate GLM when service recovers, or obtain the
+operator's choice of an alternate label approach under the STOP condition.
 
 ## STOP conditions
 

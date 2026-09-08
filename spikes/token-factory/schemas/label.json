@@ -1,0 +1,96 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artist": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artist_dates": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "work_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "medium": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "accession": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "credit_line": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "artist": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "work_date": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "medium": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "accession": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "title",
+        "artist",
+        "work_date",
+        "medium",
+        "accession"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "title",
+    "artist",
+    "artist_dates",
+    "work_date",
+    "medium",
+    "accession",
+    "credit_line",
+    "confidence"
+  ],
+  "additionalProperties": false
+}

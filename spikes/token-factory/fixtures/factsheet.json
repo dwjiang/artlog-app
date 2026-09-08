@@ -1,0 +1,286 @@
+{
+  "prepared_at": "2026-09-08",
+  "note": "Five Met paintings. Owner-page metadata obtained via the Met public API, a live Wikidata snapshot, and five live web-search snippets per work. Search used the built-in web tool because the Tavily connector OAuth refresh failed. Search is restricted to the owner museum; short and some off-topic snippets are retained to test source selection. This does not evaluate Tavily (plan 00.07). Source scores are fixture trust inputs, not measured relevance scores.",
+  "cases": [
+    {
+      "id": "436535",
+      "title": "Wheat Field with Cypresses",
+      "sources": [
+        {
+          "kind": "owner",
+          "url": "https://www.metmuseum.org/art/collection/search/436535",
+          "label": "The Metropolitan Museum of Art",
+          "score": 1.0,
+          "text": "{\"objectID\": 436535, \"title\": \"Wheat Field with Cypresses\", \"artistDisplayName\": \"Vincent van Gogh\", \"artistDisplayBio\": \"Dutch, Zundert 1853–1890 Auvers-sur-Oise\", \"objectDate\": \"1889\", \"medium\": \"Oil on canvas\", \"dimensions\": \"28 13/16 × 36 3/4 in. (73.2 × 93.4 cm)\", \"creditLine\": \"Purchase, The Annenberg Foundation Gift, 1993\", \"accessionNumber\": \"1993.132\", \"department\": \"European Paintings\", \"classification\": \"Paintings\"}",
+          "retrieved_via": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436535"
+        },
+        {
+          "kind": "wikidata",
+          "url": "https://www.wikidata.org/wiki/Q18689458",
+          "label": "Wikidata",
+          "score": 0.9,
+          "text": "{\"id\": \"Q18689458\", \"label\": \"Wheat Field with Cypresses\", \"description\": \"painting by Vincent van Gogh in the Metropolitan Museum of Art (F717)\", \"claims\": {\"P170\": [{\"entity-type\": \"item\", \"numeric-id\": 5582, \"id\": \"Q5582\"}], \"P571\": [{\"time\": \"+1889-06-00T00:00:00Z\", \"timezone\": 0, \"before\": 0, \"after\": 0, \"precision\": 10, \"calendarmodel\": \"http://www.wikidata.org/entity/Q1985727\"}], \"P195\": [{\"entity-type\": \"item\", \"numeric-id\": 160236, \"id\": \"Q160236\"}], \"P217\": [\"1993.132\"], \"P2048\": [{\"amount\": \"+73\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P2049\": [{\"amount\": \"+93.40\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P186\": [{\"entity-type\": \"item\", \"numeric-id\": 296955, \"id\": \"Q296955\"}, {\"entity-type\": \"item\", \"numeric-id\": 12321255, \"id\": \"Q12321255\"}], \"P31\": [{\"entity-type\": \"item\", \"numeric-id\": 3305213, \"id\": \"Q3305213\"}]}}"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/it/art/collection/search/436535",
+          "label": "Vincent van Gogh - Wheat Field with Cypresses - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: Wheat Field with Cypresses, Vincent van Gogh (Dutch, Zundert 1853–1890 Auvers-sur-Oise), Oil on canvas ... Image: Wheat Field with"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/Recent_Acquisitions_A_Selection_1992_1993_The_Metropolitan_Museum_of_Art_Bulletin_v_51_no_2_Fall_1993.pdf",
+          "label": "Recent Acquisitions: A Selection, 1992-1993, The Metropolitan Museum of Art Bulletin, v. 51, no. 2 (Fall, 1993)",
+          "score": 0.9,
+          "text": "I Vincent van Gogh ... Wheat Field with Cypresses"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/The_New_Nineteenth_Century_European_Paintings_and_Sculpture_Galleries.pdf",
+          "label": "The New Nineteenth-Century European Paintings and Sculpture Galleries",
+          "score": 0.9,
+          "text": "Lower-left painting image: a landscape with a wheat field, cypress tree, cloudy sky, and distant hills. ... Left: Vincent van"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/Philippe_de_Montebello_and_The_Metropolitan_Museum_of_Art_1977_2008.pdf",
+          "label": "145. Vincent van Gogh, *Wheat Field with Cypresses*, 1889. Oil on canvas, 28¾ × 36¼ in. (73 × 93.4 cm). Purchase, The Annenberg Foundation Gift, 1993 (1993.132)",
+          "score": 0.9,
+          "text": "Vincent van Gogh, *Wheat Field with Cypresses*, 1889."
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/The_Met_and_the_New_Millennium_The_Metropolitan_Museum_of_Art_Bulletin_v_52_no_1_Summer_1994.pdf",
+          "label": "The Met and the New Millennium: A Chronicle of the Past and a Blueprint for the Future: The Metropolitan Museum of Art Bulletin, v. 52, no. 1 (Summer, 1994)",
+          "score": 0.9,
+          "text": "Wheat Field with ... by Vincent van Gogh: ... Field with Cypresses, a"
+        }
+      ]
+    },
+    {
+      "id": "436532",
+      "title": "Self-Portrait with a Straw Hat (obverse: The Potato Peeler)",
+      "sources": [
+        {
+          "kind": "owner",
+          "url": "https://www.metmuseum.org/art/collection/search/436532",
+          "label": "The Metropolitan Museum of Art",
+          "score": 1.0,
+          "text": "{\"objectID\": 436532, \"title\": \"Self-Portrait with a Straw Hat (obverse: The Potato Peeler)\", \"artistDisplayName\": \"Vincent van Gogh\", \"artistDisplayBio\": \"Dutch, Zundert 1853–1890 Auvers-sur-Oise\", \"objectDate\": \"1887\", \"medium\": \"Oil on canvas\", \"dimensions\": \"16 x 12 1/2 in. (40.6 x 31.8 cm)\", \"creditLine\": \"Bequest of Miss Adelaide Milton de Groot (1876-1967), 1967\", \"accessionNumber\": \"67.187.70a\", \"department\": \"European Paintings\", \"classification\": \"Paintings\"}",
+          "retrieved_via": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436532"
+        },
+        {
+          "kind": "wikidata",
+          "url": "https://www.wikidata.org/wiki/Q19911684",
+          "label": "Wikidata",
+          "score": 0.9,
+          "text": "{\"id\": \"Q19911684\", \"label\": \"Self-Portrait with a Straw Hat\", \"description\": \"painting by Vincent van Gogh (MET, 67.187.70a)\", \"claims\": {\"P170\": [{\"entity-type\": \"item\", \"numeric-id\": 5582, \"id\": \"Q5582\"}], \"P571\": [{\"time\": \"+1887-01-01T00:00:00Z\", \"timezone\": 0, \"before\": 0, \"after\": 0, \"precision\": 9, \"calendarmodel\": \"http://www.wikidata.org/entity/Q1985727\"}], \"P195\": [{\"entity-type\": \"item\", \"numeric-id\": 160236, \"id\": \"Q160236\"}], \"P217\": [\"67.187.70a\"], \"P2048\": [{\"amount\": \"+40\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P2049\": [{\"amount\": \"+31.8\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P186\": [{\"entity-type\": \"item\", \"numeric-id\": 296955, \"id\": \"Q296955\"}, {\"entity-type\": \"item\", \"numeric-id\": 12321255, \"id\": \"Q12321255\"}], \"P31\": [{\"entity-type\": \"item\", \"numeric-id\": 3305213, \"id\": \"Q3305213\"}]}}"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/436532",
+          "label": "Vincent van Gogh - Self-Portrait with a Straw Hat (obverse: The Potato Peeler) - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: Self-Portrait with a Straw Hat (obverse: The Potato Peeler), Vincent van Gogh (Dutch, Zundert 1853–1890 Auvers-sur-Oise), Oil on canvas"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/438722",
+          "label": "Vincent van Gogh - The Potato Peeler (reverse: Self-Portrait with a Straw Hat) - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "The Potato Peeler (reverse: Self-Portrait with a Straw Hat) ... Image: The Potato Peeler (reverse: Self-Portrait with a Straw Hat),"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/The_New_Nineteenth_Century_European_Paintings_and_Sculpture_Galleries.pdf",
+          "label": "The New Nineteenth-Century European Paintings and Sculpture Galleries",
+          "score": 0.9,
+          "text": "Black-and-white photograph of Miss de Groot standing beside a framed portrait; caption below reads: “Photograph of Miss de Groot with"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/Vigee_Le_Brun.pdf",
+          "label": "Cat. 8. *Study for Abundance*, 1780",
+          "score": 0.9,
+          "text": "**ENGRAVING:** A drawing with the same subject as the painting (perhaps by the engraver Pierre Viel) was included with the"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/818020",
+          "label": "Garry Winogrand - [Boy in Hat, Montauk, New York] - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "This relatively straightforward portrait of a young boy in a straw hat winking at the photographer dates from just after"
+        }
+      ]
+    },
+    {
+      "id": "436121",
+      "title": "A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?)",
+      "sources": [
+        {
+          "kind": "owner",
+          "url": "https://www.metmuseum.org/art/collection/search/436121",
+          "label": "The Metropolitan Museum of Art",
+          "score": 1.0,
+          "text": "{\"objectID\": 436121, \"title\": \"A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?)\", \"artistDisplayName\": \"Edgar Degas\", \"artistDisplayBio\": \"French, Paris 1834–1917 Paris\", \"objectDate\": \"1865\", \"medium\": \"Oil on canvas\", \"dimensions\": \"29 x 36 1/2 in. (73.7 x 92.7 cm)\", \"creditLine\": \"H. O. Havemeyer Collection, Bequest of Mrs. H. O. Havemeyer, 1929\", \"accessionNumber\": \"29.100.128\", \"department\": \"European Paintings\", \"classification\": \"Paintings\"}",
+          "retrieved_via": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436121"
+        },
+        {
+          "kind": "wikidata",
+          "url": "https://www.wikidata.org/wiki/Q3713914",
+          "label": "Wikidata",
+          "score": 0.9,
+          "text": "{\"id\": \"Q3713914\", \"label\": \"A Woman Seated beside a Vase of Flowers\", \"description\": \"painting by Edgar Degas\", \"claims\": {\"P170\": [{\"entity-type\": \"item\", \"numeric-id\": 46373, \"id\": \"Q46373\"}], \"P571\": [{\"time\": \"+1865-00-00T00:00:00Z\", \"timezone\": 0, \"before\": 0, \"after\": 0, \"precision\": 9, \"calendarmodel\": \"http://www.wikidata.org/entity/Q1985727\"}], \"P195\": [{\"entity-type\": \"item\", \"numeric-id\": 160236, \"id\": \"Q160236\"}], \"P217\": [\"29.100.128\"], \"P2048\": [{\"amount\": \"+73.7\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P2049\": [{\"amount\": \"+92.7\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P186\": [{\"entity-type\": \"item\", \"numeric-id\": 296955, \"id\": \"Q296955\"}, {\"entity-type\": \"item\", \"numeric-id\": 12321255, \"id\": \"Q12321255\"}], \"P31\": [{\"entity-type\": \"item\", \"numeric-id\": 3305213, \"id\": \"Q3305213\"}]}}"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/436121",
+          "label": "Edgar Degas - A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?) - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?), Edgar Degas (French, Paris 1834–1917 Paris), Oil on"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/de/exhibitions/manet-degas/visiting-guide",
+          "label": "Manet/Degas - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "In an art world in which categories were inviolable—one painted a still life or a portrait—A Woman Seated beside a"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/de/met-publications/degas-the-metropolitan-museum-of-art-bulletin-v-34-no-4-spring-1977",
+          "label": "\"Degas: A Master among Masters\" - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?), Edgar Degas French, Oil on canvas"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/ja/exhibitions/manet-degas/exhibition-objects",
+          "label": "Manet/Degas - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?), Edgar Degas French, Oil on canvas"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/fr/essays/edgar-degas-1834-1917-painting-and-drawing",
+          "label": "Edgar Degas (1834–1917): Painting and Drawing - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: A Woman Seated beside a Vase of Flowers (Madame Paul Valpinçon?), Edgar Degas French, Oil on canvas"
+        }
+      ]
+    },
+    {
+      "id": "435882",
+      "title": "Still Life with Apples and a Pot of Primroses",
+      "sources": [
+        {
+          "kind": "owner",
+          "url": "https://www.metmuseum.org/art/collection/search/435882",
+          "label": "The Metropolitan Museum of Art",
+          "score": 1.0,
+          "text": "{\"objectID\": 435882, \"title\": \"Still Life with Apples and a Pot of Primroses\", \"artistDisplayName\": \"Paul Cézanne\", \"artistDisplayBio\": \"French, Aix-en-Provence 1839–1906 Aix-en-Provence\", \"objectDate\": \"ca. 1890\", \"medium\": \"Oil on canvas\", \"dimensions\": \"28 3/4 x 36 3/8 in. (73 x 92.4 cm)\", \"creditLine\": \"Bequest of Sam A. Lewisohn, 1951\", \"accessionNumber\": \"51.112.1\", \"department\": \"European Paintings\", \"classification\": \"Paintings\"}",
+          "retrieved_via": "https://collectionapi.metmuseum.org/public/collection/v1/objects/435882"
+        },
+        {
+          "kind": "wikidata",
+          "url": "https://www.wikidata.org/wiki/Q19904841",
+          "label": "Wikidata",
+          "score": 0.9,
+          "text": "{\"id\": \"Q19904841\", \"label\": \"Still Life with Apples and a Pot of Primroses\", \"description\": \"painting by Paul Cézanne\", \"claims\": {\"P170\": [{\"entity-type\": \"item\", \"numeric-id\": 35548, \"id\": \"Q35548\"}], \"P571\": [{\"time\": \"+1890-01-01T00:00:00Z\", \"timezone\": 0, \"before\": 0, \"after\": 0, \"precision\": 8, \"calendarmodel\": \"http://www.wikidata.org/entity/Q1985727\"}], \"P195\": [{\"entity-type\": \"item\", \"numeric-id\": 160236, \"id\": \"Q160236\"}], \"P217\": [\"51.112.1\"], \"P2048\": [{\"amount\": \"+73\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P2049\": [{\"amount\": \"+92.4\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P186\": [{\"entity-type\": \"item\", \"numeric-id\": 296955, \"id\": \"Q296955\"}, {\"entity-type\": \"item\", \"numeric-id\": 12321255, \"id\": \"Q12321255\"}], \"P31\": [{\"entity-type\": \"item\", \"numeric-id\": 3305213, \"id\": \"Q3305213\"}]}}"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/435882",
+          "label": "Paul Cézanne - Still Life with Apples and a Pot of Primroses - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: Still Life with Apples and a Pot of Primroses, Paul Cézanne (French, Aix-en-Provence 1839–1906 Aix-en-Provence), Oil on canvas"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/Impressionists_in_the_Metropolitan_The_Metropolitan_Museum_of_Art_Bulletin_v_27_no_1_Summer_1968.pdf",
+          "label": "Windows Open to Nature: The Metropolitan Museum of Art Bulletin, v. 27, no. 1 (Summer, 1968)",
+          "score": 0.9,
+          "text": "A color reproduction of a still life painting: apples scattered across a table draped with a white cloth, with a"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/de/essays/paul-cezanne-1839-1906",
+          "label": "Paul Cézanne (1839–1906) - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: Still Life with Apples and a Pot of Primroses, Paul Cézanne French, Oil on canvas ... The objects in"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/The_New_Nineteenth_Century_European_Paintings_and_Sculpture_Galleries.pdf",
+          "label": "The New Nineteenth-Century European Paintings and Sculpture Galleries",
+          "score": 0.9,
+          "text": "Large reproduction of Paul Gauguin’s *Ia Orana Maria*: a Tahitian scene with several figures, including a woman in a red"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/fr/perspectives/paula-age-6-still-life-cezanne",
+          "label": "MetKids Mail: Still Lifes with Apples by Paula, Age 6, and Paul Cézanne - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Your artwork shows an arrangement of objects that cannot move on their own, like fruit and a table. ... Image:"
+        }
+      ]
+    },
+    {
+      "id": "436105",
+      "title": "The Death of Socrates",
+      "sources": [
+        {
+          "kind": "owner",
+          "url": "https://www.metmuseum.org/art/collection/search/436105",
+          "label": "The Metropolitan Museum of Art",
+          "score": 1.0,
+          "text": "{\"objectID\": 436105, \"title\": \"The Death of Socrates\", \"artistDisplayName\": \"Jacques Louis David\", \"artistDisplayBio\": \"French, Paris 1748–1825 Brussels\", \"objectDate\": \"1787\", \"medium\": \"Oil on canvas\", \"dimensions\": \"51 x 77 1/4 in. (129.5 x 196.2 cm)\", \"creditLine\": \"Catharine Lorillard Wolfe Collection, Wolfe Fund, 1931\", \"accessionNumber\": \"31.45\", \"department\": \"European Paintings\", \"classification\": \"Paintings\"}",
+          "retrieved_via": "https://collectionapi.metmuseum.org/public/collection/v1/objects/436105"
+        },
+        {
+          "kind": "wikidata",
+          "url": "https://www.wikidata.org/wiki/Q1752990",
+          "label": "Wikidata",
+          "score": 0.9,
+          "text": "{\"id\": \"Q1752990\", \"label\": \"The Death of Socrates\", \"description\": \"painting by Jacques-Louis David\", \"claims\": {\"P170\": [{\"entity-type\": \"item\", \"numeric-id\": 83155, \"id\": \"Q83155\"}], \"P571\": [{\"time\": \"+1787-00-00T00:00:00Z\", \"timezone\": 0, \"before\": 0, \"after\": 0, \"precision\": 9, \"calendarmodel\": \"http://www.wikidata.org/entity/Q1985727\"}], \"P195\": [{\"entity-type\": \"item\", \"numeric-id\": 160236, \"id\": \"Q160236\"}], \"P217\": [\"31.45\"], \"P2048\": [{\"amount\": \"+129.5\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P2049\": [{\"amount\": \"+196.2\", \"unit\": \"http://www.wikidata.org/entity/Q174728\"}], \"P186\": [{\"entity-type\": \"item\", \"numeric-id\": 296955, \"id\": \"Q296955\"}, {\"entity-type\": \"item\", \"numeric-id\": 12321255, \"id\": \"Q12321255\"}], \"P31\": [{\"entity-type\": \"item\", \"numeric-id\": 3305213, \"id\": \"Q3305213\"}]}}"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/de/art/collection/search/436105",
+          "label": "Jacques Louis David - The Death of Socrates - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "Image: The Death of Socrates, Jacques Louis David (French, Paris 1748–1825 Brussels), Oil on canvas ... Image: The Death of"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/679783",
+          "label": "Jacques Louis David - The Death of Socrates - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "This sheet is a study for Jacques Louis David’s 1787 painting, The Death of Socrates 31.45, which entered the Met’s"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://www.metmuseum.org/art/collection/search/426600",
+          "label": "Jacques Louis David - The Death of Socrates - The Metropolitan Museum of Art",
+          "score": 0.9,
+          "text": "This sheet is an early exploration of the subject that Jacques Louis David would later treat in his 1787 painting,"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/A_Time_of_Crisis.pdf",
+          "label": "<visual_element id=\"e1\">",
+          "score": 0.9,
+          "text": "Large reproduction of a painting showing Socrates’ death scene in a stone interior: Socrates sits upright on a bed at"
+        },
+        {
+          "kind": "search_snippet",
+          "url": "https://resources.metmuseum.org/resources/metpublications/pdf/Greek_Art_From_Prehistoric_to_Classical.pdf",
+          "label": "A Hunt for Historical Subjects",
+          "score": 0.9,
+          "text": "The Death of Socrates (Sokrates). ... David; (right, on bench, in Greek) Athenaion (“of Athens”). ... Accused by the Athenian"
+        }
+      ]
+    }
+  ]
+}
