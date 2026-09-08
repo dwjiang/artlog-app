@@ -1,0 +1,57 @@
+{
+  "size": 512,
+  "calibration_count": 26,
+  "required_calibration_count": 200,
+  "calibration_manifest_sha256": "d8c457c40bedb9f81e88076e1371594657e5e74911b8980d8092fc369edd898c",
+  "scope": "macOS CPU_AND_NE; not iPhone evidence",
+  "torch_device": "mps",
+  "cosines": {
+    "fp32_fakequant": {
+      "mean": 0.9988704291716407,
+      "min": 0.9982422657168992,
+      "count": 26
+    },
+    "fp32_coreml_fp16": {
+      "mean": 0.9968415393166724,
+      "min": 0.9946060435209796,
+      "count": 26
+    },
+    "fakequant_coreml_fp16": {
+      "mean": 0.9956630116634843,
+      "min": 0.9932997238631457,
+      "count": 26
+    },
+    "fp32_coreml_int8": {
+      "mean": 0.9957945669204664,
+      "min": 0.9935104140462847,
+      "count": 26
+    },
+    "fakequant_coreml_int8": {
+      "mean": 0.9968446300780525,
+      "min": 0.9947525656597098,
+      "count": 26
+    },
+    "fp32_coreml_int4": {
+      "mean": 0.7607754731107257,
+      "min": 0.5302463049558482,
+      "count": 26
+    },
+    "fakequant_coreml_int4": {
+      "mean": 0.7604749435669772,
+      "min": 0.528435420806751,
+      "count": 26
+    },
+    "fakequant_iphone_int8": {
+      "mean": 0.9968446300780525,
+      "min": 0.9947525656597098,
+      "count": 26
+    }
+  },
+  "mac_load_ms": {
+    "fp16": 2677.3286670213565,
+    "int8": 2437.744249997195,
+    "int4": 2311.9690000312403
+  },
+  "top1_agreement_percent": "not measured: 2000-image mini-index unavailable",
+  "acceptance": "provisional: full calibration, iPhone drift, latency and retrieval evidence required"
+}
