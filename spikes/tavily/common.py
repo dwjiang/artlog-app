@@ -198,8 +198,9 @@ class Evaluation:
         credits = response.get("usage", {}).get("credits")
         if not isinstance(credits, (int, float)) or credits < 0 or not math.isfinite(credits):
             credits = None
+        unexpected_credits = credits is None or credits > reserve
         record.update(
-            status="complete",
+            status="needs_reconciliation" if unexpected_credits else "complete",
             elapsed_seconds=round(time.monotonic() - started, 3),
             response=response,
             reported_credits=credits,
@@ -213,6 +214,6 @@ class Evaluation:
             f"{name}: {record['elapsed_seconds']} s; credits {credits}; budget total {charged_total(self.results_dir):g}/{BUDGET}",
             flush=True,
         )
-        if credits is None or credits > reserve:
+        if unexpected_credits:
             raise RuntimeError("Unexpected credit report; reconcile usage before continuing")
         return record

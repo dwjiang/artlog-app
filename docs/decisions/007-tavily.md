@@ -8,9 +8,10 @@ Use Tavily Search to find **candidate museum evidence** for label verification.
 Keep **`FLAG_RIGHT_NOW=off`**, including the demo default: generated answers are
 not adequately grounded by the planned score/date checks. Use **0.60 as a
 provisional retrieval cutoff**, not as authorization to display an answer.
-Use API/IIIF and sitemap discovery before Map; the tested collection did not
-yield any object URLs. Enforce an exact approved host and object-path check on
-every discovered URL. Recommend **`DAILY_TAVILY_CREDIT_CAP=20`** on the free plan.
+Use API/IIIF and sitemap discovery before Map; the probes returned no object
+URLs beyond the supplied starting URL. Enforce an exact approved host and
+object-path check on every discovered URL. Recommend
+**`DAILY_TAVILY_CREDIT_CAP=20`** on the free plan.
 
 ## Evidence and method
 
@@ -311,8 +312,12 @@ Crawl used `extract_depth: basic` and never exceeded `limit: 20`.
 | [crawl-object-start](../../spikes/tavily/results/crawl-object-start.json) | /art/1927.393 | 1 / 20 | object paths | 1 | 0 | 1.113 |
 | [map-any-path-control](../../spikes/tavily/results/map-any-path-control.json) | / | 1 / 20 | any path | 10 | 1 | 1.622 |
 
-Object and collection path requests returned no URLs, even from known object
-and collection starting URLs. Their path-match fraction is **N/A**, not 100%.
+Filtered requests starting at the homepage or collection search returned no
+URLs, so their path-match fraction is **N/A**. The object-start Map and Crawl
+each returned the supplied `/art/1927.393` URL with a **100%** path-match
+fraction. Crawl also returned the full artwork page in `raw_content`. Neither
+object-start request discovered additional object URLs.
+
 The broad `.*` control proves that the service could map some site navigation;
 it returned ten URLs and reported one credit. This leaves the cause of empty
 filtered results unresolved: traversal/filter semantics and discoverability
@@ -352,10 +357,13 @@ For Cleveland, use the official API's `currently_on_view` filter instead.
 Whether `/collections/.*` reliably finds an eMuseum on-view listing remains
 unmeasured because the candidate eMuseum was excluded by 00.05.
 
-The observed Crawl cost was **zero for zero extracted pages**, not a successful
-20-page crawl. Pricing documents imply **200 credits for 2,000 mapped pages**
-and **6 credits for 20 pages crawled with basic extraction**, without
-instructions. Those are modeled costs, not achieved scale measurements.
+Both Crawl requests reported **zero credits**: the homepage request extracted
+no pages, while the object-start request successfully extracted **one page**.
+The zero-credit report therefore does not establish that extraction failed or
+that successful extraction is generally free. No successful 20-page crawl was
+measured. Pricing documents imply **200 credits for 2,000 mapped pages** and
+**6 credits for 20 pages crawled with basic extraction**, without instructions.
+Those are modeled costs, not achieved scale measurements.
 [Tavily pricing](https://docs.tavily.com/documentation/api-credits) and
 [Map parameters](https://docs.tavily.com/documentation/api-reference/endpoint/map)
 are the source for these limits and cost formulas.
@@ -468,9 +476,10 @@ require a duplicate config. Jobs and Convex should read the same file.
 
 ## Verification and remaining limits
 
-The nine standalone Python tests passed and cover credit limits, timeout reservations, replay,
-derived-summary accounting, date windows, sentence truncation, and exact host
-filtering. Ruff and the tests are run with the locked spike environment.
+The standalone Python tests cover credit limits, timeout reservations, replay,
+credit-report reconciliation stops across restarts, derived-summary accounting,
+date windows, sentence truncation, and exact host filtering. Ruff and the tests
+are run with the locked spike environment.
 `npx tsc --noEmit` reports existing CSS declaration errors in
 `src/components/animated-icon.web.tsx` and `src/constants/theme.ts`; no app files
 were changed. ESLint is not configured, so the app lint script cannot provide
@@ -478,7 +487,7 @@ a check without installing unrelated tooling. No iOS behavior changed, so
 there is no changed app flow to exercise with `npm run ios`.
 
 The investigation answers the six questions without declaring unobserved
-scale success: 2,000-page discovery, successful Crawl extraction pricing,
+scale success: 2,000-page discovery, 20-page Crawl extraction pricing,
 eMuseum on-view mapping, independent answer accuracy, held-out cutoff quality,
 Paris/country search coverage, and account-level billing reconciliation remain
 unverified. These limits constrain the decisions above; they are not reasons

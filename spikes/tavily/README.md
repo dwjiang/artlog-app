@@ -44,6 +44,8 @@ follow-up. Existing snapshots are never overwritten. Calls are sequential;
 an exclusive process lock protects the shared 300-credit budget. Each request
 reserves its maximum cost on disk before dispatch. Timeouts/errors keep that
 reservation and stop, with no automatic retry or SDK exception body recorded.
+Unexpected credit reports preserve possible spend and remain unresolved on
+replay until usage is reconciled.
 Search explicitly disables auto parameters and uses basic depth. Map caps at
 2,000 pages, Crawl at 20. Console output shows the cumulative budget total.
 

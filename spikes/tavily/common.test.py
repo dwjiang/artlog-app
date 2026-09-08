@@ -55,15 +55,18 @@ def test_cost_limits_include_mapping_and_extraction():
 
 
 class FakeClient:
-    def __init__(self, fail=False):
+    def __init__(self, fail=False, response=None):
         self.calls = 0
         self.fail = fail
+        self.response = (
+            response if response is not None else {"results": [], "usage": {"credits": 1}}
+        )
 
     def search(self, **params):
         self.calls += 1
         if self.fail:
             raise TimeoutError("Sensitive exception text must not be recorded")
-        return {"results": [], "usage": {"credits": 1}}
+        return self.response
 
 
 PARAMS = {"query": "test", "search_depth": "basic", "auto_parameters": False}
@@ -112,6 +115,46 @@ def test_timeout_preserves_reservation_and_prevents_automatic_retry(tmp_path):
         assert client.calls == 1
     finally:
         evaluation.close()
+
+
+@pytest.mark.parametrize(
+    ("response", "expected_charge"),
+    [
+        pytest.param({}, 1, id="missing-usage"),
+        pytest.param({"usage": {"credits": None}}, 1, id="missing-credits"),
+        pytest.param({"usage": {"credits": "unknown"}}, 1, id="invalid-credits"),
+        pytest.param({"usage": {"credits": -1}}, 1, id="negative-credits"),
+        pytest.param({"usage": {"credits": 2}}, 2, id="exceeds-reservation"),
+    ],
+)
+def test_unexpected_credit_report_blocks_restarted_run(tmp_path, response, expected_charge):
+    directory = tmp_path / "results"
+    client = FakeClient(response=response)
+    evaluation = Evaluation(directory, client)
+    try:
+        with pytest.raises(RuntimeError, match="Unexpected credit report"):
+            evaluation.run("one", "search", PARAMS, {})
+        assert client.calls == 1
+    finally:
+        evaluation.close()
+
+    saved = (directory / "one.json").read_text()
+    record = json.loads(saved)
+    assert record["response"] == response
+    assert charged_total(directory) == expected_charge
+
+    restarted_client = FakeClient()
+    restarted = Evaluation(directory, restarted_client)
+    try:
+        with pytest.raises(RuntimeError, match="unresolved request"):
+            for name in ("one", "two"):
+                restarted.run(name, "search", PARAMS, {})
+        assert restarted_client.calls == 0
+        assert (directory / "one.json").read_text() == saved
+        assert not (directory / "two.json").exists()
+        assert charged_total(directory) == expected_charge
+    finally:
+        restarted.close()
 
 
 def test_budget_ignores_derived_summaries_and_image_probe_lists(tmp_path):
