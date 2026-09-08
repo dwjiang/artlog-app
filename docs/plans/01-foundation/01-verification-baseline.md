@@ -141,14 +141,29 @@ Add `coverage/` to `.gitignore`. Confirm `.gitignore` still ignores `expo-env.d.
 
 ## Done criteria
 
-- [ ] `npx tsc --noEmit` exits 0
-- [ ] `npm run lint` exits 0 and `eslint.config.js` exists
-- [ ] `npm run test:app` exits 0 with 1 passing test
-- [ ] `npm run test:convex` exits 0
-- [ ] `ls src/components/*.web.* src/hooks/*.web.* src/global.css src/components/*.css 2>/dev/null` → nothing
-- [ ] `grep -n "global.css" src/constants/theme.ts` → no match
-- [ ] No files outside scope modified (`git status`)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `npx tsc --noEmit` exits 0
+- [x] `npm run lint` exits 0 and `eslint.config.js` exists
+- [x] `npm run test:app` exits 0 with 1 passing test
+- [x] `npm run test:convex` exits 0
+- [x] `ls src/components/*.web.* src/hooks/*.web.* src/global.css src/components/*.css 2>/dev/null` → nothing
+- [x] `grep -n "global.css" src/constants/theme.ts` → no match
+- [x] No files outside scope modified (`git status`)
+- [x] `docs/plans/README.md` status row updated
+
+## Execution notes — 2026-09-08
+
+- Drift check matched. Removing the web files cleared both original type errors
+  before Metro generated `expo-env.d.ts`.
+- React Native Testing Library 14.0.1 requires `await render(...)`; the smoke
+  test uses that API. TypeScript 6 also requires `types: ["jest"]` in
+  `tsconfig.json` for the test globals. No Jest setup file was needed.
+- Expo selected Jest 29.7.0 and jest-expo 57.0.5. Vitest 5.0.0 exits successfully
+  with no Convex tests, as expected until plan 01.03.
+- ESLint installed and generated the flat config. The installing process then
+  reported `Cannot find module 'eslint'`; a fresh `npm run lint` passed, as did
+  the final `npm run lint && npm run typecheck && npm test`.
+- `npm run ios` bundled successfully. Home and Explore were checked on the
+  iPhone 17 Pro simulator (iOS 26.5) in light mode.
 
 ## STOP conditions
 
