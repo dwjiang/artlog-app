@@ -1,27 +1,29 @@
 # 001 Embedding model export
 
-Date: 2026-09-08 · Status: **provisional; retrieval comparison pending**
+Date: 2026-09-08 · Status: **accepted**
 
 ## Decision
 
-Retain **512 × 512 input, 1,536-dimensional DINOv2 adaptor summary, symmetric
-per-channel int8 Linear weights and fp16 compute** as the candidate for the next
-stage. Candidate `modelVersion`: **`c-radiov3-b-int8-512-dinov2-v1`**.
-This is not approval to build the full index or claim the full accuracy gate passed.
+Adopt **512 × 512 input, 1,536-dimensional DINOv2 adaptor summary, symmetric
+per-channel int8 Linear weights and fp16 compute** for plans 03.03 and 02.04.
+`modelVersion`: **`c-radiov3-b-int8-512-dinov2-v1`**. The full 200-image MPS/iPhone
+drift gate passes. Plan 02.04 must repeat the drift check on its CUDA hardware
+before generating the full catalog index.
 
 On the available iPhone 16 Pro, the 512/int8 package predicts in about **67 ms**
 with `CPU_AND_NE`. Its minimum cosine against PyTorch with the recovered weights
-is **0.99292** on **200** paintings. The latest load costs approximately **4.1 seconds**.
+is **0.99292** on **200** paintings. Its top-1 agreement with fp32 queries is
+**94.5%** on a disjoint 2,000-image index. The latest load costs approximately
+**4.1 seconds**.
 Reject the tested 4-bit palette: its mean cosine against fp32 is approximately
 **0.740**, far below the drift target. Other 4-bit recipes were not investigated.
 
-The Met API initially returned intermittent HTTP 403. Serial request pacing,
-15/30/60-second retry cooldowns and resumable checkpoints allowed collection to
-continue. All 200 calibration images are now measured on Mac and iPhone at both
-resolutions. The disjoint 2,000-image retrieval index is still downloading, so
-nearest-neighbor agreement remains pending. All ten planned device configurations
-were measured on the initial subset; both int8 CPU + NE cases were rerun on the
-full calibration set.
+The Met API initially returned intermittent HTTP 403. After adding serial
+request pacing, retry cooldowns and resumable checkpoints, the full 2,200-image
+collection completed in approximately 130 minutes with no retries or 403s.
+All 200 calibration images and the disjoint 2,000-image index are now evaluated
+at both resolutions. All ten planned device configurations were measured on the
+initial subset; both int8 CPU + NE cases were rerun on the full calibration set.
 
 ## Environment and reproducibility
 
@@ -135,13 +137,14 @@ timings per completed row are retained in
 
 ## Accuracy and drift
 
-The [URL list](../../spikes/coreml-export/calibration/urls.txt) and
-[manifest](../../spikes/coreml-export/calibration/manifest.json) contain 200 unique
-Met paintings with `isPublicDomain=true`. Filtering also checks painting
-classification and deduplicates downloaded bytes. The
-[Met API](https://metmuseum.github.io/) supplies `primaryImageSmall` and the
-public-domain flag. Collection now continues through the original Met source
-using paced, cached requests; the 2,000-image index remains separate.
+The [calibration URL list](../../spikes/coreml-export/calibration/urls.txt)
+contains 200 paintings; the [index URL list](../../spikes/coreml-export/calibration/index-urls.txt)
+contains 2,000 different paintings. The
+[manifest](../../spikes/coreml-export/calibration/manifest.json) covers all 2,200
+unique Met paintings with `isPublicDomain=true`. Filtering checks painting
+classification and deduplicates URLs and downloaded bytes. All source hashes
+were verified. The [Met API](https://metmuseum.github.io/) supplies
+`primaryImageSmall` and the public-domain flag.
 
 The reference comparison is PyTorch **MPS** fp32 versus MPS fp16 with the actual
 CoreML-dequantized weights. Here fp32 describes execution after loading the
@@ -173,23 +176,41 @@ on iPhone, providing no prediction-speed advantage over int8 while substantially
 degrading numerical agreement.
 For int8, minimum cosine exceeds 0.99 at both resolutions. MPS is a local GPU proxy;
 **CUDA/Nebius drift is not measured** and must be verified before a real index
-build. Full CPU fp16 and CPU fp16 autocast both produced NaNs on the first image;
-the first observed nonfinite Linear output was block 1's attention projection.
+build. Full CPU fp16 and CPU fp16 autocast both produced NaNs on the initial
+smoke-test image; the first observed nonfinite Linear output was block 1's
+attention projection.
 MPS fp16 and autocast were finite. This is a measured execution-backend
 difference, not evidence that CUDA will behave the same way.
 
-| Required larger evaluation | Result |
+At each resolution, all query variants search the **same 2,000-image index**,
+embedded once with the recovered int8 weights in MPS fp16. Agreement@1 measures
+whether a variant selects the same neighbor as the PyTorch fp32 query:
+
+| Query variant | 448 agreement@1 | 512 agreement@1 |
+| --- | ---: | ---: |
+| PyTorch fakequant fp16 | 96.0% | 95.5% |
+| macOS CoreML fp16 | 93.0% | 93.5% |
+| macOS CoreML int8 | 93.0% | 94.5% |
+| iPhone CoreML int8 | 93.0% | 94.5% |
+| macOS CoreML 4-bit | Not exported | 25.0% |
+
+At 512, int8 changes the top neighbor for 11 of 200 queries; at 448, it changes
+14. These are numerical disagreements on this mini-index, not measured errors
+against recognition labels. The fp16 result also uses the fixed fakequant index,
+so the table does not establish that int8 has better ground-truth recall.
+
+| Evaluation coverage | Result |
 | --- | --- |
 | All 200 calibration images | Measured at 448 and 512; int8 minimum cosine exceeds 0.99 |
 | At least 50 on-device reference images | All 200 calibration images exported at both resolutions |
-| Agreement@1 on a disjoint 2,000-image mini-index | Pending: paced index collection is in progress |
+| Agreement@1 on a disjoint 2,000-image mini-index | Measured at both resolutions; 512/int8 reaches 94.5% |
 | True recognition recall on museum captures | Not measured: this spike compares numerical agreement |
 
 The committed [iPhone embeddings](../../spikes/coreml-export/calibration/iphone-embeddings.json)
 and [reference report](../../spikes/coreml-export/calibration/iphone-report.json)
 are the **200-image, 512/int8, CPU_AND_NE** reference. Plan 02.04 can reuse
-these calibration inputs, but acceptance still awaits the retrieval comparison
-and its build hardware must pass the CUDA drift check.
+these calibration inputs and the accepted recipe. Its build hardware must
+still pass the CUDA drift check.
 
 ## Exact fake-quant recipe
 
@@ -216,12 +237,13 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
 - Keep `embeddingDim=1536` and `inputSize=512`. `shared/model-version.json` does
   not exist yet; this spike does not create it because the assumed numbers are
   unchanged. Plan 01.03 owns that file.
-- The tested candidate's version string is reserved for this source, head,
+- The model version string identifies this source, head,
   53-weight quantization scope and preprocessing. A changed recipe needs a new
   version before building any vectors.
-- Prefer 512/int8 provisionally: it meets the measured latency/drift bounds and
-  preserves the model's preferred resolution. The 448/int8 variant is faster,
-  but its retrieval tradeoff is unknown without the larger evaluation.
+- Choose 512/int8: it meets the measured latency/drift bounds and preserves
+  the model's preferred resolution. The 448/int8 variant is faster; its numerical
+  top-1 agreement is 93.0% versus 94.5% at 512 on this sample. The effect of
+  resolution on recognition recall remains unmeasured.
 - Loading exceeds plan 03.03's 1.5-second warm-up target before warm-up
   predictions are included. Investigate startup loading on the chosen device
   baseline; do not promise immediate readiness from these latency numbers.
@@ -229,15 +251,19 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
   than the design's ~90 MB estimate. App Store compression and whole-app size
   are not measured by this spike.
 - Reject this 4-bit recipe; do not use its smaller package to solve app size.
-- Finish the disjoint 2,000-image Met index and measure nearest-neighbor
-  agreement at both sizes before accepting the candidate. The full 200-image
-  device drift gate has passed.
+- Plans 02.04 and 03.03 can use this export recipe and reference set. Verify
+  CUDA drift on the index job hardware and camera preprocessing on device;
+  this spike used identical prepared pixels for its numerical comparisons.
 
 ## Verification
 
 - Twenty focused Python tests pass; the pinned Python environment is consistent.
 - Both 448 and 512 real-model shape checks pass; all five real CoreML models
-  pass the 200-image finite-output/drift check on macOS.
+  return finite, nonzero outputs on 200 images. Int8 passes the 0.99 drift gate;
+  the tested 4-bit recipe fails. Both 2,000-image retrieval evaluations completed.
+- The committed sets contain exactly 200 + 2,000 disjoint, unique paintings,
+  and all 2,200 downloaded-image hashes match the manifest. The preparation
+  command was also run against the complete committed lists.
 - BenchApp builds for iOS in Release, signs, installs, and runs on the physical
   iPhone in light mode. Product Expo code is unchanged; `npm run ios` launches
   the unrelated starter app, so verification uses this native benchmark.

@@ -2,7 +2,7 @@
   "size": 512,
   "calibration_count": 200,
   "required_calibration_count": 200,
-  "calibration_manifest_sha256": "3412f3c122de8cda620c524d61aaabbc9bbe2df3b351cf3d724e528e5fbeccf9",
+  "calibration_manifest_sha256": "b7382d9c449cf12ac71b6f3029054e47d2904681465502320f85ab60e49378cf",
   "scope": "CoreML variants: macOS CPU_AND_NE; iphone_int8: physical iPhone CPU_AND_NE when supplied",
   "torch_device": "mps",
   "cosines": {
@@ -48,10 +48,16 @@
     }
   },
   "mac_load_ms": {
-    "fp16": 2681.025707977824,
-    "int8": 2948.7477079965174,
-    "int4": 2230.7832920341752
+    "fp16": 2484.0785829583183,
+    "int8": 2261.1239589750767,
+    "int4": 2037.796500022523
   },
-  "top1_agreement_percent": "not measured: 2000-image mini-index unavailable",
+  "top1_agreement_percent": {
+    "pytorch_fakequant_fp16": 95.5,
+    "coreml_fp16": 93.5,
+    "coreml_int8": 94.5,
+    "coreml_int4": 25.0,
+    "iphone_int8": 94.5
+  },
   "acceptance": "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
 }

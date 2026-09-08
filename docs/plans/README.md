@@ -27,7 +27,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 01.01 | [Verification baseline](01-foundation/01-verification-baseline.md) | P0 | S | — | TODO |
-| 00.01 | [CoreML export and Neural Engine spike](00-kickoff-spikes/01-coreml-export-and-neural-engine.md) | P0 | M | — (iPhone + Xcode) | IN PROGRESS — [provisional 512/int8 decision](../decisions/001-embedding-model-export.md); 200-image iPhone drift passes; paced collection continues for the 2,000-image retrieval test |
+| 00.01 | [CoreML export and Neural Engine spike](00-kickoff-spikes/01-coreml-export-and-neural-engine.md) | P0 | M | — (iPhone + Xcode) | DONE — [accepted 512/int8 decision](../decisions/001-embedding-model-export.md); 200-image iPhone drift passes, 94.5% agreement@1 on the 2,000-image index |
 | 00.02 | [Convex vector search at scale spike](00-kickoff-spikes/02-convex-vector-search-at-scale.md) | P0 | S–M | — (Convex Pro) | TODO |
 | 00.04 | [Token Factory models spike](00-kickoff-spikes/04-token-factory-models.md) | P0 | S–M | — | TODO |
 | 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | TODO |

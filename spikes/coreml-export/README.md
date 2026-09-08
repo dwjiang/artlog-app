@@ -74,15 +74,19 @@ OS image resize or color conversion during this numerical experiment. This does
 not verify the future camera module's preprocessing.
 
 4-bit means a separate per-weight-tensor, 16-entry k-means palette through
-`palettize_weights`; it is not linear int4 quantization. It failed the provisional
-accuracy check and is not the chosen recipe.
+`palettize_weights`; it is not linear int4 quantization. It failed the 200-image
+numerical drift check and is not the chosen recipe.
 
 ## Calibration and drift
 
 The committed URL list contains **200** paintings, measured on Mac and iPhone
 at both resolutions. `manifest.json` records each object's public-domain flag,
 classification, source URL and downloaded-byte hash. Images and weights are
-ignored. The separate 2,000-image retrieval index is still being collected.
+ignored. The committed index URL list contains 2,000 disjoint paintings;
+nearest-neighbor agreement was measured at both resolutions. The manifest covers
+all 2,200 source images. The initial paced collection took approximately 130
+minutes; preparing the committed lists reuses cached files or downloads their
+exact image URLs without searching the collection again.
 
 To download the exact committed dataset and prepare device inputs:
 
@@ -142,11 +146,12 @@ state, process RSS after load and a sampled RSS maximum. Prediction timings
 include extracting the 1,536 values. RSS samples are not a guaranteed peak and
 do not measure all memory allocated by the Neural Engine service.
 
-Find your device and use your Apple development team:
+Find your physical device's UDID and use your Apple development team. The UDID
+works with both Xcode and `devicectl`:
 
 ```sh
-xcrun devicectl list devices
-export COREML_BENCH_DEVICE='your-paired-device-identifier'
+xcrun xctrace list devices
+export COREML_BENCH_DEVICE='your-iphone-udid'
 export COREML_BENCH_TEAM='your-development-team-id'
 xcodebuild -project BenchApp/BenchApp.xcodeproj -scheme BenchApp \
   -configuration Release -destination "id=$COREML_BENCH_DEVICE" \
@@ -184,6 +189,14 @@ compute configuration, URL set and vector dimensions are validated. The committe
 the full 200-image 512/int8 reference. The committed report keeps
 timings and assignment counts; full per-operation reports remain in
 `artifacts/iphone/`. Keep the reference embeddings and report together.
+
+To reuse the committed iPhone measurement with freshly downloaded images:
+
+```sh
+.venv/bin/python calibration.py prepare --size 512
+.venv/bin/python drift_check.py --size 512 --torch-device mps \
+  --iphone calibration/iphone-embeddings.json
+```
 
 ## Checks
 

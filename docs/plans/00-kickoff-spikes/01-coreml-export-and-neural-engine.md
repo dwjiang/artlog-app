@@ -10,12 +10,13 @@
 
 ## Status
 
-- **Execution (2026-09-08)**: IN PROGRESS. See
-  [decision 001](../../decisions/001-embedding-model-export.md): five exports,
-  all ten physical iPhone benchmark configurations, and full 200-image Mac/iPhone
-  drift at both resolutions measured. The int8 drift gate passes. Paced,
-  resumable Met collection is downloading the disjoint 2,000-image index for
-  the remaining nearest-neighbor comparison.
+- **Execution (2026-09-08)**: DONE. See the
+  [accepted decision 001](../../decisions/001-embedding-model-export.md): five
+  exports, all ten physical iPhone benchmark configurations, full 200-image
+  Mac/iPhone drift and disjoint 2,000-image retrieval comparisons measured.
+  Choose 512/int8: minimum iPhone drift cosine 0.99292, agreement@1 94.5%,
+  median prediction 66.64 ms. Loading takes about 4.1 seconds; CUDA and additional
+  devices remain unmeasured. Paced, resumable downloads resolved the Met blocker.
 - **Priority**: P0 (gates 03.03 and 02.04; also fixes `embeddingDim`/`inputSize`)
 - **Effort**: M (2 days)
 - **Risk**: MED (export may hit unsupported ops; ANE may reject parts of the graph)
