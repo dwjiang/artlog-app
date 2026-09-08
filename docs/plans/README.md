@@ -30,7 +30,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 00.01 | [CoreML export and Neural Engine spike](00-kickoff-spikes/01-coreml-export-and-neural-engine.md) | P0 | M | — (iPhone + Xcode) | TODO |
 | 00.02 | [Convex vector search at scale spike](00-kickoff-spikes/02-convex-vector-search-at-scale.md) | P0 | S–M | — (Convex Pro) | TODO |
 | 00.04 | [Token Factory models spike](00-kickoff-spikes/04-token-factory-models.md) | P0 | S–M | — | TODO |
-| 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | TODO |
+| 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | DONE — [decision and explicit unknowns](../decisions/005-data-sources.md) |
 | 00.07 | [Tavily behavior spike](00-kickoff-spikes/07-tavily-behavior.md) | P1 | S | — | TODO |
 | 00.08 | [Nebius jobs and release logistics spike](00-kickoff-spikes/08-nebius-jobs-and-release-logistics.md) | P1 | S–M | — | TODO |
 | 01.02 | [App shell](01-foundation/02-app-shell.md) | P1 | M | 01.01 | TODO |

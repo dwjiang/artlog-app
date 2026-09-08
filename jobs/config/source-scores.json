@@ -1,0 +1,35 @@
+{
+  "domains": {
+    "metmuseum.org": 1.0,
+    "artic.edu": 1.0,
+    "clevelandart.org": 1.0,
+    "nga.gov": 1.0,
+    "getty.edu": 1.0,
+    "tate.org.uk": 0.95,
+    "moma.org": 0.95,
+    "louvre.fr": 0.95,
+    "rijksmuseum.nl": 0.95,
+    "britishmuseum.org": 0.95,
+    "harvardartmuseums.org": 0.95,
+    "collections.britishart.yale.edu": 0.95,
+    "vangoghworldwide.org": 0.95,
+    "theartnewspaper.com": 0.85,
+    "nytimes.com": 0.85,
+    "wikidata.org": 0.8,
+    "wikipedia.org": 0.7
+  },
+  "excluded": [
+    "pinterest.com",
+    "instagram.com",
+    "facebook.com",
+    "reddit.com",
+    "quora.com",
+    "tumblr.com",
+    "wikiart.org",
+    "fineartamerica.com",
+    "ebay.com",
+    "etsy.com"
+  ],
+  "default": 0.3,
+  "threshold": 0.5
+}
