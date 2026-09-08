@@ -15,9 +15,12 @@ is **0.99475** on **26** paintings. Loading costs approximately **3.5–3.8 seco
 Reject the tested 4-bit palette: its mean cosine against fp32 is approximately
 **0.761**, far below the drift target. Other 4-bit recipes were not investigated.
 
-The Met API returned HTTP 403 after 26 usable images. Consequently, the required
-200-image calibration and 2,000-image nearest-neighbor comparison remain
-unmeasured. This subset supports a provisional choice, not a recall conclusion.
+The Met API returned HTTP 403 during collection. A subsequent retry answered the
+initial access check but again returned HTTP 403 before completing the dataset.
+Consequently, the required 200-image calibration and 2,000-image nearest-neighbor
+comparison remain unmeasured. The measured 26-image subset supports a provisional
+choice, not a recall conclusion. All ten planned configurations on the available
+iPhone are now measured.
 
 ## Environment and reproducibility
 
@@ -91,11 +94,12 @@ include extracting the output array. Calibration embeddings follow timing.
 | 448 | fp16 | CPU + NE | 44.25 | 4250 | 261.0 / 270.0 | 2 / 442 |
 | 448 | int8 | All | 41.24 | 3492 | 222.3 / 291.6 | 2 / 442 |
 | 448 | int8 | CPU + NE | 41.09 | 3493 | 168.5 / 178.0 | 2 / 442 |
+| 512 | fp16 | All | 70.34 | 4302 | 328.8 / 328.8 | 2 / 442 |
 | 512 | fp16 | CPU + NE | 70.09 | 4383 | 261.4 / 272.5 | 2 / 442 |
+| 512 | int4 | All | 66.62 | 3359 | 196.3 / 236.4 | 2 / 442 |
+| 512 | int4 | CPU + NE | 66.73 | 3006 | 121.5 / 132.9 | 2 / 442 |
 | 512 | int8 | All | 65.86 | 3521 | 249.8 / 257.8 | 2 / 442 |
 | 512 | int8 | CPU + NE | 65.85 | 3812 | 168.6 / 180.1 | 2 / 442 |
-| 512 | fp16 | All | Not measured: device relocked during run | — | — | — |
-| 512 | int4 | Both | Not measured: device locked before these cases | — | — | — |
 
 All measured rows remained at nominal thermal state (0 → 0). “Loaded / sampled
 max RSS” is process resident memory, not guaranteed peak memory or total Neural
@@ -145,11 +149,17 @@ the future camera preprocessing path is not covered.
 | 512 | PyTorch fp32 ↔ macOS CoreML fp16 | 0.996842 | 0.994606 | 26 |
 | 512 | PyTorch fp32 ↔ macOS CoreML int8 | 0.995795 | 0.993510 | 26 |
 | 512 | PyTorch fp32 ↔ macOS CoreML 4-bit | 0.760775 | 0.530246 | 26 |
+| 512 | PyTorch fp32 ↔ iPhone CoreML 4-bit (both unit settings) | 0.760775 | 0.530246 | 26 |
 | 512 | PyTorch fakequant fp16 ↔ macOS CoreML int8 | 0.996845 | 0.994753 | 26 |
 | 512 | PyTorch fakequant fp16 ↔ iPhone CoreML int8 | 0.996845 | 0.994753 | 26 |
 
 The iPhone int8 outputs equal the macOS `CPU_AND_NE` outputs on this subset.
-Minimum cosine exceeds 0.99 at both resolutions. MPS is a local GPU proxy;
+The resumed 512/fp16 All and 512/4-bit runs also match their corresponding macOS
+outputs exactly; the 4-bit result is the same with All and CPU + NE. All returned
+26 finite, nonzero vectors. The tested 4-bit package takes approximately 67 ms
+on iPhone, providing no prediction-speed advantage over int8 while substantially
+degrading numerical agreement.
+For int8, minimum cosine exceeds 0.99 at both resolutions. MPS is a local GPU proxy;
 **CUDA/Nebius drift is not measured** and must be verified before a real index
 build. Full CPU fp16 and CPU fp16 autocast both produced NaNs on the first image;
 the first observed nonfinite Linear output was block 1's attention projection.
@@ -158,8 +168,8 @@ difference, not evidence that CUDA will behave the same way.
 
 | Required larger evaluation | Result |
 | --- | --- |
-| All 200 calibration images | Not measured: Met API HTTP 403; only 26 cached valid images |
-| At least 50 on-device reference images | Not measured at required count: all 26 available images were exported |
+| All 200 calibration images | Not measured: Met API HTTP 403; measured subset remains 26 images |
+| At least 50 on-device reference images | Not measured at required count: all 26 selected calibration images were exported |
 | Agreement@1 on a disjoint 2,000-image mini-index | Not measured: collection blocked before the index set existed |
 | True recognition recall on museum captures | Not measured: this spike compares numerical agreement |
 

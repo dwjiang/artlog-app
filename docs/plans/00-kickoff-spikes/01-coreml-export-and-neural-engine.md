@@ -12,9 +12,9 @@
 
 - **Execution (2026-09-08)**: BLOCKED on full calibration/retrieval data. See
   [decision 001](../../decisions/001-embedding-model-export.md): five exports,
-  seven physical iPhone benchmark configurations, and 26-image Mac/iPhone drift
-  measured. The Met API refused further collection; the phone relocked before
-  the remaining three benchmark configurations could complete.
+  all ten physical iPhone benchmark configurations, and 26-image Mac/iPhone drift
+  measured. The remaining device runs completed after unlocking the phone.
+  Retrying Met collection still returned HTTP 403 before a full dataset existed.
 - **Priority**: P0 (gates 03.03 and 02.04; also fixes `embeddingDim`/`inputSize`)
 - **Effort**: M (2 days)
 - **Risk**: MED (export may hit unsupported ops; ANE may reject parts of the graph)

@@ -80,8 +80,8 @@ accuracy check and is not the chosen recipe.
 ## Calibration and drift
 
 The committed URL list currently contains **26**, not 200, paintings. The Met API
-returned HTTP 403 during collection. `manifest.json` records each object's
-public-domain flag, classification, source URL and downloaded-byte hash. Images
+returned HTTP 403 during both collection attempts. `manifest.json` records each
+object's public-domain flag, classification, source URL and downloaded-byte hash. Images
 and weights are ignored. Do not treat this subset as the completed calibration
 or silently use it as the 2,000-image retrieval index.
 
