@@ -60,13 +60,16 @@ Schema: { title: string|null, artist: string|null, artist_dates: string|null, wo
 ## Execution — 2026-09-08
 
 [Decision 004](../../decisions/004-token-factory-models.md) records the completed
-text evaluations, 25 MiniCPM label reads, three failed GLM attempts, costs and
+text evaluations, 25 MiniCPM label reads, four failed GLM attempts, costs and
 exact design corrections. The first done criterion remains open because only
 three of four model choices could be accepted. GLM returned no usable output
 (timeout and HTTP 500, including provider GPU out-of-memory); MiniCPM reached
 68% joint title-and-artist accuracy, versus 84% average field accuracy. The
 decision explains this threshold ambiguity and conservatively leaves label
-selection blocked. Reevaluate GLM when service recovers, or obtain the
+selection blocked. The user-requested retry at 11:48 UTC also returned GPU
+out-of-memory; the conservative budget ledger is now $4.041965 and cannot
+reserve another request under its existing ceiling. Reevaluate GLM when service
+recovers and failed-request billing is reconciled, or obtain the
 operator's choice of an alternate label approach under the STOP condition.
 
 ## STOP conditions

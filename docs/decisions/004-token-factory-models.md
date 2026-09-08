@@ -30,8 +30,9 @@ the identification path needs both fields. This is not a claim that every
 candidate scored below 70%: GLM could not be measured at all. The incomplete
 comparison and threshold ambiguity prevent accepting a label model.
 
-Resume by rerunning GLM after the provider recovers, with a new result tag and
-the same frozen fixtures. Alternatively, the operator can authorize evaluating
+Resume by rerunning GLM after the provider recovers and failed-request billing
+is reconciled against the remaining budget, with a new result tag and the same
+frozen fixtures. Alternatively, the operator can authorize evaluating
 an OCR-plus-text approach, as the plan's STOP condition requires. No alternate
 label architecture was implemented. Plan 04.06 remains gated.
 
@@ -115,15 +116,18 @@ MiniCPM completed 25/25 requests: zero parse/schema failures, p50 **1.305 s**,
 p95 **1.616 s**, estimated **$0.000637 per call**.
 [Raw responses and scores](../../spikes/token-factory/results/label-minicpm-json_schema-main.json).
 
-GLM produced no usable output in three attempts on the first fixture: a
-55.9-second timeout, then two HTTP 500 responses around 3 seconds. The final
-attempt used `json_object` and omitted the optional thinking override; its
-error explicitly reports CUDA out-of-memory. Availability failed before
+GLM produced no usable output in four attempts on the first fixture: a
+55.9-second timeout, then three HTTP 500 responses around 3 seconds. The
+`json_object` attempt omitted the optional thinking override and reported CUDA
+out-of-memory. At the user's request, a further `json_schema` retry at 11:48 UTC
+on September 8 failed after 3.244 seconds with the same GPU out-of-memory error.
+Availability failed before
 quality could be evaluated. Its field accuracy and successful-call cost are
 **N/A**, even though the generic scorer records failed requests as incorrect.
 [Timeout](../../spikes/token-factory/results/label-glm-json_schema-pilot.json),
 [schema attempt](../../spikes/token-factory/results/label-glm-json_schema-main.json),
-[provider OOM](../../spikes/token-factory/results/label-glm-json_object-pilot.json).
+[provider OOM](../../spikes/token-factory/results/label-glm-json_object-pilot.json),
+[requested retry](../../spikes/token-factory/results/label-glm-json_schema-retry-1.json).
 
 ## Docent results
 
@@ -199,11 +203,14 @@ was unavailable. [Configuration and rate basis](../../spikes/token-factory/confi
 | Super | $0.30 / $0.90 |
 
 There were 170 successful main requests, seven successful pilot requests,
-three failed GLM requests and three setup probes. Known token usage estimates
+four failed GLM requests and three setup probes. Known token usage estimates
 total **$0.032004** including setup. Unknown billing for each failed GLM request
 retains a $1 reservation, and setup retains a $0.01 allowance. The conservative
-[ledger](../../spikes/token-factory/results/budget.json) is **$3.041965**, below
-the $4.50 local ceiling and the plan's $5 budget. That is not a $3.04 invoice.
+[ledger](../../spikes/token-factory/results/budget.json) is **$4.041965**, below
+the $4.50 local ceiling and the plan's $5 budget. That is not a $4.04 invoice.
+Another $1 request reservation would exceed the ceiling, so further paid
+evaluation must wait for reconciliation of the failed requests' actual billing
+or an explicit budget change. The user-requested retry did not reset the ledger.
 
 Recommend **`DAILY_TOKEN_FACTORY_CALL_CAP=500`** initially, counting every model
 request, including retries and background enrichment. This is a proposed
