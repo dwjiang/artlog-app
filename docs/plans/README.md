@@ -49,7 +49,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 04.06 | [Label flow backend](04-backend/06-label-flow.md) | P1 | L | 04.03, 04.04, 00.04, 00.07 | TODO |
 | 04.09 | [Docent and "Right now"](04-backend/09-docent-and-right-now.md) | P1 | M–L | 04.03, 04.04, 04.06, 00.04, 00.07 | TODO |
 | 02.03 | [Corpus metadata](02-index-build/03-corpus-metadata.md) | P1 | L | 02.01, 02.02, 00.05 | TODO |
-| 03.01 | [Camera and capture pipeline](03-on-device/01-camera-and-capture-pipeline.md) | P1 | M | 01.04, 04.03, 00.06 | TODO — 006 device camera/QR gates passed; select a QR path supporting arm64 simulator |
+| 03.01 | [Camera and capture pipeline](03-on-device/01-camera-and-capture-pipeline.md) | P1 | M | 01.04, 04.03, 00.06 | IMPLEMENTED — 2026-09-09: VC5 camera, EXIF import, timed capture pipeline, network-error queuing interface, and QR hook; 37 new tests (89 app tests pass), typecheck/lint pass. QR uses VC5's built-in iOS `useObjectOutput` instead of the ML Kit package; arm64 simulator build/install and signed iPhone build pass. Simulator light-mode permission denial, photo import, and expected 03.02 stub error verified. Physical preview/shutter and native QR decoding remain pending: paired iPhone offline. Native processing and queue persistence remain the planned 03.02–03.04/03.06 stubs |
 | 03.05 | [Venue resolution](03-on-device/05-venue-resolution.md) | P1 | L | 02.02, 04.05, 01.04, 00.06 | TODO — 006 MapKit gate passed; museum filter must be supplemented with text search |
 | 04.10 | [Placements and checklists](04-backend/10-placements-and-checklists.md) | P2 | M | 04.03, 02.01, 00.05 | TODO |
 | 04.07 | [Contributions and feedback](04-backend/07-contributions-and-feedback.md) | P1 | M–L | 04.03, 04.04, 04.06 | TODO |
