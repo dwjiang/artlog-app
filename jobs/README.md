@@ -167,6 +167,8 @@ an administrative match takes precedence; otherwise the nearest metro within
 Downloaded country rows and completed writes live in
 `SCRATCH_DIR/venue-seed/<deployment-and-config-hash>/`. Repeat the same command
 to resume; interrupted upserts replay idempotently from the cached country.
+Changing the country selection resets completed writes and replays cached rows,
+so a full run restores its country assignments after a country-only run.
 For a quarterly census, add `--refresh` **once** to discard the selected
 countries' caches/checkpoints, then omit it if resuming. Keep one seed process
 per scratch directory. Natural keys preserve the Convex IDs used by the phone.

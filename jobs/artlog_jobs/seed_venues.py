@@ -43,6 +43,11 @@ def seed_countries(
     user_agent: str,
     fetch_venues: Callable = iter_museums,
 ) -> int:
+    # Shared Q-IDs use the first selected country, so another selection can overwrite them.
+    selection = json.dumps(list(countries))
+    if checkpoint.cursor("seed") != selection:
+        checkpoint.clear("seed")
+        checkpoint.set_cursor("seed", selection)
     cache_dir = checkpoint.path.parent / "countries"
     cache_dir.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()
@@ -243,9 +248,7 @@ def main() -> None:
     ).hexdigest()[:16]
     checkpoint = Checkpoint(settings.scratch_dir / "venue-seed" / scope / "checkpoint.json")
     if args.refresh:
-        done = checkpoint.done_keys("seed")
         checkpoint.clear("seed")
-        checkpoint.mark_done("seed", done - countries.keys())
         for iso in countries:
             (checkpoint.path.parent / "countries" / f"{iso}.json").unlink(missing_ok=True)
     writer = ConvexWriter(settings)

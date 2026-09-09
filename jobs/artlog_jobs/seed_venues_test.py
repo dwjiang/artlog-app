@@ -1,4 +1,6 @@
+import json
 import sqlite3
+import sys
 from dataclasses import replace
 from unittest.mock import Mock
 
@@ -7,6 +9,7 @@ import pytest
 
 from . import seed_venues
 from .checkpoint import Checkpoint
+from .config import Settings
 from .regions import load_regions
 from .wikidata import IncompleteCountry, VenueRow
 
@@ -88,6 +91,69 @@ def test_multiple_country_claims_are_seeded_only_once(tmp_path):
     )
     assert count == 1
     assert sum(len(call.args[1]) for call in writer.upsert.call_args_list) == 1
+
+
+@pytest.mark.parametrize("interrupt_refresh", [False, True])
+def test_full_census_restores_country_assignment_after_partial_refresh(
+    tmp_path, monkeypatch, interrupt_refresh
+):
+    countries = {"BM": ["Q23635"], "GB": ["Q145"]}
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/countries.json").write_text(json.dumps(countries))
+    settings = Settings(
+        _env_file=None, convex_url="https://test.convex.cloud", scratch_dir=tmp_path
+    )
+    monkeypatch.setattr(seed_venues, "JOBS_DIR", tmp_path)
+    monkeypatch.setattr(seed_venues, "get_settings", lambda: settings)
+    monkeypatch.setattr(seed_venues, "BASELINE_VENUES", 1)
+    stored = {}
+    writer = Mock()
+
+    def upsert(_fn, rows, **kwargs):
+        stored.update((row["key"], {**row, "_id": row["key"]}) for row in rows)
+
+    writer.upsert.side_effect = upsert
+    writer.query.side_effect = lambda *args: {"page": list(stored.values()), "isDone": True}
+    monkeypatch.setattr(seed_venues, "ConvexWriter", lambda _settings: writer)
+    fetch = Mock(
+        side_effect=lambda selected, **kwargs: (
+            [] if "unknown" in selected else [replace(VENUE, country_iso=next(iter(selected)))]
+        )
+    )
+    seed = seed_venues.seed_countries
+    monkeypatch.setattr(
+        seed_venues,
+        "seed_countries",
+        lambda *args, **kwargs: seed(*args, **kwargs, fetch_venues=fetch),
+    )
+
+    def run(*args):
+        monkeypatch.setattr(sys, "argv", ["seed_venues", *args, "--out", str(tmp_path / "out")])
+        seed_venues.main()
+
+    run("--all")
+
+    if interrupt_refresh:
+
+        def interrupted_upsert(*args, **kwargs):
+            upsert(*args, **kwargs)
+            raise RuntimeError("interrupted after a batch committed")
+
+        writer.upsert.side_effect = interrupted_upsert
+        with pytest.raises(RuntimeError, match="interrupted"):
+            run("--countries", "GB", "--refresh")
+        writer.upsert.side_effect = upsert
+    else:
+        run("--countries", "GB", "--refresh")
+    assert stored["wikidata:Q1"]["region"] == "country:GB"
+
+    run("--all")
+    with sqlite3.connect(tmp_path / "out/venues.db") as db:
+        assert db.execute("SELECT region FROM venues").fetchall() == [("country:BM",)]
+    writes = writer.upsert.call_count
+    run("--all")
+    assert writer.upsert.call_count == writes
+    assert fetch.call_count == 4
 
 
 def test_export_pages_preserves_ids_and_writes_matching_metadata(tmp_path):
