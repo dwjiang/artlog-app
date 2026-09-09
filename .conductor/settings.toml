@@ -17,7 +17,7 @@ Title the pull request as a Conventional Commit: `type(scope): summary`. Keep th
 setup = "npm ci --no-audit --no-fund"
 # No workspace-specific resources exist outside the checkout.
 archive = ":"
-# iOS launches share the default Simulator and Expo Go instance.
+# iOS launches share the default Simulator and development client instance.
 run_mode = "nonconcurrent"
 
 [scripts.run.ios]
