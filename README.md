@@ -25,6 +25,21 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+### Run a development build
+
+The app needs native modules that Expo Go cannot load, so run it in a
+[development build](https://docs.expo.dev/develop/development-builds/introduction/):
+
+```bash
+npx expo prebuild --platform ios --clean && npx expo run:ios
+```
+
+This generates the ignored `ios/` directory, builds with Xcode, installs the dev
+client on the Simulator and starts Metro. Afterwards `npm run ios` reopens the
+installed dev client without rebuilding. For a device build use
+`eas build --platform ios --profile development` (uses EAS build minutes; ask
+before running).
+
 ## Get a fresh project
 
 When you're ready, run:
