@@ -286,15 +286,38 @@ So that the shell is navigable before real flows exist, give `ScanScreen` two te
 
 ## Done criteria
 
-- [ ] `npx tsc --noEmit` exits 0 (with `.expo/types/router.d.ts` present after a Metro run)
-- [ ] `npm run lint` exits 0
-- [ ] `npm run test:app` exits 0
-- [ ] `find src/app -type f | wc -l` → 12
-- [ ] `grep -rn "Welcome to\|reset-project\|tabIcons\|explore" src/ app.json package.json` → no matches
-- [ ] `grep -n '"userInterfaceStyle": "light"' app.json` → 1 match
-- [ ] Simulator walk-through done: Scan default tab, all three tabs, both stack pushes, saved-work push, venue-picker sheet
-- [ ] No files outside the in-scope list are modified (`git status`)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `npx tsc --noEmit` exits 0 (with `.expo/types/router.d.ts` present after a Metro run)
+- [x] `npm run lint` exits 0
+- [x] `npm run test:app` exits 0
+- [x] `find src/app -type f | wc -l` → 12
+- [x] `grep -rn "Welcome to\|reset-project\|tabIcons\|explore" src/ app.json package.json` → no matches
+- [x] `grep -n '"userInterfaceStyle": "light"' app.json` → 1 match
+- [x] Simulator walk-through done: Scan default tab, all three tabs, both stack pushes, saved-work push, venue-picker sheet
+- [x] No files outside the in-scope list are modified (`git status`)
+- [x] `docs/plans/README.md` status row updated
+
+## Execution notes — 2026-09-09
+
+- Drift check matched: only plan 01.01 had changed in-scope files, and it had
+  already removed the `reset-project`, `android` and `web` scripts, so Step 1
+  touched no scripts.
+- `headerLargeTitle` is deprecated in the installed expo-router 57.0.19 types;
+  the Collection and Settings stacks use `headerLargeTitleEnabled`.
+- All three tab groups resolve `/`, and the router's config sorter fell back to
+  filesystem order, so the app first opened on Collection. `(tabs)/_layout.tsx`
+  exports `unstable_settings.anchor = '(scan)'` and `(scan)/_layout.tsx` exports
+  `anchor = 'index'`; only an anchored index config wins the tie, so do not add
+  an `index` anchor to the other groups.
+- The Scan index keeps `headerShown: false` but sets `title: 'Scan'` so the back
+  button on pushed screens reads "Scan" instead of "index".
+- `ScanScreen` wraps its placeholder text in `SafeAreaView` because its header
+  is hidden; the camera in 05.01 replaces it.
+- Expo Go on the simulator kept the stale template bundle until it was
+  terminated and reopened against Metro; a hot reload did not swap route trees.
+- Walk-through on iPhone 17 Pro (iOS 26.5), light mode: Scan is the default
+  tab, three SF Symbol tabs, Result and Label pushes with back buttons, Saved
+  work push, venue picker form sheet at 45% with a grabber. Screenshots are in
+  `.context/plan-01-02/` (gitignored).
 
 ## STOP conditions
 

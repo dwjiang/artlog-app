@@ -33,7 +33,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | DONE — [decision and explicit unknowns](../decisions/005-data-sources.md) |
 | 00.07 | [Tavily behavior spike](00-kickoff-spikes/07-tavily-behavior.md) | P1 | S | — | DONE — [decision 007](../decisions/007-tavily.md); 65 response-reported credits; Map limits recorded. |
 | 00.08 | [Nebius jobs and release logistics spike](00-kickoff-spikes/08-nebius-jobs-and-release-logistics.md) | P2 (Nebius) / P1 (Apple, EAS) | S–M | — | IN PROGRESS — Nebius half DONE 2026-09-09 (L40S job, scratch bucket, REST launch path proven; the CPU quota is 02.10's cost lever); Apple/EAS half waits on 01.04 + operator; [record](../decisions/008-jobs-and-release-logistics.md) |
-| 01.02 | [App shell](01-foundation/02-app-shell.md) | P1 | M | 01.01 | TODO |
+| 01.02 | [App shell](01-foundation/02-app-shell.md) | P1 | M | 01.01 | DONE — NativeTabs (Scan default, Collection, Settings) with nested stacks and the venue-picker form sheet; walked through on the iPhone 17 Pro simulator 2026-09-09 |
 | 01.03 | [Convex project and schema](01-foundation/03-convex-project-and-schema.md) | P1 | M | 01.01, 01.02 | TODO |
 | 01.04 | [Dev client and EAS](01-foundation/04-dev-client-and-eas.md) | P1 | S | 01.02 | TODO |
 | 00.06 | [Native module options spike](00-kickoff-spikes/06-native-module-options.md) | P0 | M–L | 01.04 (iPhone) | TODO |
