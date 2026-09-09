@@ -266,6 +266,7 @@ export default defineSchema({
   scans: defineTable({
     deviceId: v.id('devices'),
     localId: v.string(),
+    generation: v.number(),
     venueId: v.optional(v.id('museums')),
     visitId: v.optional(v.id('visits')),
     gallery: v.optional(v.string()),

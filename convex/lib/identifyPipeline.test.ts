@@ -28,7 +28,7 @@ function candidate(id = 'one', similarity = 0.99, features?: OrbFeatures): Loade
       _id: `placement-${id}` as Id<'placements'>, _creationTime: 0, objectId,
       venueId: 'museum' as Id<'museums'>, gallery: '4', onView: true, source: 'feed', confidence: 1,
     },
-    keypointCount: features?.count ?? 0,
+    keypointCount: features?.count ?? null,
     ...(features ? { ...encodeOrbFeatures(features), inputSize: model.inputSize } : {}),
   };
 }

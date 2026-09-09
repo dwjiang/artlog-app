@@ -1,9 +1,11 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
+import { placementProposalPayload } from '../shared/placement-proposal';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { action, internalAction, internalMutation, internalQuery, type ActionCtx } from './_generated/server';
+import { action, internalAction, internalQuery, mutation, type ActionCtx } from './_generated/server';
+import { requireAttestedWrite } from './devices';
 import { requireDeviceFromAction } from './lib/auth';
 import { DEFAULT_CALIBRATOR } from './lib/calibrator';
 import { runPipeline } from './lib/identifyPipeline';
@@ -11,7 +13,6 @@ import { isSupported, validateVector } from './lib/modelVersion';
 import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from './lib/orb';
 import { currentPlacement } from './lib/placements';
 import { limitDevice } from './lib/rateLimits';
-import { multiplicity } from './lib/validators';
 import { scanDisplay, type ScanDisplay } from './scans';
 import schema from './schema';
 
@@ -20,7 +21,7 @@ const loadedCandidate = v.object({
   similarity: v.number(), runnerUpSimilarity: v.number(),
   placement: v.union(schema.doc('placements'), v.null()), institution: v.optional(v.string()),
   descriptors: v.optional(v.bytes()), keypoints: v.optional(v.bytes()),
-  keypointCount: v.number(), inputSize: v.optional(v.number()),
+  keypointCount: v.union(v.number(), v.null()), inputSize: v.optional(v.number()),
 });
 export type LoadedCandidate = Infer<typeof loadedCandidate>;
 
@@ -58,7 +59,7 @@ export const loadCandidates = internalQuery({
       candidates.push({
         object, artwork, similarity, runnerUpSimilarity: 0, placement, institution: owner?.name,
         descriptors: descriptors?.descriptors, keypoints: descriptors?.keypoints,
-        keypointCount: descriptors?.keypointCount ?? 0, inputSize: descriptors?.inputSize,
+        keypointCount: descriptors?.keypointCount ?? null, inputSize: descriptors?.inputSize,
       });
     }
     for (let i = 0; i < candidates.length; i++) {
@@ -87,25 +88,34 @@ export const loadContext = internalQuery({
   },
 });
 
-export const proposeFromScan = internalMutation({
+export const proposeFromScan = mutation({
   args: {
-    objectId: v.id('objects'), proposedVenueId: v.id('museums'), scanId: v.id('scans'),
-    deviceId: v.id('devices'), multiplicity,
+    scanId: v.id('scans'), nonce: v.string(), assertionBase64: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const device = await requireAttestedWrite(ctx, { ...args, payload: placementProposalPayload(args.scanId) });
     const scan = await ctx.db.get(args.scanId);
-    const device = await ctx.db.get(args.deviceId);
-    if (!device || device.banned || scan?.deviceId !== args.deviceId || scan.venueId !== args.proposedVenueId ||
-      scan.outcome !== 'confident' || scan.best?.objectId !== args.objectId) {
+    if (!scan || scan.deviceId !== device._id || !scan.venueId || scan.status !== 'identified' ||
+      scan.outcome !== 'confident' || !scan.best) {
       throw new ConvexError({ code: 'invalid_scan' });
     }
+    const objectId = scan.best.objectId;
+    const proposedVenueId = scan.venueId;
+    const [object, artwork] = await Promise.all([ctx.db.get(objectId), ctx.db.get(scan.best.artworkId)]);
+    if (!object || object.reverted || object.mergedInto || !artwork) throw new ConvexError({ code: 'invalid_scan' });
+    const now = Date.now();
+    let placement: Doc<'placements'> | null = null;
+    for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
+      placement = currentPlacement(placement ? [placement, row] : [row], now);
+    }
+    if (placement?.venueId === proposedVenueId) return null;
     const existing = await ctx.db.query('placementProposals')
-      .withIndex('by_object_venue', (q) => q.eq('objectId', args.objectId).eq('proposedVenueId', args.proposedVenueId))
+      .withIndex('by_object_venue', (q) => q.eq('objectId', objectId).eq('proposedVenueId', proposedVenueId))
       .unique();
     if (existing?.scanIds.includes(args.scanId)) return null;
-    const deviceIds = [...new Set([...(existing?.deviceIds ?? []), args.deviceId])];
-    const now = Date.now();
+    await limitDevice(ctx, 'placementProposal', device._id);
+    const deviceIds = [...new Set([...(existing?.deviceIds ?? []), device._id])];
     if (existing) {
       await ctx.db.patch(existing._id, {
         scanIds: [...existing.scanIds, args.scanId], deviceIds,
@@ -113,8 +123,8 @@ export const proposeFromScan = internalMutation({
       });
     } else {
       await ctx.db.insert('placementProposals', {
-        objectId: args.objectId, proposedVenueId: args.proposedVenueId,
-        kind: args.multiplicity === 'unique' ? 'move' : 'new_object',
+        objectId, proposedVenueId,
+        kind: artwork.multiplicity === 'unique' ? 'move' : 'new_object',
         scanIds: [args.scanId], deviceIds, firstSeenAt: now, lastSeenAt: now,
         status: 'pending', readyForReview: false,
       });
@@ -122,30 +132,6 @@ export const proposeFromScan = internalMutation({
     return null;
   },
 });
-
-export const getProposalContext = internalQuery({
-  args: { scanId: v.id('scans') },
-  returns: v.union(v.object({ objectId: v.id('objects'), multiplicity }), v.null()),
-  handler: async (ctx, { scanId }) => {
-    const scan = await ctx.db.get(scanId);
-    if (!scan?.best || scan.outcome !== 'confident' || !scan.venueId) return null;
-    const artwork = await ctx.db.get(scan.best.artworkId);
-    if (!artwork) return null;
-    let placement: Doc<'placements'> | null = null;
-    for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', scan.best!.objectId))) {
-      placement = currentPlacement(placement ? [placement, row] : [row], Date.now());
-    }
-    return placement?.venueId === scan.venueId ? null : { objectId: scan.best.objectId, multiplicity: artwork.multiplicity };
-  },
-});
-
-async function proposeForScan(ctx: ActionCtx, scan: Doc<'scans'>): Promise<void> {
-  if (!scan.venueId || scan.outcome !== 'confident') return;
-  const proposal = await ctx.runQuery(internal.identify.getProposalContext, { scanId: scan._id });
-  if (proposal) await ctx.runMutation(internal.identify.proposeFromScan, {
-    ...proposal, proposedVenueId: scan.venueId, scanId: scan._id, deviceId: scan.deviceId,
-  });
-}
 
 async function runScan(
   ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures,
@@ -176,7 +162,7 @@ async function runScan(
   const waiting = !force && decision.outcome !== 'confident' &&
     (context.venue?.indexStatus.status === 'queued' || context.venue?.indexStatus.status === 'building');
   await ctx.runMutation(internal.scans.setResult, {
-    scanId: scan._id, status: waiting ? 'waiting' : 'identified', outcome: decision.outcome,
+    scanId: scan._id, generation: scan.generation, status: waiting ? 'waiting' : 'identified', outcome: decision.outcome,
     best, runnerUps: decision.runnerUps.map(({ candidate, probability }) => ({
       objectId: candidate.object._id, artworkId: candidate.artwork._id, probability,
     })),
@@ -185,7 +171,6 @@ async function runScan(
       descriptors: features.descriptors, keypoints: features.keypoints, keypointCount: query.count,
     } : undefined,
   });
-  await proposeForScan(ctx, { ...scan, outcome: decision.outcome, best });
   return ctx.runQuery(internal.scans.getDisplay, { scanId: scan._id, deviceId: scan.deviceId });
 }
 
@@ -214,19 +199,18 @@ export const identify = action({
       validateVector(args.vector);
       query = decodeQuery(args.descriptors, args.keypoints);
     }
-    const { scanId, existing } = await ctx.runMutation(internal.scans.create, {
+    const { scan, existing } = await ctx.runMutation(internal.scans.create, {
       deviceId: device._id, localId: args.localId, venueId: args.venueId, visitId: args.visitId,
       modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
     });
-    const scan = await ctx.runQuery(internal.scans.getStored, { scanId });
-    if (!scan) throw new ConvexError({ code: 'scan_not_found' });
-    if (existing && (scan.status === 'identified' || scan.status === 'unsupported_version')) {
-      await proposeForScan(ctx, scan);
+    const scanId = scan._id;
+    if (existing && (scan.modelVersion !== args.modelVersion ||
+      scan.status === 'identified' || scan.status === 'unsupported_version')) {
       return ctx.runQuery(internal.scans.getDisplay, { scanId, deviceId: device._id });
     }
     if (!supported) {
       await ctx.runMutation(internal.scans.setResult, {
-        scanId, status: 'unsupported_version', calibratorVersion: DEFAULT_CALIBRATOR.version,
+        scanId, generation: scan.generation, status: 'unsupported_version', calibratorVersion: DEFAULT_CALIBRATOR.version,
         error: 'Update the app to identify.',
       });
       return ctx.runQuery(internal.scans.getDisplay, { scanId, deviceId: device._id });
@@ -241,22 +225,41 @@ export const rerunWaiting = internalAction({
   handler: async (ctx, args): Promise<null> => {
     const page = await ctx.runQuery(internal.scans.listWaiting, args);
     for (const scan of page.page) {
-      if (!isSupported(scan.modelVersion)) {
-        await ctx.runMutation(internal.scans.setResult, {
-          scanId: scan._id, status: 'unsupported_version', calibratorVersion: DEFAULT_CALIBRATOR.version,
-          error: 'Update the app to identify.',
-        });
-        continue;
-      }
-      if (!scan.descriptors || !scan.keypoints) continue;
-      validateVector(scan.vector);
-      await runScan(ctx, scan, decodeQuery(scan.descriptors, scan.keypoints), {
-        descriptors: scan.descriptors, keypoints: scan.keypoints,
-      }, true);
+      await ctx.runAction(internal.identify.rerunScan, { scanId: scan._id, generation: scan.generation });
     }
     if (!page.isDone) await ctx.scheduler.runAfter(0, internal.identify.rerunWaiting, {
       venueId: args.venueId, cursor: page.continueCursor,
     });
+    return null;
+  },
+});
+
+export const rerunScan = internalAction({
+  args: { scanId: v.id('scans'), generation: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { scanId, generation }): Promise<null> => {
+    const scan = await ctx.runQuery(internal.scans.getStored, { scanId });
+    if (!scan || scan.status !== 'waiting' || scan.generation !== generation) return null;
+    try {
+      if (!isSupported(scan.modelVersion)) {
+        await ctx.runMutation(internal.scans.setResult, {
+          scanId, generation, status: 'unsupported_version', calibratorVersion: DEFAULT_CALIBRATOR.version,
+          error: 'Update the app to identify.',
+        });
+      } else {
+        if (!scan.descriptors || !scan.keypoints) throw new ConvexError({ code: 'bad_features' });
+        validateVector(scan.vector);
+        await runScan(ctx, scan, decodeQuery(scan.descriptors, scan.keypoints), {
+          descriptors: scan.descriptors, keypoints: scan.keypoints,
+        }, true);
+      }
+    } catch (error) {
+      console.error('Waiting scan identification failed', scanId, error);
+      await ctx.runMutation(internal.scans.setResult, {
+        scanId, generation, status: 'failed', calibratorVersion: DEFAULT_CALIBRATOR.version,
+        error: 'This scan could not be identified. Try again.',
+      });
+    }
     return null;
   },
 });

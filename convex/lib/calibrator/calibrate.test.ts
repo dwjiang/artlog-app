@@ -139,6 +139,15 @@ describe('scoreCandidates', () => {
 });
 
 describe('decide', () => {
+  it.each([null, 0, 40])('distinguishes unknown reference texture from measured low texture (%s)', (keypointCount) => {
+    const decision = decideOne(signals({
+      keypointCount, similarity: 0.99, runnerUpSimilarity: 0.8,
+      homographyValid: false, orbInliers: 0,
+    }));
+    expect(decision.best?.probability).toBeGreaterThan(CALIBRATOR_V1.thresholds.confident);
+    expect(decision.outcome).toBe(keypointCount === null ? 'soft' : 'confident');
+  });
+
   it('returns confident for a strong, eligible best candidate', () => {
     const decision = decideOne(strong);
     expect(decision.outcome).toBe('confident');

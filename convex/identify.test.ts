@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getFunctionName, type FunctionArgs } from 'convex/server';
 
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
+import type { ActionCtx } from './_generated/server';
+import { identify } from './identify';
+import type { ScanDisplay } from './scans';
 import { encodeOrbFeatures } from './lib/orb';
 import { makeSyntheticPair } from './lib/orb/testFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
@@ -53,6 +57,57 @@ describe('identify action', () => {
     });
     expect(result).toMatchObject({ status: 'unsupported_version', error: 'Update the app to identify.' });
     expect(result.best).toBeUndefined();
+  });
+
+  it('identifies a previously unsupported capture after its model and features are updated', async () => {
+    const { t, user, args } = await fixture();
+    const old = await user.as.action(api.identify.identify, { ...args, modelVersion: 'retired', vector: [1] });
+    const updated = await user.as.action(api.identify.identify, args);
+    expect(updated).toMatchObject({ scanId: old.scanId, status: 'identified', outcome: 'confident' });
+    expect(updated.error).toBeUndefined();
+    expect(await t.run((ctx) => ctx.db.get(old.scanId))).toMatchObject({ modelVersion: model.modelVersion, vector: args.vector });
+    expect(await t.run((ctx) => ctx.db.query('scans').collect())).toHaveLength(1);
+  });
+
+  it.each(['pending', 'waiting'] as const)('preserves a supported %s generation when a retired-model retry arrives', async (status) => {
+    const { t, user, venueId, args } = await fixture('building', false);
+    const obsoleteArgs = { ...args, modelVersion: 'retired', vector: [1] };
+    const obsolete = await user.as.action(api.identify.identify, obsoleteArgs);
+    if (status === 'pending') {
+      await t.mutation(internal.scans.create, {
+        deviceId: user.deviceId, localId: args.localId, venueId, visitId: args.visitId,
+        modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
+      });
+    } else {
+      await user.as.action(api.identify.identify, args);
+    }
+    const before = await t.run((ctx) => ctx.db.get(obsolete.scanId));
+    expect(before).toMatchObject({ status, generation: 1, modelVersion: model.modelVersion });
+    expect(await user.as.action(api.identify.identify, obsoleteArgs)).toMatchObject({ scanId: obsolete.scanId, status });
+    expect(await t.run((ctx) => ctx.db.get(obsolete.scanId))).toEqual(before);
+
+    await t.run(async (ctx) => {
+      await seedArtworkWithObject(ctx, { descriptors: pair.ref,
+        placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
+      await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
+    });
+    if (status === 'pending') await user.as.action(api.identify.identify, args);
+    else await t.action(internal.identify.rerunWaiting, { venueId });
+    expect(await user.as.query(api.scans.get, { scanId: obsolete.scanId }))
+      .toMatchObject({ status: 'identified', outcome: 'confident' });
+  });
+
+  it('keeps identification private for unattested devices even when attestation is required', async () => {
+    vi.stubEnv('APP_ATTEST_REQUIRED', 'true');
+    const { t, args } = await fixture();
+    const venueId = await t.run((ctx) => seedMuseum(ctx));
+    for (let i = 0; i < 2; i++) {
+      const user = await signIn(t);
+      await user.as.mutation(api.devices.registerDevice, { platform: 'ios' });
+      expect(await user.as.action(api.identify.identify, { ...args, venueId, visitId: undefined }))
+        .toMatchObject({ outcome: 'confident' });
+    }
+    expect(await t.run((ctx) => ctx.db.query('placementProposals').collect())).toEqual([]);
   });
 
   it.each([
@@ -119,6 +174,31 @@ describe('identify action', () => {
     expect(await user.as.action(api.identify.identify, args)).toMatchObject({ status: 'identified', outcome: 'confident' });
   });
 
+  it.each([0, 120])('waits for missing reference descriptors before identifying a work with %s keypoints', async (count) => {
+    const { t, user, venueId, args } = await fixture('building', false);
+    const work = await t.run((ctx) => seedArtworkWithObject(ctx, {
+      placement: { venueId, onView: true, source: 'feed', confidence: 1 },
+    }));
+    const waiting = await user.as.action(api.identify.identify, args);
+    expect(waiting).toMatchObject({ status: 'waiting', outcome: 'soft', best: { objectId: work.objectId } });
+    expect(await t.run((ctx) => ctx.db.get(waiting.scanId))).toMatchObject({
+      descriptors: args.descriptors, keypoints: args.keypoints,
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('descriptors', {
+        objectId: work.objectId, keypointCount: count, inputSize: model.inputSize, extractedFrom: 'test reference',
+        ...(count === 0 ? { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) } : encodeOrbFeatures(pair.ref)),
+      });
+      await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
+    });
+    await t.action(internal.identify.rerunWaiting, { venueId });
+    const result = await user.as.query(api.scans.get, { scanId: waiting.scanId });
+    expect(result).toMatchObject({ status: 'identified', outcome: 'confident', best: { objectId: work.objectId } });
+    if (count === 0) expect(result?.best?.corners).toBeUndefined();
+    else expect(result?.best?.corners).toHaveLength(4);
+    expect((await t.run((ctx) => ctx.db.get(waiting.scanId)))?.descriptors).toBeUndefined();
+  });
+
   it('resolves a waiting scan with newly indexed candidates and clears temporary features', async () => {
     const { t, user, venueId, args } = await fixture('building', false);
     const waiting = await user.as.action(api.identify.identify, args);
@@ -141,13 +221,74 @@ describe('identify action', () => {
     expect(await user.as.query(api.scans.get, { scanId: waiting.scanId })).toMatchObject({ status: 'identified', outcome: 'miss' });
   });
 
+  it('continues across pages when a waiting scan belongs to a banned device', async () => {
+    vi.useFakeTimers();
+    const { t, user, venueId, args } = await fixture('building', false);
+    const bannedScan = await user.as.action(api.identify.identify, args);
+    const healthy = await seedDevice(t);
+    const scanIds = await t.run(async (ctx) => {
+      await ctx.db.patch(user.deviceId, { banned: true });
+      const ids = [];
+      for (let i = 0; i < 26; i++) ids.push(await ctx.db.insert('scans', {
+        ...args, visitId: undefined, localId: String(i), generation: 0, deviceId: healthy.deviceId, keypointCount: pair.query.count,
+        status: 'waiting', createdAt: Date.now(), updatedAt: Date.now(),
+      }));
+      return ids;
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await t.action(internal.identify.rerunWaiting, { venueId });
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+    expect(await t.run((ctx) => ctx.db.get(bannedScan.scanId))).toMatchObject({ status: 'failed' });
+    const scans = await t.run((ctx) => Promise.all(scanIds.map((id) => ctx.db.get(id))));
+    expect(scans.every((scan) => scan?.status === 'identified' && scan.descriptors === undefined)).toBe(true);
+  });
+
+  it('preserves a completed rerun when an older identify retry finishes later', async () => {
+    const { t, user, venueId, args } = await fixture('building', false);
+    const first = await user.as.action(api.identify.identify, args);
+    let signalPaused!: () => void;
+    let resume!: () => void;
+    const paused = new Promise<void>((resolve) => { signalPaused = resolve; });
+    const resumed = new Promise<void>((resolve) => { resume = resolve; });
+    const handler = (identify as unknown as {
+      _handler: (ctx: ActionCtx, args: FunctionArgs<typeof api.identify.identify>) => Promise<ScanDisplay>;
+    })._handler;
+    const retry = user.as.action(async (ctx) => handler({ ...ctx,
+      runMutation: async (ref, mutationArgs) => {
+        let name: string | undefined;
+        try { name = getFunctionName(ref); } catch { /* Component references have no function name. */ }
+        if (name === 'scans:setResult') {
+          signalPaused();
+          await resumed;
+        }
+        return ctx.runMutation(ref, mutationArgs);
+      },
+    }, args));
+    await paused;
+    let completed: ScanDisplay | null = null;
+    try {
+      await t.run(async (ctx) => {
+        await seedArtworkWithObject(ctx, { descriptors: pair.ref,
+          placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
+        await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
+      });
+      await t.action(internal.identify.rerunWaiting, { venueId });
+      completed = await user.as.query(api.scans.get, { scanId: first.scanId });
+      expect(completed).toMatchObject({ status: 'identified', outcome: 'confident' });
+    } finally {
+      resume();
+    }
+    expect(await retry).toEqual(completed);
+    expect((await t.run((ctx) => ctx.db.get(first.scanId)))?.descriptors).toBeUndefined();
+  });
+
   it('resolves every page of waiting scans as earlier pages leave the waiting index', async () => {
     vi.useFakeTimers();
     const { t, user, venueId, args } = await fixture('building', false);
     const scanIds = await t.run(async (ctx) => {
       const ids = [];
       for (let i = 0; i < 27; i++) ids.push(await ctx.db.insert('scans', {
-        ...args, localId: String(i), deviceId: user.deviceId, keypointCount: pair.query.count,
+        ...args, localId: String(i), generation: 0, deviceId: user.deviceId, keypointCount: pair.query.count,
         status: 'waiting', createdAt: Date.now(), updatedAt: Date.now(),
       }));
       return ids;
@@ -190,14 +331,22 @@ describe('identify action', () => {
     const firstArgs = { ...args, venueId: otherVenue, visitId: undefined };
     const result = await user.as.action(api.identify.identify, firstArgs);
     expect(result.outcome).toBe('confident');
+    const propose = async (as: typeof user.as, scanId: typeof result.scanId) => {
+      const { nonce } = await as.mutation(api.devices.createChallenge, { purpose: 'assert' });
+      await as.mutation(api.identify.proposeFromScan, { scanId, nonce, assertionBase64: 'AAAA' });
+    };
+    await propose(user.as, result.scanId);
     await user.as.action(api.identify.identify, firstArgs);
-    await user.as.action(api.identify.identify, { ...firstArgs, localId: 'another-capture' });
+    await propose(user.as, result.scanId);
+    const another = await user.as.action(api.identify.identify, { ...firstArgs, localId: 'another-capture' });
+    await propose(user.as, another.scanId);
     const before = await t.run((ctx) => ctx.db.query('placementProposals').collect());
     expect(before).toHaveLength(1);
     expect(before[0]).toMatchObject({ kind: multiplicity === 'unique' ? 'move' : 'new_object', readyForReview: false, deviceIds: [user.deviceId] });
     expect(before[0].scanIds).toHaveLength(2);
     const other = await seedDevice(t);
-    await other.as.action(api.identify.identify, firstArgs);
+    const otherScan = await other.as.action(api.identify.identify, firstArgs);
+    await propose(other.as, otherScan.scanId);
     const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
     expect(proposal).toMatchObject({ readyForReview: true, deviceIds: [user.deviceId, other.deviceId] });
     expect(proposal?.scanIds).toHaveLength(3);
@@ -222,7 +371,7 @@ describe('candidate loading', () => {
       scores: [0.9, 0.99, 0.8, 0.95], now: Date.now(),
     });
     expect(candidates.map((c) => c.object._id)).toEqual([target.objectId, second.objectId]);
-    expect(candidates[0]).toMatchObject({ similarity: 0.99, runnerUpSimilarity: 0.8, keypointCount: 0 });
+    expect(candidates[0]).toMatchObject({ similarity: 0.99, runnerUpSimilarity: 0.8, keypointCount: null });
     expect(candidates[1].runnerUpSimilarity).toBe(0.99);
   });
 

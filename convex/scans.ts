@@ -1,9 +1,11 @@
 import { paginationResultValidator } from 'convex/server';
 import { ConvexError, type Infer, v } from 'convex/values';
 
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
+import { isSupported } from './lib/modelVersion';
 import { rightsStatus, snapshotFields } from './lib/validators';
 import schema from './schema';
 
@@ -30,12 +32,14 @@ export const create = internalMutation({
     visitId: scanFields.visitId, gallery: scanFields.gallery, modelVersion: v.string(),
     vector: scanFields.vector, capturedAt: v.number(),
   },
-  returns: v.object({ scanId: v.id('scans'), existing: v.boolean() }),
+  returns: v.object({ scan: schema.doc('scans'), existing: v.boolean() }),
   handler: async (ctx, args) => {
     const existing = await ctx.db.query('scans')
       .withIndex('by_device_localId', (q) => q.eq('deviceId', args.deviceId).eq('localId', args.localId))
       .unique();
-    if (existing) return { scanId: existing._id, existing: true };
+    const restart = existing && existing.status !== 'identified' && isSupported(args.modelVersion) &&
+      (existing.status === 'unsupported_version' || existing.status === 'failed' || existing.modelVersion !== args.modelVersion);
+    if (existing && !restart) return { scan: existing, existing: true };
     if (args.visitId) {
       const visit = await ctx.db.get(args.visitId);
       if (!visit || visit.deviceId !== args.deviceId || visit.venueId !== args.venueId) {
@@ -46,14 +50,21 @@ export const create = internalMutation({
       throw new ConvexError({ code: 'invalid_venue' });
     }
     const now = Date.now();
-    const scanId = await ctx.db.insert('scans', { ...args, status: 'pending', createdAt: now, updatedAt: now });
-    return { scanId, existing: false };
+    const fields = {
+      ...args, generation: existing ? existing.generation + 1 : 0, status: 'pending' as const,
+      createdAt: existing?.createdAt ?? now, updatedAt: now,
+    };
+    const scanId = existing?._id ?? await ctx.db.insert('scans', fields);
+    if (existing) await ctx.db.replace(scanId, fields);
+    const scan = await ctx.db.get(scanId);
+    if (!scan) throw new ConvexError({ code: 'scan_not_found' });
+    return { scan, existing: false };
   },
 });
 
 export const setResult = internalMutation({
   args: {
-    scanId: v.id('scans'), status: scanFields.status, outcome: scanFields.outcome,
+    scanId: v.id('scans'), generation: v.number(), status: scanFields.status, outcome: scanFields.outcome,
     best: scanFields.best, runnerUps: scanFields.runnerUps, calibratorVersion: v.string(),
     error: v.optional(v.string()),
     keepFeatures: v.optional(v.object({ descriptors: v.bytes(), keypoints: v.bytes(), keypointCount: v.number() })),
@@ -62,6 +73,7 @@ export const setResult = internalMutation({
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId);
     if (!scan) throw new ConvexError({ code: 'scan_not_found' });
+    if (scan.generation !== args.generation || (scan.status !== 'pending' && scan.status !== 'waiting')) return null;
     if (args.status === 'waiting' && !args.keepFeatures) {
       throw new ConvexError({ code: 'bad_features' });
     }
@@ -71,6 +83,13 @@ export const setResult = internalMutation({
       calibratorVersion: args.calibratorVersion, error: args.error, updatedAt: Date.now(),
       descriptors: features?.descriptors, keypoints: features?.keypoints, keypointCount: features?.keypointCount,
     });
+    if (args.status === 'waiting' && scan.venueId) {
+      const venue = await ctx.db.get(scan.venueId);
+      if (venue?.indexStatus.status !== 'queued' && venue?.indexStatus.status !== 'building') {
+        // Index completion may have drained the waiting queue before this write committed.
+        await ctx.scheduler.runAfter(0, internal.identify.rerunScan, { scanId: scan._id, generation: scan.generation });
+      }
+    }
     if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
       if (visit?.deviceId === scan.deviceId && visit.venueId === scan.venueId &&
