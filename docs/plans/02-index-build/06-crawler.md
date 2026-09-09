@@ -23,8 +23,8 @@ Design §4.2 "The crawler": one scheduled pipeline indexes any museum with a col
 
 ## Current state
 
-- Convex (plan 04.05): `crawl.claimNext` (internal mutation → next queued venue with its profile, marks `building`, creates a `crawlRuns` row), `crawl.progress({ runId, pagesMapped, worksIndexed })`, `crawl.finish({ runId, status: complete|capped|failed|no_index, error? })` (flips `museums.indexStatus`, schedules `identify.rerunWaiting` on `complete`), `crawl.isOptedOut({ venueId })`.
-- Jobs (02.01–02.05): `PoliteClient` (robots cache, per-host rps, conditional GETs), `letterbox`, `orb`, `Embedder` (GPU; on CPU jobs use the same code — ~1–2 s/image on 8 vCPU; acceptable because fetching at 1 rps dominates), `push.py` helpers (`push_objects(rows)` etc. per batch).
+- Convex (plan 04.05): `crawl.claimNext` (internal mutation → next queued venue with its profile, marks `building`, creates a `crawlRuns` row), `crawl.progress({ runId, pagesMapped, worksIndexed })`, `crawl.finish({ runId, status: complete|capped|failed|no_index, error? })` (flips `museums.indexStatus`, schedules `identify.rerunWaiting` on `complete`), `crawl.isOptedOut({ venueId })`. `crawl.getPageStates({ venueId, urls })` and `crawl.recordPageStates({ runId, pages })` read/write the durable `crawlPages` table, at most 100 URLs per call; the exact contract belongs to 04.05 Step 4.
+- Jobs (02.01–02.05): `PoliteClient` (robots cache, per-host rps, conditional GETs), `letterbox`, `orb`, `Embedder` (device from `settings.device`: `mps` on the Mac, CUDA on Nebius once plan 02.10 exists, CPU otherwise — ~1–2 s/image on 8 vCPU is acceptable because fetching at 1 rps dominates), `push.py` helpers (`push_objects(rows)` etc. per batch).
 - Verified crawler facts: many eMuseum sites disable the JSON API, block non-browser UAs via Cloudflare, and set `Crawl-delay: 30`; opt-out signals: robots `Disallow`, `Crawl-delay`, Cloudflare `Content-Signal: ai-train=no` (treat as a training opt-out — we do not train on crawled works anyway, §5.5 — but record it), TDMRep (`/.well-known/tdmrep.json`, `tdm-reservation: 1` header, `<meta name="tdm-reservation" content="1">`) — treat `tdm-reservation: 1` as **do not index**; RFC 9309: robots 5xx ⇒ disallow all. Tavily Map: `map(url, { max_depth: 2, max_breadth: 100, limit: 2000, select_paths: [...], allow_external: False })`, 1 credit/10 pages; CollectionSpace public browsers are client-side apps (use their gateway JSON). Spike 00.05 produced per-venue profiles (`platform`, `collectionSiteUrl`, object URL regex, on-view listing URL, accession URL pattern, robots verdict).
 - `jobs/config/venues.seed.json`: `{ "<museum key>": { "collectionSiteUrl", "platform": "emuseum|collectionspace|iiif|generic", "objectPathRegex", "onViewListingUrl"?, "accessionUrlPattern"?, "useTavilyCrawl": false } }` — created here from the spike's table; also pushed into `museums` via `upsertMuseums` (fields `collectionSiteUrl`, `platform`, `accessionUrlPattern`, `crawlPolicy`).
 
@@ -34,7 +34,7 @@ Design §4.2 "The crawler": one scheduled pipeline indexes any museum with a col
 |---|---|---|
 | Worker (drains the queue) | `uv run python -m artlog_jobs.crawler.worker --max-venues 1 --page-cap 2000` | logs per stage |
 | Dry discovery | `uv run python -m artlog_jobs.crawler.discover --venue wikidata:Q… --dry-run` | prints candidate URLs and cost |
-| Launch | `jobs/scripts/launch-job.sh artlog_jobs.crawler.worker -- --max-venues 5` | job completes |
+| Launch on Nebius (only after plan 02.10) | `jobs/scripts/launch-job.sh artlog_jobs.crawler.worker -- --max-venues 5` | job completes |
 | Tests | `cd jobs && uv run pytest -q artlog_jobs/crawler` | pass |
 
 ## Scope
@@ -59,7 +59,7 @@ Design §4.2 "The crawler": one scheduled pipeline indexes any museum with a col
 
 ### Step 3: Fetch and extract
 
-`fetch.py`: `PoliteClient` per host with `rps = min(1.0, 1 / crawlDelay)` when `Crawl-delay` is present (a 30 s delay means 30 s), browser-like but **identified** UA (`Mozilla/5.0 (compatible; artlog-bot/0.1; +https://…; mailto:…)`), conditional requests using `changeDetection` from a prior run; 403/429 → back off; after 20 consecutive failures abort the run as `failed`. `extract.py` + `parsers/`: `emuseum` (title `h1`/`.titleField`, artist `.peopleField`, date, medium, accession `.invnoField`, rights `.rightsField`, image `og:image` or the primary media URL), `generic` (schema.org `VisualArtwork` JSON-LD, then `og:title`/`og:image`, `meta[name=author]`), `iiif` (manifest metadata), `collectionspace` (gateway JSON). Output `CrawledWork { title, artist, date?, accession?, rightsLine?, imageUrl?, pageUrl }`; skip pages without an image URL or a title.
+`fetch.py`: `PoliteClient` per host with `rps = min(1.0, 1 / crawlDelay)` when `Crawl-delay` is present (a 30 s delay means 30 s), browser-like but **identified** UA (`Mozilla/5.0 (compatible; artlog-bot/0.1; +https://…; mailto:…)`), conditional requests using the per-URL validators loaded by `crawl.getPageStates`; a 304 skips extraction and embedding because the prior result is already committed. Without usable validators, fetch normally. 403/429 → back off; after 20 consecutive failures abort the run as `failed`. `extract.py` + `parsers/`: `emuseum` (title `h1`/`.titleField`, artist `.peopleField`, date, medium, accession `.invnoField`, rights `.rightsField`, image `og:image` or the primary media URL), `generic` (schema.org `VisualArtwork` JSON-LD, then `og:title`/`og:image`, `meta[name=author]`), `iiif` (manifest metadata), `collectionspace` (gateway JSON). Output `CrawledWork { title, artist, date?, accession?, rightsLine?, imageUrl?, pageUrl }`; skip pages without an image URL or a title.
 
 **Verify**: parser tests on saved HTML fixtures from the five first venues (fetched once by hand, ≤ 5 pages per site, stored under `jobs/fixtures/crawler/`); rate-limiter test honoring a 2 s delay.
 
@@ -71,18 +71,19 @@ Design §4.2 "The crawler": one scheduled pipeline indexes any museum with a col
 
 ### Step 5: Worker loop and change detection
 
-`worker.py`: loop `--max-venues` times: `claimNext` → opt-out gate → discover → fetch/extract/write → `finish(complete|capped)`; store `changeDetection` (sitemap `lastmod` map, ETags) in scratch keyed by venue and push a summary to `museums.changeDetection`; on a re-crawl only fetch URLs whose `lastmod`/ETag changed. Exit 0 when the queue is empty.
+`worker.py`: loop `--max-venues` times: `claimNext` → opt-out gate → discover → load page states → fetch/extract/write → `finish(complete|capped)`. Load prior per-URL states from Convex in batches of at most 100 discovered URLs. Skip a page when its nonempty sitemap `lastmod` matches the successfully processed state; otherwise pass its saved HTTP validators to `fetch.py`. After each successful ingest batch, call `crawl.recordPageStates` for those pages before finishing the run; do not advance validators for failed downloads, extraction, embedding or writes. Keep the collection-level summary in `museums.changeDetection` via `crawl.setChangeDetection`. Scratch holds temporary images only; restarting with a new empty directory must retain all previously committed per-URL state. Exit 0 when the queue is empty.
 
-**Verify**: end-to-end run against one small real venue from the profiles (page cap 100) on Nebius CPU: `museums.indexStatus` goes `queued → building → complete`, works are searchable (`identify` in the app finds one of them from a photo of the page image — manual check), and a second run fetches ~0 unchanged pages.
+**Verify**: `worker_test.py` drives two separate workers with different empty scratch directories against the same fake Convex state: matching sitemap timestamps cause no page fetch; HTTP validators produce conditional requests and a 304 causes no image download/embedding; changed pages and failed-ingest pages are processed on the next run. End-to-end run against one small real venue from the profiles (page cap 100), started by hand on the Mac with `uv run python -m artlog_jobs.crawler.worker --max-venues 1 --page-cap 100`: `museums.indexStatus` goes `queued → building → complete`, works are searchable (`identify` in the app finds one of them from a photo of the page image — manual check). Requeue that dev venue through an internal mutation, restart in a fresh process with a new empty `SCRATCH_DIR`, and confirm unchanged pages are skipped or return 304 with no repeated image download/embedding.
 
 ## Test plan
 
-Tests per module under `jobs/artlog_jobs/crawler/`; fixtures under `jobs/fixtures/crawler/`; no live network in tests.
+Tests per module under `jobs/artlog_jobs/crawler/`, including the fresh-worker resume regression in Step 5; fixtures under `jobs/fixtures/crawler/`; no live network in tests.
 
 ## Done criteria
 
 - [ ] Tests pass; `ruff` clean
 - [ ] One real venue crawled to `complete` with the page cap; counts logged in `jobs/README.md`
+- [ ] A second process with empty scratch reuses the venue's Convex page states; unchanged works are not downloaded or embedded again
 - [ ] `grep -rn "input(\|argv" jobs/artlog_jobs/crawler/` shows no way to pass an arbitrary URL except `--venue <museum key>` (URLs come only from `museums` rows)
 - [ ] TDMRep/robots gate has tests for every verdict
 - [ ] `docs/plans/README.md` status row updated
@@ -98,3 +99,4 @@ Tests per module under `jobs/artlog_jobs/crawler/`; fixtures under `jobs/fixture
 - Adding a venue = adding a profile row (config), not code, unless it is a new platform.
 - The page cap and per-host rate are safety limits; raise them only with the venue's blessing.
 - Opt-outs are applied retroactively by `applyOptOut` (plan 04.08); the crawler only prevents new fetches.
+- Until plan 02.10 lands, the worker is started by hand on the Mac and 04.05's `maybeLaunch` stays `off`; scheduled crawling is the reason 02.10 exists.

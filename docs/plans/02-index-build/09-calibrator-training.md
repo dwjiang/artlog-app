@@ -35,9 +35,9 @@ Design §4.3: the calibrator is "trained initially on augmented corpus samples (
 
 ## Steps
 
-### Step 1: Sample and augment (GPU job)
+### Step 1: Sample and augment (local run on `settings.device`)
 
-`sample.py`: pick 5,000 `public_domain` objects with vectors and descriptors, stratified by source; download their images to scratch (reuse `download.py`). `augment.py`: for each image produce 4 variants with seeded randomness: random crop 70–100% + perspective warp ±15°, glare (soft white ellipse, alpha 0.3–0.6), low light (gamma 1.6–2.2 + noise), frame (10–25 px border in wood/black) + slight blur; then `letterbox` → embed (`Embedder`) → `extract_orb`.
+`sample.py`: pick 5,000 `public_domain` objects with vectors and descriptors, stratified by source; download their images to scratch (reuse `download.py`; delete them once the augmented features are written, as in 02.04). `augment.py`: for each image produce 4 variants with seeded randomness: random crop 70–100% + perspective warp ±15°, glare (soft white ellipse, alpha 0.3–0.6), low light (gamma 1.6–2.2 + noise), frame (10–25 px border in wood/black) + slight blur; then `letterbox` → embed (`Embedder`) → `extract_orb`.
 
 **Verify**: `augment_test.py` produces deterministic outputs for a seed; visual spot-check of 20 variants saved under `jobs/out/augment-samples/` (not committed).
 

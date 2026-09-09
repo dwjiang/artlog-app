@@ -8,7 +8,7 @@
 
 ## Status
 
-- **Priority**: P0 (gates the decision to keep Convex as the vector store; §11 names Qdrant on a VM as the fallback)
+- **Priority**: P0 (gates the decision to keep Convex as the vector store; there is no pre-chosen fallback — the numbers decide)
 - **Effort**: S–M (1 day + background insert time)
 - **Risk**: LOW (throwaway deployment; costs a few dollars of storage while it exists)
 - **Depends on**: none (a Convex account on the Pro plan is required for the 300k/1M runs — Free/Starter allows 0.5 GB)
@@ -44,7 +44,7 @@ Delete the project (dashboard → settings → delete) at the end, or leave it o
 
 ## Deliverable
 
-`docs/decisions/002-vector-search-scale.md`: decision (Convex stays / Qdrant fallback triggered), latency tables, insert throughput, storage and cost at 300k/1M, migration-window behavior, and the recommended `limit` and batch size for plans 04.03 and 02.05.
+`docs/decisions/002-vector-search-scale.md`: decision (Convex stays, or what the numbers say has to change — no standby VM is on the table), latency tables, insert throughput, storage and cost at 300k/1M, migration-window behavior, and the recommended `limit` and batch size for plans 04.03 and 02.05.
 
 ## Done criteria
 
@@ -60,4 +60,4 @@ Delete the project (dashboard → settings → delete) at the end, or leave it o
 
 ## Maintenance notes
 
-- If p95 at 1M exceeds ~300 ms, the design's Qdrant-on-a-small-VM fallback (§11) becomes the first idle resource; that decision belongs to the operator, not this spike.
+- If p95 at 1M exceeds ~300 ms, report the options the numbers support (a smaller first-release corpus, a lower `limit`, or a different vector store); an always-on Qdrant VM was removed from the design on 2026-09-08, and the choice belongs to the operator, not this spike.

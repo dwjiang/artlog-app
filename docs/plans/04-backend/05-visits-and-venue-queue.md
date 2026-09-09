@@ -13,7 +13,7 @@
 - **Priority**: P1
 - **Effort**: M
 - **Risk**: MED (the only path that can start work on third-party sites)
-- **Depends on**: 04.04 (device identity, rate limits), 01.03; `docs/decisions/008-jobs-and-release-logistics.md` (launch mechanism)
+- **Depends on**: 04.04 (device identity, rate limits), 01.03. The launcher itself (plan 02.10, which waits on spike 00.08) is **not** a dependency: this plan ships with `CRAWL_LAUNCH_MODE=off`, and the crawler worker (02.06) is started by hand until 02.10 lands.
 - **Category**: feature
 - **Planned at**: commit `86571a3`, 2026-09-08
 
@@ -26,12 +26,12 @@ Design §5.3: `startVisit(venueId)` records the visit and, for an un-indexed or 
 - Schema (01.03/02.01): `museums { key, name, lat, lng, website?, collectionSiteUrl?, platform?, accessionUrlPattern?, seedSource, region, optOut, crawlPolicy?, useTavilyCrawl, queuePriority, indexStatus { status, pagesMapped, worksIndexed, updatedAt }, lastCrawledAt?, changeDetection? }` with `by_key`, `by_queuePriority`, `by_indexStatus`; `crawlRuns`; `visits { deviceId, venueId, startedAt, endedAt?, lastConfidentGallery?, lastConfidentAt? }` with `by_device_started`.
 - Auth/limits (04.04): `requireDevice`, `requireAttestedWrite`, `limitDevice(ctx, 'queueBump' | 'venueConfirm', …)`.
 - Identify (04.03): `internal.identify.rerunWaiting({ venueId })`.
-- Launch mechanism (spike 00.08): either (a) GitHub `workflow_dispatch` — `POST https://api.github.com/repos/{owner}/{repo}/actions/workflows/nebius-job.yml/dispatches` with `Authorization: Bearer <fine-grained PAT>` (env `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPO`), body `{ ref: 'main', inputs: { job: 'artlog_jobs.crawler.worker', args: '--max-venues 5' } }`; or (b) Nebius REST. Implement whichever the record chose behind one function.
+- Launch mechanism: decided by spike 00.08 and built by plan 02.10 — either (a) GitHub `workflow_dispatch` — `POST https://api.github.com/repos/{owner}/{repo}/actions/workflows/nebius-job.yml/dispatches` with `Authorization: Bearer <fine-grained PAT>` (env `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPO`), body `{ ref: 'main', inputs: { job: 'artlog_jobs.crawler.worker', args: '--max-venues 5' } }`; or (b) Nebius REST. Here `launchWorker()` is one function keyed by `CRAWL_LAUNCH_MODE` (`off` | `github` | `nebius`); this plan implements only `off`, and 02.10 fills in the mode the record chose.
 - Convex crons: `cronJobs()`, `crons.interval(name, { minutes }, internal.fn)`, `crons.daily(name, { hourUTC }, internal.fn)`; at most one run of each cron at a time.
 
 ## Scope
 
-**In scope**: `convex/visits.ts`, `convex/museums.ts`, `convex/crawl.ts`, `convex/crons.ts` (create), `convex/schema.ts` (`museums.failureCount: number`, `museums.lastBumpedAt?: number`, `crawlRuns.claimedBy?: string`), `convex/lib/collectionSiteProbe.ts` (+ test), tests for each module, `.env.example` (names: `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPO`, `CRAWL_LAUNCH_MODE`).
+**In scope**: `convex/visits.ts`, `convex/museums.ts`, `convex/crawl.ts`, `convex/crons.ts` (create), `convex/schema.ts` (`museums.failureCount: number`, `museums.lastBumpedAt?: number`, `crawlRuns.claimedBy?: string`, `crawlPages` as defined in Step 4), `convex/lib/collectionSiteProbe.ts` (+ test), tests for each module, `.env.example` (name: `CRAWL_LAUNCH_MODE`, documented as `off`; plan 02.10 adds the launcher's variables).
 
 **Out of scope**: the Python worker (02.06), placement logic (04.10), the app (03.05 calls these).
 
@@ -59,13 +59,17 @@ Design §5.3: `startVisit(venueId)` records the visit and, for an un-indexed or 
 
 `crawl.ts` (all internal): `claimNext({ workerId })` → highest `queuePriority` among `queued` (index `by_indexStatus` then sort in memory over ≤ 200 rows), sets `building`, inserts `crawlRuns { status: running, claimedBy }`, returns the venue profile; `progress({ runId, pagesMapped, worksIndexed })` patches both; `finish({ runId, status, error? })`: `complete` → `indexStatus.complete`, `lastCrawledAt`, `failureCount 0`, schedule `internal.identify.rerunWaiting`; `capped` → back to `queued` keeping priority; `failed` → `failureCount++`, `queued` again or `no_index` at 3; `no_index` → set; `isOptedOut({ venueId })`; `setPolicy({ venueId, crawlPolicy })`; `setChangeDetection`; `staleRunsSweep` (runs older than 6 h with no progress → `failed`).
 
-**Verify**: tests for each transition and `rerunWaiting` scheduling.
+Add `crawlPages` to `convex/schema.ts`: `{ venueId: id(museums), url: string, sitemapLastmod?: string, etag?: string, lastModified?: string, processedAt: number }`, with index `by_venueId_url ["venueId", "url"]`. One row represents the validators of a successfully processed page; it contains no page body or image and is independent of scratch storage. Keep `museums.changeDetection` as the collection-level summary. The per-URL table is owned by this plan and retained across capped, failed and completed runs, including the 30-day freshness interval.
+
+`crawl.getPageStates({ venueId, urls })` is an internal query returning the existing rows for at most 100 distinct URLs via exact indexed lookups. `crawl.recordPageStates({ runId, pages })` is an internal mutation accepting at most 100 distinct `{ url, sitemapLastmod?, etag?, lastModified? }` entries, deriving `venueId` from a running `crawlRuns` row and upserting each `(venueId, url)` through the same index with server-set `processedAt`. Replace the optional validators so a missing validator clears its previous value. The worker calls it only after the corresponding ingest writes succeed; a crash before this call may repeat idempotent writes, but must never mark an uncommitted page as processed. Repeated calls update existing rows; finished or missing runs are rejected. Both functions require admin authentication through the existing Python client contract; no public URL-cache API is added.
+
+**Verify**: tests for each transition and `rerunWaiting` scheduling; page-state readback in a new run, venue isolation for identical URLs, idempotent upserts, clearing obsolete validators, rejection of oversized batches and writes from finished/missing runs. Run `npx convex codegen` and commit the generated API after adding these functions and the table.
 
 ### Step 5: Scheduler and launcher
 
-`crawl.ts`: `maybeLaunch` (internal action): if any `queued` venue exists and no `running` run younger than 2 h and `CRAWL_LAUNCH_MODE !== 'off'` → call `launchWorker()` (GitHub dispatch or Nebius REST per the record; both via `fetch` with env secrets), recording `crawlLaunches` (schema add: `{ at, mode, ok, response }`) and rate-limiting launches to 1 per 30 min. `crons.ts`: `crons.interval('crawl scheduler', { minutes: 15 }, internal.crawl.maybeLaunch)`, `crons.daily('crawl freshness', { hourUTC: 3 }, internal.crawl.enqueueStale)` (up to 20 `complete` venues with `lastCrawledAt` > 30 days → `queued` at low priority), `crons.hourly('stale runs', { minuteUTC: 7 }, internal.crawl.staleRunsSweep)`.
+`crawl.ts`: `maybeLaunch` (internal action): if any `queued` venue exists and no `running` run younger than 2 h → call `launchWorker()` and record a `crawlLaunches` row (schema add: `{ at, mode, ok, response }`), rate-limited to 1 per 30 min. In this plan `launchWorker()` implements only `CRAWL_LAUNCH_MODE=off` (the default and the only documented value): it returns `{ ok: true, response: 'launcher not installed; run the crawler worker by hand' }`, so the row is the operator's signal to start `artlog_jobs.crawler.worker` on the Mac. Plan 02.10 adds the `github`/`nebius` modes behind the same function. `crons.ts`: `crons.interval('crawl scheduler', { minutes: 15 }, internal.crawl.maybeLaunch)`, `crons.daily('crawl freshness', { hourUTC: 3 }, internal.crawl.enqueueStale)` (up to 20 `complete` venues with `lastCrawledAt` > 30 days → `queued` at low priority), `crons.hourly('stale runs', { minuteUTC: 7 }, internal.crawl.staleRunsSweep)`.
 
-**Verify**: tests with stubbed `fetch`: launch happens once per 30 min while a run is queued; nothing launches when a run is running; the dev deployment's dashboard shows the three crons after `npx convex dev --once`.
+**Verify**: tests: one `crawlLaunches` row per 30 min while a venue is queued; none while a run is running; the dev deployment's dashboard shows the three crons after `npx convex dev --once`.
 
 ## Test plan
 
@@ -80,8 +84,7 @@ Design §5.3: `startVisit(venueId)` records the visit and, for an un-indexed or 
 
 ## STOP conditions
 
-- The launch mechanism record is missing — implement `launchWorker` as a no-op that logs, mark `CRAWL_LAUNCH_MODE=off`, and report.
-- A GitHub fine-grained PAT cannot be scoped to `actions:write` on the repo — report.
+- The `museums`/`crawlRuns` fields named above differ from what 01.03/02.01 shipped — report the diff; do not rename fields here.
 
 ## Maintenance notes
 

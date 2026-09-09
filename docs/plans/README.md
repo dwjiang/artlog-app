@@ -32,7 +32,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 00.04 | [Token Factory models spike](00-kickoff-spikes/04-token-factory-models.md) | P0 | S–M | — | TODO |
 | 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | TODO |
 | 00.07 | [Tavily behavior spike](00-kickoff-spikes/07-tavily-behavior.md) | P1 | S | — | TODO |
-| 00.08 | [Nebius jobs and release logistics spike](00-kickoff-spikes/08-nebius-jobs-and-release-logistics.md) | P1 | S–M | — | TODO |
+| 00.08 | [Nebius jobs and release logistics spike](00-kickoff-spikes/08-nebius-jobs-and-release-logistics.md) | P2 (Nebius) / P1 (Apple, EAS) | S–M | — | IN PROGRESS — Nebius half DONE 2026-09-09 (L40S job, scratch bucket, REST launch path proven; the CPU quota is 02.10's cost lever); Apple/EAS half waits on 01.04 + operator; [record](../decisions/008-jobs-and-release-logistics.md) |
 | 01.02 | [App shell](01-foundation/02-app-shell.md) | P1 | M | 01.01 | TODO |
 | 01.03 | [Convex project and schema](01-foundation/03-convex-project-and-schema.md) | P1 | M | 01.01, 01.02 | TODO |
 | 01.04 | [Dev client and EAS](01-foundation/04-dev-client-and-eas.md) | P1 | S | 01.02 | TODO |
@@ -40,10 +40,10 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 04.01 | [ORB matching and RANSAC library](04-backend/01-orb-match-and-ransac.md) | P1 | M | 01.01, 01.03 | TODO |
 | 04.02 | [Match calibrator library](04-backend/02-calibrator.md) | P1 | S | 01.01, 01.03 | TODO |
 | 04.04 | [Device identity and rate limits](04-backend/04-device-identity-and-rate-limits.md) | P1 | L | 01.03 | TODO |
-| 02.01 | [Jobs scaffold and Convex writer](02-index-build/01-jobs-scaffold-and-convex-writer.md) | P1 | M | 01.03, 00.08 | TODO |
+| 02.01 | [Jobs scaffold and Convex writer](02-index-build/01-jobs-scaffold-and-convex-writer.md) | P1 | M | 01.03 | TODO |
 | 00.03 | [ORB in the Convex runtime spike](00-kickoff-spikes/03-orb-verification-in-convex-runtime.md) | P1 | S | 04.01 | TODO |
 | 04.03 | [Identify action](04-backend/03-identify-action.md) | P1 | L | 01.03, 04.01, 04.02, 04.04 | TODO |
-| 04.05 | [Visits and venue queue](04-backend/05-visits-and-venue-queue.md) | P1 | M | 04.04, 01.03, 00.08 | TODO |
+| 04.05 | [Visits and venue queue](04-backend/05-visits-and-venue-queue.md) | P1 | M | 04.04, 01.03 | TODO |
 | 02.02 | [Venue seed](02-index-build/02-venue-seed.md) | P1 | M | 02.01, 00.05, 00.07 | TODO |
 | 03.07 | [App Attest on the phone](03-on-device/07-app-attest-module.md) | P1 | S–M | 04.04, 01.04, 00.06 | TODO |
 | 04.06 | [Label flow backend](04-backend/06-label-flow.md) | P1 | L | 04.03, 04.04, 00.04, 00.07 | TODO |
@@ -53,7 +53,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 03.05 | [Venue resolution](03-on-device/05-venue-resolution.md) | P1 | L | 02.02, 04.05, 01.04, 00.06 | TODO |
 | 04.10 | [Placements and checklists](04-backend/10-placements-and-checklists.md) | P2 | M | 04.03, 02.01, 00.05 | TODO |
 | 04.07 | [Contributions and feedback](04-backend/07-contributions-and-feedback.md) | P1 | M–L | 04.03, 04.04, 04.06 | TODO |
-| 02.04 | [Embed and descriptors (GPU build)](02-index-build/04-embed-and-descriptors.md) | P1 | L | 02.01, 02.03, 00.01 | TODO |
+| 02.04 | [Embed and descriptors (local Apple-silicon build)](02-index-build/04-embed-and-descriptors.md) | P1 | L | 02.01, 02.03, 00.01 | TODO |
 | 03.02 | [Rectangle detection module](03-on-device/02-rectangle-detection-module.md) | P1 | L | 03.01, 00.06 | TODO |
 | 03.03 | [CoreML embed module](03-on-device/03-coreml-embed-module.md) | P1 | L | 03.01, 00.01, 00.06 | TODO |
 | 03.04 | [ORB module and triage](03-on-device/04-orb-module.md) | P1 | M | 03.01, 04.01, 00.06 | TODO |
@@ -66,6 +66,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 02.07 | [Enrichment job](02-index-build/07-enrichment.md) | P1 | L | 02.05, 04.09, 00.04, 00.05, 00.07 | TODO |
 | 02.09 | [Calibrator training](02-index-build/09-calibrator-training.md) | P1 | L | 02.05, 04.02, 04.01 | TODO |
 | 02.08 | [Reembed migration](02-index-build/08-reembed-migration.md) | P2 | M | 02.04, 02.05, 04.03 | TODO |
+| 02.10 | [Nebius job containers and launcher](02-index-build/10-nebius-launcher.md) | P2 | M | 02.01, 04.05, 02.06, 00.08 (Nebius account) | TODO |
 | 05.02 | [Result card](05-app-ui/02-result-card.md) | P1 | L | 04.03, 04.07, 04.09, 03.06, 05.01 | TODO |
 | 05.04 | [Collection and visits](05-app-ui/04-collection-and-visits.md) | P1 | M–L | 03.06, 04.09, 01.02 | TODO |
 | 05.03 | [Label capture flow](05-app-ui/03-label-capture-flow.md) | P1 | L | 04.06, 04.07, 03.01, 03.03, 03.06, 03.07, 05.02 | TODO |
@@ -84,16 +85,16 @@ is parallel; a wave starts when its inputs from earlier waves are done):
 
 | Wave | Parallel steps | Gate |
 |------|----------------|------|
-| 0 | 01.01 · 00.01 · 00.02 · 00.04 · 00.05 · 00.07 · 00.08 | none (00.01 needs an iPhone; 00.02 needs Convex Pro) |
+| 0 | 01.01 · 00.01 · 00.02 · 00.04 · 00.05 · 00.07 · 00.08 | none (00.01 needs an iPhone; 00.02 needs Convex Pro; 00.08's Nebius half can slip — only 02.10 waits on it) |
 | 1 | 01.02 | 01.01 |
 | 2 | 01.03 · 01.04 | 01.02 |
-| 3 | 04.01 · 04.02 · 04.04 · 02.01 · 00.06 | 01.03 (00.06 needs 01.04; 02.01 needs 00.08) |
+| 3 | 04.01 · 04.02 · 04.04 · 02.01 · 00.06 | 01.03 (00.06 needs 01.04) |
 | 4 | 04.03 · 04.05 · 02.02 · 03.07 · 00.03 | 04.01+04.02+04.04 (for 04.03); 00.05+00.07 (for 02.02) |
 | 5 | 04.06 · 04.09 · 04.10 · 02.03 · 03.01 · 03.05 | 04.03; 02.02; 00.06 |
 | 6 | 04.07 · 02.04 · 03.02 · 03.03 · 03.04 · 03.06 | 04.06; 02.03+00.01; 03.01 |
 | 7 | 04.08 · 02.05 · 04.11 · 05.01 | 04.07+04.05; 02.04+00.02; 03.02+03.05+03.06 |
 | 8 | 02.06 · 02.07 · 02.09 · 02.08 · 05.02 · 05.04 | 02.05 (+04.05 / 04.09 / 04.02); 05.01 |
-| 9 | 05.03 · 05.05 | 05.02 (+03.03, 03.07 for 05.03) |
+| 9 | 02.10 · 05.03 · 05.05 | 02.06 + 00.08's Nebius answers (for 02.10); 05.02 (+03.03, 03.07 for 05.03) |
 | 10 | 05.06 · 06.01 | 05.03 + 04.11; 05.02 + 03.03 + 03.07 |
 | 11 | 06.02 | 06.01 and the job runbooks |
 
@@ -109,8 +110,8 @@ Practical notes:
 - 01.03 is the data-model contract; every backend, jobs and on-device plan names its fields. Change it deliberately and grep `docs/plans/` for the field.
 - 04.04 precedes 04.03 because every public function goes through `requireDevice` and the rate limiter; the App Attest client side (03.07) is only needed for shared-state writes and can trail.
 - 04.01/04.02 are pure libraries; 00.03 measures 04.01 inside a real Convex action and may trigger a WASM path.
-- 02.01 owns the Python ↔ Convex ingest contract (`convex/ingest.ts`); 02.02–02.09 only add job modules.
-- 02.06 (crawler worker) needs the Convex queue functions from 04.05; 02.07 (enrichment) shares its validator and write mutation with 04.09.
+- 02.01 owns the Python ↔ Convex ingest contract (`convex/ingest.ts`); 02.02–02.09 only add job modules. Every job runs locally with `uv run python -m artlog_jobs.<job>`; the initial index build (02.02–02.05) is executed on the operator's Mac (Apple M5 Pro, 64 GB). Plan 02.10 adds the Nebius containers and launcher later, for scheduled crawls; nothing in 02.02–02.09 waits for it.
+- 02.06 (crawler worker) needs the Convex queue functions and durable per-URL crawl state from 04.05; 02.07 (enrichment) shares its validator and write mutation with 04.09. Plan 02.10 follows 02.06 so its cloud integration check can launch the real worker and verify resume with empty scratch. Scheduled launching of that worker (04.05's `maybeLaunch`) stays `off` until 02.10 supplies a launcher; until then the worker is started by hand.
 - 03.05 needs the bundled venue asset from 02.02 and `startVisit` from 04.05.
 - 05.01–05.05 are UI over behavior that exists; 05.06 and 04.11 are P2 (MVP scope per design §3, but nothing depends on them).
 - 06.01 spends EAS builds and touches App Store Connect: run only on explicit request (AGENTS.md).
@@ -123,12 +124,14 @@ Practical notes:
 - **App Attest uses Expo's official `@expo/app-integrity`** — no custom native module (03.07).
 - **`huggan/wikiart` is dropped** (license unknown / non-commercial; no identity fields).
 - **Convex-test supports vector search** (brute-force), so identify is fully unit-testable.
-- **Job launching** is decided by spike 00.08 (GitHub Actions `workflow_dispatch` vs Nebius REST from Convex); plans 02.01/04.05 implement behind one function.
-- Rejected: geofences/background location (design), Qdrant unless 00.02 fails, server-side re-embedding before promotion (design §3 deferred), dark mode (AGENTS.md), Android/web (AGENTS.md).
+- **The initial index build runs locally on the operator's Mac, not on Nebius Serverless Jobs** (decided 2026-09-08). Spike 00.08 found the Nebius tenant/project SUSPENDED, and running our own Nebius CPU/GPU jobs is optional for the hackathon (Token Factory calls satisfy the Nebius/NVIDIA requirement). The Mac is an Apple M5 Pro with 64 GB and PyTorch on the MPS backend (verified 2026-09-08). Plans 02.01–02.05 run every job with `uv run python -m artlog_jobs.<job>`, use a local `SCRATCH_DIR` processed shard by shard so no image outlives its shard, and keep the iPhone drift check as the gate. Design §5.2/§5.7's "Nebius Serverless Job, L40S" is corrected by 06.02 Step 4. Nebius containers and the launcher are plan 02.10 (P2, gated on 00.08); 04.05 ships with `CRAWL_LAUNCH_MODE=off` until then.
+- **Job launching** (GitHub Actions `workflow_dispatch` vs Nebius REST from Convex) is still decided by spike 00.08; plan 02.10 implements it behind 04.05's `launchWorker`.
+- Rejected: geofences/background location (design), a standby Qdrant VM even if 00.02 falls short (removed from the design 2026-09-08; the operator decides on the numbers), server-side re-embedding before promotion (design §3 deferred), dark mode (AGENTS.md), Android/web (AGENTS.md).
 
 ## Open questions for the operator
 
 - Which museums will the team test at? Spike 00.05 defaults to five Bay Area venues; the crawl profiles start from that list.
 - iOS bundle identifier: plans use `app.artlog.ios` as a placeholder (01.04).
 - Convex Pro (required for the index; 00.02 cannot run at scale without it) and Apple Developer enrollment status (00.08/06.01).
+- Only when plan 02.10 is scheduled: request a `compute.instance.non-gpu.vcpu` quota increase for `eu-north1` (0 on 2026-09-09) or accept L40S rates for crawler workers; nothing earlier needs Nebius compute.
 - Whether "Right now" ships on for the demo (`FLAG_RIGHT_NOW`) given Tavily's free 1,000 credits (00.07).
