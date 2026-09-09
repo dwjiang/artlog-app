@@ -1,7 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-// Every tab group resolves "/"; without an anchor the router picks the group
-// that sorts first alphabetically, which is Collection, not Scan.
 export const unstable_settings = {
   anchor: '(scan)',
 };

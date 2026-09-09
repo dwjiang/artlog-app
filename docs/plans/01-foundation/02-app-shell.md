@@ -191,11 +191,11 @@ src/app/
       label/[scanId].tsx
     (collection)/
       _layout.tsx
-      index.tsx
+      collection.tsx
       [savedId].tsx
     (settings)/
       _layout.tsx
-      index.tsx
+      settings.tsx
 ```
 
 `src/app/_layout.tsx` — root Stack, light theme only, tabs headerless, venue picker as a form sheet:
@@ -203,6 +203,10 @@ src/app/
 ```tsx
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
+
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
 
 export default function RootLayout() {
   return (
@@ -226,10 +230,14 @@ export default function RootLayout() {
 
 (Drop `SplashScreen.preventAutoHideAsync()` and the `AnimatedSplashOverlay`; the default splash behavior is what we want — the app should reach the camera as fast as possible.)
 
-`src/app/(tabs)/_layout.tsx` — NativeTabs with SF Symbols (no PNG assets). Scan first so it is the default:
+`src/app/(tabs)/_layout.tsx` — NativeTabs with SF Symbols (no PNG assets). Scan owns `/` and is the default tab:
 
 ```tsx
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+
+export const unstable_settings = {
+  anchor: '(scan)',
+};
 
 export default function TabsLayout() {
   return (
@@ -251,7 +259,7 @@ export default function TabsLayout() {
 }
 ```
 
-Each group `_layout.tsx` is a `Stack` from `expo-router/stack`. `(scan)/_layout.tsx` hides the header on `index` (full-screen camera later) and gives `result/[scanId]` the title `Result` and `label/[scanId]` the title `Label`. `(collection)/_layout.tsx` uses `headerLargeTitle: true` with title `Collection` on `index`; `[savedId]` title `Saved work`. `(settings)/_layout.tsx` title `Settings`, large title.
+Each group `_layout.tsx` is a `Stack` from `expo-router/stack`. `(scan)/_layout.tsx` anchors `index`, hides its header (full-screen camera later), and gives `result/[scanId]` the title `Result` and `label/[scanId]` the title `Label`. `(collection)/_layout.tsx` anchors `collection` and uses `headerLargeTitleEnabled: true` with title `Collection` on that route; `[savedId]` title `Saved work`. `(settings)/_layout.tsx` gives `settings` the title `Settings`, large title. The tab home URLs are `/`, `/collection`, and `/settings`, so adding stack anchors does not create competing matches for `/`.
 
 Route files are thin — a default export that reads params and renders the component, nothing else:
 
@@ -281,8 +289,8 @@ So that the shell is navigable before real flows exist, give `ScanScreen` two te
 
 ## Test plan
 
-- No new automated tests: the placeholders have no behavior, and NativeTabs/Stack layouts cannot be rendered under jest-expo. The screen components will get behavior tests in `05-app-ui/*` when they get behavior.
-- Verification is the typecheck with typed routes (Step 5), lint, and the manual route walk-through.
+- `src/components/app-navigation.test.ts` exercises the actual route files with Expo Router's URL parser: default Scan, distinct tab URLs, and back navigation history for venue, saved-work, result, and label links.
+- Verification is the typecheck with typed routes (Step 5), lint, app tests, and the manual route walk-through.
 
 ## Done criteria
 
@@ -303,11 +311,9 @@ So that the shell is navigable before real flows exist, give `ScanScreen` two te
   touched no scripts.
 - `headerLargeTitle` is deprecated in the installed expo-router 57.0.19 types;
   the Collection and Settings stacks use `headerLargeTitleEnabled`.
-- All three tab groups resolve `/`, and the router's config sorter fell back to
-  filesystem order, so the app first opened on Collection. `(tabs)/_layout.tsx`
-  exports `unstable_settings.anchor = '(scan)'` and `(scan)/_layout.tsx` exports
-  `anchor = 'index'`; only an anchored index config wins the tie, so do not add
-  an `index` anchor to the other groups.
+- Collection and Settings use named home routes so only Scan resolves `/`.
+  Root anchors `(tabs)` for venue links, tabs anchor `(scan)`, and the Scan
+  and Collection stacks anchor their home screens for direct detail links.
 - The Scan index keeps `headerShown: false` but sets `title: 'Scan'` so the back
   button on pushed screens reads "Scan" instead of "index".
 - `ScanScreen` wraps its placeholder text in `SafeAreaView` because its header
