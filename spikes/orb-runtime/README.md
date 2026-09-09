@@ -42,21 +42,24 @@ may also create `.env.local` and a redundant `.gitignore` here during setup;
 remove those generated files after the spike. Keep the main app's environment
 pointed at its own deployment.
 
+Choose one new directory for the run and use it for every mode and the summary.
 Run the modes sequentially to avoid competing benchmark actions:
 
 ```sh
-npm run bench -- matrix
-npm run bench -- reads-permuted
-npm run bench -- controls
-npm run bench -- fresh
-npm run bench -- memory
-npm run bench -- wasm
-node summarize.mjs results/2026-09-09
+ORB_RESULTS_DIR="results/$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+npm run bench -- matrix "$ORB_RESULTS_DIR/matrix.jsonl"
+npm run bench -- reads-permuted "$ORB_RESULTS_DIR/reads-permuted.jsonl"
+npm run bench -- controls "$ORB_RESULTS_DIR/controls.jsonl"
+npm run bench -- fresh "$ORB_RESULTS_DIR/fresh.jsonl"
+npm run bench -- memory "$ORB_RESULTS_DIR/memory.jsonl"
+npm run bench -- wasm "$ORB_RESULTS_DIR/wasm.jsonl"
+node summarize.mjs "$ORB_RESULTS_DIR"
 ```
 
 Each mode accepts an explicit JSONL output path as its second argument. The
 default is `results/<UTC date>/<mode>.jsonl`; existing files are never appended
-across separate invocations. For example:
+across separate invocations. The summarizer requires the directory containing
+that run's JSONL files. For example:
 
 ```sh
 npm run bench -- matrix results/rerun/matrix.jsonl

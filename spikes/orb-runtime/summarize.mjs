@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 
-const directory = process.argv[2] ?? 'results/2026-09-09';
+const directory = process.argv[2];
+if (!directory) throw new Error('Usage: node summarize.mjs <results-directory>');
 function summary(samples) {
   const sorted = [...samples].sort((a, b) => a - b);
   const percentile = (p) => {
