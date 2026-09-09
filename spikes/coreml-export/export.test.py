@@ -1,8 +1,48 @@
+import json
+import sys
+
 import coremltools as ct
 import numpy as np
+import pytest
 import torch
 
 import export
+
+
+class ImageSummary(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.radio = torch.nn.Linear(3, export.EMBEDDING_DIM)
+
+    def forward(self, image):
+        return self.radio(image.mean(dim=(-2, -1)))
+
+
+@pytest.mark.parametrize("frontend", ["trace", "export"])
+def test_cli_frontends_produce_quantized_image_models(tmp_path, monkeypatch, frontend):
+    monkeypatch.setattr(export, "ARTIFACTS", tmp_path)
+    monkeypatch.setattr(export, "build", lambda: ImageSummary().eval())
+    monkeypatch.setattr(sys, "argv", ["export.py", "--frontend", frontend])
+    export.main()
+
+    path = tmp_path / "cradio-v3b-dino-512-fp16.mlpackage"
+    spec = ct.models.MLModel(str(path), skip_model_load=True).get_spec()
+    assert spec.description.input[0].name == "image"
+    assert spec.description.input[0].type.imageType.width == 512
+    assert spec.description.input[0].type.imageType.height == 512
+    assert spec.description.output[0].name == "embedding"
+    assert list(spec.description.output[0].type.multiArrayType.shape) == [1, export.EMBEDDING_DIM]
+    assert json.loads(path.with_suffix(".json").read_text())["frontend"] == frontend
+
+    monkeypatch.setattr(sys, "argv", ["export.py", "--frontend", frontend, "--weights", "int8"])
+    export.main()
+    path = tmp_path / "cradio-v3b-dino-512-int8.mlpackage"
+    compressed = ct.models.MLModel(str(path), skip_model_load=True)
+    weights = [op for op in export.mil_program(compressed).functions["main"].operations
+               if op.op_type == "constexpr_affine_dequantize"]
+    assert len(weights) == 1
+    state = torch.load(tmp_path / "fakequant_state.pt", weights_only=True)
+    np.testing.assert_array_equal(weights[0].materialized_val_inference(), state["radio.weight"].numpy())
 
 
 class LinearSummary(torch.nn.Module):

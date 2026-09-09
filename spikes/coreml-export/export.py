@@ -22,7 +22,9 @@ def quantize(model, pytorch_model, variant, size):
              for name, tensor in pytorch_model.state_dict().items()}
     config = cto.OptimizationConfig()
     selected = {}
-    names = {name.replace(".", "_") + "_to_fp16": name for name in state}
+    # torch.export prefixes lifted parameter names with p_; tracing does not.
+    names = {prefix + name.replace(".", "_") + "_to_fp16": name
+             for name in state for prefix in ("", "p_")}
     for op in mil_program(model).functions["main"].operations:
         if op.op_type != "const" or op.name not in names:
             continue
@@ -88,7 +90,7 @@ def main():
         elif args.frontend == "trace":
             captured = torch.jit.trace(model, example)
         else:
-            captured = torch.export.export(model, (example,))
+            captured = torch.export.export(model, (example,)).run_decompositions({})
     if args.weights == "fp16":
         converted = ct.convert(
             captured,

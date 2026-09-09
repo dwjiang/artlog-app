@@ -29,7 +29,8 @@ SHA-256 are pinned in `wrapper.py`; a changed upstream checkpoint is rejected.
 The first run downloads the 546 MB checkpoint containing adaptor heads.
 
 `--frontend export` provides the alternate `torch.export` conversion route if
-tracing fails. Only tracing was necessary for the recorded exports. Inputs are
+tracing fails. It lowers the exported program to ATEN before CoreML conversion.
+Only tracing was necessary for the recorded exports. Inputs are
 fixed-size RGB pixels (`image`), scaled by 1/255 inside CoreML; RADIO applies its
 own normalization. Output `embedding` is an **unnormalized** float32 `(1, 1536)`
 DINOv2 summary. Normalize it before cosine retrieval.
@@ -131,10 +132,10 @@ The report compares fp32 PyTorch, fp16 PyTorch with recovered int8 weights, and
 each CoreML variant with `CPU_AND_NE` on macOS. It rejects zero/nonfinite vectors.
 Reports record the sample count; acceptance belongs in the decision record. When `index-urls.txt`
 exists, it must contain exactly 2,000 unique URLs disjoint from calibration;
-the index is embedded once using the recovered weights and cached with a
-weight/URL signature. Agreement@1 compares query variants against that **same**
-index and the fp32 query's top result. It measures numerical agreement, not
-ground-truth retrieval recall.
+the index is embedded once using the recovered weights and cached separately
+for each PyTorch device, with a weight/URL signature. Agreement@1 compares query
+variants against that **same** index and the fp32 query's top result. It measures
+numerical agreement, not ground-truth retrieval recall.
 
 ## iPhone benchmark
 
@@ -198,6 +199,29 @@ To reuse the committed iPhone measurement with freshly downloaded images:
   --iphone calibration/iphone-embeddings.json
 ```
 
+On a Linux CUDA host, local CoreML comparisons are skipped automatically and
+`--iphone` is required. The report records that skip and still validates the
+reference metadata and compares the PyTorch outputs with the iPhone vectors.
+CoreML is imported only for the macOS comparisons.
+
+Copy `artifacts/fakequant_state.pt` and
+`artifacts/cradio-v3b-dino-512-int8.json` from the Mac export into the same paths
+on the GPU host. Keep the committed calibration files together. Create a Python
+3.11 environment and install from `requirements.in` so dependency resolution
+includes PyTorch's Linux CUDA dependencies, then run:
+
+```sh
+uv venv --python 3.11
+uv pip install -r requirements.in
+.venv/bin/python calibration.py prepare --size 512
+.venv/bin/python drift_check.py --size 512 --torch-device cuda \
+  --iphone calibration/iphone-embeddings.json
+```
+
+No `.mlpackage` is needed on the GPU host. Its mini-index is computed on CUDA
+and cached as `artifacts/index-512-cuda.npz`; MPS uses `index-512-mps.npz`.
+CUDA numerical agreement must still be measured on the actual job hardware.
+
 ## Checks
 
 ```sh
@@ -211,6 +235,8 @@ The tests cover paced requests, retry limits and cooldowns, collection resumptio
 downloading the pinned image sets and rejecting changed bytes,
 cosine/nearest-neighbor semantics, invalid vectors, letterbox pixels, and equality
 between compressed CoreML constants and the recovered PyTorch checkpoint.
+They also exercise both export frontends, non-macOS reference comparisons,
+reference rejection, and separate retrieval caches for each PyTorch device.
 The real-model drift runs validate every measured output for
 finite values. No Expo package, application route or product model-version file
 is changed by this spike.

@@ -2,9 +2,9 @@ import argparse
 from hashlib import sha256
 import json
 from pathlib import Path
+import sys
 import time
 
-import coremltools as ct
 import numpy as np
 from PIL import Image
 import torch
@@ -55,6 +55,8 @@ def pytorch_embeddings(model, images, half=False, device="mps"):
 
 
 def coreml_embeddings(size, variant, images):
+    import coremltools as ct
+
     path = ARTIFACTS / f"cradio-v3b-dino-{size}-{variant}.mlpackage"
     started = time.perf_counter()
     model = ct.models.MLModel(str(path), compute_units=ct.ComputeUnit.CPU_AND_NE)
@@ -74,13 +76,17 @@ def main():
     parser.add_argument("--iphone", type=Path)
     parser.add_argument("--torch-device", choices=("cpu", "mps", "cuda"), default="mps")
     args = parser.parse_args()
+    run_coreml = sys.platform == "darwin"
+    if not run_coreml and not args.iphone:
+        parser.error("--iphone is required outside macOS, where CoreML predictions are unavailable")
     urls = (CALIBRATION / "urls.txt").read_text().splitlines()
     if len(urls) != len(set(urls)) or not urls:
         raise ValueError("Calibration URLs must be unique and nonempty")
     images = [letterbox(Image.open(image_path(url)), args.size) for url in urls]
     report = {"size": args.size, "calibration_count": len(urls), "required_calibration_count": 200,
               "calibration_manifest_sha256": sha256((CALIBRATION / "manifest.json").read_bytes()).hexdigest(),
-              "scope": "CoreML variants: macOS CPU_AND_NE; iphone_int8: physical iPhone CPU_AND_NE when supplied",
+              "scope": ("CoreML variants: macOS CPU_AND_NE" if run_coreml else "CoreML variants: skipped (requires macOS)")
+                       + "; iphone_int8: physical iPhone CPU_AND_NE when supplied",
               "torch_device": args.torch_device,
               "cosines": {}, "mac_load_ms": {}}
     fp32 = pytorch_embeddings(build(), images, device=args.torch_device)
@@ -89,13 +95,14 @@ def main():
     fakequant = pytorch_embeddings(quantized, images, half=True, device=args.torch_device)
     batches = {"pytorch_fp32": fp32, "pytorch_fakequant_fp16": fakequant}
     report["cosines"]["fp32_fakequant"] = cosine(fp32, fakequant)
-    for variant in (("fp16", "int8", "int4") if args.size == 512 else ("fp16", "int8")):
-        vectors, load_ms = coreml_embeddings(args.size, variant, images)
-        batches[f"coreml_{variant}"] = vectors
-        report["mac_load_ms"][variant] = load_ms
-        report["cosines"][f"fp32_coreml_{variant}"] = cosine(fp32, vectors)
-        report["cosines"][f"fakequant_coreml_{variant}"] = cosine(fakequant, vectors)
-        print(variant, report["cosines"][f"fakequant_coreml_{variant}"], flush=True)
+    if run_coreml:
+        for variant in (("fp16", "int8", "int4") if args.size == 512 else ("fp16", "int8")):
+            vectors, load_ms = coreml_embeddings(args.size, variant, images)
+            batches[f"coreml_{variant}"] = vectors
+            report["mac_load_ms"][variant] = load_ms
+            report["cosines"][f"fp32_coreml_{variant}"] = cosine(fp32, vectors)
+            report["cosines"][f"fakequant_coreml_{variant}"] = cosine(fakequant, vectors)
+            print(variant, report["cosines"][f"fakequant_coreml_{variant}"], flush=True)
     if args.iphone:
         metadata_path = args.iphone.with_name(args.iphone.name.replace("embeddings.json", "report.json"))
         metadata = json.loads(metadata_path.read_text())
@@ -119,7 +126,7 @@ def main():
         index_urls = index_file.read_text().splitlines()
         if len(index_urls) != 2000 or len(set(index_urls)) != 2000 or set(index_urls) & set(urls):
             raise ValueError("Index must contain exactly 2000 unique, disjoint images")
-        cache = ARTIFACTS / f"index-{args.size}.npz"
+        cache = ARTIFACTS / f"index-{args.size}-{args.torch_device}.npz"
         signature = sha256(index_file.read_bytes() + (ARTIFACTS / "fakequant_state.pt").read_bytes()).hexdigest()
         if cache.exists():
             data = np.load(cache)
