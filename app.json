@@ -46,7 +46,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Artlog can identify paintings from photos you already took.",
+          "cameraPermission": "Artlog uses the camera to identify paintings and read wall labels.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
