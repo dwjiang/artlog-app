@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import phoneFixture from '../../spikes/native-modules/notes/app-attest-assertion.json';
+
 import {
   base64ToBytes,
   bytesToBase64,
@@ -78,6 +80,23 @@ describe('decodeAssertion', () => {
 
 describe('verifyAssertion', () => {
   const appId = 'TEAMID.app.artlog.ios';
+
+  it('verifies the real Expo iPhone assertion from decision 006 and rejects payload changes', async () => {
+    const check = {
+      publicKeySpkiBase64: phoneFixture.publicKeySpkiBase64,
+      clientData: phoneFixture.clientData,
+      assertionBase64: bytesToBase64(encodeAssertion(
+        base64ToBytes(phoneFixture.signatureDerBase64),
+        base64ToBytes(phoneFixture.authenticatorDataBase64)
+      )),
+      expectedRpIdHash: await sha256(phoneFixture.appId),
+      previousCounter: phoneFixture.previousCounter,
+    };
+    expect(await verifyAssertion(check)).toEqual({ ok: true, counter: phoneFixture.expectedCounter });
+    expect(await verifyAssertion({ ...check, clientData: `${check.clientData} ` })).toMatchObject({
+      ok: false, reason: 'invalid_signature',
+    });
+  });
 
   it('accepts the published node-app-attest assertion vector independently of our signer', async () => {
     // Cryptographic test data from node-app-attest/test/verifyAssertion.test.js.

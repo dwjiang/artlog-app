@@ -13,8 +13,7 @@ export type CandidateSignals = {
   gallery: GalleryRelation;
   /** null when the placement does not say. */
   onView: boolean | null;
-  /** Stored with the candidate's descriptors. */
-  keypointCount: number;
+  keypointCount: number | null;
   /** ORB inlier count; 0 when verification was skipped. */
   orbInliers: number;
   /** ORB verification found a consistent homography. */
@@ -47,7 +46,7 @@ export function featurize(s: CandidateSignals): Float64Array {
   const similarity = clampUnit(s.similarity, 'similarity');
   const runnerUpSimilarity = requireFinite(s.runnerUpSimilarity, 'runnerUpSimilarity');
   const candidateCount = requireCount(s.candidateCount, 'candidateCount');
-  const keypointCount = requireCount(s.keypointCount, 'keypointCount');
+  const keypointCount = requireCount(s.keypointCount ?? 0, 'keypointCount');
   const orbInliers = requireCount(s.orbInliers, 'orbInliers');
   const objectPenalty = clampUnit(s.objectPenalty, 'objectPenalty');
 

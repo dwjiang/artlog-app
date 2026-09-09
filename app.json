@@ -10,6 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "app.artlog.ios",
+      "appleTeamId": "J4UW2CVVY4",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Artlog uses the camera to identify paintings and read wall labels.",

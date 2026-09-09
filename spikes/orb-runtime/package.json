@@ -1,0 +1,23 @@
+{
+  "name": "artlog-spike-orb",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build:wasm && vitest run",
+    "build:wasm": "asc wasm/hamming.ts --config wasm/asconfig.json --outFile convex/hamming.wasm --textFile wasm/hamming.wat",
+    "codegen": "convex codegen",
+    "bench": "node --env-file=.env.spike.local run-bench.mjs"
+  },
+  "dependencies": {
+    "convex": "1.45.0"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "@types/node": "26.5.0",
+    "assemblyscript": "0.28.20",
+    "convex-test": "0.0.56",
+    "typescript": "6.0.3",
+    "vitest": "5.0.0"
+  }
+}
