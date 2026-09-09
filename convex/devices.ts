@@ -223,4 +223,24 @@ export async function requireAttestedWrite(
   return { ...device, attestCounter: result.counter };
 }
 
+// Verification-only endpoint for the phone smoke check; removed in plan 06.01.
+export const assertSmoke = mutation({
+  args: { nonce: v.string(), assertionBase64: v.string(), payloadJson: v.string() },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, args) => {
+    const device = await requireDevice(ctx);
+    if (device.platform !== 'ios' || !isAttested(device)) return { ok: false };
+    try {
+      await requireAttestedWrite(ctx, { ...args, payload: args.payloadJson });
+      return { ok: true };
+    } catch (error) {
+      if (error instanceof ConvexError &&
+        (error.data.code === 'challenge_invalid' || error.data.code === 'invalid_assertion')) {
+        return { ok: false };
+      }
+      throw error;
+    }
+  },
+});
+
 export type DeviceId = Id<'devices'>;
