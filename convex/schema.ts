@@ -42,6 +42,7 @@ export default defineSchema({
   ...authTables,
 
   artworks: defineTable({
+    key: v.string(),
     wikidataId: v.optional(v.string()),
     title: v.string(),
     artist: v.string(),
@@ -57,6 +58,7 @@ export default defineSchema({
     docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
     docentUpdatedAt: v.optional(v.number()),
   })
+    .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
     .index('by_artistId', ['artistId']),
 
@@ -129,7 +131,7 @@ export default defineSchema({
       dimensions: model.embeddingDim,
       filterFields: ['modelVersion'],
     })
-    .index('by_objectId_modelVersion', ['objectId', 'modelVersion']),
+    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source']),
 
   descriptors: defineTable({
     objectId: v.id('objects'),
@@ -141,6 +143,7 @@ export default defineSchema({
   }).index('by_objectId', ['objectId']),
 
   museums: defineTable({
+    key: v.string(),
     name: v.string(),
     lat: v.number(),
     lng: v.number(),
@@ -178,9 +181,20 @@ export default defineSchema({
       })
     ),
   })
+    .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
     .index('by_queuePriority', ['queuePriority'])
     .index('by_indexStatus', ['indexStatus.status']),
+
+  // Singleton maintained by convex/ingest.ts; counting large tables per query is too expensive.
+  ingestCounters: defineTable({
+    museums: v.number(),
+    artworks: v.number(),
+    objects: v.number(),
+    placements: v.number(),
+    vectors: v.number(),
+    descriptors: v.number(),
+  }),
 
   crawlRuns: defineTable({
     venueId: v.id('museums'),

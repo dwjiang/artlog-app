@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as devices from "../devices.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
+import type * as ingest from "../ingest.js";
 import type * as lib_appAttest from "../lib/appAttest.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   devices: typeof devices;
   health: typeof health;
   http: typeof http;
+  ingest: typeof ingest;
   "lib/appAttest": typeof lib_appAttest;
   "lib/auth": typeof lib_auth;
   "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;

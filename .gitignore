@@ -50,3 +50,12 @@ spikes/**/artifacts/
 spikes/**/.venv/
 spikes/**/__pycache__/
 spikes/**/.pytest_cache/
+
+# Python jobs (plan 02.01)
+jobs/.venv/
+jobs/out/
+jobs/checkpoints/
+jobs/scratch/
+jobs/**/__pycache__/
+jobs/.pytest_cache/
+jobs/.ruff_cache/
