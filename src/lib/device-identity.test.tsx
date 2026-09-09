@@ -8,6 +8,7 @@ const mockChallenge = jest.fn();
 const mockAttest = jest.fn();
 const mockGetItem = jest.fn();
 const mockSetItem = jest.fn();
+const mockDeleteItem = jest.fn();
 const mockRandomBytes = jest.fn();
 const mockStorage = new Map<string, string>();
 const mockAppAttest = {
@@ -29,12 +30,17 @@ jest.mock('../../convex/_generated/api', () => ({
 }));
 jest.mock('expo-device', () => ({ isDevice: false }));
 jest.mock('expo-crypto', () => ({ getRandomBytesAsync: (...args: unknown[]) => mockRandomBytes(...args) }));
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: (...args: unknown[]) => mockGetItem(...args),
-  setItemAsync: (...args: unknown[]) => mockSetItem(...args),
-  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
+jest.mock('@/lib/installation-storage', () => ({
+  installationStorage: {
+    getItem: (...args: unknown[]) => mockGetItem(...args),
+    setItem: (...args: unknown[]) => mockSetItem(...args),
+    removeItem: (...args: unknown[]) => mockDeleteItem(...args),
+  },
 }));
-jest.mock('@/lib/app-attest', () => ({ getAppAttest: () => mockAppAttest }));
+jest.mock('@/lib/app-attest', () => ({
+  APP_ATTEST_KEY_ID: 'appAttestKeyId',
+  getAppAttest: () => mockAppAttest.isSupported() ? mockAppAttest : null,
+}));
 
 let useDeviceIdentity: typeof import('./device-identity').useDeviceIdentity;
 
@@ -48,6 +54,10 @@ beforeEach(() => {
   mockStorage.clear();
   mockGetItem.mockImplementation(async (key: string) => mockStorage.get(key) ?? null);
   mockSetItem.mockImplementation(async (key: string, value: string) => { mockStorage.set(key, value); });
+  mockDeleteItem.mockImplementation(async (key: string) => { mockStorage.delete(key); });
+  mockAppAttest.generateKey.mockResolvedValue('new-key');
+  mockAppAttest.attestKey.mockResolvedValue('attestation');
+  mockChallenge.mockResolvedValue({ nonce: 'nonce' });
   mockRandomBytes.mockResolvedValue(new Uint8Array(32).fill(0xa1));
   mockRegister.mockResolvedValue({ deviceId: 'device-1', attested: false, attestRequired: false });
   mockAppAttest.isSupported.mockReturnValue(false);
@@ -85,6 +95,7 @@ it('restores an existing session and passes the saved attestation key without si
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
   mockGetItem.mockResolvedValue('saved-key');
+  mockAppAttest.isSupported.mockReturnValue(true);
   mockRegister.mockResolvedValue({ deviceId: 'device-1', attested: true, attestRequired: true });
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).not.toHaveBeenCalled();
@@ -92,18 +103,18 @@ it('restores an existing session and passes the saved attestation key without si
   expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
 });
 
-it('only requests attestation when the server requires it and the device supports it', async () => {
+it('does not request attestation on unsupported devices even when required by the server', async () => {
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
-  mockAppAttest.isSupported.mockReturnValue(true);
+  mockRegister.mockResolvedValue({ deviceId: 'device-1', attested: false, attestRequired: true });
   await renderHook(useDeviceIdentity);
   expect(mockChallenge).not.toHaveBeenCalled();
 });
 
-it('stores a new key and completes required attestation using the server challenge', async () => {
+it.each([false, true])('attests a supported phone when server enforcement is %s', async (attestRequired) => {
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
-  mockRegister.mockResolvedValue({ deviceId: 'device-1', attested: false, attestRequired: true });
+  mockRegister.mockResolvedValue({ deviceId: 'device-1', attested: false, attestRequired });
   mockAppAttest.isSupported.mockReturnValue(true);
   mockAppAttest.generateKey.mockResolvedValue('new-key');
   mockAppAttest.attestKey.mockResolvedValue('attestation');
@@ -112,6 +123,143 @@ it('stores a new key and completes required attestation using the server challen
   expect(mockSetItem).toHaveBeenCalledWith('appAttestKeyId', 'new-key');
   expect(mockAppAttest.attestKey).toHaveBeenCalledWith('new-key', 'nonce');
   expect(mockAttest).toHaveBeenCalledWith({ keyId: 'new-key', attestationBase64: 'attestation', nonce: 'nonce' });
+});
+
+it('reuses a stored key when the server still needs its attestation', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockStorage.set('appAttestKeyId', 'saved-key');
+  mockAppAttest.isSupported.mockReturnValue(true);
+  await renderHook(useDeviceIdentity);
+  expect(mockAppAttest.generateKey).not.toHaveBeenCalled();
+  expect(mockAppAttest.attestKey).toHaveBeenCalledWith('saved-key', 'nonce');
+});
+
+it.each(['key_mismatch', 'invalid_attestation'])('replaces a key rejected with %s once, using a fresh challenge', async (code) => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockStorage.set('appAttestKeyId', 'saved-key');
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockChallenge.mockResolvedValueOnce({ nonce: 'first' }).mockResolvedValueOnce({ nonce: 'second' });
+  mockAttest.mockRejectedValueOnce({ data: { code } });
+  await renderHook(useDeviceIdentity);
+  expect(mockDeleteItem).toHaveBeenCalledWith('appAttestKeyId');
+  expect(mockAppAttest.attestKey.mock.calls).toEqual([['saved-key', 'first'], ['new-key', 'second']]);
+  expect(mockStorage.get('appAttestKeyId')).toBe('new-key');
+  expect(mockAttest).toHaveBeenCalledTimes(2);
+});
+
+it('stops key rotation after a second rejection', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockAttest.mockRejectedValue({ data: { code: 'invalid_attestation' } });
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockAttest).toHaveBeenCalledTimes(2);
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(2);
+  expect(mockStorage.has('appAttestKeyId')).toBe(false);
+});
+
+it('retries the same proof when the server fails after Apple attests the key', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockAppAttest.attestKey
+    .mockResolvedValueOnce('attestation')
+    .mockRejectedValue({ code: 'ERR_APP_INTEGRITY_INVALID_KEY' });
+  mockAttest.mockRejectedValueOnce(new Error('offline'));
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
+  expect(mockAttest).toHaveBeenCalledTimes(2);
+  expect(mockAttest.mock.calls[1]).toEqual(mockAttest.mock.calls[0]);
+  expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(1);
+  expect(mockDeleteItem).not.toHaveBeenCalled();
+});
+
+it('does not call Apple until the new key is persisted', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockSetItem.mockRejectedValueOnce(new Error('keychain unavailable'));
+  await renderHook(useDeviceIdentity);
+  expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
+});
+
+it('preserves the key and retries later when Apple is temporarily unavailable', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockChallenge.mockResolvedValueOnce({ nonce: 'first' }).mockResolvedValueOnce({ nonce: 'second' });
+  mockAppAttest.attestKey.mockRejectedValueOnce({ code: 'ERR_APP_INTEGRITY_SERVER_UNAVAILABLE' });
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
+  expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
+  expect(mockAppAttest.attestKey.mock.calls).toEqual([['new-key', 'first'], ['new-key', 'first']]);
+  expect(mockAttest).toHaveBeenCalledTimes(1);
+});
+
+it('bounds recovery when Apple repeatedly rejects keys', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  const error = { code: 'ERR_APP_INTEGRITY_INVALID_KEY' };
+  mockAppAttest.attestKey.mockRejectedValue(error);
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
+  expect(mockStorage.has('appAttestKeyId')).toBe(false);
+  expect(console.warn).toHaveBeenCalledWith('Device identity setup failed', error);
+});
+
+it('replaces an expired attestation proof with a fresh key and challenge', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockAppAttest.generateKey.mockResolvedValueOnce('first-key').mockResolvedValueOnce('second-key');
+  mockChallenge.mockResolvedValueOnce({ nonce: 'first' }).mockResolvedValueOnce({ nonce: 'second' });
+  mockAttest.mockRejectedValueOnce({ data: { code: 'challenge_invalid' } });
+  await renderHook(useDeviceIdentity);
+  expect(mockAppAttest.attestKey.mock.calls).toEqual([['first-key', 'first'], ['second-key', 'second']]);
+  expect(mockAttest).toHaveBeenCalledTimes(2);
+  expect(mockStorage.get('appAttestKeyId')).toBe('second-key');
+});
+
+it('recovers after a process exits between native attestation and server registration', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockAppAttest.generateKey.mockResolvedValueOnce('first-key').mockResolvedValueOnce('second-key');
+  const attestedKeys = new Set<string>();
+  mockAppAttest.attestKey.mockImplementation(async (key: string) => {
+    if (attestedKeys.has(key)) throw { code: 'ERR_APP_INTEGRITY_INVALID_KEY' };
+    attestedKeys.add(key);
+    return 'attestation';
+  });
+  mockAttest.mockRejectedValueOnce(new Error('offline'));
+  const first = await renderHook(useDeviceIdentity);
+  await first.unmount();
+  jest.isolateModules(() => {
+    ({ useDeviceIdentity } = jest.requireActual<typeof import('./device-identity')>('./device-identity'));
+  });
+  await renderHook(useDeviceIdentity);
+  expect(mockAttest).toHaveBeenCalledTimes(2);
+  expect(mockStorage.get('appAttestKeyId')).toBe('second-key');
+});
+
+it('keeps the key when the server committed attestation but its response was lost', async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockAttest.mockRejectedValueOnce(new Error('response lost'));
+  mockRegister.mockResolvedValueOnce({ attested: false }).mockResolvedValue({ attested: true });
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(1);
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
+  expect(mockDeleteItem).not.toHaveBeenCalled();
 });
 
 it.each(['sign-in', 'registration'])('retries failed %s without needing a remount', async (stage) => {

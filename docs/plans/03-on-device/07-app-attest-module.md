@@ -10,6 +10,7 @@
 
 ## Status
 
+- **Implementation**: complete, 2026-09-09; physical-device acceptance checks pending because the paired iPhone is locked.
 - **Priority**: P1 (required before any shared-state write is enabled in production)
 - **Effort**: S–M
 - **Risk**: LOW (official Expo package; needs a physical device)
@@ -67,7 +68,7 @@ Call a test mutation `devices.assertSmoke({ nonce, assertionBase64, payloadJson 
 ## Done criteria
 
 - [ ] Device attested on first launch; assertion smoke passes; replay rejected
-- [ ] Tests, tsc, lint pass; `docs/plans/README.md` updated
+- [x] Tests, tsc, lint pass; `docs/plans/README.md` updated
 
 ## STOP conditions
 
@@ -77,3 +78,67 @@ Call a test mutation `devices.assertSmoke({ nonce, assertionBase64, payloadJson 
 
 - The assertion challenge format (`nonce.payloadJson`) is a contract with `requireAttestedWrite`; change both together.
 - Production must set `APP_ATTEST_REQUIRED=true` (plan 06.01 checklist).
+
+## Implementation and verification — 2026-09-09
+
+- Installed `@expo/app-integrity` 57.0.1. Supported phones now attest even when
+  the server makes attestation optional. Pending attestation responses are retained
+  in memory for server retries; Apple's server-unavailable error retries the same
+  key and challenge. Rejected/expired proofs and native invalid-key errors replace
+  the key once, including after a process exits before server registration. A second
+  rejection stops automatic retries. Registration checks the server first, so a
+  lost response after successful registration preserves the accepted key.
+- Auth tokens, the anonymous credential, and the App Attest key ID use one
+  installation-specific SecureStore namespace. Its non-secret UUID lives in
+  Documents via `expo-file-system`, so relaunches retain the identity and a
+  reinstall cannot restore obsolete Keychain credentials. Existing development
+  installs start a fresh identity once when adopting this storage layout.
+- `signPayload` signs the exact `nonce.payloadJson` string. The shared
+  `stableStringify` recursively sorts object keys while preserving JSON array
+  order and optional-field semantics. Unsupported devices return `null`; missing
+  keys and signing/network failures propagate as errors.
+- Settings includes a `__DEV__`-only **Check App Attest** control. It submits the
+  same signed request twice to `devices.assertSmoke`, which only verifies,
+  consumes the challenge and advances the assertion counter. It never reports
+  the Simulator bypass as successful cryptographic verification. Remove the
+  endpoint in 06.01 as planned.
+- `npm test`: **52 app/shared tests + 144 backend tests passed**, including
+  interrupted registration, expired challenges, reinstall credential isolation,
+  canonical payloads, the smoke control, replay/tampering rejection, and the real
+  Expo iPhone assertion fixture from decision 006.
+- `npx tsc --noEmit`, `npm run lint`, and `git diff --check`: passed.
+  `npx convex codegen` and `npx convex dev --once`: passed on dev deployment
+  `usable-owl-256`; generated bindings needed no diff. The dev push also removed
+  the previously deployed `venueTables.by_version` index, which is absent from
+  this checkout's schema.
+- `npm run ios -- --device 6653CF31-DE53-421A-B612-97C9BFAC3FBA --port 8087`:
+  built and launched on iPhone 17 Pro Simulator in light mode. Runtime inspector
+  confirmed `getAppAttest() === null`; Settings shows the unsupported state and
+  disables the smoke control while keeping registration working. Repeated the
+  final Settings check in the isolated `Artlog 03.07 Kelowna` Simulator after the
+  shared Simulator switched bundles; the same unsupported state was confirmed.
+- Recovery fixes: `npm run ios -- --device
+  4382AB3D-9DAC-4076-960A-D10E98D051E8 --no-bundler` built successfully; opened the
+  development client against Metro on port 8087. In light mode, a full process
+  relaunch preserved both the installation UUID and device ID. Uninstalling and
+  reinstalling the same build changed both IDs and registered successfully;
+  Settings still showed App Attest as unsupported on the Simulator.
+- Verified Apple Team ID `J4UW2CVVY4` from the local development certificate;
+  pinned it as `ios.appleTeamId`. Set **dev-only** server
+  `APP_ATTEST_APP_ID=J4UW2CVVY4.app.artlog.ios`. `APP_ATTEST_ALLOW_DEV=true`
+  was already set; production enforcement was not changed.
+- The initial physical build used a wildcard profile without App Attest. Xcode
+  automatic provisioning created the explicit product profile. A subsequent
+  `xcodebuild -workspace ios/artlog.xcworkspace -scheme artlog -configuration Debug
+  -destination 'generic/platform=iOS' -allowProvisioningUpdates
+  -allowProvisioningDeviceRegistration DEVELOPMENT_TEAM=J4UW2CVVY4 build`
+  succeeded, and the app was installed on the paired iPhone 16 Pro. `codesign`
+  confirmed App ID `J4UW2CVVY4.app.artlog.ios` and App Attest environment
+  **production** in the signed app.
+- Launch was refused with CoreDevice error **10002**, underlying
+  `FBSOpenApplicationErrorDomain` **7 (Locked)**. No product attestation,
+  assertion/replay result, counter increment, or relaunch persistence has yet
+  been observed on the phone. Unlock it, open this workspace's development
+  build, wait for Settings to show `attested: yes`, run **Check App Attest**
+  (expected `Assertion: accepted · Replay: rejected`), inspect `attestCounter`,
+  then relaunch and confirm the key and `attestedAt` are unchanged.

@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-09-09T11:34:50.188382+00:00",
+  "team": "daniel-jiang",
+  "project": "artlog-spike-orb",
+  "projectId": 2962836,
+  "deployment": "neat-reindeer-108",
+  "deploymentType": "dev",
+  "reference": "orb-spike",
+  "region": "US East (N. Virginia)",
+  "plan": "Convex Starter",
+  "deploymentClass": "S16 (per documented Starter allocation)",
+  "runtime": "default Convex V8",
+  "convexJs": "1.45.0",
+  "assemblyscript": "0.28.20",
+  "transport": "ConvexHttpClient with admin auth",
+  "clientArchitecture": "arm64",
+  "seed": 20260909,
+  "inputSize": 512,
+  "sourceCommit": "f650ab81c425903959d07bb5bc6f8e12ea4f972f",
+  "wasmBytes": 322,
+  "wasmSha256": "f9ef9a5acf8b786295ce30233510616916203a1673ea3d9288d9c5b27635d6bf",
+  "simd": false
+}

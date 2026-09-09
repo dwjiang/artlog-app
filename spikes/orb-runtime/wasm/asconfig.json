@@ -1,0 +1,11 @@
+{
+  "options": {
+    "optimizeLevel": 3,
+    "shrinkLevel": 0,
+    "runtime": "stub",
+    "disable": ["simd", "relaxed-simd"],
+    "initialMemory": 2,
+    "maximumMemory": 2,
+    "memoryBase": 80000
+  }
+}
