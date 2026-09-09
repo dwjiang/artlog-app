@@ -9,6 +9,10 @@
  */
 
 import type * as health from "../health.js";
+import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
+import type * as lib_calibrator_features from "../lib/calibrator/features.js";
+import type * as lib_calibrator_index from "../lib/calibrator/index.js";
+import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
 import type * as lib_orb_features from "../lib/orb/features.js";
 import type * as lib_orb_hamming from "../lib/orb/hamming.js";
 import type * as lib_orb_homography from "../lib/orb/homography.js";
@@ -27,6 +31,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;
+  "lib/calibrator/features": typeof lib_calibrator_features;
+  "lib/calibrator/index": typeof lib_calibrator_index;
+  "lib/calibrator/weights": typeof lib_calibrator_weights;
   "lib/orb/features": typeof lib_orb_features;
   "lib/orb/hamming": typeof lib_orb_hamming;
   "lib/orb/homography": typeof lib_orb_homography;
