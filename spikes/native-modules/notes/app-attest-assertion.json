@@ -1,0 +1,11 @@
+{
+  "description": "Public verification fixture from the disposable app.artlog.spike build; no private key, session token, attestation certificate, or Apple account data.",
+  "appId": "J4UW2CVVY4.app.artlog.spike",
+  "clientData": "spike-1788948679812.{\"payload\":1}",
+  "publicKeySpkiBase64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEuqORXdQsygWA7+kG1WqnsDTlex6dZ9lpka4aS6Q1OKoUiRsn3OjrhL5VVrumWYNR3JAAL+vwz/LeKSmoJlGr7w==",
+  "authenticatorDataBase64": "1LzoV9xO3u+i7hX0Ac9C9jUSvaSRD6BinBqm1yRF1WhAAAAAAQ==",
+  "signatureDerBase64": "MEUCIALgYxTnju3YC5cEEc3dCimRulkxLPSUDnvZq93mB6bHAiEAwQoYybXm+a6TKH83QQk01zuxCvZUF137ztlUQWtlJqQ=",
+  "signatureP1363Base64": "AuBjFOeO7dgLlwQRzd0KKZG6WTEs9JQOe9mr3eYHpsfBChjJteb5rpMofzdBCTTXO7EK9lQXXfvO2VRBa2UmpA==",
+  "previousCounter": 0,
+  "expectedCounter": 1
+}

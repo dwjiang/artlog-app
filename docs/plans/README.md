@@ -36,7 +36,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 01.02 | [App shell](01-foundation/02-app-shell.md) | P1 | M | 01.01 | DONE — NativeTabs (`/` Scan, `/collection`, `/settings`), anchored detail and venue-sheet navigation; walked through on the iPhone 17 Pro simulator 2026-09-09 |
 | 01.03 | [Convex project and schema](01-foundation/03-convex-project-and-schema.md) | P1 | M | 01.01, 01.02 | DONE — project `artlog`, dev deployment `usable-owl-256`; 18 tables with the 1536-dim `vectors.by_vector` index pushed; 6 convex-test tests; Settings shows "Backend: connected" on the iPhone 17 Pro simulator 2026-09-09 |
 | 01.04 | [Dev client and EAS](01-foundation/04-dev-client-and-eas.md) | P1 | S | 01.02 | DONE — `expo-dev-client` 57.0.18, `app.artlog.ios` (placeholder, not yet registered with Apple), usage strings and App Attest entitlement, EAS project `@dwjiang/artlog` linked, `eas.json` with four profiles; local dev build ran on the iPhone 17 Pro simulator 2026-09-09, no cloud build spent |
-| 00.06 | [Native module options spike](00-kickoff-spikes/06-native-module-options.md) | P0 | M–L | 01.04 (iPhone) | TODO |
+| 00.06 | [Native module options spike](00-kickoff-spikes/06-native-module-options.md) | P0 | M–L | 01.04 (iPhone) | DONE — [decision 006](../decisions/006-native-modules.md); device camera/QR, live Vision, ORB, App Attest, MapKit, CoreML and Convex crypto proven; explicit downstream gates retained |
 | 04.01 | [ORB matching and RANSAC library](04-backend/01-orb-match-and-ransac.md) | P1 | M | 01.01, 01.03 | TODO |
 | 04.02 | [Match calibrator library](04-backend/02-calibrator.md) | P1 | S | 01.01, 01.03 | TODO |
 | 04.04 | [Device identity and rate limits](04-backend/04-device-identity-and-rate-limits.md) | P1 | L | 01.03 | TODO |
@@ -45,18 +45,18 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 04.03 | [Identify action](04-backend/03-identify-action.md) | P1 | L | 01.03, 04.01, 04.02, 04.04 | TODO |
 | 04.05 | [Visits and venue queue](04-backend/05-visits-and-venue-queue.md) | P1 | M | 04.04, 01.03 | TODO |
 | 02.02 | [Venue seed](02-index-build/02-venue-seed.md) | P1 | M | 02.01, 00.05, 00.07 | TODO |
-| 03.07 | [App Attest on the phone](03-on-device/07-app-attest-module.md) | P1 | S–M | 04.04, 01.04, 00.06 | TODO |
+| 03.07 | [App Attest on the phone](03-on-device/07-app-attest-module.md) | P1 | S–M | 04.04, 01.04, 00.06 | TODO — native package proven by 006; use observed entitlement environment and corrected assertion fixture |
 | 04.06 | [Label flow backend](04-backend/06-label-flow.md) | P1 | L | 04.03, 04.04, 00.04, 00.07 | TODO |
 | 04.09 | [Docent and "Right now"](04-backend/09-docent-and-right-now.md) | P1 | M–L | 04.03, 04.04, 04.06, 00.04, 00.07 | TODO |
 | 02.03 | [Corpus metadata](02-index-build/03-corpus-metadata.md) | P1 | L | 02.01, 02.02, 00.05 | TODO |
-| 03.01 | [Camera and capture pipeline](03-on-device/01-camera-and-capture-pipeline.md) | P1 | M | 01.04, 04.03, 00.06 | TODO |
-| 03.05 | [Venue resolution](03-on-device/05-venue-resolution.md) | P1 | L | 02.02, 04.05, 01.04, 00.06 | TODO |
+| 03.01 | [Camera and capture pipeline](03-on-device/01-camera-and-capture-pipeline.md) | P1 | M | 01.04, 04.03, 00.06 | TODO — 006 device camera/QR gates passed; select a QR path supporting arm64 simulator |
+| 03.05 | [Venue resolution](03-on-device/05-venue-resolution.md) | P1 | L | 02.02, 04.05, 01.04, 00.06 | TODO — 006 MapKit gate passed; museum filter must be supplemented with text search |
 | 04.10 | [Placements and checklists](04-backend/10-placements-and-checklists.md) | P2 | M | 04.03, 02.01, 00.05 | TODO |
 | 04.07 | [Contributions and feedback](04-backend/07-contributions-and-feedback.md) | P1 | M–L | 04.03, 04.04, 04.06 | TODO |
 | 02.04 | [Embed and descriptors (local Apple-silicon build)](02-index-build/04-embed-and-descriptors.md) | P1 | L | 02.01, 02.03, 00.01 | TODO |
-| 03.02 | [Rectangle detection module](03-on-device/02-rectangle-detection-module.md) | P1 | L | 03.01, 00.06 | TODO |
-| 03.03 | [CoreML embed module](03-on-device/03-coreml-embed-module.md) | P1 | L | 03.01, 00.01, 00.06 | TODO |
-| 03.04 | [ORB module and triage](03-on-device/04-orb-module.md) | P1 | M | 03.01, 04.01, 00.06 | TODO |
+| 03.02 | [Rectangle detection module](03-on-device/02-rectangle-detection-module.md) | P1 | L | 03.01, 00.06 | TODO — 006 live throughput passed; fix inner selection and verify captured-still latency/preprocessing parity |
+| 03.03 | [CoreML embed module](03-on-device/03-coreml-embed-module.md) | P1 | L | 03.01, 00.01, 00.06 | TODO — 006 compiled-resource bundling gate passed |
+| 03.04 | [ORB module and triage](03-on-device/04-orb-module.md) | P1 | M | 03.01, 04.01, 00.06 | TODO — 006 extraction/packing passed; retain 500 cap and verify Python parity |
 | 03.06 | [Local store and offline queue](03-on-device/06-local-store-and-offline-queue.md) | P1 | L | 03.01, 04.03 | TODO |
 | 04.08 | [Promotion and provenance](04-backend/08-promotion-and-provenance.md) | P1 | L | 04.07, 04.05 | TODO |
 | 02.05 | [Dedupe, hubs, push](02-index-build/05-dedupe-hubs-push.md) | P1 | M | 02.04, 00.02 | TODO |
@@ -120,7 +120,7 @@ Practical notes:
 
 - **Embedding dimension is 1536, input 512** (C-RADIOv3-B DINOv2-adaptor summary). The design's 768 was never available: the backbone summary is 2304. Storage math in design §5.7 doubles; plan 00.02 measures it.
 - **No NVIDIA vision-language model is on Token Factory public endpoints** as of 2026-09-08 (Nano Omni deprecated 2026-08-31; Nano 2 VL retired 2026-04-13). Spike 00.04 chooses the label-reading model and the honest README wording; the text models (Nemotron 3 Super, Nemotron 3.5 Lightning) still satisfy the hackathon's NVIDIA-model requirement together with C-RADIO.
-- **VisionCamera is v5** (Nitro-based, `useFrameOutput`, separate barcode package); rectangle detection is a custom Nitro hybrid object (03.02). Spike 00.06 confirms RN 0.86 compatibility.
+- **VisionCamera is v5** (Nitro-based, `useFrameOutput`, separate barcode package); rectangle detection is a custom Nitro hybrid object (03.02). Spike 00.06 confirms 30 fps camera frames, device QR decoding and live Vision throughput; the barcode package’s arm64 simulator limitation and remaining acceptance gates are recorded in [decision 006](../decisions/006-native-modules.md).
 - **App Attest uses Expo's official `@expo/app-integrity`** — no custom native module (03.07).
 - **`huggan/wikiart` is dropped** (license unknown / non-commercial; no identity fields).
 - **Convex-test supports vector search** (brute-force), so identify is fully unit-testable.

@@ -23,6 +23,8 @@ Design §5.6: device identity always; an optional account (Sign in with Apple) i
 
 ## Current state
 
+- [Decision 006](../../decisions/006-native-modules.md) proves `jose` 6.2.12 RS256 verification and Apple remote-JWKS resolution in Convex 1.45.0’s local default runtime. It also verifies a real `expo-apple-authentication` token against Apple JWKS with the observed spike bundle-ID audience `app.artlog.spike` and rejects the wrong audience. Use the product bundle ID `app.artlog.ios` here; actual provider account/session linking remains an integration test.
+
 - Convex Auth with the Anonymous provider (04.04): each device has its own auth user; `devices.by_authUserId`.
 - Verified facts (2026-09-08): Convex Auth documents only the OAuth redirect flow for Apple; the escape hatch is a custom `ConvexCredentials` provider whose `authorize(credentials, ctx)` verifies the `identityToken` from `expo-apple-authentication` (`jose` `jwtVerify` against `https://appleid.apple.com/auth/keys`, issuer `https://appleid.apple.com`, audience = the app bundle id) and calls `retrieveAccount`/`createAccount` (`@convex-dev/auth/server`) with `provider: 'apple-native'`, `account: { id: sub }`. `callbacks.createOrUpdateUser` controls which user the session belongs to; returning the **current** (anonymous) user id keeps the device's auth identity stable. `expo-apple-authentication` ~57: plugin `expo-apple-authentication` + `ios.usesAppleSignIn: true`; `signInAsync({ requestedScopes: [FULL_NAME, EMAIL] })` → `{ identityToken, user, email?, fullName? }`; `AppleAuthenticationButton`.
 - `collections` rows are per device with `localId`; `accounts { appleUserId, deviceIds, createdAt }`; `devices.accountId`.

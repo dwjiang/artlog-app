@@ -6,13 +6,14 @@
 > re-done properly by the `03-on-device/*` plans. Update the status row in
 > `docs/plans/README.md` when done.
 >
-> **Drift check**: `ls docs/decisions/006-native-modules.md` must not exist.
+> **Completed**: Read `docs/decisions/006-native-modules.md` for measured results and explicit downstream acceptance gates. The native implementation belongs to the `03-on-device/*` plans.
 
 ## Status
 
+- **Progress**: DONE — [decision 006](../../decisions/006-native-modules.md), 2026-09-09; camera/QR, live Vision, five-minute thermal run and ORB rerun completed on iPhone. Remaining unknowns are assigned to downstream acceptance tests.
 - **Priority**: P0 (gates every `03-on-device/*` plan)
 - **Effort**: M–L (2 days; needs a physical iPhone)
-- **Risk**: MED (three third-party native packages are untested on RN 0.86)
+- **Risk**: MED (device packages proven; barcode simulator support and artwork crop quality need follow-up)
 - **Depends on**: `docs/plans/01-foundation/04-dev-client-and-eas.md` (a dev build works)
 - **Category**: spike
 - **Planned at**: commit `86571a3`, 2026-09-08
@@ -42,7 +43,7 @@ Design §6 and §11 ("Native plumbing eats the schedule") name three native piec
 
 ## Method
 
-`git worktree add ../artlog-spike-native -b spike/native-modules` from the repo; do everything there; copy only the decision record and any small snippet worth keeping into `spikes/native-modules/notes/` on the main branch. Install packages with `npx expo install`; `npx expo prebuild --clean && npx expo run:ios --device`. Time with `performance.now()` around calls; fps via a counter in the worklet reported once per second with `useRunOnJS`. Delete the worktree at the end.
+`git worktree add ../artlog-spike-native -b spike/native-modules` from the repo; do everything there; copy only the decision record and any small snippet worth keeping into `spikes/native-modules/notes/` on the main branch. Install packages with `npx expo install`; `npx expo prebuild --clean && npx expo run:ios --device`. Time with `performance.now()` around calls; fps via a counter in the worklet reported once per second with `scheduleOnRN` from `react-native-worklets`. Delete the worktree at the end.
 
 ## Deliverable
 
@@ -50,9 +51,9 @@ Design §6 and §11 ("Native plumbing eats the schedule") name three native piec
 
 ## Done criteria
 
-- [ ] Decision record exists with all seven answers (or explicit unknowns)
-- [ ] Spike branch deleted; nothing native committed to the workspace branch
-- [ ] `docs/plans/README.md` status row updated, and the `03-on-device/*` rows annotated "blocked on 00.06" are unblocked with the chosen options
+- [x] Decision record exists with all seven answers (or explicit unknowns)
+- [x] Spike branch deleted; nothing native committed to the workspace branch
+- [x] `docs/plans/README.md` status row updated, and the `03-on-device/*` rows annotated "blocked on 00.06" are unblocked with the chosen options
 
 ## STOP conditions
 

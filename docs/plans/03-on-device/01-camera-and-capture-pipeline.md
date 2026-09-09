@@ -13,7 +13,7 @@
 
 - **Priority**: P1
 - **Effort**: M
-- **Risk**: MED (VisionCamera 5 on RN 0.86 is unverified until spike 00.06)
+- **Risk**: MED (00.06 device camera/QR gates passed; barcode arm64 simulator support remains open)
 - **Depends on**: 01.04 (dev client), 04.03 (identify action), `docs/decisions/006-native-modules.md`
 - **Category**: feature
 - **Planned at**: commit `86571a3`, 2026-09-08
@@ -23,6 +23,8 @@
 Design §3: "Scan with the live camera or import from the photo library"; §4.1 step 1–2 and §5.1 "Scan": on capture the phone warps, resizes and letterboxes the crop, runs triage, embeds, extracts ORB, and sends ~20 KB to `identify` — or queues it offline. This plan puts the camera on screen and builds the orchestrator that chains those stages, with the native stages (rectangle warp 03.02, CoreML 03.03, ORB 03.04) plugged in by their own plans. Library imports carry EXIF location and time (§4.4).
 
 ## Current state
+
+- [Decision 006](../../decisions/006-native-modules.md) pins the tested packages. Its combined iPhone build delivers 1280×720 frames at 30 fps, decodes QR on device and captures a 4224×2376 JPEG. Barcode scanner 5.2.3’s ML Kit dependency excludes arm64 simulator builds, so select and verify a QR path before relying on simulator validation.
 
 - `src/components/scan/scan-screen.tsx` is a placeholder (plan 01.02); `src/app/(tabs)/(scan)/index.tsx` renders it headerless.
 - Dev client and `NSCameraUsageDescription`/`NSPhotoLibraryUsageDescription` exist (01.04).

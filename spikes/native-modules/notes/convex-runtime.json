@@ -1,0 +1,25 @@
+{
+  "runtime": "default Convex (no use node)",
+  "appleJwksStatus": 200,
+  "appleKeys": [
+    {
+      "kty": "RSA",
+      "alg": "RS256"
+    },
+    {
+      "kty": "RSA",
+      "alg": "RS256"
+    },
+    {
+      "kty": "RSA",
+      "alg": "RS256"
+    }
+  ],
+  "syntheticRs256Verified": true,
+  "wrongAudience": "JWTClaimValidationFailed: unexpected \"aud\" claim value",
+  "wrongIssuer": "JWTClaimValidationFailed: unexpected \"iss\" claim value",
+  "expired": "JWTExpired: \"exp\" claim timestamp check failed",
+  "appleSignature": "JWSSignatureVerificationFailed: signature verification failed",
+  "credentialsProviderType": "credentials",
+  "realAppleToken": "not acquired; real aud and account/session flow remain unverified"
+}

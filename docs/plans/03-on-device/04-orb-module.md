@@ -12,7 +12,7 @@
 
 - **Priority**: P1
 - **Effort**: M
-- **Risk**: MED (third-party native package untested on RN 0.86 until spike 00.06)
+- **Risk**: LOW–MED (00.06 device extraction/packing passed; Python parity still needs verification)
 - **Depends on**: 03.01, 04.01 (wire format + encoder), `docs/decisions/006-native-modules.md`
 - **Category**: feature
 - **Planned at**: commit `86571a3`, 2026-09-08
@@ -25,7 +25,7 @@ Design §4.1 step 2 / §5.1: "in the same pass the phone extracts ORB keypoints 
 
 - `stages.ts` (03.01) defines `OrbExtractor` and `Triage`; stubs in `default-stages.ts`.
 - Wire format and encoder: `convex/lib/orb/features.ts` exports `encodeOrbFeatures({ count, descriptors: Uint8Array, keypoints: Float32Array })` (plan 04.01); the app may import it (`@convex/lib/orb` alias or relative path) — it is pure TS. Cross-language fixture `shared/fixtures/orb-features-v1.json` (02.01).
-- Verified `react-native-fast-opencv` 1.0.1 facts: New Architecture only; `Mat.createFromBase64(b64)`, `Mat.createFromBuffer('uint8', h, w, channels, buffer)`; `OpenCV.cvtColor(src, dst, ColorConversionCodes.COLOR_BGR2GRAY)`; `OpenCV.ORB_create(nfeatures)`; `OpenCV.detectAndCompute(detector, image, mask?) → { keypoints: KeyPointVector, descriptors: Mat }`; `OpenCV.toJSValue(keypointVector)` → array of `{ x, y, size, angle, response, octave }`; `mat.toBuffer('uint8')`; also `Laplacian`, `meanStdDev`, `threshold`, `countNonZero`, `resize`. Install `npx expo install react-native-fast-opencv`; no config plugin; dev build required. Spike 00.06 recorded ORB timings at 300/500 keypoints and the keypoint cap decision.
+- Verified `react-native-fast-opencv` 1.0.1 facts: New Architecture only; `Mat.createFromBase64(b64)`, `Mat.createFromBuffer('uint8', h, w, channels, buffer)`; `OpenCV.cvtColor(src, dst, ColorConversionCodes.COLOR_BGR2GRAY)`; `OpenCV.ORB_create(nfeatures)`; `OpenCV.detectAndCompute(detector, image, mask?) → { keypoints: KeyPointVector, descriptors: Mat }`; `keypointVector.toArray()` → array of `{ x, y, size, angle, response, octave }`; `mat.toBuffer('uint8') → { rows, cols, channels, buffer: Uint8Array }`; also `Laplacian`, `meanStdDev`, `threshold`, `countNonZero`, `resize`. Install `npx expo install react-native-fast-opencv`; no config plugin; dev build required. Spike 00.06 measured 2.0 ms reported median extraction at both 300 and 500 caps on iPhone 16 Pro, with 300/498 actual points and correct descriptor/keypoint byte counts. Retain cap 500; verify a common fixture against Python. Read metadata before releasing native objects (the initial spike probe failed by reading a released Mat).
 
 ## Commands you will need
 
@@ -51,7 +51,7 @@ Design §4.1 step 2 / §5.1: "in the same pass the phone extracts ORB keypoints 
 
 ### Step 2: ORB extraction in the wire format
 
-`extract.ts`: `extractOrb(cropUri, maxKeypoints = modelVersion.orbMaxKeypoints)`: gray Mat → `ORB_create(maxKeypoints)` → `detectAndCompute` → descriptors `toBuffer('uint8')` (length `count*32`; assert) → keypoints via `toJSValue` → `pack.ts`'s `packKeypoints(kps) → Float32Array` (`[x, y, size, angle]` per keypoint, same order) → `encodeOrbFeatures({ count, descriptors, keypoints })` → `{ descriptors: ArrayBuffer, keypoints: ArrayBuffer, count }`. Release Mats.
+`extract.ts`: `extractOrb(cropUri, maxKeypoints = modelVersion.orbMaxKeypoints)`: gray Mat → `ORB_create(maxKeypoints)` → `detectAndCompute` → descriptors `toBuffer('uint8').buffer` (length `count*32`; assert) → keypoints via `toArray()` → `pack.ts`'s `packKeypoints(kps) → Float32Array` (`[x, y, size, angle]` per keypoint, same order) → `encodeOrbFeatures({ count, descriptors, keypoints })` → `{ descriptors: ArrayBuffer, keypoints: ArrayBuffer, count }`. Release Mats.
 
 **Verify**: `pack.test.ts` (jest): packing order and byte length; `extract.test.ts` with a mocked OpenCV module asserts the assert-on-length; on device, extracting from `jobs/fixtures/test-painting.jpg` (letterboxed) logs `count` and the first 32 descriptor bytes — compare by hand with `shared/fixtures/orb-features-v1.json` (expect the same count ± 5% and ≥ 80% identical descriptor rows; record the numbers in the PR).
 
@@ -63,7 +63,7 @@ Design §4.1 step 2 / §5.1: "in the same pass the phone extracts ORB keypoints 
 
 ### Step 4: Wire stages and measure
 
-`default-stages.ts`: `orb = { extract: extractOrb }`, `triage = { check }`. Log stage timings from the pipeline on device: ORB ≤ 80 ms at 500 keypoints on the oldest test device (00.06 numbers).
+`default-stages.ts`: `orb = { extract: extractOrb }`, `triage = { check }`. Log stage timings from the pipeline on device: ORB ≤ 80 ms at 500 keypoints on the oldest test device (00.06 measured 2.0 ms reported median on iPhone 16 Pro; verify the integrated pipeline and any older test device).
 
 **Verify**: a full capture on device now reaches `identify` (03.03 present) and returns a result for a painting present in the index.
 

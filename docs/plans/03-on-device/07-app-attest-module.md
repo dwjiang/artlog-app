@@ -25,6 +25,7 @@ Design §5.6/§8: every contribution, rejection, venue confirmation and queue bu
 
 - `src/lib/app-attest.ts` (04.04) is a stub returning `null`; `src/lib/device-identity.ts` runs the attest flow only when `getAppAttest()?.isSupported()`; server functions: `createChallenge({ purpose })`, `attestDevice({ keyId, attestationBase64, nonce })`, and `requireAttestedWrite({ nonce, assertionBase64, payload })` expecting the assertion challenge string to be exactly `nonce + "." + payload`.
 - `app.json` has the entitlement `com.apple.developer.devicecheck.appattest-environment: production` (01.04). Dev deployment env: `APP_ATTEST_ALLOW_DEV=true`, `APP_ATTEST_APP_ID=<TEAMID>.app.artlog.ios`, `APP_ATTEST_REQUIRED` (false on dev, true on prod).
+- [Decision 006](../../decisions/006-native-modules.md) proved generation on iPhone with `@expo/app-integrity` 57.0.1. Its development-signed spike build yielded a **production** attestation matching the entitlement; do not assume sandbox from signing type. Product bundle RP ID and full server registration still need verification.
 - Verified `@expo/app-integrity` ~57.0.1: `AppIntegrity.isSupported: boolean`, `generateKeyAsync(): Promise<string>`, `attestKeyAsync(keyId, challenge): Promise<string>` (SHA-256 of the UTF-8 challenge computed natively; base64 attestation), `generateAssertionAsync(keyId, challenge): Promise<string>` (base64); Simulator unsupported; add the App Attest capability (entitlement) — no config plugin.
 
 ## Scope
