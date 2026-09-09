@@ -10,6 +10,8 @@
 
 import type * as appAttestNode from "../appAttestNode.js";
 import type * as auth from "../auth.js";
+import type * as crawl from "../crawl.js";
+import type * as crons from "../crons.js";
 import type * as devices from "../devices.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
@@ -21,6 +23,7 @@ import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
 import type * as lib_calibrator_features from "../lib/calibrator/features.js";
 import type * as lib_calibrator_index from "../lib/calibrator/index.js";
 import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
+import type * as lib_collectionSiteProbe from "../lib/collectionSiteProbe.js";
 import type * as lib_flags from "../lib/flags.js";
 import type * as lib_identifyPipeline from "../lib/identifyPipeline.js";
 import type * as lib_modelVersion from "../lib/modelVersion.js";
@@ -36,9 +39,12 @@ import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_spend from "../lib/spend.js";
 import type * as lib_testFactories from "../lib/testFactories.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as lib_venueOptOut from "../lib/venueOptOut.js";
+import type * as museums from "../museums.js";
 import type * as scans from "../scans.js";
 import type * as spend from "../spend.js";
 import type * as venueTable from "../venueTable.js";
+import type * as visits from "../visits.js";
 
 import type {
   ApiFromModules,
@@ -49,6 +55,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
   auth: typeof auth;
+  crawl: typeof crawl;
+  crons: typeof crons;
   devices: typeof devices;
   health: typeof health;
   http: typeof http;
@@ -60,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   "lib/calibrator/features": typeof lib_calibrator_features;
   "lib/calibrator/index": typeof lib_calibrator_index;
   "lib/calibrator/weights": typeof lib_calibrator_weights;
+  "lib/collectionSiteProbe": typeof lib_collectionSiteProbe;
   "lib/flags": typeof lib_flags;
   "lib/identifyPipeline": typeof lib_identifyPipeline;
   "lib/modelVersion": typeof lib_modelVersion;
@@ -75,9 +84,12 @@ declare const fullApi: ApiFromModules<{
   "lib/spend": typeof lib_spend;
   "lib/testFactories": typeof lib_testFactories;
   "lib/validators": typeof lib_validators;
+  "lib/venueOptOut": typeof lib_venueOptOut;
+  museums: typeof museums;
   scans: typeof scans;
   spend: typeof spend;
   venueTable: typeof venueTable;
+  visits: typeof visits;
 }>;
 
 /**

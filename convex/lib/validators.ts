@@ -48,7 +48,8 @@ export const crawlRunStatus = v.union(
   v.literal('running'),
   v.literal('complete'),
   v.literal('failed'),
-  v.literal('capped')
+  v.literal('capped'),
+  v.literal('no_index')
 );
 export type CrawlRunStatus = Infer<typeof crawlRunStatus>;
 

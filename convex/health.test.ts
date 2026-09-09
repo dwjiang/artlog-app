@@ -37,6 +37,7 @@ describe('schema', () => {
         optOut: false,
         useTavilyCrawl: false,
         queuePriority: 0,
+        failureCount: 0,
         indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: 0 },
       })
     );
