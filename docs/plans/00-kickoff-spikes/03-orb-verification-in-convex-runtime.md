@@ -41,9 +41,9 @@ In the throwaway project from spike 00.02 (or a new `spikes/orb-runtime/` with i
 
 ## Done criteria
 
-- [ ] Decision record exists with questions 1, 2 and 4 answered; question 3 answered or marked "not needed (JS under budget)"
-- [ ] `spikes/orb-runtime/` committed without copying secrets
-- [ ] `docs/plans/README.md` status row updated
+- [x] Decision record exists with questions 1, 2 and 4 answered; question 3 answered or marked "not needed (JS under budget)"
+- [x] `spikes/orb-runtime/` committed without copying secrets
+- [x] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 
