@@ -330,14 +330,12 @@ export const upsertVectors = internalMutation({
         source: row.source,
         vector: row.vector,
       };
-      const existing = (
-        await ctx.db
-          .query('vectors')
-          .withIndex('by_objectId_modelVersion', (q) =>
-            q.eq('objectId', object._id).eq('modelVersion', row.modelVersion)
-          )
-          .collect()
-      ).find((vec) => vec.source === row.source);
+      const existing = await ctx.db
+        .query('vectors')
+        .withIndex('by_objectId_modelVersion_source', (q) =>
+          q.eq('objectId', object._id).eq('modelVersion', row.modelVersion).eq('source', row.source)
+        )
+        .unique();
       const naturalKey = `${row.objectKey}|${row.modelVersion}|${row.source}`;
       if (existing) {
         await ctx.db.replace(existing._id, doc);

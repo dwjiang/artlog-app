@@ -126,7 +126,7 @@ export default defineSchema({
       dimensions: model.embeddingDim,
       filterFields: ['modelVersion'],
     })
-    .index('by_objectId_modelVersion', ['objectId', 'modelVersion']),
+    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source']),
 
   descriptors: defineTable({
     objectId: v.id('objects'),

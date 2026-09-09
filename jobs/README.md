@@ -43,18 +43,29 @@ features, metadata and checkpoints.
 | `model_version.py` | `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS` from `../shared/model-version.json` |
 | `letterbox.py` | `letterbox(img, size)`: RGB, bilinear resize so the long side equals `size`, centered on a `size×size` canvas filled with the resized image's per-channel mean (half-up rounded). The phone's Swift version (plan 03.02) must match it |
 | `orb.py` | `extract_orb(gray, nfeatures)` → `OrbFeatures(descriptors, keypoints, count)` in plan 04.01's wire format; `extract_from_image(img)` letterboxes first; `python -m artlog_jobs.orb <image> <fixture.json>` writes `shared/fixtures/orb-features-v1.json` |
-| `convex_writer.py` | `ConvexWriter(settings)`: `upsert(fn, rows, batch_size≤500, on_batch)` splits, retries transient errors (never `ConvexError`), merges returned `ids`; `query`, `mutation` |
+| `convex_writer.py` | `ConvexWriter(settings)`: `upsert(fn, rows, batch_size≤500, on_batch)` splits (descriptor batches capped at 200 rows), retries transient errors (never `ConvexError`), merges returned `ids`; `query`, `mutation` |
 | `checkpoint.py` | `Checkpoint.for_job(settings, job)`: per-stage `done` key sets and cursors, written atomically after every change |
-| `polite_http.py` | `PoliteClient(user_agent, per_host_rps)`: per-host spacing, robots.txt cache (daily refresh; 5xx, 401/403/429 or HTML ⇒ disallow all; 404 ⇒ allow), `Crawl-delay`, `Retry-After`, ETag / Last-Modified conditional GETs |
+| `polite_http.py` | `PoliteClient(user_agent, per_host_rps)`: per-host spacing and robots checks on each page redirect, robots.txt cache (daily refresh; 5xx, 401/403/429 or HTML ⇒ disallow all; 404 ⇒ allow), `Crawl-delay`, `Retry-After`, ETag / Last-Modified conditional GETs |
 | `smoke.py` | Prints interpreter, device, an fp16 matmul shape, scratch path and Convex `ingest:counts` |
 
 Python ints are sent to Convex as float64 by the client, which is what every
 `v.number()` field expects; use `convex.ConvexInt64` only for `v.int64()`.
 
+HTTP response bodies use a least-recently-used cache capped at 16 MiB and 128
+entries. Set `cache_max_bytes=0` for one-pass image downloads; bodies larger
+than the budget are never cached. Cached compressed responses replay their
+decoded bytes with matching headers.
+
+A server `Retry-After` longer than `max_retry_after` (default 120 seconds)
+raises `RetryLater`, exposing `host` and the remaining `retry_after` seconds
+so the job can defer that work. The client remembers the full host cooldown,
+including on the final retry attempt; other hosts remain available. Shorter
+delays are waited out before another request to that host.
+
 ## Verification
 
 ```sh
-cd jobs && uv run pytest -q                                  # 36 tests
+cd jobs && uv run pytest -q
 cd jobs && uv run ruff check . && uv run ruff format --check .
 npm run test:convex                                          # convex/ingest.test.ts, convex/lib/orb/pythonFixture.test.ts
 npx convex dev --once                                        # push ingest functions

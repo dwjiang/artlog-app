@@ -231,7 +231,7 @@ describe('placements, vectors and descriptors', () => {
     const vectors = await t.run((ctx) =>
       ctx.db
         .query('vectors')
-        .withIndex('by_objectId_modelVersion', (q) =>
+        .withIndex('by_objectId_modelVersion_source', (q) =>
           q.eq('objectId', objectId).eq('modelVersion', model.modelVersion)
         )
         .collect()
@@ -244,6 +244,49 @@ describe('placements, vectors and descriptors', () => {
         t.mutation(internal.ingest.upsertVectors, { rows: [{ ...row, vector: [0.1, 0.2] }] })
       )
     ).toMatchObject({ code: 'bad_dimension', expected: model.embeddingDim, actual: 2 });
+  });
+
+  it('updates a full vector batch with multiple sources within transaction limits', async () => {
+    const t = convexTest({ schema, modules, transactionLimits: true });
+    await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
+    await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
+    const objectRows = Array.from({ length: MAX_BATCH_ROWS }, (_, i) => ({
+      ...metObject,
+      key: `met:batch-${i}`,
+    }));
+    const objects = await t.mutation(internal.ingest.upsertObjects, { rows: objectRows });
+    const rows = objectRows.map(({ key }) => ({
+      objectKey: key,
+      modelVersion: model.modelVersion,
+      source: 'corpus' as const,
+      vector: vector(1),
+    }));
+    const original = await t.mutation(internal.ingest.upsertVectors, { rows });
+    for (const source of ['crawl', 'user'] as const) {
+      await t.mutation(internal.ingest.upsertVectors, {
+        rows: rows.map((row) => ({ ...row, source })),
+      });
+    }
+
+    const updated = await t.mutation(internal.ingest.upsertVectors, {
+      rows: rows.map((row) => ({ ...row, vector: vector(2) })),
+    });
+    expect(updated.ids).toEqual(original.ids);
+    expect((await t.query(internal.ingest.counts, {})).vectors).toBe(MAX_BATCH_ROWS * 3);
+    for (const object of [objectRows[0], objectRows[MAX_BATCH_ROWS - 1]]) {
+      const vectors = await t.run((ctx) =>
+        ctx.db
+          .query('vectors')
+          .withIndex('by_objectId_modelVersion_source', (q) =>
+            q.eq('objectId', objects.ids[object.key]).eq('modelVersion', model.modelVersion)
+          )
+          .collect()
+      );
+      expect(vectors).toHaveLength(3);
+      expect(vectors.find((row) => row.source === 'corpus')?.vector).toEqual(vector(2));
+      expect(vectors.find((row) => row.source === 'crawl')?.vector).toEqual(vector(1));
+      expect(vectors.find((row) => row.source === 'user')?.vector).toEqual(vector(1));
+    }
   });
 
   it('stores one descriptor set per object and rejects malformed bytes', async () => {
