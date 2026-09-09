@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.16",
+    "convex": "^1.45.0",
     "expo": "~57.0.20",
     "expo-constants": "~57.0.17",
     "expo-device": "~57.0.1",
@@ -32,6 +33,7 @@
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
+    "convex-test": "^0.0.56",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
     "expo-mcp": "~0.2.1",
@@ -48,7 +50,8 @@
     "test": "npm run test:app && npm run test:convex",
     "test:app": "jest",
     "test:convex": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "convex:codegen": "convex codegen"
   },
   "jest": {
     "preset": "jest-expo",
