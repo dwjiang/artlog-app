@@ -104,12 +104,57 @@ All `internalMutation`/`internalQuery` (admin-key callers only), each with `args
 
 ## Done criteria
 
-- [ ] `cd jobs && uv run pytest -q` passes (≥ 12 tests); `uv run ruff check .` exits 0
-- [ ] `npx tsc --noEmit`, `npm run lint`, `npm run test:convex` exit 0; `npx convex dev --once` succeeds
-- [ ] `grep -c "internalMutation\|internalQuery" convex/ingest.ts` ≥ 9
-- [ ] `uv run python -m artlog_jobs.smoke` exits 0 on the Mac with `device=mps` (output recorded in `jobs/README.md`)
-- [ ] `git grep -n "deploy_key\|DEPLOY_KEY=" -- ':!jobs/README.md' ':!docs'` shows no literal key values
-- [ ] `docs/plans/README.md` status row updated
+- [x] `cd jobs && uv run pytest -q` passes (≥ 12 tests); `uv run ruff check .` exits 0
+- [x] `npx tsc --noEmit`, `npm run lint`, `npm run test:convex` exit 0; `npx convex dev --once` succeeds
+- [x] `grep -c "internalMutation\|internalQuery" convex/ingest.ts` ≥ 9
+- [x] `uv run python -m artlog_jobs.smoke` exits 0 on the Mac with `device=mps` (output recorded in `jobs/README.md`)
+- [x] `git grep -n "deploy_key\|DEPLOY_KEY=" -- ':!jobs/README.md' ':!docs'` shows no literal key values
+- [x] `docs/plans/README.md` status row updated
+
+## Execution notes — 2026-09-09
+
+- Drift check: `jobs/` existed with only `jobs/config/source-scores.json` from
+  spike 00.05; it was kept in place and the scaffold was built around it.
+- `uv sync` resolved Python 3.13.15, torch 2.14.0 (`mps` available), OpenCV
+  4.14, convex 0.7.0, pydantic-settings 2.15 (added: pydantic 2 keeps
+  `BaseSettings` in that package). `settings.device` is a cached property so
+  torch is imported only when a job asks for a device. `Settings` also reads
+  the repo root `.env.local`, so local runs need no exports.
+- The Python client converts `int` to float64 itself, so no coercion lives in
+  the writer; `ConvexWriter.upsert` takes an `on_batch(rows, ids)` callback for
+  checkpointing after each successful batch.
+- `CONVEX_DEPLOY_KEY` was minted with the official CLI path
+  `npx convex deployment token create artlog-jobs-local --deployment dev --save-env`
+  (no dashboard step), documented in `.env.example`, mirrored to the Conductor
+  root `.env.local` together with `CONVEX_URL`. `set_admin_auth` with that key
+  calls the internal functions, so the first STOP condition did not apply.
+- `CRAWLER_CONTACT` is documented but left unset in `.env.local`; the
+  User-Agent omits `mailto:` until the operator chooses the contact address.
+- Every upsert replaces the ingest-owned fields of an existing row (absent
+  optionals clear), keeps counters/provenance/enrichment, and returns
+  `{ ids }` keyed by the natural key (`objectKey|venueKey|source` for
+  placements, `objectKey|modelVersion|source` for vectors). `upsertDescriptors`
+  also validates the wire-format byte lengths (`bad_descriptors`).
+- The cross-language ORB test lives in `convex/lib/orb/pythonFixture.test.ts`
+  and decodes the fixture with `DataView` only: plan 04.01 is being executed in
+  a parallel worktree, so `features.test.ts` does not exist on this branch.
+  04.01 can fold the fixture into `decodeOrbFeatures` when it lands.
+- Fixture image: Met object 436535 (van Gogh, *Wheat Field with Cypresses*,
+  CC0), re-encoded to 156 KB; ORB returned exactly 500 keypoints. The
+  committed fixture is compared byte-for-byte with a fresh extraction, so a
+  future OpenCV bump that changes ORB output requires regenerating it.
+- Letterbox note for 02.04: spike 00.01's calibration letterbox was bicubic
+  with black padding (decision 001); this plan implements the bilinear,
+  mean-color spec that 03.02 mirrors. 02.04's drift check measures the effect
+  against the iPhone reference; nothing here changes the spike.
+- `npx convex dev --once` on the shared dev deployment unmounted another
+  worktree's `rateLimiter` component and dropped its auth/attest indexes
+  (plan 04.04 in progress), and that worktree's later push removed
+  `ingest.ts` before the first smoke run. Re-pushing immediately before the
+  smoke run fixed it; the hazard is recorded in `docs/plans/README.md`.
+- `.easignore` already excluded `jobs/`; `.gitignore` gained the `jobs/`
+  run directories. Done criteria: 36 Python tests, 21 Convex tests,
+  `tsc`/`lint`/`ruff` clean.
 
 ## STOP conditions
 

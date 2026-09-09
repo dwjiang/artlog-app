@@ -34,7 +34,7 @@ Design excerpts:
 - `src/app/_layout.tsx` wraps the root Stack in `<ConvexProvider client={convex}>` where `convex` comes from `src/lib/convex-client.ts`.
 - Verified platform facts (Convex docs, `@convex-dev/auth` 0.0.95, `@convex-dev/rate-limiter` 0.3.2):
   - Convex Auth for React Native: `ConvexAuthProvider` from `@convex-dev/auth/react` with a `storage` adapter backed by `expo-secure-store` (`getItem: SecureStore.getItemAsync`, `setItem: SecureStore.setItemAsync`, `removeItem: SecureStore.deleteItemAsync`); `unsavedChangesWarning: false` on the client is mandatory in RN.
-  - Anonymous provider: `import { Anonymous } from "@convex-dev/auth/providers/Anonymous"`; client `signIn("anonymous")`; server `getAuthUserId(ctx)` from `@convex-dev/auth/server`.
+  - Anonymous provider: `ConvexCredentials` with id `anonymous`; client `signIn("anonymous", { secret })` uses a persisted random installation credential. Its SHA-256 hash identifies the auth account, so expired sessions recover the same user. Server identity comes from `getAuthUserId(ctx)`.
   - `auth.config.ts` must exist and be correct or the app is silently always signed out. JWT keys must be generated **headlessly** with `jose` (the interactive `npx @convex-dev/auth` wizard hangs without a TTY) and set with `npx convex env set "JWT_PRIVATE_KEY=…"` (NAME=VALUE form; the value starts with `-----BEGIN`), plus `JWKS` and `SITE_URL`. See the repo skill `.agents/skills/convex-auth/SKILL.md` for the exact `node -e` one-liner.
   - Rate limiter: `app.use(rateLimiter)` in `convex/convex.config.ts`; `new RateLimiter(components.rateLimiter, { name: { kind: "token bucket" | "fixed window", rate, period, capacity? } })`; `await limiter.limit(ctx, name, { key, throws: true })` works in **mutations and actions**; `check()` in queries; test helper `import rateLimiter from "@convex-dev/rate-limiter/test"; rateLimiter.register(t)`.
   - `process.env.X` is readable in every function type; secrets are set with `npx convex env set`.
@@ -47,7 +47,7 @@ Design excerpts:
 | Purpose | Command | Expected on success |
 |---|---|---|
 | Install server deps | `npm install @convex-dev/auth @auth/core@0.41.1 @convex-dev/rate-limiter jose cbor-x` | exit 0 |
-| Install app deps | `npx expo install expo-secure-store` | exit 0 |
+| Install app deps | `npx expo install expo-secure-store expo-crypto` | exit 0 |
 | Node-runtime attestation lib | `npm install node-app-attest` | exit 0 (see STOP conditions) |
 | Set env var | `npx convex env set NAME value` / `npx convex env set "NAME=value"` | "Successfully set" |
 | Push | `npx convex dev --once` | success |
@@ -90,7 +90,7 @@ Design excerpts:
 2. `convex/schema.ts`: spread `authTables` from `@convex-dev/auth/server` into `defineSchema({ ...authTables, …existing })`. Extend `devices` with `attestedAt?: number`, `attestPublicKey?: string` (base64 SPKI), `attestCounter: number`, `platform: v.union(v.literal("ios"), v.literal("simulator"))`. Add tables:
    - `attestChallenges { deviceId?: id(devices), authUserId: string, nonce: string, purpose: 'attest' | 'assert', createdAt: number, usedAt?: number }` index `by_nonce ["nonce"]`, `by_authUserId ["authUserId"]`.
    - `dailySpend { day: string (YYYY-MM-DD UTC), tokenFactoryCalls: number, tavilyCredits: number, updatedAt: number }` index `by_day ["day"]`.
-3. `convex/auth.ts`: `export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({ providers: [Anonymous] })`.
+3. `convex/auth.ts`: configure `ConvexCredentials` with id `anonymous`; require a 64-character lowercase hex credential, hash it with SHA-256, and use `createAccount` with that hash as the account id and `{ isAnonymous: true }`. Reusing the credential must return the existing user; never accept a user or device id as authentication.
 4. `convex/auth.config.ts`: `{ providers: [{ domain: process.env.CONVEX_SITE_URL, applicationID: "convex" }] }`.
 5. `convex/http.ts`: `httpRouter()`, `auth.addHttpRoutes(http)`, export default.
 6. Generate keys headlessly with the `jose` one-liner from the `convex-auth` skill; set `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` (use `https://artlog.app` as a placeholder site URL — Anonymous sign-in does not redirect) with `npx convex env set "NAME=value"`; delete the temporary key file. Add to `.env.example` a comment block listing server-side env var names (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `SUPPORTED_MODEL_VERSIONS`, `FLAG_LABEL_FLOW`, `FLAG_RIGHT_NOW`, `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP`) with the note "set with `npx convex env set`, never in this file".
@@ -158,7 +158,7 @@ export async function limitDevice(ctx, name, deviceId, extraKey?)   // throws Co
 
 - `src/lib/convex-client.ts`: keep `ConvexReactClient`; `src/app/_layout.tsx`: replace `ConvexProvider` with `ConvexAuthProvider client={convex} storage={secureStorage}` (adapter as above).
 - `src/lib/app-attest.ts`: `export type AppAttest = { isSupported(): boolean; generateKey(): Promise<string>; attestKey(keyId: string, challenge: string): Promise<string>; generateAssertion(keyId: string, challenge: string): Promise<string> }; export function getAppAttest(): AppAttest | null { return null; } // Implemented with @expo/app-integrity in docs/plans/03-on-device/07-app-attest-module.md` (attestation/assertion results are base64 strings).
-- `src/lib/device-identity.ts`: `useDeviceIdentity()` hook: when `useConvexAuth().isAuthenticated` is false and not loading → `signIn('anonymous')`; once authenticated → `registerDevice({ platform: Device.isDevice ? 'ios' : 'simulator' })` once per app launch (guard with a module-level promise); if `attestRequired && !attested && getAppAttest()?.isSupported()` → `createChallenge({ purpose: 'attest' })` → `generateKey()` → `attestKey(keyId, nonce)` → `attestDevice({ keyId, attestationBase64, nonce })`. Persist the key id in SecureStore under `appAttestKeyId`.
+- `src/lib/device-identity.ts`: when auth is not loading and unauthenticated, load the installation credential from `device-credentials.ts` and call `signIn('anonymous', { secret })`. Generate 32 random bytes with Expo Crypto only when absent, and persist them in SecureStore before sign-in. Once authenticated, register once per launch; when required and supported, run challenge → generate key → attest key → `attestDevice`. Persist the App Attest key id separately under `appAttestKeyId`.
 - Settings screen: show `Device: <deviceId> · attested: yes/no`.
 
 **Verify**: `npm run ios` → Settings shows a device id within a few seconds of launch; killing and relaunching the app keeps the same id (SecureStore session); `npx convex data devices` shows one row with `platform: "simulator"`.
@@ -198,3 +198,35 @@ Run the deterministic scan from the repo skill `convex-authz` over `convex/**/*.
 - `APP_ATTEST_REQUIRED` must be `true` on the production deployment before TestFlight external testing (plan 06.01 checks it).
 - Rate-limit numbers are starting points; tune in `rateLimits.ts` only (never per call site).
 - Deferred: trust weights (§8), account-linked device aggregation (04.11), CAPTCHA for anonymous sign-up (Convex Auth's own recommendation; App Attest covers it here).
+
+## Execution record — 2026-09-09
+
+Implemented and pushed to personal dev `usable-owl-256`. The existing 18-table
+foundation matched 01.03 before the auth tables and two planned tables were added.
+`JWT_PRIVATE_KEY`, `JWKS`, and `SITE_URL` were already configured; no keys were rotated.
+
+- `npx convex codegen`, `npx convex dev --once`, `npx tsc --noEmit`, and
+  `npm run lint` pass. All 64 backend and 22 app tests pass, including an independent
+  published assertion vector, challenge replay/expiry/ownership, key uniqueness,
+  counter protection, concurrent spend reservations, UTC rollover, auth retries,
+  and session-expiry recovery preserving the device's attestation, counter, trust and ban.
+- `npm run ios -- --port 8082` built and launched on the iPhone 17 Pro simulator
+  in light mode. Port 8081 belongs to another workspace. A fresh simulator signed
+  in with the persisted installation credential; Settings showed the same device
+  ID before and after stopping and relaunching the process.
+- Public device functions derive identity from auth and accept no caller-supplied
+  device/user IDs. The existing metadata-only health query remains unauthenticated.
+  Live challenge creation also passed. The CLI could not invoke the internal
+  challenge consumer with an impersonated identity; consumption/replay are covered
+  by transaction tests.
+- `node-app-attest` supplies the Node verifier. `cbor-x/decode` loads in the edge
+  tests and deployed bundle. Assertion verification hashes the composite to a nonce
+  before ECDSA-SHA256 verification, as confirmed by the published assertion vector.
+- `APP_ATTEST_APP_ID` remains unset because the Apple Team ID is unavailable.
+  Verification fails closed until it is configured. The phone adapter stays a
+  stub; physical-device verification belongs to 03.07. Its smoke endpoint will be
+  added there.
+- Supporting configuration changes include the SecureStore plugin in `app.json`,
+  the native iOS build script, Node types, and test dependency transforms. Spend
+  action wrappers live in `convex/spend.ts`; reservation returns a UTC day that
+  callers must pass to reconciliation exactly once.

@@ -27,6 +27,7 @@ describe('schema', () => {
     const t = convexTest(schema, modules);
     const museumId = await t.run((ctx) =>
       ctx.db.insert('museums', {
+        key: 'wikidata:Q160236',
         name: 'Museum of Modern Art',
         lat: 40.7614,
         lng: -73.9776,

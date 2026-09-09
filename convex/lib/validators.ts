@@ -138,3 +138,7 @@ export type ContributionField = Infer<typeof contributionField>;
 // Length is enforced in code against shared/model-version.json embeddingDim, not here.
 export const embedding = v.array(v.float64());
 export type Embedding = Infer<typeof embedding>;
+
+export const devicePlatform = v.union(v.literal('ios'), v.literal('simulator'));
+
+export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'));
