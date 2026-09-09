@@ -277,12 +277,14 @@ export default defineSchema({
     keypointCount: v.optional(v.number()),
     capturedAt: v.number(),
     status: scanStatus,
+    calibratorVersion: v.optional(v.string()),
     outcome: v.optional(matchOutcome),
     best: v.optional(
       v.object({
         objectId: v.id('objects'),
         artworkId: v.id('artworks'),
         probability: v.number(),
+        gallery: v.optional(v.string()),
         corners: v.optional(v.array(v.array(v.number()))),
       })
     ),

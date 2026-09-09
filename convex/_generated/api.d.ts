@@ -21,6 +21,7 @@ import type * as lib_calibrator_features from "../lib/calibrator/features.js";
 import type * as lib_calibrator_index from "../lib/calibrator/index.js";
 import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
 import type * as lib_flags from "../lib/flags.js";
+import type * as lib_modelVersion from "../lib/modelVersion.js";
 import type * as lib_orb_features from "../lib/orb/features.js";
 import type * as lib_orb_hamming from "../lib/orb/hamming.js";
 import type * as lib_orb_homography from "../lib/orb/homography.js";
@@ -31,7 +32,9 @@ import type * as lib_orb_verify from "../lib/orb/verify.js";
 import type * as lib_placements from "../lib/placements.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_spend from "../lib/spend.js";
+import type * as lib_testFactories from "../lib/testFactories.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as scans from "../scans.js";
 import type * as spend from "../spend.js";
 
 import type {
@@ -54,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "lib/calibrator/index": typeof lib_calibrator_index;
   "lib/calibrator/weights": typeof lib_calibrator_weights;
   "lib/flags": typeof lib_flags;
+  "lib/modelVersion": typeof lib_modelVersion;
   "lib/orb/features": typeof lib_orb_features;
   "lib/orb/hamming": typeof lib_orb_hamming;
   "lib/orb/homography": typeof lib_orb_homography;
@@ -64,7 +68,9 @@ declare const fullApi: ApiFromModules<{
   "lib/placements": typeof lib_placements;
   "lib/rateLimits": typeof lib_rateLimits;
   "lib/spend": typeof lib_spend;
+  "lib/testFactories": typeof lib_testFactories;
   "lib/validators": typeof lib_validators;
+  scans: typeof scans;
   spend: typeof spend;
 }>;
 
