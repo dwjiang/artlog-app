@@ -166,6 +166,8 @@ export default defineSchema({
     ),
     useTavilyCrawl: v.boolean(),
     queuePriority: v.number(),
+    failureCount: v.number(),
+    lastBumpedAt: v.optional(v.number()),
     indexStatus: v.object({
       status: indexStatusKind,
       pagesMapped: v.number(),
@@ -183,8 +185,10 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
+    .index('by_lat', ['lat'])
     .index('by_queuePriority', ['queuePriority'])
-    .index('by_indexStatus', ['indexStatus.status']),
+    .index('by_indexStatus', ['indexStatus.status', 'queuePriority'])
+    .index('by_status_lastCrawledAt', ['indexStatus.status', 'lastCrawledAt']),
 
   venueTables: defineTable({
     version: v.number(),
@@ -206,12 +210,32 @@ export default defineSchema({
   crawlRuns: defineTable({
     venueId: v.id('museums'),
     startedAt: v.number(),
+    updatedAt: v.number(),
+    claimedBy: v.optional(v.string()),
     finishedAt: v.optional(v.number()),
     status: crawlRunStatus,
     pagesMapped: v.number(),
     worksIndexed: v.number(),
     error: v.optional(v.string()),
-  }).index('by_venueId', ['venueId']),
+  })
+    .index('by_venueId', ['venueId'])
+    .index('by_status_updatedAt', ['status', 'updatedAt']),
+
+  crawlPages: defineTable({
+    venueId: v.id('museums'),
+    url: v.string(),
+    sitemapLastmod: v.optional(v.string()),
+    etag: v.optional(v.string()),
+    lastModified: v.optional(v.string()),
+    processedAt: v.number(),
+  }).index('by_venueId_url', ['venueId', 'url']),
+
+  crawlLaunches: defineTable({
+    at: v.number(),
+    mode: v.string(),
+    ok: v.boolean(),
+    response: v.string(),
+  }).index('by_at', ['at']),
 
   artistContext: defineTable({
     artistId: v.string(),
@@ -367,6 +391,12 @@ export default defineSchema({
     lastConfidentGallery: v.optional(v.string()),
     lastConfidentAt: v.optional(v.number()),
   }).index('by_device_started', ['deviceId', 'startedAt']),
+
+  visitStarts: defineTable({
+    deviceId: v.id('devices'),
+    localVisitId: v.string(),
+    visitId: v.id('visits'),
+  }).index('by_device_localVisitId', ['deviceId', 'localVisitId']),
 
   collections: defineTable({
     deviceId: v.id('devices'),

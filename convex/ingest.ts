@@ -135,7 +135,7 @@ async function requireByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: 
   return doc;
 }
 
-async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inserted: number) {
+export async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inserted: number) {
   if (inserted === 0) return;
   const existing = await ctx.db.query('ingestCounters').first();
   if (existing === null) {
@@ -173,6 +173,7 @@ export const upsertMuseums = internalMutation({
           optOut: false,
           useTavilyCrawl: false,
           queuePriority: 0,
+          failureCount: 0,
           indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
         });
         inserted += 1;
