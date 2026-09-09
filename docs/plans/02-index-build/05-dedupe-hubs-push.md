@@ -23,7 +23,7 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 ## Current state
 
-- Scratch holds `metadata/*.jsonl` (02.03) and `features/` shards + `manifest.json` (02.04).
+- `SCRATCH_DIR` on the operator's Mac holds `metadata/*.jsonl` (02.03) and `features/` shards + `manifest.json` (02.04); the images are already gone.
 - `convex/ingest.ts` (02.01) has the upsert mutations keyed by natural keys; `upsertVectors` replaces `(objectKey, modelVersion, source)`; `upsertDescriptors` one per object; `setObjectPenalty`; `counts`.
 - Convex limits (verified): ≤ 16,000 docs / 16 MiB per mutation; 1536 floats ≈ 15–25 KB as JSON → **≤ 300 vectors per batch**; descriptors ≤ 24 KB each → ≤ 300 per batch; spike 00.02 measured throughput (use its recommended sizes if smaller).
 
@@ -34,7 +34,7 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 | Dedupe | `uv run python -m artlog_jobs.dedupe --features $SCRATCH_DIR/features --metadata $SCRATCH_DIR/metadata --out $SCRATCH_DIR/merged` | `merges.jsonl`, updated `objects.jsonl` |
 | Hubs | `uv run python -m artlog_jobs.hubs --features $SCRATCH_DIR/merged --out $SCRATCH_DIR/merged/penalties.jsonl` | penalties file |
 | Push | `uv run python -m artlog_jobs.push --in $SCRATCH_DIR/merged` | counts printed |
-| Whole | `jobs/scripts/launch-job.sh artlog_jobs.build_index --gpu -- --stage dedupe,hubs,push` | job completes |
+| Whole | `caffeinate -i uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push` | completes; resumable |
 
 ## Scope
 
@@ -46,7 +46,7 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 ### Step 1: Dedupe
 
-`dedupe.py`: load objects + vectors; (a) group objects with the same `ownerKey` and normalized accession (strip spaces/punctuation, casefold) → merge into the record from the highest-priority source (`met`/`aic` > `wikidata`), record `{ from: key, into: key, rule: 'accession' }`; (b) for remaining objects, build a cosine index per owner (numpy matmul in blocks of 20k; on GPU with torch if available) and merge pairs with cosine ≥ 0.95 **and** matching normalized artist, `rule: 'embedding'`; never merge across different `ownerKey`s or when either has no owner. Output: `merges.jsonl`, updated `objects.jsonl` (merged objects keep `mergedIntoKey`), and a vectors index where merged objects' vectors are re-keyed to the surviving object (`source` per vector preserved).
+`dedupe.py`: load objects + vectors; (a) group objects with the same `ownerKey` and normalized accession (strip spaces/punctuation, casefold) → merge into the record from the highest-priority source (`met`/`aic` > `wikidata`), record `{ from: key, into: key, rule: 'accession' }`; (b) for remaining objects, build a cosine index per owner (torch matmul on `settings.device` in blocks of 20k; numpy on CPU is acceptable) and merge pairs with cosine ≥ 0.95 **and** matching normalized artist, `rule: 'embedding'`; never merge across different `ownerKey`s or when either has no owner. Output: `merges.jsonl`, updated `objects.jsonl` (merged objects keep `mergedIntoKey`), and a vectors index where merged objects' vectors are re-keyed to the surviving object (`source` per vector preserved).
 
 **Verify**: `dedupe_test.py`: accession merge; embedding merge requires artist match; cross-owner never merges; merged vectors re-keyed.
 
@@ -60,11 +60,11 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 `push.py`: order — museums are already present; `upsertArtworks` (500/batch) → `upsertObjects` (500) → `upsertPlacements` (500) → `upsertVectors` (300, `source: 'corpus'`; two rows for multi-view objects) → `upsertDescriptors` (300) → `setObjectPenalty`; checkpoint per stage and batch; skip objects whose download failed (no vector) but still upsert their metadata; `thumbnailUrl` only when `rightsStatus == public_domain` (assert in code). End with `counts()` and compare to expected; print a report.
 
-**Verify**: `push_test.py` with a fake writer checks ordering, batch sizes, the thumbnail assertion, and resume; a smoke push of 1,000 objects to the dev deployment shows matching `counts()`; `npx convex data vectors --limit 1` shows a 1536-float vector.
+**Verify**: `push_test.py` with a fake writer checks ordering, batch sizes, the thumbnail assertion, and resume; a smoke push of 1,000 objects to the dev deployment shows matching `counts()`; `npx convex data vectors --limit 1` shows a 1536-float vector. This smoke push also measures rows/s from the Mac's connection — it is the batch-size evidence spike 00.08 was meant to provide; record it.
 
 ### Step 4: Full push and record
 
-Run the full stage set on Nebius; record durations, counts and Convex dashboard storage (DB and search) in `jobs/README.md`; confirm the dev deployment still serves `health.ping`.
+Run the full stage set on the Mac under `caffeinate -i` (the push is bound by Pro's write throughput and the laptop's uplink, so budget hours); record durations, rows/s, counts and Convex dashboard storage (DB and search) in `jobs/README.md`; confirm the dev deployment still serves `health.ping`.
 
 **Verify**: `counts()` equals `stats.json` minus failed downloads; dashboard search storage recorded.
 

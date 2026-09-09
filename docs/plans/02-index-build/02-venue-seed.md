@@ -33,7 +33,7 @@ Venue resolution runs on the phone against a bundled table of every museum and g
 | Purpose | Command | Expected |
 |---|---|---|
 | Run locally | `cd jobs && uv run python -m artlog_jobs.seed_venues --countries US,GB,FR --out out/` | writes `out/venues.db` |
-| Full run on Nebius | `jobs/scripts/launch-job.sh artlog_jobs.seed_venues -- --all` | job completes |
+| Full run (local, resumable) | `cd jobs && caffeinate -i uv run python -m artlog_jobs.seed_venues --all --out out/` | completes; writes `out/venues.db` |
 | Tests | `cd jobs && uv run pytest -q artlog_jobs/seed_venues_test.py` | pass |
 | Convex | `npx convex dev --once`, `npm run test:convex` | pass |
 
@@ -90,7 +90,7 @@ Document in `jobs/README.md` how to regenerate and re-commit the asset.
 
 ## Done criteria
 
-- [ ] Full run completed on Nebius (or locally) and `museums` count in Convex matches the record in `docs/decisions/005-data-sources.md` ± 5%
+- [ ] Full run completed locally and `museums` count in Convex matches the record in `docs/decisions/005-data-sources.md` ± 5%
 - [ ] `assets/venues.db` committed and ≤ 10 MB; `metro.config.js` present
 - [ ] `venueTables` has one published row; `latest` returns a downloadable URL
 - [ ] All tests, tsc, lint pass; `docs/plans/README.md` status row updated

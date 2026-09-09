@@ -23,7 +23,7 @@ Design §5.7 step 2: "Metadata first. Pull the Met and AIC dumps and the Wikidat
 
 ## Current state
 
-- `jobs/` scaffold (02.01): `PoliteClient`, checkpoints, `ConvexWriter`; `museums` seeded with `key = wikidata:Q…` (02.02).
+- `jobs/` scaffold (02.01): `PoliteClient`, checkpoints, `ConvexWriter`, `SCRATCH_DIR` (a local directory on the operator's Mac by default); `museums` seeded with `key = wikidata:Q…` (02.02). Runs happen locally; long ones under `caffeinate -i`.
 - Verified source facts (2026-09-08): Met CSV `MetObjects.csv` (Git LFS, CC0; columns include `Object ID, Is Public Domain, Classification, Title, Artist Display Name, Object Date, Object Begin Date, Object End Date, Medium, Dimensions, Accession Number, Gallery Number, Link Resource, Object Wikidata URL, Artist Wikidata URL, Department`); image URLs only via the API `/objects/{id}` (`primaryImage`, `primaryImageSmall`, 80 req/s limit — use 20 req/s). AIC dump (`api-data` repo, monthly) with `artwork_type_title`, `image_id`, `is_public_domain`, `is_on_view`, `gallery_title`, `main_reference_number`, `artist_title`, `artist_id`, `date_display`, `date_start`, `date_end`, `medium_display`, `dimensions`, `copyright_notice`, `title`; IIIF `https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg`; 60 req/min if using the API instead. Wikidata paintings: `?item wdt:P31 wd:Q3305213; wdt:P18 ?image` with `P170` (+ creator `P570` death date), `P571` inception, `P276` location, `P6216` copyright status (`Q19652` public domain), `p:P195/ps:P195` collection + `pq:P217` inventory number, `P179` series; images as `Special:FilePath/<File>` (original) and thumbnails only at standard widths (use `?width=330`). Met = `Q160236`, AIC = `Q239303`. `huggan/wikiart` is dropped (license).
 - Records (pydantic, in `normalize.py`):
   - `ArtworkRecord { key, wikidataId?, title, artist, artistId?, date?, yearStart?, yearEnd?, rightsStatus, multiplicity, seriesId? }`
@@ -72,7 +72,7 @@ Each adapter yields `(ArtworkRecord, ObjectRecord, PlacementRecord | None)` per 
 
 `build_metadata.py`: run adapters, merge artworks by `wikidataId` when two sources point to the same item (prefer Wikidata artwork fields for title/artist, keep every object), write `artworks.jsonl`, `objects.jsonl`, `placements.jsonl` plus `stats.json` (counts per source, rights distribution, unmapped owners).
 
-**Verify**: local run on the fixtures produces three files and `stats.json`; full run on Nebius CPU (`cpu-d3 8vcpu-32gb`, 4 h timeout) completes with counts in `stats.json`.
+**Verify**: a run on the fixtures produces three files and `stats.json`; the full run on the Mac (`caffeinate -i uv run python -m artlog_jobs.build_metadata --sources met,aic,wikidata --out $SCRATCH_DIR/metadata`) completes with counts in `stats.json` — the Met CSV comes through Git LFS and the Wikidata slices are the slow part; expect hours and rely on the checkpoints.
 
 ## Test plan
 
