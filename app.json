@@ -8,7 +8,18 @@
     "scheme": "artlog",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "app.artlog.ios",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Artlog uses the camera to identify paintings and read wall labels.",
+        "NSPhotoLibraryUsageDescription": "Artlog can identify paintings from photos you already took.",
+        "NSLocationWhenInUseUsageDescription": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "production"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,6 +36,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -37,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "04fdd022-7b1c-4e8e-85d7-50d6066a3751"
+      }
+    },
+    "owner": "dwjiang"
   }
 }
