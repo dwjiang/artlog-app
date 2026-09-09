@@ -38,6 +38,7 @@ import type * as lib_testFactories from "../lib/testFactories.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as scans from "../scans.js";
 import type * as spend from "../spend.js";
+import type * as venueTable from "../venueTable.js";
 
 import type {
   ApiFromModules,
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   scans: typeof scans;
   spend: typeof spend;
+  venueTable: typeof venueTable;
 }>;
 
 /**

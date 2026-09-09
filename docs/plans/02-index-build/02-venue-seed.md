@@ -90,10 +90,18 @@ Document in `jobs/README.md` how to regenerate and re-commit the asset.
 
 ## Done criteria
 
-- [ ] Full run completed locally and `museums` count in Convex matches the record in `docs/decisions/005-data-sources.md` ± 5%
-- [ ] `assets/venues.db` committed and ≤ 10 MB; `metro.config.js` present
-- [ ] `venueTables` has one published row; `latest` returns a downloadable URL
-- [ ] All tests, tsc, lint pass; `docs/plans/README.md` status row updated
+- [x] Full run completed locally and `museums` count in Convex matches the record in `docs/decisions/005-data-sources.md` ± 5%
+- [x] `assets/venues.db` committed and ≤ 10 MB; `metro.config.js` present
+- [x] `venueTables` has a published full table; `latest` returns a downloadable URL
+- [x] All tests, tsc, lint pass; `docs/plans/README.md` status row updated
+
+Completed 2026-09-09: 42,452 venues, 8,568,832 bytes, version `1788955449`,
+published to dev `usable-owl-256`. All 260 country/unmapped slices completed;
+the global class-ID census found 42,453 IDs, with one unknown coordinate excluded.
+The bundle and published download match byte-for-byte, and the iOS export includes
+the database. Verified launch on iPhone 17 Pro in light mode. Tests: 98 Python,
+149 Convex, 22 app; TypeScript, ESLint, and Ruff pass. Regeneration details and
+the asset hash are in `jobs/README.md`.
 
 ## STOP conditions
 

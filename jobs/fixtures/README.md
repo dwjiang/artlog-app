@@ -1,5 +1,10 @@
 # Test fixtures
 
+- `wikidata-iceland.json` — saved WDQS response on 2026-09-09, with the query
+  included. The 35 distinct Icelandic museums/gallery venues have coordinates
+  and websites. Wikidata structured data is CC0; this fixture tests parsing,
+  Unicode names, coordinates, and duplicate collapse without live requests.
+
 - `test-painting.jpg` — Vincent van Gogh, *Wheat Field with Cypresses* (1889),
   The Metropolitan Museum of Art, accession 1993.132, Met object 436535
   (<https://www.metmuseum.org/art/collection/search/436535>). Open Access,

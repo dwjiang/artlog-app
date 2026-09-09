@@ -1,0 +1,967 @@
+{
+  "query": "SELECT ?m ?coord ?website ?admin ?nameEn ?nameAny ?metroAdmin WHERE {\n      { SELECT DISTINCT ?m ?coord ?website ?admin WHERE {\n        VALUES ?class { wd:Q33506 wd:Q1007870 }\n      ?type wdt:P279* ?class .\n      ?m wdt:P31 ?type; wdt:P625 ?coord; wdt:P856 ?website .\n      VALUES ?country { wd:Q189 } ?m wdt:P17 ?country .\n    \n        \n        OPTIONAL { ?m wdt:P131 ?admin }\n      } LIMIT 20000 }\n      OPTIONAL { ?m rdfs:label ?nameEn . FILTER(LANG(?nameEn) = \"en\") }\n      OPTIONAL {\n        ?m rdfs:label ?nameAny .\n        FILTER NOT EXISTS { ?m rdfs:label ?english . FILTER(LANG(?english) = \"en\") }\n      }\n      \n    }",
+  "results": {
+    "bindings": [
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20573874"
+        },
+        "nameAny": {
+          "xml:lang": "is",
+          "type": "literal",
+          "value": "Hallsteinsgarður"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/hallsteinsgardur"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.79982 64.154284)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481200"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20573874"
+        },
+        "nameAny": {
+          "xml:lang": "mul",
+          "type": "literal",
+          "value": "Hallsteinsgarður"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/hallsteinsgardur"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.79982 64.154284)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481200"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20573874"
+        },
+        "nameAny": {
+          "xml:lang": "is",
+          "type": "literal",
+          "value": "Hallsteinsgarður"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/en/hallsteinsgardur-en"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.79982 64.154284)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481200"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20573874"
+        },
+        "nameAny": {
+          "xml:lang": "mul",
+          "type": "literal",
+          "value": "Hallsteinsgarður"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/en/hallsteinsgardur-en"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.79982 64.154284)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481200"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q177174"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Icelandic Phallological Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.phallus.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.93578 64.148497)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q356308"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Living Art Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.nylo.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.91952778 64.14561111)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q626963"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "National Museum of Iceland"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.thjodminjasafn.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.948111 64.141902)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1629739"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Akureyri Art Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.listak.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-18.0919 65.6804)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q29042"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3329742"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Steinasafn Petru"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.steinapetra.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-13.8805 64.8355)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q2427727"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3358410"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Reykjavik Art Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.artmuseum.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9406 64.149)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3480309"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "National Gallery of Iceland"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.listasafn.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.939166666 64.144166666)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481694"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Kjarvalsstaðir"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.listasafnreykjavikur.is/desktopdefault.aspx/tabid-2173/3432_read-6298/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9135 64.1378)"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481715"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Einar Jónsson Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.lej.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.928901 64.141877)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481715"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Einar Jónsson Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://lej.is/en/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.928901 64.141877)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3481984"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Árbæjarsafn"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://reykjavikcitymuseum.is/arbaer-open-air-museum"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.818 64.118)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3486484"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Skógasafn"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.skogasafn.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-19.493053 63.52618)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q985810"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q4163674"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Viking World museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.vikingworld.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-22.5289 63.976)"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q7319496"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "the Settlement Exhibition"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.minjasafnreykjavikur.is/english/desktopdefault.aspx/tabid-4206/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.942814 64.147512)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q7929434"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Reykjavik Maritime Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.maritimemuseum.is/english/home/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9493 64.1531)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q15049871"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Þjóðveldisbærinn Stöng"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.thjodveldisbaer.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-19.82919444 64.12119444)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q391758"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q15117728"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Exploration Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.explorationmuseum.com"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-17.3446 66.04776)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1533546"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q15767978"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Herring Era Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.sild.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-18.913 66.1485)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1887662"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q15961654"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Hafnarborg"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://hafnarborg.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9554 64.0678)"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q15961653"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Volcano House"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://volcanohouse.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9417 64.1493)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16334459"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Akranes Museum Centre"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.museum.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-22.045 64.3199)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q107398"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16335762"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Saga Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.sagamuseum.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9192 64.1292)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1675663"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16419618"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Ásmundur Sveinsson Sculpture Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/asmundarsafn"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.8853 64.1416)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q6497990"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16419618"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Ásmundur Sveinsson Sculpture Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://listasafnreykjavikur.is/en/asmundarsafn-en"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.8853 64.1416)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q6497990"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16420862"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Ósvör"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.osvor.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-23.214936111 66.150495555)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q891664"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16420866"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Reykjavík Museum of Photography"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://borgarsogusafn.is/is/ljosmyndasafn-reykjavikur/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.94165 64.149277)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16429198"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Technical Museum of East Iceland"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://tekmus.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-13.9924 65.2652)"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16500080"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Hafnarhús"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.listasafnreykjavikur.is/desktopdefault.aspx/tabid-2172/3366_read-6270/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9406 64.149)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q16976662"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Icelandic Museum of Rock 'n' Roll"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://rokksafn.is/en"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-22.54972222 63.98972222)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q652130"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20990718"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Transportation Museum at Ystafell"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.ystafell.is"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-17.578873 65.780526)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q335325"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q30325348"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Galdrasýning á Ströndum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://galdrasyning.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.6656 65.7066)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q727267"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q55809503"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Hornafjörður Art Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://www.hornafjordur.is/mannlif"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-15.21174 64.25316)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q817118"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q97257707"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Reykjavík City Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://borgarsogusafn.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.948799995 64.153280228)"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q111937752"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Whales of Iceland"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.whalesoficeland.is/is/forsida"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9488 64.1556)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q111937752"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Whales of Iceland"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://www.whalesoficeland.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.9488 64.1556)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1764"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q112762618"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Eurovision Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://eurovisionhusavik.com/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-17.3533425 66.0484737)"
+        },
+        "admin": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q219417"
+        }
+      },
+      {
+        "m": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q123416199"
+        },
+        "nameEn": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Icelandic Punk Museum"
+        },
+        "website": {
+          "type": "uri",
+          "value": "http://thepunkmuseum.is/"
+        },
+        "coord": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(-21.93608 64.147095)"
+        }
+      }
+    ]
+  }
+}
