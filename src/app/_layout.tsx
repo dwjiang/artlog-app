@@ -4,6 +4,8 @@ import { Stack } from 'expo-router/stack';
 
 import { convex, secureStorage } from '@/lib/convex-client';
 import { DeviceIdentity } from '@/lib/device-identity';
+// Register the offline database in Metro's asset graph before venue resolution uses it.
+import '@/lib/venue-asset';
 
 export const unstable_settings = {
   anchor: '(tabs)',

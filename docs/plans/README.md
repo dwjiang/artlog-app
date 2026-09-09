@@ -44,7 +44,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 00.03 | [ORB in the Convex runtime spike](00-kickoff-spikes/03-orb-verification-in-convex-runtime.md) | P1 | S | 04.01 | TODO |
 | 04.03 | [Identify action](04-backend/03-identify-action.md) | P1 | L | 01.03, 04.01, 04.02, 04.04 | TODO |
 | 04.05 | [Visits and venue queue](04-backend/05-visits-and-venue-queue.md) | P1 | M | 04.04, 01.03 | TODO |
-| 02.02 | [Venue seed](02-index-build/02-venue-seed.md) | P1 | M | 02.01, 00.05, 00.07 | TODO |
+| 02.02 | [Venue seed](02-index-build/02-venue-seed.md) | P1 | M | 02.01, 00.05, 00.07 | DONE — 42,452 venues; 8.57 MB SQLite bundled and published to dev; iOS verified |
 | 03.07 | [App Attest on the phone](03-on-device/07-app-attest-module.md) | P1 | S–M | 04.04, 01.04, 00.06 | TODO — native package proven by 006; use observed entitlement environment and corrected assertion fixture |
 | 04.06 | [Label flow backend](04-backend/06-label-flow.md) | P1 | L | 04.03, 04.04, 00.04, 00.07 | TODO |
 | 04.09 | [Docent and "Right now"](04-backend/09-docent-and-right-now.md) | P1 | M–L | 04.03, 04.04, 04.06, 00.04, 00.07 | TODO |

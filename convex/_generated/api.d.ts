@@ -33,6 +33,7 @@ import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_spend from "../lib/spend.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as spend from "../spend.js";
+import type * as venueTable from "../venueTable.js";
 
 import type {
   ApiFromModules,
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "lib/spend": typeof lib_spend;
   "lib/validators": typeof lib_validators;
   spend: typeof spend;
+  venueTable: typeof venueTable;
 }>;
 
 /**

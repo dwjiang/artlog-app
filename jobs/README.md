@@ -99,3 +99,109 @@ same counts and also exits 0.
 - `config/source-scores.json` — Tavily domain scores from spike 00.05
 - `fixtures/` — test inputs (attribution in `fixtures/README.md`)
 - `scratch/`, `out/`, `checkpoints/` — gitignored run outputs
+
+## Venue seed and bundled database (02.02)
+
+```sh
+# From the repo root, push this workspace's functions to the configured dev deployment:
+npx convex dev --once
+cd jobs
+uv run python -m artlog_jobs.seed_venues --countries IS --out out/
+uv run python -m artlog_jobs.seed_venues --countries US,GB,FR --out out/
+caffeinate -i uv run python -m artlog_jobs.seed_venues --all --out out/ --publish
+sqlite3 out/venues.db 'SELECT count(*) FROM venues; SELECT * FROM meta;'
+cp out/venues.db ../assets/venues.db
+cd ..
+npx convex data venueTables
+npx convex run venueTable:latest '{}'
+npx expo export --platform ios --output-dir /tmp/artlog-export
+git add assets/venues.db
+```
+
+Re-commit `assets/venues.db` after a successful **full** run, and remove the
+temporary export directory after checking its database asset. Country-filtered
+runs upsert only those countries, but export **all museums already in Convex**;
+their database is suitable for local smoke checks, not the bundled full census.
+`--publish` uploads the exact exported bytes to Convex storage, then records the
+same version and row count as SQLite's `meta` row. `venueTable.latest` is public;
+upload and publication require the jobs' admin deploy key. No EAS command is used.
+The SQLite IDs belong to the exporting deployment: bundle an asset from the same
+deployment the app connects to.
+
+Wikidata requests are sequential POSTs with the configured User-Agent, JSON
+responses, a 65-second client timeout for the service's 60-second deadline, and
+three attempts for transport failures, 429, and 5xx (honoring `Retry-After`).
+Country slices include museum (`Q33506`) and art gallery (`Q1007870`) subclasses
+with **both `P625` and `P856` claims**, matching decision 005's query. Wikidata
+unknown-value nodes are not coordinates or URLs: unknown coordinates are excluded;
+an unknown website is represented as a missing optional website. At the 20,000-row
+cap or after a country timeout, direct `P131` administrative slices plus a slice
+for missing or unknown `P131` replace that country result. A still-failing administrative
+slice is reported, other countries continue, and export/publication is refused.
+
+`config/countries.json` was resolved from Wikidata `P297` on 2026-09-09 using:
+
+```sparql
+SELECT DISTINCT ?country ?iso WHERE {
+  ?country wdt:P297 ?iso . FILTER(REGEX(?iso, "^[A-Z]{2}$"))
+} ORDER BY ?iso ?country
+```
+
+It retains all Q-IDs per code (including historical codes/territories) so `P17`
+claims are not lost. `--all` also queries venues with no mapped country and
+assigns `country:unknown`. It enumerates museum/gallery IDs in the constant class
+slices measured in spike 00.05, subtracts the country census locally, then fetches
+metadata for the remaining IDs. Global country anti-joins timed out in the live
+run. Rows are deduplicated by Q-ID, keeping the first
+website/coordinates; multiple country claims use the first selected ISO code
+in sorted order. Labels prefer English, then any available label, then Q-ID.
+
+`shared/regions.json` is the sole region config, copied from the Tavily spike
+with its proposed centers. The metro administrative IDs were verified against
+Wikidata: San Francisco `Q62`, New York City `Q60`, London `Q84`, Paris `Q90`.
+The importer resolves `P131` ancestry to those IDs. Within the venue's country,
+an administrative match takes precedence; otherwise the nearest metro within
+60 km wins, with region key breaking distance ties. Other venues receive
+`country:<ISO>`; a missing country domain list does not imply global coverage.
+
+Downloaded country rows and completed writes live in
+`SCRATCH_DIR/venue-seed/<deployment-and-config-hash>/`. Repeat the same command
+to resume; interrupted upserts replay idempotently from the cached country.
+For a quarterly census, add `--refresh` **once** to discard the selected
+countries' caches/checkpoints, then omit it if resuming. Keep one seed process
+per scratch directory. Natural keys preserve the Convex IDs used by the phone.
+
+A full run must stay within 5% of the spike's 42,444 venues before export.
+Over 150,000 venues stops the job. SQLite is vacuumed; if it exceeds 10,000,000
+bytes, the export clears `website` to NULL (retaining the schema) and vacuums
+again. A still-oversized asset stops without replacing the previous database.
+The console reports row count, version, bytes, and whether websites were omitted.
+
+Metro recognizes `.db` and the root layout imports `src/lib/venue-asset.ts` so
+the file is actually included in iOS exports. Plan 03.05 can pass its
+`bundledVenueAsset` to `SQLiteProvider`'s `assetSource.assetId` and implement
+resolution/background refresh. This seed does not open SQLite on the phone.
+
+```sh
+cd jobs
+uv run pytest -q artlog_jobs/wikidata_test.py artlog_jobs/regions_test.py artlog_jobs/seed_venues_test.py
+uv run ruff check .
+uv run ruff format --check .
+cd ..
+npx vitest run convex/venueTable
+```
+
+### Initial full build — 2026-09-09
+
+- Deployment: dev `usable-owl-256`; all 260 country/unmapped slices completed.
+- SQLite and Convex `museums`: **42,452 venues**, eight more than decision 005
+  (0.019% difference); **8,568,832 bytes**, with known websites retained.
+- Version: **1788955449**. SHA-256:
+  `a8288169b38c4d337e38c2c771547a135c75051d6451aeb5b5c2eaa366da5299`.
+- Independent global ID census: 41,194 museums, 1,515 galleries, 256 shared IDs,
+  42,453 distinct IDs. `Q141374919` has an unknown `P625` value and is excluded.
+  `Q7459214` has an unknown `P856` value, represented as a missing optional website.
+- `PRAGMA integrity_check` returned `ok`; the public download, committed asset,
+  and iOS export contain identical database bytes. iPhone 17 Pro launch verified
+  in light mode. The 98 Python, 149 Convex, and 22 app tests, TypeScript, ESLint,
+  and Ruff checks passed.

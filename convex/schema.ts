@@ -186,6 +186,13 @@ export default defineSchema({
     .index('by_queuePriority', ['queuePriority'])
     .index('by_indexStatus', ['indexStatus.status']),
 
+  venueTables: defineTable({
+    version: v.number(),
+    storageId: v.id('_storage'),
+    rowCount: v.number(),
+    createdAt: v.number(),
+  }).index('by_version', ['version']),
+
   // Singleton maintained by convex/ingest.ts; counting large tables per query is too expensive.
   ingestCounters: defineTable({
     museums: v.number(),
