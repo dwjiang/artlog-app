@@ -1,0 +1,31 @@
+ LOG  [spike] autorun start (ios 26.6, camera back-camera)
+ LOG  [spike] CoreML: {"found":true,"url":"<app-bundle>/MobileNetV2.mlmodelc","searchedBundle":"<app-bundle>","mainBundleHit":true,"inputName":"image","inputSize":"224x224","loadMs":536.3839864730835,"predictMs":1.1769533157348633,"output":"classLabel=nematode, nematode worm, roundworm, classLabelProbs=","error":null}
+ LOG  [spike] POI minimumIOS=14.0 at 37.7858,-122.4010
+ LOG  [spike] POI museum filter: 6 in 401 ms: Museum Of The African Diaspora (91 m, MKPOICategoryMuseum, https://www.moadsf.org) | Contemporary Jewish Museum (227 m, MKPOICategoryMuseum, https://www.facebook.com/thecjm/) | Contemporary Jewish Museum (232 m, MKPOICategoryMuseum, https://www.thecjm.org) | Children's Creativity Museum (278 m, MKPOICategoryMuseum, https://creativity.org) | Galing Bata (293 m, MKPOICategoryMuseum, https://www.galingbata.org/) | Sf Museum And Historical Society (362 m, MKPOICategoryMuseum, https://www.sfhistory.org)
+ LOG  [spike] POI "art gallery": 25 in 514 ms: San Francisco Museum of Modern Art (15 m, MKPOICategoryLandmark, http://www.sfmoma.org) | Terra Gallery & Events (688 m, -, http://terrasf.com) | GCS Agency (628 m, -, https://www.vibrantsf.org) | The Odyssey SF Art Collective and Gallery (748 m, -, https://www.haileyashcraft.com) | 111 Minna Gallery (232 m, MKPOICategoryNightlife, http://www.111minnagallery.com/) | Yerba Buena Center for the Arts (101 m, MKPOICategoryLandmark, http://www.ybca.org/upcoming/film-video)
+ LOG  [spike] downloaded orsay-two-visitors.jpg 325488 bytes in 178 ms
+ LOG  [spike] still orsay-two-visitors: strict 2 obs in 101 ms {conf 1.00 area 25.3% tl 0.29,0.89 br 0.83,0.40} {conf 1.00 area 10.5% tl 0.33,0.83 br 0.80,0.62}
+ LOG  [spike] still orsay-two-visitors: loose 2 obs in 8 ms {conf 1.00 area 25.3% tl 0.29,0.89 br 0.83,0.40} {conf 1.00 area 10.3% tl 0.33,0.83 br 0.80,0.61}
+ LOG  [spike] still orsay-two-visitors: warp usedInner=true of 2; detect 5 warp 21 letterbox 11 total 39 ms; mean [214,209,196]; quad 0.33,0.83,0.81,0.84,0.80,0.62,0.33,0.61 -> 76B6ECF5-2D03-41BB-9103-9D36FEEAF428.jpg
+ LOG  [spike] downloaded pinakothek-saal-ix.jpg 690112 bytes in 64 ms
+ LOG  [spike] still pinakothek-saal-ix: strict 0 obs in 22 ms
+ LOG  [spike] still pinakothek-saal-ix: loose 3 obs in 8 ms {conf 1.00 area 4.5% tl 0.65,0.39 br 0.89,0.20} {conf 1.00 area 4.1% tl 0.66,0.98 br 0.98,0.86} {conf 1.00 area 2.2% tl 0.46,0.51 br 0.57,0.31}
+ LOG  [spike] still pinakothek-saal-ix failed: Error: No rectangle found in the still
+ LOG  [spike] downloaded pinakothek-room-xiii.jpg 517244 bytes in 38 ms
+ LOG  [spike] still pinakothek-room-xiii: strict 1 obs in 12 ms {conf 1.00 area 6.5% tl 0.70,0.55 br 0.95,0.29}
+ LOG  [spike] still pinakothek-room-xiii: loose 5 obs in 11 ms {conf 1.00 area 6.6% tl 0.70,0.55 br 0.95,0.28} {conf 1.00 area 5.2% tl 0.12,0.54 br 0.29,0.24} {conf 1.00 area 3.0% tl 0.15,0.52 br 0.26,0.28} {conf 1.00 area 2.4% tl 0.32,0.50 br 0.43,0.29} {conf 1.00 area 2.4% tl 0.33,0.15 br 0.56,0.08}
+ LOG  [spike] still pinakothek-room-xiii: warp usedInner=false of 1; detect 9 warp 2 letterbox 21 total 34 ms; mean [51,47,46]; quad 0.70,0.55,0.94,0.57,0.95,0.29,0.71,0.29 -> 68FF7191-B9A6-4EB9-A9E8-9FEA53204097.jpg
+ LOG  [spike] downloaded rijksmuseum-abraham-framed.jpg 605168 bytes in 296 ms
+ LOG  [spike] still rijksmuseum-abraham-framed: strict 0 obs in 35 ms
+ LOG  [spike] still rijksmuseum-abraham-framed: loose 3 obs in 17 ms {conf 1.00 area 2.4% tl 0.56,0.08 br 0.88,0.04} {conf 1.00 area 1.1% tl 0.33,0.42 br 0.50,0.36} {conf 1.00 area 0.9% tl 0.88,0.31 br 0.97,0.21}
+ LOG  [spike] still rijksmuseum-abraham-framed failed: Error: No rectangle found in the still
+ LOG  [spike] ORB failed: Error: Exception in HostObject::get for prop 'rows': bad any cast
+ LOG  [spike] ORB failed: Error: Exception in HostObject::get for prop 'rows': bad any cast
+ LOG  [spike] AppIntegrity.isSupported=true
+ LOG  [spike] attest: keyId 44 chars in 43 ms; attestation 7744 b64 chars in 1642 ms; assertion 188 b64 chars in 23 ms; challenge spike-1788948679812
+ LOG  [spike] camera phase: empty worklet 8 s
+ LOG  [spike] camera phase: detect every frame 10 s
+ LOG  [spike] camera phase: detect every 3rd frame 10 s
+ LOG  [spike] camera warp failed: Error: PhotoOutput is not yet connected to the CameraSession!
+ LOG  [spike] autorun done
+ LOG  [spike] camera permission: true

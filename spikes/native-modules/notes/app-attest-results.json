@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-09",
+  "device": "iPhone 16 Pro (iPhone17,1)",
+  "os": "iOS 26.6 (23G71)",
+  "appId": "J4UW2CVVY4.app.artlog.spike",
+  "developmentSigned": true,
+  "entitlement": "production",
+  "attestation": {
+    "bytes": 5808,
+    "fmt": "apple-appattest",
+    "rpIdHashMatchesAppId": true,
+    "aaguidHex": "61707061747465737400000000000000",
+    "environment": "production",
+    "counter": 0
+  },
+  "assertion": {
+    "bytes": 141,
+    "authenticatorDataBytes": 37,
+    "counter": 1,
+    "rpIdHashMatchesAppId": true,
+    "webCryptoVerifyNonce": true,
+    "webCryptoVerifyUnhashedConcatenation": false,
+    "webCryptoVerifyChangedPayload": false
+  }
+}

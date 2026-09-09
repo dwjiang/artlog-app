@@ -1,0 +1,364 @@
+ LOG  [spike] autorun start (ios 26.6, camera back-camera)
+ LOG  [spike] initial device state {"thermal":"fair","atMs":1788950528376.677,"batteryLevel":0.5,"batteryState":1}
+ LOG  [spike] CoreML: {"found":true,"url":"<app-bundle>/MobileNetV2.mlmodelc","searchedBundle":"<app-bundle>","mainBundleHit":true,"inputName":"image","inputSize":"224x224","loadMs":484.0470552444458,"predictMs":1.4580488204956055,"output":"classLabelProbs=, classLabel=nematode, nematode worm, roundworm","error":null}
+ LOG  [spike] POI minimumIOS=14.0 at 37.7858,-122.4010
+ LOG  [spike] frames empty 30.9 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] POI museum filter: 6 in 319 ms: Museum Of The African Diaspora (91 m, MKPOICategoryMuseum, https://www.moadsf.org) | Contemporary Jewish Museum (227 m, MKPOICategoryMuseum, https://www.facebook.com/thecjm/) | Contemporary Jewish Museum (232 m, MKPOICategoryMuseum, https://www.thecjm.org) | Children's Creativity Museum (278 m, MKPOICategoryMuseum, https://creativity.org) | Galing Bata (293 m, MKPOICategoryMuseum, https://www.galingbata.org/) | Sf Museum And Historical Society (362 m, MKPOICategoryMuseum, https://www.sfhistory.org)
+ LOG  [spike] POI "art gallery": 25 in 400 ms: San Francisco Museum of Modern Art (15 m, MKPOICategoryLandmark, http://www.sfmoma.org) | Terra Gallery & Events (688 m, -, http://terrasf.com) | GCS Agency (628 m, -, https://www.vibrantsf.org) | The Odyssey SF Art Collective and Gallery (748 m, -, https://www.haileyashcraft.com) | 111 Minna Gallery (232 m, MKPOICategoryNightlife, http://www.111minnagallery.com/) | Yerba Buena Center for the Arts (101 m, MKPOICategoryLandmark, http://www.ybca.org/upcoming/film-video)
+ LOG  [spike] still orsay-two-visitors: strict 2 obs in 29 ms {conf 1.00 area 25.3% tl 0.29,0.89 br 0.83,0.40} {conf 1.00 area 10.5% tl 0.33,0.83 br 0.80,0.62}
+ LOG  [spike] still orsay-two-visitors: loose 2 obs in 9 ms {conf 1.00 area 25.3% tl 0.29,0.89 br 0.83,0.40} {conf 1.00 area 10.3% tl 0.33,0.83 br 0.80,0.61}
+ LOG  [spike] still orsay-two-visitors: warp usedInner=true of 2; detect 10 warp 2 letterbox 11 total 25 ms; mean [214,209,196]; quad 0.33,0.83,0.81,0.84,0.80,0.62,0.33,0.61 -> 25555B33-9D8A-406C-ACA7-ED1A837B856F.jpg
+ LOG  [spike] still pinakothek-saal-ix: strict 0 obs in 17 ms
+ LOG  [spike] still pinakothek-saal-ix: loose 3 obs in 10 ms {conf 1.00 area 4.5% tl 0.65,0.39 br 0.89,0.20} {conf 1.00 area 4.1% tl 0.66,0.98 br 0.98,0.86} {conf 1.00 area 2.2% tl 0.46,0.51 br 0.57,0.31}
+ LOG  [spike] still pinakothek-saal-ix failed: Error: No rectangle found in the still
+ LOG  [spike] still pinakothek-room-xiii: strict 1 obs in 11 ms {conf 1.00 area 6.5% tl 0.70,0.55 br 0.95,0.29}
+ LOG  [spike] still pinakothek-room-xiii: loose 5 obs in 9 ms {conf 1.00 area 6.6% tl 0.70,0.55 br 0.95,0.28} {conf 1.00 area 5.2% tl 0.12,0.54 br 0.29,0.24} {conf 1.00 area 3.0% tl 0.15,0.52 br 0.26,0.28} {conf 1.00 area 2.4% tl 0.32,0.50 br 0.43,0.29} {conf 1.00 area 2.4% tl 0.33,0.15 br 0.56,0.08}
+ LOG  [spike] still pinakothek-room-xiii: warp usedInner=false of 1; detect 5 warp 4 letterbox 20 total 32 ms; mean [51,47,46]; quad 0.70,0.55,0.94,0.57,0.95,0.29,0.71,0.29 -> 5605CC95-F435-4246-857B-DFAB36923E70.jpg
+ LOG  [spike] still rijksmuseum-abraham-framed: strict 0 obs in 12 ms
+ LOG  [spike] still rijksmuseum-abraham-framed: loose 3 obs in 9 ms {conf 1.00 area 2.4% tl 0.56,0.08 br 0.88,0.04} {conf 1.00 area 1.1% tl 0.33,0.42 br 0.50,0.36} {conf 1.00 area 0.9% tl 0.88,0.31 br 0.97,0.21}
+ LOG  [spike] still rijksmuseum-abraham-framed failed: Error: No rectangle found in the still
+ LOG  [spike] ORB n=300 512x512: count 300, first 4.6 ms, median 2.0 ms, min 1.9 ms; read+gray 13.5 ms; pack 0.2 ms; descriptors 9600 B (=count*32: true) keypoints 4800 B; 300x32x1 first8=[185,208,29,253,60,223,69,61] kp0={"x":242,"y":210,"size":31,"angle":237.98390197753906,"response":0.00006785795267205685,"octave":0,"classId":-1}
+ LOG  [spike] ORB n=500 512x512: count 498, first 2.0 ms, median 2.0 ms, min 1.9 ms; read+gray 5.8 ms; pack 0.3 ms; descriptors 15936 B (=count*32: true) keypoints 7968 B; 498x32x1 first8=[236,64,73,74,89,13,75,248] kp0={"x":261,"y":200,"size":31,"angle":254.84344482421875,"response":0.00014124643348623067,"octave":0,"classId":-1}
+ LOG  [spike] App Attest already captured; use the button to repeat
+ LOG  [spike] camera phase: empty worklet 8 s
+ LOG  [spike] frames empty 29.9 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] frames empty 30.0 fps 1280x720 yuv-420-8-bit-full
+ LOG  [spike] camera phase: detect every frame 10 s
+ LOG  [spike] frames detect1 31.0 fps 1280x720 yuv-420-8-bit-full | detect 31.0/s avg 7.7 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.4 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.1 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.1 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.7 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.2 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.2 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.5 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect1 30.0 fps 1280x720 yuv-420-8-bit-full | detect 30.0/s avg 7.2 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] camera phase: detect every 3rd frame 10 s
+ LOG  [spike] frames detect3 31.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 6.7 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 7.2 ms max 8 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 8.7 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 8.7 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.1 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.5 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] photo 4224x2376 right in 490 ms -> 849C0755-99AF-488D-A4C0-391BBED30CD6.jpeg
+ LOG  [spike] camera warp failed: Error: No rectangle found in the still
+ LOG  [spike] autorun done
+ LOG  [spike] thermal phase: detect3 for 300 seconds
+ LOG  [spike] thermal 0s {"batteryState":1,"atMs":1788950558386.585,"batteryLevel":0.5,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.0 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.1 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.0 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 8.8 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.4 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.4 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.3 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.2 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.3 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 12.6 ms max 17 ms hit 0% conf 0.00
+ LOG  [spike] QR qr-code url: https://example.com/artlog-native-spike
+ LOG  [spike] frames detect3 30.2 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 6.3 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 5.8 ms max 6 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 6.1 ms max 7 ms hit 0% conf 0.00
+ LOG  [spike] thermal 30s {"atMs":1788950588392.449,"batteryLevel":0.5,"batteryState":1,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 6.1 ms max 7 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 6.4 ms max 7 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 6.4 ms max 7 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 6.7 ms max 9 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 7.8 ms max 10 ms hit 0% conf 0.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 8.1 ms max 9 ms hit 20% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 15.9 ms max 18 ms hit 10% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.9 ms max 19 ms hit 10% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 18.3 ms max 19 ms hit 10% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 17.8 ms max 19 ms hit 20% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 18.3 ms max 19 ms hit 30% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.2 ms max 18 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 11.3 ms max 16 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.2 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.4 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] thermal 60s {"batteryState":1,"thermal":"fair","batteryLevel":0.5,"atMs":1788950618393.538}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.5 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 90s {"batteryState":1,"atMs":1788950648396.058,"batteryLevel":0.5,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.4 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.5 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.5 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 120s {"batteryState":1,"atMs":1788950678398.363,"thermal":"fair","batteryLevel":0.5}
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.3 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 13 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.4 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 150s {"batteryState":1,"thermal":"fair","batteryLevel":0.5,"atMs":1788950708400.875}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 11.2 ms max 17 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.5 ms max 19 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.5 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.1 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.5 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.9 ms max 19 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.7 ms max 19 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.4 ms max 17 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.0 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.8 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.9 ms max 19 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.0 ms max 19 ms hit 90% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.4 ms max 18 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.4 ms max 19 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.1 ms max 19 ms hit 90% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 17.2 ms max 20 ms hit 100% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.6 ms max 17 ms hit 90% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 17.0 ms max 18 ms hit 90% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.8 ms max 19 ms hit 90% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.9 ms max 18 ms hit 80% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.8 ms max 18 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 16.0 ms max 17 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.4 ms max 18 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 16.7 ms max 20 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.4 ms max 16 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.7 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.6 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] thermal 180s {"atMs":1788950738418.8289,"batteryLevel":0.5,"batteryState":1,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.6 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.5 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 29.9 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 210s {"atMs":1788950768420.888,"batteryLevel":0.5,"batteryState":1,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.3 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 10 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.5 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.5 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.7 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 240s {"atMs":1788950798423.177,"batteryLevel":0.5,"batteryState":1,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.5 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.5 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.7 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 270s {"atMs":1788950828424.557,"batteryState":1,"batteryLevel":0.5,"thermal":"fair"}
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.1 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.2 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.4 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.2 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.6 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.2 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.4 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.6 ms max 12 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.8 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 10.0 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 9.7/s avg 9.9 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.3 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] frames detect3 30.0 fps 1280x720 yuv-420-8-bit-full | detect 10.0/s avg 10.1 ms max 11 ms hit 0% conf 1.00
+ LOG  [spike] thermal 300s {"atMs":1788950858426.517,"batteryLevel":0.5,"batteryState":1,"thermal":"fair"}
+ LOG  [spike] thermal phase complete

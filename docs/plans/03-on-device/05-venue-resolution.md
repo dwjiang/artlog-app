@@ -26,7 +26,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 - `assets/venues.db` (SQLite `venues(id, key, name, lat, lng, website, region)`, `meta(version, generatedAt, rowCount)`) and `metro.config.js` with the `db` asset extension (02.02); Convex `venueTable.latest` → `{ version, rowCount, url }`.
 - Convex (04.05): `startVisit({ venueId, localVisitId })` → `{ visitId, indexStatus }`; `confirmPoiVenue({ name, website?, lat, lng })` → `{ venueId }` (attested write); `museums.getStatus`.
 - `src/app/venue-picker.tsx` renders `VenuePickerSheet` (formSheet, 01.02).
-- Verified SDK 57 facts: `expo-location` `requestForegroundPermissionsAsync()`, `getCurrentPositionAsync({ accuracy: Accuracy.Balanced })`, plugin `["expo-location", { "locationWhenInUsePermission": "…" }]`; `expo-sqlite` `SQLiteProvider databaseName="venues.db" assetSource={{ assetId: require('@/assets/venues.db') }}` + `useSQLiteContext()`, `openDatabaseAsync`, `db.getAllAsync(sql, params)`; `expo-file-system` `File.downloadFileAsync(url, dest)`, `Paths.document`; MapKit: `MKLocalPointsOfInterestRequest(center:radius:)` with `pointOfInterestFilter = MKPointOfInterestFilter(including: [.museum])`, `MKLocalSearch(request:).start()` → `mapItems` (`name`, `placemark.coordinate`, `url`), fallback `MKLocalSearch.Request` with `naturalLanguageQuery = "art gallery"` and a region; minimum iOS per the 00.06 record.
+- Verified SDK 57 facts: `expo-location` `requestForegroundPermissionsAsync()`, `getCurrentPositionAsync({ accuracy: Accuracy.Balanced })`, plugin `["expo-location", { "locationWhenInUsePermission": "…" }]`; `expo-sqlite` `SQLiteProvider databaseName="venues.db" assetSource={{ assetId: require('@/assets/venues.db') }}` + `useSQLiteContext()`, `openDatabaseAsync`, `db.getAllAsync(sql, params)`; `expo-file-system` `File.downloadFileAsync(url, dest)`, `Paths.document`; MapKit: `MKLocalPointsOfInterestRequest(center:radius:)` with `pointOfInterestFilter = MKPointOfInterestFilter(including: [.museum])`, `MKLocalSearch(request:).start()` → `mapItems` (`name`, `placemark.coordinate`, `url`), fallback `MKLocalSearch.Request` with `naturalLanguageQuery = "art gallery"` and a region; minimum iOS 14.0 for `MKLocalPointsOfInterestRequest`, below the app’s 16.4 minimum (00.06 SDK-header and device check).
 
 ## Scope
 
@@ -50,7 +50,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 
 ### Step 3: POI search module
 
-`modules/poi-search/` (DSL): `AsyncFunction("searchNearby") { (lat: Double, lng: Double, radiusMeters: Double) -> [PoiRecord] }` with `PoiRecord { name, lat, lng, website?, category }`: run `MKLocalPointsOfInterestRequest` with `.museum`, then a `MKLocalSearch.Request("art gallery")` in the same region; merge, dedupe by name+distance, sort by distance, ≤ 8 results. No API key.
+`modules/poi-search/` (DSL): `AsyncFunction("searchNearby") { (lat: Double, lng: Double, radiusMeters: Double) -> [PoiRecord] }` with `PoiRecord { name, lat, lng, website?, category }`: run `MKLocalPointsOfInterestRequest` with `.museum`, then a `MKLocalSearch.Request` with `naturalLanguageQuery = "art gallery"` in the same region even when museum results are nonempty (00.06 found SFMOMA classified as a landmark); merge, dedupe by name+distance, sort by distance, ≤ 8 results. No API key.
 
 **Verify**: device: at a downtown coordinate returns nearby museums/galleries with websites where MapKit has them.
 

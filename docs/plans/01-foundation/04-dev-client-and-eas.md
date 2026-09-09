@@ -133,5 +133,5 @@ No automated tests (configuration only). Verification is the local build launchi
 ## Maintenance notes
 
 - Later plans append to `ios.infoPlist`/`plugins` (VisionCamera, location, image picker, Apple sign-in); merge, never replace.
-- The App Attest entitlement value `production` is what TestFlight/App Store builds use; development builds on a device use the sandbox environment automatically (`APP_ATTEST_ALLOW_DEV=true` on the dev deployment, plan 04.04).
+- App Attest environment follows the signed entitlement. Spike 00.06 observed a production AAGUID in a development-signed build with the `production` entitlement; development signing does not automatically select sandbox. `APP_ATTEST_ALLOW_DEV=true` permits development attestations on the dev backend; it does not select the phone’s environment.
 - Cloud builds cost minutes/quota; the `development-simulator` profile exists for teammates without Xcode, not for routine use.
