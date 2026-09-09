@@ -75,6 +75,7 @@ function confidenceBlockers(
   features: Float64Array,
   config: CalibratorConfig
 ): string[] {
+  if (signals.keypointCount === null) return ['reference:unknown-texture'];
   const reasons: string[] = [];
   if (signals.keypointCount >= config.lowTextureKeypoints) {
     if (!signals.homographyValid) reasons.push('textured:no-homography');
