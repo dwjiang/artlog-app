@@ -27,7 +27,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 01.01 | [Verification baseline](01-foundation/01-verification-baseline.md) | P0 | S | — | DONE |
-| 00.01 | [CoreML export and Neural Engine spike](00-kickoff-spikes/01-coreml-export-and-neural-engine.md) | P0 | M | — (iPhone + Xcode) | TODO |
+| 00.01 | [CoreML export and Neural Engine spike](00-kickoff-spikes/01-coreml-export-and-neural-engine.md) | P0 | M | — (iPhone + Xcode) | DONE — [accepted 512/int8 decision](../decisions/001-embedding-model-export.md); 200-image iPhone drift passes, 94.5% agreement@1 on the 2,000-image index |
 | 00.02 | [Convex vector search at scale spike](00-kickoff-spikes/02-convex-vector-search-at-scale.md) | P0 | S–M | — (Convex Pro) | [DONE — 30k Starter fallback; Pro-scale gate open](../decisions/002-vector-search-scale.md) |
 | 00.04 | [Token Factory models spike](00-kickoff-spikes/04-token-factory-models.md) | P0 | S–M | — | DONE — [Kimi labels (96% joint title/artist), NVIDIA text models](../decisions/004-token-factory-models.md) |
 | 00.05 | [Data sources and terms spike](00-kickoff-spikes/05-data-sources-and-terms.md) | P1 | M | — | DONE — [decision and explicit unknowns](../decisions/005-data-sources.md) |

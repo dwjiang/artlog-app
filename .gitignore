@@ -44,3 +44,9 @@ example
 # generated native folders
 /ios
 /android
+
+# Model investigation outputs
+spikes/**/artifacts/
+spikes/**/.venv/
+spikes/**/__pycache__/
+spikes/**/.pytest_cache/

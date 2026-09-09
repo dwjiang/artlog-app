@@ -10,6 +10,13 @@
 
 ## Status
 
+- **Execution (2026-09-08)**: DONE. See the
+  [accepted decision 001](../../decisions/001-embedding-model-export.md): five
+  exports, all ten physical iPhone benchmark configurations, full 200-image
+  Mac/iPhone drift and disjoint 2,000-image retrieval comparisons measured.
+  Choose 512/int8: minimum iPhone drift cosine 0.99292, agreement@1 94.5%,
+  median prediction 66.64 ms. Loading takes about 4.1 seconds; CUDA and additional
+  devices remain unmeasured. Paced, resumable downloads resolved the Met blocker.
 - **Priority**: P0 (gates 03.03 and 02.04; also fixes `embeddingDim`/`inputSize`)
 - **Effort**: M (2 days)
 - **Risk**: MED (export may hit unsupported ops; ANE may reject parts of the graph)
@@ -97,11 +104,11 @@ Update `shared/model-version.json` **only if** the numbers differ from `1536 / 5
 
 ## Done criteria
 
-- [ ] `docs/decisions/001-embedding-model-export.md` exists with every table filled or marked "not measured (reason)"
-- [ ] `spikes/coreml-export/{wrapper.py,export.py,drift_check.py,README.md}` committed; artifacts ignored
-- [ ] Reproducible export command recorded (used verbatim by plan 03.03)
-- [ ] Drift cosine between PyTorch-fakequant and on-device CoreML reported; if < 0.99, the record names the mitigation tried (fp16-only weights, per-tensor vs per-channel, 448 vs 512)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `docs/decisions/001-embedding-model-export.md` exists with every table filled or marked "not measured (reason)"
+- [x] `spikes/coreml-export/{wrapper.py,export.py,drift_check.py,README.md}` committed; artifacts ignored
+- [x] Reproducible export command recorded (used verbatim by plan 03.03)
+- [x] Drift cosine between PyTorch-fakequant and on-device CoreML reported; if < 0.99, the record names the mitigation tried (fp16-only weights, per-tensor vs per-channel, 448 vs 512)
+- [x] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 
