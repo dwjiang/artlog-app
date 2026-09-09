@@ -24,7 +24,7 @@ Design §3: "Collection — grid and canvas views; search across title, artist, 
 ## Current state
 
 - Local repos (03.06): `listSavedWorks({ search? })`, `listVisits()`, `setNote`, `softDelete`; Drizzle `useLiveQuery`; photos at `photoPath`/`cropPath`.
-- Routes (01.02): `(collection)/index.tsx` (large title "Collection") and `[savedId].tsx` ("Saved work"); placeholders `CollectionScreen`, `SavedWorkScreen` with a placeholder link to remove.
+- Routes (01.02): `(collection)/collection.tsx` (large title "Collection") and `[savedId].tsx` ("Saved work"); placeholders `CollectionScreen`, `SavedWorkScreen` with a placeholder link to remove.
 - Backend: add `convex/artworks.ts` `enrichment` public query args `{ artworkId }` → `{ docent?: [...], factSheet?: [...], rightsStatus, thumbnailUrl? }` (in scope by exception; `requireDevice`), used by the detail screen when online.
 - Expo Router skill: `Stack.SearchBar` for search; `@expo/ui` `SegmentedControl`/`Picker` for view switching; `FlatList` for large lists; `expo-image` with `contentFit`.
 

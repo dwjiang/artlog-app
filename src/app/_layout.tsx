@@ -1,18 +1,25 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { DefaultTheme, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router/stack';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <ThemeProvider value={DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="venue-picker"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.45],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+      </Stack>
     </ThemeProvider>
   );
 }
