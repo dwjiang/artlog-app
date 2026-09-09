@@ -1,0 +1,130 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"Washington Crossing the Delaware\" Emanuel Leutze",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "metmuseum.org"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "Washington Crossing the Delaware",
+    "artist": "Emanuel Leutze",
+    "museum": "Metropolitan Museum of Art",
+    "domain": "metmuseum.org"
+  },
+  "started_at": "2026-09-08T11:15:51.357299+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.779,
+  "response": {
+    "query": "Washington Crossing the Delaware Emanuel Leutze",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/2183839/main-image",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/46151/main-image",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/46030/main-image",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/42494/main-image",
+      "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/46793/main-image"
+    ],
+    "results": [
+      {
+        "url": "https://www.metmuseum.org/art/collection/search/11417",
+        "title": "Emanuel Leutze - Washington Crossing the Delaware - American - The Metropolitan Museum of Art",
+        "content": "Washington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American [...] Washington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American [...] Washington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American\nWashington Crossing the Delaware, Emanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.), Oil on canvas, American",
+        "score": 0.7785319,
+        "raw_content": null,
+        "images": [
+          "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/42494/main-image",
+          "https://images.metmuseum.org/CRDImages/ad/web-large/APS6920.jpg",
+          "https://images.metmuseum.org/CRDImages/aa/web-large/37.131.1_003Sept2014.jpg",
+          "https://images.metmuseum.org/CRDImages/ad/web-large/DT62.jpg",
+          "https://images.metmuseum.org/CRDImages/ad/web-large/DT82.jpg",
+          "https://images.metmuseum.org/CRDImages/ad/web-large/267798.jpg",
+          "https://cdn.sanity.io/images/cctd4ker/production/3ff67a6c75da93b3aa6b180e3e6444edbe384621-250x304.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "caff42-00"
+      },
+      {
+        "url": "https://www.metmuseum.org/essays/colescott-contemporary-resonances",
+        "title": "Washington Crossing the Delaware: Then and Now - The Metropolitan Museum of Art",
+        "content": "\"\"\n\n# Washington Crossing the Delaware: Then and Now\n\nLeutze's epic painting, Washington Crossing the Delaware\n\nEmanuel Leutze (American, Schwäbisch Gmünd 1816–1868 Washington, D.C.). Washington Crossing the Delaware, 1851. Oil on canvas. Gift of John Stewart Kennedy, 1897. The Metropolitan Museum of Art, New York, 97.34 [...] On view in the American Wing Gallery 767 through February 28th is a special display, Crossings, that explores ongoing resonances between past and present artistic expressions—specifically, modern and contemporary responses to Emanuel Leutze’s epic Washington Crossing the Delaware (1851). Evoking patriotic feelings in some viewers, conflict and struggle in others, this commanding icon—an unavoidable highlight of The Met’s American Wing—continues to spark debates about political ideas. [...] Kara Walker is famous for her powerful and often controversial artworks that challenge romanticized narratives of America’s past. On January 20, 2017, the day of the inauguration of Donald J. Trump as the 45th U.S. President, the artist began this monumental drawing. While referencing a number of iconic works, it alludes primarily to Leutze’s Washington Crossing the Delaware. Reflecting the political chaos of the election and its aftermath, Walker depicts the paper-cap-wearing captain of an",
+        "score": 0.77487355,
+        "raw_content": null,
+        "images": [
+          "https://cdn.sanity.io/images/cctd4ker/production/75f4d339d1a3ef7833ad925453aa168cddd92727-5120x2880.jpg?w=600&q=75&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/11d903eec14f7f218f4f40feff31385ba399f29f-1518x890.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/7510fc83a4c5207b470b5c8c14f7ed9fcc212fa8-700x580.jpg?w=3840&q=75&fit=max&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/75f4d339d1a3ef7833ad925453aa168cddd92727-5120x2880.jpg?w=3840&q=75&fit=clip&auto=format",
+          "https://cdn.sanity.io/images/cctd4ker/production/c78d2e924841448a223615adde15859ec5d3671b-720x445.jpg?w=3840&q=75&fit=max&auto=format"
+        ],
+        "id": "0f58e0-01"
+      },
+      {
+        "url": "https://www.metmuseum.org/met-publications/washington-crossing-the-delaware-restoring-an-american-masterpiece",
+        "title": "Washington Crossing the Delaware: Restoring an American ...",
+        "content": "Emanuel Leutze's lifesize Washington Crossing the Delaware commemorates the critical moment in the American Revolution when George Washington led a surprise",
+        "score": 0.7728226,
+        "raw_content": null,
+        "images": [],
+        "id": "60fb7d-02"
+      },
+      {
+        "url": "https://www.metmuseum.org/learn/educators/lesson-plans/bravery-stands-tall",
+        "title": "Bravery Stands Tall | The Metropolitan Museum of Art",
+        "content": "## \n\n# Bravery Stands Tall\n\nEmanuel Leutze's 1851 painting of George Washington crossing the Delaware River\n\nEmanuel Leutze (American, 1816–1868). Washington Crossing the Delaware, 1851. Oil on canvas, 149 x 255 in. (378.5 x 647.7 cm). The Metropolitan Museum of Art, New York, Gift of John Stewart Kennedy, 1897 (97.34)\n\n## Goals\n\nStudents will be able to:\n\n## National Learning Standards\n\n### English Language Arts\n\nNL-ENG.K-12.4 Communication Skills\n\nNL-ENG.K-12.5 Communication Strategies [...] Anonymous (American, 18th–19th century). Washington Crossing the Delaware, 18th–19th century. Embossed print, 5 13/16 x 8 1/16 in. (14.8 x 20.5 cm). The Metropolitan Museum of Art, New York, Museum accession (x.791)\n\nAuthor: Adapted from lessons by Julie Roinos and Sharon Shambourger (Lower Manhattan Arts Academy and Life Sciences Secondary School, 2014) [...] Jacob Lawrence (American, 1917–2000). Struggle Series—No. 10: Washington Crossing the Delaware, 1954. Egg tempera on hardboard; 12 x 16 in. (30.5 x 40.6 cm). The Metropolitan Museum of Art, New York, Purchase, Lila Acheson Wallace Gift, 2003 (2003.414). © 2011 Artists Rights Society (ARS), New York",
+        "score": 0.73891455,
+        "raw_content": null,
+        "images": [
+          "http://localhost:5000/-/media/images/learn/educators/lesson-plans/lesson-plan_bravery-stands-tall_washington-crossing-the-delaware_teaser.jpg?sc_lang=en",
+          "https://www.metmuseum.org/-/media/images/learn/educators/lesson-plans/lesson-plan_bravery-stands-tall_washington-crossing-the-delaware_l.jpg?as=1&mh=876&mw=1520&sc_lang=en&hash=E98264DA71BC8276B3E5F3D56996BB8C"
+        ],
+        "id": "cd7082-03"
+      },
+      {
+        "url": "https://www.metmuseum.org/art/collection/search/493552",
+        "title": "Jacob Lawrence - We crossed the River at McKonkey's Ferry 9 miles above Trenton ... the night was excessively severe ... which the men bore without the least murmur...-Tench Tilghman, 27 December 1776/Struggle Series - No. 10: Washington Crossing the Delaware - The Metropolitan Museum of Art",
+        "content": "# We crossed the River at McKonkey's Ferry 9 miles above Trenton ... the night was excessively severe ... which the men bore without the least murmur...-Tench Tilghman, 27 December 1776/Struggle Series - No. 10: Washington Crossing the Delaware [...] ## Content Notice\n\nThe Metropolitan Museum of Art presents over 5,000 years of art from around the world, and our online collection reflects ongoing work conducted over the course of our more than 150-year history. You may encounter objects or images that may be inappropriate for some viewers or information that may be outdated. [...] To request images under copyright and other restrictions, please use this Image Request form.\n\n## Feedback\n\nWe continue to research and examine historical and cultural context for objects in The Met collection. If you have comments or questions about this object record, please contact us using the form below. The Museum looks forward to receiving your comments.\n\n## Content Notice",
+        "score": 0.20769678,
+        "raw_content": null,
+        "images": [
+          "https://collectionapi.metmuseum.org/api/collection/v1/iiif/493552/1005293/restricted",
+          "https://images.metmuseum.org/CRDImages/ma/web-large/DP-26900-001.jpg",
+          "https://images.metmuseum.org/CRDImages/ad/web-large/DP-19574-001.jpg",
+          "https://images.metmuseum.org/CRDImages/ma/web-large/Instruments%20of%20Power%203200.jpg",
+          "https://images.metmuseum.org/CRDImages/ma/web-large/DP236132.jpg",
+          "https://images.metmuseum.org/CRDImages/ma/web-large/DT2986.jpg",
+          "https://cdn.sanity.io/images/cctd4ker/production/3ff67a6c75da93b3aa6b180e3e6444edbe384621-250x304.jpg?w=3840&q=75&fit=clip&auto=format"
+        ],
+        "id": "2fee08-04"
+      }
+    ],
+    "response_time": 1.68,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "4910837f-c26c-445e-98a5-4bca22dce552"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.7785319,
+    "top_url": "https://www.metmuseum.org/art/collection/search/11417",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

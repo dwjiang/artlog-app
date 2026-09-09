@@ -1,0 +1,102 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "sfmoma.org",
+      "famsf.org",
+      "asianart.org",
+      "museum.stanford.edu",
+      "museumca.org",
+      "bampfa.org",
+      "sjmusart.org",
+      "kqed.org",
+      "sfchronicle.com",
+      "berkeleyside.org",
+      "mercurynews.com",
+      "48hills.org"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Yayoi Kusama",
+    "cohort": "famous",
+    "region": "sf-bay-area",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:13:51.759300+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.361,
+  "response": {
+    "query": "Yayoi Kusama exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Yayoi Kusama, the renowned Japanese artist known for her signature polka dots, passed away on August 14, 2026, in Tokyo at the age of 97. Her 2023 solo exhibition \"Yayoi Kusama: Infinite Love\" at the San Francisco Museum of Modern Art attracted over 170,000 visitors during its six-month run. The museum also acquired the \"Infinity Mirror Room,\" \"Dreaming of Earth’s Sphericity, I Would Offer My Love\" (2023) during the exhibition.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.sfchronicle.com/entertainment/arts-exhibits/article/yayoi-kusama-death-sfmoma-controversy-22406208.php",
+        "title": "How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning",
+        "content": "During the run of the show, the institution eventually acquired the “Infinity Mirror Room,” “Dreaming of Earth’s Sphericity, I Would Offer My Love” (2023).\n\nA party guest stands near Yayoi Kusama’s “Aspiring to Pumpkin’s Love, the Love in My Heart” in 2025. Her 2023 solo exhibition “Yayoi Kusama: Infinite Love” brought more than 170,000 visitors to the museum during its six-month run.\n\nCarlos Avila Gonzalez/S.F. Chronicle\n\nThis was Kusama at a major career pinnacle. [...] Subscribe\n\nArts & Entertainment//Arts & Exhibits\n\n# How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning\n\nBy Tony Bravo, Arts & Culture ColumnistUpdated\n\nYayoi Kusama, pictured here in Tokyo, in 2012. The artist died on Aug. 14, at age 97.\n\nItsuo Inouye/Associated Press\n\nFor many Bay Area museumgoers, Yayoi Kusama’s first solo Northern California exhibition at the San Francisco Museum of Modern Art in 2023 became the backdrop for selfies and Instagram reels. [...] Now, with news of Kusama’s death in Tokyo at 97 on Aug. 14, confirmed by the Yayoi Kusama Studio this week, the controversy that shadowed that SFMOMA show is inseparable from her local legacy.",
+        "score": 0.6964752,
+        "published_date": "Thu, 27 Aug 2026 20:28:25 GMT",
+        "raw_content": null,
+        "id": "446716-00"
+      },
+      {
+        "url": "https://www.mercurynews.com/2026/08/26/yayoi-kusama-who-splashed-polka-dots-across-the-art-world-dies-at-97-in-tokyo",
+        "title": "Yayoi Kusama, who splashed polka dots across the art world, dies at 97 in Tokyo",
+        "content": "TOKYO (AP) — Japanese artist Yayoi Kusama, who splashed her signature polka dots on paintings, sculptures and museum installations around the world,",
+        "score": 0.35999444,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "21dd25-01"
+      },
+      {
+        "url": "https://www.mercurynews.com/2026/08/26/yayoi-kusama-who-splashed-polka-dots-across-art-world-dies-at-97/amp",
+        "title": "Yayoi Kusama, who splashed polka dots across art world, dies at 97",
+        "content": "TOKYO (AP) — Japanese artist Yayoi Kusama, who splashed her signature polka dots on paintings, sculptures and museum installations around the world,",
+        "score": 0.35770264,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "331120-02"
+      },
+      {
+        "url": "https://www.sfchronicle.com/sports/article/the-year-in-review-influential-people-who-have-22418109.php",
+        "title": "The year in review: Influential people who have died in 2026",
+        "content": "Yayoi Kusama, 97. She was the Japanese artist who splashed her signature polka dots on paintings, sculptures and museum installations around the world. Aug. 14.\n\nTommy John, 83. He won 288 games during a 26-year big league career and became the first pitcher to successfully return following groundbreaking elbow surgery that later was named after him. Aug. 15. [...] Other noteworthy people who died in August include former Chinese premier Zhu Rongji, actor Tim Curry, ZZ Top drummer Frank Beard, Japanese artist Yayoi Kusama, Canadian TV news anchor Lloyd Robertson and Norwegian King Harald V.\n\nHere is a roll call of some influential figures who have died this year (the cause of death is cited, if available):\n\n\\_\\_\\_\n\nJANUARY \\_\\_\\_\n\nAdvertisement\n\nArticle continues below this ad [...] Valentino Garavani, 93. He was the jet-set Italian designer whose high-glamour gowns — often in his trademark shade of “Valentino red” — were fashion show staples for nearly half a century. Jan. 19.\n\nAdvertisement\n\nArticle continues below this ad\n\nOta Zaremba, 68. He won a weightlifting gold medal at the 1980 Moscow Olympics before admitting to using performance-enhancing drugs under a secret program run by the totalitarian regime in the former Czechoslovakia. Jan. 23.",
+        "score": 0.2808584,
+        "published_date": "Fri, 04 Sep 2026 18:31:21 GMT",
+        "raw_content": null,
+        "id": "294558-03"
+      }
+    ],
+    "response_time": 1.04,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "172dd362-eeda-40b9-bd9d-361f2ea9e1d4"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 431,
+    "answer_sentences": 3,
+    "first_sentence": "Yayoi Kusama, the renowned Japanese artist known for her signature polka dots, passed away on August 14, 2026, in Tokyo at the age of 97.",
+    "result_count": 4,
+    "top_score": 0.6964752,
+    "top_url": "https://www.sfchronicle.com/entertainment/arts-exhibits/article/yayoi-kusama-death-sfmoma-controversy-22406208.php",
+    "top_published_date": "Thu, 27 Aug 2026 20:28:25 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "David Hockney exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "David Hockney",
+    "cohort": "famous",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:04.588921+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.244,
+  "response": {
+    "query": "David Hockney exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Recent news highlights David Hockney's enduring influence in the art world, with tributes pouring in following his death at 88. The Art Newspaper features a new book uncovering the mysterious Beverly Hills Housewife in Hockney's famous Los Angeles painting, emphasizing his evolving perspective as an artist. The Guardian mentions Hockney in the context of Mike Leigh's Contemporary Films, where his documentary A Bigger Splash is celebrated alongside other cinematic masterpieces.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.theartnewspaper.com/2026/09/01/when-hockney-met-betty-new-book-uncovers-mysterious-beverly-hills-housewife-in-famous-los-angeles-painting",
+        "title": "When Hockney met Betty: new book uncovers mysterious Beverly Hills Housewife in famous Los Angeles painting - The Art Newspaper - International art news and events",
+        "content": "José da Silva\n\n\n\nDavid Hockneynews\n\n15 June 2026#### The art world honours David Hockney, ‘who flew the flag higher than any other British artist’\n\nFrom Tracey Emin to Nicholas Serota, tributes have poured in for the painter since his death at 88 years old on 11 June\n\nGareth Harris [...] David Hockney, Venice, California, 1964.  \nPhoto John Kasmin. Courtesy of the artist and Lyndsey Ingram\n\nHas the book and your research changed your perception of Hockney, as a person and an artist?\n\nFor me, when you’re dealing with an artist like Hockney, who was so prolific and restlessly inventive, you can never really have a fixed perspective. Your perceptions are always evolving the more you discover, and as you return to things that you thought you knew. [...] The historian Martin Kemp tells us what it was like co-curating a new show of the artist’s works, displayed amongst the masterpieces of the Fitzwilliam Museum in Cambridge\n\nMartin Kemp\n\n\n\nBook Clubblog\n\n8 April 2021#### An expert’s guide to David Hockney: five must-read books on the British artist\n\nAll you ever wanted to know about Hockney, from the best biography to the artist's “radical” investigations into art history—selected by the critic (and longtime friend) Martin Gayford",
+        "score": 0.522617,
+        "published_date": "Tue, 01 Sep 2026 09:09:28 GMT",
+        "raw_content": null,
+        "id": "8dbc44-00"
+      },
+      {
+        "url": "https://www.theguardian.com/film/2026/sep/01/mike-leigh-contemporary-films-charles-cooper-bfi",
+        "title": "‘Not just Hollywood crap’: Mike Leigh on the East End communist who brought world cinema to the UK | Film | The Guardian",
+        "content": "Such is Contemporary’s lustre that, along with screenings of films such as Miloš Forman’s A Blonde in Love, Bergman’s Wild Strawberries and Jack Hazan’s David Hockney documentary A Bigger Splash, the great and good are turning out in support, led by Mike Leigh, whose feature film directing debut, Bleak Moments, was picked up by Contemporary in 1971. “It was a great honour,” Leigh says. “One was used to seeing ‘Contemporary Films’ on all the movies one saw that weren’t just Hollywood crap.” [...] Film\n Mike Leigh\n Satyajit Ray\n Ingmar Bergman\n Andrzej Wajda\n Yasujiro Ozu\n Film industry\n features\n\nShare\n\nReuse this content\n\n## Most viewed\n\n## Most viewed [...] gazing up at this film called Alexander Nevsky”) to messing about in the school holidays at the company’s Frith Street office (“pasting press cuttings into scrapbooks and getting seven and sixpence for three hours’ work”).",
+        "score": 0.14447471,
+        "published_date": "Tue, 01 Sep 2026 14:05:03 GMT",
+        "raw_content": null,
+        "id": "8899e6-01"
+      },
+      {
+        "url": "https://www.theguardian.com/artanddesign/2026/sep/03/maurizio-cattelan-art-world-prankster-religion-bananas-hitler",
+        "title": "‘My work has always been serious’: Maurizio Cattelan on his $6m banana, his gold toilet – and bringing Hitler to Berlin",
+        "content": "I wonder, given the death of David Hockney, another epochal figure of the art world, if Cattelan has given any thought to his own legacy, but he does not seem to envision a future in which his work endures. “I don’t have a foundation,” he says. “I don’t have a studio, never had. I also don’t have a family. A legacy would be like being so conscious about yourself that you have these constructions.” [...] Each major exhibition sends him on a rollercoaster of exhilaration and panic, he says, admitting to being “extremely desperate” while planning Night. “Do I suffer? Yes, I don’t like it. It’s always a challenge. I still need the rush. It’s a contradiction, but I love the hate of making a show. It’s a fix. It’s a dependency. Maybe a therapist would say, ‘We can solve your addiction problem.’ And I’d say, ‘No, no, I love it.’” [...] Comedian, 2019, the $6.2m banana. Photograph: © 2025 Maurizio Cattelan\n\nThere was also the gold toilet, called America, that was installed in New York’s Guggenheim in 2016, its curators later offering the piece to Donald Trump’s White House instead of the Van Gogh that it requested. Thieves later made off with the 18-carat loo when it went on display at Blenheim Palace, Winston Churchill’s Oxfordshire birthplace.",
+        "score": 0.0909696,
+        "published_date": "Thu, 03 Sep 2026 04:00:42 GMT",
+        "raw_content": null,
+        "id": "49b8b0-02"
+      },
+      {
+        "url": "https://www.theguardian.com/artanddesign/2026/sep/04/the-must-see-bayeux-masterpiece-colombias-chronicler-and-a-manchester-odyssey-the-week-in-art",
+        "title": "The must-see Bayeux masterpiece, Colombia’s chronicler and a Manchester odyssey – the week in art",
+        "content": "The Bayeux tapestry arrives, the Americas go mainstream and modern, and Manchester threads its way to Korea and India.",
+        "score": 0.02729605,
+        "published_date": "Sat, 05 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "d47774-03"
+      }
+    ],
+    "response_time": 1.15,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "b7487e13-4e8d-4c4d-99b5-0c3936aee129"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 481,
+    "answer_sentences": 3,
+    "first_sentence": "Recent news highlights David Hockney's enduring influence in the art world, with tributes pouring in following his death at 88.",
+    "result_count": 4,
+    "top_score": 0.522617,
+    "top_url": "https://www.theartnewspaper.com/2026/09/01/when-hockney-met-betty-new-book-uncovers-mysterious-beverly-hills-housewife-in-famous-los-angeles-painting",
+    "top_published_date": "Tue, 01 Sep 2026 09:09:28 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

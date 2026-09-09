@@ -1,0 +1,21 @@
+[project]
+name = "artlog-tavily-spike"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "tavily-python>=0.8.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.6",
+]
+
+[tool.pytest.ini_options]
+python_files = ["*.test.py"]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "David Hockney exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "sfmoma.org",
+      "famsf.org",
+      "asianart.org",
+      "museum.stanford.edu",
+      "museumca.org",
+      "bampfa.org",
+      "sjmusart.org",
+      "kqed.org",
+      "sfchronicle.com",
+      "berkeleyside.org",
+      "mercurynews.com",
+      "48hills.org"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "David Hockney",
+    "cohort": "famous",
+    "region": "sf-bay-area",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:02.224506+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.158,
+  "response": {
+    "query": "David Hockney exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "David Hockney, a treasured British artist known for his shimmering pool paintings and colorful iPad drawings, passed away on June 11, 2026, at the age of 88. His contributions to contemporary art have left a lasting legacy.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.kqed.org/arts/category/visualarts?page=117",
+        "title": "Visual Arts",
+        "content": "Artist David Hockney Says the Drive to Create Pictures 'Is Deep Within Us'. Oct 13, 2016. Bay Area Sculpture Right Now: Alyssa Lempesis Wants to Gross You",
+        "score": 0.38373423,
+        "published_date": "Tue, 18 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "e85ce9-00"
+      },
+      {
+        "url": "https://www.sfchronicle.com/sports/article/the-year-in-review-influential-people-who-have-22418109.php",
+        "title": "The year in review: Influential people who have died in 2026",
+        "content": "David Hockney, 88. He was a treasured British artist whose paintings of shimmering pools and colorful iPad drawings became icons of contemporary art. June 11.\n\nRonnie Schell, 94. He played the best friend to the title character on the 1960s sitcom “Gomer Pyle, U.S.M.C.” and his gradual ascendancy in show business earned him the title of “America’s Slowest Rising Comedian.” June 12. [...] Subscribe\n\nSports\n\n# The year in review: Influential people who have died in 2026\n\nBy BERNARD McGHEE, Associated Press\n\nFILE - Dolly Parton performs on NBC's \"Today\" show in New York on May 13, 2014. (Photo by Charles Sykes/Invision/AP, File)\n\nCharles Sykes/AP Photo/Charles Sykes\n\nFILE - Hayden Panettiere arrives at the 61st Primetime Emmy Awards on Sept. 20, 2009, in Los Angeles.\n\nMatt Sayles/AP Photo/Matt Sayles [...] Ned Jarrett, 93. He was a two-time NASCAR Cup Series champion and longtime broadcaster. June 4.\n\nMarjane Satrapi, 56. The acclaimed Iranian-French cartoonist and filmmaker was a prominent advocate for women’s rights and author of “Persepolis,” a coming-of-age tale set against the Islamic Revolution in her native Iran. June 4.",
+        "score": 0.16893952,
+        "published_date": "Fri, 04 Sep 2026 18:31:21 GMT",
+        "raw_content": null,
+        "id": "cd1930-01"
+      },
+      {
+        "url": "https://www.kqed.org/arts/category/visualarts?page=89",
+        "title": "Visual Arts",
+        "content": "Power of Sports Enacted and on Display in 'Game Recognize Game'. Dec 7, 2017. A Fire Relief Fundraiser in Comic Strips. Dec 6, 2017",
+        "score": 0.117420465,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "75b584-02"
+      },
+      {
+        "url": "https://www.kqed.org/arts/tag/featured?page=190",
+        "title": "featured Archives | KQED Arts - Page 190",
+        "content": "Cy and David's Picks: The Early Days of the AIDS Crisis, Women Singing the Blues, and Love in a Time of Madness. Mar 23, 2017",
+        "score": 0.059128825,
+        "published_date": "Tue, 11 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "3f4588-03"
+      },
+      {
+        "url": "https://www.kqed.org/arts/category/visualarts?page=104",
+        "title": "Visual Arts",
+        "content": "Kerry James Marshall: A Black Presence in the Art World is 'Not Negotiable'. Mar 29, 2017. Meet the Oakland 14-Year-Old Cartooning the Resistance.",
+        "score": 0.046886258,
+        "published_date": "Tue, 25 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "4e434f-04"
+      }
+    ],
+    "response_time": 1.06,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "cf8726cd-5abb-46f7-8fe8-dcfc9f7ce08e"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 223,
+    "answer_sentences": 2,
+    "first_sentence": "David Hockney, a treasured British artist known for his shimmering pool paintings and colorful iPad drawings, passed away on June 11, 2026, at the age of 88.",
+    "result_count": 5,
+    "top_score": 0.38373423,
+    "top_url": "https://www.kqed.org/arts/category/visualarts?page=117",
+    "top_published_date": "Tue, 18 Aug 2026 11:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

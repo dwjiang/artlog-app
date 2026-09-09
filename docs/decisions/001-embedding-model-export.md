@@ -257,7 +257,7 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
 
 ## Verification
 
-- Twenty focused Python tests pass; the pinned Python environment is consistent.
+- Twenty-seven focused Python tests pass; the pinned Python environment is consistent.
 - Both 448 and 512 real-model shape checks pass; all five real CoreML models
   return finite, nonzero outputs on 200 images. Int8 passes the 0.99 drift gate;
   the tested 4-bit recipe fails. Both 2,000-image retrieval evaluations completed.
@@ -267,9 +267,9 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
 - BenchApp builds for iOS in Release, signs, installs, and runs on the physical
   iPhone in light mode. Product Expo code is unchanged; `npm run ios` launches
   the unrelated starter app, so verification uses this native benchmark.
-- `npx tsc --noEmit` fails on pre-existing CSS declarations in
-  `src/components/animated-icon.web.tsx` and `src/constants/theme.ts`; neither
-  file was changed. ESLint is not configured, so lint was not run. The spike's
-  isolated pytest runner does not establish the app-wide plan 01.01 baseline.
+- After integrating plan 01.01, `npx tsc --noEmit`, `npm run lint`, and
+  `npm run test:app -- --runInBand` pass; `npm run test:convex` exits successfully
+  with no tests present. The spike's pytest runner remains separate from the
+  app-wide verification baseline.
 - Weights, downloaded images, Python environment and generated native build
   output are ignored; the diff and referenced local paths were checked.

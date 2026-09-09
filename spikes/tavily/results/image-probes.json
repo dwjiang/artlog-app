@@ -1,0 +1,123 @@
+[
+  {
+    "case": "verify-01",
+    "candidate_url": "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.moma.org/media/W1siZiIsIjQ2NzUxNyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=314ebf8cc678676f",
+    "bytes": 1903174,
+    "sha256": "a5b9220fedb568c6a29d2559577a26fa6da9245b9cdf96977b25aac937182963",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-02",
+    "candidate_url": "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=ef9155183ab6bba1",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=ef9155183ab6bba1",
+    "bytes": 649873,
+    "sha256": "844095345a85979002ecb533609df366413dfa44d767d73e9f38df9e66ee9644",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-03",
+    "candidate_url": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/source",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/source",
+    "bytes": 118161,
+    "sha256": "2e681cd8a5d848bb18aa6cded29c92894fb64a5c8ee94ba81b790688368ac230",
+    "visual_review": "Different Monet work: Bridge over a Pond of Water Lilies (437127), not the leading Water Lilies object (437137).",
+    "useful_artwork_candidate": false
+  },
+  {
+    "case": "verify-04",
+    "candidate_url": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/2183839/main-image",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/11417/2183839/main-image",
+    "bytes": 134839,
+    "sha256": "614fba3963243397627c62be38f49ec2bc42714c4bb7a1045125b1692d8316c2",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-05",
+    "candidate_url": "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/843,/0/default.jpg",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.artic.edu/iiif/2/831a05de-d3f6-f4fa-a460-23008dd58dda/full/843,/0/default.jpg",
+    "bytes": 96238,
+    "sha256": "ca9d7bd954f05bf23a63d9c5991c11af956b2233ee90a992136c8f2983cdaaa4",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-06",
+    "candidate_url": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+    "bytes": 197727,
+    "sha256": "90197c037e6041fcae1c35606b921b5b626d868c2ff21cd653edb640b3f6e2dd",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-07",
+    "candidate_url": "https://www.nationalgallery.org.uk/media/i4wfa4u2/n-0524-00-000102-xl-hd.jpg?rxy=0.50989010989010985,0.606508875739645&width=1280&height=960&v=1dbcbd46071af10",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.nationalgallery.org.uk/media/i4wfa4u2/n-0524-00-000102-xl-hd.jpg?rxy=0.50989010989010985,0.606508875739645&width=1280&height=960&v=1dbcbd46071af10",
+    "bytes": 130509,
+    "sha256": "78a2577c58085a5b7490101f7576c092a47a516a24bb8404dcf795137cdf38f6",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-08",
+    "candidate_url": "https://media.tate.org.uk/art/images/work/T/T03/T03254_10.jpg",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "application/octet-stream",
+    "final_url": "https://media.tate.org.uk/art/images/work/T/T03/T03254_10.jpg",
+    "bytes": 155052,
+    "sha256": "1e48c895eaa6a81159cfcae0e5d3311fcd782aeb774edda47fbd0a3678d24a9c",
+    "note": "Second GET confirmed JPEG signature despite application/octet-stream MIME type.",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-09",
+    "candidate_url": "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_print.jpg",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_print.jpg",
+    "bytes": 6563638,
+    "sha256": "ad28174b49f35bb61972f57fbb3bcb1db8045e07626f1e4330f937770af29da6",
+    "visual_review": "The Thinker, damaged monumental cast 1917.42; differs from top result cast 1979.138. Title/artist alone is ambiguous.",
+    "useful_artwork_candidate": true
+  },
+  {
+    "case": "verify-10",
+    "candidate_url": "https://www.moma.org/media/W1siZiIsIjQ5OTUxMCJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDUxMng1MTJcdTAwM2UiXV0.jpg?sha=e2523950f5c8da41",
+    "selection": "first top-level image; no tracking URLs requested",
+    "status": 200,
+    "content_type": "image/jpeg",
+    "final_url": "https://www.moma.org/media/W1siZiIsIjQ5OTUxMCJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDUxMng1MTJcdTAwM2UiXV0.jpg?sha=e2523950f5c8da41",
+    "bytes": 81508,
+    "sha256": "315af93fc4943e2173957710a97b8eebf25cdde6555de76ba2f11643c09d0aa0",
+    "visual_review": "Recognizable requested artwork.",
+    "useful_artwork_candidate": true
+  }
+]

@@ -8,6 +8,7 @@
 
 ## Status
 
+- **Outcome (2026-09-08)**: Completed the 30k Starter fallback; [decision and evidence](../../decisions/002-vector-search-scale.md). The 100k/300k/1M Pro-scale measurements remain unmeasured. Keep Convex provisionally; recommend 250-row inserts and 256-candidate retrieval pending real-embedding recall validation.
 - **Priority**: P0 (gates the decision to keep Convex as the vector store; §11 names Qdrant on a VM as the fallback)
 - **Effort**: S–M (1 day + background insert time)
 - **Risk**: LOW (throwaway deployment; costs a few dollars of storage while it exists)
@@ -48,10 +49,10 @@ Delete the project (dashboard → settings → delete) at the end, or leave it o
 
 ## Done criteria
 
-- [ ] Decision record exists with all five questions answered or marked unmeasured with a reason
-- [ ] `spikes/convex-vector-scale/` committed (no deploy keys; `.env.local` ignored)
-- [ ] Throwaway deployment deleted or its cost recorded
-- [ ] `docs/plans/README.md` status row updated
+- [x] Decision record exists with all five questions answered or marked unmeasured with a reason
+- [x] `spikes/convex-vector-scale/` committed (no deploy keys; `.env.local` ignored)
+- [x] Throwaway deployment deleted or its cost recorded
+- [x] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

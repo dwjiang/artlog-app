@@ -1,0 +1,18 @@
+{
+  "name": "artlog-spike-vectors",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && uv run python benchmark.test.py",
+    "codegen": "convex codegen"
+  },
+  "dependencies": {
+    "convex": "1.45.0"
+  },
+  "devDependencies": {
+    "convex-test": "0.0.56",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}
