@@ -150,9 +150,9 @@ export const limiter = new RateLimiter(components.rateLimiter, {
 export async function limitDevice(ctx, name, deviceId, extraKey?)   // throws ConvexError({ code: 'rate_limited', retryAfter })
 ```
 
-`convex/lib/flags.ts`: `isEnabled(name: 'labelFlow' | 'rightNow')` reads `FLAG_LABEL_FLOW` / `FLAG_RIGHT_NOW` (`'off'` disables; default on). `convex/lib/spend.ts`: `recordSpend(ctx, { tokenFactoryCalls?, tavilyCredits? })` (internal mutation, upsert by UTC day) and `assertUnderCap(ctx, kind)` reading `DAILY_TOKEN_FACTORY_CALL_CAP` / `DAILY_TAVILY_CREDIT_CAP` (default 2000 / 300); throws `ConvexError({ code: 'spend_cap' })`.
+`convex/lib/flags.ts`: `isEnabled(name: 'labelFlow' | 'rightNow')` reads `FLAG_LABEL_FLOW` / `FLAG_RIGHT_NOW` (`'off'` disables; label flow defaults on, Right now defaults off per [decision 007](../../decisions/007-tavily.md)). `convex/lib/spend.ts`: `recordSpend(ctx, { tokenFactoryCalls?, tavilyCredits? })` (internal mutation, upsert by UTC day) and `assertUnderCap(ctx, kind)` reading `DAILY_TOKEN_FACTORY_CALL_CAP` / `DAILY_TAVILY_CREDIT_CAP` (default 2000 / 20); throws `ConvexError({ code: 'spend_cap' })`. Tavily dispatch must atomically reserve the request's credit bound before calling the provider, then reconcile reported usage without double-counting; a separate read-only cap check followed by recording spend permits concurrent overshoot. Apply the same accounting to jobs and retain possible spend after an ambiguous timeout. The daily cap does not replace the shared monthly allowance check.
 
-**Verify**: `npx vitest run convex/lib/rateLimits convex/lib/spend convex/lib/flags` → the 4th `rejectPerWork` call in a day throws `rate_limited` while a different object key passes; spend cap trips at the configured value; flags default on and honor `off`.
+**Verify**: `npx vitest run convex/lib/rateLimits convex/lib/spend convex/lib/flags` → the 4th `rejectPerWork` call in a day throws `rate_limited` while a different object key passes; spend cap trips at the configured value; concurrent Tavily reservations cannot exceed the cap and reconciliation does not double-charge; label flow defaults on, Right now defaults off, and explicit flags are honored.
 
 ### Step 5: App side — anonymous sign-in and device registration
 

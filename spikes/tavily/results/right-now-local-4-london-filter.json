@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Hetain Patel exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "tate.org.uk",
+      "nationalgallery.org.uk",
+      "vam.ac.uk",
+      "royalacademy.org.uk",
+      "whitechapelgallery.org",
+      "serpentinegalleries.org",
+      "southlondongallery.org",
+      "theguardian.com",
+      "standard.co.uk",
+      "londonist.com",
+      "bbc.co.uk",
+      "theartnewspaper.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Hetain Patel",
+    "cohort": "local",
+    "region": "london",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:15:24.186768+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 3.677,
+  "response": {
+    "query": "Hetain Patel exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Based on the provided data, there is no mention of an exhibition or news specifically about Hetain Patel. The sources focus on various art exhibitions and events, including the Koestler Arts exhibition curated by young adults with parental imprisonment experience, the Edinburgh art festival, an Agatha Christie exhibition at the British Library, digital art exhibitions at the Venice Biennale, and the cancellation of a John Galliano exhibition at the Metropolitan Museum of Art. If you need information on any of these events, I can provide details accordingly.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.theartnewspaper.com/2026/08/21/young-adults-with-experience-of-having-parents-in-prison-to-curate-southbank-centre-exhibition",
+        "title": "Young adults with experience of having parents in prison to curate exhibition at London’s Southbank Centre - The Art Newspaper",
+        "score": 0.038441,
+        "published_date": "Fri, 21 Aug 2026 15:54:52 GMT",
+        "content": "# Young adults with experience of having parents in prison to curate exhibition at London’s Southbank Centre. ## Rock, Paper, Scissors will bring together more than 200 works by people in criminal justice settings. Young adults who have had a parent in prison will curate an exhibition at London’s Southbank Centre this autumn, sharing their experiences in the process. *Rock, Paper, Scissors*, the latest edition of the annual Koestler Arts exhibition, will bring together more than 200 works selected from over 7,500 entries to the 2026 Koestler Awards, which recognise art made by people in prisons, secure hospitals, young offender institutions and other criminal justice settings. This year, the works have been chosen by five members of the Parental Imprisonment Collective (PIC), a group of 18 to 35-year-olds from across the UK who experienced parental imprisonment. The artists will remain anonymous to visitors to, under an HMPPS policy introduced in 2023 that prevents Koestler Arts from displaying prisoners’ first names alongside their work.",
+        "raw_content": null,
+        "id": "bf5d7e-00"
+      },
+      {
+        "url": "https://www.theguardian.com/artanddesign/2026/aug/14/the-week-in-art-volcano-edinburgh-brussels-lautrec",
+        "title": "Volcanic raunch hits Edinburgh, blooms sweep Brussels and Henri does the can-can: the week in art - The Guardian",
+        "score": 0.036456086,
+        "published_date": "Fri, 14 Aug 2026 11:00:27 GMT",
+        "content": "# Volcanic raunch hits Edinburgh, blooms sweep Brussels and Henri does the can-can: the week in art. Edinburgh art festival erupts with Del LaGrace Volcano, Belgium lays down a marker for public art and Toulouse-Lautrec captures a dancer – all in your weekly dispatch. ## Exhibition of the week. **Edinburgh art festival**Science-minded artist Katie Paterson finds a natural home in the Collective Gallery’s repurposed observatory on Calton Hill, while Del LaGrace Volcano, Eva Rothschild and more show in the many other memorable places this city can boast. Edinburgh venues until 30 August. Laing Art Gallery, Newcastle, until 5 September. ## Image of the week. ## Masterpiece of the week. Toulouse-Lautrec is her pal and she doesn’t have to perform for him. This intimacy and honesty is typical of his portraits of female friends, and anyone who thinks he just did colourful posters is missing out, for Toulouse-Lautrec is a profound and subtle artist who sees the solitude and sadness behind the can-can.",
+        "raw_content": null,
+        "id": "654423-01"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/09/07/come-to-the-british-librarys-agatha-christie-showif-you-dare",
+        "title": "Come to the British Library’s Agatha Christie show—if you dare - The Art Newspaper",
+        "score": 0.03580315,
+        "published_date": "Mon, 07 Sep 2026 13:56:35 GMT",
+        "content": "# Come to the British Library’s Agatha Christie show—if you dare. ## London exhibition will examine the life of the crime fiction writer and how she created her most famous characters. That is, planned an exhibition dedicated to the queen of crime fiction, Agatha Christie. The show in London later this year (30 October-20 June 2027) promises to “go behind the books to explore how Christie’s life, travels and interests informed her work and the creation of her iconic characters”, revealing the author behind classic detective novels such as *Murder on the Orient Express* and *Death on the Nile*. The exhibition includes photographs of Christie as a child, with her family at their home in Torquay on England’s south coast, and “roller skating with friends”. (Who knew?) Christie has been immortalised by artists and sculptors, including Elisabeth Hadley, who unveiled her effigy of the crime supremo—alongside her favourite dog, Peter—in Torquay last year. The gallery has launched an exhibition dedicated to the capital, featuring artists including Jenny Saville and Peter Doig.",
+        "raw_content": null,
+        "id": "9288d7-02"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/08/13/digital-art-exhibition-venice-biennale-collateral",
+        "title": "At the Venice Biennale, collateral exhibitions embrace the possibilities of digital art - The Art Newspaper",
+        "score": 0.031861935,
+        "published_date": "Thu, 13 Aug 2026 19:33:29 GMT",
+        "content": "# At the Venice Biennale, collateral exhibitions embrace the possibilities of digital art. ## Both AI-generated art and digital art have had a tough time lately, but the 61st Venice Biennale offers the digitally-minded some work to feel good about. Press any key to continue is a monthly column about the ways technology is reshaping contemporary art, from non-fungible tokens and artificial intelligence to attention economies and new systems of distribution. Visitors making their way to Venice between now and late November when the 61st edition of the floating city’s Biennale closes would do well to skip some of the shows that have been posted about on social media countless times, and explore a few palazzos off the beaten path that will renew their faith in the future of digital art. *Aghrab Idrāk: Thresholds of Perception* (until 22 November) features a refreshingly inventive range of digital works produced by members of the VCUarts faculty in Qatar.",
+        "raw_content": null,
+        "id": "1f6378-03"
+      },
+      {
+        "url": "https://www.theartnewspaper.com/2026/08/31/metropolitan-museum-costume-institute-john-galliano-exhibition-cancelled",
+        "title": "Metropolitan Museum and designer John Galliano cancel planned Costume Institute exhibition amid backlash - The Art Newspaper",
+        "score": 0.031861935,
+        "published_date": "Mon, 31 Aug 2026 21:42:03 GMT",
+        "content": "The Metropolitan Museum of Art in New York and the British fashion designer John Galliano have called off an exhibition honouring Galliano that was planned for next spring, following a wave of opposition in light of the designer’s history of antisemitic statements. In a statement on Monday (31 August), Max Hollein, the director and chief executive of the Met, said: “Following thoughtful discussions with John Galliano, we have together decided not to proceed with the exhibition.”. Champions of his work over the years have included Anna Wintour, the former editor-in-chief of *Vogue*, a trustee of the Met and the chair of the Met Gala since 1999, and Andrew Bolton, the curator in charge of the Met’s Costume Institute and lead organiser of the planned exhibition, *John Galliano: Horizons*. According to *The New York Times*, the decision to cancel the exhibition came just hours before planned meetings on Monday of select members of the museum’s board and the full Met leadership and board of trustees to discuss the exhibition’s future and matters related to the Costume Institute.",
+        "raw_content": null,
+        "id": "a29ac2-04"
+      }
+    ],
+    "response_time": 3.59,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "9fb09f04-2533-4404-897e-03792997457e"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 563,
+    "answer_sentences": 3,
+    "first_sentence": "Based on the provided data, there is no mention of an exhibition or news specifically about Hetain Patel.",
+    "result_count": 5,
+    "top_score": 0.038441,
+    "top_url": "https://www.theartnewspaper.com/2026/08/21/young-adults-with-experience-of-having-parents-in-prison-to-curate-southbank-centre-exhibition",
+    "top_published_date": "Fri, 21 Aug 2026 15:54:52 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

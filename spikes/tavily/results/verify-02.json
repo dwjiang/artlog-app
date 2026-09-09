@@ -1,0 +1,168 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"The Persistence of Memory\" Salvador Dalí",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "moma.org"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "The Persistence of Memory",
+    "artist": "Salvador Dalí",
+    "museum": "MoMA",
+    "domain": "moma.org"
+  },
+  "started_at": "2026-09-08T11:15:46.550107+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 2.897,
+  "response": {
+    "query": "The Persistence of Memory Salvador Dalí",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=ef9155183ab6bba1",
+      "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDUxMng1MTJcdTAwM2UiXV0.jpg?sha=ac840f67662c0240",
+      "https://cdn.sanity.io/images/476nwnl9/production/af67f004057daa2033ae721a4951718dfffb6b06-2000x1446.jpg?w=512",
+      "https://cdn.sanity.io/images/476nwnl9/production/45cb854e20fe4ad7ae27e803f0da042c933911ed-2000x1446.jpg?auto=format&fit=crop&h=1000&rect=0%2C0%2C2000%2C1000&w=2000",
+      "https://cdn.sanity.io/images/476nwnl9/production/45cb854e20fe4ad7ae27e803f0da042c933911ed-2000x1446.jpg?auto=format"
+    ],
+    "results": [
+      {
+        "url": "https://www.moma.org/audio/playlist/296/67",
+        "title": "Salvador Dalí. The Persistence of Memory. 1931 | MoMA",
+        "content": "# 1880–1950: Works from the Collection\n\n42 / 77\n\n.\n\nGiven anonymously. © 2026 Salvador\n\nDalí, Gala-Salvador Dalí Foundation /\n\nArtists Rights Society (ARS), New York \n\nCurator, Anne Umland: Salvador Dalí's 1931 painting _The Persistence of Memory_ is a very small, cabinet-size picture filled with exquisite, meticulously rendered detail.\n\nIt is probably for its hallucinatory, hyper-realistic atmosphere that this work is one of the most iconic Surrealist paintings. [...] The Surrealists were a revolutionary movement with the goal of destabilizing societal, political, cultural norms. The Surrealists were deeply interested in dream states, in Freud, in alternative realities to provoke, to stimulate, to overturn people's expectations.\n\nAnd what Dalí did was arrive at this conflation of things that both look so real, palpable, touchable almost, and yet are in a state of dissolution. Things that normally would be hard are draped, oozing, soft. [...] Dalí liked things in this state of becoming, unbecoming, with ants crawling over the golden watch in the lower left corner, and again these sagging, limpid, loose, floppy time pieces. Dalí once, in fact, referred to the melting watches as the \"Camembert of time,\" which has all sorts of wonderfully smelly connotations. Their utility is completely thwarted in this vivid dreamscape that is as much about an interior state of mind as anything that you'd experience in everyday life.",
+        "score": 0.9047265,
+        "raw_content": null,
+        "images": [
+          "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=ef9155183ab6bba1",
+          "https://c1.adform.net/serving/cookie/match?cid=0091ba8a-0d38-480d-89ec-4e991d00232f&party=1296&sjrn_lbid=923ac352a30a35e8e03b14de42221927&sjrn_src=1&sjrn_ts=1788718360",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=AllUsers",
+          "https://secure.adnxs.com/seg?add=34571930&t=2&gdpr=0&gdpr_consent=",
+          "https://lex.33across.com/ps/v1/pubtoken/?pid=119&event=rtg&us_privacy=&rnd=1788718360952&ru=https%3A%2F%2Fi.ctnsnet.com%2Fint%2Fintegration%3Fpixel%3D77707446%26nid%3D302660%26cont%3Di%26pixel_id%3D78593803%26ev%3Drtg%26uid%3D8b8ddb0a004649f89aab0977b2d53aab%2633xuid%3D%24%7BPUBTOK%7D%26us_privacy%3D%24%7BUS_PRIVACY%7D%26%24rnd%3D%24%7BRANDOM%7D",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=Members"
+        ],
+        "id": "e159d0-00"
+      },
+      {
+        "url": "https://www.moma.org/magazine/articles/1386",
+        "title": "One on One: Salvador Dalí’s The Persistence of Memory | Magazine | MoMA",
+        "content": "According to Salvador Dalí, _The Persistence of Memory_, his famous Surrealist painting of melting watches, was inspired by a piece of smelly, oozing cheese. “We had topped off our meal with a very strong Camembert,” he recalled in _The Secret Life of Salvador Dalí_, his self-mythologizing autobiography, some ten years after he completed his small but unforgettable picture. “And after everyone had gone I remained for a long time seated at the table meditating on the philosophic problems of the [...] Dalí wrote _The Secret Life of Salvador Dalí_ in 1940–41, a decade after _The Persistence of Memory_ was made, at a point when the painting was already famous, resided in MoMA’s collection, and had become virtually synonymous with Dalí-the-man and with his art. By portraying it as the pure, unpremeditated result of an unbidden spark of inspiration, provoked by a cheesy chance encounter and featuring a “surprising image” that was set down quickly, before conscious thought could intervene, Dalí [...] 8\n\n He also underscored, in a playful, funny, even surreal way, _The Persistence of Memory_’s essential subject: What better way to tell the origin story of a painting that is all about time, both literally and figuratively, than by foregrounding the timeline of its making and how long it took to finish? The work remains to this day one of modern art’s most recognizable and widely reproduced images, and Dalí, for many, is known as the artist of the melting watch.\n\nImage 4: Salvador Dalí.",
+        "score": 0.8889231,
+        "raw_content": null,
+        "images": [
+          "https://cdn.sanity.io/images/476nwnl9/production/45cb854e20fe4ad7ae27e803f0da042c933911ed-2000x1446.jpg?auto=format&fit=crop&h=1000&rect=0%2C0%2C2000%2C1000&w=2000",
+          "https://cdn.sanity.io/images/476nwnl9/production/dfde4043fc207dda5effb176536c35015f77b4d6-2000x2566.jpg?auto=format",
+          "https://cdn.sanity.io/images/476nwnl9/production/e59d3f99aafa0e86d232595b6bd215918ee94586-2658x2994.jpg?auto=format",
+          "https://cdn.sanity.io/images/476nwnl9/production/45cb854e20fe4ad7ae27e803f0da042c933911ed-2000x1446.jpg?auto=format",
+          "https://cdn.sanity.io/images/476nwnl9/production/505358a2425adfd4c0f14f05a2c5a2a516c5824f-2000x1496.jpg?auto=format&fit=crop&h=237&rect=0%2C0%2C2000%2C1306&w=363",
+          "https://cdn.sanity.io/images/476nwnl9/production/46916c6b320752bd49049dde07175e8c349a9361-1500x1117.jpg?auto=format&fit=crop&h=237&rect=0%2C0%2C1500%2C979&w=363",
+          "https://cdn.sanity.io/images/476nwnl9/production/53b7cf1a2a35831b4bab1cb91702118878153dc1-3618x5496.jpg?auto=format&fit=crop&h=379&rect=804%2C1563%2C2266%2C1512&w=568",
+          "https://cdn.sanity.io/images/476nwnl9/production/53b7cf1a2a35831b4bab1cb91702118878153dc1-3618x5496.jpg?auto=format&fit=crop&h=237&rect=804%2C1580%2C2266%2C1479&w=363",
+          "https://c1.adform.net/serving/cookie/match?cid=c3da0689-6de6-4ee4-9510-cb0840002766&party=1296&sjrn_lbid=1dd88608c7ccc3b604e650a92ca4ad9a&sjrn_src=1&sjrn_ts=1787584256",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=AllUsers",
+          "https://secure.adnxs.com/seg?add=34571930&t=2&gdpr=0&gdpr_consent=",
+          "https://lex.33across.com/ps/v1/pubtoken/?pid=119&event=rtg&us_privacy=&rnd=1787584256405&ru=https%3A%2F%2Fi.ctnsnet.com%2Fint%2Fintegration%3Fpixel%3D77707446%26nid%3D302660%26cont%3Di%26pixel_id%3D78593803%26ev%3Drtg%26uid%3Db0ece37e45844340ba6892274b005191%2633xuid%3D%24%7BPUBTOK%7D%26us_privacy%3D%24%7BUS_PRIVACY%7D%26%24rnd%3D%24%7BRANDOM%7D",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=Members"
+        ],
+        "id": "74278d-01"
+      },
+      {
+        "url": "https://store.moma.org/products/salvador-dali-the-persistence-of-memory-moma-one-on-one-series-paperback",
+        "title": "Salvador Dalí: The Persistence of Memory (MoMA One on One Series) - Pa – MoMA Design Store",
+        "content": "In 1931, Salvador Dalí (1904–89) painted The Persistence of Memory, a work that has become virtually synonymous both with the artist and with Surrealism itself. In this bleak and infinite dreamscape, hard objects become inexplicably limp, while metal attracts ants like rotting flesh. Yet realistic details are included, too: the distant cliffs depict the coastline of Dalí’s native Catalonia. Tapping deep into the non-rational mechanisms of his mind—dreams, the imagination and the subconscious—",
+        "score": 0.8820324,
+        "raw_content": null,
+        "images": [
+          "http://store.moma.org/cdn/shop/files/ccf9baf3-e422-4503-b74a-61b355df2f08.jpg?v=1757962587",
+          "https://store.moma.org/cdn/shop/files/ccf9baf3-e422-4503-b74a-61b355df2f08_348x.jpg?v=1757962587",
+          "https://cdn.shopify.com/s/files/1/0623/7962/2630/files/appleid_shadow.png?v=1656659758",
+          "https://cdn.shopify.com/s/files/1/0623/7962/2630/files/btn_google_signin_light_normal_web_2x_704f85c7-74b1-4264-a00f-14028438100f.png?v=1656599086"
+        ],
+        "id": "54ebb2-02"
+      },
+      {
+        "url": "https://www.moma.org/collection/artists/1364",
+        "title": "Salvador Dalí | MoMA",
+        "content": "bizarre, and its suggestion of time arrested or out of sync (the watches all point to different numbers), _The Persistence of Memory_ possesses an eerily dreamlike quality. It showcases Dalí’s interest in exploring how the mind interprets reality and the primacy of sexuality to the human psyche—lines of inquiry that would remain constant throughout his career. [...] _The Persistence of Memory_, perhaps his most famous painting, was an overnight sensation on its first exhibition in New York, in January 1932. (It had remained unsold when first exhibited in Paris the previous summer.) The gallerist and early champion of the Surrealists Julien Levy proclaimed the painting “10 by 14 inches of Dalí dynamite,” and an image of it was reproduced in nearly every review.\n\n3",
+        "score": 0.8690161,
+        "raw_content": null,
+        "images": [
+          "https://cdn.sanity.io/images/476nwnl9/production/13e8b572644b1c6134ea09c392cfe17f5a1cbcf3-4047x5192.jpg?auto=format&fit=crop&h=512&rect=0%2C279%2C3996%2C3996&w=512",
+          "https://cdn.sanity.io/images/476nwnl9/production/ddd337ff098ddd2167566b39abb618698db2816a-3000x2169.jpg?auto=format&fit=crop&h=666&rect=0%2C324%2C3000%2C1688&w=1184",
+          "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=45668e592d8aeafb",
+          "https://www.moma.org/media/W1siZiIsIjIxMTAxNiJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=a51b6bcf8dd9b542",
+          "https://www.moma.org/media/W1siZiIsIjE1OTIyNiJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=0879fe6721b13bdf",
+          "https://www.moma.org/media/W1siZiIsIjIxMDY3NiJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=91eedd832a4eee75",
+          "https://www.moma.org/media/W1siZiIsIjYwMTE3MiJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=d5ff64786025e81c",
+          "https://www.moma.org/media/W1siZiIsIjEwMDU3MCJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=6d74db01d2ca028c",
+          "https://www.moma.org/media/W1siZiIsIjIyMzU1OCJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI1NngyNTZcdTAwM2UiXV0.jpg?sha=8699f5b19fdd884e",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMjUvMDkvMjQvMnJ0bmN6cDBpdV9UUjE3Mjc3XzVfUklDUl9GdWxsX3NpemVfSlBFRy5qcGciXSxbInAiLCJjb252ZXJ0IiwiLXF1YWxpdHkgOTAgLXJlc2l6ZSAyNjB4MTc0XiAtZ3Jhdml0eSBDZW50ZXIgLWNyb3AgMjYweDE3NCswKzAiXV0/TR17277_5_RICR-Full%20size%20JPEG.jpg?sha=cef263c28c2c9fe5",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMjQvMDUvMTMvOHdwY3Y1MnVqeF83MzYuMjAxOF9WYXJvX1ByZXNzLmpwZyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI2MHgxNzReIC1ncmF2aXR5IENlbnRlciAtY3JvcCAyNjB4MTc0KzArMCJdXQ/736.2018_Varo-Press.jpg?sha=6af2390836736315",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMjIvMTAvMjQvMTU2bTJia3QyMV85M18xOTcxX0NDQ1JfUHJlc3NfU2l0ZS5qcGciXSxbInAiLCJjb252ZXJ0IiwiLXF1YWxpdHkgOTAgLXJlc2l6ZSAyNjB4MTc0XiAtZ3Jhdml0eSBDZW50ZXIgLWNyb3AgMjYweDE3NCswKzAiXV0/93_1971_CCCR-Press%20Site.jpg?sha=5a40a52b69668829",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTUvMTAvMjAvMzF4MWF6bzF5Yl9FeHF1aXNpdGVDb3Jwc2VzLmpwZyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDI2MHgxNzReIC1ncmF2aXR5IENlbnRlciAtY3JvcCAyNjB4MTc0KzArMCJdXQ/ExquisiteCorpses.jpg?sha=236fb8843f1fd194",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTYvMDIvMDMvNzQ4YW5pMzczOF9HaWZ0ZWRfQ29sbGVjdG9yc19hbmRfRHJhd2luZ3NfYXRfTW9NQV8xOTI5XzE5ODMuanBnIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgMjYweDE3NF4gLWdyYXZpdHkgQ2VudGVyIC1jcm9wIDI2MHgxNzQrMCswIl1d/Gifted-%20Collectors%20and%20Drawings%20at%20MoMA,%201929%E2%80%931983.jpg?sha=563c1ebaf7b1d53c",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTYvMDIvMDUvN2Nnc3VhdnJ6bV9UaGVfTW9kZXJuX015dGguanBnIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgMjYweDE3NF4gLWdyYXZpdHkgQ2VudGVyIC1jcm9wIDI2MHgxNzQrMCswIl1d/The%20Modern%20Myth.jpg?sha=43b0767d9edc9f0d",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTUvMTAvMTQvMXRyemdwOTQ1d18yMDEzMC5qcGciXSxbInAiLCJjb252ZXJ0IiwiLXF1YWxpdHkgOTAgLXJlc2l6ZSAyNjB4MTc0XiAtZ3Jhdml0eSBDZW50ZXIgLWNyb3AgMjYweDE3NCswKzAiXV0/20130.jpg?sha=a1488246c248c809",
+          "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDE1OHgxMDVcdTAwM2UiXV0.jpg?sha=c4d4d87a2d153da2",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMjUvMDkvMzAvN2VvbnJvMWV4ZF85NzgxNjMzNDUxNzU5X01vTUFfRGFsaV9mcm9udF9jb3Zlci5qcGciXSxbInAiLCJjb252ZXJ0IiwiLXF1YWxpdHkgOTAgLXJlc2l6ZSA1MTJ4NTEyXHUwMDNlIl1d/9781633451759%20MoMA%20Dali%20front%20cover.jpg?sha=c6ff68d0b2f65dcf",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTkvMTAvMDgvdzB3dDVzNHFjX01vTUFfSGlnaGxpZ2h0c18yMDE5X2Zyb250X2NvdmVyLmpwZyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDUxMng1MTJcdTAwM2UiXV0/MoMA%20Highlights%202019%20front%20cover.jpg?sha=97d5f1e95d5e9207",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTkvMTAvMDgvN24wY3M4M3V2OV9Nb01BX05vd19mcm9udF9jb3Zlci5qcGciXSxbInAiLCJjb252ZXJ0IiwiLXF1YWxpdHkgOTAgLXJlc2l6ZSA1MTJ4NTEyXHUwMDNlIl1d/MoMA%20Now%20front%20cover.jpg?sha=4bae320e3a6e0fce",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMjMvMDYvMTIvN284MDlxMmk4bF9Nb01BX0JlaW5nTW9kZXJuX2Zyb250LmpwZyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDUxMng1MTJcdTAwM2UiXV0/MoMA_BeingModern_front.jpg?sha=7d2d9c07ce8c4df2",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTgvMDYvMTMvMTFoYTI2and4Y184NzUucG5nIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgNTEyeDUxMlx1MDAzZSJdXQ/875.png?sha=610b795cfff26191",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTgvMDYvMTMvOWJ5bGdpdTY1c183MjkucG5nIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgNTEyeDUxMlx1MDAzZSJdXQ/729.png?sha=3fe01154516fefeb",
+          "https://www.moma.org/d/assets/W1siZiIsIjIwMTgvMDYvMTMvN3B0NjJ4czZ2cl83MjkucG5nIl0sWyJwIiwiY29udmVydCIsIi1xdWFsaXR5IDkwIC1yZXNpemUgNTEyeDUxMlx1MDAzZSJdXQ/729.png?sha=f2f144d580993a61",
+          "https://c1.adform.net/serving/cookie/match?cid=49201745-912e-453d-94f3-2c0db1d0d814&party=1296&sjrn_lbid=e091a77cb0eb65d6d902baf68c7e9a3f&sjrn_src=1&sjrn_ts=1788254342",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=Members",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=AllUsers",
+          "https://secure.adnxs.com/seg?add=34571930&t=2&gdpr=0&gdpr_consent=",
+          "https://lex.33across.com/ps/v1/pubtoken/?pid=119&event=rtg&us_privacy=&rnd=1788254343194&ru=https%3A%2F%2Fi.ctnsnet.com%2Fint%2Fintegration%3Fpixel%3D77707446%26nid%3D302660%26cont%3Di%26pixel_id%3D78593803%26ev%3Drtg%26uid%3D04cc9cb08c864c7aae4174f289725753%2633xuid%3D%24%7BPUBTOK%7D%26us_privacy%3D%24%7BUS_PRIVACY%7D%26%24rnd%3D%24%7BRANDOM%7D"
+        ],
+        "id": "c7c962-03"
+      },
+      {
+        "url": "https://www.moma.org/audio/playlist/3/163",
+        "title": "Salvador Dalí. The Persistence of Memory. 1931 | MoMA",
+        "content": "# Audio Descriptions\n\n14 / 29\n\n.\n\nGiven anonymously. © 2026 Salvador\n\nDalí, Gala-Salvador Dalí Foundation /\n\nArtists Rights Society (ARS), New York \n\nNarrator: The artist Salvador Dalí made _The Persistence of Memory_ in 1931, using oil on canvas. The work measures 9 and a half inches high and 13 inches wide. In metric units, it is 24 centimeters high and 33 centimeters wide. It is set within a muted olive-colored mat and encased by a thin, dark brown wood frame. [...] Salvador Dalí was often associated with Surrealism, an artistic and literary movement that called on artists to explore the depths of the subconscious mind—a part of our mind that runs constantly without any filter or control. By fusing elements from his surroundings with the illogical details we might find in a dream, Dalí sought to, as he said, “discredit completely the world of reality.”\n\n   View this object in the collection\n\nTop\n\n[](",
+        "score": 0.8568246,
+        "raw_content": null,
+        "images": [
+          "https://www.moma.org/media/W1siZiIsIjYxOTY1OSJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=ef9155183ab6bba1",
+          "https://c1.adform.net/serving/cookie/match?cid=8a686a76-2299-4e95-9f44-ba7b30166bd3&party=1296&sjrn_lbid=f763e7ddd6c86c713274ea96a746a732&sjrn_src=1&sjrn_ts=1786020175",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=AllUsers",
+          "https://secure.adnxs.com/seg?add=34571930&t=2&gdpr=0&gdpr_consent=",
+          "https://lex.33across.com/ps/v1/pubtoken/?pid=119&event=rtg&us_privacy=&rnd=1786020175505&ru=https%3A%2F%2Fi.ctnsnet.com%2Fint%2Fintegration%3Fpixel%3D77707446%26nid%3D302660%26cont%3Di%26pixel_id%3D78593803%26ev%3Drtg%26uid%3D13610c14037a4919a106df53daeeb7c9%2633xuid%3D%24%7BPUBTOK%7D%26us_privacy%3D%24%7BUS_PRIVACY%7D%26%24rnd%3D%24%7BRANDOM%7D",
+          "https://s.amazon-adsystem.com/iu3?pid=f7bb3c27-45c5-4b23-8c6f-c6c6f2907f38&event=PageView&ATTRIBUTE1=Members"
+        ],
+        "id": "8b9403-04"
+      }
+    ],
+    "response_time": 2.8,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "491f422b-738b-4afa-89e2-787731e160be"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.9047265,
+    "top_url": "https://www.moma.org/audio/playlist/296/67",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

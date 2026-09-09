@@ -1,0 +1,135 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"The Thinker\" Auguste Rodin",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "general",
+    "include_domains": [
+      "clevelandart.org"
+    ],
+    "include_domains_mode": "filter",
+    "include_images": true,
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "title": "The Thinker",
+    "artist": "Auguste Rodin",
+    "museum": "Cleveland Museum of Art",
+    "domain": "clevelandart.org"
+  },
+  "started_at": "2026-09-08T11:16:01.888097+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.918,
+  "response": {
+    "query": "The Thinker Auguste Rodin",
+    "follow_up_questions": null,
+    "answer": null,
+    "images": [
+      "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_print.jpg",
+      "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D64501B62E99D8EBAEB729C641413D376D5CF0C3506FA152E03EBBDA225AD44A8%26s%3D24247294%26se%3D399313166%26v%3D6%26f%3D1979.138_o2.jpg&w=3840&q=75",
+      "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fcdn.shopify.com%2Fs%2Ffiles%2F1%2F2524%2F0922%2Fproducts%2F5607ebc66f63733c494a3e92a83337467224d92739deeba34ed27325aaa69f77.jpg%3Fv%3D1706018693&w=3840&q=75",
+      "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_alt0_web.jpg",
+      "https://openaccess-cdn.clevelandart.org/1979.138/1979.138_alt4_print.jpg"
+    ],
+    "results": [
+      {
+        "url": "https://www.clevelandart.org/art/1979.138",
+        "title": "The Thinker | Cleveland Museum of Art",
+        "content": "A shiny dark-brown and green bronze sculpture depicts a muscular, nude man seated, his right elbow supported by his left knee as he rests his chin on the back of his hand, lips pressed into his knuckles. His left wrist drapes over the same knee, knees turn slightly inward. He has short hair and a furrowed brow, looking down. He sits on a block of rough-hewn stone.\n\n### The Thinker\n\nc. 1880\n\n#### Auguste Rodin\n\n(French, 1840–1917)\n\nFrance, 19th century\n\n## See Also\n\n Collection [...] Rodin originally conceived The Thinker as a depiction of the Italian poet Dante Alighieri (1265–1321) sitting in the upper center of a monumental sculptural doorway titled The Gates of Hell (below). Inspired by Dante’s description of a journey through the underworld in his epic poem The Divine Comedy (about 1320), The Thinker contemplates mankind’s fate while gazing at a host of damned figures writhing in anguish below. Stripped of clothing, the figure’s rippling muscles convey an inner, [...] # Artwork Page for The Thinker\n\n## Details / Information for The Thinker\n\n### The Thinker\n\nc. 1880\n\n#### Auguste Rodin\n\n(French, 1840–1917)\n\nCulture\n\nFrance, 19th century\n\nMedium\n\nbronze\n\nMeasurements\n\nOverall: 70.8 x 34.9 x 59.7 cm (27 7/8 x 13 3/4 x 23 1/2 in.)  \nWeight: 61.689 kg (136 lbs.)\n\nCredit Line\n\nGift of Alexandre P. Rosenberg 1979.138\n\nYou can copy, modify, and distribute this work, all without asking permission. Learn more about CMA's Open Access Initiative.\n\nLocation",
+        "score": 0.8095324,
+        "raw_content": null,
+        "images": [
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D7AB4EE336E520BCF2C2C913928DCF380793D8F25C902C7602A2D0CB5E888E365%26s%3D24247294%26se%3D399313166%26v%3D6%26f%3D1979.138_o5.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DC899EF18A6EE75B08C1C27952C105FFD03704D0641DD3646CE7391183D958700%26s%3D24247294%26se%3D399313166%26v%3D0%26f%3D1980.243_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D4FA9448579065EAF86F9BA2210D2EDE762A9E55005D068D1B0240AB173AFCF69%26s%3D24247294%26se%3D116628280%26v%3D0%26f%3D1974.71_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D3FE331FF8E7274F2C73EDFFD7D0DB253DFFAB5A8679FCF672AFB14362955530D%26s%3D24247294%26se%3D399313166%26v%3D1%26f%3D%5Cd8145%5Cu8281459%5C2011.206.a_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D536141AF66A674209673284C8D6F1F5E51544E4623CE24263508896EE736AEF0%26s%3D24247294%26se%3D399313166%26v%3D4%26f%3D1918.500_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D8E6767C8E38DCCFB82D94D96614DEA8046AB54844DFD13EB62FCB49B134F2BB0%26s%3D24247294%26se%3D399313166%26v%3D6%26f%3D1979.138_o4.jpg&w=640&q=75"
+        ],
+        "id": "62450b-00"
+      },
+      {
+        "url": "https://www.clevelandart.org/art/1917.42",
+        "title": "The Thinker | Cleveland Museum of Art",
+        "content": "# Artwork Page for The Thinker\n\n## Details / Information for The Thinker\n\n### The Thinker\n\n#### Auguste Rodin\n\n(French, 1840–1917)\n\nCulture\n\nFrance, 19th century\n\nMedium\n\nbronze\n\nMeasurements\n\nOverall: 182.9 x 98.4 x 142.2 cm (72 x 38 3/4 x 56 in.)  \nWeight: 1,650 pounds - weighed by crane on 5/31/2006\n\nCredit Line\n\nGift of Ralph King 1917.42\n\nYou can copy, modify, and distribute this work, all without asking permission. Learn more about CMA's Open Access Initiative.\n\nLocation\n\nSE South Entrance [...] A dark gray, bronze sculpture depicts a muscular, nude man seated, his right elbow supported by his left knee as he rests his chin on the back of his hand, lips pressed into his knuckles. His left wrist drapes over the same knee, knees turned slightly inward. He has short hair and a furrowed brow, looking down. Where his feet would have been, the bronze metal twists into jagged edges. Streaking gray drips cover the statue.\n\n### The Thinker\n\n1880–81\n\n#### Auguste Rodin\n\n(French, 1840–1917) [...] ### Description\n\nThe Thinker was first developed as part of Rodin's The Gates of Hell, a sculptured doorway for a proposed museum of decorative arts in Paris. Intended to be part of a relief directly above the doors, the rugged figure was originally conceived as a generalized image of the Italian poet Dante Alighieri (1265–1321), who wrote the Divine Comedy.",
+        "score": 0.78334314,
+        "raw_content": null,
+        "images": [
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DE686A7A69EB27138B76FEE94D8D895784A351DC8909748DD4AF329B4D7F2E3E5%26s%3D24247294%26se%3D399313166%26v%3D6%26f%3D1917.42_o5.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DD3B025DDD9A17CB0B6EBBF3069BD95B439EB37A0590F5E29362490C090876FA2%26s%3D24247294%26se%3D399313166%26v%3D6%26f%3D1993.38_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3D135FCEA7824304C84F3F5C81A5934B3FCAD25E85C19CE3C7694F6F1708058D2A%26s%3D24247294%26se%3D685090774%26v%3D4%26f%3D1992.299_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DB4935BB3CC92CE92A16C66D427265EBD66AA8E3BACB6949FCE8868021E4249D9%26s%3D24247294%26se%3D116628280%26v%3D5%26f%3D1944.129.2_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DD3B025DDD9A17CB0416D0362E51C4B046182A7B79B80B31B51F6FEFF196ED6F0%26s%3D24247294%26se%3D399313166%26v%3D0%26f%3D1980.248_o4.jpg&w=640&q=75",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Fe%3DB3928C8BEA1124742F3D77545A23E10DEAD956BB8E59529CC574F785D1C872E2%26s%3D24247294%26se%3D399313166%26v%3D7%26f%3D1921.966_o4.jpg&w=640&q=75"
+        ],
+        "id": "90e740-01"
+      },
+      {
+        "url": "https://www.clevelandart.org/about/press/french-sculptor-auguste-rodin-centenary-celebrated-north-america-exhibitions-and",
+        "title": "FRENCH SCULPTOR AUGUSTE RODIN CENTENARY CELEBRATED IN NORTH AMERICA WITH EXHIBITIONS AND EDUCATIONAL PROGRAMS | Cleveland Museum of Art",
+        "content": "Rodin’s The Thinker is the beloved centerpiece of the Donald J. Hall Sculpture Park at the Nelson-Atkins Museum of Art in Kansas City. It is being celebrated during Kansas City’s Big Picnic, a massive annual gathering on Sunday, July 23, that stretches from the museum’s 22-acre campus across the street to Kansas City’s Theis Park. The picnic is a joint project between the museum and the city. The promotion includes a social media contest challenging visitors to strike their best “thinking” [...] The Norton Simon Museum is home to 11 works by Rodin, eight of which are on permanent view in the museum’s front entrance garden. These include such iconic bronze sculptures as Monument to Balzac and The Burghers of Calais, as well as The Thinker, which looks out over busy Colorado Boulevard. Rodin’s mastery of depicting the human form is evident in the works Saint John the Baptist, The Walking Man, Jean de Fiennes, Vetu, Pierre de Wissant, and Nude. Also in the collection, but not on permanent [...] acquired during the sculptor’s lifetime—to the Gallery so that they could remain together. Included in the gift were bronze examples of the iconic works The Thinker (model 1880, cast 1901), The Kiss (model 1880–1887, cast c. 1898/1902), and Head of Balzac (model 1897).",
+        "score": 0.78054583,
+        "raw_content": null,
+        "images": [
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/2023-12/2022-04-07_DB_Exterior_2022_17.jpg"
+        ],
+        "id": "b246b3-02"
+      },
+      {
+        "url": "https://www.clevelandart.org/articles/rodin-100-years",
+        "title": "Rodin—100 Years | Cleveland Museum of Art",
+        "content": "A universal image of a man lost in thought, The Thinker has become one of the most celebrated sculptures in the history of art. Rodin originally planned to place the figure in the lintel above the doors on his massive sculptural project The Gates of Hell.Inspired by The Inferno, the first part of Dante’s epic poem The Divine Comedy (c. 1308–20), The Thinker was intended to represent the poet contemplating the damned during his journey through hell. A bundle of coiled energy, The Thinker sits on [...] In the late 1880s, Rodin began exhibiting The Thinker as an independent sculpture, alternately titling it The Poet, The Poet/Thinker, and finally just The Thinker. He began producing monumental versions around 1903 that captured the public’s attention when exhibited that year at the Paris Salon and the Saint Louis Universal Exposition of 1904. Purchased through a subscription by Rodin’s admirers, a cast was donated to the city of Paris and placed in a prominent position in front of the [...] The Thinker’s pose and rippling musculature animates the figure with inner life. Leaning forward as if ready to spring from his seat at any moment, The Thinker evokes associations with Michelangelo’s seated marble portrait of Lorenzo de’ Medici and Jeremiah in the Sistine Chapel ceiling. Rodin also drew inspiration from antique sculptures, including the Belvedere Torso in the Vatican collection, as well as contemporary works such as Jean-Baptiste Carpeaux’s Ugolino and His Sons. As with most of",
+        "score": 0.76972175,
+        "raw_content": null,
+        "images": [
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A3.jpg",
+          "https://www.clevelandart.org/_next/image?url=https%3A%2F%2Fweb-drupal-cms-prod.clevelandart.org%2Fsites%2Fdefault%2Ffiles%2FR1_A3.jpg&w=1920&q=75",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A_0.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A2_0.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1918.328_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1995.71_w.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1979.348_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1946.352_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1917.745_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1917.723_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1917.722_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1972.277_A.jpg",
+          "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/1960.85_A.jpg"
+        ],
+        "id": "b10185-03"
+      },
+      {
+        "url": "https://www.clevelandart.org/about-collection/collection-areas/modern-european-painting-and-sculpture",
+        "title": "Modern European Painting and Sculpture | Cleveland Museum of Art",
+        "content": "bronze casts of The Age of Bronze and The Large Thinker. [...] Segantini are among the works by German, Austrian, Swiss, Danish, and Scandinavian artists. This collection is coupled with a fine selection of 19th-century sculptures by Antonio Canova, Jean-Baptiste Carpeaux, Albert-Ernest Carrier-Belleuse, Jules Dalou, Edgar Degas, George Minne, and Medardo Rosso. The highlight of the sculpture collection is a group of more than 30 works by Auguste Rodin, including a life plaster of the artist's Heroic Head of Pierre de Weissant and life-time bronze casts of [...] # Modern European Painting and Sculpture",
+        "score": 0.32043892,
+        "raw_content": null,
+        "images": [],
+        "id": "b9465f-04"
+      }
+    ],
+    "response_time": 1.82,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "48d1cbc4-85bc-47ed-a104-67413b885787"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": false,
+    "answer_chars": 0,
+    "answer_sentences": 0,
+    "first_sentence": "",
+    "result_count": 5,
+    "top_score": 0.8095324,
+    "top_url": "https://www.clevelandart.org/art/1979.138",
+    "top_published_date": null,
+    "top_in_window": null,
+    "outside_domains": 0
+  }
+}

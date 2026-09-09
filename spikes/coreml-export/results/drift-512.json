@@ -1,0 +1,63 @@
+{
+  "size": 512,
+  "calibration_count": 200,
+  "required_calibration_count": 200,
+  "calibration_manifest_sha256": "b7382d9c449cf12ac71b6f3029054e47d2904681465502320f85ab60e49378cf",
+  "scope": "CoreML variants: macOS CPU_AND_NE; iphone_int8: physical iPhone CPU_AND_NE when supplied",
+  "torch_device": "mps",
+  "cosines": {
+    "fp32_fakequant": {
+      "mean": 0.9989196824471471,
+      "min": 0.9981402996241586,
+      "count": 200
+    },
+    "fp32_coreml_fp16": {
+      "mean": 0.9970068391061366,
+      "min": 0.9930797488098696,
+      "count": 200
+    },
+    "fakequant_coreml_fp16": {
+      "mean": 0.9958829525945933,
+      "min": 0.9912769807390127,
+      "count": 200
+    },
+    "fp32_coreml_int8": {
+      "mean": 0.9960117680107266,
+      "min": 0.9913293773242098,
+      "count": 200
+    },
+    "fakequant_coreml_int8": {
+      "mean": 0.9970114922774965,
+      "min": 0.9929182559716901,
+      "count": 200
+    },
+    "fp32_coreml_int4": {
+      "mean": 0.7402537232366249,
+      "min": 0.15875341613617677,
+      "count": 200
+    },
+    "fakequant_coreml_int4": {
+      "mean": 0.7397345076443907,
+      "min": 0.1602505304717471,
+      "count": 200
+    },
+    "fakequant_iphone_int8": {
+      "mean": 0.9970114922774965,
+      "min": 0.9929182559716901,
+      "count": 200
+    }
+  },
+  "mac_load_ms": {
+    "fp16": 2484.0785829583183,
+    "int8": 2261.1239589750767,
+    "int4": 2037.796500022523
+  },
+  "top1_agreement_percent": {
+    "pytorch_fakequant_fp16": 95.5,
+    "coreml_fp16": 93.5,
+    "coreml_int8": 94.5,
+    "coreml_int4": 25.0,
+    "iphone_int8": 94.5
+  },
+  "acceptance": "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
+}

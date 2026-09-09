@@ -1,0 +1,95 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "\"Artlog Qzxvra Nullex 7c9e2\" exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60
+  },
+  "context": {
+    "artist": "Artlog Qzxvra Nullex 7c9e2",
+    "cohort": "synthetic-negative",
+    "mode": "none"
+  },
+  "started_at": "2026-09-08T11:15:31.506503+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 3.572,
+  "response": {
+    "query": "Artlog Qzxvra Nullex 7c9e2 exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "The query about \"Artlog Qzxvra Nullex 7c9e2 exhibition OR news\" does not directly match any specific exhibition or news item in the provided data. However, the most recent relevant exhibition mentioned is \"Lee Bul. The Anatomy of Every Setting Sun\" at Hauser & Wirth New York, running from September 24 to December 19, 2026. This exhibition highlights Lee Bul, a significant contemporary artist addressing modernity's promises and failures.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://news.artnet.com/art-world/new-york-museum-shows-fall-2026-2800473",
+        "title": "8 New York Museum Shows You Need to See This Fall - Artnet News",
+        "score": 0.039140087,
+        "published_date": "Mon, 31 Aug 2026 09:00:44 GMT",
+        "content": "##### Art & Exhibitions. # 8 New York Museum Shows You Need to See This Fall. Photo: © Estate of RoyLichtenstein / DACS 2026, courtesy of the Whitney Museum of American Art. byMin Chen&Vittoria Benzine Aug 31, 2026 Image 2: ShareShare Share This Article. From major retrospectives to surprising pop culture deep dives, New York’s institutions are rolling out some of their biggest shows this fall. Photo: © 2026 Pollock-Krasner Foundation / Artists Rights Society (ARS), New York, courtesy of the Metropolitan Museum of Art. The **Met** hasn’t honored illustrious Abstract Expressionists **Jackson Pollock** or **Lee Krasner** in 20 years. #### **“Art of Manga” at the Brooklyn Museum**. #### **“Brâncuși: The Artist and His Studio” at the Museum of Modern Art**. Photo: © Estate of Roy Lichtenstein/DACS 2026, courtesy of the Whitney Museum of American Art. What more is there to learn about Pop artist **Roy Lichtenstein**?",
+        "raw_content": null,
+        "id": "d7a6fa-00"
+      },
+      {
+        "url": "https://news.artnet.com/artnet-bulletin/kusama-final-decade-sep-4-2804402",
+        "title": "The Paradox of Yayoi Kusama’s Final Years—and Other Art World Matters - Artnet News",
+        "score": 0.03733048,
+        "published_date": "Fri, 04 Sep 2026 07:00:17 GMT",
+        "content": "# The Paradox of Yayoi Kusama’s Final Years—and Other Art World Matters. Plus: A Rembrandt returns home, and Conan O’Brien channels Vincent van Gogh. *The* ***Artnet Bulletin*** *is our new daily digest of five items from around the art world that are worth knowing. **Zachary Small**’s article, “The Mysterious and Lonely Final Decade of **Yayoi Kusama**’s Life“, in the *New York Times* is a bombshell. “In the past 15 years or so, someone has been in charge of all the decisions—and it wasn’t her,” the person said. I want to know the name of the business genius behind the Kusama empire. Eighty years after a 17th-century **Rembrandt** self-portrait was removed from its longtime home of Gotha, Germany, the painting has returned to the city as a loan for the exhibition “Rembrandt 1632: The Creation of a Brand.” The show opens at the **Ducal Museum** at the **Schloss Friedenstein**, where the painting had hung for more than a century, starting in 1842.",
+        "raw_content": null,
+        "id": "f8ee20-01"
+      },
+      {
+        "url": "https://www.cbsnews.com/video/legendary-further-bus-to-make-historic-return-to-san-francisco-as-part-of-art-exhibition/",
+        "title": "Legendary Further bus to make historic return to San Francisco as part of art exhibition - CBS News",
+        "score": 0.03720434,
+        "published_date": "Tue, 11 Aug 2026 17:40:00 GMT",
+        "content": "# Legendary Further bus to make historic return to San Francisco as part of art exhibition. A legendary symbol of 1960s counter-culture is coming back to San Francisco as part of an art exhibition. Heather Knight, San Francisco bureau chief for the New York Times, joins, CBS News to discuss.",
+        "raw_content": null,
+        "id": "f931d4-02"
+      },
+      {
+        "url": "https://www.artnet.com/galleries/hauser-wirth-zurich-london-new-york/lee-bul-the-anatomy-of-every-setting-sun-lee-bul-the-anatomy-of-every-setting-sun/",
+        "title": "Lee Bul. The Anatomy of Every Setting Sun - Artnet",
+        "score": 0.035400797,
+        "published_date": "Thu, 27 Aug 2026 17:02:10 GMT",
+        "content": "You can opt out of the sale of your personal information by clicking on the “Do Not Sell or Share My Personal Information” link. However, you can opt out of these cookies by checking \"Do Not Sell or Share My Personal Information\" and clicking the \"Save My Preferences\" button. Once you opt out, you can opt in again at any time by unchecking \"Do Not Sell or Share My Personal Information\" and clicking the \"Save My Preferences\" button. Do Not Sell or Share My Personal Information. Image 3:  for Lee Bul. The Anatomy of Every Setting Sun exhibition. This September, Hauser & Wirth New York will present the gallery’s first exhibition with Lee Bul, one of the most influential artists of her generation and a singular voice in contemporary art’s ongoing reckoning with the promises and failures of modernity. The Colour of a Quiet Mind… Sep 24-Dec 19, 2026 Zurich. Upcoming Exhibition ### Arp. Heads or Tails Sep 10-Oct 17, 2026 New York.",
+        "raw_content": null,
+        "id": "64cdff-03"
+      },
+      {
+        "url": "https://www.latimes.com/socal/daily-pilot/news/story/2026-08-18/art-lovers-creators-connect-at-juried-exhibition-in-newport-beach",
+        "title": "Art lovers, creators connect at juried exhibition in Newport Beach - Los Angeles Times",
+        "score": 0.03421971,
+        "published_date": "Tue, 18 Aug 2026 19:02:39 GMT",
+        "content": "# Art lovers, creators connect at juried exhibition in Newport Beach. Artists had an opportunity Saturday to share their creative visions with an audience of art lovers — and perhaps sell an item or two — as the annual Newport Beach Art Exhibition capped Art Week. Organized by the city’s Arts Commission, the 59th juried exhibition allowed visitors to peruse more than 300 paintings, sculptures, photos and mixed media pieces at the Civic Center. “I hope airbrush works its way into fine art, since it’s a newer form of an ancient technique,” she said. Laguna Beach artist Cyrus Djahanshahi enjoyed his second year participating in the exhibition from a space on the patio that gave passersby views of his works. A children’s art and craft area made possible by Art in Motion allowed young artists in training to create their own masterpieces. Virginia Hayter, who was once involved in the Newport Beach Art Foundation, doesn’t let her move away from the city get in the way of attending the annual exhibition.",
+        "raw_content": null,
+        "id": "474f47-04"
+      }
+    ],
+    "response_time": 3.49,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "c01b8355-b86c-4493-8dee-1327a61fd1be"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 440,
+    "answer_sentences": 4,
+    "first_sentence": "The query about \"Artlog Qzxvra Nullex 7c9e2 exhibition OR news\" does not directly match any specific exhibition or news item in the provided data.",
+    "result_count": 5,
+    "top_score": 0.039140087,
+    "top_url": "https://news.artnet.com/art-world/new-york-museum-shows-fall-2026-2800473",
+    "top_published_date": "Mon, 31 Aug 2026 09:00:44 GMT",
+    "top_in_window": true,
+    "outside_domains": null
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Banksy exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "sfmoma.org",
+      "famsf.org",
+      "asianart.org",
+      "museum.stanford.edu",
+      "museumca.org",
+      "bampfa.org",
+      "sjmusart.org",
+      "kqed.org",
+      "sfchronicle.com",
+      "berkeleyside.org",
+      "mercurynews.com",
+      "48hills.org"
+    ],
+    "include_domains_mode": "boost"
+  },
+  "context": {
+    "artist": "Banksy",
+    "cohort": "famous",
+    "region": "sf-bay-area",
+    "mode": "boost"
+  },
+  "started_at": "2026-09-08T11:14:17.087598+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.652,
+  "response": {
+    "query": "Banksy exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "A massive 200-piece Banksy exhibition, titled \"The Art of Banksy: Without Limits,\" is opening at Atlanta’s Pullman Yards this September, having previously charmed 3 million visitors globally. The exhibition offers an immersive experience with interactive elements, including a chance for premium ticket holders to spray-paint a t-shirt using stencils, with proceeds benefiting the Louise Michel rescue ship. Additionally, the Mobile Museum of Art is hosting \"Gateway: From Graffiti to Gallery,\" featuring Banksy alongside Keith Haring, Jean-Michel Basquiat, Kenny Scharf, and KAWS, running through September 1, 2027. Banksy's hand-sprayed LP recently sold for almost £4,000 at auction, highlighting his enduring appeal as one of the world's most famous street artists.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://secretatlanta.co/the-art-of-banksy-without-limitspullman-yards",
+        "title": "After charming 3 million visitors globally, a massive 200-piece Banksy exhibition is opening at Atlanta’s Pullman Yards",
+        "content": "The Art of Banksy: Without Limits lands at Pullman Yards this September, offering Atlantans a deeper look inside the mind of the mysterious street artist…\n\nAfter charming 3 million visitors globally, a massive 200-piece Banksy exhibition is opening at Atlanta’s Pullman Yards\n\nThe Art of Banksy: Without Limits\n\n in real life, come face-to-face with a hologram of the artist and marvel at a series of murals — some created by Banksy in war-torn Ukraine. [...] The Art of Banksy turns passive observation into an engaging interaction, challenging the way you see art. Premium ticket holders will even get to spray-paint a t-shirt using stencils — a hands-on experience whose proceeds go towards the Louise Michel rescue ship, a cause very dear to Banksy.\n\nThe Art of Banksy: Without Limits\n\n## Close to the artist’s heart [...] Throughout the years, many have praised The Art of Banksy exhibition, describing it as “extensive,” “fantastic” and “immersive”:\n\n The exhibit is incredible! It enabled me to see the power of art as activism and how Banksy has acted on some of his  messages for the benefit of those furthest on the margins. It also made clear the immense courage Banksy has in going to war torn places to offer images of hope and generally in using powerful/iconic cultural symbols to fiercely critique the empire.",
+        "score": 0.7724109,
+        "published_date": "Wed, 12 Aug 2026 13:01:52 GMT",
+        "raw_content": null,
+        "id": "69cd35-00"
+      },
+      {
+        "url": "https://www.al.com/life/2026/08/banksy-basquiat-haring-and-more-mobile-exhibition-lives-up-to-blockbuster-billing.html",
+        "title": "Rare multi-million dollar street art collection debuts at Mobile Museum featuring Banksy - al.com",
+        "content": "As visitors approach the exhibition, the first work they glimpse is Banksy’s 2020 work “Stop and Search.” It’s a large, vibrant, eye-catching piece that highlights “Gateway’s” sense of interplay between the featured artists.\n\nThis is not from the series of similarly titled Banksy works that show Dorothy from “The Wizard of Oz” having her basket searched by a policeman in a riot helmet as Toto watches. [...] Through Sept. 1, 2027, the Mobile Museum of Art presents \"Gateway: From Graffiti to Gallery,\" an unprecedented exhibition of works from Keith Haring, Jean-Michel Basquiat, Kenny Scharf, KAWS and Banksy.Lawrence Specker | LSpecker@AL.com\n\n“Gateway” opens to the public Tuesday and runs through Sept. 1, 2027. [...] The exhibition provides additional context in inventive ways. The prime example is a park bench in front of a giant photographic mural of a New York City corner festooned with graffiti. One expects the installation will get as much attention as some of the paintings and that the bench will be an extremely popular spot for selfies.\n\nJohn Carfagno, the museum’s executive director, said the interconnected spirit of the exhibition is fully intentional.",
+        "score": 0.6455898,
+        "published_date": "Sun, 30 Aug 2026 12:00:00 GMT",
+        "raw_content": null,
+        "id": "10108f-01"
+      },
+      {
+        "url": "https://www.bbc.com/news/articles/c8rn8nk56e8o",
+        "title": "Rare Banksy hand-sprayed LP sells for almost £4,000",
+        "content": "Hughes said that although the record has \"definitely been played\", it would make no difference as \"you're not buying it for the album\".\n\nFollow BBC Bristol on Facebook, X and Instagram. Send your story ideas to us on email or via WhatsApp on 0800 313 4630.\n\n## Who is Banksy? Unmasking the elusive street artist\n\n## Banksy works cost public almost £150,000\n\n## They hired Banksy for £50 then painted over his mural\n\n## Wessex Auction Rooms\n\n## Rare vinyl featuring Banksy art up for auction [...] ## Free family days out: Dinosaur fun to farm trips\n\n## Centuries-old lost gardens revealed by heatwave\n\nBanksy rose to prominence after he began spray-painting his now-trademark stencilled designs around Bristol in the early 1990s.\n\nThe anonymous artist is now one of the world's most famous street artists.\n\nHughes said the vinyl sleeve was \"one of the most fascinating modern collectables\" he has \"ever had the privilege of handling\". [...] ## Banksy works cost public almost £150,000\n\n## Police officer artwork on seafront not by Banksy\n\nMan putting waste in a black bin - there is a row of black bins in front of him.\n\n## New containers to be rolled out in recycling drive\n\nResidents will get a new red bag for plastics and blue bag for card and paper.",
+        "score": 0.17668614,
+        "published_date": "Thu, 13 Aug 2026 15:02:23 GMT",
+        "raw_content": null,
+        "id": "ce813b-02"
+      }
+    ],
+    "response_time": 1.56,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "b6936e29-b316-4732-811f-4ac87e05f377"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 768,
+    "answer_sentences": 4,
+    "first_sentence": "A massive 200-piece Banksy exhibition, titled \"The Art of Banksy: Without Limits,\" is opening at Atlanta’s Pullman Yards this September, having previously charmed 3 million visitors globally.",
+    "result_count": 3,
+    "top_score": 0.7724109,
+    "top_url": "https://secretatlanta.co/the-art-of-banksy-without-limitspullman-yards",
+    "top_published_date": "Wed, 12 Aug 2026 13:01:52 GMT",
+    "top_in_window": true,
+    "outside_domains": 3
+  }
+}

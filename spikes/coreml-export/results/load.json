@@ -1,0 +1,25 @@
+{
+  "radio_revision": "c0f37017930e9dda53f93424cf4bf39fc51f287e",
+  "load_seconds": 27.952631457999814,
+  "parameters": 114531040,
+  "preferred_resolution": [
+    512,
+    512
+  ],
+  "shapes": {
+    "448": {
+      "output": [
+        1,
+        1536
+      ],
+      "seconds": 0.17356254201149568
+    },
+    "512": {
+      "output": [
+        1,
+        1536
+      ],
+      "seconds": 0.2271134170005098
+    }
+  }
+}

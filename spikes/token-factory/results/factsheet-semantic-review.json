@@ -1,0 +1,15 @@
+{
+  "reviewed_at": "2026-09-08",
+  "reviewer": "Executing agent; not independent human review",
+  "result_file": "factsheet-super-json_schema-main.json",
+  "reviewed_facts": 46,
+  "correct_supporting_source_urls": 46,
+  "unknown_urls": 0,
+  "source_label_or_score_mismatches": 0,
+  "method": "Compared all 46 facts with their cited source text in fixtures/factsheet.json; accepted any supplied record for duplicate URLs. The supplied owner metadata, Wikidata descriptions/IDs and reverse-side search snippet support the generated claims.",
+  "limitations": [
+    "Eight Degas facts are bare values (for example a year or artist name) rather than standalone factual sentences. This weakens the next docent step even though their sources are correct.",
+    "Several facts repeat the title; no difficult provenance disputes or rich multi-institution research were tested.",
+    "All works are from one owner institution; trust scores were assigned by the fixture author."
+  ]
+}

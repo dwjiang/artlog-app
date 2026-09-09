@@ -1,0 +1,43 @@
+{
+  "endpoint": "crawl",
+  "params": {
+    "url": "https://www.clevelandart.org/",
+    "max_breadth": 100,
+    "allow_external": false,
+    "include_usage": true,
+    "timeout": 150,
+    "select_paths": [
+      "^/art/[0-9]{4}\\.[^/]+$"
+    ],
+    "max_depth": 1,
+    "limit": 20,
+    "extract_depth": "basic"
+  },
+  "context": {
+    "museum": "Cleveland Museum of Art",
+    "reason": "Replacement admitted by spike 00.05; native object paths replace the eMuseum example"
+  },
+  "started_at": "2026-09-08T11:16:08.665230+00:00",
+  "status": "complete",
+  "reserved_credits": 6,
+  "budget_charge": 0,
+  "elapsed_seconds": 1.197,
+  "response": {
+    "base_url": "https://www.clevelandart.org/",
+    "results": [],
+    "response_time": 1.07,
+    "usage": {
+      "credits": 0
+    },
+    "request_id": "2e135ef7-4fb4-487b-ad30-93d589a5873a"
+  },
+  "reported_credits": 0,
+  "metrics": {
+    "returned": 0,
+    "unique": 0,
+    "matching_paths": 0,
+    "matching_fraction": null,
+    "external_urls": [],
+    "unexpected_paths": []
+  }
+}

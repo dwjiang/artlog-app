@@ -1,0 +1,111 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Claude Monet exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "metmuseum.org",
+      "moma.org",
+      "whitney.org",
+      "guggenheim.org",
+      "brooklynmuseum.org",
+      "newmuseum.org",
+      "queensmuseum.org",
+      "nytimes.com",
+      "gothamist.com",
+      "thecity.nyc",
+      "hyperallergic.com",
+      "ny1.com"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Claude Monet",
+    "cohort": "famous",
+    "region": "new-york",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:24.648589+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.182,
+  "response": {
+    "query": "Claude Monet exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Recent news indicates heatwaves in France have damaged beloved flowers at Monet’s gardens in Giverny. Additionally, MoMA Design Store features various products inspired by Monet’s artwork, including bags and picnic blankets, available for a limited time.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://store.moma.org/products/moma-baggu-artist-medium-recycled-nylon-crescent-bag-claude-monet",
+        "title": "MoMA BAGGU Artist Medium Recycled Nylon Crescent Bag - Claude Monet – MoMA Design Store",
+        "content": "the SALE category. Discount offer is excluded from prior purchases and price adjustments. Final sale marked items cannot be returned or exchanged. Terms of offer are subject to change and offer is subject to end at any time without notice. Offer is valid online only, September 3, 2026, 12:00 a.m. ET to September 8, 2026, 3:00 a.m. ET. [...] the SALE category. Discount offer is excluded from prior purchases and price adjustments. Final sale marked items cannot be returned or exchanged. Terms of offer are subject to change and offer is subject to end at any time without notice. Offer is valid online only, September 3, 2026, 12:00 a.m. ET to September 8, 2026, 3:00 a.m. ET. [...] Design Store Rewards Program: Participants will not be able to redeem points in parallel with onsite promotional codes. Points cannot be redeemed for cash or store credit or used to purchase gift cards. MoMA may, at any time and without notice, change the Points earning and redemptions procedures and offerings, including the conversion rate between Points and Rewards. Rewards may only be redeemed once.\n\n### \n\n##### New Arrivals\n\n##### New Arrivals\n\n##### New Arrivals\n\n##### New Arrivals",
+        "score": 0.22548524,
+        "published_date": "Wed, 02 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "54b408-00"
+      },
+      {
+        "url": "https://hyperallergic.com/heatwaves-in-france-damage-beloved-flowers-at-monets-gardens",
+        "title": "Heatwaves in France Damage Beloved Flowers at Monet’s Gardens",
+        "content": "Amid a series of fatal, record-breaking heatwaves rippling across France, gardeners maintaining Claude Monet's house and gardens in Giverny reported that",
+        "score": 0.16418147,
+        "published_date": "Tue, 18 Aug 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "dd7714-01"
+      },
+      {
+        "url": "https://store.moma.org/products/moma-baggu-claude-monet-recycled-nylon-shoulder-bag",
+        "title": "MoMA BAGGU Claude Monet Recycled Nylon Shoulder Bag",
+        "content": "Carry the day with this celebration of Monet's artwork. Limit 1 bag per customer. This collaboration with everyone's favorite bag brand brings one of the",
+        "score": 0.13111784,
+        "published_date": "Wed, 02 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "aa8528-02"
+      },
+      {
+        "url": "https://store.moma.org/products/moma-baggu-claude-monet-puffy-recycled-nylon-picnic-blanket",
+        "title": "MoMA BAGGU Claude Monet Puffy Recycled Nylon Picnic Blanket",
+        "content": "A portable work of art designed for every outdoor adventure. Limit 4 units per customer. MoMA Exclusive: Created in collaboration with cult-favorite brand",
+        "score": 0.13045175,
+        "published_date": "Wed, 02 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "add783-03"
+      },
+      {
+        "url": "https://store.moma.org/products/moma-baggu-artist-recycled-nylon-standard-tote-bag-claude-monet",
+        "title": "MoMA BAGGU Artist Recycled Nylon Standard Tote Bag",
+        "content": "Everyday utility meets timeless artistry in this special collaboration. Limit 1 bag per artist style per customer. This versatile MoMA BAGGU Artist Recycled",
+        "score": 0.02206811,
+        "published_date": "Wed, 02 Sep 2026 11:00:00 GMT",
+        "raw_content": null,
+        "id": "1d38db-04"
+      }
+    ],
+    "response_time": 1.08,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "cefcb3ac-c060-4e73-a12a-e2d299d13e2b"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 254,
+    "answer_sentences": 2,
+    "first_sentence": "Recent news indicates heatwaves in France have damaged beloved flowers at Monet’s gardens in Giverny.",
+    "result_count": 5,
+    "top_score": 0.22548524,
+    "top_url": "https://store.moma.org/products/moma-baggu-artist-medium-recycled-nylon-crescent-bag-claude-monet",
+    "top_published_date": "Wed, 02 Sep 2026 11:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}

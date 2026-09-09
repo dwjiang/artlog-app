@@ -1,0 +1,144 @@
+{
+  "started_at": "2026-09-08T11:04:18.714460+00:00",
+  "object_pages_fetched": 1,
+  "robots": {
+    "url": "https://www.clevelandart.org/robots.txt",
+    "checked_at": "2026-09-08T11:04:18.714596+00:00",
+    "method": "GET",
+    "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+    "status": 200,
+    "headers": {
+      "content-length": "253",
+      "content-type": "text/plain; charset=utf-8",
+      "etag": "\"tu0idfszu471\"",
+      "server": "Vercel"
+    },
+    "bytes_read": 253,
+    "truncated": false,
+    "sha256": "ba7d9fd732897a68202b2d7c4960522adb80dbc9a029566cd78ff34cf4f8040f",
+    "elapsed_seconds": 0.11
+  },
+  "/sitemap.xml?page=1": {
+    "request": {
+      "url": "https://www.clevelandart.org/sitemap.xml?page=1",
+      "checked_at": "2026-09-08T11:04:28.715467+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml; charset=utf-8",
+        "server": "Vercel"
+      },
+      "bytes_read": 316507,
+      "truncated": false,
+      "sha256": "b384291fbc7eedfb243fddbaec59ecdeba6e158803ce2e186b493b5314adb24f",
+      "elapsed_seconds": 0.1
+    },
+    "tdm_meta": [],
+    "locations_count": 2000,
+    "object_urls_count": 0,
+    "object_url_examples": []
+  },
+  "/sitemap.xml?page=2": {
+    "request": {
+      "url": "https://www.clevelandart.org/sitemap.xml?page=2",
+      "checked_at": "2026-09-08T11:04:38.716332+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "application/xml; charset=utf-8",
+        "server": "Vercel"
+      },
+      "bytes_read": 317558,
+      "truncated": false,
+      "sha256": "65123cfd387d0b3db59075ec6d9d19979884e0555c1246e75e3eba142946a4e7",
+      "elapsed_seconds": 0.11
+    },
+    "tdm_meta": [],
+    "locations_count": 1837,
+    "object_urls_count": 0,
+    "object_url_examples": []
+  },
+  "/art/1927.393": {
+    "request": {
+      "url": "https://www.clevelandart.org/art/1927.393",
+      "checked_at": "2026-09-08T11:04:48.720458+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"f5pkhpz55e2ba0\"",
+        "server": "Vercel"
+      },
+      "bytes_read": 107989,
+      "truncated": false,
+      "sha256": "b13df67ab9571118fe1d8616947a0bbad4e47832f382d0fad17654d656c1a7b7",
+      "elapsed_seconds": 0.097
+    },
+    "tdm_meta": []
+  },
+  "api_robots": {
+    "request": {
+      "url": "https://openaccess-api.clevelandart.org/robots.txt",
+      "checked_at": "2026-09-08T11:04:48.821770+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "text/plain",
+        "content-length": "34",
+        "server": "cloudflare",
+        "last-modified": "Tue, 08 Sep 2026 10:09:32 GMT"
+      },
+      "bytes_read": 34,
+      "truncated": false,
+      "sha256": "832f89b496dedcc14873ec7d12d13989c436a7b54ecf1451a201a9328a3993a6",
+      "elapsed_seconds": 0.136
+    },
+    "body": "User-agent: Amazonbot\nDisallow: /\n"
+  },
+  "on_view_api": {
+    "request": {
+      "url": "https://openaccess-api.clevelandart.org/api/artworks/?type=Painting&cc0&currently_on_view&limit=1&fields=id,accession_number,title,url,share_license_status,current_location",
+      "checked_at": "2026-09-08T11:04:58.824255+00:00",
+      "method": "GET",
+      "user_agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; data-source feasibility probe)",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "server": "cloudflare"
+      },
+      "bytes_read": 536,
+      "truncated": false,
+      "sha256": "1150f5aa39fdaa440ea5563bd599a138c944d50c331c0aa9349a75d628091b78",
+      "elapsed_seconds": 0.195
+    },
+    "response": {
+      "info": {
+        "total": 437,
+        "parameters": {
+          "skip": 0,
+          "limit": 1,
+          "type": "Painting",
+          "cc0": "",
+          "currently_on_view": "",
+          "select": "accession_number,accession_number_sortable,cover_accession_number,department,department,gallery,classification_type,collection",
+          "classification_type": "Painting"
+        }
+      },
+      "data": [
+        {
+          "id": 94979,
+          "accession_number": "1915.534",
+          "share_license_status": "CC0",
+          "current_location": "204 Colonial American",
+          "title": "Nathaniel Hurd",
+          "url": "https://clevelandart.org/art/1915.534",
+          "has_conservation_images": false
+        }
+      ]
+    }
+  }
+}

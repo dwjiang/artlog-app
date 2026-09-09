@@ -1,0 +1,75 @@
+{
+  "endpoint": "search",
+  "params": {
+    "query": "Julie Mehretu exhibition OR news",
+    "search_depth": "basic",
+    "auto_parameters": false,
+    "topic": "news",
+    "time_range": "month",
+    "include_answer": "basic",
+    "max_results": 5,
+    "include_usage": true,
+    "timeout": 60,
+    "include_domains": [
+      "sfmoma.org",
+      "famsf.org",
+      "asianart.org",
+      "museum.stanford.edu",
+      "museumca.org",
+      "bampfa.org",
+      "sjmusart.org",
+      "kqed.org",
+      "sfchronicle.com",
+      "berkeleyside.org",
+      "mercurynews.com",
+      "48hills.org"
+    ],
+    "include_domains_mode": "filter"
+  },
+  "context": {
+    "artist": "Julie Mehretu",
+    "cohort": "mid",
+    "region": "sf-bay-area",
+    "mode": "filter"
+  },
+  "started_at": "2026-09-08T11:14:33.486414+00:00",
+  "status": "complete",
+  "reserved_credits": 1,
+  "budget_charge": 1,
+  "elapsed_seconds": 1.112,
+  "response": {
+    "query": "Julie Mehretu exhibition OR news",
+    "follow_up_questions": null,
+    "answer": "Julie Mehretu's paintings that currently flank the main staircase inside SFMOMA’s Third Street entrance are not permanent fixtures. Sarah Sze will create a new piece for the atrium, which includes video projections, three monumental paintings, and a rhythmic, pulsating soundscape. This change will take place in October 2026.",
+    "images": [],
+    "results": [
+      {
+        "url": "https://www.kqed.org/arts/13993086/best-museum-gallery-shows-visual-art-guide-fall-2026-bolinas-moraga-palo-alto",
+        "title": "The 10 Best Museum and Gallery Shows to See this Fall | KQED",
+        "content": "For some reason, I thought the Julie Mehretu paintings that currently flank the main staircase inside SFMOMA’s Third Street entrance were a permanent fixture. Not so! Sarah Sze, known for her dazzling, complex installations of small, colorful objects, has been commissioned to create a new piece for the atrium. Created with accessibility in mind, the work includes video projections, three monumental paintings and a “rhythmic, pulsating soundscape.” (We hope, for the sake of SFMOMA staffers at [...] (If you can’t wait until October, and have a penchant for brutalism, there’s a Docomomo tour of the Glen Park BART station on Sept. 12.)\n\nstuffed textile works of women sitting or reclining, melding into furniture\n\n## Paul Harris, ‘The Boy Sews Like An Angel’\n\nOct. 31, 2026–Jan. 3, 2027  \nBolinas Museum [...] linocut of black cats holding signs\n\n## Other things to look forward to this fall\n\nSeptember: Masaki Fujihata’s BeHere / 1942: A New Lens on the Japanese American Incarceration at OMCA; Dorian Reid’s Calling All Cats! at MoAD; the group exhibition I see every wave at the Berkeley Art Center; Greg Ito’s solo show at the ICA San José.\n\nOctober: an unobstructed view of the Ferry Building, when the giant lady is finally deinstalled; Leila Weefur’s The Chapel of Becoming at the Lab.",
+        "score": 0.50930125,
+        "published_date": "Mon, 24 Aug 2026 15:00:00 GMT",
+        "raw_content": null,
+        "id": "6e8e5b-00"
+      }
+    ],
+    "response_time": 1.01,
+    "usage": {
+      "credits": 1
+    },
+    "request_id": "eadb8b11-44df-4cde-bd9f-0ae2014fc86f"
+  },
+  "reported_credits": 1,
+  "metrics": {
+    "answer_present": true,
+    "answer_chars": 326,
+    "answer_sentences": 3,
+    "first_sentence": "Julie Mehretu's paintings that currently flank the main staircase inside SFMOMA’s Third Street entrance are not permanent fixtures.",
+    "result_count": 1,
+    "top_score": 0.50930125,
+    "top_url": "https://www.kqed.org/arts/13993086/best-museum-gallery-shows-visual-art-guide-fall-2026-bolinas-moraga-palo-alto",
+    "top_published_date": "Mon, 24 Aug 2026 15:00:00 GMT",
+    "top_in_window": true,
+    "outside_domains": 0
+  }
+}
