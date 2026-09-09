@@ -39,7 +39,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 00.06 | [Native module options spike](00-kickoff-spikes/06-native-module-options.md) | P0 | M–L | 01.04 (iPhone) | TODO |
 | 04.01 | [ORB matching and RANSAC library](04-backend/01-orb-match-and-ransac.md) | P1 | M | 01.01, 01.03 | TODO |
 | 04.02 | [Match calibrator library](04-backend/02-calibrator.md) | P1 | S | 01.01, 01.03 | TODO |
-| 04.04 | [Device identity and rate limits](04-backend/04-device-identity-and-rate-limits.md) | P1 | L | 01.03 | TODO |
+| 04.04 | [Device identity and rate limits](04-backend/04-device-identity-and-rate-limits.md) | P1 | L | 01.03 | DONE — 2026-09-09: recoverable anonymous sessions, device registry, App Attest server verification, rate limits, spend reservations and kill switches; 64 backend + 22 app tests, typecheck/lint/codegen/dev push pass; iOS light-mode relaunch preserves the device ID. Physical attestation awaits the Apple Team ID and 03.07 |
 | 02.01 | [Jobs scaffold and Convex writer](02-index-build/01-jobs-scaffold-and-convex-writer.md) | P1 | M | 01.03 | TODO |
 | 00.03 | [ORB in the Convex runtime spike](00-kickoff-spikes/03-orb-verification-in-convex-runtime.md) | P1 | S | 04.01 | TODO |
 | 04.03 | [Identify action](04-backend/03-identify-action.md) | P1 | L | 01.03, 04.01, 04.02, 04.04 | TODO |

@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     include: ['convex/**/*.test.ts'],
     environment: 'edge-runtime',
-    server: { deps: { inline: ['convex-test'] } },
+    server: { deps: { inline: ['convex-test', '@convex-dev/rate-limiter'] } },
   },
 });
