@@ -8,11 +8,18 @@
  * @module
  */
 
+import type * as appAttestNode from "../appAttestNode.js";
+import type * as auth from "../auth.js";
+import type * as devices from "../devices.js";
 import type * as health from "../health.js";
+import type * as http from "../http.js";
+import type * as lib_appAttest from "../lib/appAttest.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
 import type * as lib_calibrator_features from "../lib/calibrator/features.js";
 import type * as lib_calibrator_index from "../lib/calibrator/index.js";
 import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
+import type * as lib_flags from "../lib/flags.js";
 import type * as lib_orb_features from "../lib/orb/features.js";
 import type * as lib_orb_hamming from "../lib/orb/hamming.js";
 import type * as lib_orb_homography from "../lib/orb/homography.js";
@@ -21,7 +28,10 @@ import type * as lib_orb_match from "../lib/orb/match.js";
 import type * as lib_orb_testFixtures from "../lib/orb/testFixtures.js";
 import type * as lib_orb_verify from "../lib/orb/verify.js";
 import type * as lib_placements from "../lib/placements.js";
+import type * as lib_rateLimits from "../lib/rateLimits.js";
+import type * as lib_spend from "../lib/spend.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as spend from "../spend.js";
 
 import type {
   ApiFromModules,
@@ -30,11 +40,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  appAttestNode: typeof appAttestNode;
+  auth: typeof auth;
+  devices: typeof devices;
   health: typeof health;
+  http: typeof http;
+  "lib/appAttest": typeof lib_appAttest;
+  "lib/auth": typeof lib_auth;
   "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;
   "lib/calibrator/features": typeof lib_calibrator_features;
   "lib/calibrator/index": typeof lib_calibrator_index;
   "lib/calibrator/weights": typeof lib_calibrator_weights;
+  "lib/flags": typeof lib_flags;
   "lib/orb/features": typeof lib_orb_features;
   "lib/orb/hamming": typeof lib_orb_hamming;
   "lib/orb/homography": typeof lib_orb_homography;
@@ -43,7 +60,10 @@ declare const fullApi: ApiFromModules<{
   "lib/orb/testFixtures": typeof lib_orb_testFixtures;
   "lib/orb/verify": typeof lib_orb_verify;
   "lib/placements": typeof lib_placements;
+  "lib/rateLimits": typeof lib_rateLimits;
+  "lib/spend": typeof lib_spend;
   "lib/validators": typeof lib_validators;
+  spend: typeof spend;
 }>;
 
 /**
@@ -72,4 +92,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};
