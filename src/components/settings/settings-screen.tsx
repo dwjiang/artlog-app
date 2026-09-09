@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 
+import { DevTools } from '@/components/settings/dev-tools';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -27,6 +28,7 @@ export function SettingsScreen() {
         <ThemedText themeColor="textSecondary">
           {me ? `Device: ${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Device: registering…'}
         </ThemedText>
+        {__DEV__ && <DevTools attested={me?.attested ?? false} />}
         {/* Placeholder navigation; removed by docs/plans/05-app-ui/* */}
         <Link href="/venue-picker">
           <ThemedText type="link">Open venue picker</ThemedText>

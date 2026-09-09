@@ -263,3 +263,51 @@ describe('attestDevice', () => {
     ).rejects.toMatchObject({ data: { code: 'device_not_registered' } });
   });
 });
+
+describe('assertSmoke', () => {
+  it('verifies a signed payload once and advances the stored counter', async () => {
+    vi.stubEnv('APP_ATTEST_APP_ID', APP_ID);
+    const t = harness();
+    const phone = await registered(t, 'ios');
+    const signer = await makeSigner();
+    await phone.as.mutation(internal.devices.markAttested, {
+      deviceId: phone.deviceId, keyId: 'smoke-key', publicKeySpkiBase64: signer.publicKeySpkiBase64, counter: 0,
+    });
+    const nonce = await challenge(phone);
+    const payloadJson = '{"action":"assertSmoke"}';
+    const assertionBase64 = await signAssertion(signer, authenticatorData(await sha256(APP_ID), 1), `${nonce}.${payloadJson}`);
+    const args = { nonce, assertionBase64, payloadJson };
+    expect(await phone.as.mutation(api.devices.assertSmoke, args)).toEqual({ ok: true });
+    expect(await phone.as.mutation(api.devices.assertSmoke, args)).toEqual({ ok: false });
+    expect((await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter).toBe(1);
+  });
+
+  it('rejects altered payloads and another device’s challenge without advancing the counter', async () => {
+    vi.stubEnv('APP_ATTEST_APP_ID', APP_ID);
+    const t = harness();
+    const phone = await registered(t, 'ios');
+    const other = await registered(t, 'ios');
+    const signer = await makeSigner();
+    await phone.as.mutation(internal.devices.markAttested, {
+      deviceId: phone.deviceId, keyId: 'smoke-key', publicKeySpkiBase64: signer.publicKeySpkiBase64, counter: 0,
+    });
+    const nonce = await challenge(phone);
+    const assertionBase64 = await signAssertion(signer, authenticatorData(await sha256(APP_ID), 1), `${nonce}.{}`);
+    expect(await phone.as.mutation(api.devices.assertSmoke, { nonce, assertionBase64, payloadJson: '{"changed":true}' }))
+      .toEqual({ ok: false });
+    expect(await phone.as.mutation(api.devices.assertSmoke, { nonce: await challenge(other), assertionBase64, payloadJson: '{}' }))
+      .toEqual({ ok: false });
+    expect((await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter).toBe(0);
+  });
+
+  it('requires authentication and never reports a simulator bypass as a verified assertion', async () => {
+    const t = harness();
+    const args = { nonce: 'nonce', assertionBase64: '', payloadJson: '{}' };
+    await expect(t.mutation(api.devices.assertSmoke, args)).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
+    for (const platform of ['simulator', 'ios'] as const) {
+      const user = await registered(t, platform);
+      expect(await user.as.mutation(api.devices.assertSmoke, { ...args, nonce: await challenge(user) }))
+        .toEqual({ ok: false });
+    }
+  });
+});

@@ -1,18 +1,17 @@
 import { getRandomBytesAsync } from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
+
+import { installationStorage } from '@/lib/installation-storage';
 
 import { getDeviceAuthSecret } from './device-credentials';
 
 jest.mock('expo-crypto', () => ({ getRandomBytesAsync: jest.fn() }));
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(),
-  setItemAsync: jest.fn(),
-  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
+jest.mock('@/lib/installation-storage', () => ({
+  installationStorage: { getItem: jest.fn(), setItem: jest.fn() },
 }));
 
 const randomBytes = jest.mocked(getRandomBytesAsync);
-const getItem = jest.mocked(SecureStore.getItemAsync);
-const setItem = jest.mocked(SecureStore.setItemAsync);
+const getItem = jest.mocked(installationStorage.getItem);
+const setItem = jest.mocked(installationStorage.setItem);
 
 beforeEach(() => jest.resetAllMocks());
 
@@ -27,9 +26,7 @@ it('persists a 256-bit credential on this device before returning it for sign-in
   await Promise.resolve();
 
   expect(randomBytes).toHaveBeenCalledWith(32);
-  expect(setItem).toHaveBeenCalledWith('deviceAuthSecret', 'a1'.repeat(32), {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
+  expect(setItem).toHaveBeenCalledWith('deviceAuthSecret', 'a1'.repeat(32));
   expect(returned).toBe(false);
   finishWrite();
   await expect(pending).resolves.toBe('a1'.repeat(32));
