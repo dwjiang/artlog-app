@@ -1,0 +1,6 @@
+{
+  "modelVersion": "c-radiov3-b-int8-512-dinov2-v1",
+  "embeddingDim": 1536,
+  "inputSize": 512,
+  "orbMaxKeypoints": 500
+}

@@ -216,15 +216,51 @@ Wrap the root `Stack` in `src/app/_layout.tsx` with `<ConvexProvider client={con
 
 ## Done criteria
 
-- [ ] `npx convex dev --once` succeeds against the project's dev deployment and `convex/_generated/` is committed
-- [ ] `npx tsc --noEmit` exits 0; `npm run lint` exits 0
-- [ ] `npm run test:convex` exits 0 with ≥ 6 tests
-- [ ] `grep -c "defineTable" convex/schema.ts` → 18
-- [ ] `grep -n "vectorIndex" convex/schema.ts` → 1 match with `filterFields: \["modelVersion"\]`
-- [ ] `.env.example` documents `CONVEX_DEPLOYMENT` and `EXPO_PUBLIC_CONVEX_URL`; `.env.local` is untracked
-- [ ] Simulator: Settings shows "Backend: connected"
-- [ ] No files outside the in-scope list are modified (`git status`)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `npx convex dev --once` succeeds against the project's dev deployment and `convex/_generated/` is committed
+- [x] `npx tsc --noEmit` exits 0; `npm run lint` exits 0
+- [x] `npm run test:convex` exits 0 with ≥ 6 tests
+- [x] `grep -c "defineTable(" convex/schema.ts` → 18 (the bare pattern also counts the import line)
+- [x] `grep -n "vectorIndex" convex/schema.ts` → 1 match with `filterFields: \["modelVersion"\]`
+- [x] `.env.example` documents `CONVEX_DEPLOYMENT` and `EXPO_PUBLIC_CONVEX_URL`; `.env.local` is untracked
+- [x] Simulator: Settings shows "Backend: connected"
+- [x] No files outside the in-scope list are modified (`git status`) — except `jest.setup.ts` and its `setupFiles` entry, see notes
+- [x] `docs/plans/README.md` status row updated
+
+## Execution notes — 2026-09-09
+
+- Drift check: `convex/` did not exist. `.env.example` already existed with the
+  spike keys (`NEBIUS_API_KEY`, `TAVILY_API_KEY`); the Convex variables were
+  appended to it.
+- `npx convex whoami` is not a command in convex 1.45. Login was confirmed by the
+  stored credential in `~/.convex/config.json` and by the non-interactive
+  `npx convex dev --once --configure new --project artlog --dev-deployment cloud`
+  succeeding. Project `artlog` (team `daniel-jiang`), dev deployment
+  `usable-owl-256`. The CLI wrote `CONVEX_DEPLOYMENT`, `EXPO_PUBLIC_CONVEX_URL`
+  and `EXPO_PUBLIC_CONVEX_SITE_URL`; all three are documented in `.env.example`
+  and mirrored to the Conductor root checkout's `.env.local`.
+- The CLI generated `convex/tsconfig.json` (kept; `resolveJsonModule: true` added
+  so the CLI's own typecheck accepts the `../shared/model-version.json` import) and
+  a boilerplate `convex/README.md` (removed).
+- The vector index accepted `dimensions: 1536` and the nested
+  `indexStatus.status` index path; the shared JSON import bundles fine.
+- The enums the table used inline (`placementProposals.kind`, `crawlRuns.status`)
+  and the per-field contribution shape live in `validators.ts` as `proposalKind`,
+  `crawlRunStatus` and `contributionField`, so every enum has one owner.
+- `convex/convex.config.ts` was not created: no component is installed yet; plan
+  04.04 adds the first.
+- convex-test's `import.meta.glob` needs `/// <reference types="vite/client" />`
+  in each test file because the root `tsconfig.json` pins `types: ["jest"]`.
+- Jest does not load `.env` files and the route tree now constructs the Convex
+  client at import time, which broke `app-navigation.test.ts`. `jest.setup.ts`
+  (registered under `jest.setupFiles`) sets a placeholder
+  `EXPO_PUBLIC_CONVEX_URL` for tests; this is the one addition outside the scope
+  list.
+- Step 7's expected string (`…-448-…`) predates decision 001; the app shows
+  `c-radiov3-b-int8-512-dinov2-v1`, matching `shared/model-version.json`.
+- Simulator (iPhone 17 Pro, iOS 26.5, light mode): as in plan 01.02, Expo Go kept
+  the stale bundle after `npm run ios` until it was terminated and reopened;
+  Settings then showed "Backend: connected · c-radiov3-b-int8-512-dinov2-v1".
+  Screenshot in `.context/plan-01-03/` (gitignored).
 
 ## STOP conditions
 
