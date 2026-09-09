@@ -1,4 +1,4 @@
-import { useQuery } from 'convex/react';
+import { useConvexAuth, useQuery } from 'convex/react';
 import { Link } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 
@@ -10,6 +10,8 @@ import { Spacing } from '@/constants/theme';
 
 export function SettingsScreen() {
   const health = useQuery(api.health.ping);
+  const { isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.devices.me, isAuthenticated ? {} : 'skip');
 
   return (
     <ThemedView style={styles.container}>
@@ -21,6 +23,9 @@ export function SettingsScreen() {
         {/* Placeholder backend check; removed by docs/plans/05-app-ui/06-settings-sharing-account.md */}
         <ThemedText themeColor="textSecondary">
           {health ? `Backend: connected · ${health.modelVersion}` : 'Backend: connecting…'}
+        </ThemedText>
+        <ThemedText themeColor="textSecondary">
+          {me ? `Device: ${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Device: registering…'}
         </ThemedText>
         {/* Placeholder navigation; removed by docs/plans/05-app-ui/* */}
         <Link href="/venue-picker">

@@ -1,12 +1,15 @@
 // Schema per docs/design/art-identifier.md §5.3. Pre-release: change shapes directly; do not add migrations.
+import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import model from '../shared/model-version.json';
 import {
+  challengePurpose,
   contributionField,
   contributionStatus,
   crawlRunStatus,
+  devicePlatform,
   docentSentence,
   embedding,
   evidenceKind,
@@ -36,6 +39,8 @@ const rightsRequest = {
 };
 
 export default defineSchema({
+  ...authTables,
+
   artworks: defineTable({
     key: v.string(),
     wikidataId: v.optional(v.string()),
@@ -304,16 +309,39 @@ export default defineSchema({
     .index('by_venue_status', ['venueId', 'status']),
 
   devices: defineTable({
-    appAttestKeyId: v.string(),
+    // Set by attestDevice once Apple has verified the key; absent until then.
+    appAttestKeyId: v.optional(v.string()),
     authUserId: v.optional(v.string()),
     firstSeenAt: v.number(),
     trustWeight: v.number(),
     banned: v.boolean(),
     accountId: v.optional(v.id('accounts')),
+    platform: devicePlatform,
+    attestedAt: v.optional(v.number()),
+    attestPublicKey: v.optional(v.string()),
+    attestCounter: v.number(),
   })
     .index('by_keyId', ['appAttestKeyId'])
     .index('by_authUserId', ['authUserId'])
     .index('by_accountId', ['accountId']),
+
+  attestChallenges: defineTable({
+    deviceId: v.optional(v.id('devices')),
+    authUserId: v.string(),
+    nonce: v.string(),
+    purpose: challengePurpose,
+    createdAt: v.number(),
+    usedAt: v.optional(v.number()),
+  })
+    .index('by_nonce', ['nonce'])
+    .index('by_authUserId', ['authUserId']),
+
+  dailySpend: defineTable({
+    day: v.string(),
+    tokenFactoryCalls: v.number(),
+    tavilyCredits: v.number(),
+    updatedAt: v.number(),
+  }).index('by_day', ['day']),
 
   accounts: defineTable({
     appleUserId: v.string(),

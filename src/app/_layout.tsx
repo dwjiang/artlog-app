@@ -1,8 +1,9 @@
-import { ConvexProvider } from 'convex/react';
+import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 
-import { convex } from '@/lib/convex-client';
+import { convex, secureStorage } from '@/lib/convex-client';
+import { DeviceIdentity } from '@/lib/device-identity';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -10,7 +11,8 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <ConvexProvider client={convex}>
+    <ConvexAuthProvider client={convex} storage={secureStorage}>
+      <DeviceIdentity />
       <ThemeProvider value={DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -25,6 +27,6 @@ export default function RootLayout() {
           />
         </Stack>
       </ThemeProvider>
-    </ConvexProvider>
+    </ConvexAuthProvider>
   );
 }
