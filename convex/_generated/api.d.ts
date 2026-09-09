@@ -9,6 +9,7 @@
  */
 
 import type * as health from "../health.js";
+import type * as ingest from "../ingest.js";
 import type * as lib_placements from "../lib/placements.js";
 import type * as lib_validators from "../lib/validators.js";
 
@@ -20,6 +21,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  ingest: typeof ingest;
   "lib/placements": typeof lib_placements;
   "lib/validators": typeof lib_validators;
 }>;
