@@ -37,7 +37,7 @@ Shared verification commands (established by plan 01.01): `npx tsc --noEmit`, `n
 | 01.03 | [Convex project and schema](01-foundation/03-convex-project-and-schema.md) | P1 | M | 01.01, 01.02 | DONE — project `artlog`, dev deployment `usable-owl-256`; 18 tables with the 1536-dim `vectors.by_vector` index pushed; 6 convex-test tests; Settings shows "Backend: connected" on the iPhone 17 Pro simulator 2026-09-09 |
 | 01.04 | [Dev client and EAS](01-foundation/04-dev-client-and-eas.md) | P1 | S | 01.02 | DONE — `expo-dev-client` 57.0.18, `app.artlog.ios` (placeholder, not yet registered with Apple), usage strings and App Attest entitlement, EAS project `@dwjiang/artlog` linked, `eas.json` with four profiles; local dev build ran on the iPhone 17 Pro simulator 2026-09-09, no cloud build spent |
 | 00.06 | [Native module options spike](00-kickoff-spikes/06-native-module-options.md) | P0 | M–L | 01.04 (iPhone) | TODO |
-| 04.01 | [ORB matching and RANSAC library](04-backend/01-orb-match-and-ransac.md) | P1 | M | 01.01, 01.03 | TODO |
+| 04.01 | [ORB matching and RANSAC library](04-backend/01-orb-match-and-ransac.md) | P1 | M | 01.01, 01.03 | DONE — pure-TS library under `convex/lib/orb/` (feature-set v1 wire format, SWAR Hamming 2-NN matcher, Hartley-normalized DLT + RANSAC, `verifyOrb` façade); 35 vitest tests; 500×500 match 4.7 ms on the M5 Pro 2026-09-09; `npx convex dev --once` bundles cleanly |
 | 04.02 | [Match calibrator library](04-backend/02-calibrator.md) | P1 | S | 01.01, 01.03 | TODO |
 | 04.04 | [Device identity and rate limits](04-backend/04-device-identity-and-rate-limits.md) | P1 | L | 01.03 | TODO |
 | 02.01 | [Jobs scaffold and Convex writer](02-index-build/01-jobs-scaffold-and-convex-writer.md) | P1 | M | 01.03 | TODO |

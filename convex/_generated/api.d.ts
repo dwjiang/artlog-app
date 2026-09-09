@@ -9,6 +9,13 @@
  */
 
 import type * as health from "../health.js";
+import type * as lib_orb_features from "../lib/orb/features.js";
+import type * as lib_orb_hamming from "../lib/orb/hamming.js";
+import type * as lib_orb_homography from "../lib/orb/homography.js";
+import type * as lib_orb_index from "../lib/orb/index.js";
+import type * as lib_orb_match from "../lib/orb/match.js";
+import type * as lib_orb_testFixtures from "../lib/orb/testFixtures.js";
+import type * as lib_orb_verify from "../lib/orb/verify.js";
 import type * as lib_placements from "../lib/placements.js";
 import type * as lib_validators from "../lib/validators.js";
 
@@ -20,6 +27,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  "lib/orb/features": typeof lib_orb_features;
+  "lib/orb/hamming": typeof lib_orb_hamming;
+  "lib/orb/homography": typeof lib_orb_homography;
+  "lib/orb/index": typeof lib_orb_index;
+  "lib/orb/match": typeof lib_orb_match;
+  "lib/orb/testFixtures": typeof lib_orb_testFixtures;
+  "lib/orb/verify": typeof lib_orb_verify;
   "lib/placements": typeof lib_placements;
   "lib/validators": typeof lib_validators;
 }>;
