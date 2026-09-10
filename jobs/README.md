@@ -207,3 +207,183 @@ npx vitest run convex/venueTable
   and iOS export contain identical database bytes. iPhone 17 Pro launch verified
   in light mode. The 98 Python, 149 Convex, and 22 app tests, TypeScript, ESLint,
   and Ruff checks passed.
+
+## Corpus metadata (02.03)
+
+From `jobs/`, using the configured `SCRATCH_DIR` (default `jobs/scratch`):
+
+```sh
+uv run python -m artlog_jobs.sources.fetch --met --aic --aic-live
+caffeinate -i uv run python -m artlog_jobs.sources.fetch --wikidata
+caffeinate -i uv run python -m artlog_jobs.build_metadata --sources met,aic,wikidata
+uv run python -m artlog_jobs.build_metadata --fixtures fixtures --out scratch/metadata-fixtures
+uv run pytest -q
+uv run ruff check . && uv run ruff format --check .
+```
+
+The fetcher writes `dumps/met/`, `dumps/aic/`, and `dumps/wikidata/` inside
+scratch. `build_metadata` writes `metadata/artworks.jsonl`, `objects.jsonl`,
+`placements.jsonl`, and `stats.json`. Optional fields are omitted, matching
+`convex/ingest.ts`. The job makes no Convex writes and downloads no image bodies.
+`stats.json` is the completion marker; a directory without it is unfinished.
+The counts, source coverage, rights and multiplicity distributions, unmapped
+owners, and the venue-key snapshot hash are recorded there.
+
+The Met revision is pinned before downloading. Dumps use byte-range downloads,
+`If-Range`, atomic receipts, SHA-256 hashes, and resumable `.part` files. AIC
+archive members are read directly, never extracted to archive-supplied paths.
+Repeat commands against the same scratch directory to resume. Use a new scratch
+and output directory for a fresh corpus snapshot; keep one writer per directory.
+The Met's CSV `Object Number` maps to `ObjectRecord.accession`; `Object ID`
+provides `sourceId` and `met:<id>`. Painting classification **contains**
+`Paintings`, including compound classifications rather than only exact matches.
+Only public-domain CSV rows request the per-object API, at one request/second.
+A live false public-domain flag revokes image references from the older CSV.
+403/404 responses are recorded separately from a successful response with no
+image. A 403 gets at most two retries after 15- and 30-second cooldowns, extended
+by `Retry-After`. Three denials or a cooldown exceeding 120 seconds stop further
+requests; `dumps/met/image-access.json` persists that stop. A server-specified
+cooldown remains in force across restarts. The report distinguishes forbidden,
+not-found, unchecked, requested, and recovered records.
+
+After access is restored, explicitly recover cached denials and unchecked rows:
+
+```sh
+caffeinate -i uv run python -m artlog_jobs.build_metadata --retry-met-denied
+```
+
+Successful responses and cached 404s are preserved. A plain rerun honors the
+persisted stop and reuses cached denials; it does not silently retry them.
+
+Wikidata enumerates direct `P31 = Q3305213` items with `P18`, groups them by the
+200 largest collections plus a remainder, and requests metadata in batches of
+500 IDs. Timed-out or truncated responses are subdivided by creator-death decade;
+a still-failing slice is reported and the remaining slices continue. Incomplete
+checkpoints preserve fetched records; reruns request only missing IDs, including
+during decade recovery. Each successful slice is an atomic `paintings-*.json`
+checkpoint. The final manifest
+lists exactly the files belonging to that census, missing IDs, and failures.
+Unknown-value image claims are excluded rather than turned into image URLs.
+Multiple collection/location/accession claims remain unset when a single value
+cannot be established. `P195` accession qualifiers stay attached to their
+collection; a unique direct `P217` is used when no collection qualifier applies.
+Institutional feed confidence is 0.9, Wikidata location 0.6, and collection-only
+placement 0.5; Wikidata does not assert that a painting is currently on view.
+
+Artwork merges use Wikidata IDs, preferring Wikidata metadata and retaining all
+source objects. The most restrictive rights result wins; thumbnails are removed
+on a downgrade. The policy and 70/100-year boundaries are specified in design
+§5.5. Multiplicity uses normalized artist/title pairs across the Wikidata
+snapshot. Series, versions, unknown artists (including Wikidata's anonymous
+creator entity `Q4233718`), and incomplete coverage do not establish uniqueness.
+Original CSV/JSON/archive responses remain in scratch as
+rights, source-date, and licensing evidence.
+
+### AIC snapshot and image access
+
+The default `--aic-snapshot live` requires a complete API snapshot. Fetch it before
+building. The official archive is still dated **2025-02-16**; the explicit
+`--aic-snapshot dump` option can reproduce archived metadata and emits no current
+placements.
+
+```sh
+uv run python -m artlog_jobs.sources.fetch --aic --aic-live
+uv run python -m artlog_jobs.build_metadata --sources met,aic,wikidata --aic-snapshot live
+```
+
+The live refresh uses a single stream at one request/second and preserves response
+license blocks. Each request sorts by ID and filters for IDs greater than the
+last returned ID. Responses are checkpointed as `paintings-after-<id>.json`, and
+the manifest names exactly the files in the snapshot. IDs must increase strictly,
+and the remaining total must reconcile with the initial census. A stalled,
+changing, or incomplete census cannot be selected as a live snapshot. Resuming
+reuses successful responses; use a fresh `dumps/aic/live/` directory to refresh
+them. API data can change during the run; it is not a transactional snapshot.
+
+The earlier page-11 HTTP 403 was a JSON `Invalid number of results` error, not
+the image host's Cloudflare block. Advancing by ID fetched all **3,912 paintings**
+in 40 requests on 2026-09-09. The old offset-based pages are excluded.
+
+An identified GET to the documented 843-pixel IIIF URL still returned Cloudflare
+403 HTML on 2026-09-09. AIC normalized records therefore omit both `imageRef` and
+`thumbnailUrl`; raw metadata preserves `image_id`. The adapter supports 1686 or
+843 when access is established, but the build currently admits neither.
+
+### Venue keys
+
+Normally the job pages `ingest:exportVenues` once and caches the key set under
+`metadata-venues/<deployment-hash>.json`. Both institutional keys must exist.
+The initial build used the bundled key snapshot after an empty dev export.
+A full recheck of dev `usable-owl-256` returned **42,452 venues** across 43 pages:
+every natural key and Convex document ID matches `assets/venues.db`, including
+the Met and AIC. The cause of the earlier empty export remains unknown. Recovery
+uses the normal live export/cache path, with no reseeding or asset replacement.
+
+Before 02.05 pushes objects, its target deployment must contain the corresponding
+museum rows. `--venues` takes an explicit JSON array of previously exported keys;
+it does not create museums or synthesize missing owners.
+
+### Full metadata snapshot, 2026-09-09
+
+The recovered full build produced **404,606 artworks, 409,926 objects,
+and 296,329 placements** under `jobs/scratch/metadata/`. The initial output is
+retained under `jobs/scratch/metadata-initial/` for comparison.
+
+| Source | Normalized objects | Image references | Placements |
+| --- | ---: | ---: | ---: |
+| met | 9,727 | 5,565 | 9,727 |
+| aic | 3,664 | 0 | 3,664 |
+| wikidata | 396,535 | 396,535 | 282,938 |
+
+The Met CSV contains 484,956 records; 9,727 classifications contain
+`Paintings` (9,005 are exact matches). Its 612,687 physical lines include
+newlines inside quoted fields, so the census uses `csv.DictReader`, not
+`wc -l`. AIC's complete live census has 3,912 paintings, of which 3,664 have
+`image_id`; 768 normalized objects are currently on view. Wikidata returned all
+396,545 census items in 883 files with zero failed slices; ten unknown-value
+`P18` claims were excluded. Compared with decision 005, the Met's painting
+count differs by 8.02% because of the contains filter; AIC's image-bearing
+count differs by 0.03%, and the Wikidata census by 0.02%.
+
+Met recovery took approximately 91 minutes at one request/second. It made
+5,414 API calls, resolved all 1,251 cached denials, and completed all 5,577
+eligible records: **5,565 image URLs, eight HTTP 404s, four live public-domain
+revocations, zero remaining denials, and zero unchecked records**. The four
+revoked source objects remain metadata with `unknown` rights and no image URLs;
+conservative merging also removes affected Wikidata thumbnails. API image
+metadata is complete; image-body download/decoding remains part of 02.04.
+
+The recovery command's request counts are in
+`scratch/metadata-met-recovery/stats.json`. The combined rebuild reuses these
+responses, so its own Met request/recovery counters are zero. AIC image access
+remains blocked: an identified 843-pixel GET again returned Cloudflare 403 at
+20:22:35 UTC. AIC's metadata and current placements are included; its images
+and thumbnails remain excluded.
+
+Final artwork rights: **341,453 public domain; 4,488 in copyright;
+58,665 unknown**. Multiplicity: **285,906 unique; 26,482 multiple;
+92,218 unknown**. There are 87,973 unmapped collection claims across 4,854
+collection IDs. All 42,452 venue keys came through the live dev export/cache
+path and match the committed asset.
+
+The review-fix rebuild used cached sources and corrected three anonymous works
+from `unique` to `unknown`; object and placement files are byte-identical.
+
+Verification: **197 Python tests (99 new across 02.03)**, TypeScript, ESLint,
+Ruff lint and formatting pass. The independent full-output audit verified
+unique keys, all artwork/object/placement/venue references, current AIC
+placements against the live records, the thumbnail rights gate, and raw rights
+evidence for every public-domain output object (5,573 Met, 1,875 AIC,
+338,960 Wikidata). It checked **344,525 final thumbnail references**;
+per-source thumbnail counts precede conservative merge downgrades.
+No app behavior changed, so no iOS run was required for this Python-only feature.
+No Convex schema/function signatures changed, so no codegen or deployment ran.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `artworks.jsonl` | 102,370,077 | `4d9a1af2f1009f873622f273d451dc2f81254540f988259b026acc6215ed0c17` |
+| `objects.jsonl` | 215,681,989 | `af68dbbea92d201b07ac3bfe3d4e1eb1d122306a568d4b562210cccab6674063` |
+| `placements.jsonl` | 37,476,994 | `ee9dfa1e7e6685f25d31f06165e61217ab43584d5166de4c93c2ec191623b191` |
+| `stats.json` | 77,829 | `7224115ce70a9eddf5e8b10c42dc7bce3ce88295b8704939c8e19b3ba86f5c85` |
+
+Venue key-set SHA-256: `861b0149809145ac74a00be7a901df74045a671e78f29e843fa452522ac58087`.

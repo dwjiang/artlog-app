@@ -1,0 +1,220 @@
+{
+  "results": {
+    "bindings": [
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Blue sky"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%201.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q10"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Ada Painter"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1901-01-01T00:00:00Z"
+        },
+        "inception": {
+          "type": "literal",
+          "value": "1900-01-01T00:00:00Z"
+        },
+        "copyright": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q19652"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q160236"
+        },
+        "accession": {
+          "type": "literal",
+          "value": "1900.1"
+        },
+        "location": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q239303"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q2"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "City"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%202.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q20"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Ben Painter"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1980-01-01T00:00:00Z"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q999"
+        },
+        "directAccession": {
+          "type": "literal",
+          "value": "X2"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Study"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%203.jpg"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q160236"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q4"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Blue sky"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%204.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q10"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "ADA PAINTER"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1901-01-01T00:00:00Z"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q5"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Version"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%205.jpg"
+        },
+        "versionOf": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q6"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Series work"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%206.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q10"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Ada Painter"
+        },
+        "series": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q100"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q1"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Blue sky"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Painting%201.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q10"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Ada Painter"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1901-01-01T00:00:00Z"
+        },
+        "inception": {
+          "type": "literal",
+          "value": "1900-01-01T00:00:00Z"
+        },
+        "copyright": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q19652"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q160236"
+        },
+        "accession": {
+          "type": "literal",
+          "value": "1900.1"
+        },
+        "location": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q239303"
+        }
+      }
+    ]
+  }
+}

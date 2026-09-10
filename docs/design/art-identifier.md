@@ -340,6 +340,18 @@ The embedding model will change — a newer C-RADIO, a fine-tune on the hard neg
 
 `rightsStatus` on every artwork: `public_domain`, `in_copyright` or `unknown`, derived conservatively from Wikidata (`P570` date of death, `P6216` copyright status), the Met's `isPublicDomain`, the AIC's `is_public_domain`, and rights lines on crawled pages. `unknown` is treated as `in_copyright`. This one field decides what is stored and what can be trained on:
 
+The metadata job's policy (02.03) accepts an explicit institutional public-domain
+flag or Wikidata `P6216 = Q19652`; without one, all identified creators must have
+known death years at least 100 years before the run's UTC year. A creator who
+died less than 70 years ago, an explicit copyright notice, or `P6216 = Q50423863`
+produces `in_copyright`. The intervening years, missing evidence, false
+institutional flags, and unrecognized copyright-status claims remain `unknown`.
+An explicit copyright claim wins over a public-domain claim. Merging sources
+uses the most restrictive result (`in_copyright`, then `unknown`, then
+`public_domain`) and removes every linked object's thumbnail URL on a downgrade.
+These artwork classifications do not override image-access blocks or the
+file-specific source admission rules in [decision 005](../decisions/005-data-sources.md).
+
 | | `public_domain` | `in_copyright` / `unknown` |
 |---|---|---|
 | Embedding, ORB descriptors, link to the museum page | stored | stored |
