@@ -9,6 +9,8 @@
 > **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/ shared/model-version.json`
 > Confirm `convex/lib/orb/index.ts`, `convex/lib/calibrator/index.ts`, `convex/lib/auth.ts`, `convex/lib/rateLimits.ts`, `convex/lib/placements.ts` exist (plans 04.01, 04.02, 04.04, 01.03). STOP if any is missing.
 
+> **Superseded in part (2026-09-10):** `waiting` scans, `keepFeatures`, `listWaiting`, `rerunWaiting` and `rerunScan` were removed with the crawler; every scan resolves to `identified` on its first run and `scans` no longer stores descriptors.
+
 ## Status
 
 - **Priority**: P1

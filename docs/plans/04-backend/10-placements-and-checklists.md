@@ -23,7 +23,7 @@ Design §3/§4.2: exhibition checklists and loans are ingested as time-bounded p
 
 ## Current state
 
-- `placements { objectId, venueId, gallery?, onView, from?, to?, source, confidence, closedAt? }`; `currentPlacement()` picks the active row by window then source rank (`manual > feed > checklist > proposal > crawl > wikidata`; add `contribution` between `proposal` and `crawl` — 04.08 introduced it).
+- `placements { objectId, venueId, gallery?, onView, from?, to?, source, confidence, closedAt? }`; `currentPlacement()` picks the active row by window then source rank (`manual > feed > checklist > proposal > wikidata`; add `contribution` between `proposal` and `wikidata` — 04.08 introduces it).
 - `placementProposals { objectId, proposedVenueId, kind, scanIds, deviceIds, firstSeenAt, lastSeenAt, status, readyForReview, reviewer?, reviewedAt? }` with `proposeFromScan` upserting and computing `readyForReview = distinct deviceIds ≥ 2` (04.03).
 - Checklist JSON shape from spike 00.05: `{ venueKey, exhibition: { title, from: ISO date, to: ISO date, sourceUrl }, gallery?, works: [{ objectKey? | wikidataId? | { title, artist, ownerKey?, accession? } }] }`.
 
@@ -56,7 +56,7 @@ Design §3/§4.2: exhibition checklists and loans are ingested as time-bounded p
 ## Done criteria
 
 - [ ] Tests pass; tsc/lint; `npx convex dev --once`; `uv run pytest -q artlog_jobs/ingest_checklist_test.py`
-- [ ] `grep -n "db.insert(\"placements\"\|db.insert('placements'" convex/*.ts` shows inserts only in `checklists.ts`, `placements.ts` (review), `promotion.ts` (contribution) and `ingest.ts` (feeds/crawl) — never in identify/feedback
+- [ ] `grep -n "db.insert(\"placements\"\|db.insert('placements'" convex/*.ts` shows inserts only in `checklists.ts`, `placements.ts` (review), `promotion.ts` (contribution) and `ingest.ts` (feeds) — never in identify/feedback
 - [ ] `docs/plans/README.md` updated
 
 ## STOP conditions

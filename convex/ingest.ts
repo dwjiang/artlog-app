@@ -171,10 +171,6 @@ export const upsertMuseums = internalMutation({
         ids[row.key] = await ctx.db.insert('museums', {
           ...fields,
           optOut: false,
-          useTavilyCrawl: false,
-          queuePriority: 0,
-          failureCount: 0,
-          indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
         });
         inserted += 1;
       }

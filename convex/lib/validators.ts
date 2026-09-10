@@ -10,12 +10,11 @@ export type RightsStatus = Infer<typeof rightsStatus>;
 export const multiplicity = v.union(v.literal('unique'), v.literal('multiple'), v.literal('unknown'));
 export type Multiplicity = Infer<typeof multiplicity>;
 
-export const objectSource = v.union(v.literal('corpus'), v.literal('crawl'), v.literal('user'));
+export const objectSource = v.union(v.literal('corpus'), v.literal('user'));
 export type ObjectSource = Infer<typeof objectSource>;
 
 export const vectorSource = v.union(
   v.literal('corpus'),
-  v.literal('crawl'),
   v.literal('user'),
   v.literal('user_scan')
 );
@@ -25,7 +24,6 @@ export const placementSource = v.union(
   v.literal('wikidata'),
   v.literal('feed'),
   v.literal('checklist'),
-  v.literal('crawl'),
   v.literal('proposal'),
   v.literal('manual')
 );
@@ -33,25 +31,6 @@ export type PlacementSource = Infer<typeof placementSource>;
 
 export const seedSource = v.union(v.literal('wikidata'), v.literal('poi'), v.literal('manual'));
 export type SeedSource = Infer<typeof seedSource>;
-
-export const indexStatusKind = v.union(
-  v.literal('none'),
-  v.literal('queued'),
-  v.literal('building'),
-  v.literal('complete'),
-  v.literal('no_index'),
-  v.literal('opted_out')
-);
-export type IndexStatusKind = Infer<typeof indexStatusKind>;
-
-export const crawlRunStatus = v.union(
-  v.literal('running'),
-  v.literal('complete'),
-  v.literal('failed'),
-  v.literal('capped'),
-  v.literal('no_index')
-);
-export type CrawlRunStatus = Infer<typeof crawlRunStatus>;
 
 export const contributionStatus = v.union(
   v.literal('private'),
@@ -73,7 +52,6 @@ export type ProposalKind = Infer<typeof proposalKind>;
 
 export const scanStatus = v.union(
   v.literal('pending'),
-  v.literal('waiting'),
   v.literal('identified'),
   v.literal('failed'),
   v.literal('unsupported_version')

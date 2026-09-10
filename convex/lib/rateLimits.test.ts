@@ -22,16 +22,16 @@ describe('rate limits', () => {
 
   it('reports when the caller may retry', async () => {
     const t = harness();
-    for (let i = 0; i < 3; i++) await t.run((ctx) => limitKey(ctx, 'queueBump', 'device2'));
+    for (let i = 0; i < 3; i++) await t.run((ctx) => limitKey(ctx, 'rejectPerWork', 'device2'));
 
-    const error = await t.run((ctx) => limitKey(ctx, 'queueBump', 'device2')).catch((e) => e);
+    const error = await t.run((ctx) => limitKey(ctx, 'rejectPerWork', 'device2')).catch((e) => e);
     expect(error.data.code).toBe('rate_limited');
     expect(error.data.retryAfter).toBeGreaterThan(0);
   });
 
   it('keys limits per device', async () => {
     const t = harness();
-    for (let i = 0; i < 3; i++) await t.run((ctx) => limitKey(ctx, 'queueBump', 'device3'));
-    await expect(t.run((ctx) => limitKey(ctx, 'queueBump', 'device4'))).resolves.toBeNull();
+    for (let i = 0; i < 3; i++) await t.run((ctx) => limitKey(ctx, 'rejectPerWork', 'device3'));
+    await expect(t.run((ctx) => limitKey(ctx, 'rejectPerWork', 'device4'))).resolves.toBeNull();
   });
 });

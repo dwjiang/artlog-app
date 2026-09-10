@@ -48,7 +48,7 @@ Design §5.7 step 2: "Metadata first. Pull the Met and AIC dumps and the Wikidat
 
 **In scope**: `jobs/artlog_jobs/sources/{__init__,fetch,met,aic,wikidata_paintings}.py`, `jobs/artlog_jobs/{normalize,rights,multiplicity,owner_map,build_metadata}.py`, tests + fixtures (`jobs/fixtures/met-sample.csv`, `aic-sample.json`, `wikidata-paintings-sample.json`).
 
-**Out of scope**: image downloads and embedding (02.04), pushing to Convex (02.05), crawled venues (02.06).
+**Out of scope**: image downloads and embedding (02.04), pushing to Convex (02.05).
 
 ## Steps
 

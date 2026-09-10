@@ -13,8 +13,7 @@ const sourceRank: Record<string, number> = {
   manual: 6,
   feed: 5,
   checklist: 4,
-  proposal: 3,
-  crawl: 2,
+  proposal: 2,
   wikidata: 1,
 };
 

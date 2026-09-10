@@ -40,7 +40,7 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 **In scope**: `jobs/artlog_jobs/{dedupe,hubs,push}.py` (+ tests), `build_index.py` (add stages), `jobs/README.md`.
 
-**Out of scope**: crawled objects (02.06 pushes its own rows through the same `push.py` helpers), calibrator penalties from feedback (04.07).
+**Out of scope**: calibrator penalties from feedback (04.07).
 
 ## Steps
 
@@ -82,7 +82,7 @@ Run the full stage set on the Mac under `caffeinate -i` (the push is bound by Pr
 ## STOP conditions
 
 - Push hits write-size errors at 300 vectors — halve and report.
-- Convex search storage after the push exceeds the projection in `docs/decisions/002-vector-search-scale.md` by > 50% — report before continuing to the crawler.
+- Convex search storage after the push exceeds the projection in `docs/decisions/002-vector-search-scale.md` by > 50% — report before continuing.
 
 ## Maintenance notes
 

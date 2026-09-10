@@ -1,7 +1,5 @@
-import { paginationResultValidator } from 'convex/server';
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
@@ -22,7 +20,6 @@ export const scanDisplay = v.object({
   outcome: scanFields.outcome, calibratorVersion: scanFields.calibratorVersion,
   best: v.optional(displayCandidate), runnerUps: v.optional(v.array(displayCandidate)),
   docent: scanFields.docent, rightNow: scanFields.rightNow, error: scanFields.error,
-  indexStatus: v.optional(schema.tables.museums.validator.fields.indexStatus),
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
 
@@ -67,29 +64,16 @@ export const setResult = internalMutation({
     scanId: v.id('scans'), generation: v.number(), status: scanFields.status, outcome: scanFields.outcome,
     best: scanFields.best, runnerUps: scanFields.runnerUps, calibratorVersion: v.string(),
     error: v.optional(v.string()),
-    keepFeatures: v.optional(v.object({ descriptors: v.bytes(), keypoints: v.bytes(), keypointCount: v.number() })),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId);
     if (!scan) throw new ConvexError({ code: 'scan_not_found' });
-    if (scan.generation !== args.generation || (scan.status !== 'pending' && scan.status !== 'waiting')) return null;
-    if (args.status === 'waiting' && !args.keepFeatures) {
-      throw new ConvexError({ code: 'bad_features' });
-    }
-    const features = args.status === 'waiting' ? args.keepFeatures : undefined;
+    if (scan.generation !== args.generation || scan.status !== 'pending') return null;
     await ctx.db.patch(scan._id, {
       status: args.status, outcome: args.outcome, best: args.best, runnerUps: args.runnerUps,
       calibratorVersion: args.calibratorVersion, error: args.error, updatedAt: Date.now(),
-      descriptors: features?.descriptors, keypoints: features?.keypoints, keypointCount: features?.keypointCount,
     });
-    if (args.status === 'waiting' && scan.venueId) {
-      const venue = await ctx.db.get(scan.venueId);
-      if (venue?.indexStatus.status !== 'queued' && venue?.indexStatus.status !== 'building') {
-        // Index completion may have drained the waiting queue before this write committed.
-        await ctx.scheduler.runAfter(0, internal.identify.rerunScan, { scanId: scan._id, generation: scan.generation });
-      }
-    }
     if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
       if (visit?.deviceId === scan.deviceId && visit.venueId === scan.venueId &&
@@ -117,10 +101,9 @@ async function joinCandidate(
 }
 
 async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDisplay> {
-  const [best, runnerUps, venue] = await Promise.all([
+  const [best, runnerUps] = await Promise.all([
     scan.best ? joinCandidate(ctx, scan.best) : null,
     Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match))),
-    scan.venueId ? ctx.db.get(scan.venueId) : null,
   ]);
   return {
     scanId: scan._id, localId: scan.localId, venueId: scan.venueId, visitId: scan.visitId,
@@ -128,7 +111,6 @@ async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDispl
     calibratorVersion: scan.calibratorVersion, best: best ?? undefined,
     runnerUps: runnerUps.flatMap((candidate) => candidate ? [candidate] : []),
     docent: scan.docent, rightNow: scan.rightNow, error: scan.error,
-    indexStatus: scan.status === 'waiting' ? venue?.indexStatus : undefined,
   };
 }
 
@@ -156,12 +138,4 @@ export const getDisplay = internalQuery({
     if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: 'scan_not_found' });
     return displayScan(ctx, scan);
   },
-});
-
-export const listWaiting = internalQuery({
-  args: { venueId: v.id('museums'), cursor: v.optional(v.string()) },
-  returns: paginationResultValidator(schema.doc('scans')),
-  handler: (ctx, { venueId, cursor }) => ctx.db.query('scans')
-    .withIndex('by_venue_status', (q) => q.eq('venueId', venueId).eq('status', 'waiting'))
-    .paginate({ numItems: 25, cursor: cursor ?? null }),
 });

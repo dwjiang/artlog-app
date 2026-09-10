@@ -14,7 +14,6 @@ const limits = {
   placementProposal: { kind: 'fixed window', rate: 20, period: HOUR },
   rejectPerWork: { kind: 'fixed window', rate: 3, period: DAY },
   venueConfirm: { kind: 'fixed window', rate: 5, period: DAY },
-  queueBump: { kind: 'fixed window', rate: 3, period: DAY },
   labelRead: { kind: 'fixed window', rate: 30, period: HOUR },
   labelVerify: { kind: 'fixed window', rate: 60, period: HOUR },
   docent: { kind: 'fixed window', rate: 60, period: HOUR },

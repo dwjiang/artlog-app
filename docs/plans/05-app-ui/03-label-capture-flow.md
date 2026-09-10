@@ -13,7 +13,7 @@
 - **Priority**: P1
 - **Effort**: L
 - **Risk**: MED (multi-step async UI; consent copy is a product/legal surface)
-- **Depends on**: 04.06, 04.07 (backend), 03.01 (camera, QR hook), 03.03 (local embedding for the image check), 03.06 (offline label photo), 03.07 (attested writes), 05.02
+- **Depends on**: 04.06, 04.07 (backend), 04.12 (shared homography check contract), 03.01 (camera, QR hook), 03.03 (local embedding for the image check), 03.04 (ORB for the image check), 03.06 (offline label photo), 03.07 (attested writes), 05.02
 - **Category**: feature (UI)
 - **Planned at**: commit `86571a3`, 2026-09-08
 
@@ -23,7 +23,7 @@ Design §4.4 "The label flow" and §4.5: "Not in our index yet — point at the 
 
 ## Current state
 
-- Backend (04.06): `fetchQr({ scanId, url })`, `readLabel({ scanId, imageBase64 })` → fields with confidence, `verifyLabel({ scanId, fields, imageCheck? })` → `{ fields: { value, evidence, locked }, warnings, wikidataId?, imageUrls? }`; (04.07) `requestCropUpload`, `contribute({ scanId, descriptors, keypoints, fields, evidence, wikidataId?, cropStorageId, consent: true, nonce, assertionBase64 })`, `resolveRejection`.
+- Backend (04.06): `fetchQr({ scanId, url })`, `readLabel({ scanId, imageBase64 })` → fields with confidence, `verifyLabel({ scanId, fields, imageCheck?: { url, cosine, homographyValid } })` → `{ fields: { value, evidence, locked }, warnings, wikidataId?, imageUrls? }` (04.12 tightened the image rule to embedding plus homography); (04.07) `requestCropUpload`, `contribute({ scanId, descriptors, keypoints, fields, evidence, wikidataId?, cropStorageId, consent: true, nonce, assertionBase64 })`, `resolveRejection`.
 - Phone: `useQrScanner` (03.01), `runCapture` stages (`warper`, `embedder`, `orb` — 03.02–03.04), `signPayload` (03.07), pending row helpers (03.06: `setLabelPhoto(localId, path)`, `setQrUrl`), `expo-image-manipulator` (`manipulate(uri).resize({ width }).renderAsync()` → `saveAsync({ format: JPEG, compress, base64 })`), `expo-file-system`.
 - Route `label/[scanId]` (title "Label"); the scan's ORB features must be resent with `contribute` — keep them in memory from the capture (03.01 stores the last payload per `localId` in the pending row or an in-memory map `captureCache`).
 
@@ -37,9 +37,9 @@ Design §4.4 "The label flow" and §4.5: "Not in our index yet — point at the 
 
 ### Step 1: Flow orchestrator (pure-ish)
 
-`flow.ts`: `runLabelFlow({ scanId, labelPhotoUri?, qrUrl?, api, embed, onStage })` → stages `qr | read | verify | image-check | done`: if `qrUrl` → `fetchQr`; else downscale the photo (long side 1600, JPEG 0.8, base64) → `readLabel`; then `verifyLabel(fields)`; if `imageUrls` → `image-check.ts`: download ≤ 3 images to cache, letterbox+embed each (03.02/03.03 stages), cosine with the scan vector (from the capture cache); best ≥ 0.85 → `verifyLabel` again with `imageCheck`; return the final verification. Exported for 03.06's flusher. Errors map to user messages (`feature_off` → "Label reading is paused right now", `rate_limited` → "Try again in a minute", model errors → "Couldn't read the label — try a sharper shot").
+`flow.ts`: `runLabelFlow({ scanId, labelPhotoUri?, qrUrl?, api, embed, onStage })` → stages `qr | read | verify | image-check | done`: if `qrUrl` → `fetchQr`; else downscale the photo (long side 1600, JPEG 0.8, base64) → `readLabel`; then `verifyLabel(fields)`; if `imageUrls` → `image-check.ts`: download ≤ 3 images to cache, letterbox+embed each (03.02/03.03 stages), cosine with the scan vector (from the capture cache); for the best ≥ 0.85, extract ORB from the letterboxed image (03.04) and run `verifyOrb` from `shared/orb` against the scan's features (05.07 moves it there; until then import from `convex/lib/orb`); a valid homography → `verifyLabel` again with `imageCheck: { url, cosine, homographyValid: true }`; return the final verification. `image-check.ts` is shared with 05.07. Exported for 03.06's flusher. Errors map to user messages (`feature_off` → "Label reading is paused right now", `rate_limited` → "Try again in a minute", model errors → "Couldn't read the label — try a sharper shot").
 
-**Verify**: `flow.test.ts` with fake api/embed: QR path skips reading; image check triggers the second verify only ≥ 0.85; stage callbacks in order; error mapping.
+**Verify**: `flow.test.ts` with fake api/embed/extractOrb: QR path skips reading; image check triggers the second verify only when cosine ≥ 0.85 and the homography holds; stage callbacks in order; error mapping.
 
 ### Step 2: Capture UI
 
@@ -49,7 +49,7 @@ Design §4.4 "The label flow" and §4.5: "Not in our index yet — point at the 
 
 ### Step 3: Progress and the form
 
-`progress-steps.tsx`: a vertical stepper with the stage labels "Reading the label…", "Checking the museum's records…", "Checking Wikidata…", "Searching the web…", "Comparing images…" (checkmarks as stages complete; 3–6 s expected). `verified-fields-form.tsx`: fields from `verifyLabel`; locked fields show a lock icon + `EvidenceBadge` ("From the museum's records" for `accession`/`qr`, "Wikidata" for `wikidata`, "From the web" for `tavily`); tapping the lock asks "Edit this field? It was verified against <source>; editing means your entry needs a second confirmation before it can be shared." → unlock → field editable, badge changes to "Edited by you", `edited: true`; unverified fields are editable with no badge; warnings from plausibility shown as a yellow note ("The date is outside the artist's lifespan — please check").
+`progress-steps.tsx`: a vertical stepper with the stage labels "Reading the label…", "Checking the museum's records…", "Checking Wikidata…", "Searching the web…", "Comparing images…" (checkmarks as stages complete; 3–6 s expected). `verified-fields-form.tsx`: fields from `verifyLabel`; locked fields show a lock icon + `EvidenceBadge` ("From the museum's records" for `accession`/`qr`, "Wikidata" for `wikidata`, "From the web" for `tavily`, "From the museum's site" for `tavily+image`); tapping the lock asks "Edit this field? It was verified against <source>; editing means your entry needs a second confirmation before it can be shared." → unlock → field editable, badge changes to "Edited by you", `edited: true`; unverified fields are editable with no badge; warnings from plausibility shown as a yellow note ("The date is outside the artist's lifespan — please check").
 
 **Verify**: RTL tests: locked field not editable until unlocked; unlocking sets the edited state and badge; warnings render.
 

@@ -19,7 +19,7 @@
 
 ## Why this matters
 
-Venue resolution runs on the phone against a bundled table of every museum and gallery Wikidata knows with coordinates and a website (design §4.2 "The venue table", §5.1). The same rows exist in Convex `museums` so the server can key visits, placements and the crawl queue by `venueId`. This job seeds both, assigns each venue a `region` for "Right now", and publishes a refreshable copy of the table for the app.
+Venue resolution runs on the phone against a bundled table of every museum and gallery Wikidata knows with coordinates and a website (design §4.2 "The venue table", §5.1). The same rows exist in Convex `museums` so the server can key visits and placements by `venueId`. This job seeds both, assigns each venue a `region` for "Right now", and publishes a refreshable copy of the table for the app.
 
 ## Current state
 
@@ -41,7 +41,7 @@ Venue resolution runs on the phone against a bundled table of every museum and g
 
 **In scope**: `jobs/artlog_jobs/seed_venues.py` (+ test), `jobs/artlog_jobs/wikidata.py` (SPARQL client with slicing, retries, UA) (+ test), `shared/regions.json` (from spike 00.07; shared with Convex, which reads it for "Right now"), `jobs/config/countries.json` (ISO → Wikidata Q-id list used for slicing), `convex/venueTable.ts` (+ test), `convex/schema.ts` (add `venueTables { version: number, storageId: id('_storage'), rowCount: number, createdAt }` with `by_version`), `assets/venues.db` (committed, ≤ 10 MB) , `metro.config.js` (create with `assetExts.push('db')`), `README` note in `jobs/README.md`.
 
-**Out of scope**: the phone-side resolution (03.05); POI venues (04.05); crawl profiles (02.06).
+**Out of scope**: the phone-side resolution (03.05); POI venues (04.05).
 
 ## Steps
 
