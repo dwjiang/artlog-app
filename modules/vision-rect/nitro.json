@@ -1,0 +1,20 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": ["visionrect"],
+  "ios": {
+    "iosModuleName": "VisionRect"
+  },
+  "android": {
+    "androidNamespace": ["visionrect"],
+    "androidCxxLibName": "VisionRect"
+  },
+  "autolinking": {
+    "VisionRect": {
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridVisionRect"
+      }
+    }
+  },
+  "ignorePaths": ["**/node_modules"]
+}

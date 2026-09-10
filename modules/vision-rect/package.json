@@ -1,0 +1,7 @@
+{
+  "name": "vision-rect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live rectangle detection, perspective warp and letterbox for artlog (Apple Vision + Core Image, Nitro module)",
+  "main": "src/index.ts"
+}
