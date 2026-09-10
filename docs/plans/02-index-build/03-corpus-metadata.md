@@ -17,6 +17,12 @@
 - **Category**: feature
 - **Planned at**: commit `86571a3`, 2026-09-08
 
+Source correction approved by the operator, 2026-09-09: read Met CSV
+`Object Number` into the normalized object's `accession`, consistent with
+[Decision 005 §2](../../decisions/005-data-sources.md#2-met-counts-and-metadata-contract).
+Three live CSV/API comparisons confirmed it matches API `accessionNumber`;
+`Object ID` remains the source identifier.
+
 ## Why this matters
 
 Design §5.7 step 2: "Metadata first. Pull the Met and AIC dumps and the Wikidata SPARQL results into normalized Artwork, Object and Placement records — with `rightsStatus`, `ownerId`, current location, accession, `onView`, imageUrl, pageUrl — before downloading any image." The artwork/object/placement split (§4.2) and the rights rule (§5.5) are decided here for the whole corpus; the embed job (02.04) and the push (02.05) only consume these records.
@@ -24,7 +30,7 @@ Design §5.7 step 2: "Metadata first. Pull the Met and AIC dumps and the Wikidat
 ## Current state
 
 - `jobs/` scaffold (02.01): `PoliteClient`, checkpoints, `ConvexWriter`, `SCRATCH_DIR` (a local directory on the operator's Mac by default); `museums` seeded with `key = wikidata:Q…` (02.02). Runs happen locally; long ones under `caffeinate -i`.
-- Verified source facts (2026-09-08): Met CSV `MetObjects.csv` (Git LFS, CC0; columns include `Object ID, Is Public Domain, Classification, Title, Artist Display Name, Object Date, Object Begin Date, Object End Date, Medium, Dimensions, Accession Number, Gallery Number, Link Resource, Object Wikidata URL, Artist Wikidata URL, Department`); image URLs only via the API `/objects/{id}` (`primaryImage`, `primaryImageSmall`, 80 req/s limit — use 20 req/s). AIC dump (`api-data` repo, monthly) with `artwork_type_title`, `image_id`, `is_public_domain`, `is_on_view`, `gallery_title`, `main_reference_number`, `artist_title`, `artist_id`, `date_display`, `date_start`, `date_end`, `medium_display`, `dimensions`, `copyright_notice`, `title`; IIIF `https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg`; 60 req/min if using the API instead. Wikidata paintings: `?item wdt:P31 wd:Q3305213; wdt:P18 ?image` with `P170` (+ creator `P570` death date), `P571` inception, `P276` location, `P6216` copyright status (`Q19652` public domain), `p:P195/ps:P195` collection + `pq:P217` inventory number, `P179` series; images as `Special:FilePath/<File>` (original) and thumbnails only at standard widths (use `?width=330`). Met = `Q160236`, AIC = `Q239303`. `huggan/wikiart` is dropped (license).
+- Verified source facts (2026-09-08, Met header corrected 2026-09-09): Met CSV `MetObjects.csv` (Git LFS, CC0; columns include `Object ID, Is Public Domain, Classification, Title, Artist Display Name, Object Date, Object Begin Date, Object End Date, Medium, Dimensions, Object Number, Gallery Number, Link Resource, Object Wikidata URL, Artist Wikidata URL, Department`); image URLs only via the API `/objects/{id}` (`primaryImage`, `primaryImageSmall`, 80 req/s published limit — use 1 req/s after the recovery probe). AIC dump (`api-data` repo, monthly) with `artwork_type_title`, `image_id`, `is_public_domain`, `is_on_view`, `gallery_title`, `main_reference_number`, `artist_title`, `artist_id`, `date_display`, `date_start`, `date_end`, `medium_display`, `dimensions`, `copyright_notice`, `title`; IIIF `https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg`; 60 req/min if using the API instead. Wikidata paintings: `?item wdt:P31 wd:Q3305213; wdt:P18 ?image` with `P170` (+ creator `P570` death date), `P571` inception, `P276` location, `P6216` copyright status (`Q19652` public domain), `p:P195/ps:P195` collection + `pq:P217` inventory number, `P179` series; images as `Special:FilePath/<File>` (original) and thumbnails only at standard widths (use `?width=330`). Met = `Q160236`, AIC = `Q239303`. `huggan/wikiart` is dropped (license).
 - Records (pydantic, in `normalize.py`):
   - `ArtworkRecord { key, wikidataId?, title, artist, artistId?, date?, yearStart?, yearEnd?, rightsStatus, multiplicity, seriesId? }`
   - `ObjectRecord { key, artworkKey, ownerKey?, accession?, medium?, dimensions?, source: 'corpus', sourceId, imageRef (full-size URL for embedding), pageUrl, thumbnailUrl? (public-domain only) }`
@@ -80,10 +86,33 @@ Fixtures with 5–10 rows per source; tests per adapter, `rights`, `multiplicity
 
 ## Done criteria
 
-- [ ] `uv run pytest -q` passes (≥ 15 new tests); `ruff` clean
-- [ ] Full metadata run produced `stats.json` in scratch; numbers recorded in `jobs/README.md`
-- [ ] `rights` distribution shows `unknown` for anything ambiguous (no `public_domain` without an explicit flag or a ≥ 100-year death)
-- [ ] `docs/plans/README.md` status row updated
+- [x] `uv run pytest -q` passes (99 new tests, 197 total); `ruff` clean
+- [x] Full metadata run produced `stats.json` in scratch; numbers recorded in `jobs/README.md`
+- [x] `rights` distribution shows `unknown` for anything ambiguous (no `public_domain` without an explicit flag or a ≥ 100-year death)
+- [x] `docs/plans/README.md` status row updated
+
+Implemented and recovered on 2026-09-09: **404,606 artworks, 409,926 objects,
+and 296,329 placements**. All 396,545 Wikidata census items were fetched into
+883 checkpoint files; ten unknown-value image claims were excluded. An
+independent audit verified all references, current AIC placements, thumbnail
+restrictions, and raw rights evidence for every public-domain object. The 197
+Python tests, TypeScript, ESLint, and Ruff checks pass. There are no app/backend
+changes, Convex writes, or image-body downloads.
+
+The Met image-metadata census is complete: 5,577 eligible records, 5,565 image
+URLs, eight 404s, four public-domain revocations, and no denied or unchecked
+records. Explicit recovery preserves successful responses and retries cached
+403s at one request/second with bounded cooldowns. All 1,251 old denials were
+resolved. AIC's page-11 403 was a result-limit error; ID-based pagination fetched
+all 3,912 live paintings. The default live snapshot emits 3,664 objects and
+current placements, including 768 on view. Dev's 42,452 venue keys and document
+IDs match the bundled asset; the recovered build uses the live export/cache path.
+
+**Remaining source verification:** identified AIC IIIF image GETs still return
+Cloudflare 403. Following decision 005, its image references and thumbnails
+remain excluded. Met image-body verification belongs to 02.04. Commands,
+coverage, counts, and output hashes are recorded in
+[jobs/README.md](../../../jobs/README.md#corpus-metadata-0203).
 
 ## STOP conditions
 

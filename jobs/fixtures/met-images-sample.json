@@ -1,0 +1,20 @@
+{
+  "1": {
+    "objectID": 1,
+    "isPublicDomain": true,
+    "primaryImage": "https://images.metmuseum.org/one.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/small-one.jpg"
+  },
+  "3": {
+    "objectID": 3,
+    "isPublicDomain": true,
+    "primaryImage": "",
+    "primaryImageSmall": ""
+  },
+  "6": {
+    "objectID": 6,
+    "isPublicDomain": false,
+    "primaryImage": "https://images.metmuseum.org/revoked.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/revoked-small.jpg"
+  }
+}

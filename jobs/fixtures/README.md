@@ -1,5 +1,13 @@
 # Test fixtures
 
+- `met-sample.csv`, `met-images-sample.json`, `aic-sample.json`, and
+  `wikidata-paintings-sample.json` — synthetic metadata for plan 02.03, using
+  the published source field names. Names, accession values, and object/image
+  IDs in these four fixtures are invented, not institutional assertions.
+  They cover painting filters, missing images, rights revocation and ambiguity,
+  owner/location differences, accession qualifiers, duplicate SPARQL bindings,
+  and series/version identity. No images are included or fetched by these tests.
+
 - `wikidata-iceland.json` — saved WDQS response on 2026-09-09, with the query
   included. The 35 distinct Icelandic museums/gallery venues have coordinates
   and websites. Wikidata structured data is CC0; this fixture tests parsing,

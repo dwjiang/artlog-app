@@ -1,0 +1,424 @@
+import json
+
+import httpx
+import pytest
+
+from .wikidata_paintings import fetch_paintings
+
+
+def binding(qid, **values):
+    return {
+        key: {"value": value}
+        for key, value in {"item": f"http://www.wikidata.org/entity/{qid}", **values}.items()
+    }
+
+
+def test_painting_fetch_covers_collections_and_remainder_and_resumes(tmp_path):
+    calls = []
+
+    def fetch(query, **kwargs):
+        calls.append(query)
+        if "SELECT DISTINCT" in query:
+            return [binding("Q1", collection="http://www.wikidata.org/entity/Q10"), binding("Q2")]
+        return [binding("Q1" if "wd:Q1 " in query else "Q2", image="file.jpg")]
+
+    first = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    second = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    assert first == second
+    assert first["complete"] and first["items"] == 2
+    assert len(calls) == 3
+    assert any("remainder" in path for path in first["files"])
+
+
+def test_repeated_slice_timeout_reports_partial_coverage(tmp_path):
+    def fetch(query, **kwargs):
+        if "SELECT DISTINCT" in query:
+            return [binding("Q1")]
+        if "SELECT ?item ?death" in query:
+            return [binding("Q1", death="1901-01-01T00:00:00Z")]
+        raise httpx.ReadTimeout("deadline")
+
+    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    assert not result["complete"]
+    assert result["missingItems"] == ["Q1"]
+    assert "death-1900" in result["failedSlices"][0]["slice"]
+    assert json.loads((tmp_path / "stats.json").read_text())["items"] == 0
+
+
+def test_missing_metadata_is_not_silently_counted_as_complete(tmp_path):
+    def fetch(query, **kwargs):
+        return [binding("Q1")] if "SELECT DISTINCT" in query else []
+
+    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    assert result["missingItems"] == ["Q1"]
+    assert not result["complete"]
+
+
+@pytest.mark.parametrize("initial_items", [[], ["Q1"]])
+def test_incomplete_checkpoints_retry_missing_items_and_preserve_fetched_rows(
+    tmp_path, initial_items
+):
+    from .wikidata_paintings import metadata_query
+
+    calls = []
+    original = [binding(item, image="original.jpg") for item in initial_items]
+
+    def first_fetch(query, **kwargs):
+        return [binding("Q1"), binding("Q2")] if "SELECT DISTINCT" in query else original
+
+    first = fetch_paintings(tmp_path, user_agent="test", fetch=first_fetch)
+    missing = sorted({"Q1", "Q2"} - set(initial_items))
+    assert first["missingItems"] == missing
+
+    recovered = [binding(item, image="recovered.jpg") for item in missing]
+
+    def retry(query, **kwargs):
+        calls.append(query)
+        assert query == metadata_query(missing)
+        return recovered
+
+    second = fetch_paintings(tmp_path, user_agent="test", fetch=retry)
+    assert second["complete"] and second["items"] == 2
+    assert second["missingItems"] == second["failedSlices"] == []
+    assert len(second["files"]) == 1
+    rows = json.loads((tmp_path / second["files"][0]).read_text())["results"]["bindings"]
+    assert rows == original + recovered
+    assert fetch_paintings(tmp_path, user_agent="test", fetch=retry) == second
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("decade_recovers", [False, True])
+def test_resume_timeouts_preserve_cached_items_and_slice_only_missing_items(
+    tmp_path, decade_recovers
+):
+    from .wikidata_paintings import metadata_query
+
+    original = binding("Q1", image="original.jpg")
+    recovered = binding("Q2", image="recovered.jpg")
+    fetch_paintings(
+        tmp_path,
+        user_agent="test",
+        fetch=lambda query, **kwargs: (
+            [binding("Q1"), binding("Q2")] if "SELECT DISTINCT" in query else [original]
+        ),
+    )
+    attempts = 0
+
+    def retry(query, **kwargs):
+        nonlocal attempts
+        assert "wd:Q1 " not in query
+        if "SELECT ?item ?death" in query:
+            return [binding("Q2", death="1901-01-01T00:00:00Z")]
+        assert query == metadata_query(["Q2"])
+        attempts += 1
+        if attempts == 2 and decade_recovers:
+            return [recovered]
+        raise httpx.ReadTimeout("deadline")
+
+    result = fetch_paintings(tmp_path, user_agent="test", fetch=retry)
+    rows = [
+        row
+        for file in result["files"]
+        for row in json.loads((tmp_path / file).read_text())["results"]["bindings"]
+    ]
+    assert attempts == 2
+    assert original in rows
+    assert result["complete"] is decade_recovers
+    assert result["items"] == len(rows) == (2 if decade_recovers else 1)
+    assert result["missingItems"] == ([] if decade_recovers else ["Q2"])
+    if not decade_recovers:
+        assert result["failedSlices"][0]["items"] == ["Q2"]
+
+    complete = fetch_paintings(
+        tmp_path, user_agent="test", fetch=lambda *args, **kwargs: [recovered]
+    )
+    assert complete["complete"]
+    assert len(complete["files"]) == 1
+    assert json.loads((tmp_path / complete["files"][0]).read_text())["results"]["bindings"] == [
+        original,
+        recovered,
+    ]
+
+
+def fixture_records():
+    from pathlib import Path
+
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    bindings = json.loads(
+        (Path(__file__).parents[2] / "fixtures/wikidata-paintings-sample.json").read_text()
+    )["results"]["bindings"]
+    owners = OwnerMap({"wikidata:Q160236", "wikidata:Q239303"})
+    return list(iter_records(bindings, owners=owners, current_year=2026)), owners
+
+
+def test_three_wikidata_records_match_the_ingest_contract():
+    result, owners = fixture_records()
+    actual = [[record.row() if record else None for record in triple] for triple in result[:3]]
+    assert actual == [
+        [
+            {
+                "key": "wikidata:Q1",
+                "wikidataId": "Q1",
+                "title": "Blue sky",
+                "artist": "Ada Painter",
+                "artistId": "Q10",
+                "date": "1900",
+                "yearStart": 1900,
+                "yearEnd": 1900,
+                "rightsStatus": "public_domain",
+                "multiplicity": "unknown",
+            },
+            {
+                "key": "wikidata:Q1",
+                "artworkKey": "wikidata:Q1",
+                "ownerKey": "wikidata:Q160236",
+                "accession": "1900.1",
+                "source": "corpus",
+                "sourceId": "Q1",
+                "imageRef": "https://commons.wikimedia.org/wiki/Special:FilePath/Painting%201.jpg",
+                "pageUrl": "https://www.wikidata.org/wiki/Q1",
+                "thumbnailUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Painting%201.jpg?width=330",
+            },
+            {
+                "objectKey": "wikidata:Q1",
+                "venueKey": "wikidata:Q239303",
+                "onView": False,
+                "source": "wikidata",
+                "confidence": 0.6,
+            },
+        ],
+        [
+            {
+                "key": "wikidata:Q2",
+                "wikidataId": "Q2",
+                "title": "City",
+                "artist": "Ben Painter",
+                "artistId": "Q20",
+                "rightsStatus": "in_copyright",
+                "multiplicity": "unknown",
+            },
+            {
+                "key": "wikidata:Q2",
+                "artworkKey": "wikidata:Q2",
+                "accession": "X2",
+                "source": "corpus",
+                "sourceId": "Q2",
+                "imageRef": "https://commons.wikimedia.org/wiki/Special:FilePath/Painting%202.jpg",
+                "pageUrl": "https://www.wikidata.org/wiki/Q2",
+            },
+            None,
+        ],
+        [
+            {
+                "key": "wikidata:Q3",
+                "wikidataId": "Q3",
+                "title": "Study",
+                "artist": "Unknown artist",
+                "rightsStatus": "unknown",
+                "multiplicity": "unknown",
+            },
+            {
+                "key": "wikidata:Q3",
+                "artworkKey": "wikidata:Q3",
+                "ownerKey": "wikidata:Q160236",
+                "source": "corpus",
+                "sourceId": "Q3",
+                "imageRef": "https://commons.wikimedia.org/wiki/Special:FilePath/Painting%203.jpg",
+                "pageUrl": "https://www.wikidata.org/wiki/Q3",
+            },
+            {
+                "objectKey": "wikidata:Q3",
+                "venueKey": "wikidata:Q160236",
+                "onView": False,
+                "source": "wikidata",
+                "confidence": 0.5,
+            },
+        ],
+    ]
+    assert owners.unmapped == {"Q999": 1}
+
+
+def test_duplicate_bindings_do_not_duplicate_objects_or_replace_identity_with_series():
+    result, _ = fixture_records()
+    assert len(result) == 6
+    artwork, obj, _ = result[-1]
+    assert artwork.wikidataId == "Q6"
+    assert artwork.seriesId == "wikidata:Q100"
+    assert obj.sourceId == "Q6"
+
+
+def test_multi_owner_accessions_and_locations_are_not_assigned_arbitrarily():
+    from ..owner_map import AIC_KEY, MET_KEY, OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            collection="http://www.wikidata.org/entity/Q160236",
+            accession="met-number",
+            location="http://www.wikidata.org/entity/Q160236",
+        ),
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            collection="http://www.wikidata.org/entity/Q239303",
+            accession="aic-number",
+            location="http://www.wikidata.org/entity/Q239303",
+        ),
+    ]
+    _, obj, placement = next(iter_records(source, owners=OwnerMap({MET_KEY, AIC_KEY})))
+    assert obj.ownerKey is None and obj.accession is None and placement is None
+
+
+def test_missing_coauthor_death_never_inherits_the_other_authors_public_domain():
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q10",
+            death="1800-01-01T00:00:00Z",
+        ),
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q20",
+        ),
+    ]
+    artwork, obj, _ = next(iter_records(source, owners=OwnerMap(set()), current_year=2026))
+    assert artwork.rightsStatus == "unknown" and obj.thumbnailUrl is None
+
+
+def test_unknown_value_image_claims_are_excluded_without_becoming_urls():
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [binding("Q1", image="http://www.wikidata.org/.well-known/genid/unknown")]
+    assert list(iter_records(source, owners=OwnerMap(set()))) == []
+
+
+def test_truncated_json_response_is_recovered_with_decade_slicing(tmp_path):
+    attempts = 0
+
+    def fetch(query, **kwargs):
+        nonlocal attempts
+        if "SELECT DISTINCT" in query:
+            return [binding("Q1")]
+        if "SELECT ?item ?death" in query:
+            return [binding("Q1", death="1901-01-01T00:00:00Z")]
+        attempts += 1
+        if attempts == 1:
+            raise json.JSONDecodeError("truncated", "{", 1)
+        return [binding("Q1", image="file.jpg")]
+
+    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    assert result["complete"] is True
+    assert len(result["files"]) == 1
+    assert "death-1900" in result["files"][0]
+
+
+def test_unknown_coauthor_and_coowner_claims_do_not_disappear_during_parsing():
+    from ..owner_map import MET_KEY, OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q10",
+            death="1800-01-01T00:00:00Z",
+            collection="http://www.wikidata.org/entity/Q160236",
+        ),
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/.well-known/genid/unknown",
+            collection="http://www.wikidata.org/.well-known/genid/unknown",
+        ),
+    ]
+    artwork, obj, placement = next(
+        iter_records(source, owners=OwnerMap({MET_KEY}), current_year=2026)
+    )
+    assert artwork.rightsStatus == "unknown"
+    assert obj.ownerKey is None and placement is None
+
+
+def test_unknown_death_claim_does_not_get_discarded_in_favor_of_an_older_date():
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q10",
+            death="1800-01-01T00:00:00Z",
+        ),
+        binding(
+            "Q1",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q10",
+            death="http://www.wikidata.org/.well-known/genid/unknown",
+        ),
+    ]
+    artwork, obj, _ = next(iter_records(source, owners=OwnerMap(set()), current_year=2026))
+    assert artwork.rightsStatus == "unknown" and obj.thumbnailUrl is None
+
+
+@pytest.mark.parametrize("coauthored", [False, True])
+def test_anonymous_creator_entities_remain_unknown_even_with_a_known_coauthor(coauthored):
+    from ..multiplicity import apply_multiplicity
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            itemLabel="Nativity",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q4233718",
+            artistLabel="anonymous",
+        ),
+    ]
+    if coauthored:
+        source.append(
+            binding(
+                "Q1",
+                itemLabel="Nativity",
+                image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+                artist="http://www.wikidata.org/entity/Q10",
+                artistLabel="Ada Painter",
+                death="1800-01-01T00:00:00Z",
+            )
+        )
+    artwork, _, _ = next(iter_records(source, owners=OwnerMap(set()), current_year=2026))
+    result = apply_multiplicity([artwork], version_items=set(), complete=True)[0]
+    assert result.multiplicity == "unknown"
+    assert result.artist == ("Ada Painter; Unknown artist" if coauthored else "Unknown artist")
+    assert result.artistId is None
+    assert result.rightsStatus == "unknown"
+
+
+def test_a_named_creator_is_not_anonymous_just_because_its_label_matches():
+    from ..multiplicity import apply_multiplicity
+    from ..owner_map import OwnerMap
+    from .wikidata_paintings import iter_records
+
+    source = [
+        binding(
+            "Q1",
+            itemLabel="Nativity",
+            image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg",
+            artist="http://www.wikidata.org/entity/Q10",
+            artistLabel="anonymous",
+        ),
+    ]
+    artwork, _, _ = next(iter_records(source, owners=OwnerMap(set())))
+    result = apply_multiplicity([artwork], version_items=set(), complete=True)[0]
+    assert result.multiplicity == "unique"
+    assert result.artistId == "Q10"
