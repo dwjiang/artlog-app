@@ -61,11 +61,12 @@ class Server:
         self.retry_once: set[str] = set()
         self.deny: set[str] = set()
         self.missing: set[str] = set()
+        self.widths: dict[str, int] = {}
 
     def imageinfo(self, request: httpx.Request) -> httpx.Response:
         titles = request.url.params["titles"].split("|")
         assert len(titles) <= COMMONS_TITLES_PER_CALL
-        assert request.url.params["iiurlwidth"] == str(COMMONS_THUMB_WIDTH)
+        width = int(request.url.params["iiurlwidth"])
         pages, normalized = [], []
         for title in titles:
             name = title.removeprefix("File:").replace(" ", "_")
@@ -75,10 +76,18 @@ class Server:
             if name in self.missing:
                 pages.append({"title": canonical, "missing": True})
             else:
-                thumb = f"https://upload.wikimedia.org/wikipedia/commons/thumb/{name}/{COMMONS_THUMB_WIDTH}px-{name}"
-                pages.append(
-                    {"title": canonical, "imageinfo": [{"url": "orig", "thumburl": thumb}]}
+                # Like the live API: a file no wider than the request comes back unscaled.
+                file_width = self.widths.get(name, 2000)
+                original = f"https://upload.wikimedia.org/wikipedia/commons/{name}"
+                thumb = (
+                    f"https://upload.wikimedia.org/wikipedia/commons/thumb/{name}/{width}px-{name}"
                 )
+                info = {
+                    "url": original,
+                    "width": file_width,
+                    "thumburl": thumb if width < file_width else original,
+                }
+                pages.append({"title": canonical, "imageinfo": [info]})
         return httpx.Response(200, json={"query": {"normalized": normalized, "pages": pages}})
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -211,6 +220,38 @@ def test_commons_files_resolve_through_imageinfo_in_bounded_batches():
     assert all(
         str(r.url).startswith("https://commons.wikimedia.org/w/api.php?") for r in server.requests
     )
+
+
+def test_narrow_files_are_fetched_as_the_standard_thumbnail_below_their_width(tmp_path):
+    from artlog_jobs.download import thumbnail_step
+
+    assert [thumbnail_step(w) for w in (961, 960, 501, 500, 21, 20, None)] == [
+        960,
+        500,
+        500,
+        330,
+        20,
+        960,
+        960,
+    ]
+
+    server = Server()
+    expected = {"Wide.jpg": 960, "Narrow.jpg": 500, "Tiny.jpg": 330}
+    server.widths.update({"Narrow.jpg": 800, "Tiny.jpg": 400})
+    tasks = [
+        ImageTask(f"wikidata:Q{i}", f"{COMMONS}{n}", "wikidata") for i, n in enumerate(expected)
+    ]
+    for name, width in expected.items():
+        server.images[f"/wikipedia/commons/thumb/{name}/{width}px-{name}"] = jpeg(40, 30)
+
+    reports, _ = run(server, tasks, tmp_path)
+
+    assert reports["wikidata"].done == 3
+    api = [r.url.params["iiurlwidth"] for r in server.requests if r.url.path == "/w/api.php"]
+    assert api == ["960", "500", "330"]
+    media = sorted(r.url.path for r in server.requests if r.url.host == "upload.wikimedia.org")
+    assert media == sorted(f"/wikipedia/commons/thumb/{n}/{w}px-{n}" for n, w in expected.items())
+    assert not any("/thumb/" not in path for path in media)
 
 
 def test_a_missing_commons_file_is_a_recorded_failure_without_a_media_request(tmp_path):

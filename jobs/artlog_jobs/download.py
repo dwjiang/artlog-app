@@ -29,6 +29,11 @@ SHARD_SIZE = 10_000
 MAX_SIDE = 1024
 JPEG_QUALITY = 90
 COMMONS_THUMB_WIDTH = 960
+# Standard thumbnail steps at or below the default (mediawiki.org "Common thumbnail sizes").
+# A file no wider than the requested width comes back as its original, and
+# upload.wikimedia.org throttles originals far harder than thumbnails: every 429 seen across
+# three runs (20 of 20) hit an original while originals were a third of the requests.
+COMMONS_THUMB_STEPS = (960, 500, 330, 250, 120, 60, 40, 20)
 COMMONS_FILE_PATH = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 COMMONS_TITLES_PER_CALL = 50
@@ -170,31 +175,57 @@ def commons_batches(tasks: list[ImageTask]) -> Iterator[list[ImageTask]]:
         yield batch
 
 
+def query_imageinfo(
+    client: PoliteClient, titles: list[str], width: int
+) -> tuple[dict[str, str], dict[str, dict]]:
+    """One `imageinfo` call: title aliases (normalized and redirected) and pages by title."""
+    query = urlencode(
+        {
+            "action": "query",
+            "prop": "imageinfo",
+            "iiprop": "url|size",
+            "iiurlwidth": width,
+            "titles": "|".join(titles),
+            "redirects": 1,
+            "format": "json",
+            "formatversion": 2,
+        }
+    )
+    response = client.get(f"{COMMONS_API}?{query}")
+    response.raise_for_status()
+    data = response.json()["query"]
+    aliases = {entry["from"]: entry["to"] for entry in data.get("normalized", [])}
+    aliases.update({entry["from"]: entry["to"] for entry in data.get("redirects", [])})
+    return aliases, {page["title"]: page for page in data.get("pages", [])}
+
+
+def thumbnail_step(width: int | None) -> int:
+    """The largest standard step strictly narrower than the file, so the fetch is always a
+    thumbnail; unknown widths and files narrower than every step keep the default."""
+    if width is None:
+        return COMMONS_THUMB_WIDTH
+    return next((step for step in COMMONS_THUMB_STEPS if step < width), COMMONS_THUMB_WIDTH)
+
+
 def resolve_commons(client: PoliteClient, tasks: list[ImageTask]) -> dict[str, str | None]:
     """Map object keys to `upload.wikimedia.org` thumbnail URLs through `imageinfo`
-    (decision 005): one API call per batch instead of two redirect hops per file, and a
-    server-rendered standard width for TIFF/PDF/SVG originals. Missing files map to None."""
+    (decision 005): one API call per batch instead of two redirect hops per file, a
+    server-rendered standard width for TIFF/PDF/SVG originals, and a narrower step for
+    files the default width would return as originals. Missing files map to None."""
     resolved: dict[str, str | None] = {}
     for batch in commons_batches(tasks):
         titles = sorted({commons_title(task.url) for task in batch})
-        query = urlencode(
-            {
-                "action": "query",
-                "prop": "imageinfo",
-                "iiprop": "url",
-                "iiurlwidth": COMMONS_THUMB_WIDTH,
-                "titles": "|".join(titles),
-                "redirects": 1,
-                "format": "json",
-                "formatversion": 2,
-            }
-        )
-        response = client.get(f"{COMMONS_API}?{query}")
-        response.raise_for_status()
-        data = response.json()["query"]
-        aliases = {entry["from"]: entry["to"] for entry in data.get("normalized", [])}
-        aliases.update({entry["from"]: entry["to"] for entry in data.get("redirects", [])})
-        pages = {page["title"]: page for page in data.get("pages", [])}
+        aliases, pages = query_imageinfo(client, titles, COMMONS_THUMB_WIDTH)
+        narrower: dict[int, list[str]] = {}
+        for title, page in pages.items():
+            if page.get("missing"):
+                continue
+            info = (page.get("imageinfo") or [{}])[0]
+            step = thumbnail_step(info.get("width"))
+            if step != COMMONS_THUMB_WIDTH:
+                narrower.setdefault(step, []).append(title)
+        for step, subset in sorted(narrower.items(), reverse=True):
+            pages.update(query_imageinfo(client, sorted(subset), step)[1])
         for task in batch:
             title = commons_title(task.url)
             for _ in range(3):
