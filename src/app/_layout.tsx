@@ -1,9 +1,11 @@
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
+import { useEffect } from 'react';
 
 import { convex, secureStorage } from '@/lib/convex-client';
 import { DeviceIdentity } from '@/lib/device-identity';
+import { warmUpEmbedder } from '@/lib/embed/embedder';
 // Register the offline database in Metro's asset graph before venue resolution uses it.
 import '@/lib/venue-asset';
 
@@ -12,6 +14,7 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  useEffect(warmUpEmbedder, []);
   return (
     <ConvexAuthProvider client={convex} storage={secureStorage}>
       <DeviceIdentity />

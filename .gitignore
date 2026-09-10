@@ -59,3 +59,11 @@ jobs/scratch/
 jobs/**/__pycache__/
 jobs/.pytest_cache/
 jobs/.ruff_cache/
+
+# CoreML export and the fetched model asset (plan 03.03; `npm run model:fetch`)
+scripts/model/.venv/
+scripts/model/cache/
+scripts/model/out/
+scripts/model/__pycache__/
+scripts/model/.pytest_cache/
+modules/coreml-embed/ios/Models/
