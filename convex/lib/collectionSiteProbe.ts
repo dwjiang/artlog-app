@@ -36,7 +36,7 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
     try {
       const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, '&').trim(), page);
       if (link) links.push(link);
-    } catch { /* Malformed markup is not a crawl target. */ }
+    } catch { /* Malformed markup is not a probe target. */ }
   }
   const collectionPath = /\/(?:objects?|artworks?|collections?)(?:\/|$)/i;
   const target = links.find((link) => collectionPath.test(link.pathname));

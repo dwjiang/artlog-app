@@ -36,9 +36,7 @@ export async function seedMuseum(
 ): Promise<Id<'museums'>> {
   return ctx.db.insert('museums', {
     key: crypto.randomUUID(), name: 'Test Museum', lat: 0, lng: 0,
-    seedSource: 'manual', region: 'US', optOut: false, useTavilyCrawl: false,
-    queuePriority: 0, failureCount: 0,
-    indexStatus: { status: 'complete', pagesMapped: 20, worksIndexed: 20, updatedAt: Date.now() },
+    seedSource: 'manual', region: 'US', optOut: false,
     ...overrides,
   });
 }

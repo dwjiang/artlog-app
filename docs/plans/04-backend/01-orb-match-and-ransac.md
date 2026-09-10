@@ -26,8 +26,8 @@ ORB descriptors against each candidate's **stored** descriptors, run in JavaScri
 Convex `identify` action (design §4.1 step 4, §5.2). No reference image is ever needed, which is
 what lets in-copyright works be verified at all, and the recovered homography gives the card the
 artwork's corners for free. This library is that gate. It is also the single place where the
-descriptor wire format is defined; the phone (plan 03.04), the index build (plan 02.04) and the
-crawler (plan 02.06) all serialize to it.
+descriptor wire format is defined; the phone (plan 03.04) and the index build (plan 02.04) both
+serialize to it.
 
 From `docs/design/art-identifier.md`:
 

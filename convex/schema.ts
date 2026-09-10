@@ -8,14 +8,12 @@ import {
   challengePurpose,
   contributionField,
   contributionStatus,
-  crawlRunStatus,
   devicePlatform,
   docentSentence,
   embedding,
   evidenceKind,
   factSheetEntry,
   feedbackResolution,
-  indexStatusKind,
   labelFlow,
   matchOutcome,
   multiplicity,
@@ -156,40 +154,10 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
-    crawlPolicy: v.optional(
-      v.object({
-        robotsAllowed: v.boolean(),
-        termsChecked: v.boolean(),
-        checkedAt: v.number(),
-        crawlDelaySeconds: v.optional(v.number()),
-        notes: v.optional(v.string()),
-      })
-    ),
-    useTavilyCrawl: v.boolean(),
-    queuePriority: v.number(),
-    failureCount: v.number(),
-    lastBumpedAt: v.optional(v.number()),
-    indexStatus: v.object({
-      status: indexStatusKind,
-      pagesMapped: v.number(),
-      worksIndexed: v.number(),
-      updatedAt: v.number(),
-    }),
-    lastCrawledAt: v.optional(v.number()),
-    changeDetection: v.optional(
-      v.object({
-        sitemapLastmod: v.optional(v.string()),
-        etag: v.optional(v.string()),
-        lastModified: v.optional(v.string()),
-      })
-    ),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
-    .index('by_lat', ['lat'])
-    .index('by_queuePriority', ['queuePriority'])
-    .index('by_indexStatus', ['indexStatus.status', 'queuePriority'])
-    .index('by_status_lastCrawledAt', ['indexStatus.status', 'lastCrawledAt']),
+    .index('by_lat', ['lat']),
 
   venueTables: defineTable({
     version: v.number(),
@@ -207,36 +175,6 @@ export default defineSchema({
     vectors: v.number(),
     descriptors: v.number(),
   }),
-
-  crawlRuns: defineTable({
-    venueId: v.id('museums'),
-    startedAt: v.number(),
-    updatedAt: v.number(),
-    claimedBy: v.optional(v.string()),
-    finishedAt: v.optional(v.number()),
-    status: crawlRunStatus,
-    pagesMapped: v.number(),
-    worksIndexed: v.number(),
-    error: v.optional(v.string()),
-  })
-    .index('by_venueId', ['venueId'])
-    .index('by_status_updatedAt', ['status', 'updatedAt']),
-
-  crawlPages: defineTable({
-    venueId: v.id('museums'),
-    url: v.string(),
-    sitemapLastmod: v.optional(v.string()),
-    etag: v.optional(v.string()),
-    lastModified: v.optional(v.string()),
-    processedAt: v.number(),
-  }).index('by_venueId_url', ['venueId', 'url']),
-
-  crawlLaunches: defineTable({
-    at: v.number(),
-    mode: v.string(),
-    ok: v.boolean(),
-    response: v.string(),
-  }).index('by_at', ['at']),
 
   artistContext: defineTable({
     artistId: v.string(),
@@ -304,10 +242,6 @@ export default defineSchema({
     gallery: v.optional(v.string()),
     modelVersion: v.string(),
     vector: embedding,
-    // Descriptors and keypoints are kept only while status is `waiting` and cleared on resolution.
-    descriptors: v.optional(v.bytes()),
-    keypoints: v.optional(v.bytes()),
-    keypointCount: v.optional(v.number()),
     capturedAt: v.number(),
     status: scanStatus,
     calibratorVersion: v.optional(v.string()),
@@ -340,8 +274,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
-    .index('by_deviceId', ['deviceId'])
-    .index('by_venue_status', ['venueId', 'status']),
+    .index('by_deviceId', ['deviceId']),
 
   devices: defineTable({
     // Set by attestDevice once Apple has verified the key; absent until then.

@@ -26,7 +26,7 @@ Judging runs through a TestFlight public link (§2). TestFlight external testing
 ## Current state
 
 - `eas.json` profiles (01.04); `ios.bundleIdentifier`, usage strings, entitlement (01.04); model fetched by `eas-build-pre-install` (03.03); Convex prod deployment not yet created (`npx convex deploy` creates/pushes prod; env vars are per deployment).
-- Convex env var names (04.04+): `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `APP_ATTEST_ALLOW_DEV`, `SUPPORTED_MODEL_VERSIONS`, `FLAG_LABEL_FLOW`, `FLAG_RIGHT_NOW`, `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP`, `NEBIUS_API_KEY`, `TAVILY_API_KEY`, `LABEL_VL_MODEL`, `DOCENT_MODEL`, `FACT_SHEET_MODEL`, `MODERATION_MODEL`, `APPLE_BUNDLE_ID`, `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPO`, `CRAWL_LAUNCH_MODE`.
+- Convex env var names (04.04+): `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `APP_ATTEST_ALLOW_DEV`, `SUPPORTED_MODEL_VERSIONS`, `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH`, `FLAG_RIGHT_NOW`, `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP`, `NEBIUS_API_KEY`, `TAVILY_API_KEY`, `LABEL_VL_MODEL`, `DOCENT_MODEL`, `FACT_SHEET_MODEL`, `MODERATION_MODEL`, `APPLE_BUNDLE_ID`.
 - EAS facts: free tier 15 iOS builds/month; `eas build --platform ios --profile production`; `eas submit --platform ios --latest` (needs `ascAppId`/Apple credentials in `eas.json` `submit.production.ios` or an ASC API key); the 200 MB figure is the cellular-download prompt threshold, not a hard limit.
 
 ## Scope

@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { stableStringify } from '../shared/stable-stringify';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
-import { internalAction, internalMutation, internalQuery, mutation, query, type QueryCtx } from './_generated/server';
+import { internalAction, internalMutation, internalQuery, mutation, type QueryCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { bumpCounter } from './ingest';
 import { probeCollectionSite as probe, websiteUrl } from './lib/collectionSiteProbe';
@@ -11,7 +11,6 @@ import { limitDevice } from './lib/rateLimits';
 import { isVenueOptedOut } from './lib/venueOptOut';
 import schema from './schema';
 
-const DAY = 24 * 60 * 60 * 1000;
 const signedPayload = { nonce: v.string(), assertionBase64: v.string(), payloadJson: v.string() };
 const collectionSite = v.object({
   collectionSiteUrl: v.string(),
@@ -21,46 +20,6 @@ const collectionSite = v.object({
 function checkPayload(payloadJson: string, expected: object) {
   if (payloadJson !== stableStringify(expected)) throw new ConvexError({ code: 'invalid_payload' });
 }
-
-export const getStatus = query({
-  args: { venueId: v.id('museums') },
-  returns: v.object({ name: v.string(), indexStatus: schema.tables.museums.validator.fields.indexStatus, region: v.string() }),
-  handler: async (ctx, { venueId }) => {
-    const venue = await ctx.db.get(venueId);
-    if (!venue) throw new ConvexError({ code: 'invalid_venue' });
-    return { name: venue.name, indexStatus: venue.indexStatus, region: venue.region };
-  },
-});
-
-export const bumpVenue = mutation({
-  args: { venueId: v.id('museums'), ...signedPayload },
-  returns: v.object({ bumped: v.boolean(), indexStatus: schema.tables.museums.validator.fields.indexStatus }),
-  handler: async (ctx, args) => {
-    checkPayload(args.payloadJson, { action: 'museums.bumpVenue', venueId: args.venueId });
-    const device = await requireAttestedWrite(ctx, { ...args, payload: args.payloadJson });
-    await limitDevice(ctx, 'queueBump', device._id);
-    const venue = await ctx.db.get(args.venueId);
-    if (!venue) throw new ConvexError({ code: 'invalid_venue' });
-    const now = Date.now();
-    const { status } = venue.indexStatus;
-    const eligible = status === 'none' || status === 'queued' ||
-      (status === 'complete' && venue.lastCrawledAt !== undefined && venue.lastCrawledAt < now - 30 * DAY);
-    if (!eligible || await isVenueOptedOut(ctx, venue) || (venue.lastBumpedAt !== undefined && venue.lastBumpedAt >= now - DAY)) {
-      return { bumped: false, indexStatus: venue.indexStatus };
-    }
-    if (!venue.collectionSiteUrl) {
-      if (status === 'none' && venue.website) {
-        await ctx.db.patch(venue._id, { lastBumpedAt: now });
-        await ctx.scheduler.runAfter(0, internal.museums.probeCollectionSite, { venueId: venue._id });
-      }
-      return { bumped: false, indexStatus: venue.indexStatus };
-    }
-    const indexStatus = { ...venue.indexStatus, status: 'queued' as const, updatedAt: now };
-    await ctx.db.patch(venue._id, { queuePriority: venue.queuePriority + 10, indexStatus, lastBumpedAt: now });
-    await ctx.scheduler.runAfter(0, internal.crawl.maybeLaunch, {});
-    return { bumped: true, indexStatus };
-  },
-});
 
 function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const rad = Math.PI / 180;
@@ -99,8 +58,6 @@ export const confirmPoiVenue = mutation({
     const venueId = await ctx.db.insert('museums', {
       ...fields, name: args.name.trim().replace(/\s+/g, ' '), key: `poi:${crypto.randomUUID()}`,
       seedSource: 'poi', region: seeded?.venue.region ?? 'country:unknown', optOut: false,
-      useTavilyCrawl: false, queuePriority: 0, failureCount: 0,
-      indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
     });
     await bumpCounter(ctx, 'museums', 1);
     await ctx.scheduler.runAfter(0, internal.museums.probeCollectionSite, { venueId });
@@ -122,7 +79,7 @@ export const probeCollectionSite = internalAction({
   returns: v.null(),
   handler: async (ctx, { venueId }) => {
     const venue: Doc<'museums'> | null = await ctx.runQuery(internal.museums.getForProbe, { venueId });
-    if (!venue?.website || venue.indexStatus.status !== 'none' || venue.collectionSiteUrl) return null;
+    if (!venue?.website || venue.collectionSiteUrl) return null;
     const result = await probe(venue.website);
     await ctx.runMutation(internal.museums.applyProbe, { venueId, website: venue.website, result });
     return null;
@@ -134,14 +91,9 @@ export const applyProbe = internalMutation({
   returns: v.null(),
   handler: async (ctx, { venueId, website, result }) => {
     const venue = await ctx.db.get(venueId);
-    if (!venue || await isVenueOptedOut(ctx, venue) || venue.indexStatus.status !== 'none' ||
-      venue.collectionSiteUrl || venue.website !== website || result === 'retry') return null;
-    await ctx.db.patch(venueId, {
-      collectionSiteUrl: result?.collectionSiteUrl, platform: result?.platform,
-      queuePriority: result ? Math.max(venue.queuePriority, 5) : venue.queuePriority,
-      indexStatus: { ...venue.indexStatus, status: result ? 'queued' : 'no_index', updatedAt: Date.now() },
-    });
-    if (result) await ctx.scheduler.runAfter(0, internal.crawl.maybeLaunch, {});
+    if (!venue || await isVenueOptedOut(ctx, venue) || venue.collectionSiteUrl || venue.website !== website ||
+      !result || result === 'retry') return null;
+    await ctx.db.patch(venueId, { collectionSiteUrl: result.collectionSiteUrl, platform: result.platform });
     return null;
   },
 });

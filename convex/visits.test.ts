@@ -14,11 +14,10 @@ async function fixture() {
   return { t, user, venueId };
 }
 
-it('starts a visit and returns the museum index status', async () => {
+it('starts a visit and makes it the current one', async () => {
   const { user, venueId } = await fixture();
   expect(await user.as.query(api.visits.current, {})).toBeNull();
   const result = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  expect(result.indexStatus.status).toBe('complete');
   expect(await user.as.query(api.visits.current, {})).toMatchObject({ _id: result.visitId, venueId });
 });
 

@@ -19,7 +19,7 @@
 
 ## Why this matters
 
-Design §4.8: every artwork gets a **fact sheet** — discrete facts each with the URL it came from, sources score-filtered — written once by Nemotron 3 Super, and **docent prose** — three or four English sentences using only those facts, `[{sentence, fact_ids}]`, temperature 0 — written once by Nemotron Nano (now Lightning), validated so any sentence without a valid `fact_ids` is dropped, and cached on the artwork. Precomputed for on-view works at indexed venues in crawl-queue order to a daily budget and for every promoted contribution; everything else generates on first identification (plan 04.09). §8: generated text is grounded or dropped.
+Design §4.8: every artwork gets a **fact sheet** — discrete facts each with the URL it came from, sources score-filtered — written once by Nemotron 3 Super, and **docent prose** — three or four English sentences using only those facts, `[{sentence, fact_ids}]`, temperature 0 — written once by Nemotron Nano (now Lightning), validated so any sentence without a valid `fact_ids` is dropped, and cached on the artwork. Precomputed for on-view works at seeded venues to a daily budget and for every promoted contribution; everything else generates on first identification (plan 04.09). §8: generated text is grounded or dropped.
 
 ## Current state
 

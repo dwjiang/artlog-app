@@ -7,19 +7,18 @@ import schema from './schema';
 
 export const startVisit = mutation({
   args: { venueId: v.id('museums'), localVisitId: v.string() },
-  returns: v.object({ visitId: v.id('visits'), indexStatus: schema.tables.museums.validator.fields.indexStatus }),
+  returns: v.object({ visitId: v.id('visits') }),
   handler: async (ctx, { venueId, localVisitId }) => {
     const device = await requireDevice(ctx);
     if (!localVisitId.trim() || localVisitId.length > 200) throw new ConvexError({ code: 'invalid_visit' });
-    const venue = await ctx.db.get(venueId);
-    if (!venue) throw new ConvexError({ code: 'invalid_venue' });
+    if (!await ctx.db.get(venueId)) throw new ConvexError({ code: 'invalid_venue' });
     const existing = await ctx.db.query('visitStarts')
       .withIndex('by_device_localVisitId', (q) => q.eq('deviceId', device._id).eq('localVisitId', localVisitId))
       .unique();
     if (existing) {
       const visit = await ctx.db.get(existing.visitId);
       if (!visit || visit.deviceId !== device._id || visit.venueId !== venueId) throw new ConvexError({ code: 'invalid_visit' });
-      return { visitId: visit._id, indexStatus: venue.indexStatus };
+      return { visitId: visit._id };
     }
     const [latest] = await ctx.db.query('visits')
       .withIndex('by_device_started', (q) => q.eq('deviceId', device._id)).order('desc').take(1);
@@ -32,7 +31,7 @@ export const startVisit = mutation({
       visitId = await ctx.db.insert('visits', { deviceId: device._id, venueId, startedAt: now });
     }
     await ctx.db.insert('visitStarts', { deviceId: device._id, localVisitId, visitId });
-    return { visitId, indexStatus: venue.indexStatus };
+    return { visitId };
   },
 });
 

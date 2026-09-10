@@ -19,7 +19,7 @@
 
 ## Why this matters
 
-Design §5.4: every vector carries `modelVersion`; a new app ships a new model; `reembed(newVersion)` backfills the new version's vectors from `imageRef` (source image URL for corpus works, page/image URL for crawled works, the consented crop for user works — re-downloaded at polite rates, "days not hours — accepted"); old clients keep matching against the old version until adoption crosses a threshold, then the old vectors are deleted and the minimum supported version is raised. Descriptors are not versioned. `user_scan` vectors regrow.
+Design §5.4: every vector carries `modelVersion`; a new app ships a new model; `reembed(newVersion)` backfills the new version's vectors from `imageRef` (source image URL for corpus works, the consented crop for user works — re-downloaded at polite rates, "days not hours — accepted"); old clients keep matching against the old version until adoption crosses a threshold, then the old vectors are deleted and the minimum supported version is raised. Descriptors are not versioned. `user_scan` vectors regrow.
 
 ## Current state
 
@@ -37,7 +37,7 @@ Design §5.4: every vector carries `modelVersion`; a new app ships a new model; 
 
 ### Step 1: Planner
 
-`reembed.py --model-version <new> --fakequant <path> --sources corpus,crawl,user`: page `listObjectsForReembed`, group by source; for `user` objects resolve `storage:` refs to URLs through an internal query `storage.urlFor` (add to `ingest.ts`); checkpoint the cursor.
+`reembed.py --model-version <new> --fakequant <path> --sources corpus,user`: page `listObjectsForReembed`, group by source; for `user` objects resolve `storage:` refs to URLs through an internal query `storage.urlFor` (add to `ingest.ts`); checkpoint the cursor.
 
 **Verify**: test with a fake client: pagination and grouping.
 

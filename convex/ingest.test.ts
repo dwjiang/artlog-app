@@ -82,7 +82,6 @@ describe('upserting museums and artworks', () => {
     expect(museums).toHaveLength(1);
     expect(museums[0].name).toBe('The Met');
     expect(museums[0].website).toBeUndefined();
-    expect(museums[0].indexStatus.status).toBe('none');
     expect(museums[0].optOut).toBe(false);
   });
 
@@ -224,7 +223,7 @@ describe('placements, vectors and descriptors', () => {
     await t.mutation(internal.ingest.upsertVectors, {
       rows: [
         { ...row, vector: vector(2) },
-        { ...row, source: 'crawl', vector: vector(3) },
+        { ...row, source: 'user', vector: vector(3) },
       ],
     });
 
@@ -262,7 +261,7 @@ describe('placements, vectors and descriptors', () => {
       vector: vector(1),
     }));
     const original = await t.mutation(internal.ingest.upsertVectors, { rows });
-    for (const source of ['crawl', 'user'] as const) {
+    for (const source of ['user', 'user_scan'] as const) {
       await t.mutation(internal.ingest.upsertVectors, {
         rows: rows.map((row) => ({ ...row, source })),
       });
@@ -284,8 +283,8 @@ describe('placements, vectors and descriptors', () => {
       );
       expect(vectors).toHaveLength(3);
       expect(vectors.find((row) => row.source === 'corpus')?.vector).toEqual(vector(2));
-      expect(vectors.find((row) => row.source === 'crawl')?.vector).toEqual(vector(1));
       expect(vectors.find((row) => row.source === 'user')?.vector).toEqual(vector(1));
+      expect(vectors.find((row) => row.source === 'user_scan')?.vector).toEqual(vector(1));
     }
   });
 

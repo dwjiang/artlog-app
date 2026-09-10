@@ -23,7 +23,7 @@ Design §4.4 step 6 / §4.5 / §4.7: a contribution — the embedding and descri
 
 ## Current state
 
-- Schema (01.03): `contributions`, `feedback`, `collections`, `objects.{confirmCount, rejectCount, calibratorPenalty}`; `scans` carries the vector and (for waiting scans) descriptors.
+- Schema (01.03): `contributions`, `feedback`, `collections`, `objects.{confirmCount, rejectCount, calibratorPenalty}`; `scans` carries the vector.
 - 04.04: `requireDevice`, `requireAttestedWrite`, `limitDevice('contribute' | 'rejectPerWork' | 'sync')`; storage: `generateUploadUrl` (mutation), `v.id('_storage')`.
 - 04.06 writes `scans.labelFlow` with verified fields and evidence; 04.03's `scans.best/runnerUps` carry `probability`; identify's scored candidates include similarity/margin/inliers — persist them: add `scans.candidateSignals?: array({ objectId, similarity, margin, orbInliers, probability, homographyValid })` (schema change in this plan; 04.03's `setResult` must store it — in scope by exception: one field).
 - Convex-test supports `vectorSearch` (brute force) so the dedupe check is testable.
@@ -43,7 +43,7 @@ Design §4.4 step 6 / §4.5 / §4.7: a contribution — the embedding and descri
 
 - `requestCropUpload` (public mutation, `requireDevice`) → `{ uploadUrl }` (`generateUploadUrl`), rate `contribute`.
 - `contribute` (public **action**) args `{ scanId, descriptors: bytes, keypoints: bytes, fields: { title: { value, edited }, artist: …, date?, medium?, accession?, creditLine? }, evidence: evidenceKind[], wikidataId?, cropStorageId: id('_storage'), consent: v.literal(true), nonce, assertionBase64 }`:
-  1. `internal.contributions.authorize` (mutation): `requireAttestedWrite`, `limitDevice('contribute')`, scan belongs to the device and has `venueId` (must be venue-resolved), `labelFlow.stage === 'verified'` (fields with `edited: false` must equal the verified values; `edited: true` fields get evidence `user_edited`).
+  1. `internal.contributions.authorize` (mutation): `requireAttestedWrite`, `limitDevice('contribute')`, scan belongs to the device and has `venueId` (must be venue-resolved), `labelFlow.stage === 'verified'` — written by the label flow (04.06) or by museum-site search (04.12), the same shape (fields with `edited: false` must equal the verified values; `edited: true` fields get evidence `user_edited`).
   2. Replay/near-duplicate check: `ctx.vectorSearch('vectors', 'by_vector', { vector: scan.vector, limit: 3, filter: modelVersion })` — any `_score ≥ 0.995` → `internal.contributions.reject({ reason: 'duplicate' })` and return `{ status: 'rejected', reason }`; also compare with the device's own contributions at the venue (cosine ≥ 0.995 → duplicate).
   3. Validate the crop's metadata (`ctx.db.system.get('_storage', id)`: `contentType` image/jpeg, `size ≤ 200 KB`) in the mutation; the phone resizes to ≤ 256 px (05.03).
   4. `internal.contributions.insert` → `status: 'private'`, `keypointCount`, `createdAt`, `scanId`, `venueId`, `vector` and `modelVersion` copied from the scan.

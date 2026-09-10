@@ -47,8 +47,8 @@ describe('currentPlacement', () => {
   });
 
   it('breaks a source tie by confidence, then by the latest start', () => {
-    const weak = placement({ venueId: 'weak', source: 'crawl', confidence: 0.3 });
-    const strong = placement({ venueId: 'strong', source: 'crawl', confidence: 0.8 });
+    const weak = placement({ venueId: 'weak', source: 'wikidata', confidence: 0.3 });
+    const strong = placement({ venueId: 'strong', source: 'wikidata', confidence: 0.8 });
     expect(currentPlacement([weak, strong], now)).toBe(strong);
 
     const earlier = placement({ venueId: 'earlier', source: 'feed', confidence: 0.8, from: now - 5 * day });

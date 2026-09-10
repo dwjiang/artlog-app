@@ -24,7 +24,7 @@ Settings load from the process environment first, then from the repo root
 | `CONVEX_DEPLOY_KEY` | Deploy key for that deployment; `npx convex deployment token create artlog-jobs-local --deployment dev --save-env` writes it into `.env.local` | required for Convex calls |
 | `SCRATCH_DIR` | Working directory for downloads, features and `checkpoints/<job>.json`; resolved to an absolute path | `jobs/scratch` |
 | `DEVICE` | Torch device override (`mps`, `cuda`, `cpu`) | `mps` if available, else `cuda`, else `cpu` |
-| `CRAWLER_CONTACT` | Contact appended to the crawler User-Agent as `mailto:` | unset (no mailto) |
+| `CRAWLER_CONTACT` | Contact appended to the fetcher User-Agent as `mailto:` | unset (no mailto) |
 | `USER_AGENT` | Full User-Agent override | `artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app[; mailto:…])` |
 | `LOG_LEVEL` | Python logging level | `INFO` |
 

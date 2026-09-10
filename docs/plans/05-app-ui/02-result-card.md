@@ -32,19 +32,19 @@ Design §3/§4.4/§4.5/§4.6/§4.8/§9: the card shows title, artist, date, medi
 
 **In scope**: `src/components/scan/result-screen.tsx`, `src/components/scan/result/{card-header,fields-form,confidence-chip,corners-overlay,docent-section,right-now-section,runner-ups,not-right-sheet,save-bar}.tsx` (+ tests), `src/lib/result/{state,snapshot}.ts` (+ tests: pure mapping from the scan doc to view state; snapshot builder).
 
-**Out of scope**: label capture (05.03 — this plan only navigates to `/label/[scanId]`), waiting/queued/unsupported states (05.05), collection detail (05.04).
+**Out of scope**: label capture (05.03 — this plan only navigates to `/label/[scanId]`), queued/unsupported states (05.05), museum-site search (05.07 adds its button and section to the soft and unidentified cards), collection detail (05.04).
 
 ## Steps
 
 ### Step 1: View state (pure)
 
-`state.ts`: `toResultViewState(scan) → { kind: 'loading' | 'confident' | 'soft' | 'unidentified' | 'waiting' | 'unsupported' | 'failed', primary?, runnerUps, docent, rightNow, editable: boolean }` — `confident` when `outcome === 'confident'`; `soft` when `outcome === 'soft'` (primary = best, shown as "Maybe" not as fact); `unidentified` when `miss` or no best; `waiting`/`unsupported`/`failed` pass through for 05.05. `snapshot.ts`: `buildSnapshot(fields, viewState) → { snapshot, suggested }` where `suggested` is the server's title/artist for `confident` only (soft cards never count as confirms).
+`state.ts`: `toResultViewState(scan) → { kind: 'loading' | 'confident' | 'soft' | 'unidentified' | 'unsupported' | 'failed', primary?, runnerUps, docent, rightNow, editable: boolean }` — `confident` when `outcome === 'confident'`; `soft` when `outcome === 'soft'` (primary = best, shown as "Maybe" not as fact); `unidentified` when `miss` or no best; `unsupported`/`failed` pass through for 05.05. `snapshot.ts`: `buildSnapshot(fields, viewState) → { snapshot, suggested }` where `suggested` is the server's title/artist for `confident` only (soft cards never count as confirms).
 
 **Verify**: `state.test.ts` and `snapshot.test.ts` cover each branch.
 
 ### Step 2: Card layout
 
-`result-screen.tsx` (ScrollView, `contentInsetAdjustmentBehavior="automatic"`): `CardHeader` — the user's crop (from `getCaptureForScan`) with `CornersOverlay` (polyline from `best.corners` scaled to the image) and a `ConfidenceChip` ("Match" for confident, "Maybe" for soft, "Unidentified"); `FieldsForm` — title, artist, date, medium, institution as `@expo/ui` `TextField`s pre-filled (blank title/artist for unidentified), all editable; `SaveBar` — "Save to collection" (primary) and, when not confident, a secondary "Get the exact answer — point at the label" button routing to `/label/[scanId]`; `DocentSection` and `RightNowSection` below (confident only).
+`result-screen.tsx` (ScrollView, `contentInsetAdjustmentBehavior="automatic"`): `CardHeader` — the user's crop (from `getCaptureForScan`) with `CornersOverlay` (polyline from `best.corners` scaled to the image) and a `ConfidenceChip` ("Match" for confident, "Maybe" for soft, "Unidentified"); `FieldsForm` — title, artist, date, medium, institution as `@expo/ui` `TextField`s pre-filled (blank title/artist for unidentified), all editable; `SaveBar` — "Save to collection" (primary) and, when not confident, a secondary "Get the exact answer — point at the label" button routing to `/label/[scanId]` (05.07 places "Search this museum's collection" above it); `DocentSection` and `RightNowSection` below (confident only).
 
 **Verify**: `result-screen.test.tsx` (RTL with a mocked `useQuery` returning fixtures): confident shows fields + chip "Match"; soft shows "Maybe" and the label button; unidentified shows blank title/artist and the label button.
 

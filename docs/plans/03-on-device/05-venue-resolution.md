@@ -24,7 +24,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 ## Current state
 
 - `assets/venues.db` (SQLite `venues(id, key, name, lat, lng, website, region)`, `meta(version, generatedAt, rowCount)`) and `metro.config.js` with the `db` asset extension (02.02); Convex `venueTable.latest` → `{ version, rowCount, url }`.
-- Convex (04.05): `startVisit({ venueId, localVisitId })` → `{ visitId, indexStatus }`; `confirmPoiVenue({ name, website?, lat, lng })` → `{ venueId }` (attested write); `museums.getStatus`.
+- Convex (04.05): `startVisit({ venueId, localVisitId })` → `{ visitId }`; `confirmPoiVenue({ name, website?, lat, lng })` → `{ venueId }` (attested write).
 - `src/app/venue-picker.tsx` renders `VenuePickerSheet` (formSheet, 01.02).
 - Verified SDK 57 facts: `expo-location` `requestForegroundPermissionsAsync()`, `getCurrentPositionAsync({ accuracy: Accuracy.Balanced })`, plugin `["expo-location", { "locationWhenInUsePermission": "…" }]`; `expo-sqlite` `SQLiteProvider databaseName="venues.db" assetSource={{ assetId: require('@/assets/venues.db') }}` + `useSQLiteContext()`, `openDatabaseAsync`, `db.getAllAsync(sql, params)`; `expo-file-system` `File.downloadFileAsync(url, dest)`, `Paths.document`; MapKit: `MKLocalPointsOfInterestRequest(center:radius:)` with `pointOfInterestFilter = MKPointOfInterestFilter(including: [.museum])`, `MKLocalSearch(request:).start()` → `mapItems` (`name`, `placemark.coordinate`, `url`), fallback `MKLocalSearch.Request` with `naturalLanguageQuery = "art gallery"` and a region; minimum iOS 14.0 for `MKLocalPointsOfInterestRequest`, below the app’s 16.4 minimum (00.06 SDK-header and device check).
 
@@ -32,7 +32,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 
 **In scope**: `package.json`, `app.json` (location plugin), `src/lib/venue/{resolve,venue-db,refresh,use-venue}.ts` (+ tests), `modules/poi-search/**` (Expo DSL module), `src/components/venue/venue-picker-sheet.tsx` (real content), `src/app/_layout.tsx` (mount `SQLiteProvider` for the venue DB), `src/components/scan/scan-screen.tsx` (call `useVenue` and pass `venueId/visitId` to the pipeline).
 
-**Out of scope**: visit UI in the collection (05.04), server-side queue bump (04.05), geofencing (explicitly rejected by design).
+**Out of scope**: visit UI in the collection (05.04), geofencing (explicitly rejected by design).
 
 ## Steps
 

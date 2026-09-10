@@ -8,6 +8,8 @@
 >
 > **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/visits.ts convex/museums.ts convex/crawl.ts convex/crons.ts convex/schema.ts`
 
+> **Superseded in part (2026-09-10):** the crawl queue, scheduler, crons, `bumpVenue`, `getStatus`, the `queueBump` limit, the crawl tables and the crawl fields on `museums` were removed with the crawler (`docs/plans/README.md`, "No crawler"). Visits, POI confirmation and the collection-site probe remain as built; `startVisit` returns `{ visitId }` only.
+
 ## Status
 
 - **Priority**: P1

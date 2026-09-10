@@ -35,10 +35,6 @@ describe('schema', () => {
         wikidataId: 'Q160236',
         region: 'us-ny',
         optOut: false,
-        useTavilyCrawl: false,
-        queuePriority: 0,
-        failureCount: 0,
-        indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: 0 },
       })
     );
 
@@ -50,6 +46,6 @@ describe('schema', () => {
     );
 
     expect(found?._id).toBe(museumId);
-    expect(found?.indexStatus.status).toBe('none');
+    expect(found?.optOut).toBe(false);
   });
 });

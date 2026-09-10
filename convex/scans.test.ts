@@ -57,23 +57,6 @@ it.each(['public_domain', 'in_copyright', 'unknown'] as const)(
   },
 );
 
-it('keeps waiting features, then clears them while retaining the embedding', async () => {
-  const { t, scanId, args } = await fixture();
-  await t.run((ctx) => ctx.db.patch(args.venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  const keepFeatures = { descriptors: new ArrayBuffer(32), keypoints: new ArrayBuffer(16), keypointCount: 1 };
-  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'waiting', keepFeatures, calibratorVersion: 'lr-v1' });
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject(keepFeatures);
-  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'identified', outcome: 'miss', calibratorVersion: 'lr-v1' });
-  const scan = await t.run((ctx) => ctx.db.get(scanId));
-  expect(scan?.descriptors).toBeUndefined();
-  expect(scan?.keypoints).toBeUndefined();
-  expect(scan?.keypointCount).toBeUndefined();
-  expect(scan?.vector).toEqual(args.vector);
-  expect(scan?.calibratorVersion).toBe('lr-v1');
-});
-
 it('updates gallery history only for a confident result and never rolls it backwards', async () => {
   const { t, user, venueId, args, best } = await fixture();
   const visitId = await t.run((ctx) => ctx.db.insert('visits', {
@@ -102,22 +85,6 @@ it('refuses another device’s visit or a visit at another venue', async () => {
   await expect(t.mutation(internal.scans.create, { ...args, localId: 'wrong-venue', visitId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
 });
 
-it('paginates only waiting scans for the requested venue', async () => {
-  const { t, scanId, venueId, args } = await fixture();
-  await t.run((ctx) => ctx.db.patch(venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
-  });
-  await t.mutation(internal.scans.create, { ...args, localId: 'pending' });
-  const page = await t.query(internal.scans.listWaiting, { venueId });
-  expect(page.page.map((scan) => scan._id)).toEqual([scanId]);
-  expect(page.isDone).toBe(true);
-  expect((await t.query(internal.scans.listWaiting, { venueId: await t.run((ctx) => seedMuseum(ctx)) })).page).toEqual([]);
-});
-
 it('ignores results from an older payload after an unsupported capture is restarted', async () => {
   const { t, args, scanId } = await fixture();
   await t.mutation(internal.scans.setResult, {
@@ -136,30 +103,3 @@ it('ignores results from an older payload after an unsupported capture is restar
   expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({ status: 'identified', outcome: 'miss' });
 });
 
-it('replaces a queued old-model payload and clears its provisional results', async () => {
-  const { t, args, scanId, best } = await fixture();
-  await t.run((ctx) => ctx.db.patch(args.venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', outcome: 'soft', best, calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
-  });
-  vi.stubEnv('SUPPORTED_MODEL_VERSIONS', 'replacement');
-  const updated = await t.mutation(internal.scans.create, { ...args, modelVersion: 'replacement', vector: testVector(0.5) });
-  expect(updated.scan).toMatchObject({ _id: scanId, generation: 1, status: 'pending', modelVersion: 'replacement', vector: testVector(0.5) });
-  expect(updated.scan.best).toBeUndefined();
-  expect(updated.scan.descriptors).toBeUndefined();
-});
-
-it('reruns a waiting write that arrives after index completion drained the queue', async () => {
-  vi.useFakeTimers();
-  const { t, scanId } = await fixture();
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', outcome: 'miss', calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
-  });
-  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({ status: 'identified' });
-  expect((await t.run((ctx) => ctx.db.get(scanId)))?.descriptors).toBeUndefined();
-});

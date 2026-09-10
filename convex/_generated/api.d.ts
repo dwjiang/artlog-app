@@ -10,8 +10,6 @@
 
 import type * as appAttestNode from "../appAttestNode.js";
 import type * as auth from "../auth.js";
-import type * as crawl from "../crawl.js";
-import type * as crons from "../crons.js";
 import type * as devices from "../devices.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
@@ -68,8 +66,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
   auth: typeof auth;
-  crawl: typeof crawl;
-  crons: typeof crons;
   devices: typeof devices;
   health: typeof health;
   http: typeof http;
