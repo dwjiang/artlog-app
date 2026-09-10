@@ -1,5 +1,6 @@
 import email.utils
 import logging
+import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
@@ -96,6 +97,7 @@ class PoliteClient:
             transport=transport,
         )
         self._next_slot: dict[str, float] = {}
+        self._slot_lock = threading.Lock()
         self._cooldowns: dict[str, tuple[float, int]] = {}
         self._robots: dict[tuple[str, str], RobotsEntry] = {}
         self._cache: OrderedDict[str, CachedBody] = OrderedDict()
@@ -263,15 +265,21 @@ class PoliteClient:
     def _wait_for_slot(self, url: str) -> None:
         parts = urlsplit(url)
         host = parts.netloc
-        now = self._clock()
-        cooldown = self._cooldowns.get(host)
-        retry_until = cooldown[0] if cooldown else now
-        if retry_until - now > self.max_retry_after:
-            raise RetryLater(host, retry_until - now, cooldown[1])
-        wait = max(self._next_slot.get(host, now), retry_until) - now
+        entry = self._robots.get((parts.scheme, host))
+        interval = max(self.interval, entry.crawl_delay or 0.0) if entry else self.interval
+        # Reserve the slot atomically so threads sharing this client keep the per-host
+        # spacing between each other; the wait itself happens outside the lock.
+        with self._slot_lock:
+            now = self._clock()
+            cooldown = self._cooldowns.get(host)
+            retry_until = cooldown[0] if cooldown else now
+            if retry_until - now > self.max_retry_after:
+                raise RetryLater(host, retry_until - now, cooldown[1])
+            slot = max(self._next_slot.get(host, now), retry_until, now)
+            self._next_slot[host] = slot + interval
+        wait = slot - now
         if wait > 0:
             self._sleep(wait)
             now = self._clock()
-        entry = self._robots.get((parts.scheme, host))
-        interval = max(self.interval, entry.crawl_delay or 0.0) if entry else self.interval
-        self._next_slot[host] = now + interval
+            with self._slot_lock:
+                self._next_slot[host] = max(self._next_slot[host], now + interval)
