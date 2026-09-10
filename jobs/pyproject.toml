@@ -30,7 +30,7 @@ packages = ["artlog_jobs"]
 
 [tool.pytest.ini_options]
 python_files = ["*_test.py"]
-testpaths = ["artlog_jobs"]
+testpaths = ["artlog_jobs", "scripts"]
 
 [tool.ruff]
 line-length = 100

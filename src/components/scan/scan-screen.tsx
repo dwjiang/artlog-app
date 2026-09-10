@@ -8,41 +8,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
 import { CameraPermission } from './camera-permission';
+import { GuidanceLabel, ViewfinderOverlay } from './viewfinder-overlay';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
-import type { CaptureInput, Quad } from '@/lib/capture/stages';
+import type { CaptureInput } from '@/lib/capture/stages';
 import { useCapture } from '@/lib/capture/use-capture';
+import { useRectDetector } from '@/lib/capture/use-rect-detector';
 
-type ScanScreenProps = Pick<CaptureInput, 'venueId' | 'visitId'> & {
-  shutterEnabled?: boolean;
-  currentQuad?: Quad | null;
-};
+type ScanScreenProps = Pick<CaptureInput, 'venueId' | 'visitId'>;
 
-export function ScanScreen({ shutterEnabled = true, currentQuad = null, venueId, visitId }: ScanScreenProps) {
+export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
   const isFocused = useIsFocused();
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
   const { top, bottom } = useSafeAreaInsets();
-  const photoOutput = usePhotoOutput({ containerFormat: 'jpeg', quality: 1 });
-  const outputs = useMemo(() => [photoOutput], [photoOutput]);
-  const { capture, importPhoto, busy, message, timings, clearMessage } = useCapture();
   const active = isFocused && appState === 'active';
-  const canCapture = active && cameraReady && shutterEnabled && !busy;
+  const photoOutput = usePhotoOutput({ containerFormat: 'jpeg', quality: 1 });
+  const detector = useRectDetector(active);
+  const outputs = useMemo(() => [photoOutput, detector.frameOutput], [photoOutput, detector.frameOutput]);
+  const { capture, importPhoto, busy, message, timings, clearMessage } = useCapture();
+  const canCapture = active && cameraReady && detector.ready && !busy;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
     return () => subscription.remove();
   }, []);
 
+  useEffect(() => {
+    if (detector.ready) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, [detector.ready]);
+
   function takePhoto() {
     if (!canCapture) return;
     void Haptics.selectionAsync().catch(() => {});
     void capture(async () => {
       const capturedAt = Date.now();
+      const quad = detector.getQuad();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       if (__DEV__) console.debug('Captured photo', filePath);
-      return { photoUri: `file://${filePath}`, quad: currentQuad, source: 'camera', capturedAt, venueId, visitId };
+      return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, venueId, visitId };
     });
   }
 
@@ -52,6 +57,7 @@ export function ScanScreen({ shutterEnabled = true, currentQuad = null, venueId,
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
+          orientationSource="interface"
           isActive={active}
           outputs={outputs}
           allowHapticsAndSystemSoundsPlayback
@@ -59,6 +65,7 @@ export function ScanScreen({ shutterEnabled = true, currentQuad = null, venueId,
           onStopped={() => setCameraReady(false)}
           onError={(error) => { setCameraReady(false); setCameraError(error.message); }}
         />
+        <ViewfinderOverlay liveQuad={detector.liveQuad} guidance={detector.guidance} />
       </CameraPermission>
       <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View style={styles.status}>
@@ -73,6 +80,7 @@ export function ScanScreen({ shutterEnabled = true, currentQuad = null, venueId,
             </View>
           )}
           {busy && <View style={styles.notice}><ThemedText>Processing photo…</ThemedText></View>}
+          {!busy && !message && cameraReady && <GuidanceLabel guidance={detector.guidance} />}
           {__DEV__ && timings && (
             <View style={styles.notice}><ThemedText type="code">Capture: {Math.round(timings.total)} ms</ThemedText></View>
           )}
