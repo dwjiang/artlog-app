@@ -27,6 +27,7 @@ Design §4.4 step 6 / §4.5 / §4.7: a contribution — the embedding and descri
 - 04.04: `requireDevice`, `requireAttestedWrite`, `limitDevice('contribute' | 'rejectPerWork' | 'sync')`; storage: `generateUploadUrl` (mutation), `v.id('_storage')`.
 - 04.06 writes `scans.labelFlow` with verified fields and evidence; 04.03's `scans.best/runnerUps` carry `probability`; identify's scored candidates include similarity/margin/inliers — persist them: add `scans.candidateSignals?: array({ objectId, similarity, margin, orbInliers, probability, homographyValid })` (schema change in this plan; 04.03's `setResult` must store it — in scope by exception: one field).
 - Convex-test supports `vectorSearch` (brute force) so the dedupe check is testable.
+- 04.06 shipped without the `false_rejection` hook because `feedback.ts` did not exist yet: after `verifyLabel` writes `labelFlow.stage === 'verified'`, nothing looks for an unresolved `feedback` row on the scan. Wire it in Step 2 next to `markFalseRejection` (compare the verified title + artist with the rejected object's artwork using `convex/lib/textMatch.ts`).
 
 ## Scope
 

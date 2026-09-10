@@ -1,3 +1,5 @@
+import { readBody, userAgent } from './politeFetch';
+
 export type CollectionSite = {
   collectionSiteUrl: string;
   platform: 'emuseum' | 'iiif' | 'collectionspace' | 'generic';
@@ -52,33 +54,12 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   return null;
 }
 
-async function readBody(response: Response): Promise<string> {
-  const reader = response.body?.getReader();
-  if (!reader) return '';
-  const decoder = new TextDecoder();
-  let size = 0;
-  let body = '';
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) return body + decoder.decode();
-      size += value.byteLength;
-      if (size > MAX_BODY_BYTES) throw new Error('Probe response too large');
-      body += decoder.decode(value, { stream: true });
-    }
-  } finally {
-    await reader.cancel();
-  }
-}
-
 export async function probeCollectionSite(website: string): Promise<CollectionSite | null | 'retry'> {
   const root = websiteUrl(website);
   if (!root) return null;
   const pending = PATHS.map((path) => new URL(path, root));
   const visited = new Set<string>();
   let retryable = false;
-  const contact = process.env.CRAWLER_CONTACT;
-  const userAgent = `artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app${contact ? `; mailto:${contact}` : ''})`;
   while (pending.length && visited.size < 6) {
     const url = pending.shift()!;
     if (visited.has(url.href)) continue;
@@ -88,7 +69,7 @@ export async function probeCollectionSite(website: string): Promise<CollectionSi
     try {
       const response = await fetch(url.href, {
         redirect: 'manual', signal: controller.signal,
-        headers: { 'User-Agent': userAgent, Accept: 'text/html, application/xml;q=0.9' },
+        headers: { 'User-Agent': userAgent(), Accept: 'text/html, application/xml;q=0.9' },
       });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location');
@@ -102,7 +83,7 @@ export async function probeCollectionSite(website: string): Promise<CollectionSi
         await response.body?.cancel();
         continue;
       }
-      const result = detectCollection(await readBody(response), url);
+      const result = detectCollection(await readBody(response, MAX_BODY_BYTES), url);
       if (result) return result;
     } catch {
       retryable = true;

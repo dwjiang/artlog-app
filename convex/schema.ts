@@ -16,6 +16,7 @@ import {
   factSheetEntry,
   feedbackResolution,
   indexStatusKind,
+  labelFlow,
   matchOutcome,
   multiplicity,
   objectSource,
@@ -333,7 +334,7 @@ export default defineSchema({
     rightNow: v.optional(
       v.object({ text: v.string(), sourceUrl: v.string(), sourceLabel: v.string() })
     ),
-    labelFlow: v.optional(v.any()),
+    labelFlow: v.optional(labelFlow),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
