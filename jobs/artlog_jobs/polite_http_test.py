@@ -490,7 +490,8 @@ def test_replacing_a_cached_body_updates_the_budget_and_removes_stale_validators
 
 
 @pytest.mark.parametrize("max_retries", [0, 3])
-def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retries):
+@pytest.mark.parametrize("status", [429, 503])
+def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retries, status):
     from artlog_jobs.polite_http import RetryLater
 
     clock = FakeClock()
@@ -499,16 +500,18 @@ def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retri
     def handler(request):
         seen.append((request.url.host, clock()))
         if len(seen) == 1:
-            return httpx.Response(429, headers={"Retry-After": "3600"})
+            return httpx.Response(status, headers={"Retry-After": "3600"})
         return httpx.Response(200)
 
     with client(handler, clock=clock, robots=False, max_retries=max_retries) as c:
         with pytest.raises(RetryLater) as raised:
             c.get("https://museum.example/a")
         assert raised.value.retry_after == 3600
+        assert raised.value.status_code == status
         assert clock.sleeps == []
-        with pytest.raises(RetryLater):
+        with pytest.raises(RetryLater) as deferred:
             c.get("https://museum.example/b")
+        assert deferred.value.status_code == status
         assert c.get("https://other.example/x").status_code == 200
         clock.now += 3600
         assert c.get("https://museum.example/b").status_code == 200

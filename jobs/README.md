@@ -223,16 +223,20 @@ uv run python -m artlog_jobs.download --shard 0 --limit 50    # one shard by han
 uv run python -m artlog_jobs.embed --images scratch/images/shard-0
 ```
 
-`build_index` runs the drift check first, then every shard in order: download
+`build_index` runs the drift check before every invocation that includes `embed`
+(even when `drift` is omitted from `--stage`), then every shard in order: download
 shard *n* → embed shard *n* → delete `images/shard-<n>/`. At most one shard of
 JPEGs exists at a time and none outlives the build (design §5.5). Images are
 never copied out of scratch and no job other than `download.py`/`embed.py`
 reads them. `--keep-images` is refused without `--limit`. A run is resumable at
 shard granularity through `checkpoints/build_index.json`; interrupt it and
 repeat the same command. If an image directory disappears before its shard was
-embedded, the shard is downloaded again. Shard membership depends on `--limit`,
-so `build_index` refuses to start when `features/manifest.json` records a
-different limit: move `features/`, `downloads/` and
+embedded, the shard is downloaded again. Cleanup also resumes for completed
+shards whose images remain after an interruption. Ctrl-C stops workers after
+their current image fetch returns. Shard membership depends on `--limit`
+and `--shard-size`, so `build_index` refuses to start when
+`features/manifest.json` records different values (or lacks the shard size):
+move `features/`, `images/`, `downloads/` and
 `checkpoints/build_index.json` aside (for example to `pilot-<date>/`) between a
 pilot and the whole build.
 
@@ -246,7 +250,7 @@ Under `SCRATCH_DIR` (default `jobs/scratch`, gitignored):
 | `features/vectors-<n>.npy` | float32 `[N, 1536]`, L2-normalized, one row per embedded image |
 | `features/keys-<n>.json` | object keys in row order |
 | `features/descriptors-<n>.bin` + `.json` | per image: `count×32` descriptor bytes then `count×4` float32 keypoints (plan 04.01 wire format); the index lists `{key, offset, keypointCount}`; `embed.read_features()` reads a shard |
-| `features/manifest.json` | `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
+| `features/manifest.json` | `limit`, `shardSize`, `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
 | `features/drift-check.json` | the last drift result |
 | `calibration/` | the 200 calibration images, hash-checked against `jobs/calibration/image-hashes.json` |
 
@@ -254,19 +258,27 @@ Objects are ordered by the SHA-256 of their key and cut into shards of 10,000,
 so shards are deterministic for a given `objects.jsonl`, every shard mixes the
 sources, and `--limit N` is a representative sample. Sources download
 concurrently, each with its own polite client: Met CDN 8 req/s (documented
-ceiling 20), Wikimedia one media request at a time with ≥ 1 s spacing per host,
-AIC 1 req/s with `AIC-User-Agent` (no AIC object currently carries an image
-reference, decision 005). Commons files are resolved through the `imageinfo`
-API in batches of ≤ 50 titles (`iiurlwidth=1280`, a standard width) and fetched
-from the returned `thumburl` on `upload.wikimedia.org`; `Special:FilePath?width=`
-was measured at 0.42 images/s because it is a two-hop redirect chain on the
-Commons app servers, and `imageinfo` also renders TIFF/PDF originals server-side.
-Files the API reports missing are recorded as `commons_missing`. Override with
+ceiling 20), AIC 1 req/s with `AIC-User-Agent` (no AIC object currently carries
+an image reference, decision 005), and Wikimedia media within the Wikitech robot
+policy's media rules: at most two concurrent connections and at most 25 Mbps
+measured over 10-second windows (`BandwidthLimiter`, shared by both streams),
+standard thumbnail sizes only. Commons files are resolved through the
+`imageinfo` API in batches of ≤ 50 titles (one call at a time, `iiurlwidth=960`,
+a pre-rendered standard step that still exceeds the 512 px model input) and
+fetched from the returned `thumburl` on `upload.wikimedia.org`;
+`Special:FilePath?width=` was measured at 0.42 images/s because it is a two-hop
+redirect chain on the Commons app servers, and `imageinfo` also renders
+TIFF/PDF originals server-side. Files the API reports missing are recorded as
+`commons_missing`. `--streams wikidata=1` and `--mbps` dial the media rules
+down; the defaults are the policy's ceiling. Override rates with
 `--rate met=4,wikidata=0.5`. Transient statuses retry three times with backoff
 and honor `Retry-After`; 20 consecutive 403/429 responses stop that source with
-`SourceBlocked` (halve the rate and report). These are the sources' designated
-media endpoints, requested on the same footing as `sources/fetch.py`'s dumps,
-so the client does not consult robots.txt.
+`SourceBlocked` (halve the rate and report). Temporary failures, including
+403/429s and exhausted transport/server retries, remain pending instead of
+entering the terminal failure journal. They leave the shard incomplete and
+stop the build before embedding; repeat the command after recovery. These are
+the sources' designated media endpoints, requested on the same footing as
+`sources/fetch.py`'s dumps, so the client does not consult robots.txt.
 
 ### Model, numerics and drift
 
@@ -324,10 +336,14 @@ of its last batch. The manifest records `modelVersion
 c-radiov3-b-int8-512-dinov2-v1`, `fakequantSha256 15e4b720…`, the drift result
 and the shard report.
 
-**Projection for the full corpus** (sources download concurrently, so Commons
-sets the wall clock): ≈ 100 h of downloads plus ≈ 2 h of embedding, about
-**4.3 days** of continuous, awake, online laptop time at the polite rates
-above, under the plan's ~5-day STOP line but not by much. Any 429/403 streak
+**Projection for the full corpus at the pilot's one-stream rate** (sources
+download concurrently, so Commons sets the wall clock): ≈ 100 h of downloads
+plus ≈ 2 h of embedding, about **4.3 days** of continuous, awake, online laptop
+time, under the plan's ~5-day STOP line but not by much. That run was started
+and then cancelled at shard 0 on 2026-09-10 as infeasible; the fetcher was then
+brought up to the media rules' actual ceiling (two streams, 25 Mbps, 960 px
+thumbnails) instead of one request per second, which decision 005 had taken
+from the rules for other Wikimedia services (correction recorded there). Any 429/403 streak
 stops a source (`SourceBlocked`) and the run resumes from its checkpoint. The
 operator decides between this local run, a reduced corpus (for example only
 paintings with a current placement or a mapped owner), or pulling plan 02.10

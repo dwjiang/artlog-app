@@ -1,5 +1,8 @@
 import json
 import random
+import threading
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
 
@@ -7,10 +10,12 @@ import httpx
 import pytest
 from PIL import Image
 
+from artlog_jobs import download as download_module
 from artlog_jobs.download import (
     COMMONS_THUMB_WIDTH,
     COMMONS_TITLES_PER_CALL,
     MAX_SIDE,
+    BandwidthLimiter,
     ImageTask,
     ShardState,
     SourceBlocked,
@@ -94,9 +99,14 @@ class Server:
 class Sleeper:
     def __init__(self):
         self.calls: list[float] = []
+        self.now = 0.0
 
     def __call__(self, seconds: float) -> None:
         self.calls.append(seconds)
+        self.now += seconds
+
+    def clock(self) -> float:
+        return self.now
 
 
 def factory(server: Server, sleeper: Sleeper):
@@ -108,6 +118,7 @@ def factory(server: Server, sleeper: Sleeper):
             cache_max_bytes=0,
             transport=httpx.MockTransport(server),
             sleep=sleeper,
+            clock=sleeper.clock,
         )
 
     return make
@@ -135,6 +146,7 @@ def run(server, tasks, tmp_path, *, shard=0):
         state_dir=tmp_path / "downloads",
         client_factory=factory(server, sleeper),
         sleep=sleeper,
+        clock=sleeper.clock,
     )
     return reports, sleeper
 
@@ -283,8 +295,95 @@ def test_consecutive_denials_stop_the_source_with_a_reportable_error(tmp_path):
         run(server, tasks, tmp_path)
 
     state = ShardState(tmp_path / "downloads", 0)
-    assert not state.complete and len(state.failed) == 20
+    assert not state.complete and not state.failed
     assert state.data["sources"]["met"]["complete"] is False
+
+
+def test_source_blocked_images_are_downloaded_after_recovery(tmp_path):
+    server = Server()
+    tasks = [task for task in tasks_for(server, 50) if task.source == "met"]
+    server.deny.update(media_path(task) for task in tasks)
+    with pytest.raises(SourceBlocked):
+        run(server, tasks, tmp_path)
+    server.deny.clear()
+
+    reports, _ = run(server, tasks, tmp_path)
+
+    assert reports["met"].done == len(tasks)
+    assert len(list((tmp_path / "images" / "shard-0").glob("*.jpg"))) == len(tasks)
+    assert ShardState(tmp_path / "downloads", 0).complete
+
+
+@pytest.mark.parametrize("status", [403, 429, 503, None])
+def test_temporary_failures_leave_the_shard_incomplete_and_retry_on_resume(tmp_path, status):
+    recovered = False
+    task = ImageTask("met:1", f"{MET}DP1.jpg", "met")
+
+    def handler(request):
+        if recovered:
+            return httpx.Response(200, content=jpeg(40, 30))
+        if status is None:
+            raise httpx.ConnectError("offline", request=request)
+        return httpx.Response(status)
+
+    with pytest.raises(RuntimeError, match="retryable"):
+        run(handler, [task], tmp_path)
+    state = ShardState(tmp_path / "downloads", 0)
+    assert not state.complete and not state.failed
+    recovered = True
+
+    reports, _ = run(handler, [task], tmp_path)
+
+    assert reports["met"].done == 1
+    assert ShardState(tmp_path / "downloads", 0).complete
+
+
+def test_repeated_long_429_cooldowns_stop_the_source(tmp_path):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(429, headers={"Retry-After": "180"})
+
+    tasks = [ImageTask(f"met:{i}", f"{MET}DP{i}.jpg", "met") for i in range(25)]
+    with pytest.raises(SourceBlocked, match="20 consecutive HTTP 429"):
+        run(handler, tasks, tmp_path)
+
+    assert len(requests) == 60
+    state = ShardState(tmp_path / "downloads", 0)
+    assert not state.complete and not state.failed
+    assert state.data["sources"]["met"]["statuses"] == {"429": 60}
+
+
+def test_caller_interruption_stops_workers_after_the_current_image(tmp_path, monkeypatch):
+    started = threading.Event()
+    shutting_down = threading.Event()
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        started.set()
+        assert shutting_down.wait(5)
+        return httpx.Response(200, content=jpeg(40, 30))
+
+    class ObservedExecutor(ThreadPoolExecutor):
+        def __exit__(self, *args):
+            shutting_down.set()
+            return super().__exit__(*args)
+
+    def interrupt(future):
+        assert started.wait(5)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(download_module, "ThreadPoolExecutor", ObservedExecutor)
+    monkeypatch.setattr(Future, "result", interrupt)
+    tasks = [ImageTask(f"met:{i}", f"{MET}DP{i}.jpg", "met") for i in range(20)]
+
+    with pytest.raises(KeyboardInterrupt):
+        run(handler, tasks, tmp_path)
+
+    assert len(requests) == 1
+    assert not ShardState(tmp_path / "downloads", 0).complete
 
 
 def test_shard_directories_hold_only_their_own_images(tmp_path: Path):
@@ -297,3 +396,59 @@ def test_shard_directories_hold_only_their_own_images(tmp_path: Path):
         image_filename(t.key) for t in tasks[:2]
     )
     assert len(list((tmp_path / "images" / "shard-1").iterdir())) == 2
+
+
+def test_bandwidth_limiter_keeps_any_trailing_window_under_the_cap():
+    sleeper = Sleeper()
+    limiter = BandwidthLimiter(25.0, clock=sleeper.clock, sleep=sleeper)  # 31.25 MB per 10 s
+
+    limiter.wait()
+    limiter.account(20_000_000)
+    sleeper(2.0)
+    limiter.wait()
+    limiter.account(12_000_000)
+    limiter.wait()
+
+    assert sleeper.now == pytest.approx(10.0)  # the first 20 MB left the window
+    limiter.wait()
+    assert sleeper.now == pytest.approx(10.0)
+    with pytest.raises(ValueError):
+        BandwidthLimiter(0)
+
+
+def test_commons_media_uses_two_streams_and_never_overlaps_api_calls(tmp_path):
+    server = Server()
+    tasks = [task for task in tasks_for(server, 40) if task.source == "wikidata"]
+    lock = threading.Lock()
+    in_flight = {"api": 0, "media": 0}
+    peak = {"api": 0, "media": 0}
+
+    def handler(request):
+        kind = "api" if request.url.host == "commons.wikimedia.org" else "media"
+        with lock:
+            in_flight[kind] += 1
+            peak[kind] = max(peak[kind], in_flight[kind])
+        time.sleep(0.02)
+        try:
+            return server(request)
+        finally:
+            with lock:
+                in_flight[kind] -= 1
+
+    reports, _ = run(handler, tasks, tmp_path)
+
+    assert reports["wikidata"].done == 20 and reports["wikidata"].failed == 0
+    assert peak["media"] == 2 and peak["api"] == 1
+    assert len(list((tmp_path / "images" / "shard-0").glob("*.jpg"))) == 20
+
+
+def test_a_denial_streak_stops_both_streams(tmp_path):
+    server = Server()
+    tasks = [task for task in tasks_for(server, 80) if task.source == "wikidata"]
+    server.deny.update(media_path(task) for task in tasks)
+
+    with pytest.raises(SourceBlocked, match="wikidata: 20 consecutive HTTP 403"):
+        run(server, tasks, tmp_path)
+
+    media = [r for r in server.requests if r.url.host == "upload.wikimedia.org"]
+    assert 20 <= len(media) <= 50

@@ -21,9 +21,10 @@ class RobotsDisallowed(Exception):
 
 
 class RetryLater(Exception):
-    def __init__(self, host: str, retry_after: float):
+    def __init__(self, host: str, retry_after: float, status_code: int):
         self.host = host
         self.retry_after = retry_after
+        self.status_code = status_code
         super().__init__(f"{host} is cooling down; retry in {retry_after:.1f}s")
 
 
@@ -95,7 +96,7 @@ class PoliteClient:
             transport=transport,
         )
         self._next_slot: dict[str, float] = {}
-        self._retry_until: dict[str, float] = {}
+        self._cooldowns: dict[str, tuple[float, int]] = {}
         self._robots: dict[tuple[str, str], RobotsEntry] = {}
         self._cache: OrderedDict[str, CachedBody] = OrderedDict()
         self._cache_bytes = 0
@@ -178,9 +179,9 @@ class PoliteClient:
             delay = parse_retry_after(response.headers.get("Retry-After"), time.time())
             if delay is None:
                 delay = min(self.max_retry_after, 2.0**attempt)
-            self._retry_until[host] = self._clock() + delay
+            self._cooldowns[host] = (self._clock() + delay, response.status_code)
             if delay > self.max_retry_after:
-                raise RetryLater(host, delay)
+                raise RetryLater(host, delay, response.status_code)
             if attempt == self.max_retries:
                 return response
             log.warning("%s %s; waiting %.1fs", response.status_code, request.url, delay)
@@ -263,9 +264,10 @@ class PoliteClient:
         parts = urlsplit(url)
         host = parts.netloc
         now = self._clock()
-        retry_until = self._retry_until.get(host, now)
+        cooldown = self._cooldowns.get(host)
+        retry_until = cooldown[0] if cooldown else now
         if retry_until - now > self.max_retry_after:
-            raise RetryLater(host, retry_until - now)
+            raise RetryLater(host, retry_until - now, cooldown[1])
         wait = max(self._next_slot.get(host, now), retry_until) - now
         if wait > 0:
             self._sleep(wait)

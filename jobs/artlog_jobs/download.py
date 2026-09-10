@@ -8,8 +8,9 @@ import logging
 import sys
 import threading
 import time
+from collections import deque
 from collections.abc import Callable, Iterable, Iterator
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from io import BytesIO
@@ -27,7 +28,7 @@ log = logging.getLogger(__name__)
 SHARD_SIZE = 10_000
 MAX_SIDE = 1024
 JPEG_QUALITY = 90
-COMMONS_THUMB_WIDTH = 1280
+COMMONS_THUMB_WIDTH = 960
 COMMONS_FILE_PATH = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 COMMONS_TITLES_PER_CALL = 50
@@ -38,12 +39,21 @@ BACKOFF_SECONDS = 2.0
 MAX_COOLDOWN_SECONDS = 600.0
 CONSECUTIVE_DENIALS_LIMIT = 20
 PERMANENT_STATUSES = frozenset({400, 401, 403, 404, 410, 451})
-# Met CDN documented ceiling is 20 req/s; Wikimedia media: one request at a time, ≥ 1 s apart
-# per host (decision 005); AIC: a single stream at ≤ 1 req/s with its identifying header.
-SOURCE_RATES = {"met": 8.0, "aic": 1.0, "wikidata": 1.0}
+# Wikimedia media rules (Wikitech robot policy, read 2026-09-10): total concurrency ≤ 2 and
+# ≤ 25 Mbps over 10 s windows, standard thumbnail sizes, thumbnails preferred; the action API
+# (imageinfo): concurrency 1, < 5 req/s. Met CDN documented ceiling is 20 req/s; AIC: a single
+# stream at ≤ 1 req/s with its identifying header.
+SOURCE_RATES = {"met": 8.0, "aic": 1.0, "wikidata": 10.0}
+SOURCE_STREAMS = {"met": 1, "aic": 1, "wikidata": 2}
+WIKIMEDIA_MBPS = 25.0
+BANDWIDTH_WINDOW_SECONDS = 10.0
 
 
-class SourceBlocked(RuntimeError):
+class DownloadIncomplete(RuntimeError):
+    pass
+
+
+class SourceBlocked(DownloadIncomplete):
     """A source answered with consecutive 403/429s; halve its rate and report (STOP)."""
 
 
@@ -63,13 +73,73 @@ class SourceReport:
     seconds: float = 0.0
     statuses: dict[str, int] = field(default_factory=dict)
     retries: int = 0
+    retryable: int = 0
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     @property
     def rate(self) -> float:
         return (self.done + self.failed) / self.seconds if self.seconds else 0.0
 
+    def count_status(self, status: int) -> None:
+        with self.lock:
+            self.statuses[str(status)] = self.statuses.get(str(status), 0) + 1
+
+    def count_retry(self) -> None:
+        with self.lock:
+            self.retries += 1
+
     def as_dict(self) -> dict:
-        return {**self.__dict__, "rate": round(self.rate, 3)}
+        return {
+            "attempted": self.attempted,
+            "done": self.done,
+            "failed": self.failed,
+            "skipped": self.skipped,
+            "seconds": self.seconds,
+            "statuses": dict(self.statuses),
+            "retries": self.retries,
+            "retryable": self.retryable,
+            "rate": round(self.rate, 3),
+        }
+
+
+class BandwidthLimiter:
+    """Keeps the bytes received in any trailing window under a cap (Wikimedia: 25 Mbps over
+    10 s); shared by every stream of a source."""
+
+    def __init__(
+        self,
+        mbps: float,
+        *,
+        window: float = BANDWIDTH_WINDOW_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ):
+        if mbps <= 0 or window <= 0:
+            raise ValueError("bandwidth cap and window must be positive")
+        self.budget_bytes = mbps * 1e6 / 8 * window
+        self.window = window
+        self._clock = clock
+        self._sleep = sleep
+        self._events: deque[tuple[float, int]] = deque()
+        self._lock = threading.Lock()
+
+    def _used(self, now: float) -> float:
+        while self._events and self._events[0][0] <= now - self.window:
+            self._events.popleft()
+        return sum(size for _, size in self._events)
+
+    def account(self, size: int) -> None:
+        with self._lock:
+            self._events.append((self._clock(), size))
+
+    def wait(self) -> None:
+        while True:
+            with self._lock:
+                now = self._clock()
+                if self._used(now) < self.budget_bytes:
+                    return
+                delay = self._events[0][0] + self.window - now
+            self._sleep(max(delay, 0.01))
 
 
 def source_of(key: str) -> str:
@@ -197,8 +267,7 @@ def write_atomic(path: Path, data: bytes) -> None:
 
 
 class ShardState:
-    """`downloads/shard-<n>.json` (per-source progress) and `shard-<n>-failed.jsonl` outlive
-    the image directory, so a resumed or already embedded shard is never fetched twice."""
+    """Per-source progress and terminal failures; missing images remain pending on resume."""
 
     def __init__(self, state_dir: Path, shard: int):
         self.path = Path(state_dir) / f"shard-{shard}.json"
@@ -239,6 +308,8 @@ class ShardState:
     def save_source(self, source: str, report: SourceReport, *, complete: bool) -> None:
         with self._lock:
             self.data["sources"][source] = {**report.as_dict(), "complete": complete}
+            if not complete:
+                self.data["complete"] = False
             self._save()
 
     def finish(self, tasks_by_source: dict[str, list[ImageTask]]) -> None:
@@ -281,19 +352,24 @@ def fetch_one(
     report: SourceReport,
     *,
     sleep: Callable[[float], None] = time.sleep,
+    limiter: BandwidthLimiter | None = None,
 ) -> tuple[str, str | None, int | None]:
     """Returns ('done' | 'failed', reason, http status)."""
     headers = {"AIC-User-Agent": client.user_agent} if task.source == "aic" else None
     last_status: int | None = None
     for attempt in range(ATTEMPTS):
         if attempt:
-            report.retries += 1
+            report.count_retry()
             sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
+        if limiter is not None:
+            limiter.wait()
         try:
             response = client.get(url, headers=headers)
         except RetryLater as cooldown:
+            last_status = cooldown.status_code
+            report.count_status(last_status)
             if cooldown.retry_after > MAX_COOLDOWN_SECONDS:
-                return "failed", "cooldown_too_long", 429
+                return "failed", "cooldown_too_long", last_status
             log.warning("%s cooling down %.0fs for %s", task.source, cooldown.retry_after, task.key)
             sleep(cooldown.retry_after)
             continue
@@ -302,7 +378,9 @@ def fetch_one(
             log.warning("%s transport error for %s: %s", task.source, task.key, error)
             continue
         last_status = response.status_code
-        report.statuses[str(last_status)] = report.statuses.get(str(last_status), 0) + 1
+        report.count_status(last_status)
+        if limiter is not None:
+            limiter.account(len(response.content))
         if response.status_code == 200:
             try:
                 data = resize_to_jpeg(response.content)
@@ -327,12 +405,41 @@ def download_source(
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
     stop: threading.Event | None = None,
+    streams: int = 1,
+    limiter: BandwidthLimiter | None = None,
 ) -> SourceReport:
+    """Each chunk is resolved once (one API call, never concurrent), then fetched by
+    `streams` workers sharing the client and the bandwidth limiter."""
+    if streams < 1:
+        raise ValueError("streams must be at least 1")
     report = SourceReport()
     started = clock()
     denials = 0
-    index = 0
+    halt = threading.Event()
+
+    def fetch(task: ImageTask, url: str | None) -> tuple[ImageTask, str, str | None, int | None]:
+        if halt.is_set() or (stop is not None and stop.is_set()):
+            return task, "skipped", None, None
+        if url is None:
+            return task, "failed", "commons_missing", None
+        destination = images_dir / image_filename(task.key)
+        return task, *fetch_one(
+            client, task, url, destination, report, sleep=sleep, limiter=limiter
+        )
+
+    def outcomes(pending: list[ImageTask], urls: dict[str, str | None]):
+        if streams == 1:
+            for task in pending:
+                yield fetch(task, urls.get(task.key))
+            return
+        with ThreadPoolExecutor(max_workers=streams) as pool:
+            futures = [pool.submit(fetch, task, urls.get(task.key)) for task in pending]
+            for future in as_completed(futures):
+                yield future.result()
+
     for chunk_start in range(0, len(tasks), RESOLVE_BATCH):
+        if stop is not None and stop.is_set():
+            break
         chunk = tasks[chunk_start : chunk_start + RESOLVE_BATCH]
         pending = [
             task
@@ -341,39 +448,36 @@ def download_source(
         ]
         report.skipped += len(chunk) - len(pending)
         urls = resolve_urls(source, client, pending) if pending else {}
-        for task in pending:
-            if stop is not None and stop.is_set():
-                break
-            index = chunk_start + chunk.index(task) + 1
+        for task, outcome, reason, status in outcomes(pending, urls):
+            if outcome == "skipped":
+                continue
             report.attempted += 1
-            url = urls.get(task.key)
-            if url is None:
-                outcome, reason, status = "failed", "commons_missing", None
-            else:
-                destination = images_dir / image_filename(task.key)
-                outcome, reason, status = fetch_one(
-                    client, task, url, destination, report, sleep=sleep
-                )
             if outcome == "done":
                 report.done += 1
             else:
                 report.failed += 1
-                state.record_failure(task, reason or "unknown", status)
+                if status in (403, 429) or reason in ("transient_exhausted", "cooldown_too_long"):
+                    report.retryable += 1
+                    log.warning("%s remains pending for resume: %s", task.key, reason)
+                else:
+                    state.record_failure(task, reason or "unknown", status)
             denials = denials + 1 if status in (403, 429) else 0
             report.seconds = clock() - started
-            if denials >= CONSECUTIVE_DENIALS_LIMIT:
-                state.save_source(source, report, complete=False)
-                raise SourceBlocked(
+            if denials >= CONSECUTIVE_DENIALS_LIMIT and not halt.is_set():
+                halt.set()
+                blocked = SourceBlocked(
                     f"{source}: {denials} consecutive HTTP {status} responses; "
                     f"halve its rate (--rate {source}=…) and report"
                 )
+        if halt.is_set():
+            state.save_source(source, report, complete=False)
+            raise blocked
         if stop is not None and stop.is_set():
             break
-        index = chunk_start + len(chunk)
         log.info(
             "%s shard progress %d/%d done=%d failed=%d skipped=%d %.2f req/s",
             source,
-            index,
+            chunk_start + len(chunk),
             len(tasks),
             report.done,
             report.failed,
@@ -382,8 +486,13 @@ def download_source(
         )
         state.save_source(source, report, complete=False)
     report.seconds = clock() - started
-    complete = stop is None or not stop.is_set()
+    stopped = stop is not None and stop.is_set()
+    complete = not stopped and not report.retryable
     state.save_source(source, report, complete=complete)
+    if report.retryable and not stopped:
+        raise DownloadIncomplete(
+            f"{source}: {report.retryable} retryable downloads; resume the run"
+        )
     return report
 
 
@@ -396,6 +505,8 @@ def download_shard(
     client_factory: ClientFactory,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
+    streams: dict[str, int] | None = None,
+    mbps: float = WIKIMEDIA_MBPS,
 ) -> dict[str, SourceReport]:
     """Sources run concurrently so the slow Commons queue never holds up the Met."""
     shard_dir = Path(images_dir) / f"shard-{shard}"
@@ -405,6 +516,8 @@ def download_shard(
     for task in tasks:
         by_source.setdefault(task.source, []).append(task)
     stop = threading.Event()
+    streams = streams or dict(SOURCE_STREAMS)
+    wikimedia = BandwidthLimiter(mbps, clock=clock, sleep=sleep)
 
     def run(source: str) -> SourceReport:
         with client_factory(source) as client:
@@ -418,6 +531,8 @@ def download_shard(
                     sleep=sleep,
                     clock=clock,
                     stop=stop,
+                    streams=streams.get(source, 1),
+                    limiter=wikimedia if source == "wikidata" else None,
                 )
             except BaseException:
                 stop.set()
@@ -425,13 +540,17 @@ def download_shard(
 
     reports: dict[str, SourceReport] = {}
     with ThreadPoolExecutor(max_workers=max(1, len(by_source))) as pool:
-        futures = {source: pool.submit(run, source) for source in sorted(by_source)}
-        errors = []
-        for source, future in futures.items():
-            try:
-                reports[source] = future.result()
-            except Exception as error:  # noqa: BLE001 - every source's outcome is reported
-                errors.append(error)
+        try:
+            futures = {source: pool.submit(run, source) for source in sorted(by_source)}
+            errors = []
+            for source, future in futures.items():
+                try:
+                    reports[source] = future.result()
+                except Exception as error:  # noqa: BLE001 - every source's outcome is reported
+                    errors.append(error)
+        except BaseException:
+            stop.set()
+            raise
     state.finish(by_source)
     if errors:
         raise errors[0]
@@ -450,6 +569,20 @@ def parse_rates(value: str | None) -> dict[str, float]:
     return rates
 
 
+def parse_streams(value: str | None) -> dict[str, int]:
+    streams = dict(SOURCE_STREAMS)
+    for item in (value or "").split(","):
+        if not item:
+            continue
+        source, _, count = item.partition("=")
+        if source not in streams or not count.isdigit() or int(count) < 1:
+            raise argparse.ArgumentTypeError(
+                f"--streams expects source=count among {sorted(streams)}"
+            )
+        streams[source] = int(count)
+    return streams
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Download one shard of corpus images to scratch")
     parser.add_argument("--metadata", type=Path, help="02.03 output directory (objects.jsonl)")
@@ -461,7 +594,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shard-size", type=int, default=SHARD_SIZE)
     parser.add_argument("--limit", type=int, help="only the first N downloadable objects")
     parser.add_argument(
-        "--rate", type=parse_rates, default=dict(SOURCE_RATES), help="met=8,wikidata=1"
+        "--rate", type=parse_rates, default=dict(SOURCE_RATES), help="met=8,wikidata=10"
+    )
+    parser.add_argument(
+        "--streams", type=parse_streams, default=dict(SOURCE_STREAMS), help="wikidata=2"
+    )
+    parser.add_argument(
+        "--mbps", type=float, default=WIKIMEDIA_MBPS, help="Wikimedia media bandwidth cap"
     )
     args = parser.parse_args(argv)
     settings = get_settings()
@@ -482,6 +621,8 @@ def main(argv: list[str] | None = None) -> int:
             images_dir=args.out or settings.scratch_dir / "images",
             state_dir=args.state or settings.scratch_dir / "downloads",
             client_factory=factory,
+            streams=args.streams,
+            mbps=args.mbps,
         )
         print(json.dumps({"shard": shard, **{s: r.as_dict() for s, r in reports.items()}}))
     return 0

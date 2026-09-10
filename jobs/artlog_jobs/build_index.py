@@ -15,11 +15,14 @@ from .config import Settings, get_settings, setup_logging
 from .download import (
     SHARD_SIZE,
     SOURCE_RATES,
+    SOURCE_STREAMS,
+    WIKIMEDIA_MBPS,
     ImageTask,
     default_client_factory,
     download_shard,
     iter_tasks,
     parse_rates,
+    parse_streams,
     plan_shards,
 )
 from .drift_check import (
@@ -89,6 +92,8 @@ def run(
     keep_images: bool = False,
     shard_size: int = SHARD_SIZE,
     rates: dict[str, float] | None = None,
+    streams: dict[str, int] | None = None,
+    mbps: float = WIKIMEDIA_MBPS,
     fakequant: Path = DEFAULT_FAKEQUANT,
     dtype: str = "auto",
     batch_size: int = BATCH_SIZE,
@@ -105,27 +110,30 @@ def run(
     checkpoint = Checkpoint.for_job(settings, "build_index")
     manifest_path = features_dir / "manifest.json"
     sharded = "download" in stages or "embed" in stages
-    recorded = (
-        json.loads(manifest_path.read_text()).get("limit") if manifest_path.exists() else limit
-    )
-    if sharded and recorded != limit:
-        # Shard membership depends on the limit, so a pilot's checkpoint would hide objects.
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    shard_plan = {"limit": limit, "shardSize": shard_size}
+    if (
+        sharded
+        and "limit" in manifest
+        and any(manifest.get(name) != value for name, value in shard_plan.items())
+    ):
         raise RuntimeError(
-            f"{features_dir} holds a run with a different --limit; move it and "
-            f"{checkpoint.path} aside before starting this run"
+            f"{features_dir} holds a run with a different --limit or --shard-size; move it, "
+            f"{images_dir}, {scratch / 'downloads'} and {checkpoint.path} aside "
+            "before starting this run"
         )
     if sharded:
-        update_manifest(features_dir, run={"limit": limit})
+        update_manifest(features_dir, run=shard_plan)
     rates = rates or dict(SOURCE_RATES)
     load = load or (lambda dt: load_embedder(fakequant, device=settings.device, dtype=dt))
     embedder = None
     drift_result = None
-    if "drift" in stages:
+    if "drift" in stages or "embed" in stages:
         drift_result = (drift or default_drift)(load, settings, dtype=dtype)
         print(format_report(drift_result) if "mean" in drift_result else drift_result)
+        update_manifest(features_dir, run={"driftCheck": drift_result})
         if not drift_result["passed"]:
             raise DriftCheckFailed("drift check failed; the build must not embed")
-        update_manifest(features_dir, run={"driftCheck": drift_result})
         dtype = drift_result["dtype"]
     tasks: list[ImageTask] = []
     if "download" in stages or "embed" in stages:
@@ -137,6 +145,8 @@ def run(
         key = f"shard-{number}"
         shard_dir = images_dir / key
         if "embed" in stages and checkpoint.is_done("embed", key):
+            if not keep_images and shard_dir.exists():
+                shutil.rmtree(shard_dir)
             continue
         if "download" in stages:
             if checkpoint.is_done("download", key) and not shard_dir.exists():
@@ -149,6 +159,8 @@ def run(
                     images_dir=images_dir,
                     state_dir=scratch / "downloads",
                     client_factory=default_client_factory(settings, rates),
+                    streams=streams or dict(SOURCE_STREAMS),
+                    mbps=mbps,
                 )
                 download_reports.append(reports)
                 checkpoint.mark_done("download", [key])
@@ -156,7 +168,7 @@ def run(
             if not shard_dir.exists():
                 raise FileNotFoundError(f"{shard_dir} is missing; run the download stage first")
             if embedder is None:
-                embedder = load("float16" if dtype == "auto" else dtype)
+                embedder = load(dtype)
                 update_manifest(features_dir, run={"fakequantSha256": sha256_of(fakequant)})
             report = embed(
                 shard_dir, features_dir, number, embedder, batch_size=batch_size, workers=workers
@@ -213,7 +225,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--keep-images", action="store_true", help="debugging a --limit pilot only")
     parser.add_argument("--shard-size", type=int, default=SHARD_SIZE)
     parser.add_argument(
-        "--rate", type=parse_rates, default=dict(SOURCE_RATES), help="met=8,wikidata=1"
+        "--rate", type=parse_rates, default=dict(SOURCE_RATES), help="met=8,wikidata=10"
+    )
+    parser.add_argument(
+        "--streams", type=parse_streams, default=dict(SOURCE_STREAMS), help="wikidata=2"
+    )
+    parser.add_argument(
+        "--mbps", type=float, default=WIKIMEDIA_MBPS, help="Wikimedia media bandwidth cap"
     )
     parser.add_argument("--fakequant", type=Path, default=DEFAULT_FAKEQUANT)
     parser.add_argument("--dtype", choices=("auto", "float16", "float32"), default="auto")
@@ -233,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
             keep_images=args.keep_images,
             shard_size=args.shard_size,
             rates=args.rate,
+            streams=args.streams,
+            mbps=args.mbps,
             fakequant=args.fakequant,
             dtype=args.dtype,
             batch_size=args.batch_size,

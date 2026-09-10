@@ -1,5 +1,6 @@
 import argparse
 import json
+import shutil
 
 import pytest
 
@@ -21,11 +22,14 @@ def settings_with_objects(tmp_path, count=25) -> Settings:
 
 
 class Recorder:
-    def __init__(self, drift_passes=True):
+    def __init__(self, tmp_path, drift_passes=True, dtype="float16"):
         self.calls: list[tuple] = []
         self.drift_passes = drift_passes
+        self.dtype = dtype
+        self.fakequant = tmp_path / "fakequant.pt"
+        self.fakequant.write_bytes(b"test weights")
 
-    def download(self, shard, tasks, *, images_dir, state_dir, client_factory):
+    def download(self, shard, tasks, *, images_dir, state_dir, client_factory, **_):
         directory = images_dir / f"shard-{shard}"
         directory.mkdir(parents=True)
         for task in tasks:
@@ -43,7 +47,7 @@ class Recorder:
             "vectors": 3,
             "seconds": 1.0,
             "device": "cpu",
-            "dtype": "float16",
+            "dtype": self.dtype,
         }
 
     def drift(self, load, settings, *, dtype):
@@ -56,7 +60,7 @@ class Recorder:
             "minMean": 0.99,
             "minMin": 0.97,
             "device": "mps",
-            "dtype": "float16",
+            "dtype": self.dtype,
             "worst": [],
         }
 
@@ -70,12 +74,13 @@ class Recorder:
             "embed": self.embed,
             "drift": self.drift,
             "load": self.load,
+            "fakequant": self.fakequant,
         }
 
 
 def test_each_shard_is_downloaded_then_embedded_then_deleted(tmp_path):
     settings = settings_with_objects(tmp_path)
-    recorder = Recorder()
+    recorder = Recorder(tmp_path)
 
     summary = run(
         ["download", "drift", "embed"], settings=settings, shard_size=10, **recorder.kwargs()
@@ -101,34 +106,46 @@ def test_each_shard_is_downloaded_then_embedded_then_deleted(tmp_path):
 
 def test_a_finished_shard_is_not_repeated_and_lost_images_are_refetched(tmp_path):
     settings = settings_with_objects(tmp_path)
-    first = Recorder()
+    first = Recorder(tmp_path)
     run(["download", "embed"], settings=settings, shard_size=10, limit=20, **first.kwargs())
     checkpoint = Checkpoint.for_job(settings, "build_index")
     checkpoint.unmark("embed", ["shard-1"])
-    second = Recorder()
+    second = Recorder(tmp_path)
 
     run(["download", "embed"], settings=settings, shard_size=10, limit=20, **second.kwargs())
 
-    assert second.calls == [("download", 1, 10), ("load", "float16"), ("embed", 1, 10)]
+    assert second.calls == [
+        ("drift", "auto"),
+        ("download", 1, 10),
+        ("load", "float16"),
+        ("embed", 1, 10),
+    ]
 
 
 def test_a_pilot_and_a_full_run_cannot_share_the_feature_directory(tmp_path):
     settings = settings_with_objects(tmp_path)
-    run(["download", "embed"], settings=settings, shard_size=10, limit=5, **Recorder().kwargs())
+    run(
+        ["download", "embed"],
+        settings=settings,
+        shard_size=10,
+        limit=5,
+        **Recorder(tmp_path).kwargs(),
+    )
     manifest = json.loads((tmp_path / "features" / "manifest.json").read_text())
     assert manifest["limit"] == 5
 
     with pytest.raises(RuntimeError, match="different --limit"):
-        run(["download", "embed"], settings=settings, shard_size=10, **Recorder().kwargs())
+        run(["download", "embed"], settings=settings, shard_size=10, **Recorder(tmp_path).kwargs())
     assert Checkpoint.for_job(settings, "build_index").done_keys("embed") == {"shard-0"}
 
 
-def test_drift_failure_aborts_before_any_download(tmp_path):
+@pytest.mark.parametrize("stages", [["download", "drift", "embed"], ["download", "embed"]])
+def test_drift_failure_aborts_before_any_download(tmp_path, stages):
     settings = settings_with_objects(tmp_path)
-    recorder = Recorder(drift_passes=False)
+    recorder = Recorder(tmp_path, drift_passes=False)
 
     with pytest.raises(DriftCheckFailed):
-        run(["download", "drift", "embed"], settings=settings, **recorder.kwargs())
+        run(stages, settings=settings, **recorder.kwargs())
 
     assert recorder.calls == [("drift", "auto")]
     assert not (tmp_path / "images").exists()
@@ -137,12 +154,91 @@ def test_drift_failure_aborts_before_any_download(tmp_path):
 def test_keep_images_needs_a_limit_and_keeps_the_pilot_shard(tmp_path):
     settings = settings_with_objects(tmp_path)
     with pytest.raises(ValueError):
-        run(["download", "embed"], settings=settings, keep_images=True, **Recorder().kwargs())
+        run(
+            ["download", "embed"],
+            settings=settings,
+            keep_images=True,
+            **Recorder(tmp_path).kwargs(),
+        )
 
-    run(["download", "embed"], settings=settings, keep_images=True, limit=5, **Recorder().kwargs())
+    run(
+        ["download", "embed"],
+        settings=settings,
+        keep_images=True,
+        limit=5,
+        **Recorder(tmp_path).kwargs(),
+    )
     assert len(list((tmp_path / "images" / "shard-0").iterdir())) == 5
 
-    run(["cleanup"], settings=settings, **Recorder().kwargs())
+    run(["cleanup"], settings=settings, **Recorder(tmp_path).kwargs())
+    assert not (tmp_path / "images").exists()
+
+
+def test_resume_rejects_changed_shard_size_before_skipping_objects(tmp_path):
+    settings = settings_with_objects(tmp_path)
+    first = Recorder(tmp_path)
+
+    def interrupted_download(shard, tasks, **kwargs):
+        if shard == 1:
+            raise RuntimeError("interrupted")
+        return first.download(shard, tasks, **kwargs)
+
+    with pytest.raises(RuntimeError, match="interrupted"):
+        run(
+            ["download", "embed"],
+            settings=settings,
+            shard_size=10,
+            **{**first.kwargs(), "download": interrupted_download},
+        )
+    resumed = Recorder(tmp_path)
+    with pytest.raises(RuntimeError, match="--shard-size"):
+        run(["download", "embed"], settings=settings, shard_size=20, **resumed.kwargs())
+    assert resumed.calls == []
+    assert Checkpoint.for_job(settings, "build_index").done_keys("embed") == {"shard-0"}
+
+
+def test_separate_embed_stage_is_gated_and_uses_the_passing_dtype(tmp_path):
+    settings = settings_with_objects(tmp_path, count=5)
+    first = Recorder(tmp_path, dtype="float32")
+    run(["download", "drift"], settings=settings, **first.kwargs())
+
+    resumed = Recorder(tmp_path, dtype="float32")
+    run(["embed"], settings=settings, **resumed.kwargs())
+
+    assert resumed.calls == [("drift", "auto"), ("load", "float32"), ("embed", 0, 5)]
+    manifest = json.loads((tmp_path / "features" / "manifest.json").read_text())
+    assert manifest["dtype"] == manifest["driftCheck"]["dtype"] == "float32"
+
+
+def test_separate_embed_stage_rechecks_a_previous_pass(tmp_path):
+    settings = settings_with_objects(tmp_path, count=5)
+    run(["download", "drift"], settings=settings, **Recorder(tmp_path).kwargs())
+    resumed = Recorder(tmp_path, drift_passes=False)
+
+    with pytest.raises(DriftCheckFailed):
+        run(["embed"], settings=settings, **resumed.kwargs())
+
+    assert resumed.calls == [("drift", "auto")]
+    assert not Checkpoint.for_job(settings, "build_index").done_keys("embed")
+
+
+def test_resume_finishes_cleanup_of_an_already_embedded_shard(tmp_path, monkeypatch):
+    settings = settings_with_objects(tmp_path, count=5)
+    first = Recorder(tmp_path)
+
+    def failed_cleanup(path):
+        raise OSError("cleanup interrupted")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(shutil, "rmtree", failed_cleanup)
+        with pytest.raises(OSError, match="cleanup interrupted"):
+            run(["download", "embed"], settings=settings, **first.kwargs())
+    assert (tmp_path / "images" / "shard-0").exists()
+
+    resumed = Recorder(tmp_path)
+    run(["download", "embed"], settings=settings, **resumed.kwargs())
+
+    assert resumed.calls == [("drift", "auto")]
     assert not (tmp_path / "images").exists()
 
 
