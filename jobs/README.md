@@ -343,7 +343,16 @@ time, under the plan's ~5-day STOP line but not by much. That run was started
 and then cancelled at shard 0 on 2026-09-10 as infeasible; the fetcher was then
 brought up to the media rules' actual ceiling (two streams, 25 Mbps, 960 px
 thumbnails) instead of one request per second, which decision 005 had taken
-from the rules for other Wikimedia services (correction recorded there). Any 429/403 streak
+from the rules for other Wikimedia services (correction recorded there).
+
+**Two-stream run, started 2026-09-10 02:47 PDT:** Commons sustains
+**4.5 images/s** (first 500 files, 0 failed, ≈ 8 Mbps), so the corpus projects
+to ≈ 25 h of downloads plus ≈ 2 h of embedding, about **27 h** wall clock.
+Every thumbnail request is a CDN miss for these long-tail files: about half
+are served from storage in ≈ 0.3 s and half are rendered on demand in ≈ 1 s,
+at 960 px and 1280 px alike, so with the policy's two connections latency, not
+bandwidth, sets the rate. It logs to `scratch/logs/full-run-2.log`; the
+cancelled one-stream attempt's state is under `scratch/cancelled-2026-09-10/`. Any 429/403 streak
 stops a source (`SourceBlocked`) and the run resumes from its checkpoint. The
 operator decides between this local run, a reduced corpus (for example only
 paintings with a current placement or a mapped owner), or pulling plan 02.10
