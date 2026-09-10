@@ -16,6 +16,7 @@ const limits = {
   venueConfirm: { kind: 'fixed window', rate: 5, period: DAY },
   queueBump: { kind: 'fixed window', rate: 3, period: DAY },
   labelRead: { kind: 'fixed window', rate: 30, period: HOUR },
+  labelVerify: { kind: 'fixed window', rate: 60, period: HOUR },
   docent: { kind: 'fixed window', rate: 60, period: HOUR },
   rightNow: { kind: 'fixed window', rate: 60, period: HOUR },
   sync: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },

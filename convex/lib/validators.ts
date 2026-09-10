@@ -143,3 +143,55 @@ export type Embedding = Infer<typeof embedding>;
 export const devicePlatform = v.union(v.literal('ios'), v.literal('simulator'));
 
 export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'));
+
+export const labelEvidence = v.union(
+  v.literal('accession'),
+  v.literal('qr'),
+  v.literal('wikidata'),
+  v.literal('tavily'),
+  v.literal('tavily+image'),
+  v.literal('weak'),
+  v.literal('ocr')
+);
+export type LabelEvidence = Infer<typeof labelEvidence>;
+
+export const labelField = v.object({
+  value: v.string(),
+  confidence: v.optional(v.number()),
+  evidence: labelEvidence,
+  locked: v.boolean(),
+});
+export type LabelField = Infer<typeof labelField>;
+
+export const labelFields = v.object({
+  title: v.optional(labelField),
+  artist: v.optional(labelField),
+  date: v.optional(labelField),
+  accession: v.optional(labelField),
+  medium: v.optional(labelField),
+  creditLine: v.optional(labelField),
+});
+export type LabelFields = Infer<typeof labelFields>;
+export type LabelFieldName = keyof LabelFields;
+
+export const labelWarning = v.union(
+  v.literal('artist_not_found'),
+  v.literal('date_outside_lifespan'),
+  v.literal('venue_unlikely')
+);
+export type LabelWarning = Infer<typeof labelWarning>;
+
+export const labelFlow = v.object({
+  stage: v.union(v.literal('qr'), v.literal('read'), v.literal('verified')),
+  fields: labelFields,
+  evidence: v.array(labelEvidence),
+  warnings: v.array(labelWarning),
+  moderation: v.union(v.literal('clear'), v.literal('flagged'), v.literal('unchecked')),
+  promptVersion: v.optional(v.string()),
+  rawOcr: v.optional(v.any()),
+  sourceUrl: v.optional(v.string()),
+  wikidataId: v.optional(v.string()),
+  imageUrls: v.optional(v.array(v.string())),
+  updatedAt: v.number(),
+});
+export type LabelFlow = Infer<typeof labelFlow>;
