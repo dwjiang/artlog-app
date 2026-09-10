@@ -265,13 +265,18 @@ measured over 10-second windows (`BandwidthLimiter`, shared by both streams),
 standard thumbnail sizes only. Commons files are resolved through the
 `imageinfo` API in batches of ≤ 50 titles (one call at a time, `iiurlwidth=960`,
 a pre-rendered standard step that still exceeds the 512 px model input) and
-fetched from the returned `thumburl` on `upload.wikimedia.org`;
-`Special:FilePath?width=` was measured at 0.42 images/s because it is a two-hop
+fetched from the returned `thumburl` on `upload.wikimedia.org`. Files no wider
+than 960 px would come back as originals, so they are queried again at the
+largest standard step below their width (500, 330, 250, …): the media host
+throttles originals far harder than thumbnails (27 of 27 429s across three
+runs hit originals, none a thumbnail path), so the build never fetches an
+original. `Special:FilePath?width=` was measured at 0.42 images/s because it is a two-hop
 redirect chain on the Commons app servers, and `imageinfo` also renders
 TIFF/PDF originals server-side. Files the API reports missing are recorded as
 `commons_missing`. `--streams wikidata=1` and `--mbps` dial the media rules
-down; the defaults are the policy's ceiling. Override rates with
-`--rate met=4,wikidata=0.5`. Transient statuses retry three times with backoff
+down; the defaults are the policy's ceiling, with Wikimedia media requests
+capped at 4 req/s across both streams. Override rates with
+`--rate met=4,wikidata=3`. Transient statuses retry three times with backoff
 and honor `Retry-After`; 20 consecutive 403/429 responses stop that source with
 `SourceBlocked` (halve the rate and report). Temporary failures, including
 403/429s and exhausted transport/server retries, remain pending instead of
@@ -358,6 +363,19 @@ operator decides between this local run, a reduced corpus (for example only
 paintings with a current placement or a mapped owner), or pulling plan 02.10
 forward; Commons' one-request-at-a-time policy applies wherever the job runs,
 so cloud hardware does not shorten the download.
+
+**Throttle finding and the running build (2026-09-10 04:43–04:50 PDT):** the
+two-stream run drew HTTP 429 (`Retry-After: 11`) from `upload.wikimedia.org`
+within minutes and fell to ≈ 3.2 images/s; capped at `--rate wikidata=3.0` it
+still drew 12 in five minutes and fell to 2.0 images/s. Every one of the 27
+429s across those runs was on an original-file URL (files no wider than
+960 px, about a third of requests); thumbnail paths drew none at up to
+4.5 req/s. The resolver now requests a narrower standard step for those files
+so no original is fetched, and the build was restarted with `--rate
+wikidata=4.0` (now the default): ≈ 3 images/s with no 429s in its first
+minutes (`scratch/logs/full-run-3.log`, `full-run-4.log`). Projection: ≈ 37 h
+of downloads plus embedding between shards, about **1.6 days**; interrupting
+and repeating the command resumes.
 
 The whole build was started on 2026-09-10 after the pilot, with the pilot's
 outputs moved to `scratch/pilot-2026-09-10/`. It logs to

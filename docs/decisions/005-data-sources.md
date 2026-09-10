@@ -201,6 +201,14 @@ limits; the one-request-per-second reading measured 1.1 images/s and projected
 4.3 days for the corpus.
 [Robot policy](https://wikitech.wikimedia.org/wiki/Robot_policy)
 
+**Observed 2026-09-10 (plan 02.04 build):** `upload.wikimedia.org` answered
+original-file requests with 429 and `Retry-After: 11` from the first minutes at
+3–4.5 requests/s, while thumbnail paths at the same rates drew none (27 of 27
+throttled responses across three runs were originals; originals were about a
+third of requests). The build therefore never fetches an original: files no
+wider than the 960 px request are fetched at the largest standard step below
+their width. Two connections at ≈ 3 thumbnail requests/s ran clean.
+
 **Met contact outcome:** no museum was contacted. The inquiry to
 `openaccess@metmuseum.org` is [prepared but unsent](../../spikes/data-sources/met-inquiry.md):
 this session has no email connector or supplied sender identity. The
