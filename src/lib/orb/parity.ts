@@ -1,4 +1,4 @@
-import { DESCRIPTOR_BYTES } from '../../../convex/lib/orb/features';
+import { DESCRIPTOR_BYTES } from '@/shared/orb/features';
 
 export type OrbParity = {
   count: number;

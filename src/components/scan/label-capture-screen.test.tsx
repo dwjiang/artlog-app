@@ -471,3 +471,28 @@ it('waits for persisted edits and offers a retry if they cannot be loaded', asyn
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
   expect(await screen.findByRole('button', { name: SHARE_BUTTON })).toBeEnabled();
 });
+
+
+it('opens the camera for an explicit capture intent despite a stored museum confirmation', async () => {
+  mockScan = { labelFlow: verified };
+  await start({ intent: 'capture' });
+  expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
+  expect(screen.queryByText('From the label')).toBeNull();
+  const flow = deferFlow();
+  await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
+  await flow.finish(verified);
+  expect(screen.getByText('From the label')).toBeOnTheScreen();
+});
+
+it('resumes a pending label before starting another capture', async () => {
+  mockScan = { labelFlow: verified };
+  mockCapture = { ...capture, labelPhotoPath: 'labels/pending.jpg' };
+  const view = await start({ intent: 'capture' });
+  expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
+  mockCapture = capture;
+  mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
+  await view.rerender(<LabelCaptureScreen scanId={scanId} intent="capture" />);
+  expect(await screen.findByLabelText('Title')).toHaveProp('defaultValue', 'Water Lilies');
+});

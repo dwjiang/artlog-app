@@ -55,6 +55,7 @@ const IMPORT_SIZE = 56;
 
 export type LabelCaptureScreenProps = {
   scanId: string;
+  intent?: 'capture' | 'review';
 };
 
 type Phase =
@@ -64,12 +65,12 @@ type Phase =
   | { kind: 'queued' }
   | { kind: 'error'; message: string };
 
-export function LabelCaptureScreen({ scanId }: LabelCaptureScreenProps) {
+export function LabelCaptureScreen({ scanId, intent = 'review' }: LabelCaptureScreenProps) {
   // The router reuses this screen for a new scan id; the key drops the previous label's phase and form.
-  return <LabelCapture key={scanId} scanId={scanId} />;
+  return <LabelCapture key={`${scanId}:${intent}`} scanId={scanId} intent={intent} />;
 }
 
-function LabelCapture({ scanId }: LabelCaptureScreenProps) {
+function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const router = useRouter();
   const isFocused = useIsFocused();
   const network = useNetworkState();
@@ -77,7 +78,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
-  const [phase, setPhase] = useState<Phase>({ kind: 'capture' });
+  const [phase, setPhase] = useState<Phase>({ kind: 'capture', restore: intent !== 'capture' });
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
   const [saving, setSaving] = useState(false);
@@ -111,10 +112,10 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
     };
   }, []);
 
-  if (phase.kind === 'queued' || (phase.kind === 'capture' && phase.restore !== false)) {
+  if (phase.kind === 'queued' || phase.kind === 'capture') {
     if (pendingLabel) {
       if (phase.kind === 'capture') setPhase({ kind: 'queued' });
-    } else if (storedFlow?.stage === 'verified' && storedFlow.moderation === 'clear') {
+    } else if ((phase.kind === 'queued' || phase.restore !== false) && storedFlow?.stage === 'verified' && storedFlow.moderation === 'clear') {
       setPhase({ kind: 'review', flow: storedFlow });
     }
   }

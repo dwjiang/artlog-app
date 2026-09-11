@@ -1,4 +1,4 @@
-import { decodeOrbFeatures, verifyOrb } from '../../../convex/lib/orb';
+import { decodeOrbFeatures, verifyOrb } from '@/shared/orb';
 import type { ImageCheck } from '../../../convex/lib/validators';
 import type { ScanFeatures } from '@/lib/capture/features';
 

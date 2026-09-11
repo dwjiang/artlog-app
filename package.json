@@ -92,6 +92,10 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "sandboxInjectedGlobals": ["Math"],
+    "moduleNameMapper": {
+      "^@/shared/(.*)$": "<rootDir>/shared/$1"
+    },
     "setupFiles": [
       "<rootDir>/jest.setup.ts"
     ],

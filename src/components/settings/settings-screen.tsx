@@ -4,8 +4,9 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 
-import { DevTools } from '@/components/settings/dev-tools';
 import { AccountSection } from '@/components/settings/account-section';
+import { DevTools } from '@/components/settings/dev-tools';
+import { MuseumSearchSection } from '@/components/settings/museum-search-section';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -22,6 +23,7 @@ export function SettingsScreen() {
         <ThemedText themeColor="textSecondary">
           Sharing, your optional account, and export.
         </ThemedText>
+        <MuseumSearchSection />
         <AccountSection />
         {/* Placeholder backend check; removed by docs/plans/05-app-ui/06-settings-sharing-account.md */}
         <ThemedText themeColor="textSecondary">

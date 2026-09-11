@@ -21,6 +21,7 @@ export type ContributeInput = {
   scanId: Id<'scans'>;
   capture: Pick<PendingScan, 'cropPath' | 'descriptors' | 'keypoints'>;
   state: LabelFormState;
+  museumSearchUpdatedAt?: number;
 };
 
 export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<'_storage'>> {
@@ -33,10 +34,10 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<'_s
 }
 
 /** Design §4.5: the fingerprint, the label fields and the consented crop leave the phone; the full photo never does. */
-export async function contributeLabel({ scanId, capture, state }: ContributeInput): Promise<ContributionOutcome> {
+export async function contributeLabel({ scanId, capture, state, museumSearchUpdatedAt }: ContributeInput): Promise<ContributionOutcome> {
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error('A title and an artist are required to share');
-  await saveLabelDraft(scanId, state);
+  await saveLabelDraft(scanId, state, museumSearchUpdatedAt);
   // A previous attempt may have verified edits before its upload failed.
   const scan = await convex.query(api.scans.get, { scanId });
   if (scan?.labelFlow?.stage !== 'verified' || differsFromFlow(state, scan.labelFlow)) {

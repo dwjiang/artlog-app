@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
-import { encodeOrbFeatures } from './lib/orb';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { encodeOrbFeatures } from '../shared/orb';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { completion, jsonResponse } from './lib/labelFixtures';
 import { FIXTURE_NOW } from './lib/rightNowFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';

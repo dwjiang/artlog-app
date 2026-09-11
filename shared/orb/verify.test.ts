@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest';
 
 import { applyHomography, mulberry32 } from './homography';
-import { makeRandomFeatures, makeSyntheticPair } from './testFixtures';
+import { makeRandomFeatures, makeSyntheticPair } from './test-fixtures';
 import { verifyOrb } from './verify';
 
 const inputSize = 512;

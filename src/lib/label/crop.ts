@@ -48,6 +48,17 @@ export async function prepareLabelPhoto(uri: string): Promise<EncodedPhoto> {
   return { base64: result.base64, width: result.width, height: result.height };
 }
 
+export async function prepareMuseumSearchCrop(uri: string): Promise<string> {
+  for (const longSide of [1024, 800]) {
+    const result = await (await renderWithin(uri, longSide)).saveAsync({
+      format: SaveFormat.JPEG, compress: 0.8, base64: true,
+    });
+    removeFile(result.uri);
+    if (result.base64 && decodedBytes(result.base64) <= MAX_LABEL_PHOTO_BYTES) return result.base64;
+  }
+  throw new Error('image_too_large');
+}
+
 /** The consented crop for upload: the letterboxed square at 256 px, JPEG 0.85, written to the cache; the caller removes it. */
 export async function resizeCropForContribution(cropUri: string): Promise<ImageResult> {
   const image = await renderWithin(cropUri, CONTRIBUTION_CROP_SIZE);

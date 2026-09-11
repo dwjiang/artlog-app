@@ -1,4 +1,4 @@
-"""ORB features in the wire format owned by plan 04.01 (`convex/lib/orb/features.ts`):
+"""ORB features in the wire format owned by plan 04.01 (`shared/orb/features.ts`):
 descriptors are `count×32` bytes; keypoints are `count×4` little-endian float32
 `[x, y, size, angle]` in letterboxed pixel space; `count ≤ 1000`."""
 

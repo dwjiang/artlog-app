@@ -4,7 +4,7 @@ import model from '../shared/model-version.json';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { runPipeline } from './lib/identifyPipeline';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { loadCurrentPlacement } from './lib/placements';
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
 import { proposePlacementFromScan } from './placements';

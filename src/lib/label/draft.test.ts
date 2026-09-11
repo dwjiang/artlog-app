@@ -24,3 +24,19 @@ it('persists edit provenance per scan and clears it for a new label', async () =
   expect(await loadLabelDraft(first)).toBeUndefined();
   expect(await loadLabelDraft(second)).toEqual(draft);
 });
+
+it('restores a sharing draft only for the label or museum confirmation it belongs to', async () => {
+  const scanId = 'draft-origin' as Id<'scans'>;
+  const state = formStateFromFlow({
+    stage: 'verified', moderation: 'clear', evidence: [], warnings: [], updatedAt: 1,
+    fields: { title: { value: 'My title', evidence: 'ocr', locked: false } },
+  });
+  await saveLabelDraft(scanId, state);
+  expect(await loadLabelDraft(scanId, 2)).toBeUndefined();
+  await saveLabelDraft(scanId, state, 2);
+  expect(await loadLabelDraft(scanId, 2)).toEqual(state);
+  expect(await loadLabelDraft(scanId)).toBeUndefined();
+  expect(await loadLabelDraft(scanId, 3)).toBeUndefined();
+  await clearLabelDraft(scanId);
+  expect(await loadLabelDraft(scanId, 2)).toBeUndefined();
+});

@@ -67,7 +67,8 @@ delays are waited out before another request to that host.
 ```sh
 cd jobs && uv run pytest -q
 cd jobs && uv run ruff check . && uv run ruff format --check .
-npm run test:convex                                          # convex/ingest.test.ts, convex/lib/orb/pythonFixture.test.ts
+npm run test:convex                                          # convex/ingest.test.ts
+npm run test:app -- --runInBand shared/orb/python-fixture.test.ts
 npx convex dev --once                                        # push ingest functions
 ```
 

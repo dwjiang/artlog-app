@@ -1,6 +1,6 @@
 import type { Mat } from 'react-native-fast-opencv';
 
-import { DESCRIPTOR_BYTES, encodeOrbFeatures } from '../../../convex/lib/orb/features';
+import { DESCRIPTOR_BYTES, encodeOrbFeatures } from '@/shared/orb/features';
 import model from '../../../shared/model-version.json';
 
 import type { FastOpenCV } from '@/lib/image/opencv';

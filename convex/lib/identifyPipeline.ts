@@ -1,7 +1,7 @@
 import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
 import { decide, scoreCandidates, type CalibratorConfig, type Decision, type GalleryRelation } from './calibrator';
-import { decodeOrbFeatures, verifyOrb, type OrbFeatures, type VerifyResult } from './orb';
+import { decodeOrbFeatures, verifyOrb, type OrbFeatures, type VerifyResult } from '../../shared/orb';
 import { effectiveObjectPenalty } from './rejectionPenalty';
 
 const GALLERY_TTL_MS = 15 * 60_000;
