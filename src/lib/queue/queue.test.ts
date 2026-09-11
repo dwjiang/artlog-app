@@ -18,6 +18,7 @@ const mockAction = jest.fn();
 const mockNetworkState = jest.fn();
 const mockNetworkListener = jest.fn();
 const mockExtract = jest.fn();
+const mockResolveVisit = jest.fn();
 const mockFlush = jest.fn();
 const mockStart = jest.fn();
 const mockStop = jest.fn();
@@ -25,6 +26,7 @@ let mockDocumentsUri = 'file:///documents';
 let flushDeps: FlushDependencies;
 
 jest.mock('@/db/repos/pending-scans', () => mockRepo);
+jest.mock('@/lib/venue/visit-sync', () => ({ resolveScanVisit: (...args: unknown[]) => mockResolveVisit(...args) }));
 jest.mock('@/lib/files/photos', () => ({
   persistCapture: (...args: unknown[]) => mockPersist(...args),
   captureFileUri: (path: string) => `${mockDocumentsUri}/${path}`,
@@ -54,7 +56,7 @@ const { runCapture } = jest.requireActual<typeof import('../capture/pipeline')>(
 const scanId = 'scan-1' as Id<'scans'>;
 const payload: CapturePayload = {
   localId: 'cap-1', vector: [0.5], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: model.modelVersion,
-  venueId: 'museum-1' as Id<'museums'>, capturedAt: 123, photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg',
+  venueId: 'museum-1' as Id<'museums'>, visitLocalId: 'local-visit', capturedAt: 123, photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg',
 };
 
 beforeEach(() => {
@@ -76,7 +78,7 @@ it('persists both files before inserting the row with the requested status', asy
     localId: 'cap-1', photoPath: 'photos/cap-1.jpg', cropPath: 'crops/cap-1.jpg',
     vector: [0.5], descriptors: payload.descriptors, keypoints: payload.keypoints, modelVersion: model.modelVersion,
     attemptModelVersion: model.modelVersion,
-    venueId: 'museum-1', visitId: undefined, capturedAt: 123, status: 'identifying', createdAt: expect.any(Number),
+    venueId: 'museum-1', visitId: undefined, visitLocalId: 'local-visit', capturedAt: 123, status: 'identifying', createdAt: expect.any(Number),
   });
   expect(mockPersist.mock.invocationCallOrder[0]).toBeLessThan(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]);
   expect(mockFlush).not.toHaveBeenCalled();
@@ -165,6 +167,9 @@ it('resets a failed row and flushes on manual retry', async () => {
 });
 
 it('wires identify, reachability and re-embedding into the flusher', async () => {
+  mockResolveVisit.mockResolvedValue('remote-visit');
+  expect(await flushDeps.resolveVisitId('local-visit', 'museum-1' as Id<'museums'>)).toBe('remote-visit');
+  expect(mockResolveVisit).toHaveBeenCalledWith('local-visit', 'museum-1');
   mockAction.mockResolvedValue('response');
   const args = { localId: 'cap-1', vector: [1], descriptors: new ArrayBuffer(1), keypoints: new ArrayBuffer(1), modelVersion: 'v', capturedAt: 1 };
   expect(await flushDeps.identify(args)).toBe('response');

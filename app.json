@@ -16,7 +16,6 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Artlog uses the camera to identify paintings and read wall labels.",
         "NSPhotoLibraryUsageDescription": "Artlog can identify paintings from photos you already took.",
-        "NSLocationWhenInUseUsageDescription": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
@@ -56,7 +55,15 @@
           "microphonePermission": false
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

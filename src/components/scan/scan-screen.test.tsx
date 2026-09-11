@@ -20,6 +20,7 @@ const mockImport = jest.fn();
 const mockSelectionHaptic = jest.fn();
 const mockImpactHaptic = jest.fn();
 const mockGetCaptureQuad = jest.fn();
+const mockResolveVenue = jest.fn();
 const mockFrameOutput = { kind: 'frame-output' };
 const mockDetectorActive: boolean[] = [];
 
@@ -48,6 +49,7 @@ jest.mock('react-native-vision-camera', () => ({
 jest.mock('@/lib/capture/use-capture', () => ({
   useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false, timings: mockTimings }),
 }));
+jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue() }));
 jest.mock('@/lib/capture/use-rect-detector', () => ({
   useRectDetector: (active: boolean) => {
     mockDetectorActive.push(active);
@@ -81,6 +83,7 @@ beforeEach(() => {
   mockRequest.mockResolvedValue(true);
   mockImport.mockResolvedValue(undefined);
   mockGetCaptureQuad.mockReturnValue(null);
+  mockResolveVenue.mockResolvedValue({ venueId: 'museum-1', visitId: 'visit-1', visitLocalId: 'local-visit' });
   mockCapture.mockImplementation(async (getInput: () => Promise<CaptureInput>) => getInput());
 });
 afterEach(() => jest.restoreAllMocks());
@@ -102,7 +105,7 @@ it('enables the shutter once the camera runs, whatever the live outline says, wi
   expect(screen.getByText('guidance:ready')).toBeOnTheScreen();
 });
 
-it('captures a URI and the unsmoothed capture quad in preview orientation with a selection haptic', async () => {
+it('captures a URI, the unsmoothed quad and the resolved venue in preview orientation with a selection haptic', async () => {
   jest.spyOn(console, 'debug').mockImplementation(() => {});
   const quad: CaptureInput['quad'] = [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]];
   mockGuidance = 'ready';
@@ -115,8 +118,9 @@ it('captures a URI and the unsmoothed capture quad in preview orientation with a
   expect(mockSelectionHaptic).toHaveBeenCalledTimes(1);
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   await expect(mockCapture.mock.results[0].value).resolves.toMatchObject({
-    photoUri: 'file:///photo.jpg', quad, source: 'camera', capturedAt: expect.any(Number),
+    photoUri: 'file:///photo.jpg', quad, source: 'camera', capturedAt: expect.any(Number), venueId: 'museum-1', visitId: 'visit-1', visitLocalId: 'local-visit',
   });
+  expect(mockResolveVenue).toHaveBeenCalledTimes(1);
 });
 
 it('pauses the camera and detector when another tab is focused or the app backgrounds', async () => {

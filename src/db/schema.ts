@@ -22,6 +22,7 @@ export const visits = sqliteTable('visits', {
   startedAt: integer().notNull(),
   endedAt: integer(),
   remoteVisitId: text().$type<Id<'visits'>>(),
+  endSyncedAt: integer(),
 });
 
 /** An immutable snapshot of what the user saw (design §4.2 *Moves*): only notes, deletion and sync state change. */
@@ -72,6 +73,7 @@ export const pendingScans = sqliteTable(
     modelVersion: text().notNull(),
     venueId: text().$type<Id<'museums'>>(),
     visitId: text().$type<Id<'visits'>>(),
+    visitLocalId: text().references(() => visits.localId),
     capturedAt: integer().notNull(),
     labelPhotoPath: text(),
     qrUrl: text(),

@@ -115,6 +115,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "visitLocalId": {
+          "name": "visitLocalId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "capturedAt": {
           "name": "capturedAt",
           "type": "integer",
@@ -191,7 +198,21 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "pendingScans_visitLocalId_visits_localId_fk": {
+          "name": "pendingScans_visitLocalId_visits_localId_fk",
+          "tableFrom": "pendingScans",
+          "tableTo": "visits",
+          "columnsFrom": [
+            "visitLocalId"
+          ],
+          "columnsTo": [
+            "localId"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -419,6 +440,13 @@
         "remoteVisitId": {
           "name": "remoteVisitId",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "endSyncedAt": {
+          "name": "endSyncedAt",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

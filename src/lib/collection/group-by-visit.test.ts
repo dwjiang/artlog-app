@@ -6,7 +6,7 @@ import type { SavedWork, Visit } from '@/db/schema';
 const venueId = 'museum-1' as Id<'museums'>;
 
 function visit(localId: string, venueName: string, startedAt: number): Visit {
-  return { localId, venueId, venueName, startedAt, endedAt: null, remoteVisitId: null };
+  return { localId, venueId, venueName, startedAt, endedAt: null, remoteVisitId: null, endSyncedAt: null };
 }
 
 function work(localId: string, visitLocalId: string | null, savedAt: number): SavedWork {

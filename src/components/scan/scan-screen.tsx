@@ -11,13 +11,12 @@ import { CameraPermission } from './camera-permission';
 import { GuidanceLabel, ViewfinderOverlay } from './viewfinder-overlay';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
-import type { CaptureInput, CaptureTimings } from '@/lib/capture/stages';
+import type { CaptureTimings } from '@/lib/capture/stages';
 import { useCapture } from '@/lib/capture/use-capture';
 import { useRectDetector } from '@/lib/capture/use-rect-detector';
+import { resolveVenueForScan } from '@/lib/venue/use-venue';
 
-type ScanScreenProps = Pick<CaptureInput, 'venueId' | 'visitId'>;
-
-export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
+export function ScanScreen() {
   const isFocused = useIsFocused();
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
@@ -47,7 +46,8 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
       const quad = detector.getCaptureQuad();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       if (__DEV__) console.debug('Captured photo', filePath);
-      return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, venueId, visitId };
+      const context = await resolveVenueForScan();
+      return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, ...context };
     });
   }
 
