@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import model from '../shared/model-version.json';
 import { internal } from './_generated/api';
 import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS } from './ingest';
+import { seedContribution, seedDevice } from './lib/testFactories';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.*s');
@@ -117,6 +118,30 @@ describe('upserting museums and artworks', () => {
 });
 
 describe('upserting objects', () => {
+  it.each(['accession', 'page'] as const)('uses a corrected artwork assignment for later promotion by %s', async (identity) => {
+    const { t, objectId } = await seeded();
+    const device = await seedDevice(t);
+    const corrected = { ...wheatField, key: 'met:corrected', title: 'Cypresses', wikidataId: undefined };
+    const { ids } = await t.mutation(internal.ingest.upsertArtworks, { rows: [corrected] });
+    await t.mutation(internal.ingest.upsertObjects, { rows: [{ ...metObject, artworkKey: corrected.key }] });
+    const object = await t.run((ctx) => ctx.db.get(objectId));
+    expect(object?.artworkId).toBe(ids[corrected.key]);
+    const contributionId = await t.run((ctx) => seedContribution(ctx, {
+      deviceId: device.deviceId, venueId: object!.ownerId!, evidence: ['qr'],
+      sourceUrl: identity === 'page' ? metObject.pageUrl : undefined,
+      fields: {
+        title: { value: corrected.title, evidence: 'qr', edited: false },
+        artist: { value: corrected.artist, evidence: 'qr', edited: false },
+        accession: identity === 'accession' ? { value: metObject.accession, evidence: 'qr', edited: false } : undefined,
+      },
+    }));
+    const promotedId = await t.mutation(internal.promotion.apply, { contributionId, partners: [] });
+    expect(promotedId).not.toBeNull();
+    const promoted = await t.run((ctx) => ctx.db.get(promotedId!));
+    expect(promoted?.artworkId).toBe(ids[corrected.key]);
+    expect(await t.run((ctx) => ctx.db.get(promoted!.artworkId))).toMatchObject({ title: corrected.title });
+  });
+
   it('resolves artwork and owner keys and initializes counters only on insert', async () => {
     const { t, objectId } = await seeded();
     await t.run((ctx) => ctx.db.patch(objectId, { confirmCount: 3, calibratorPenalty: 0.2 }));
@@ -245,7 +270,8 @@ describe('placements, vectors and descriptors', () => {
     ).toMatchObject({ code: 'bad_dimension', expected: model.embeddingDim, actual: 2 });
   });
 
-  it('updates a full vector batch with multiple sources within transaction limits', async () => {
+  // A full 1536-dim batch under transaction limits takes ~2 s alone and more under parallel suite load.
+  it('updates a full vector batch with multiple sources within transaction limits', { timeout: 20_000 }, async () => {
     const t = convexTest({ schema, modules, transactionLimits: true });
     await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
     await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });

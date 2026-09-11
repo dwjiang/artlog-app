@@ -7,6 +7,7 @@ import { action, internalMutation, internalQuery, mutation, query, type Mutation
 import { requireAttestedWrite } from './devices';
 import { decodeQuery } from './identify';
 import { requireDevice, requireDeviceFromAction } from './lib/auth';
+import { cosine } from './lib/cosine';
 import { FIELD_NAMES } from './lib/labelVerify';
 import { limitDevice } from './lib/rateLimits';
 import {
@@ -81,18 +82,6 @@ function resolveFields(flow: LabelFlow, submitted: SubmittedFields): Contributio
 
 function evidenceOf(fields: ContributionFields): EvidenceKind[] {
   return [...new Set(FIELD_NAMES.flatMap((name) => fields[name] ? [fields[name].evidence] : []))];
-}
-
-function cosine(a: number[], b: number[]): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  return normA && normB ? dot / Math.sqrt(normA * normB) : 0;
 }
 
 const duplicatePage = v.object({ duplicate: v.boolean(), cursor: v.union(v.string(), v.null()) });
@@ -198,6 +187,7 @@ export const commit = internalMutation({
       deviceId: device._id, venueId: scan.venueId, scanId, vector: scan.vector, modelVersion: scan.modelVersion,
       descriptors: args.descriptors, keypoints: args.keypoints, keypointCount: args.keypointCount,
       cropStorageId: duplicate ? undefined : cropStorageId, rawOcr: flow.rawOcr, fields, evidence: evidenceOf(fields),
+      sourceUrl: flow.sourceUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
       wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
       status: duplicate ? 'rejected' : 'private', rejectedReason: duplicate ? 'duplicate' : undefined, createdAt: Date.now(),

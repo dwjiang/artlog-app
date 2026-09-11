@@ -25,6 +25,7 @@ export const placementSource = v.union(
   v.literal('feed'),
   v.literal('checklist'),
   v.literal('proposal'),
+  v.literal('contribution'),
   v.literal('manual')
 );
 export type PlacementSource = Infer<typeof placementSource>;
@@ -80,7 +81,11 @@ export const evidenceKind = v.union(
 );
 export type EvidenceKind = Infer<typeof evidenceKind>;
 
-export const contributionRejectedReason = v.literal('duplicate');
+export const contributionRejectedReason = v.union(
+  v.literal('duplicate'),
+  v.literal('device_reverted'),
+  v.literal('object_reverted')
+);
 export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;
 
 export const candidateSignal = v.object({

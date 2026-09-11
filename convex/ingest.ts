@@ -4,6 +4,7 @@
 import { ConvexError, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
+import { registerMuseumObject } from './lib/museumWorkIdentity';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -258,6 +259,7 @@ export const upsertObjects = internalMutation({
         });
         inserted += 1;
       }
+      await registerMuseumObject(ctx, fields);
     }
     await bumpCounter(ctx, 'objects', inserted);
     return { ids };

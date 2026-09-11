@@ -6,6 +6,50 @@ import { factSheetEntry } from './lib/validators';
 import schema from './schema';
 
 const MAX_ROWS = 100;
+const REVIEW_PAGE_BYTES = 1024 * 1024;
+const cursorArg = v.union(v.string(), v.null());
+
+const contributionFields = schema.tables.contributions.validator.fields;
+// Vectors and descriptors stay out of the listing; the dashboard reads JSON.
+const contributionReview = v.object({
+  _id: v.id('contributions'), deviceId: contributionFields.deviceId, venueId: contributionFields.venueId,
+  scanId: contributionFields.scanId, fields: contributionFields.fields, evidence: contributionFields.evidence,
+  wikidataId: contributionFields.wikidataId, status: contributionFields.status, rejectedReason: contributionFields.rejectedReason,
+  promotedObjectId: contributionFields.promotedObjectId, promotionNote: contributionFields.promotionNote,
+  createdAt: contributionFields.createdAt,
+});
+
+// Design §8: flagged works and agreed proposals land in a review queue read from the dashboard, e.g.
+// `npx convex run review:listFlaggedObjects`.
+export const listFlaggedObjects = internalQuery({
+  args: {},
+  returns: v.array(schema.doc('objects')),
+  handler: (ctx) =>
+    ctx.db.query('objects').withIndex('by_flaggedForReview', (q) => q.eq('flaggedForReview', true)).order('desc').take(MAX_ROWS),
+});
+
+export const listPendingContributions = internalQuery({
+  args: { status: v.optional(contributionFields.status), cursor: v.optional(cursorArg) },
+  returns: v.object({ rows: v.array(contributionReview), cursor: cursorArg }),
+  handler: async (ctx, { status, cursor }) => {
+    const page = await ctx.db.query('contributions')
+      .withIndex('by_status', (q) => q.eq('status', status ?? 'pending')).order('desc')
+      .paginate({ cursor: cursor ?? null, numItems: MAX_ROWS, maximumBytesRead: REVIEW_PAGE_BYTES });
+    return { rows: page.page.map((row) => ({
+      _id: row._id, deviceId: row.deviceId, venueId: row.venueId, scanId: row.scanId, fields: row.fields, evidence: row.evidence,
+      wikidataId: row.wikidataId, status: row.status, rejectedReason: row.rejectedReason, promotedObjectId: row.promotedObjectId,
+      promotionNote: row.promotionNote, createdAt: row.createdAt,
+    })), cursor: page.isDone ? null : page.continueCursor };
+  },
+});
+
+export const listProposalsReady = internalQuery({
+  args: {},
+  returns: v.array(schema.doc('placementProposals')),
+  handler: (ctx) =>
+    ctx.db.query('placementProposals').withIndex('by_status', (q) => q.eq('status', 'pending'))
+      .filter((q) => q.eq(q.field('readyForReview'), true)).order('desc').take(MAX_ROWS),
+});
 
 // Dashboard query: `npx convex run review:listCorrections`.
 export const listCorrections = internalQuery({

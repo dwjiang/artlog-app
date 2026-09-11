@@ -82,6 +82,8 @@ export default defineSchema({
     imageRef: v.optional(v.string()),
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
+    // The contributor's consented crop: the card thumbnail for `source: user` works (design §4.7).
+    thumbnailStorageId: v.optional(v.id('_storage')),
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
@@ -92,14 +94,17 @@ export default defineSchema({
       v.object({
         contributionIds: v.array(v.id('contributions')),
         deviceIds: v.array(v.id('devices')),
+        verifiedAccession: v.optional(v.string()),
       })
     ),
     reverted: v.boolean(),
+    revertedReason: v.optional(v.string()),
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
     .index('by_owner_accession', ['ownerId', 'accession'])
-    .index('by_source', ['source']),
+    .index('by_source', ['source'])
+    .index('by_flaggedForReview', ['flaggedForReview']),
 
   placements: defineTable({
     objectId: v.id('objects'),
@@ -226,6 +231,7 @@ export default defineSchema({
     keypointCount: v.number(),
     cropStorageId: v.optional(v.id('_storage')),
     rawOcr: v.optional(v.any()),
+    sourceUrl: v.optional(v.string()),
     fields: v.object({
       title: contributionField,
       artist: contributionField,
@@ -239,6 +245,7 @@ export default defineSchema({
     status: contributionStatus,
     rejectedReason: v.optional(contributionRejectedReason),
     promotedObjectId: v.optional(v.id('objects')),
+    promotionNote: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
@@ -246,6 +253,7 @@ export default defineSchema({
     .index('by_cropStorageId', ['cropStorageId'])
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
+    .index('by_promotedObjectId', ['promotedObjectId'])
     .index('by_venue_status', ['venueId', 'status']),
 
   feedback: defineTable({
@@ -263,11 +271,30 @@ export default defineSchema({
     venueMismatch: v.boolean(),
     penaltyAdded: v.number(),
     resolution: feedbackResolution,
+    // A duplicate depends on another resolution's vector and must be reconsidered if that vector is removed.
+    multiViewAt: v.optional(v.number()),
+    multiViewVectorId: v.optional(v.id('vectors')),
+    multiViewDuplicateVectorId: v.optional(v.id('vectors')),
+    multiViewAgreement: v.optional(v.object({ firstDeviceId: v.id('devices'), secondDeviceId: v.id('devices') })),
     createdAt: v.number(),
   })
     .index('by_rejectedObjectId', ['rejectedObjectId'])
     .index('by_device_object', ['deviceId', 'rejectedObjectId'])
-    .index('by_scanId', ['scanId']),
+    .index('by_scanId', ['scanId'])
+    .index('by_venueId', ['venueId'])
+    .index('by_resolution_object_venue', ['resolution.kind', 'resolution.objectId', 'venueId', 'createdAt'])
+    .index('by_resolution_multiView', ['resolution.kind', 'multiViewAt', 'createdAt'])
+    .index('by_multiViewFirstDevice', ['multiViewAgreement.firstDeviceId'])
+    .index('by_multiViewDuplicateVectorId', ['multiViewDuplicateVectorId'])
+    .index('by_multiViewSecondDevice', ['multiViewAgreement.secondDeviceId']),
+
+  promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),
+
+  museumWorkIdentities: defineTable({
+    venueId: v.id('museums'),
+    identity: v.string(),
+    artworkId: v.id('artworks'),
+  }).index('by_venue_identity', ['venueId', 'identity']),
 
   scans: defineTable({
     deviceId: v.id('devices'),
@@ -319,6 +346,7 @@ export default defineSchema({
     firstSeenAt: v.number(),
     trustWeight: v.number(),
     banned: v.boolean(),
+    bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id('accounts')),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
