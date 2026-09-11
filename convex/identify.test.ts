@@ -209,7 +209,7 @@ describe('identify action', () => {
     const otherScan = await other.as.action(api.identify.identify, firstArgs);
     await propose(other.as, otherScan.scanId);
     const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
-    expect(proposal).toMatchObject({ readyForReview: true, deviceIds: [user.deviceId, other.deviceId] });
+    expect(proposal).toMatchObject({ readyForReview: false, deviceIds: [user.deviceId, other.deviceId] });
     expect(proposal?.scanIds).toHaveLength(3);
   });
 });

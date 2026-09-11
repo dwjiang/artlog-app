@@ -11,6 +11,7 @@
 import type * as appAttestNode from "../appAttestNode.js";
 import type * as artworks from "../artworks.js";
 import type * as auth from "../auth.js";
+import type * as checklists from "../checklists.js";
 import type * as collections from "../collections.js";
 import type * as contributions from "../contributions.js";
 import type * as corrections from "../corrections.js";
@@ -75,6 +76,7 @@ import type * as lib_venueOptOut from "../lib/venueOptOut.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as museumSearch from "../museumSearch.js";
 import type * as museums from "../museums.js";
+import type * as placements from "../placements.js";
 import type * as promotion from "../promotion.js";
 import type * as revert from "../revert.js";
 import type * as review from "../review.js";
@@ -94,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
   artworks: typeof artworks;
   auth: typeof auth;
+  checklists: typeof checklists;
   collections: typeof collections;
   contributions: typeof contributions;
   corrections: typeof corrections;
@@ -158,6 +161,7 @@ declare const fullApi: ApiFromModules<{
   "lib/wikidata": typeof lib_wikidata;
   museumSearch: typeof museumSearch;
   museums: typeof museums;
+  placements: typeof placements;
   promotion: typeof promotion;
   revert: typeof revert;
   review: typeof review;

@@ -30,6 +30,10 @@ export const placementSource = v.union(
 );
 export type PlacementSource = Infer<typeof placementSource>;
 
+export const checklistExhibition = v.object({
+  title: v.string(), from: v.string(), to: v.string(), sourceUrl: v.string(),
+});
+
 export const seedSource = v.union(v.literal('wikidata'), v.literal('poi'), v.literal('manual'));
 export type SeedSource = Infer<typeof seedSource>;
 

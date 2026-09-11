@@ -5,7 +5,7 @@ import { rejectionPayload } from '../shared/attested-payloads';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalQuery, mutation, type MutationCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';
-import { proposePlacementFromScan } from './identify';
+import { proposePlacementFromScan } from './placements';
 import { requireDevice } from './lib/auth';
 import { loadCurrentPlacement } from './lib/placements';
 import { limitDevice } from './lib/rateLimits';
