@@ -1,3 +1,6 @@
+import type { Doc, Id } from '../_generated/dataModel';
+import type { QueryCtx } from '../_generated/server';
+
 export type PlacementLike = {
   venueId: string;
   gallery?: string;
@@ -24,6 +27,18 @@ export function currentPlacement<T extends PlacementLike>(placements: T[], now: 
     if (best === null || comparePlacements(placement, best) > 0) best = placement;
   }
   return best;
+}
+
+export async function loadCurrentPlacement(
+  ctx: QueryCtx,
+  objectId: Id<'objects'>,
+  now: number
+): Promise<Doc<'placements'> | null> {
+  let placement: Doc<'placements'> | null = null;
+  for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
+    placement = currentPlacement(placement ? [placement, row] : [row], now);
+  }
+  return placement;
 }
 
 function isActive(placement: PlacementLike, now: number): boolean {

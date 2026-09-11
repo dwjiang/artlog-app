@@ -65,12 +65,12 @@ export async function searchEntities(term: string, limit = 10): Promise<SearchHi
   });
 }
 
-export async function getEntities(ids: string[]): Promise<Record<string, WikidataEntity>> {
+export async function getEntities(ids: string[], props = 'labels|claims'): Promise<Record<string, WikidataEntity>> {
   const unique = [...new Set(ids)];
   const entities: Record<string, WikidataEntity> = {};
   for (let offset = 0; offset < unique.length; offset += MAX_IDS) {
     const json = (await call({
-      action: 'wbgetentities', ids: unique.slice(offset, offset + MAX_IDS).join('|'), props: 'labels|claims', languages: 'en',
+      action: 'wbgetentities', ids: unique.slice(offset, offset + MAX_IDS).join('|'), props, languages: 'en',
     })) as { entities?: Record<string, WikidataEntity> };
     for (const [id, entity] of Object.entries(json.entities ?? {})) {
       if (entity && typeof entity === 'object' && entity.missing === undefined) entities[id] = { ...entity, id };
@@ -98,6 +98,28 @@ export function itemValues(entity: WikidataEntity, property: string): string[] {
   return values(entity, property).flatMap((value) => {
     const id = value && typeof value === 'object' ? (value as { id?: unknown }).id : undefined;
     return typeof id === 'string' ? [id] : [];
+  });
+}
+
+export function stringValues(entity: WikidataEntity, property: string): string[] {
+  return values(entity, property).flatMap((value) => (typeof value === 'string' ? [value] : []));
+}
+
+export function monolingualValues(entity: WikidataEntity, property: string): string[] {
+  return values(entity, property).flatMap((value) => {
+    const text = value && typeof value === 'object' ? (value as { text?: unknown }).text : undefined;
+    return typeof text === 'string' ? [text] : [];
+  });
+}
+
+export type Quantity = { amount: number; unit: string };
+
+export function quantityValues(entity: WikidataEntity, property: string): Quantity[] {
+  return values(entity, property).flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const { amount, unit } = value as { amount?: unknown; unit?: unknown };
+    const parsed = typeof amount === 'string' ? Number(amount) : NaN;
+    return Number.isFinite(parsed) ? [{ amount: parsed, unit: typeof unit === 'string' ? unit.split('/').pop() ?? '' : '' }] : [];
   });
 }
 

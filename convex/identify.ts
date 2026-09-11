@@ -1,17 +1,17 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
-import { placementProposalPayload } from '../shared/placement-proposal';
+import { placementProposalPayload } from '../shared/attested-payloads';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { action, internalQuery, mutation, type ActionCtx } from './_generated/server';
+import { action, internalQuery, mutation, type ActionCtx, type MutationCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { requireDeviceFromAction } from './lib/auth';
-import { DEFAULT_CALIBRATOR } from './lib/calibrator';
+import { DEFAULT_CALIBRATOR, featureIndex, type ScoredCandidate } from './lib/calibrator';
 import { runPipeline } from './lib/identifyPipeline';
 import { isSupported, validateVector } from './lib/modelVersion';
-import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from './lib/orb';
-import { currentPlacement } from './lib/placements';
+import { decodeOrbFeatures, OrbFormatError, type OrbFeatures, type VerifyResult } from './lib/orb';
+import { loadCurrentPlacement } from './lib/placements';
 import { limitDevice } from './lib/rateLimits';
 import { scanDisplay, type ScanDisplay } from './scans';
 import schema from './schema';
@@ -52,10 +52,7 @@ export const loadCandidates = internalQuery({
         object.ownerId ? ctx.db.get(object.ownerId) : null,
       ]);
       if (!artwork) continue;
-      let placement: Doc<'placements'> | null = null;
-      for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', object._id))) {
-        placement = currentPlacement(placement ? [placement, row] : [row], now);
-      }
+      const placement = await loadCurrentPlacement(ctx, object._id, now);
       candidates.push({
         object, artwork, similarity, runnerUpSimilarity: 0, placement, institution: owner?.name,
         descriptors: descriptors?.descriptors, keypoints: descriptors?.keypoints,
@@ -87,6 +84,41 @@ export const loadContext = internalQuery({
   },
 });
 
+// Design §4.6: scan evidence never writes `placements`; it accrues on a proposal that a human reviews.
+export async function proposePlacementFromScan(ctx: MutationCtx, input: {
+  scan: Doc<'scans'>; objectId: Id<'objects'>; proposedVenueId: Id<'museums'>; deviceId: Id<'devices'>;
+  beforeWrite?: () => Promise<void>;
+}): Promise<null> {
+  const { scan, objectId, proposedVenueId, deviceId } = input;
+  const object = await ctx.db.get(objectId);
+  if (!object || object.reverted || object.mergedInto) throw new ConvexError({ code: 'invalid_scan' });
+  const artwork = await ctx.db.get(object.artworkId);
+  if (!artwork) throw new ConvexError({ code: 'invalid_scan' });
+  const now = Date.now();
+  const placement = await loadCurrentPlacement(ctx, objectId, now);
+  if (placement?.venueId === proposedVenueId) return null;
+  const existing = await ctx.db.query('placementProposals')
+    .withIndex('by_object_venue', (q) => q.eq('objectId', objectId).eq('proposedVenueId', proposedVenueId))
+    .unique();
+  if (existing?.scanIds.includes(scan._id)) return null;
+  await input.beforeWrite?.();
+  const deviceIds = [...new Set([...(existing?.deviceIds ?? []), deviceId])];
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      scanIds: [...existing.scanIds, scan._id], deviceIds,
+      lastSeenAt: now, readyForReview: deviceIds.length >= 2,
+    });
+  } else {
+    await ctx.db.insert('placementProposals', {
+      objectId, proposedVenueId,
+      kind: artwork.multiplicity === 'unique' ? 'move' : 'new_object',
+      scanIds: [scan._id], deviceIds, firstSeenAt: now, lastSeenAt: now,
+      status: 'pending', readyForReview: false,
+    });
+  }
+  return null;
+}
+
 export const proposeFromScan = mutation({
   args: {
     scanId: v.id('scans'), nonce: v.string(), assertionBase64: v.string(),
@@ -99,38 +131,24 @@ export const proposeFromScan = mutation({
       scan.outcome !== 'confident' || !scan.best) {
       throw new ConvexError({ code: 'invalid_scan' });
     }
-    const objectId = scan.best.objectId;
-    const proposedVenueId = scan.venueId;
-    const [object, artwork] = await Promise.all([ctx.db.get(objectId), ctx.db.get(scan.best.artworkId)]);
-    if (!object || object.reverted || object.mergedInto || !artwork) throw new ConvexError({ code: 'invalid_scan' });
-    const now = Date.now();
-    let placement: Doc<'placements'> | null = null;
-    for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
-      placement = currentPlacement(placement ? [placement, row] : [row], now);
-    }
-    if (placement?.venueId === proposedVenueId) return null;
-    const existing = await ctx.db.query('placementProposals')
-      .withIndex('by_object_venue', (q) => q.eq('objectId', objectId).eq('proposedVenueId', proposedVenueId))
-      .unique();
-    if (existing?.scanIds.includes(args.scanId)) return null;
-    await limitDevice(ctx, 'placementProposal', device._id);
-    const deviceIds = [...new Set([...(existing?.deviceIds ?? []), device._id])];
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        scanIds: [...existing.scanIds, args.scanId], deviceIds,
-        lastSeenAt: now, readyForReview: deviceIds.length >= 2,
-      });
-    } else {
-      await ctx.db.insert('placementProposals', {
-        objectId, proposedVenueId,
-        kind: artwork.multiplicity === 'unique' ? 'move' : 'new_object',
-        scanIds: [args.scanId], deviceIds, firstSeenAt: now, lastSeenAt: now,
-        status: 'pending', readyForReview: false,
-      });
-    }
-    return null;
+    return proposePlacementFromScan(ctx, {
+      scan, objectId: scan.best.objectId, proposedVenueId: scan.venueId, deviceId: device._id,
+      beforeWrite: () => limitDevice(ctx, 'placementProposal', device._id),
+    });
   },
 });
+
+function candidateSignals(
+  scored: ScoredCandidate<LoadedCandidate>[], verifications: Map<Id<'objects'>, VerifyResult>,
+) {
+  return scored.map(({ candidate, probability, features }) => {
+    const verification = verifications.get(candidate.object._id);
+    return {
+      objectId: candidate.object._id, similarity: candidate.similarity, margin: features[featureIndex('margin')],
+      orbInliers: verification?.inlierCount ?? 0, probability, homographyValid: verification?.verified ?? false,
+    };
+  });
+}
 
 async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): Promise<ScanDisplay> {
   const matches = await ctx.vectorSearch('vectors', 'by_vector', {
@@ -160,12 +178,21 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
     best, runnerUps: decision.runnerUps.map(({ candidate, probability }) => ({
       objectId: candidate.object._id, artworkId: candidate.artwork._id, probability,
     })),
+    candidateSignals: candidateSignals([...(top ? [top] : []), ...decision.runnerUps], verifications),
     calibratorVersion: decision.calibratorVersion,
   });
+  if (decision.outcome === 'confident' && top && best) {
+    // Design §9: nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
+    await ctx.scheduler.runAfter(0, internal.docent.ensure, { artworkId: best.artworkId, deviceId: scan.deviceId });
+    await ctx.scheduler.runAfter(0, internal.rightNow.fetch, {
+      scanId: scan._id, generation: scan.generation, artistId: top.candidate.artwork.artistId,
+      artist: top.candidate.artwork.artist, venueId: scan.venueId, deviceId: scan.deviceId,
+    });
+  }
   return ctx.runQuery(internal.scans.getDisplay, { scanId: scan._id, deviceId: scan.deviceId });
 }
 
-function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
+export function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
   try {
     return decodeOrbFeatures(descriptors, keypoints);
   } catch (error) {

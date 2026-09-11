@@ -18,7 +18,7 @@ export type CandidateSignals = {
   orbInliers: number;
   /** ORB verification found a consistent homography. */
   homographyValid: boolean;
-  /** objects.calibratorPenalty, 0..1. */
+  /** Combined corpus and rejection penalties, 0..1. */
   objectPenalty: number;
 };
 

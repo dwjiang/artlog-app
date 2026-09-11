@@ -101,13 +101,22 @@ function urls(value: unknown): string[] {
   return [];
 }
 
-function visibleText(html: string): string {
+export function visibleText(html: string): string {
   return decodeEntities(
     html
       .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' '),
   ).replace(/\s+/g, ' ');
+}
+
+const BOILERPLATE = /<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi;
+
+// Readable page text for the fact-sheet model: the main content region without site chrome.
+export function pageText(html: string, maxChars = 6000): string {
+  const region = /<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i.exec(html)?.[2] ??
+    /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(html)?.[1] ?? html;
+  return visibleText(region.replace(BOILERPLATE, ' ')).trim().slice(0, maxChars);
 }
 
 function splitTitle(value: string): string[] {

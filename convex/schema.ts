@@ -5,8 +5,10 @@ import { v } from 'convex/values';
 
 import model from '../shared/model-version.json';
 import {
+  candidateSignal,
   challengePurpose,
   contributionField,
+  contributionRejectedReason,
   contributionStatus,
   devicePlatform,
   docentSentence,
@@ -17,10 +19,12 @@ import {
   labelFlow,
   matchOutcome,
   multiplicity,
+  museumSearchDisplay,
   objectSource,
   placementSource,
   proposalKind,
   proposalStatus,
+  rightNowCard,
   rightsStatus,
   scanStatus,
   seedSource,
@@ -56,10 +60,15 @@ export default defineSchema({
     factSheetUpdatedAt: v.optional(v.number()),
     docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
     docentUpdatedAt: v.optional(v.number()),
+    // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
+    enrichClaimedAt: v.optional(v.number()),
+    enrichGeneration: v.optional(v.number()),
+    factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
-    .index('by_artistId', ['artistId']),
+    .index('by_artistId', ['artistId'])
+    .index('by_factSheetUpdatedAt', ['factSheetUpdatedAt']),
 
   objects: defineTable({
     key: v.string(),
@@ -76,6 +85,8 @@ export default defineSchema({
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
+    rejectionPenalty: v.optional(v.number()),
+    flaggedForReview: v.optional(v.boolean()),
     mergedInto: v.optional(v.id('objects')),
     provenance: v.optional(
       v.object({
@@ -87,7 +98,8 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
-    .index('by_owner_accession', ['ownerId', 'accession']),
+    .index('by_owner_accession', ['ownerId', 'accession'])
+    .index('by_source', ['source']),
 
   placements: defineTable({
     objectId: v.id('objects'),
@@ -176,6 +188,8 @@ export default defineSchema({
     descriptors: v.number(),
   }),
 
+  // "Right now" cache keyed by artist and region. A row with `pendingAt` set is being fetched; the
+  // scans listed in `waiting` receive the card when it lands, so concurrent misses spend one credit.
   artistContext: defineTable({
     artistId: v.string(),
     region: v.string(),
@@ -184,7 +198,22 @@ export default defineSchema({
     sourceLabel: v.string(),
     empty: v.boolean(),
     fetchedAt: v.number(),
+    pendingAt: v.optional(v.number()),
+    claimId: v.optional(v.string()),
+    waiting: v.optional(v.array(v.object({ scanId: v.id('scans'), generation: v.number() }))),
   }).index('by_artist_region', ['artistId', 'region']),
+
+  factCorrections: defineTable({
+    artworkId: v.id('artworks'),
+    factId: v.string(),
+    message: v.string(),
+    contact: v.optional(v.string()),
+    deviceId: v.id('devices'),
+    createdAt: v.number(),
+    status: v.union(v.literal('open'), v.literal('resolved')),
+  })
+    .index('by_status', ['status'])
+    .index('by_artworkId_status', ['artworkId', 'status']),
 
   contributions: defineTable({
     deviceId: v.id('devices'),
@@ -206,11 +235,16 @@ export default defineSchema({
       creditLine: v.optional(contributionField),
     }),
     evidence: v.array(evidenceKind),
+    wikidataId: v.optional(v.string()),
     status: contributionStatus,
+    rejectedReason: v.optional(contributionRejectedReason),
     promotedObjectId: v.optional(v.id('objects')),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
+    .index('by_scanId', ['scanId'])
+    .index('by_cropStorageId', ['cropStorageId'])
+    .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
     .index('by_venue_status', ['venueId', 'status']),
 
@@ -227,11 +261,13 @@ export default defineSchema({
     probability: v.number(),
     calibratorVersion: v.string(),
     venueMismatch: v.boolean(),
+    penaltyAdded: v.number(),
     resolution: feedbackResolution,
     createdAt: v.number(),
   })
     .index('by_rejectedObjectId', ['rejectedObjectId'])
-    .index('by_device_object', ['deviceId', 'rejectedObjectId']),
+    .index('by_device_object', ['deviceId', 'rejectedObjectId'])
+    .index('by_scanId', ['scanId']),
 
   scans: defineTable({
     deviceId: v.id('devices'),
@@ -264,11 +300,11 @@ export default defineSchema({
         })
       )
     ),
-    docent: v.optional(v.array(docentSentence)),
-    rightNow: v.optional(
-      v.object({ text: v.string(), sourceUrl: v.string(), sourceLabel: v.string() })
-    ),
+    candidateSignals: v.optional(v.array(candidateSignal)),
+    rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
+    museumSearch: v.optional(museumSearchDisplay),
+    museumSearchRevision: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -288,6 +324,7 @@ export default defineSchema({
     attestedAt: v.optional(v.number()),
     attestPublicKey: v.optional(v.string()),
     attestCounter: v.number(),
+    lastContributionId: v.optional(v.id('contributions')),
   })
     .index('by_keyId', ['appAttestKeyId'])
     .index('by_authUserId', ['authUserId'])
@@ -347,6 +384,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
+    .index('by_device_savedAt', ['deviceId', 'savedAt'])
     .index('by_accountId', ['accountId']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),

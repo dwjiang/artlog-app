@@ -3,10 +3,10 @@ import model from '../../../shared/model-version.json';
 import { getVisionRect } from '../../../modules/vision-rect/src';
 import { embedder } from '@/lib/embed/embedder';
 import { filePath } from '@/lib/file-uri';
-import { extractOrb } from '@/lib/orb/extract';
+import { captureStore } from '@/lib/queue/queue';
+import { orb, triage } from './features';
 import { selectCaptureQuad, toCorners } from './rectangle';
 import type { CaptureDependencies, CaptureOptions, Warper } from './stages';
-import { triage } from './triage';
 
 export const warper: Warper = {
   async warpAndLetterbox(photoUri, quad, size) {
@@ -30,12 +30,10 @@ export const warper: Warper = {
 
 export const captureOptions: CaptureOptions = { inputSize: model.inputSize, modelVersion: model.modelVersion };
 
-export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'enqueue'> = {
+export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'store'> = {
   warper,
   triage,
   embedder,
-  orb: { extract: (cropUri) => extractOrb(cropUri) },
-  enqueue: async ({ localId }) => {
-    console.warn('Offline queue pending plan 03.06; capture is not persisted', { localId });
-  },
+  orb,
+  store: captureStore,
 };

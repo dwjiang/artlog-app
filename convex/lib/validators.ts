@@ -61,15 +61,37 @@ export type ScanStatus = Infer<typeof scanStatus>;
 export const matchOutcome = v.union(v.literal('confident'), v.literal('soft'), v.literal('miss'));
 export type MatchOutcome = Infer<typeof matchOutcome>;
 
-export const evidenceKind = v.union(
+export const labelEvidence = v.union(
   v.literal('accession'),
   v.literal('qr'),
   v.literal('wikidata'),
   v.literal('tavily'),
+  v.literal('tavily+image'),
+  v.literal('weak'),
+  v.literal('ocr')
+);
+export type LabelEvidence = Infer<typeof labelEvidence>;
+
+// A contribution field keeps the label evidence it was verified with; editing it downgrades to user_edited.
+export const evidenceKind = v.union(
+  ...labelEvidence.members,
   v.literal('agreement'),
   v.literal('user_edited')
 );
 export type EvidenceKind = Infer<typeof evidenceKind>;
+
+export const contributionRejectedReason = v.literal('duplicate');
+export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;
+
+export const candidateSignal = v.object({
+  objectId: v.id('objects'),
+  similarity: v.number(),
+  margin: v.number(),
+  orbInliers: v.number(),
+  probability: v.number(),
+  homographyValid: v.boolean(),
+});
+export type CandidateSignal = Infer<typeof candidateSignal>;
 
 export const feedbackResolution = v.object({
   kind: v.union(
@@ -98,6 +120,13 @@ export const docentSentence = v.object({
 });
 export type DocentSentence = Infer<typeof docentSentence>;
 
+export const rightNowCard = v.object({
+  text: v.string(),
+  sourceUrl: v.string(),
+  sourceLabel: v.string(),
+});
+export type RightNowCard = Infer<typeof rightNowCard>;
+
 export const snapshotFields = v.object({
   title: v.string(),
   artist: v.string(),
@@ -121,17 +150,6 @@ export type Embedding = Infer<typeof embedding>;
 export const devicePlatform = v.union(v.literal('ios'), v.literal('simulator'));
 
 export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'));
-
-export const labelEvidence = v.union(
-  v.literal('accession'),
-  v.literal('qr'),
-  v.literal('wikidata'),
-  v.literal('tavily'),
-  v.literal('tavily+image'),
-  v.literal('weak'),
-  v.literal('ocr')
-);
-export type LabelEvidence = Infer<typeof labelEvidence>;
 
 export const labelField = v.object({
   value: v.string(),
@@ -173,3 +191,49 @@ export const labelFlow = v.object({
   updatedAt: v.number(),
 });
 export type LabelFlow = Infer<typeof labelFlow>;
+
+// The public shape of the label flow: the raw OCR reading stays server-side.
+export const labelFlowDisplay = labelFlow.omit('rawOcr');
+export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
+
+// The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography (design §4.4).
+export const imageCheck = v.object({ url: v.string(), cosine: v.number(), homographyValid: v.boolean() });
+export type ImageCheck = Infer<typeof imageCheck>;
+
+export const searchCandidate = v.object({
+  sourceUrl: v.string(),
+  fields: v.object({
+    title: v.string(),
+    artist: v.optional(v.string()),
+    date: v.optional(v.string()),
+    accession: v.optional(v.string()),
+    medium: v.optional(v.string()),
+    creditLine: v.optional(v.string()),
+  }),
+  imageUrls: v.array(v.string()),
+});
+export type SearchCandidate = Infer<typeof searchCandidate>;
+
+// Museum-site search state on a scan. `promptVersion` is present whenever a description was attempted.
+export const museumSearchDisplay = v.union(
+  v.object({
+    stage: v.literal('none'),
+    reason: v.union(v.literal('cap'), v.literal('no_candidates')),
+    promptVersion: v.optional(v.string()),
+    updatedAt: v.number(),
+  }),
+  v.object({
+    stage: v.literal('candidates'),
+    candidates: v.array(searchCandidate),
+    promptVersion: v.string(),
+    updatedAt: v.number(),
+  }),
+  v.object({
+    stage: v.literal('confirmed'),
+    candidates: v.array(searchCandidate),
+    selected: v.object({ sourceUrl: v.string(), imageUrl: v.string() }),
+    promptVersion: v.string(),
+    updatedAt: v.number(),
+  })
+);
+export type MuseumSearchDisplay = Infer<typeof museumSearchDisplay>;

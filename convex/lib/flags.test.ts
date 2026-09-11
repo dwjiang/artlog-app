@@ -5,8 +5,9 @@ import { isEnabled } from './flags';
 afterEach(() => vi.unstubAllEnvs());
 
 describe('feature flags', () => {
-  it('defaults the label flow on and Right now off', () => {
+  it('defaults the label flow and museum-site search on and Right now off', () => {
     expect(isEnabled('labelFlow')).toBe(true);
+    expect(isEnabled('museumSearch')).toBe(true);
     expect(isEnabled('rightNow')).toBe(false);
   });
 
@@ -18,6 +19,8 @@ describe('feature flags', () => {
 
     vi.stubEnv('FLAG_RIGHT_NOW', 'off');
     expect(isEnabled('rightNow')).toBe(false);
+    vi.stubEnv('FLAG_MUSEUM_SEARCH', 'off');
+    expect(isEnabled('museumSearch')).toBe(false);
   });
 
   it('falls back to the default for unrecognized values', () => {

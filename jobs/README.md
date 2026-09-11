@@ -96,7 +96,7 @@ same counts and also exits 0.
 ## Layout
 
 - `artlog_jobs/` — the package; tests co-located as `*_test.py`
-- `config/source-scores.json` — Tavily domain scores from spike 00.05
+- `../shared/source-scores.json` — Tavily domain scores from spike 00.05, shared with `convex/lib/sourceScores.ts`
 - `fixtures/` — test inputs (attribution in `fixtures/README.md`)
 - `scratch/`, `out/`, `checkpoints/` — gitignored run outputs
 

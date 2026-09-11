@@ -4,10 +4,12 @@ import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
 import { encodeOrbFeatures } from './lib/orb';
 import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { completion, jsonResponse } from './lib/labelFixtures';
+import { FIXTURE_NOW } from './lib/rightNowFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 const pair = makeSyntheticPair({ count: 120 });
 const capture = () => ({
@@ -41,6 +43,12 @@ describe('identify action', () => {
     expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({ lastConfidentGallery: '4', lastConfidentAt: args.capturedAt });
     const scan = await t.run((ctx) => ctx.db.get(result.scanId));
     expect(scan?.vector).toEqual(args.vector);
+    expect(scan?.candidateSignals).toHaveLength(1);
+    const [signals] = scan!.candidateSignals!;
+    expect(signals).toMatchObject({ objectId: work!.objectId, probability: result.best!.probability, homographyValid: true });
+    expect(signals.similarity).toBeCloseTo(1);
+    expect(signals.margin).toBeCloseTo(1);
+    expect(signals.orbInliers).toBeGreaterThan(0);
   });
 
   it('returns an update status for unsupported models before decoding old feature formats', async () => {
@@ -203,6 +211,88 @@ describe('identify action', () => {
     const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
     expect(proposal).toMatchObject({ readyForReview: true, deviceIds: [user.deviceId, other.deviceId] });
     expect(proposal?.scanIds).toHaveLength(3);
+  });
+});
+
+describe('enrichment after identification', () => {
+  const TOKEN_FACTORY = 'https://api.tokenfactory.nebius.com/v1/chat/completions';
+  const TAVILY = 'https://api.tavily.com/search';
+  const SOURCE = 'https://www.metmuseum.org/art/collection/search/437127';
+
+  function stubProviders() {
+    vi.stubEnv('NEBIUS_API_KEY', 'nebius-test');
+    vi.stubEnv('TAVILY_API_KEY', 'tvly-test');
+    vi.stubEnv('FACT_SHEET_MODEL', 'super');
+    vi.stubEnv('DOCENT_MODEL', 'lightning');
+    vi.stubEnv('FLAG_RIGHT_NOW', 'on');
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body));
+      if (url === TOKEN_FACTORY) {
+        return completion(body.model === 'super'
+          ? [{ id: 'f1', text: 'Monet painted Water Lilies in 1916.', sourceUrl: SOURCE, sourceLabel: 'x', sourceScore: 1 }]
+          : [{ sentence: 'Claude Monet painted these water lilies in 1916.', fact_ids: ['f1'] }]);
+      }
+      if (url === TAVILY && body.topic === 'news') {
+        return jsonResponse({
+          answer: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+          results: [{
+            url: 'https://www.sfmoma.org/press/monet-water-lilies-returns', title: 'Monet’s Water Lilies returns',
+            content: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+            score: 0.82, published_date: new Date(FIXTURE_NOW - 24 * 60 * 60 * 1000).toUTCString(),
+          }],
+          usage: { credits: 1 },
+        });
+      }
+      if (url === TAVILY) {
+        return jsonResponse({
+          results: [{ url: SOURCE, title: 'Water Lilies', content: 'Claude Monet painted this canvas in 1916.', score: 0.9 }],
+          usage: { credits: 1 },
+        });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    return fetchMock;
+  }
+
+  it('schedules docent prose and "Right now" after a confident result without delaying the card', async () => {
+    vi.useFakeTimers({ now: FIXTURE_NOW });
+    const fetchMock = stubProviders();
+    const { t, user, venueId, args, work } = await fixture();
+    await t.run((ctx) => ctx.db.patch(venueId, { region: 'sf-bay-area' }));
+    const result = await user.as.action(api.identify.identify, args);
+    expect(result.outcome).toBe('confident');
+    expect(result.docent).toBeUndefined();
+    expect(result.rightNow).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en).toEqual([
+      { sentence: 'Claude Monet painted these water lilies in 1916.', factIds: ['f1'] },
+    ]);
+    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    expect(display?.docent).toEqual([{ sentence: 'Claude Monet painted these water lilies in 1916.', factIds: ['f1'] }]);
+    expect(display?.factSheet).toEqual([{ id: 'f1', sourceUrl: SOURCE, sourceLabel: 'metmuseum.org' }]);
+    expect(display?.rightNow).toEqual({
+      text: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+      sourceUrl: 'https://www.sfmoma.org/press/monet-water-lilies-returns', sourceLabel: 'sfmoma.org',
+    });
+    expect(await t.run((ctx) => ctx.db.query('dailySpend').collect())).toMatchObject([{ tokenFactoryCalls: 2, tavilyCredits: 2 }]);
+  });
+
+  it('schedules nothing for a soft result', async () => {
+    vi.useFakeTimers({ now: FIXTURE_NOW });
+    const fetchMock = stubProviders();
+    const { t, user, args, work } = await fixture();
+    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) });
+    expect(result.outcome).toBe('soft');
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent).toBeUndefined();
+    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    expect(display).not.toHaveProperty('docent');
+    expect(display).not.toHaveProperty('factSheet');
   });
 });
 
