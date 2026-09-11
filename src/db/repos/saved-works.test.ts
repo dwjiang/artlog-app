@@ -42,5 +42,5 @@ it('records sync without touching the snapshot', async () => {
 });
 
 it('exposes no way to change snapshot fields', () => {
-  expect(Object.keys(repo).sort()).toEqual(['getSavedWork', 'insertSavedWork', 'listSavedWorks', 'markSynced', 'softDeleteSavedWork']);
+  expect(Object.keys(repo).sort()).toEqual(['getSavedWork', 'insertSavedWork', 'listSavedWorks', 'markSynced', 'selectSavedWork', 'softDeleteSavedWork']);
 });

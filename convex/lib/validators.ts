@@ -114,6 +114,10 @@ export const factSheetEntry = v.object({
 });
 export type FactSheetEntry = Infer<typeof factSheetEntry>;
 
+// A fact's citation as the card shows it: the text stays on the artwork.
+export const factChip = v.object({ id: v.string(), sourceUrl: v.string(), sourceLabel: v.string() });
+export type FactChip = Infer<typeof factChip>;
+
 export const docentSentence = v.object({
   sentence: v.string(),
   factIds: v.array(v.string()),

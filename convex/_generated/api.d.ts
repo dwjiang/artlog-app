@@ -9,6 +9,7 @@
  */
 
 import type * as appAttestNode from "../appAttestNode.js";
+import type * as artworks from "../artworks.js";
 import type * as auth from "../auth.js";
 import type * as collections from "../collections.js";
 import type * as contributions from "../contributions.js";
@@ -84,6 +85,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
+  artworks: typeof artworks;
   auth: typeof auth;
   collections: typeof collections;
   contributions: typeof contributions;
