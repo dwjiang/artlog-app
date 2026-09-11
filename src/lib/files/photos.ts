@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
 export type CaptureFiles = { photoPath: string; cropPath: string };
@@ -27,6 +28,11 @@ export async function persistCapture(
   { photoUri, cropUri, localId }: { photoUri: string; cropUri: string; localId: string },
 ): Promise<CaptureFiles> {
   return { photoPath: await moveInto('photos', photoUri, localId), cropPath: await moveInto('crops', cropUri, localId) };
+}
+
+/** Keeps a label photo captured offline beside the scan until the queue reads it (design §5.1). */
+export async function persistLabelPhoto({ photoUri, localId }: { photoUri: string; localId: string }): Promise<string> {
+  return moveInto('labels', photoUri, `${localId}-${randomUUID()}`);
 }
 
 export function deleteCapture(paths: CapturePaths): void {

@@ -1,7 +1,7 @@
 import { getFunctionName } from 'convex/server';
 
 import type { Id } from '../../../convex/_generated/dataModel';
-import { rejectMatch, resolveWithRunnerUp } from './feedback';
+import { handOffLabelRejection, rejectMatch, resolveWithLabel, resolveWithRunnerUp } from './feedback';
 
 const mockSign = jest.fn();
 jest.mock('@/lib/attested-write', () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
@@ -33,4 +33,19 @@ it('resolves a rejection with the picked runner-up', async () => {
   mutation.mockResolvedValue(null);
   await resolveWithRunnerUp(client as never, 'fb-1' as Id<'feedback'>, objectId);
   expect(mutation).toHaveBeenCalledWith('feedback:resolveRejection', { feedbackId: 'fb-1', resolution: { kind: 'runner_up', objectId } });
+});
+
+it('resolves a handed-over rejection even when the contribution finishes first', async () => {
+  let finish!: (id: Id<'feedback'>) => void;
+  handOffLabelRejection(scanId, new Promise((resolve) => { finish = resolve; }));
+  expect(resolveWithLabel(client as never, scanId, 'contrib-1' as Id<'contributions'>)).toBeUndefined();
+  expect(mutation).not.toHaveBeenCalled();
+  finish('fb-1' as Id<'feedback'>);
+  await Promise.resolve();
+  expect(mutation).toHaveBeenCalledWith('feedback:resolveRejection', {
+    feedbackId: 'fb-1', resolution: { kind: 'label', contributionId: 'contrib-1' },
+  });
+  resolveWithLabel(client as never, scanId, 'contrib-1' as Id<'contributions'>);
+  await Promise.resolve();
+  expect(mutation).toHaveBeenCalledTimes(1);
 });

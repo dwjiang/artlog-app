@@ -99,11 +99,23 @@ it('returns rows left identifying by a previous process to the queue', async () 
   await repo.deletePendingScan('b');
 });
 
-it('keeps the label photo and QR URL with the row for the flusher', async () => {
+it('replaces the pending label source and keeps it with the row for the flusher', async () => {
   await enqueueAll(row('a'));
   await repo.setLabelPhoto('a', 'labels/a.jpg');
+  expect(await repo.getPendingScan('a')).toMatchObject({ labelPhotoPath: 'labels/a.jpg', qrUrl: null });
   await repo.setQrUrl('a', 'https://museum.example/qr/1');
-  expect(await repo.getPendingScan('a')).toMatchObject({ labelPhotoPath: 'labels/a.jpg', qrUrl: 'https://museum.example/qr/1' });
+  expect(await repo.getPendingScan('a')).toMatchObject({ labelPhotoPath: null, qrUrl: 'https://museum.example/qr/1' });
   await repo.deletePendingScan('a');
   expect(await repo.getPendingScan('a')).toBeUndefined();
+});
+
+it('keeps a replacement label when an older read completes', async () => {
+  await enqueueAll(row('replacement', { status: 'identified', scanId }));
+  await repo.setLabelPhoto('replacement', 'labels/first.jpg');
+  await repo.setLabelPhoto('replacement', 'labels/second.jpg');
+  await repo.clearPendingLabel('replacement', { labelPhotoPath: 'labels/first.jpg' });
+  expect(await repo.listPendingLabels()).toEqual([expect.objectContaining({ localId: 'replacement', labelPhotoPath: 'labels/second.jpg' })]);
+  await repo.clearPendingLabel('replacement', { labelPhotoPath: 'labels/second.jpg' });
+  expect(await repo.listPendingLabels()).toEqual([]);
+  await repo.deletePendingScan('replacement');
 });

@@ -6,12 +6,15 @@ import model from '../../../shared/model-version.json';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { CapturePayload, IdentifyResponse } from '@/lib/capture/stages';
+import { LabelFlowError } from '@/lib/label/flow';
 import type { FlushDependencies } from './flush';
 
 const mockRepo = {
   enqueuePendingScan: jest.fn(), markIdentified: jest.fn(), markFailed: jest.fn(), recordAttemptFailure: jest.fn(),
   retryPendingScan: jest.fn(), requeueInterrupted: jest.fn(), listFlushable: jest.fn(), markIdentifying: jest.fn(),
   updateFeatures: jest.fn(), resetAttemptsForModel: jest.fn(),
+  listPendingLabels: jest.fn(), clearPendingLabel: jest.fn(), recordLabelFailure: jest.fn(), retryPendingLabel: jest.fn(),
+  getPendingScan: jest.fn(),
 };
 const mockPersist = jest.fn();
 const mockAction = jest.fn();
@@ -20,6 +23,7 @@ const mockNetworkListener = jest.fn();
 const mockExtract = jest.fn();
 const mockResolveVisit = jest.fn();
 const mockFlush = jest.fn();
+const mockRunLabelFlow = jest.fn();
 const mockStart = jest.fn();
 const mockStop = jest.fn();
 let mockDocumentsUri = 'file:///documents';
@@ -33,6 +37,8 @@ jest.mock('@/lib/files/photos', () => ({
 }));
 jest.mock('@/lib/convex-client', () => ({ convex: { action: (...args: unknown[]) => mockAction(...args) } }));
 jest.mock('@/lib/embed/embedder', () => ({ embedder: { name: 'embedder' } }));
+jest.mock('@/lib/label/crop', () => ({ removeFile: jest.fn() }));
+jest.mock('@/lib/label/label-deps', () => ({ runLabelFlowForScan: (...args: unknown[]) => mockRunLabelFlow(...args) }));
 jest.mock('@/lib/capture/features', () => ({
   roundVector: jest.requireActual('@/lib/capture/features').roundVector,
   orb: { name: 'orb' }, extractFeatures: (...args: unknown[]) => mockExtract(...args),
@@ -50,7 +56,7 @@ jest.mock('./flush', () => ({
 }));
 
 // Loaded after the mocks above exist: the factories hand back objects declared in this file.
-const { captureStore, flushQueue, retryPendingScan, startQueueFlusher } = jest.requireActual<typeof import('./queue')>('./queue');
+const { captureStore, discardPendingLabel, flushQueue, retryPendingScan, startQueueFlusher } = jest.requireActual<typeof import('./queue')>('./queue');
 const { runCapture } = jest.requireActual<typeof import('../capture/pipeline')>('../capture/pipeline');
 
 const scanId = 'scan-1' as Id<'scans'>;
@@ -184,8 +190,28 @@ it('wires identify, reachability and re-embedding into the flusher', async () =>
   expect(mockExtract).toHaveBeenCalledWith('file:///new-container/documents/crops/a.jpg', { embedder: { name: 'embedder' }, orb: { name: 'orb' } });
   expect(flushDeps.modelVersion).toBe(model.modelVersion);
   expect(flushDeps.recordFailure).toBe(mockRepo.recordAttemptFailure);
-  await flushDeps.runLabelFlow(scanId, { labelPhotoPath: 'labels/a.jpg', qrUrl: 'https://museum.example/qr' });
-  expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('05.03'), {
-    scanId, labelPhotoUri: 'file:///new-container/documents/labels/a.jpg', qrUrl: 'https://museum.example/qr',
+  mockRunLabelFlow.mockResolvedValue({ stage: 'verified' });
+  await expect(flushDeps.runLabelFlow(scanId, { labelPhotoPath: 'labels/a.jpg', qrUrl: 'https://museum.example/qr' })).resolves.toBeUndefined();
+  expect(mockRunLabelFlow).toHaveBeenCalledWith(scanId, {
+    labelPhotoUri: 'file:///new-container/documents/labels/a.jpg', qrUrl: 'https://museum.example/qr',
   });
+  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: 'https://museum.example/qr' })).resolves.toBeUndefined();
+  expect(mockRunLabelFlow).toHaveBeenLastCalledWith(scanId, { labelPhotoUri: undefined, qrUrl: 'https://museum.example/qr' });
+});
+
+it('preserves transport errors from the label reader for queue backoff', async () => {
+  const cause = new Error('Network request failed');
+  mockRunLabelFlow.mockRejectedValue(new LabelFlowError('network', { cause }));
+  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: 'https://museum.example/qr' })).rejects.toBe(cause);
+});
+
+it('discards only the pending label and its file when the user chooses a retake', async () => {
+  mockRepo.getPendingScan.mockResolvedValue({ labelPhotoPath: 'labels/failed.jpg', qrUrl: null });
+  await discardPendingLabel('cap-1');
+  expect(mockRepo.clearPendingLabel).toHaveBeenCalledWith('cap-1', { labelPhotoPath: 'labels/failed.jpg', qrUrl: undefined });
+  const { removeFile } = jest.requireMock('@/lib/label/crop');
+  expect(removeFile).toHaveBeenCalledWith('file:///documents/labels/failed.jpg');
+  expect(mockRepo.markIdentified).not.toHaveBeenCalled();
+  expect(mockRepo.retryPendingScan).not.toHaveBeenCalled();
+  expect(mockFlush).not.toHaveBeenCalled();
 });

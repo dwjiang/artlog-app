@@ -8,10 +8,11 @@ import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
 import { CameraPermission } from './camera-permission';
 import { DevTimings } from './dev-timings';
+import { OverlayCaption } from './overlay-caption';
 import { QueueBadge } from './queue-badge';
 import { RetakeBanner } from './retake-banner';
 import { VenuePill } from './venue-pill';
-import { GuidanceLabel, OverlayCaption, ViewfinderOverlay } from './viewfinder-overlay';
+import { GuidanceLabel, ViewfinderOverlay } from './viewfinder-overlay';
 import { GlassSurface } from '@/components/glass-surface';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
 import { useCapture } from '@/lib/capture/use-capture';

@@ -12,6 +12,9 @@ export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 
 export type FlushDependencies = {
   listFlushable(modelVersion: string): Promise<PendingScan[]>;
+  listPendingLabels(): Promise<PendingScan[]>;
+  clearPendingLabel(localId: string, label: LabelInput): Promise<void>;
+  recordLabelFailure: FlushDependencies['recordFailure'];
   markIdentifying(localId: string): Promise<void>;
   recordResult(localId: string, response: IdentifyResponse): Promise<void>;
   recordFailure(
@@ -36,15 +39,17 @@ export function backoffMs(attempts: number): number {
 }
 
 /**
- * Sends queued captures oldest first, one run at a time. Transient failures stop the run without
- * counting an attempt; other failures count and keep going, so one bad capture never blocks the rest.
+ * Sends queued captures oldest first, one run at a time. Transient failures pause only their task
+ * type without counting an attempt; other failures count and keep going.
  */
 export function createFlusher(deps: FlushDependencies): Flusher {
   let inFlight: Promise<void> | undefined;
   let rerun = false;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
-  let transientFailures = 0;
-  let pauseUntil = 0;
+  const backoff = {
+    identify: { transientFailures: 0, pauseUntil: 0 },
+    label: { transientFailures: 0, pauseUntil: 0 },
+  };
   const retryAt = new Map<string, number>();
   let active = false;
   let generation = 0;
@@ -87,59 +92,71 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     });
     // Convex actions cannot be cancelled; retain an already-sent request's result after cleanup.
     await deps.recordResult(row.localId, response);
-    if (!isCurrent()) return;
     const label: LabelInput = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
-    const missed = response.status === 'identified' && (response.outcome === 'soft' || response.outcome === 'miss');
-    if (missed && (label.labelPhotoPath || label.qrUrl)) {
-      try {
-        await deps.runLabelFlow(response.scanId, label);
-      } catch (error) {
-        console.warn('Label flow failed for a queued scan', { localId: row.localId, error });
-      }
+    if (response.status === 'identified' && response.outcome === 'confident' && (label.labelPhotoPath || label.qrUrl)) {
+      await deps.clearPendingLabel(row.localId, label);
     }
   }
 
+  async function processLabel(row: PendingScan): Promise<void> {
+    if (!row.scanId) return;
+    const label = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
+    await deps.runLabelFlow(row.scanId, label);
+    await deps.clearPendingLabel(row.localId, label);
+  }
+
   async function run(isCurrent: () => boolean): Promise<void> {
-    if (pauseUntil > Date.now()) {
-      scheduleRetry(pauseUntil - Date.now());
-      return;
-    }
     if (!(await deps.isOnline())) return;
     if (!isCurrent()) return;
-    const rows = await deps.listFlushable(deps.modelVersion);
-    if (!isCurrent()) return;
-    const ids = new Set(rows.map((row) => row.localId));
-    for (const id of retryAt.keys()) if (!ids.has(id)) retryAt.delete(id);
+    const ids = new Set<string>();
     let nextRetryAt = Infinity;
-    for (const row of rows) {
-      if (!isCurrent()) return;
-      const deadline = retryAt.get(row.localId) ?? 0;
-      if (deadline > Date.now()) {
-        nextRetryAt = Math.min(nextRetryAt, deadline);
-        continue;
+    async function runRows(rows: PendingScan[], task: keyof typeof backoff): Promise<void> {
+      const labelTask = task === 'label';
+      const taskBackoff = backoff[task];
+      for (const row of rows) ids.add(`${task}:${row.localId}`);
+      if (rows.length && taskBackoff.pauseUntil > Date.now()) {
+        nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
+        return;
       }
-      try {
-        await processRow(row, isCurrent);
+      for (const row of rows) {
         if (!isCurrent()) return;
-        retryAt.delete(row.localId);
-        transientFailures = 0;
-        pauseUntil = 0;
-      } catch (error) {
-        const transient = isTransientError(error);
-        const { status, attempts } = await deps.recordFailure(row.localId, errorMessage(error), { countAttempt: !transient });
-        if (transient) {
-          pauseUntil = Date.now() + Math.max(backoffMs(++transientFailures), rateLimitRetryAfterMs(error) ?? 0);
-          nextRetryAt = pauseUntil;
-          break;
-        }
-        if (status === 'queued') {
-          const deadline = Date.now() + backoffMs(attempts);
-          retryAt.set(row.localId, deadline);
+        const key = `${task}:${row.localId}`;
+        const deadline = retryAt.get(key) ?? 0;
+        if (deadline > Date.now()) {
           nextRetryAt = Math.min(nextRetryAt, deadline);
-        } else {
-          retryAt.delete(row.localId);
+          continue;
+        }
+        try {
+          if (labelTask) await processLabel(row);
+          else await processRow(row, isCurrent);
+          if (!isCurrent()) return;
+          retryAt.delete(key);
+          taskBackoff.transientFailures = 0;
+          taskBackoff.pauseUntil = 0;
+        } catch (error) {
+          const transient = isTransientError(error);
+          const recordFailure = labelTask ? deps.recordLabelFailure : deps.recordFailure;
+          const { status, attempts } = await recordFailure(row.localId, errorMessage(error), { countAttempt: !transient });
+          if (transient) {
+            taskBackoff.pauseUntil = Date.now() + Math.max(backoffMs(++taskBackoff.transientFailures), rateLimitRetryAfterMs(error) ?? 0);
+            nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
+            return;
+          }
+          if (status === 'queued') {
+            const deadline = Date.now() + backoffMs(attempts);
+            retryAt.set(key, deadline);
+            nextRetryAt = Math.min(nextRetryAt, deadline);
+          } else {
+            retryAt.delete(key);
+          }
         }
       }
+    }
+    await runRows(await deps.listFlushable(deps.modelVersion), 'identify');
+    if (isCurrent()) {
+      // Read again after identification so labels attached while identify was in flight are included.
+      await runRows(await deps.listPendingLabels(), 'label');
+      for (const id of retryAt.keys()) if (!ids.has(id)) retryAt.delete(id);
     }
     if (isCurrent() && nextRetryAt !== Infinity) scheduleRetry(nextRetryAt - Date.now());
   }

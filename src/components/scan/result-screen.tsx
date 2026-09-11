@@ -24,7 +24,7 @@ import { Spacing } from '@/constants/theme';
 import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
-import { rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
+import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
 import { toResultViewState, type ResultCandidate, type ResultSelection, type ResultViewState } from '@/lib/result/state';
 import { useSaveResult } from '@/lib/result/use-save-result';
@@ -67,6 +67,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
 
   function openLabel() {
     setSheet({ open: false });
+    if (rejection.current) handOffLabelRejection(scanId, rejection.current);
     router.push({ pathname: '/label/[scanId]', params: { scanId } });
   }
 

@@ -69,7 +69,6 @@ jest.mock('./viewfinder-overlay', () => {
   return {
     ViewfinderOverlay: () => null,
     GuidanceLabel: ({ guidance }: { guidance: string }) => <Text>{`guidance:${guidance}`}</Text>,
-    OverlayCaption: ({ children }: { children: ReactNode }) => <Text>{children}</Text>,
   };
 });
 
