@@ -1,5 +1,5 @@
 import { useConvex } from 'convex/react';
-import * as Haptics from 'expo-haptics';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -8,6 +8,7 @@ import model from '../../../shared/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
+import { LocalScanScreen } from './local-scan-screen';
 import { CardHeader } from './result/card-header';
 import { DocentSection } from './result/docent-section';
 import { FieldsForm } from './result/fields-form';
@@ -15,30 +16,29 @@ import { NotRightSheet } from './result/not-right-sheet';
 import { RightNowSection } from './result/right-now-section';
 import { RunnerUps } from './result/runner-ups';
 import { SaveBar } from './result/save-bar';
+import { FailedCard } from './states/failed-card';
+import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { getCaptureForScan } from '@/db/repos/pending-scans';
-import type { PendingScan } from '@/db/schema';
+import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
+import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
-import { saveResult } from '@/lib/result/save';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
 import { toResultViewState, type ResultCandidate, type ResultSelection, type ResultViewState } from '@/lib/result/state';
+import { useSaveResult } from '@/lib/result/use-save-result';
 import { useScan } from '@/lib/result/use-scan';
 
 export type ResultScreenProps = {
   scanId: string;
 };
 
+const LOCAL_PREFIX = 'local-';
+
 export function ResultScreen({ scanId }: ResultScreenProps) {
-  // Queued captures carry a local id until they are identified (plan 05.05 renders their states).
-  if (scanId.startsWith('local-')) {
-    return (
-      <StateCard title="Waiting for signal" detail="We’ll identify this painting when you’re back online." />
-    );
-  }
   // The router reuses this screen for a new scan id; the key drops the previous card's draft, save and feedback state.
+  if (scanId.startsWith(LOCAL_PREFIX)) return <LocalScanScreen key={scanId} localId={scanId.slice(LOCAL_PREFIX.length)} />;
   return <ScanResultScreen key={scanId} scanId={scanId as Id<'scans'>} />;
 }
 
@@ -46,26 +46,24 @@ type Sheet = { open: boolean; notice?: string };
 
 function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const router = useRouter();
+  const isActive = useScreenActive();
   const client = useConvex();
   const scan = useScan(scanId);
-  const [capture, setCapture] = useState<PendingScan>();
+  const { data: captures } = useLiveQuery(selectCaptureForScan(scanId), [scanId]);
+  const capture = captures[0];
+  const captureStatus = capture?.status;
   const [selection, setSelection] = useState<ResultSelection>({});
   const [sheet, setSheet] = useState<Sheet>({ open: false });
-  const [saving, setSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string>();
-  const [saveError, setSaveError] = useState<string>();
+  const { saving, savedId, error: saveError, save } = useSaveResult();
   // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view = toResultViewState(scan, selection);
 
   useEffect(() => {
-    let active = true;
-    getCaptureForScan(scanId).then(
-      (row) => { if (active) setCapture(row); },
-      (error: unknown) => console.warn('Could not load the capture for this scan', error),
-    );
-    return () => { active = false; };
-  }, [scanId]);
+    if (isActive && view.editable && captureStatus === 'identified') {
+      void markScanReviewed(scanId).catch((error: unknown) => console.warn('Could not mark the scan reviewed', error));
+    }
+  }, [isActive, scanId, view.editable, captureStatus]);
 
   function openLabel() {
     setSheet({ open: false });
@@ -101,24 +99,11 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
       .catch((error: unknown) => console.warn('Could not resolve the rejection', error));
   }
 
-  async function save(draft: SnapshotDraft) {
-    if (!capture) {
-      setSaveError('Your photo of this scan isn’t on this phone, so it can’t be saved.');
-      return;
-    }
-    setSaving(true);
-    setSaveError(undefined);
-    try {
-      const { localId } = await saveResult({ scanId, capture, view, draft });
-      setSavedId(localId);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (error) {
-      console.warn('Could not save the work', error);
-      setSaveError('Couldn’t save. Try again.');
-    } finally {
-      setSaving(false);
-    }
-  }
+  const saveProps = {
+    saving, savedId, saveError,
+    onSave: (draft: SnapshotDraft) => { void save({ scanId, capture, view, draft }); },
+    onViewSaved: () => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } }),
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -135,20 +120,16 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
           kind={view.kind}
         />
         {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
-        {view.kind === 'unsupported' && <StateNote title="Update the app to identify this painting" detail={view.error} />}
-        {view.kind === 'failed' && <StateNote title="Couldn’t identify this painting" detail={view.error} />}
+        {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
+        {view.kind === 'failed' && <FailedCard error={view.error} />}
         {view.editable && (
           <ResultCard
             key={`${view.kind}:${view.primary?.objectId ?? 'none'}`}
             view={view}
-            saving={saving}
-            savedId={savedId}
-            saveError={saveError}
             onNotRight={notRight}
             onPick={pickRunnerUp}
-            onSave={save}
             onLabel={openLabel}
-            onViewSaved={() => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } })}
+            {...saveProps}
           />
         )}
       </ScrollView>
@@ -196,13 +177,12 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSa
         </View>
       )}
       <SaveBar
-        kind={view.kind}
         canSave={canSave(draft)}
         saving={saving}
         savedId={savedId}
         error={saveError}
         onSave={() => onSave(draft)}
-        onLabel={onLabel}
+        onLabel={view.kind !== 'confident' ? onLabel : undefined}
         onViewSaved={onViewSaved}
       />
       {view.kind === 'confident' && (
@@ -212,25 +192,6 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSa
         </>
       )}
     </>
-  );
-}
-
-function StateNote({ title, detail }: { title: string; detail?: string }) {
-  return (
-    <View style={styles.section}>
-      <ThemedText type="subtitle">{title}</ThemedText>
-      {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}
-    </View>
-  );
-}
-
-function StateCard({ title, detail }: { title: string; detail: string }) {
-  return (
-    <ThemedView style={styles.container}>
-      <View style={styles.content}>
-        <StateNote title={title} detail={detail} />
-      </View>
-    </ThemedView>
   );
 }
 

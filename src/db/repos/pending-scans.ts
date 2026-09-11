@@ -14,12 +14,21 @@ export async function enqueuePendingScan(row: NewPendingScan): Promise<void> {
   await db.insert(pendingScans).values(row);
 }
 
+/** The row as a query for `useLiveQuery`; `getPendingScan` reads it once. */
+export function selectPendingScan(localId: string) {
+  return db.select().from(pendingScans).where(eq(pendingScans.localId, localId));
+}
+
 export async function getPendingScan(localId: string): Promise<PendingScan | undefined> {
-  return db.select().from(pendingScans).where(eq(pendingScans.localId, localId)).get();
+  return selectPendingScan(localId).get();
+}
+
+export function selectCaptureForScan(scanId: Id<'scans'>) {
+  return db.select().from(pendingScans).where(eq(pendingScans.scanId, scanId));
 }
 
 export async function getCaptureForScan(scanId: Id<'scans'>): Promise<PendingScan | undefined> {
-  return db.select().from(pendingScans).where(eq(pendingScans.scanId, scanId)).get();
+  return selectCaptureForScan(scanId).get();
 }
 
 export function captureQuery(scanId: string) {
@@ -60,11 +69,16 @@ export async function retryPendingLabel(localId: string): Promise<void> {
   await db.update(pendingScans).set({ attempts: 0, lastError: null }).where(eq(pendingScans.localId, localId));
 }
 
-/** Rows the user still waits on, oldest first: queued, identifying and failed. */
+/** Unfinished captures and completed results the user has not seen, oldest first. */
 export function pendingScansQuery() {
   return db.select().from(pendingScans)
-    .where(inArray(pendingScans.status, ['queued', 'identifying', 'failed']))
+    .where(or(inArray(pendingScans.status, ['queued', 'identifying', 'failed']), isNull(pendingScans.reviewedAt)))
     .orderBy(asc(pendingScans.capturedAt));
+}
+
+export async function markScanReviewed(scanId: Id<'scans'>): Promise<void> {
+  await db.update(pendingScans).set({ reviewedAt: Date.now() })
+    .where(and(eq(pendingScans.scanId, scanId), eq(pendingScans.status, 'identified'), isNull(pendingScans.reviewedAt)));
 }
 
 /** Rows the flusher should send, oldest first; a model update gives failed rows another run. */

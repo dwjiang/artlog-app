@@ -1,31 +1,42 @@
 import { Image } from 'expo-image';
-import { StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { GlassSurface } from '@/components/glass-surface';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useQueue } from '@/lib/queue/use-queue';
 
-export function queueBadgeLabel(pending: number): string {
-  return pending === 1 ? '1 scan waiting for signal' : `${pending} scans waiting for signal`;
+export function queueBadgeLabel(total: number): string {
+  return total === 1 ? '1 scan in queue' : `${total} scans in queue`;
 }
 
-/** Counts captures still waiting for signal; plan 05.05 makes it open the queue sheet. */
+/** Includes failed captures and completed results that still need review. */
 export function QueueBadge() {
-  const { pending } = useQueue();
-  if (pending === 0) return null;
+  const router = useRouter();
+  const { items } = useQueue();
+  if (items.length === 0) return null;
   return (
-    <GlassSurface style={styles.badge} accessible accessibilityRole="text" accessibilityLabel={queueBadgeLabel(pending)}>
-      <Image source="sf:tray.and.arrow.up" style={styles.icon} tintColor={Colors.light.overlayText} />
-      <ThemedText type="smallBold" themeColor="overlayText">{String(pending)}</ThemedText>
+    <GlassSurface isInteractive style={styles.badge}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={queueBadgeLabel(items.length)}
+        onPress={() => router.push('/queue')}
+        style={({ pressed }) => [styles.content, pressed && styles.pressed]}
+      >
+        <Image source="sf:tray.and.arrow.up" style={styles.icon} tintColor={Colors.light.overlayText} />
+        <ThemedText type="smallBold" themeColor="overlayText">{String(items.length)}</ThemedText>
+      </Pressable>
     </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Spacing.four, overflow: 'hidden',
+  badge: { borderRadius: Spacing.four, overflow: 'hidden' },
+  content: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
     paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three,
   },
+  pressed: { opacity: 0.7 },
   icon: { width: 18, height: 18 },
 });

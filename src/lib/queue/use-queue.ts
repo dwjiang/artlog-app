@@ -8,7 +8,7 @@ import { startQueueFlusher } from './queue';
 
 export type QueueState = { pending: number; items: PendingScan[] };
 
-/** Live view of captures still waiting; queued and identifying rows count as pending, failed rows stay listed. */
+/** Pending counts unfinished requests; failed captures and unreviewed results stay in items too. */
 export function useQueue(): QueueState {
   const { data } = useLiveQuery(pendingScansQuery());
   return { pending: data.filter((row) => row.status === 'queued' || row.status === 'identifying').length, items: data };

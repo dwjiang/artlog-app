@@ -106,7 +106,7 @@ const scanId = 'scan-1' as Id<'scans'>;
 const capture = {
   localId: 'cap-1', photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg', vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4),
   modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-1' as Id<'museums'>, visitId: null, visitLocalId: null, capturedAt: 1,
-  labelPhotoPath: null, qrUrl: null, status: 'identified', attempts: 0, lastError: null, scanId, createdAt: 1,
+  labelPhotoPath: null, qrUrl: null, status: 'identified', attempts: 0, lastError: null, scanId, createdAt: 1, reviewedAt: null,
 } satisfies PendingScan;
 const verified: LabelFlowDisplay = {
   stage: 'verified', evidence: ['tavily+image', 'wikidata'], warnings: ['date_outside_lifespan'], moderation: 'clear', updatedAt: 1,

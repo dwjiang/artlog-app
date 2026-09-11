@@ -40,8 +40,21 @@ it('walks a row from queued through identifying to identified', async () => {
   await repo.markIdentified('a', scanId);
   expect(await repo.getPendingScan('a')).toMatchObject({ status: 'identified', scanId, lastError: null });
   expect((await repo.getCaptureForScan(scanId))?.localId).toBe('a');
+  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['a']);
+  expect(await repo.listFlushable('model-v1')).toEqual([]);
+  await repo.markScanReviewed(scanId);
   expect(await repo.pendingScansQuery()).toEqual([]);
+  expect(await repo.getCaptureForScan(scanId)).toMatchObject({ localId: 'a', reviewedAt: expect.any(Number) });
   await repo.deletePendingScan('a');
+});
+
+it('keeps failed and waiting captures even if their server card was opened', async () => {
+  await enqueueAll(row('waiting', { scanId }), row('failed', { status: 'failed', scanId }));
+  await repo.markScanReviewed(scanId);
+  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['waiting', 'failed']);
+  expect((await repo.getPendingScan('failed'))?.reviewedAt).toBeNull();
+  await repo.deletePendingScan('waiting');
+  await repo.deletePendingScan('failed');
 });
 
 it('counts attempts, gives up at the limit, and lets a manual retry start over', async () => {
