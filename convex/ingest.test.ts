@@ -242,6 +242,7 @@ describe('placements, vectors and descriptors', () => {
       objectKey: 'met:436535',
       modelVersion: model.modelVersion,
       source: 'corpus' as const,
+      viewKey: 'primary',
       vector: vector(1),
     };
     await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
@@ -284,6 +285,7 @@ describe('placements, vectors and descriptors', () => {
       objectKey: key,
       modelVersion: model.modelVersion,
       source: 'corpus' as const,
+      viewKey: key,
       vector: vector(1),
     }));
     const original = await t.mutation(internal.ingest.upsertVectors, { rows });
@@ -421,5 +423,73 @@ describe('exportVenues', () => {
     expect(second.isDone).toBe(true);
     const keys = new Set([...first.page, ...second.page].map((m) => m.key));
     expect(keys.size).toBe(EXPORT_PAGE_SIZE + 5);
+  });
+});
+
+describe('corpus import invariants', () => {
+  it('preserves alternate corpus views and replaces each view idempotently', async () => {
+    const { t, objectId } = await seeded();
+    const rows = ['met:1', 'wikidata:Q1'].map((viewKey, i) => ({
+      objectKey: metObject.key, modelVersion: model.modelVersion, source: 'corpus' as const,
+      viewKey, vector: vector(i),
+    }));
+    const first = await t.mutation(internal.ingest.upsertVectors, { rows });
+    const second = await t.mutation(internal.ingest.upsertVectors, {
+      rows: [{ ...rows[1], vector: vector(9) }],
+    });
+    expect(Object.values(first.ids)).toContain(Object.values(second.ids)[0]);
+    const stored = await t.run(ctx => ctx.db.query('vectors')
+      .withIndex('by_objectId_modelVersion_source', q => q.eq('objectId', objectId)).collect());
+    expect(stored).toHaveLength(2);
+    expect(stored.find(row => row.viewKey === 'met:1')?.vector).toEqual(vector(0));
+    expect(stored.find(row => row.viewKey === 'wikidata:Q1')?.vector).toEqual(vector(9));
+    expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
+  });
+
+  it('rejects unauthorized thumbnails and audits existing violations', async () => {
+    const { t, objectId } = await seeded();
+    await t.mutation(internal.ingest.upsertArtworks, {
+      rows: [{ ...wheatField, rightsStatus: 'unknown' }],
+    });
+    expect(await errorData(t.mutation(internal.ingest.upsertObjects, { rows: [metObject] })))
+      .toMatchObject({ code: 'thumbnail_rights' });
+    expect(await t.query(internal.ingest.auditThumbnails, {})).toMatchObject({ checked: 1, violations: 1, isDone: true });
+    await t.mutation(internal.ingest.upsertObjects, { rows: [{ ...metObject, thumbnailUrl: undefined }] });
+    expect((await t.query(internal.ingest.auditThumbnails, {})).violations).toBe(0);
+    expect((await t.run(ctx => ctx.db.get(objectId)))?.thumbnailUrl).toBeUndefined();
+  });
+});
+
+describe('rebuilding corpus views', () => {
+  it('moves a stable view to its new survivor without leaving a second searchable vector', async () => {
+    const { t } = await seeded();
+    const { ids } = await t.mutation(internal.ingest.upsertObjects, { rows: [{ ...metObject, key: 'met:survivor' }] });
+    const row = { objectKey: metObject.key, modelVersion: model.modelVersion,
+      source: 'corpus' as const, viewKey: metObject.key, vector: vector(1) };
+    const first = await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
+    const second = await t.mutation(internal.ingest.upsertVectors, { rows: [{ ...row, objectKey: 'met:survivor' }] });
+    expect(second).toEqual(first);
+    const vectors = await t.run(ctx => ctx.db.query('vectors').collect());
+    expect(vectors).toHaveLength(1);
+    expect(vectors[0].objectId).toBe(ids['met:survivor']);
+    expect(await t.query(internal.ingest.countExisting, { table: 'vectors', rows: [{
+      key: 'not-yet-inserted-survivor', source: row.source, viewKey: row.viewKey, modelVersion: row.modelVersion,
+    }] })).toBe(1);
+  });
+});
+
+describe('merged museum identities', () => {
+  it('resolves an alias accession and page to the surviving artwork', async () => {
+    const { t, objectId } = await seeded();
+    const original = await t.run(ctx => ctx.db.get(objectId));
+    const alternate = { ...wheatField, key: 'wikidata:Qalias', wikidataId: undefined };
+    await t.mutation(internal.ingest.upsertArtworks, { rows: [alternate] });
+    await t.mutation(internal.ingest.upsertObjects, { rows: [{
+      ...metObject, key: 'wikidata:Qalias', artworkKey: alternate.key,
+      pageUrl: 'https://museum.example/alternate-view', mergedIntoKey: metObject.key,
+    }] });
+    const identities = await t.run(ctx => ctx.db.query('museumWorkIdentities').collect());
+    expect(identities).toHaveLength(3);
+    expect(identities.every(row => row.artworkId === original?.artworkId)).toBe(true);
   });
 });

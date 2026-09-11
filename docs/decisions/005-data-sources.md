@@ -190,6 +190,25 @@ Retry-After. The published 200 requests/minute tier for identified bots is a
 ceiling, not a recommended media-download speed.
 [Wikimedia rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits)
 
+**Correction 2026-09-10 (plan 02.04):** the "one media request at a time, one
+second apart" guidance above came from the robot policy's rules for *other*
+Wikimedia services (Gerrit, GitLab, Phabricator). The policy's media rules for
+`upload.wikimedia.org` are: total concurrency at most 2, total download speed
+at most 25 Mbps over 10-second intervals, originals or standard thumbnail sizes
+only, thumbnails preferred; the action API allows concurrency 1 below 5
+requests/second. The index build now runs two throttled streams at those
+limits; the one-request-per-second reading measured 1.1 images/s and projected
+4.3 days for the corpus.
+[Robot policy](https://wikitech.wikimedia.org/wiki/Robot_policy)
+
+**Observed 2026-09-10 (plan 02.04 build):** `upload.wikimedia.org` answered
+original-file requests with 429 and `Retry-After: 11` from the first minutes at
+3–4.5 requests/s, while thumbnail paths at the same rates drew none (27 of 27
+throttled responses across three runs were originals; originals were about a
+third of requests). The build therefore never fetches an original: files no
+wider than the 960 px request are fetched at the largest standard step below
+their width. Two connections at ≈ 3 thumbnail requests/s ran clean.
+
 **Met contact outcome:** no museum was contacted. The inquiry to
 `openaccess@metmuseum.org` is [prepared but unsent](../../spikes/data-sources/met-inquiry.md):
 this session has no email connector or supplied sender identity. The
