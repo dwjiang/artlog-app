@@ -66,8 +66,8 @@ export const create = internalMutation({
 export const setResult = internalMutation({
   args: {
     scanId: v.id('scans'), generation: v.number(), status: scanFields.status, outcome: scanFields.outcome,
-    best: scanFields.best, runnerUps: scanFields.runnerUps, calibratorVersion: v.string(),
-    error: v.optional(v.string()),
+    best: scanFields.best, runnerUps: scanFields.runnerUps, candidateSignals: scanFields.candidateSignals,
+    calibratorVersion: v.string(), error: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -76,7 +76,8 @@ export const setResult = internalMutation({
     if (scan.generation !== args.generation || scan.status !== 'pending') return null;
     await ctx.db.patch(scan._id, {
       status: args.status, outcome: args.outcome, best: args.best, runnerUps: args.runnerUps,
-      calibratorVersion: args.calibratorVersion, error: args.error, updatedAt: Date.now(),
+      candidateSignals: args.candidateSignals, calibratorVersion: args.calibratorVersion, error: args.error,
+      updatedAt: Date.now(),
     });
     if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);

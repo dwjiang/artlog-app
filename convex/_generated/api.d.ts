@@ -10,10 +10,13 @@
 
 import type * as appAttestNode from "../appAttestNode.js";
 import type * as auth from "../auth.js";
+import type * as collections from "../collections.js";
+import type * as contributions from "../contributions.js";
 import type * as corrections from "../corrections.js";
 import type * as devices from "../devices.js";
 import type * as docent from "../docent.js";
 import type * as enrich from "../enrich.js";
+import type * as feedback from "../feedback.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as identify from "../identify.js";
@@ -49,6 +52,7 @@ import type * as lib_plausibility from "../lib/plausibility.js";
 import type * as lib_politeFetch from "../lib/politeFetch.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_regions from "../lib/regions.js";
+import type * as lib_rejectionPenalty from "../lib/rejectionPenalty.js";
 import type * as lib_rightNowAccept from "../lib/rightNowAccept.js";
 import type * as lib_rightNowFixtures from "../lib/rightNowFixtures.js";
 import type * as lib_sourceScores from "../lib/sourceScores.js";
@@ -79,10 +83,13 @@ import type {
 declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
   auth: typeof auth;
+  collections: typeof collections;
+  contributions: typeof contributions;
   corrections: typeof corrections;
   devices: typeof devices;
   docent: typeof docent;
   enrich: typeof enrich;
+  feedback: typeof feedback;
   health: typeof health;
   http: typeof http;
   identify: typeof identify;
@@ -118,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   "lib/politeFetch": typeof lib_politeFetch;
   "lib/rateLimits": typeof lib_rateLimits;
   "lib/regions": typeof lib_regions;
+  "lib/rejectionPenalty": typeof lib_rejectionPenalty;
   "lib/rightNowAccept": typeof lib_rightNowAccept;
   "lib/rightNowFixtures": typeof lib_rightNowFixtures;
   "lib/sourceScores": typeof lib_sourceScores;
