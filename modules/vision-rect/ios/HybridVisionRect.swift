@@ -26,13 +26,17 @@ final class HybridVisionRect: HybridVisionRectSpec {
     )
   }
 
-  func detectStill(photoPath: String) throws -> Promise<RectDetection> {
+  func detectStill(photoPath: String) throws -> Promise<StillDetection> {
     return Promise.parallel(stillQueue) {
-      let result = try RectangleDetector.detect(fileURL: URL(fileURLWithPath: photoPath))
-      return RectDetection(
-        width: Double(result.width),
-        height: Double(result.height),
-        observations: result.rectangles.map(Self.observation)
+      let analysis = try StillAnalyzer.analyze(fileURL: URL(fileURLWithPath: photoPath))
+      return StillDetection(
+        width: Double(analysis.width),
+        height: Double(analysis.height),
+        rectangles: analysis.rectangles.map(Self.observation),
+        subjects: analysis.subjects.map { subject in
+          SubjectObservation(area: subject.area, quadFill: subject.quadFill, quad: subject.quad.map { RectPoint(x: $0.x, y: $0.y) })
+        },
+        subjectNote: analysis.subjectNote
       )
     }
   }

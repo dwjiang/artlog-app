@@ -1,11 +1,23 @@
-import type { RectDetection, RectObservation, RectPoint } from '../../../modules/vision-rect/src';
+import type { RectDetection, RectObservation, RectPoint, StillDetection, SubjectObservation } from '../../../modules/vision-rect/src';
 
 import type { Quad } from './stages';
 
-// Product tuning (plan 03.02).
+// Product tuning (plan 03.02; gate and smoothing re-tuned on the iPhone 16 Pro in plan 03.04).
 export const STABLE_WINDOW_MS = 400;
-/** Fraction of the frame diagonal a corner may move within the window and still count as steady. */
-export const STABLE_MAX_DISPLACEMENT = 0.02;
+/**
+ * Fraction of the frame diagonal a smoothed corner may move within the window and still count as
+ * steady. Hand-held aiming at a painting measured 3–6.5% raw corner movement per window on the phone.
+ */
+export const STABLE_MAX_DISPLACEMENT = 0.06;
+/** Weight of the newest detection in the tracked corners; Vision's per-frame corner wobble is the rest. */
+export const SMOOTHING = 0.5;
+/** A candidate farther than this fraction of the diagonal from the tracked box is a miss, not a move. */
+export const TRACK_MAX_JUMP = 0.2;
+/**
+ * Area ratio separating nested rectangles from the same one: a nearby candidate below this share of
+ * the tracked area is the canvas inside the frame, and one above its inverse is an enclosing frame.
+ */
+export const NESTED_AREA_RATIO = 0.8;
 export const MIN_AREA_FRACTION = 0.25;
 /** Normalized distance from a frame edge at which a corner counts as cut off. */
 export const EDGE_MARGIN = 0.02;
@@ -14,10 +26,24 @@ export const MAX_OPPOSITE_EDGE_RATIO = 1.3;
 export const MISS_GRACE_MS = 300;
 /** Normalized corner distance within which a still-image candidate matches the preview quad. */
 export const STILL_MATCH_TOLERANCE = 0.05;
+/**
+ * A lifted subject whose region area over quad area is within this of 1 is a quadrilateral: a framed
+ * painting. On the Mac harness gallery photographs paintings measured 1.001–1.016; visitors 1.10–1.43,
+ * figures inside a canvas 0.94 and 1.19, and visitors merged with the painting behind them 0.96.
+ */
+export const SUBJECT_QUAD_FILL_TOLERANCE = 0.025;
 
 export type FrameSize = { width: number; height: number };
 export type Guidance = 'searching' | 'move-closer' | 'fit-whole-painting' | 'straighten' | 'hold-still' | 'ready';
-export type TrackerResult = { quad: Quad | null; stable: boolean; guidance: Guidance };
+export type TrackerResult = {
+  quad: Quad | null;
+  /** Latest accepted detection; smoothing would move capture corners off the artwork. */
+  captureQuad: Quad | null;
+  stable: boolean;
+  guidance: Guidance;
+  /** Largest corner movement within the window as a fraction of the frame diagonal. */
+  jitter: number;
+};
 
 const unitSize: FrameSize = { width: 1, height: 1 };
 
@@ -67,10 +93,32 @@ function maxCornerDistance(a: Quad, b: Quad, size: FrameSize): number {
   return Math.max(...a.map((corner, index) => distance(corner, b[index], size)));
 }
 
+function largestQuad(quads: Quad[]): Quad | undefined {
+  return quads.reduce<Quad | undefined>((best, quad) => (!best || quadArea(quad) > quadArea(best) ? quad : best), undefined);
+}
+
+function enclosesCentroid(outer: Quad, inner: Quad): boolean {
+  const cx = inner.reduce((sum, [x]) => sum + x, 0) / 4;
+  const cy = inner.reduce((sum, [, y]) => sum + y, 0) / 4;
+  const xs = outer.map(([x]) => x);
+  const ys = outer.map(([, y]) => y);
+  return cx > Math.min(...xs) && cx < Math.max(...xs) && cy > Math.min(...ys) && cy < Math.max(...ys);
+}
+
+function blend(tracked: Quad, raw: Quad): Quad {
+  return tracked.map(([x, y], index) => [
+    x + (raw[index][0] - x) * SMOOTHING,
+    y + (raw[index][1] - y) * SMOOTHING,
+  ]) as Quad;
+}
+
+function isCutOff(quad: Quad): boolean {
+  return quad.some(([x, y]) => x < EDGE_MARGIN || x > 1 - EDGE_MARGIN || y < EDGE_MARGIN || y > 1 - EDGE_MARGIN);
+}
+
 export function framingGuidance(quad: Quad, size: FrameSize): 'move-closer' | 'fit-whole-painting' | 'straighten' | null {
   if (quadArea(quad, size) < MIN_AREA_FRACTION * size.width * size.height) return 'move-closer';
-  const cutOff = quad.some(([x, y]) => x < EDGE_MARGIN || x > 1 - EDGE_MARGIN || y < EDGE_MARGIN || y > 1 - EDGE_MARGIN);
-  if (cutOff) return 'fit-whole-painting';
+  if (isCutOff(quad)) return 'fit-whole-painting';
   const [topLeft, topRight, bottomRight, bottomLeft] = quad;
   const ratio = (a: number, b: number) => Math.max(a, b) / Math.max(Math.min(a, b), Number.EPSILON);
   const horizontal = ratio(distance(topLeft, topRight, size), distance(bottomLeft, bottomRight, size));
@@ -79,7 +127,7 @@ export function framingGuidance(quad: Quad, size: FrameSize): 'move-closer' | 'f
   return null;
 }
 
-const searching: TrackerResult = { quad: null, stable: false, guidance: 'searching' };
+const searching: TrackerResult = { quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0 };
 
 export class RectTracker {
   private history: { quad: Quad; at: number }[] = [];
@@ -92,48 +140,84 @@ export class RectTracker {
     this.lastSeenAt = -Infinity;
   }
 
+  /** Switches to a different rectangle: the stability window restarts from it. */
+  private retarget(quad: Quad): Quad {
+    this.history = [];
+    return quad;
+  }
+
   push(observations: RectObservation[], size: FrameSize, now: number): TrackerResult {
-    const observation = largestObservation(observations);
-    if (!observation) {
-      if (now - this.lastSeenAt > MISS_GRACE_MS) this.reset();
+    const candidates = observations.filter((observation) => observation.corners.length === 4).map((o) => toQuad(o.corners));
+    const tracked = this.last.quad;
+    const missedFor = now - this.lastSeenAt;
+    // Vision returns the frame, the mat or the canvas on different frames. The outermost rectangle is
+    // the target: a larger candidate enclosing the tracked box takes over, a nested one is ignored while
+    // the outer was seen recently, and switching between them never counts as camera movement.
+    const outer = tracked && largestQuad(candidates.filter((q) => quadArea(q) * NESTED_AREA_RATIO > quadArea(tracked) && enclosesCentroid(q, tracked)));
+    const near = tracked && largestQuad(candidates.filter((q) => maxCornerDistance(q, tracked, size) < TRACK_MAX_JUMP * Math.hypot(size.width, size.height)));
+    const nested = tracked && near && quadArea(near) < NESTED_AREA_RATIO * quadArea(tracked);
+    let captureQuad: Quad | undefined;
+    let smoothFrom: Quad | undefined;
+    if (!tracked) captureQuad = largestQuad(candidates);
+    else if (outer) captureQuad = this.retarget(outer);
+    else if (near && !nested) {
+      captureQuad = near;
+      smoothFrom = tracked;
+    } else if (near && missedFor > MISS_GRACE_MS) captureQuad = this.retarget(near);
+    if (!captureQuad) {
+      if (missedFor > MISS_GRACE_MS) this.reset();
       return this.last;
     }
-    const quad = toQuad(observation.corners);
+    const quad = smoothFrom ? blend(smoothFrom, captureQuad) : captureQuad;
     this.lastSeenAt = now;
     this.history.push({ quad, at: now });
     // Keep the newest sample that is at least a window old, so a full window is detectable despite frame jitter.
     while (this.history.length > 1 && this.history[1].at <= now - STABLE_WINDOW_MS) this.history.shift();
     const windowFull = this.history[0].at <= now - STABLE_WINDOW_MS;
     const displacement = Math.max(...this.history.map((sample) => maxCornerDistance(sample.quad, quad, size)));
-    const stable = windowFull && displacement < STABLE_MAX_DISPLACEMENT * Math.hypot(size.width, size.height);
+    const jitter = displacement / Math.hypot(size.width, size.height);
+    const stable = windowFull && jitter < STABLE_MAX_DISPLACEMENT;
     const guidance = framingGuidance(quad, size) ?? (stable ? 'ready' : 'hold-still');
-    this.last = { quad, stable, guidance };
+    this.last = { quad, captureQuad, stable, guidance, jitter };
     return this.last;
   }
 }
 
-/**
- * Chooses the region to warp from a capture. A still-image candidate that matches the preview quad
- * refines it at full resolution; otherwise the preview quad stands. Library imports take the largest
- * candidate: decision 006 rejected inner-rectangle selection by area, and no framed-painting fixture
- * shows a nested candidate that is the canvas boundary, so the outer candidate is retained.
- */
-export function selectCaptureQuad(previewQuad: Quad | null, still: RectDetection): Quad | null {
-  const candidates = still.observations.filter((observation) => observation.corners.length === 4);
-  if (previewQuad) {
-    let best: Quad | null = null;
-    let bestDistance = STILL_MATCH_TOLERANCE;
-    for (const candidate of candidates) {
-      const quad = toQuad(candidate.corners);
-      const separation = maxCornerDistance(quad, previewQuad, unitSize);
-      if (separation <= bestDistance) {
-        best = quad;
-        bestDistance = separation;
-      }
+export function isQuadrilateralSubject(subject: SubjectObservation): boolean {
+  return subject.quad.length === 4 && Math.abs(subject.quadFill - 1) <= SUBJECT_QUAD_FILL_TOLERANCE;
+}
+
+function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | null {
+  let best: Quad | null = null;
+  let bestDistance = STILL_MATCH_TOLERANCE;
+  for (const candidate of rectangles) {
+    const quad = toQuad(candidate.corners);
+    const separation = maxCornerDistance(quad, target, unitSize);
+    if (separation <= bestDistance) {
+      best = quad;
+      bestDistance = separation;
     }
-    return best ?? previewQuad;
   }
-  const largest = largestObservation(candidates);
+  return best;
+}
+
+/**
+ * Chooses the region to warp from a capture. A subject lifted from the background that is shaped like a
+ * quadrilateral and lies inside the image is the painting, frame included, and wins: the largest under
+ * the preview quad, else the largest. Subjects cut off by the edge are doors and walls, or a painting
+ * whose mask ran off the photo and fits a tilted quad; those fall through. Without a subject the
+ * rectangle candidates stand in: the one matching the preview quad, else the preview quad, else the
+ * largest. Library imports thereby keep the outer candidate: decision 006 rejected inner-rectangle
+ * selection by area, and no framed-painting fixture shows a nested candidate that is the canvas boundary.
+ */
+export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
+  const rectangles = still.rectangles.filter((observation) => observation.corners.length === 4);
+  const subjects = still.subjects.filter(isQuadrilateralSubject).map((subject) => toQuad(subject.quad))
+    .filter((quad) => !isCutOff(quad)).sort((a, b) => quadArea(b) - quadArea(a));
+  const subject = (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad))) ?? subjects[0];
+  if (subject) return subject;
+  if (previewQuad) return closestRectangle(rectangles, previewQuad) ?? previewQuad;
+  const largest = largestObservation(rectangles);
   return largest ? toQuad(largest.corners) : null;
 }
 
@@ -150,8 +234,8 @@ export class RectTrackerStore {
 
   readonly getGuidance = (): Guidance => this.result.guidance;
 
-  get quad(): Quad | null {
-    return this.result.quad;
+  get captureQuad(): Quad | null {
+    return this.result.captureQuad;
   }
 
   push(detection: RectDetection, now: number): TrackerResult {

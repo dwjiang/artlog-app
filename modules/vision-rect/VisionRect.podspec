@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.license      = "UNLICENSED"
   s.authors      = "artlog"
 
-  s.platforms    = { :ios => min_ios_version_supported }
+  s.platforms    = { :ios => '17.0' }
   s.source       = { :git => "https://github.com/dwjiang/artlog-app.git", :tag => "#{s.version}" }
 
   s.source_files = [

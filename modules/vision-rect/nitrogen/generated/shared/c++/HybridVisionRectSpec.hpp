@@ -17,6 +17,8 @@
 namespace margelo::nitro::visionrect { struct RectDetection; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
+// Forward declaration of `StillDetection` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillDetection; }
 // Forward declaration of `LetterboxResult` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct LetterboxResult; }
 // Forward declaration of `RectPoint` to properly resolve imports.
@@ -26,6 +28,7 @@ namespace margelo::nitro::visionrect { struct RectPoint; }
 #include <optional>
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
+#include "StillDetection.hpp"
 #include <NitroModules/Promise.hpp>
 #include <string>
 #include "LetterboxResult.hpp"
@@ -64,7 +67,7 @@ namespace margelo::nitro::visionrect {
     public:
       // Methods
       virtual std::optional<RectDetection> detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, double stride) = 0;
-      virtual std::shared_ptr<Promise<RectDetection>> detectStill(const std::string& photoPath) = 0;
+      virtual std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath) = 0;
       virtual std::shared_ptr<Promise<LetterboxResult>> warpAndLetterbox(const std::string& photoPath, const std::optional<std::vector<RectPoint>>& quad, double size) = 0;
 
     protected:

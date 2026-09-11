@@ -25,10 +25,10 @@ namespace margelo::nitro::visionrect::bridge::swift {
     return margelo::nitro::camera::bridge::swift::get_std__shared_ptr_HybridFrameSpec_(cppType);
   }
   
-  // pragma MARK: std::function<void(const RectDetection& /* result */)>
-  Func_void_RectDetection create_Func_void_RectDetection(void* NON_NULL swiftClosureWrapper) noexcept {
-    auto swiftClosure = VisionRect::Func_void_RectDetection::fromUnsafe(swiftClosureWrapper);
-    return [swiftClosure = std::move(swiftClosure)](const RectDetection& result) mutable -> void {
+  // pragma MARK: std::function<void(const StillDetection& /* result */)>
+  Func_void_StillDetection create_Func_void_StillDetection(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = VisionRect::Func_void_StillDetection::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const StillDetection& result) mutable -> void {
       swiftClosure.call(result);
     };
   }

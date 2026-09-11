@@ -9,6 +9,7 @@ import { getAppAttest } from '@/lib/app-attest';
 import { signPayload } from '@/lib/attested-write';
 import { embedder } from '@/lib/embed/embedder';
 import { runCalibrationExport } from '@/lib/embed/run-calibration-export';
+import { runOrbParityCheck } from '@/lib/orb/run-parity-check';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -24,6 +25,9 @@ export function DevTools({ attested }: { attested: boolean }) {
   const [calibration, setCalibration] = useState<string>();
   const [progress, setProgress] = useState<string>();
   const exporting = useRef(false);
+  const [orbParity, setOrbParity] = useState<string>();
+  const [checkingOrb, setCheckingOrb] = useState(false);
+  const orbInFlight = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -76,6 +80,26 @@ export function DevTools({ attested }: { attested: boolean }) {
     }
   }
 
+  async function checkOrbParity() {
+    if (orbInFlight.current) return;
+    orbInFlight.current = true;
+    setCheckingOrb(true);
+    setOrbParity(undefined);
+    try {
+      const report = await runOrbParityCheck();
+      setOrbParity(
+        `ORB: ${report.count}/${report.expectedCount} keypoints · ${report.rowsAnywhere} rows match (${report.rowsInOrder} in order)` +
+        ` · extract ${report.extractMs.toFixed(1)} ms · blur ${Math.round(report.blurVariance)} · glare ${(report.glareFraction * 100).toFixed(1)}%` +
+        ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
+      );
+    } catch (error) {
+      setOrbParity(message(error));
+    } finally {
+      orbInFlight.current = false;
+      setCheckingOrb(false);
+    }
+  }
+
   return (
     <>
       <ThemedText themeColor="textSecondary">
@@ -98,6 +122,14 @@ export function DevTools({ attested }: { attested: boolean }) {
         />
       </Host>
       {calibration && <ThemedText themeColor="textSecondary">{calibration}</ThemedText>}
+      <Host matchContents colorScheme="light">
+        <Button
+          label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'}
+          disabled={checkingOrb}
+          onPress={() => { void checkOrbParity(); }}
+        />
+      </Host>
+      {orbParity && <ThemedText themeColor="textSecondary">{orbParity}</ThemedText>}
     </>
   );
 }
