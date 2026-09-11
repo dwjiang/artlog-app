@@ -7,6 +7,7 @@ import model from '../shared/model-version.json';
 import {
   candidateSignal,
   challengePurpose,
+  checklistExhibition,
   contributionField,
   contributionRejectedReason,
   contributionStatus,
@@ -102,6 +103,7 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
+    .index('by_artworkId_ownerId', ['artworkId', 'ownerId'])
     .index('by_owner_accession', ['ownerId', 'accession'])
     .index('by_source', ['source'])
     .index('by_flaggedForReview', ['flaggedForReview']),
@@ -116,8 +118,12 @@ export default defineSchema({
     source: placementSource,
     confidence: v.number(),
     closedAt: v.optional(v.number()),
+    proposalId: v.optional(v.id('placementProposals')),
+    closedByProposalId: v.optional(v.id('placementProposals')),
+    exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
   })
     .index('by_objectId', ['objectId'])
+    .index('by_object_venue_source', ['objectId', 'venueId', 'source'])
     .index('by_venueId', ['venueId']),
 
   placementProposals: defineTable({
@@ -132,9 +138,15 @@ export default defineSchema({
     readyForReview: v.boolean(),
     reviewer: v.optional(v.string()),
     reviewedAt: v.optional(v.number()),
+    promotion: v.optional(v.object({
+      placementId: v.id('placements'),
+      closedPlacementIds: v.array(v.id('placements')),
+    })),
+    revertedAt: v.optional(v.number()),
   })
     .index('by_object_venue', ['objectId', 'proposedVenueId'])
-    .index('by_status', ['status']),
+    .index('by_status', ['status'])
+    .index('by_status_readyForReview', ['status', 'readyForReview']),
 
   vectors: defineTable({
     objectId: v.id('objects'),
