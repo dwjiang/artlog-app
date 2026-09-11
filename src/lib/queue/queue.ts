@@ -4,13 +4,15 @@ import { AppState } from 'react-native';
 import model from '../../../shared/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
-import type { Id } from '../../../convex/_generated/dataModel';
 import * as pending from '@/db/repos/pending-scans';
 import { extractFeatures, orb } from '@/lib/capture/features';
 import type { CaptureStore, IdentifyResponse } from '@/lib/capture/stages';
 import { convex } from '@/lib/convex-client';
 import { embedder } from '@/lib/embed/embedder';
 import { captureFileUri, persistCapture } from '@/lib/files/photos';
+import { runLabelFlowForScan } from '@/lib/label/label-deps';
+import { LabelFlowError } from '@/lib/label/flow';
+import { removeFile } from '@/lib/label/crop';
 import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { createFlusher } from './flush';
 
@@ -43,12 +45,14 @@ export const captureStore: CaptureStore = {
   },
 };
 
-async function labelFlowPending(scanId: Id<'scans'>, label: { labelPhotoUri?: string; qrUrl?: string }): Promise<void> {
-  console.warn('Label flow pending plan 05.03; the label stays on the row', { scanId, ...label });
-}
-
 const flusher = createFlusher({
   listFlushable: pending.listFlushable,
+  listPendingLabels: pending.listPendingLabels,
+  recordLabelFailure: pending.recordLabelFailure,
+  clearPendingLabel: async (localId, label) => {
+    await pending.clearPendingLabel(localId, label);
+    if (label.labelPhotoPath) removeFile(captureFileUri(label.labelPhotoPath));
+  },
   markIdentifying: pending.markIdentifying,
   recordResult,
   recordFailure: pending.recordAttemptFailure,
@@ -56,10 +60,17 @@ const flusher = createFlusher({
   updateFeatures: pending.updateFeatures,
   resolveVisitId: resolveScanVisit,
   identify: (args) => convex.action(api.identify.identify, args),
-  runLabelFlow: (scanId, label) => labelFlowPending(scanId, {
-    labelPhotoUri: label.labelPhotoPath ? captureFileUri(label.labelPhotoPath) : undefined,
-    qrUrl: label.qrUrl,
-  }),
+  runLabelFlow: async (scanId, label) => {
+    try {
+      await runLabelFlowForScan(scanId, {
+        labelPhotoUri: label.labelPhotoPath ? captureFileUri(label.labelPhotoPath) : undefined,
+        qrUrl: label.qrUrl,
+      });
+    } catch (error) {
+      // Preserve transport/quota errors for the worker's retry policy.
+      throw error instanceof LabelFlowError ? error.cause ?? new Error(error.code) : error;
+    }
+  },
   reembed: (cropPath) => extractFeatures(captureFileUri(cropPath), { embedder, orb }),
   isOnline: async () => (await getNetworkStateAsync()).isInternetReachable !== false,
   modelVersion: model.modelVersion,
@@ -71,6 +82,20 @@ let recovery: Promise<void> | undefined;
 export async function retryPendingScan(localId: string): Promise<void> {
   await pending.retryPendingScan(localId);
   await flushQueue();
+}
+
+export async function retryPendingLabel(localId: string): Promise<void> {
+  await pending.retryPendingLabel(localId);
+  await flushQueue();
+}
+
+export async function discardPendingLabel(localId: string): Promise<void> {
+  const row = await pending.getPendingScan(localId);
+  if (!row) return;
+  await pending.clearPendingLabel(localId, {
+    labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined,
+  });
+  if (row.labelPhotoPath) removeFile(captureFileUri(row.labelPhotoPath));
 }
 
 /** Flushes now, on reconnect and on foreground; the flusher's own backoff covers failures in between. */

@@ -5,6 +5,25 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { rejectionPayload } from '../../../shared/attested-payloads';
 import { signPayload } from '@/lib/attested-write';
 
+const labelRejections = new Map<Id<'scans'>, Promise<Id<'feedback'> | null>>();
+
+export function handOffLabelRejection(scanId: Id<'scans'>, rejection: Promise<Id<'feedback'> | null>): void {
+  labelRejections.set(scanId, rejection);
+}
+
+export function resolveWithLabel(
+  client: Pick<ConvexReactClient, 'mutation'>,
+  scanId: Id<'scans'>,
+  contributionId: Id<'contributions'>,
+): void {
+  const rejection = labelRejections.get(scanId);
+  labelRejections.delete(scanId);
+  // Feedback may still be waiting for signal; neither navigation nor sharing waits on it.
+  void rejection?.then((feedbackId) => feedbackId && client.mutation(api.feedback.resolveRejection, {
+    feedbackId, resolution: { kind: 'label', contributionId },
+  })).catch((error: unknown) => console.warn('Could not resolve the rejection with this contribution', error));
+}
+
 /** Records "Not right?" as an attested rejection; `null` when this device cannot attest (design §4.6). */
 export async function rejectMatch(
   client: Pick<ConvexReactClient, 'mutation'>,

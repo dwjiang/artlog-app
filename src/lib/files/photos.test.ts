@@ -1,10 +1,13 @@
-import { captureFileUri, deleteCapture, persistCapture } from './photos';
+import { captureFileUri, deleteCapture, persistCapture, persistLabelPhoto } from './photos';
 
 const mockCreate = jest.fn();
 const mockMove = jest.fn();
 const mockDelete = jest.fn();
 const mockExisting = new Set<string>();
 let mockDocumentsUri = 'file:///documents';
+let mockUuid = 0;
+
+jest.mock('expo-crypto', () => ({ randomUUID: () => String(++mockUuid) }));
 
 jest.mock('expo-file-system', () => {
   class Node {
@@ -28,6 +31,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockExisting.clear();
   mockDocumentsUri = 'file:///documents';
+  mockUuid = 0;
 });
 
 it('moves the photo and crop into documents named by the capture, keeping extensions', async () => {
@@ -41,6 +45,13 @@ it('moves the photo and crop into documents named by the capture, keeping extens
     ['file:///tmp/IMG_1.PNG', 'file:///documents/photos/cap-1.png'],
     ['file:///caches/crops/abc.jpg', 'file:///documents/crops/cap-1.jpg'],
   ]);
+});
+
+it('keeps each offline label photo at a distinct path so a completed read cannot delete a newer shot', async () => {
+  await expect(persistLabelPhoto({ photoUri: 'file:///tmp/label.jpg', localId: 'cap-3' })).resolves.toBe('labels/cap-3-1.jpg');
+  await expect(persistLabelPhoto({ photoUri: 'file:///tmp/retake.jpg', localId: 'cap-3' })).resolves.toBe('labels/cap-3-2.jpg');
+  expect(mockCreate).toHaveBeenCalledWith('file:///documents/labels', { intermediates: true, idempotent: true });
+  expect(mockMove).toHaveBeenCalledWith('file:///tmp/label.jpg', 'file:///documents/labels/cap-3-1.jpg');
 });
 
 it('falls back to .jpg when the source has no extension', async () => {

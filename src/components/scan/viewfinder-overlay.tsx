@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useDerivedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { OverlayCaption } from './overlay-caption';
+import { Colors } from '@/constants/theme';
 import type { Guidance } from '@/lib/capture/rectangle';
 import type { LiveQuad } from '@/lib/capture/use-rect-detector';
 
@@ -28,16 +28,6 @@ const FADE_MS = 150;
 const EDGES: [number, number][] = [[0, 1], [3, 2], [0, 3], [1, 2]];
 
 type ViewPoint = [number, number];
-
-/** A caption legible over any scene: bold white text on a scrim capsule. */
-export function OverlayCaption({ children, hint }: { children: ReactNode; hint?: string }) {
-  return (
-    <View style={styles.caption}>
-      <ThemedText type="smallBold" themeColor="overlayText" style={styles.captionText}>{children}</ThemedText>
-      {hint && <ThemedText type="small" themeColor="overlayText" style={styles.captionText}>{hint}</ThemedText>}
-    </View>
-  );
-}
 
 export function GuidanceLabel({ guidance }: { guidance: Guidance }) {
   const [hintShown, setHintShown] = useState(false);
@@ -120,11 +110,6 @@ function Edge({ points, from, to, color }: Shared & { from: number; to: number }
 }
 
 const styles = StyleSheet.create({
-  caption: {
-    alignSelf: 'center', alignItems: 'center', gap: Spacing.half, maxWidth: '90%',
-    backgroundColor: Colors.light.overlayScrim, borderRadius: Spacing.three, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three,
-  },
-  captionText: { textAlign: 'center' },
   corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderRadius: CORNER_SIZE / 2, opacity: 0 },
   edge: { position: 'absolute', height: EDGE_WIDTH, opacity: 0 },
 });

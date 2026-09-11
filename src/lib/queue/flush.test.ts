@@ -25,6 +25,14 @@ function fakeDependencies(rows: PendingScan[]) {
     listFlushable: jest.fn(async (modelVersion: string) => [...store.values()]
       .filter((row) => row.status === 'queued' || (row.status === 'failed' && row.attemptModelVersion !== modelVersion))
       .sort((a, b) => a.capturedAt - b.capturedAt)),
+    listPendingLabels: jest.fn(async () => [...store.values()].filter((row) => row.status === 'identified' && row.scanId && (row.labelPhotoPath || row.qrUrl) && row.attempts < 5)),
+    clearPendingLabel: jest.fn(async (localId: string) => { Object.assign(store.get(localId)!, { labelPhotoPath: null, qrUrl: null, attempts: 0, lastError: null }); }),
+    recordLabelFailure: jest.fn(async (localId: string, error: string, { countAttempt }: { countAttempt: boolean }) => {
+      const row = store.get(localId)!;
+      row.attempts += countAttempt ? 1 : 0;
+      row.lastError = error;
+      return { status: row.attempts >= 5 ? 'failed' as const : 'queued' as const, attempts: row.attempts };
+    }),
     markIdentifying: jest.fn(async (localId: string) => { store.get(localId)!.status = 'identifying'; }),
     recordResult: jest.fn(async (localId: string, response: IdentifyResponse) => {
       Object.assign(store.get(localId)!, { status: response.status === 'unsupported_version' ? 'failed' : 'identified', scanId: response.scanId });
@@ -146,8 +154,8 @@ it('keeps the scan identified when the label flow fails', async () => {
   deps.identify.mockResolvedValue(identified('a', 'miss'));
   deps.runLabelFlow.mockRejectedValue(new Error('feature_off'));
   await createFlusher(deps).start();
-  expect(store.get('a')).toMatchObject({ status: 'identified', attempts: 0 });
-  expect(console.warn).toHaveBeenCalledWith('Label flow failed for a queued scan', expect.objectContaining({ localId: 'a' }));
+  expect(store.get('a')).toMatchObject({ status: 'identified', attempts: 1, lastError: 'feature_off' });
+  expect(deps.recordFailure).not.toHaveBeenCalled();
 });
 
 it('re-embeds crops from an older model before sending them', async () => {

@@ -13,6 +13,7 @@ import {
 import { enqueuePendingScan } from '@/db/repos/pending-scans';
 import { getSavedWork } from '@/db/repos/saved-works';
 import * as visits from '@/db/repos/visits';
+import { resolveWithLabel } from '@/lib/result/feedback';
 
 const mockPush = jest.fn();
 const mockSign = jest.fn();
@@ -295,6 +296,26 @@ it('routes to the label from the sheet and keeps the choices when feedback canno
   await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID } });
   expect(screen.queryByLabelText('Not right sheet')).toBeNull();
+});
+
+it('hands a recorded rejection to the label screen so a verified label can resolve it', async () => {
+  await publish(softScan);
+  await render(result());
+  await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID } });
+  resolveWithLabel(client, SCAN_ID, 'contrib-1' as Id<'contributions'>);
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledWith(expect.anything(), {
+    feedbackId: 'fb-1', resolution: { kind: 'label', contributionId: 'contrib-1' },
+  }));
+});
+
+it('opens the label while the rejection challenge waits for network', async () => {
+  mockSign.mockImplementation(() => new Promise(() => {}));
+  await render(result());
+  await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID } });
 });
 
 it('waits for the device before querying and shows the unsupported, failed and queued states', async () => {
