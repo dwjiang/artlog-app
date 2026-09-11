@@ -4,6 +4,7 @@ import { Stack } from 'expo-router/stack';
 import { useEffect } from 'react';
 
 import { DatabaseGate } from '@/components/database-gate';
+import { CollectionSync } from '@/lib/account/collection-sync';
 import { convex, secureStorage } from '@/lib/convex-client';
 import { DeviceIdentity } from '@/lib/device-identity';
 import { warmUpEmbedder } from '@/lib/embed/embedder';
@@ -20,6 +21,7 @@ export default function RootLayout() {
     <DatabaseGate>
       <ConvexAuthProvider client={convex} storage={secureStorage}>
         <DeviceIdentity />
+        <CollectionSync />
         <QueueFlusher />
         <VenueResolver />
         <ThemeProvider value={DefaultTheme}>

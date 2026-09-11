@@ -348,6 +348,7 @@ export default defineSchema({
     banned: v.boolean(),
     bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id('accounts')),
+    appleLinkProof: v.optional(v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() })),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
     attestPublicKey: v.optional(v.string()),
@@ -378,6 +379,7 @@ export default defineSchema({
 
   accounts: defineTable({
     appleUserId: v.string(),
+    email: v.optional(v.string()),
     deviceIds: v.array(v.id('devices')),
     createdAt: v.number(),
   }).index('by_appleUserId', ['appleUserId']),
@@ -399,10 +401,10 @@ export default defineSchema({
 
   collections: defineTable({
     deviceId: v.id('devices'),
-    accountId: v.optional(v.id('accounts')),
     localId: v.string(),
     visitId: v.optional(v.id('visits')),
     venueId: v.optional(v.id('museums')),
+    venueName: v.optional(v.string()),
     gallery: v.optional(v.string()),
     savedAt: v.number(),
     snapshot: snapshotFields,
@@ -410,10 +412,14 @@ export default defineSchema({
     artworkId: v.optional(v.id('artworks')),
     scanId: v.optional(v.id('scans')),
     deletedAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+    confirmationRecorded: v.optional(v.boolean()),
+    updatedAt: v.number(),
+    updatedBy: v.id('devices'),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
     .index('by_device_savedAt', ['deviceId', 'savedAt'])
-    .index('by_accountId', ['accountId']),
+    .index('by_device_updatedAt', ['deviceId', 'updatedAt']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 

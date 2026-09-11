@@ -13,7 +13,7 @@ export const CONTRIBUTION_MESSAGES = {
 } as const;
 
 export function contributionMessage(result: ContributionOutcome): string {
-  if (result.status === 'rejected') return CONTRIBUTION_MESSAGES[result.reason ?? 'rejected'];
+  if (result.status === 'rejected') return CONTRIBUTION_MESSAGES[result.reason === 'duplicate' ? 'duplicate' : 'rejected'];
   return CONTRIBUTION_MESSAGES[result.status];
 }
 

@@ -14,6 +14,7 @@ jest.mock('@/components/database-gate', () => ({
 }));
 jest.mock('@/lib/convex-client', () => ({ convex: {}, secureStorage: {} }));
 jest.mock('@/lib/device-identity', () => ({ DeviceIdentity: () => null }));
+jest.mock('@/lib/account/collection-sync', () => ({ CollectionSync: () => null }));
 jest.mock('@/lib/embed/embedder', () => ({ warmUpEmbedder: () => {} }));
 jest.mock('@/lib/queue/use-queue', () => ({ QueueFlusher: () => null }));
 jest.mock('@/lib/venue/use-venue', () => ({ VenueResolver: () => null }));

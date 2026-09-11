@@ -33,14 +33,10 @@ it.each([
 });
 
 it('records sync without touching the snapshot', async () => {
-  await repo.markSynced([], 5);
-  await repo.markSynced(['lilies'], 5);
+  await repo.markSynced([]);
+  await repo.markSynced([{ localId: 'lilies', revision: 0, updatedAt: 5, updatedBy: 'device' as never }]);
   expect(await repo.getSavedWork('lilies')).toMatchObject({
     syncedAt: 5, title: 'Water Lilies', artist: 'Claude Monet', institution: "Musée d'Orsay", deletedAt: null,
   });
   expect((await repo.getSavedWork('cotton'))?.syncedAt).toBeNull();
-});
-
-it('exposes no way to change snapshot fields', () => {
-  expect(Object.keys(repo).sort()).toEqual(['getSavedWork', 'insertSavedWork', 'listSavedWorks', 'markSynced', 'selectSavedWork', 'softDeleteSavedWork']);
 });

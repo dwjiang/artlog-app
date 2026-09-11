@@ -158,7 +158,7 @@ export type Embedding = Infer<typeof embedding>;
 
 export const devicePlatform = v.union(v.literal('ios'), v.literal('simulator'));
 
-export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'));
+export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'), v.literal('apple'));
 
 export const labelField = v.object({
   value: v.string(),
