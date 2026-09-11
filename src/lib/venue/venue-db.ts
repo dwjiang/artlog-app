@@ -116,3 +116,9 @@ export async function insertConfirmedVenue(
     venue.id, `poi:${venue.id}`, venue.name, venue.lat, venue.lng, venue.website ?? null, 'poi',
   );
 }
+
+/** The display name of a venue from the local table; a saved work keeps it as text (design §4.2 *Moves*). */
+export async function venueNameById(id: Id<'museums'>): Promise<string | undefined> {
+  const row = await (await openVenueDb()).getFirstAsync<{ name: string }>('SELECT name FROM venues WHERE id = ?', id);
+  return row?.name;
+}
