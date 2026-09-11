@@ -46,8 +46,10 @@ CREATE TABLE `savedWorks` (
 	`artworkId` text,
 	`scanId` text,
 	`photoPath` text,
-	`cropPath` text NOT NULL,
+	`cropPath` text,
 	`syncedAt` integer,
+	`revision` integer DEFAULT 0 NOT NULL,
+	`syncedBy` text,
 	`deletedAt` integer,
 	FOREIGN KEY (`visitLocalId`) REFERENCES `visits`(`localId`) ON UPDATE no action ON DELETE no action
 );

@@ -93,7 +93,7 @@ beforeEach(() => {
   });
   mockAuth.isAuthenticated = true;
   mockSign.mockResolvedValue({ nonce: 'nonce-1', assertionBase64: '', payloadJson: 'p' });
-  mockSaveMutation.mockResolvedValue({ collectionId: 'col-1' });
+  mockSaveMutation.mockResolvedValue({ collectionId: 'col-1', updatedAt: 20, updatedBy: 'device' });
   mockHaptic.mockResolvedValue(undefined);
   results.clear();
   listeners.clear();

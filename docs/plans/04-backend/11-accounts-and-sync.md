@@ -67,9 +67,9 @@ Design §5.6: device identity always; an optional account (Sign in with Apple) i
 
 ## Done criteria
 
-- [ ] Tests pass (≥ 12 new); tsc/lint; `npx convex dev --once`
+- [x] Tests pass (≥ 12 new); tsc/lint; `npx convex dev --once`
 - [ ] Manual: sign in on device A, save a work; sign in on device B → the work appears without a photo; sign out on B keeps local data
-- [ ] `docs/plans/README.md` updated
+- [x] `docs/plans/README.md` updated
 
 ## STOP conditions
 
@@ -79,3 +79,41 @@ Design §5.6: device identity always; an optional account (Sign in with Apple) i
 ## Maintenance notes
 
 - Account = sync target only. Reviewers should reject any change that keys rate limits or agreement by account.
+
+
+## Execution notes (2026-09-11)
+
+Implemented with 47 new tests across token/provider verification, account authorization,
+sync pagination, immutable snapshots, offline edits/deletions, local persistence,
+account controls and lifecycle triggers. Typecheck, lint, codegen and dev push pass.
+All 608 app tests pass. Existing backend stress tests initially timed out under native
+build load, then passed on isolated reruns; all plan-specific tests pass. The app
+suite's route mock was updated for the new worker.
+
+Installed Convex Auth 0.0.95 differs from the sketch: `retrieveAccount` throws for
+missing accounts, existing accounts bypass `createOrUpdateUser`, and the credentials
+context replaces `ctx.auth`. The provider uses idempotent `createAccount`, resolves
+the caller through an internal query, and explicitly returns that device's user ID.
+Linking requires a short-lived server-verified Apple proof plus App Attest; the Apple
+JWT is bound to a one-use device challenge. No client-supplied subject is trusted alone.
+
+Sync uses membership-scoped cursors with 500-row pages and persisted checkpoints.
+It also returns edits made by a sibling to the caller's original saves; upload
+acknowledgements carry terminal deletions. Local revision checks preserve in-flight
+edits. Signing out pauses sync and retains data and checkpoints. Changing accounts
+merges local snapshots into the new target. Photos and crops remain local; both are
+nullable for imported works. The existing save confirmation is recorded once even
+when sync inserts the row first.
+
+The initial SQLite schema was rewritten directly (existing development installs need
+a fresh local database). Its SQL import was renamed to invalidate Metro's inline-SQL
+cache. Six development collection fixtures were reshaped and restored with original
+IDs; no migration or compatibility code was added.
+
+Verification on `usable-owl-256`: Apple remote JWKS fetched in the default Convex
+runtime, an untrusted signing key rejected, and device identity preserved.
+`APPLE_BUNDLE_ID=app.artlog.ios` is configured on dev. `npm run ios` built successfully;
+light-mode Settings, the native Apple prompt, and an imported work's collection/detail
+views and note were checked on the dedicated Manama simulator. The simulator has no
+Apple Account signed in, so successful Apple sign-in on two devices and sign-out
+preserving local data remain a manual gate. Simulator import fixtures were removed.

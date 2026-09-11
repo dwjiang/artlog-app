@@ -20,9 +20,9 @@ async function fixture() {
   const visitId = await t.run((ctx) => ctx.db.insert('visits', { deviceId: user.deviceId, venueId, startedAt: Date.now() }));
   const args: {
     localId: string; scanId?: Id<'scans'>; objectId?: Id<'objects'>; artworkId?: Id<'artworks'>; venueId?: Id<'museums'>;
-    visitId?: Id<'visits'>; gallery?: string; snapshot: typeof snapshot; suggested: typeof suggested | null;
+    visitId?: Id<'visits'>; gallery?: string; savedAt: number; snapshot: typeof snapshot; suggested: typeof suggested | null;
   } = {
-    localId: 'saved-1', scanId, objectId: work.objectId, artworkId: work.artworkId, venueId, visitId, gallery: '4', snapshot, suggested,
+    localId: 'saved-1', savedAt: Date.now(), scanId, objectId: work.objectId, artworkId: work.artworkId, venueId, visitId, gallery: '4', snapshot, suggested,
   };
   const save = (overrides: Partial<typeof args> = {}, as = user.as) => as.mutation(api.collections.saveToCollection, { ...args, ...overrides });
   const object = () => t.run((ctx) => ctx.db.get(work.objectId));
@@ -34,7 +34,7 @@ async function fixture() {
 it('saves a snapshot once per local id and confirms an untouched suggestion exactly once', async () => {
   const { user, args, save, object, list, rows } = await fixture();
   const { collectionId } = await save({ snapshot: { ...snapshot, title: ' Water Lilies ' } });
-  expect(await save()).toEqual({ collectionId });
+  expect(await save()).toMatchObject({ collectionId });
   const saved = await rows();
   expect(saved).toHaveLength(1);
   expect(saved[0]).toMatchObject({
@@ -66,7 +66,7 @@ it('lists the caller’s saved works newest first and hides removed ones', async
   now.mockReturnValue(1_800_000_000_000);
   await save({ localId: 'first' });
   now.mockReturnValue(1_800_000_001_000);
-  await save({ localId: 'second' });
+  await save({ localId: 'second', savedAt: Date.now() });
   expect((await list()).page.map((row) => row.localId)).toEqual(['second', 'first']);
   const other = await seedDevice(t);
   expect((await list(other.as)).page).toEqual([]);
@@ -103,4 +103,14 @@ it('rate-limits a burst of saves', async () => {
   const { save } = await fixture();
   for (let i = 0; i < 10; i++) await save({ localId: `burst-${i}` });
   await expect(save({ localId: 'burst-10' })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'sync' } });
+});
+
+it('records the save confirmation once when background sync inserted the snapshot first', async () => {
+  const { user, args, save, object } = await fixture();
+  const { scope } = await user.as.query(api.accounts.me, {});
+  await user.as.mutation(api.sync.syncCollection, {
+    scope, since: 0, push: [{ localId: args.localId, snapshot, objectId: args.objectId, savedAt: args.savedAt }],
+  });
+  await save(); await save();
+  expect(await object()).toMatchObject({ confirmCount: 1 });
 });

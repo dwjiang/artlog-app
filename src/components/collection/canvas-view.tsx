@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import type { ReactElement } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -6,7 +5,7 @@ import { WorkLink } from './work-link';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { SavedWork } from '@/db/schema';
-import { captureFileUri } from '@/lib/files/photos';
+import { SavedWorkImage } from './saved-work-image';
 
 const CANVAS_SIZE = 220;
 
@@ -19,7 +18,7 @@ export function CanvasView({ works, header }: { works: SavedWork[]; header: Reac
         {works.map((work) => (
           <WorkLink key={work.localId} work={work} style={styles.hanging}>
             <View style={styles.frame}>
-              <Image source={captureFileUri(work.cropPath)} contentFit="cover" style={styles.canvas} />
+              <SavedWorkImage path={work.cropPath} title={work.title} style={styles.canvas} />
             </View>
             <View style={styles.plaque}>
               <ThemedText type="smallBold" numberOfLines={1}>{work.title}</ThemedText>
