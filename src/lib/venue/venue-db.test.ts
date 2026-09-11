@@ -101,6 +101,11 @@ it('keeps the live table writable after a refresh and carries later confirmation
   expect((await venueDb.nearest(next, { lat: 40, lng: -73 }, 400)).map((row) => row.id).sort()).toEqual(['museum-2', 'new-gallery']);
 });
 
+it('names a venue from the local table for a saved work', async () => {
+  expect(await venueDb.venueNameById('museum-1' as never)).toBe('Museum');
+  expect(await venueDb.venueNameById('museum-none' as never)).toBeUndefined();
+});
+
 it('keeps the live table when a download fails validation', async () => {
   const live = await venueDb.openVenueDb();
   mockQuery.mockResolvedValue({ version: 3, rowCount: 1, url: 'https://example.test/venues.db' });

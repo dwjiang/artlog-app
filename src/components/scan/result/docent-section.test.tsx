@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { DocentSection } from './docent-section';
 
@@ -37,4 +37,26 @@ it('renders nothing without sentences', async () => {
   expect(empty.toJSON()).toBeNull();
   const pending = await render(<DocentSection />);
   expect(pending.toJSON()).toBeNull();
+});
+
+describe('while the backend is still writing', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('shows the writing line under the title until the sentences arrive', async () => {
+    const view = await render(<DocentSection title="About this work" pending />);
+    expect(screen.getByText('About this work')).toBeOnTheScreen();
+    expect(screen.getByText('Writing about this work…')).toBeOnTheScreen();
+    await view.rerender(<DocentSection title="About this work" pending={false} docent={docent} factSheet={factSheet} />);
+    expect(screen.queryByText('Writing about this work…')).toBeNull();
+    expect(screen.getByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
+  });
+
+  it('gives up after ten seconds and disappears', async () => {
+    const view = await render(<DocentSection title="About this work" pending />);
+    await act(() => { jest.advanceTimersByTime(9_999); });
+    expect(screen.getByText('Writing about this work…')).toBeOnTheScreen();
+    await act(() => { jest.advanceTimersByTime(1); });
+    expect(view.toJSON()).toBeNull();
+  });
 });

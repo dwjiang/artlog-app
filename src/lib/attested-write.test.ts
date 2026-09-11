@@ -73,6 +73,11 @@ it('snapshots the payload before waiting for a challenge', async () => {
   expect(mockAssertion).toHaveBeenCalledWith('saved-key', 'server-nonce.{"value":1}');
 });
 
+it('signs a pre-serialized payload verbatim', async () => {
+  expect((await signPayload('{"operation":"rejectMatch","scanId":"s"}'))?.payloadJson).toBe('{"operation":"rejectMatch","scanId":"s"}');
+  expect(mockAssertion).toHaveBeenCalledWith('saved-key', 'server-nonce.{"operation":"rejectMatch","scanId":"s"}');
+});
+
 it('rejects non-JSON payloads before contacting the server', async () => {
   await expect(signPayload({ value: BigInt(1) })).rejects.toThrow();
   expect(mockMutation).not.toHaveBeenCalled();

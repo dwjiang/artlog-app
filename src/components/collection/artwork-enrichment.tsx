@@ -1,4 +1,4 @@
-import { useConvexAuth, useQueries, type RequestForQueries } from 'convex/react';
+import { useQueries, type RequestForQueries } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -9,15 +9,10 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { DocentSection } from '@/components/scan/result/docent-section';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useDeviceReady } from '@/lib/use-device-ready';
 
 export function ArtworkEnrichment({ artworkId }: { artworkId: Id<'artworks'> }) {
-  const { isAuthenticated } = useConvexAuth();
-  const deviceQuery = useMemo(
-    (): RequestForQueries => isAuthenticated ? { device: { query: api.devices.me, args: {} } } : {},
-    [isAuthenticated],
-  );
-  const { device }: { device?: FunctionReturnType<typeof api.devices.me> | Error } = useQueries(deviceQuery);
-  const ready = isAuthenticated && !!device && !(device instanceof Error);
+  const ready = useDeviceReady();
   const enrichmentQuery = useMemo(
     (): RequestForQueries => ready
       ? { enrichment: { query: api.artworks.enrichment, args: { artworkId } } }
