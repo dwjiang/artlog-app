@@ -2,8 +2,8 @@ import type { Doc } from '../_generated/dataModel';
 import { extractPage, hasArtworkMetadata, type PageFields } from './pageExtract';
 import type { TavilySearchResponse } from './tavily';
 import { TITLE_MATCH_THRESHOLD, artistMentioned, exactTitle, jaccard, mentions, normalizeText, personMatches, titleMatches, titleQualifiersMatch } from './textMatch';
-import type { LabelEvidence, LabelField, LabelFieldName, LabelFields } from './validators';
-import { allowedVenueUrl, fetchVenuePage, hostAllowed } from './venueFetch';
+import type { ImageCheck, LabelEvidence, LabelField, LabelFieldName, LabelFields, LabelFlow, LabelFlowDisplay, SearchCandidate } from './validators';
+import { allowedVenueUrl, fetchVenuePage, hostAllowed, type VenuePage } from './venueFetch';
 import {
   collections,
   countries,
@@ -25,6 +25,17 @@ export const LOCKING_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession'
 export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession', 'qr']);
 export const IMAGE_MATCH_COSINE = 0.85;
 const MAX_IMAGE_URLS = 3;
+const MAX_CANDIDATE_PAGES = 3;
+
+export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {
+  const { rawOcr: _rawOcr, ...display } = flow;
+  return display;
+}
+
+// Design §4.4: similarity alone never selects a work; the homography must hold as well.
+export function imageCheckPasses(check: ImageCheck): boolean {
+  return Number.isFinite(check.cosine) && check.cosine >= IMAGE_MATCH_COSINE && check.cosine <= 1 && check.homographyValid;
+}
 
 export function labelField(value: string, evidence: LabelEvidence, confidence?: number): LabelField {
   return { value, evidence, locked: LOCKING_EVIDENCE.has(evidence), ...(confidence === undefined ? {} : { confidence }) };
@@ -141,6 +152,60 @@ function compareKeys(a: number[], b: number[]): number {
   return 0;
 }
 
+// Images the phone may download: on the venue's own https hosts, never trackers or vector logos.
+function artworkImageUrls(images: string[], pageUrl: string, hosts: string[]): string[] {
+  const urls = images.flatMap((image) => {
+    let url: URL | null;
+    try {
+      url = allowedVenueUrl(new URL(image, pageUrl).href, hosts);
+    } catch {
+      return [];
+    }
+    return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname) ? [url.href] : [];
+  });
+  return [...new Set(urls)].slice(0, MAX_IMAGE_URLS);
+}
+
+function objectPageUrl(value: string, hosts: string[]): URL | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || !hostAllowed(url, hosts)) return null;
+  return OBJECT_PATH.test(url.pathname) && !NON_OBJECT.test(url.host + url.pathname) ? url : null;
+}
+
+// Design §4.4: a description retrieves look-alikes, so every object page on the venue's hosts is a
+// candidate and the phone's pixels decide. A page must name a title and carry an image to be checked.
+export async function selectSearchCandidates(response: TavilySearchResponse, hosts: string[]): Promise<SearchCandidate[]> {
+  const ranked = response.results
+    .filter((result) => objectPageUrl(result.url, hosts) !== null)
+    .sort((a, b) => b.score - a.score);
+  const candidates: SearchCandidate[] = [];
+  const visited = new Set<string>();
+  for (const result of ranked) {
+    if (visited.has(result.url)) continue;
+    if (visited.size >= MAX_CANDIDATE_PAGES) break;
+    visited.add(result.url);
+    let page: VenuePage;
+    try {
+      page = await fetchVenuePage(result.url, hosts);
+    } catch (error) {
+      console.warn('Candidate page unavailable', error);
+      continue;
+    }
+    const extracted = extractPage(page.html);
+    const title = extracted.fields.title;
+    if (!title || !hasArtworkMetadata(extracted)) continue;
+    const imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
+    if (!imageUrls.length || candidates.some((candidate) => candidate.sourceUrl === page.url)) continue;
+    candidates.push({ sourceUrl: page.url, fields: { ...extracted.fields, title }, imageUrls });
+  }
+  return candidates;
+}
+
 // Decision 007: find the pair in substantive museum content, prefer the canonical object page over
 // shops, audio and essays, and never treat global image results as evidence for the object.
 export async function selectTavilyEvidence(response: TavilySearchResponse, pair: TavilyPair, hosts: string[]): Promise<TavilyEvidence | null> {
@@ -178,18 +243,7 @@ export async function selectTavilyEvidence(response: TavilySearchResponse, pair:
         (pair.accession && accession && normalizeText(pair.accession) !== normalizeText(accession))) {
         continue;
       }
-      if (hasArtworkMetadata(extracted)) {
-        const images = extracted.imageUrls.flatMap((image) => {
-          let url: URL | null;
-          try {
-            url = allowedVenueUrl(new URL(image, page.url).href, hosts);
-          } catch {
-            return [];
-          }
-          return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname) ? [url.href] : [];
-        });
-        evidence.imageUrls = [...new Set(images)].slice(0, MAX_IMAGE_URLS);
-      }
+      if (hasArtworkMetadata(extracted)) evidence.imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
     } catch (error) {
       console.warn('Artwork image metadata unavailable; keeping text evidence only', error);
     }

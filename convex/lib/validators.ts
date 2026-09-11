@@ -191,3 +191,49 @@ export const labelFlow = v.object({
   updatedAt: v.number(),
 });
 export type LabelFlow = Infer<typeof labelFlow>;
+
+// The public shape of the label flow: the raw OCR reading stays server-side.
+export const labelFlowDisplay = labelFlow.omit('rawOcr');
+export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
+
+// The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography (design §4.4).
+export const imageCheck = v.object({ url: v.string(), cosine: v.number(), homographyValid: v.boolean() });
+export type ImageCheck = Infer<typeof imageCheck>;
+
+export const searchCandidate = v.object({
+  sourceUrl: v.string(),
+  fields: v.object({
+    title: v.string(),
+    artist: v.optional(v.string()),
+    date: v.optional(v.string()),
+    accession: v.optional(v.string()),
+    medium: v.optional(v.string()),
+    creditLine: v.optional(v.string()),
+  }),
+  imageUrls: v.array(v.string()),
+});
+export type SearchCandidate = Infer<typeof searchCandidate>;
+
+// Museum-site search state on a scan. `promptVersion` is present whenever a description was attempted.
+export const museumSearchDisplay = v.union(
+  v.object({
+    stage: v.literal('none'),
+    reason: v.union(v.literal('cap'), v.literal('no_candidates')),
+    promptVersion: v.optional(v.string()),
+    updatedAt: v.number(),
+  }),
+  v.object({
+    stage: v.literal('candidates'),
+    candidates: v.array(searchCandidate),
+    promptVersion: v.string(),
+    updatedAt: v.number(),
+  }),
+  v.object({
+    stage: v.literal('confirmed'),
+    candidates: v.array(searchCandidate),
+    selected: v.object({ sourceUrl: v.string(), imageUrl: v.string() }),
+    promptVersion: v.string(),
+    updatedAt: v.number(),
+  })
+);
+export type MuseumSearchDisplay = Infer<typeof museumSearchDisplay>;

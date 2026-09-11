@@ -1,4 +1,4 @@
-import { ConvexError, type Infer, v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -17,12 +17,13 @@ import {
 } from './lib/labelPrompt';
 import {
   FIELD_NAMES,
-  IMAGE_MATCH_COSINE,
   LOCKING_EVIDENCE,
   MUSEUM_EVIDENCE,
+  displayLabelFlow,
   evidenceSummary,
   findArtist,
   findWikidataPainting,
+  imageCheckPasses,
   labelField,
   selectTavilyEvidence,
   trimInput,
@@ -40,7 +41,16 @@ import { limitDevice } from './lib/rateLimits';
 import { searchWithCredit } from './lib/tavilySpend';
 import { personMatches } from './lib/textMatch';
 import { chatJson } from './lib/tokenFactory';
-import { labelFlow, type LabelFieldName, type LabelFields, type LabelFlow } from './lib/validators';
+import {
+  imageCheck,
+  labelFlow,
+  labelFlowDisplay,
+  type ImageCheck,
+  type LabelFieldName,
+  type LabelFields,
+  type LabelFlow,
+  type LabelFlowDisplay,
+} from './lib/validators';
 import { allowedVenueUrl, fetchVenuePage, venueHosts } from './lib/venueFetch';
 import { lifespan, type WikidataEntity } from './lib/wikidata';
 import schema from './schema';
@@ -50,10 +60,7 @@ const MAX_IMAGE_BYTES = 1_500_000;
 const MAX_READ_CALLS = 4;
 const MAX_MODERATION_CALLS = 2;
 // Decision 004 measured p95 3.3 s for Kimi before upload time; the default 8 s is too tight with an image.
-const READ_TIMEOUT_MS = 20_000;
-
-const labelFlowDisplay = labelFlow.omit('rawOcr');
-export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
+export const READ_TIMEOUT_MS = 20_000;
 
 const labelInput = v.object({
   title: v.optional(v.string()), artist: v.optional(v.string()), date: v.optional(v.string()),
@@ -90,14 +97,14 @@ async function start(ctx: ActionCtx, scanId: Id<'scans'>) {
   return { device, ...context };
 }
 
-function display(flow: LabelFlow): LabelFlowDisplay {
-  const { rawOcr: _rawOcr, ...rest } = flow;
-  return rest;
-}
-
 function decodedBytes(base64: string): number {
   const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
   return Math.floor((base64.length * 3) / 4) - padding;
+}
+
+export function assertImageBase64(imageBase64: string): void {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) throw new ConvexError({ code: 'bad_image' });
+  if (decodedBytes(imageBase64) > MAX_IMAGE_BYTES) throw new ConvexError({ code: 'image_too_large' });
 }
 
 const READING_KEYS: Record<LabelFieldName, keyof LabelReading> = {
@@ -145,8 +152,7 @@ export const readLabel = action({
   returns: labelFlowDisplay,
   handler: async (ctx, { scanId, imageBase64 }): Promise<LabelFlowDisplay> => {
     const { device, scan } = await start(ctx, scanId);
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) throw new ConvexError({ code: 'bad_image' });
-    if (decodedBytes(imageBase64) > MAX_IMAGE_BYTES) throw new ConvexError({ code: 'image_too_large' });
+    assertImageBase64(imageBase64);
     await limitDevice(ctx, 'labelRead', device._id);
     const model = process.env.LABEL_VL_MODEL;
     if (!model) throw new ConvexError({ code: 'model_unconfigured' });
@@ -188,9 +194,8 @@ async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPai
   return response ? selectTavilyEvidence(response, pair, hosts) : null;
 }
 
-function applyImageCheck(flow: LabelFlow, check: { url: string; cosine: number }): LabelFlow {
-  if (!Number.isFinite(check.cosine) || check.cosine > 1 || check.cosine < IMAGE_MATCH_COSINE ||
-    !flow.imageUrls?.includes(check.url)) return flow;
+function applyImageCheck(flow: LabelFlow, check: ImageCheck): LabelFlow {
+  if (!imageCheckPasses(check) || !flow.imageUrls?.includes(check.url)) return flow;
   const fields = { ...flow.fields };
   for (const name of ['title', 'artist'] as const) {
     const field = fields[name];
@@ -199,7 +204,7 @@ function applyImageCheck(flow: LabelFlow, check: { url: string; cosine: number }
   return { ...flow, fields, evidence: evidenceSummary(fields) };
 }
 
-async function moderateVerifiedFields(ctx: ActionCtx, fields: LabelFields, stored?: LabelFlow): Promise<'clear' | 'flagged'> {
+export async function moderateVerifiedFields(ctx: ActionCtx, fields: LabelFields, stored?: LabelFlow): Promise<'clear' | 'flagged'> {
   if (stored?.moderation === 'clear' && FIELD_NAMES.every((name) => fields[name]?.value === stored.fields[name]?.value)) {
     return 'clear';
   }
@@ -219,7 +224,7 @@ async function moderateVerifiedFields(ctx: ActionCtx, fields: LabelFields, store
 export const verifyLabel = action({
   args: {
     scanId: v.id('scans'), fields: labelInput,
-    imageCheck: v.optional(v.object({ url: v.string(), cosine: v.number() })),
+    imageCheck: v.optional(imageCheck),
   },
   returns: labelFlowDisplay,
   handler: async (ctx, args): Promise<LabelFlowDisplay> => {
@@ -242,7 +247,7 @@ export const verifyLabel = action({
       if (upgraded !== stored) await ctx.runMutation(internal.label.write, {
         scanId: args.scanId, deviceId: device._id, generation: scan.generation, labelFlow: upgraded,
       });
-      return display(upgraded);
+      return displayLabelFlow(upgraded);
     }
     await limitDevice(ctx, 'labelVerify', device._id);
     const hosts = venue ? venueHosts(venue) : [];
@@ -328,6 +333,6 @@ export const verifyLabel = action({
     };
     if (args.imageCheck) flow = applyImageCheck(flow, args.imageCheck);
     await ctx.runMutation(internal.label.write, { scanId: args.scanId, deviceId: device._id, generation: scan.generation, labelFlow: flow });
-    return display(flow);
+    return displayLabelFlow(flow);
   },
 });

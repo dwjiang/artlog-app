@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { graphPage, jsonLdPage, metaPage, plainPage, tavilyMonet, tavilyRodin, tavilySeurat, tavilyStarryNight } from './labelFixtures';
-import { evidenceSummary, labelField, selectTavilyEvidence, trimInput, venueCountryMatch, verifyAccession } from './labelVerify';
+import { evidenceSummary, imageCheckPasses, labelField, selectSearchCandidates, selectTavilyEvidence, trimInput, venueCountryMatch, verifyAccession } from './labelVerify';
 import { parseSearchResponse } from './tavily';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -181,6 +181,81 @@ describe('Tavily evidence selection (decision 007 cases)', () => {
     expect(labelField('x', 'accession', 0.5)).toEqual({ value: 'x', evidence: 'accession', locked: true, confidence: 0.5 });
     expect(labelField('x', 'ocr')).toEqual({ value: 'x', evidence: 'ocr', locked: false });
     expect(trimInput({ title: '  Water Lilies ', artist: '  ', date: undefined })).toEqual({ title: 'Water Lilies' });
+  });
+});
+
+describe('museum-site search candidates', () => {
+  const hosts = ['metmuseum.org'];
+  const objectPage = (id: string) => `https://www.metmuseum.org/art/collection/search/${id}`;
+  const result = (url: string, score: number) => ({ url, title: 'Water Lilies', content: 'Claude Monet', score });
+  const metImage = 'https://collectionapi.metmuseum.org/api/collection/v1/iiif/437137/2018391/main-image';
+  const waterLilies = {
+    title: 'Water Lilies', artist: 'Claude Monet', date: '1919', accession: '1998.325.2', medium: 'Oil on canvas',
+    creditLine: 'Gift of Louise Reinhardt Smith, 1983',
+  };
+
+  it('keeps object pages on the venue hosts in score order and returns their fields and images', async () => {
+    const pages: Record<string, string> = {
+      [objectPage('437137')]: jsonLdPage,
+      [objectPage('438008')]: jsonLdPage.replaceAll('Water Lilies', 'Haystacks').replaceAll('1998.325.2', '1983.532'),
+    };
+    fetchMock.mockImplementation(async (value) => new Response(pages[String(value)] ?? plainPage));
+    const response = parseSearchResponse({ results: [
+      result(objectPage('438008'), 0.7),
+      result('https://customprints.metmuseum.org/detail/489058/monet-water-lilies', 0.95),
+      result('https://www.moma.org/collection/works/79802', 0.99),
+      result('http://www.metmuseum.org/art/collection/search/1', 0.98),
+      result('https://www.metmuseum.org/perspectives/monet-conversation', 0.9),
+      result('https://www.metmuseum.org/audio/guide/1', 0.9),
+      result(objectPage('437137'), 0.8),
+    ] });
+    expect(await selectSearchCandidates(response, hosts)).toEqual([
+      { sourceUrl: objectPage('437137'), fields: waterLilies, imageUrls: [metImage] },
+      { sourceUrl: objectPage('438008'), fields: { ...waterLilies, title: 'Haystacks', accession: '1983.532' }, imageUrls: [metImage] },
+    ]);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([objectPage('437137'), objectPage('438008')]);
+  });
+
+  it('fetches at most three pages and drops pages without artwork metadata or without an image', async () => {
+    const noImage = jsonLdPage.replace(`"image":"${metImage}"`, '"image":[]').replace(/<meta property="og:image"[^>]*>/, '');
+    expect(noImage).not.toContain(metImage);
+    const pages: Record<string, string> = {
+      [objectPage('1')]: metaPage.replace('<meta name="author" content="Edward Hopper">', ''),
+      [objectPage('2')]: noImage, [objectPage('3')]: jsonLdPage, [objectPage('4')]: jsonLdPage,
+    };
+    fetchMock.mockImplementation(async (value) => new Response(pages[String(value)] ?? plainPage));
+    const response = parseSearchResponse({ results: ['1', '2', '3', '4'].map((id, index) => result(objectPage(id), 0.9 - index * 0.1)) });
+    const candidates = await selectSearchCandidates(response, hosts);
+    expect(candidates.map((candidate) => candidate.sourceUrl)).toEqual([objectPage('3')]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps only images on the venue hosts and drops a page whose images are all elsewhere', async () => {
+    const node = {
+      '@type': 'VisualArtwork', name: 'Woman with a Hat', creator: 'Henri Matisse',
+      image: ['https://cdn.example/1.jpg', '/pixel.gif', '/logo.svg'],
+    };
+    fetchMock.mockResolvedValueOnce(new Response(`<script type="application/ld+json">${JSON.stringify(node)}</script>`));
+    expect(await selectSearchCandidates(parseSearchResponse({ results: [result(objectPage('5'), 0.9)] }), hosts)).toEqual([]);
+    fetchMock.mockResolvedValueOnce(new Response(`<script type="application/ld+json">${JSON.stringify({ ...node, image: [...node.image, '/work.jpg'] })}</script>`));
+    expect(await selectSearchCandidates(parseSearchResponse({ results: [result(objectPage('5'), 0.9)] }), hosts)).toEqual([
+      { sourceUrl: objectPage('5'), fields: { title: 'Woman with a Hat', artist: 'Henri Matisse' }, imageUrls: ['https://www.metmuseum.org/work.jpg'] },
+    ]);
+  });
+
+  it('continues past an unavailable page and fetches a repeated URL once', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('down', { status: 503 }));
+    fetchMock.mockResolvedValueOnce(new Response(jsonLdPage));
+    const response = parseSearchResponse({ results: [result(objectPage('1'), 0.9), result(objectPage('1'), 0.9), result(objectPage('437137'), 0.8)] });
+    const candidates = await selectSearchCandidates(response, hosts);
+    expect(candidates.map((candidate) => candidate.sourceUrl)).toEqual([objectPage('437137')]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts an image check only with a valid cosine at the threshold and a homography', () => {
+    expect(imageCheckPasses({ url: 'x', cosine: 0.85, homographyValid: true })).toBe(true);
+    expect(imageCheckPasses({ url: 'x', cosine: 0.99, homographyValid: false })).toBe(false);
+    for (const cosine of [0.84, 1.01, NaN, Infinity]) expect(imageCheckPasses({ url: 'x', cosine, homographyValid: true })).toBe(false);
   });
 });
 
