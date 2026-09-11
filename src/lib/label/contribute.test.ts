@@ -162,6 +162,19 @@ it('keeps edits marked as user edits when reopening after an upload failure', as
   }));
 });
 
+it('keeps museum sharing edits tied to their confirmation before verification replaces its fields', async () => {
+  const state = setFieldValue(unlockField(formStateFromFlow(flow), 'title'), 'title', 'My title');
+  mockVerify.mockImplementation(async () => {
+    expect(await loadLabelDraft(scanId, 2)).toEqual(state);
+    expect(await loadLabelDraft(scanId)).toBeUndefined();
+    return { ...flow, updatedAt: 3 };
+  });
+  mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: '' });
+  await expect(contributeLabel({ scanId, capture, state, museumSearchUpdatedAt: 2 })).rejects.toThrow('HTTP 503');
+  expect(await loadLabelDraft(scanId, 2)).toEqual(state);
+  expect(await loadLabelDraft(scanId, 3)).toBeUndefined();
+});
+
 it.each([
   [new ConvexError({ code: 'rate_limited' }), 'Try again in a minute'],
   [new ConvexError({ code: 'field_mismatch', field: 'title' }), 'Verify the label again before sharing'],

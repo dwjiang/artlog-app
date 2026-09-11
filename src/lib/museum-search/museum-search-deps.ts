@@ -8,6 +8,7 @@ import { prepareMuseumSearchCrop } from '@/lib/label/crop';
 import { imageCheckDeps } from '@/lib/label/label-deps';
 import model from '@/shared/model-version.json';
 import { runMuseumSearch, type MuseumSearchStage } from './flow';
+import { restoreConfirmedMuseumFlow } from './restore';
 
 const running = new Map<Id<'scans'>, ReturnType<typeof runMuseumSearch>>();
 
@@ -28,11 +29,10 @@ export function runMuseumSearchForScan(input: {
     if (latest?.museumSearch?.stage === 'none' && !input.retry) {
       return { stage: 'none' as const, reason: latest.museumSearch.reason };
     }
-    if (latest?.museumSearch?.stage === 'confirmed' && latest.labelFlow?.stage === 'verified' &&
-      latest.labelFlow.moderation === 'clear' && latest.labelFlow.sourceUrl === latest.museumSearch.selected.sourceUrl) {
-      return { stage: 'done' as const, flow: latest.labelFlow };
+    if (latest?.museumSearch?.stage === 'confirmed') {
+      const flow = await restoreConfirmedMuseumFlow(latest);
+      return flow ? { stage: 'done' as const, flow, confirmedAt: latest.museumSearch.updatedAt } : { stage: 'none' as const, reason: 'model_error' };
     }
-    if (latest?.museumSearch?.stage === 'confirmed') return { stage: 'none' as const, reason: 'model_error' };
     return runMuseumSearch({
       ...input,
       stored: input.stored ?? (latest?.museumSearch?.stage === 'candidates' ? latest.museumSearch : undefined),

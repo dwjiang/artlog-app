@@ -32,7 +32,7 @@ beforeEach(() => { jest.resetAllMocks(); jest.mocked(getMuseumSearchConsent).moc
 
 it('describes, searches, checks and confirms only the first passing image', async () => {
   const deps = input();
-  expect(await runMuseumSearch(deps)).toEqual({ stage: 'done', flow: verified });
+  expect(await runMuseumSearch(deps)).toEqual({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
   expect(deps.onStage.mock.calls.flat()).toEqual(['describe', 'search', 'check', 'done']);
   expect(deps.prepareCrop).toHaveBeenCalledWith('crops/one.jpg');
   expect(deps.api.searchMuseumSite).toHaveBeenCalledWith({ scanId, imageBase64: 'encoded-crop' });
@@ -69,7 +69,7 @@ it('prevents upload when the card loses focus during preparation', async () => {
 
 it('resumes stored candidates without preparing a crop or calling a provider', async () => {
   const deps = input();
-  expect(await runMuseumSearch({ ...deps, stored: candidates })).toEqual({ stage: 'done', flow: verified });
+  expect(await runMuseumSearch({ ...deps, stored: candidates })).toEqual({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
   expect(deps.onStage.mock.calls.flat()).toEqual(['check', 'done']);
   expect(deps.prepareCrop).not.toHaveBeenCalled();
   expect(deps.api.searchMuseumSite).not.toHaveBeenCalled();

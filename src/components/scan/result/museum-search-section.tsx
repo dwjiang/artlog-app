@@ -14,7 +14,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PendingScan } from '@/db/schema';
 import { contributeLabel, contributionErrorMessage, type ContributionOutcome } from '@/lib/label/contribute';
-import { canSaveLabel, canShareLabel, formStateFromFlow, setFieldValue, unlockField } from '@/lib/label/fields';
+import { canSaveLabel, canShareLabel, setFieldValue, unlockField } from '@/lib/label/fields';
+import { useLabelForm } from '@/lib/label/use-label-form';
 import type { MuseumSearchStage } from '@/lib/museum-search/flow';
 import type { MuseumSearchController } from '@/lib/museum-search/use-museum-search';
 import { useSaveResult } from '@/lib/result/use-save-result';
@@ -29,10 +30,18 @@ type Props = { search: MuseumSearchController; scanId: Id<'scans'>; capture?: Pe
 
 export function MuseumSearchSection({ search, scanId, capture }: Props) {
   if (!search.visible) return null;
+  if (search.restoring || search.restoreError) return (
+    <View style={styles.section}>
+      <ThemedText>{search.restoreError ? 'Couldn’t load your museum result. Try again.' : 'Loading museum result…'}</ThemedText>
+      {search.restoreError && <Host matchContents colorScheme="light">
+        <Button label="Try again" onPress={search.retryRestore} />
+      </Host>}
+    </View>
+  );
   return (
     <View style={styles.section}>
-      {search.flow ? (
-        <MuseumSearchResult key={search.flow.updatedAt} flow={search.flow} scanId={scanId} capture={capture} />
+      {search.flow && search.confirmedAt !== undefined ? (
+        <MuseumSearchResult key={`${scanId}:${search.confirmedAt}`} flow={search.flow} confirmedAt={search.confirmedAt} scanId={scanId} capture={capture} />
       ) : (
         <>
           <Host matchContents colorScheme="light">
@@ -51,9 +60,9 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
   );
 }
 
-function MuseumSearchResult({ flow, scanId, capture }: { flow: LabelFlowDisplay; scanId: Id<'scans'>; capture?: PendingScan }) {
+function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: LabelFlowDisplay; confirmedAt: number; scanId: Id<'scans'>; capture?: PendingScan }) {
   const router = useRouter();
-  const [form, setForm] = useState(() => formStateFromFlow(flow));
+  const { form, setForm, error: formError, retry: retryForm } = useLabelForm(scanId, flow, confirmedAt);
   const { saving, savedId, error: saveError, save } = useSaveResult();
   const [consentOpen, setConsentOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -63,13 +72,13 @@ function MuseumSearchResult({ flow, scanId, capture }: { flow: LabelFlowDisplay;
 
   async function share() {
     setConsentOpen(false);
-    if (sharingNow.current) return;
+    if (!form || sharingNow.current) return;
     if (!capture) { setShareError('Your photo of this scan isn’t on this phone, so it can’t be shared.'); return; }
     sharingNow.current = true;
     setSharing(true);
     setShareError(undefined);
     try {
-      setShared(await contributeLabel({ scanId, capture, state: form }));
+      setShared(await contributeLabel({ scanId, capture, state: form, museumSearchUpdatedAt: confirmedAt }));
     } catch (error) {
       setShareError(contributionErrorMessage(error));
     } finally {
@@ -78,13 +87,22 @@ function MuseumSearchResult({ flow, scanId, capture }: { flow: LabelFlowDisplay;
     }
   }
 
+  if (!form) return (
+    <View style={styles.section}>
+      <ThemedText>{formError?.message ?? 'Loading your edits…'}</ThemedText>
+      {formError && <Host matchContents colorScheme="light">
+        <Button label="Try again" onPress={retryForm} />
+      </Host>}
+    </View>
+  );
+
   return (
     <>
       <ThemedText type="subtitle">{"Found on the museum's site"}</ThemedText>
       {flow.sourceUrl && <SourceChip label="Museum page" url={flow.sourceUrl} />}
       <VerifiedFieldsForm state={form} warnings={flow.warnings} editable={!saving && !sharing && !shared && !savedId}
-        onChange={(name, value) => setForm((current) => setFieldValue(current, name, value))}
-        onUnlock={(name) => setForm((current) => unlockField(current, name))} />
+        onChange={(name, value) => setForm((current) => current && setFieldValue(current, name, value))}
+        onUnlock={(name) => setForm((current) => current && unlockField(current, name))} />
       <LabelActions canSave={canSaveLabel(form)} canShare={canShareLabel(form)} saving={saving} sharing={sharing}
         savedId={savedId} shared={shared} saveError={saveError} shareError={shareError}
         onSave={() => { void save({ scanId, capture, draft: {

@@ -1,27 +1,28 @@
 import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import type { LabelFlowDisplay } from '../../../convex/lib/validators';
 import type { ScanResult } from '@/lib/result/state';
 import { getMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
 import { museumSearchMessage, type MuseumSearchOutcome, type MuseumSearchStage } from './flow';
 import { runMuseumSearchForScan } from './museum-search-deps';
+import { restoreConfirmedMuseumFlow } from './restore';
 
-type Phase = MuseumSearchOutcome | { stage: 'idle' } | { stage: 'running'; progress: MuseumSearchStage };
+type Phase = MuseumSearchOutcome | { stage: 'idle' } | { stage: 'restore-error' } | { stage: 'running'; progress: MuseumSearchStage };
 
-export function useMuseumSearch(scan: ScanResult | undefined, eligible: boolean, active: boolean) {
+export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   const consent = useMuseumSearchConsent(active);
   const network = useNetworkState();
   const online = network.isInternetReachable === true;
   const [phase, setPhase] = useState<Phase>({ stage: 'idle' });
   const [consentOpen, setConsentOpen] = useState(false);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const inFlight = useRef(false);
   const attempted = useRef(false);
   const mounted = useRef(false);
   const canRun = useRef(false);
   const stored = scan?.museumSearch;
-  const available = eligible && !!scan?.venueId;
+  const available = scan?.status === 'identified' && scan.outcome !== 'confident' && !!scan.venueId;
   useLayoutEffect(() => { canRun.current = active && online && available; }, [active, online, available]);
 
   useEffect(() => {
@@ -56,6 +57,23 @@ export function useMuseumSearch(scan: ScanResult | undefined, eligible: boolean,
       (!stored || stored.stage === 'candidates')) void run();
   }, [available, active, online, consent, stored, run, phase.stage]);
 
+  useEffect(() => {
+    if (!scan || stored?.stage !== 'confirmed') return;
+    let current = true;
+    void restoreConfirmedMuseumFlow(scan).then(
+      (flow) => {
+        if (!current) return;
+        setPhase((previous) => {
+          if (!flow) return { stage: 'none', reason: 'model_error' };
+          if (previous.stage === 'done' && previous.confirmedAt === stored.updatedAt) return previous;
+          return { stage: 'done', flow, confirmedAt: stored.updatedAt };
+        });
+      },
+      () => { if (current) setPhase({ stage: 'restore-error' }); },
+    );
+    return () => { current = false; };
+  }, [scan, stored, restoreAttempt]);
+
   async function requestSearch() {
     if (!canRun.current || inFlight.current) return;
     const current = await getMuseumSearchConsent().catch(() => undefined);
@@ -64,21 +82,24 @@ export function useMuseumSearch(scan: ScanResult | undefined, eligible: boolean,
     if (current === 'granted') void run(true);
   }
 
-  let flow: LabelFlowDisplay | undefined;
-  if (stored?.stage === 'confirmed' && scan?.labelFlow?.stage === 'verified' &&
-    scan.labelFlow.moderation === 'clear' && scan.labelFlow.sourceUrl === stored.selected.sourceUrl) flow = scan.labelFlow;
-  // The action result only bridges the interval before the public subscription receives the confirmation.
-  if (!flow && stored?.stage !== 'confirmed' && phase.stage === 'done') flow = phase.flow;
+  // Keep the accepted result as the review's edit baseline; sharing re-verifies labelFlow in place.
+  const flow = phase.stage === 'done' ? phase.flow : undefined;
+  const restoring = stored?.stage === 'confirmed' && phase.stage === 'idle';
+  const restoreError = phase.stage === 'restore-error';
   const reason = phase.stage === 'none' ? phase.reason : stored?.stage === 'none' ? stored.reason
     : stored?.stage === 'confirmed' && !flow ? 'model_error' : undefined;
   const hidden = reason !== undefined && museumSearchMessage(reason) === undefined;
 
   return {
     flow: available ? flow : undefined,
+    confirmedAt: phase.stage === 'done' ? phase.confirmedAt : undefined,
+    restoring,
+    restoreError,
+    retryRestore: () => { setPhase({ stage: 'idle' }); setRestoreAttempt((attempt) => attempt + 1); },
     running: phase.stage === 'running' && !flow,
     progress: phase.stage === 'running' ? phase.progress : undefined,
     message: reason === undefined ? undefined : museumSearchMessage(reason),
-    visible: available && !hidden && (consent !== 'declined' || !!flow),
+    visible: available && !hidden && (consent !== 'declined' || !!flow || restoring || restoreError),
     canSearch: consent !== undefined && consent !== 'declined' && online && active && stored?.stage !== 'confirmed',
     consentOpen,
     requestSearch: () => { void requestSearch(); },

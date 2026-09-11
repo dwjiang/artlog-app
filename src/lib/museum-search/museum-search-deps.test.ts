@@ -3,6 +3,8 @@ import { runMuseumSearch } from './flow';
 import { runMuseumSearchForScan } from './museum-search-deps';
 import { convex } from '@/lib/convex-client';
 import { candidates, confirmed, verified } from './__fixtures__/search';
+import { loadLabelDraft } from '@/lib/label/draft';
+import { formStateFromFlow, setFieldValue } from '@/lib/label/fields';
 
 jest.mock('./flow', () => ({ runMuseumSearch: jest.fn() }));
 jest.mock('@/db/repos/pending-scans', () => ({ getPendingScan: jest.fn() }));
@@ -10,6 +12,7 @@ jest.mock('@/lib/convex-client', () => ({ convex: { action: jest.fn(), query: je
 jest.mock('@/lib/label/label-deps', () => ({ imageCheckDeps: {} }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: jest.fn() }));
 jest.mock('@/lib/label/crop', () => ({ prepareMuseumSearchCrop: jest.fn() }));
+jest.mock('@/lib/label/draft', () => ({ loadLabelDraft: jest.fn() }));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -45,7 +48,7 @@ it('restores a freshly confirmed search without preparing or uploading a crop', 
   jest.mocked(runMuseumSearch).mockClear();
   jest.mocked(convex.query).mockResolvedValue({ museumSearch: confirmed, labelFlow: verified });
   const result = await runMuseumSearchForScan({ scanId: 'scan-3' as Id<'scans'>, localId: 'capture-3', canContinue: () => true, onStage: jest.fn() });
-  expect(result).toEqual({ stage: 'done', flow: verified });
+  expect(result).toEqual({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
   expect(runMuseumSearch).not.toHaveBeenCalled();
   expect(convex.action).not.toHaveBeenCalled();
 });
@@ -57,4 +60,14 @@ it('restores a freshly completed none result, while an explicit retry can search
   expect(runMuseumSearch).not.toHaveBeenCalled();
   await runMuseumSearchForScan({ ...input, retry: true });
   expect(runMuseumSearch).toHaveBeenCalledTimes(1);
+});
+
+it('restores an edited confirmation from the latest query without searching again', async () => {
+  const flow = { ...verified, updatedAt: 3, sourceUrl: undefined, fields: { ...verified.fields, title: { value: 'My title', evidence: 'ocr' as const, locked: false } } };
+  jest.mocked(loadLabelDraft).mockResolvedValue(setFieldValue(formStateFromFlow(verified), 'title', 'My title'));
+  jest.mocked(convex.query).mockResolvedValue({ scanId: 'scan-5', museumSearch: confirmed, labelFlow: flow });
+  expect(await runMuseumSearchForScan({ scanId: 'scan-5' as Id<'scans'>, localId: 'capture-5', canContinue: () => true, onStage: jest.fn() }))
+    .toEqual({ stage: 'done', flow, confirmedAt: confirmed.updatedAt });
+  expect(runMuseumSearch).not.toHaveBeenCalled();
+  expect(convex.action).not.toHaveBeenCalled();
 });

@@ -11,7 +11,7 @@ import { checkCandidates } from './candidate-check';
 
 export type MuseumSearchStage = 'describe' | 'search' | 'check' | 'done' | 'none';
 export type MuseumSearchOutcome =
-  | { stage: 'done'; flow: LabelFlowDisplay }
+  | { stage: 'done'; flow: LabelFlowDisplay; confirmedAt: number }
   | { stage: 'none'; reason: string }
   | { stage: 'cancelled' };
 
@@ -76,7 +76,7 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     const flow = await api.confirmSearchCandidate({ scanId, ...match });
     if (flow.moderation !== 'clear' || flow.stage !== 'verified') return none('model_error');
     onStage?.('done');
-    return { stage: 'done', flow };
+    return { stage: 'done', flow, confirmedAt: flow.updatedAt };
   } catch (error) {
     return none(errorMessage(error));
   }

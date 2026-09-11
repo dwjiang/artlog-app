@@ -56,12 +56,14 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const capture = captures[0];
   const captureStatus = capture?.status;
   const [selection, setSelection] = useState<ResultSelection>({});
+  const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
   const { saving, savedId, error: saveError, save } = useSaveResult();
   // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view = toResultViewState(scan, selection);
-  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, view.kind === 'soft' || view.kind === 'unidentified', isActive);
+  const showMuseumSearch = !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
+  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch);
 
   useEffect(() => {
     if (isActive && view.editable && captureStatus === 'identified') {
@@ -72,7 +74,8 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   function openLabel() {
     setSheet({ open: false });
     if (rejection.current) handOffLabelRejection(scanId, rejection.current);
-    router.push({ pathname: '/label/[scanId]', params: { scanId } });
+    const intent = museumSearch.flow || museumSearch.restoring || museumSearch.restoreError ? 'capture' : 'review';
+    router.push({ pathname: '/label/[scanId]', params: { scanId, intent } });
   }
 
   function notRight() {
@@ -126,16 +129,17 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
         {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
         {view.kind === 'failed' && <FailedCard error={view.error} />}
-        {view.editable && !museumSearch.flow && (
+        {view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError)) && (
           <ResultCard
             key={`${view.kind}:${view.primary?.objectId ?? 'none'}`}
             view={view}
             onNotRight={notRight}
             onPick={pickRunnerUp}
+            onEdit={() => setHasEdits(true)}
             {...saveProps}
           />
         )}
-        {view.editable && <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />}
+        {view.editable && showMuseumSearch && <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />}
         {view.editable && view.kind !== 'confident' && (
           <Host matchContents colorScheme="light">
             <Button variant="outlined" label={LABEL_BUTTON} disabled={saving} onPress={openLabel} />
@@ -161,12 +165,13 @@ type ResultCardProps = {
   saveError?: string;
   onNotRight: () => void;
   onPick: (candidate: ResultCandidate) => void;
+  onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
   onViewSaved: () => void;
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
-function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSave, onViewSaved }: ResultCardProps) {
+function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
@@ -177,7 +182,10 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSa
           <ThemedText type="small" themeColor="accent">Not right?</ThemedText>
         </Pressable>
       )}
-      <FieldsForm draft={draft} editable={editable} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} />
+      <FieldsForm draft={draft} editable={editable} onChange={(field, value) => {
+        onEdit();
+        setDraft((current) => ({ ...current, [field]: value }));
+      }} />
       {suggestions.length > 0 && (
         <View style={styles.section}>
           <ThemedText type="smallBold" themeColor="textSecondary">Maybe one of these?</ThemedText>
