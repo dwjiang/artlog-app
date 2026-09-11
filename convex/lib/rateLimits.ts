@@ -18,6 +18,7 @@ const limits = {
   labelVerify: { kind: 'fixed window', rate: 60, period: HOUR },
   docent: { kind: 'fixed window', rate: 60, period: HOUR },
   rightNow: { kind: 'fixed window', rate: 60, period: HOUR },
+  correctFact: { kind: 'fixed window', rate: 5, period: DAY },
   sync: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
 } satisfies Record<string, RateLimitConfig>;
 
