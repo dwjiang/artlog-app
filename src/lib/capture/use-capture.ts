@@ -38,7 +38,7 @@ export function useCapture() {
       if (!input) return;
       const result = await runCapture(input, {
         ...defaultStages,
-        identify: ({ cropUri: _cropUri, ...payload }) => identify(payload),
+        identify: ({ cropUri: _cropUri, photoUri: _photoUri, ...payload }) => identify(payload),
         isOnline: () => online.current !== false,
       }, captureOptions);
       if (!mounted.current) return;
