@@ -190,8 +190,23 @@ Before 04.09 enables display, its acceptance boundary must establish all of:
    pair a multi-source generated answer with `results[0]` automatically. A
    semantically unsupported or contradictory claim becomes `empty: true`.
 4. Only then take the first complete sentence, normalize whitespace, preserve
-   initials such as “Rupy C. Tut”, and cap at 200 characters by cutting at a
-   word boundary and adding an ellipsis. Do not show an abstention as news.
+   initials such as “Rupy C. Tut”, and refuse sentences over 200 characters;
+   truncation can remove a qualification or negation. Do not show an abstention as news.
+
+04.09's conservative implementation requires the complete answer sentence to
+match a complete sentence in the cited snippet, preserving punctuation and
+words (only whitespace and quote typography may differ). It also requires an
+explicit valid event date, including the year, within 31 days before or after
+now; publication metadata cannot supply that date. A paraphrase, undated
+ongoing exhibition, or longer sentence is suppressed. This reduces recall;
+it does not independently verify the publisher's assertions.
+
+An isolated matching sentence is insufficient when its context retracts or
+qualifies it. The gate also suppresses correction, cancellation, postponement,
+negation, and qualification signals in the other article sentences, the source
+title, or the rest of the answer. Related-story boilerplate is excluded. This
+conservative lexical guard can suppress unrelated qualifications and still needs
+the held-out semantic review below; it is not a general contradiction detector.
 
 The spike demonstrates why those checks are necessary; it does not implement
 or certify an automated semantic validator. **Until 04.09 proves that boundary

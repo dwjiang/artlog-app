@@ -4,7 +4,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
-import { rightsStatus, snapshotFields } from './lib/validators';
+import { docentSentence, rightsStatus, snapshotFields } from './lib/validators';
 import schema from './schema';
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -14,12 +14,16 @@ const displayCandidate = snapshotFields.extend({
   gallery: v.optional(v.string()), corners: v.optional(v.array(v.array(v.number()))),
 });
 
+const factChip = v.object({ id: v.string(), sourceUrl: v.string(), sourceLabel: v.string() });
+
 export const scanDisplay = v.object({
   scanId: v.id('scans'), localId: v.string(), venueId: scanFields.venueId,
   visitId: scanFields.visitId, capturedAt: v.number(), status: scanFields.status,
   outcome: scanFields.outcome, calibratorVersion: scanFields.calibratorVersion,
   best: v.optional(displayCandidate), runnerUps: v.optional(v.array(displayCandidate)),
-  docent: scanFields.docent, rightNow: scanFields.rightNow, error: scanFields.error,
+  // Docent prose and its source chips come from the artwork (design §4.8); only a confident card shows them.
+  docent: v.optional(v.array(docentSentence)), factSheet: v.optional(v.array(factChip)),
+  rightNow: scanFields.rightNow, error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
 
@@ -88,15 +92,18 @@ export const setResult = internalMutation({
 async function joinCandidate(
   ctx: QueryCtx,
   match: NonNullable<Doc<'scans'>['best']>,
-): Promise<Infer<typeof displayCandidate> | null> {
+): Promise<{ candidate: Infer<typeof displayCandidate>; artwork: Doc<'artworks'> } | null> {
   const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
   if (!object || !artwork) return null;
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
   return {
-    ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
-    institution: owner?.name, rightsStatus: artwork.rightsStatus,
-    ...(artwork.rightsStatus === 'public_domain' && object.thumbnailUrl
-      ? { thumbnailUrl: object.thumbnailUrl } : {}),
+    artwork,
+    candidate: {
+      ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
+      institution: owner?.name, rightsStatus: artwork.rightsStatus,
+      ...(artwork.rightsStatus === 'public_domain' && object.thumbnailUrl
+        ? { thumbnailUrl: object.thumbnailUrl } : {}),
+    },
   };
 }
 
@@ -105,12 +112,15 @@ async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDispl
     scan.best ? joinCandidate(ctx, scan.best) : null,
     Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match))),
   ]);
+  const prose = scan.outcome === 'confident' ? best?.artwork : undefined;
   return {
     scanId: scan._id, localId: scan.localId, venueId: scan.venueId, visitId: scan.visitId,
     capturedAt: scan.capturedAt, status: scan.status, outcome: scan.outcome,
-    calibratorVersion: scan.calibratorVersion, best: best ?? undefined,
-    runnerUps: runnerUps.flatMap((candidate) => candidate ? [candidate] : []),
-    docent: scan.docent, rightNow: scan.rightNow, error: scan.error,
+    calibratorVersion: scan.calibratorVersion, best: best?.candidate,
+    runnerUps: runnerUps.flatMap((joined) => joined ? [joined.candidate] : []),
+    docent: prose?.docent?.en,
+    factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({ id, sourceUrl, sourceLabel })),
+    rightNow: scan.rightNow, error: scan.error,
   };
 }
 
