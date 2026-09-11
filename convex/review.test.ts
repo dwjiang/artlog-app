@@ -1,7 +1,9 @@
+import type { FunctionReturnType } from 'convex/server';
 import { describe, expect, it } from 'vitest';
 
 import { api, internal } from './_generated/api';
-import { seedArtworkWithObject, seedDevice } from './lib/testFactories';
+import type { Id } from './_generated/dataModel';
+import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from './lib/testFactories';
 import { harness } from './test.helpers';
 
 const factSheet = [{ id: 'f1', text: 'Painted in 1916.', sourceUrl: 'https://museum.example/work', sourceLabel: 'Museum', sourceScore: 1 }];
@@ -73,4 +75,64 @@ describe('review.replaceFactSheet', () => {
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
     expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
   });
+});
+
+describe('review queues', () => {
+  it('lists flagged objects, contributions awaiting agreement without their vectors, and proposals ready for review', async () => {
+    const t = harness();
+    const user = await seedDevice(t);
+    const other = await seedDevice(t);
+    const seeded = await t.run(async (ctx) => {
+      const venueId = await seedMuseum(ctx);
+      const flagged = await seedArtworkWithObject(ctx, { object: { flaggedForReview: true, rejectCount: 20 } });
+      const clean = await seedArtworkWithObject(ctx);
+      const pending = await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'pending' });
+      await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'private' });
+      const scanId = await seedScan(ctx, { deviceId: user.deviceId, venueId });
+      const proposal = (deviceIds: Id<'devices'>[]) => ctx.db.insert('placementProposals', {
+        objectId: clean.objectId, proposedVenueId: venueId, kind: 'move', scanIds: [scanId], deviceIds,
+        firstSeenAt: 1, lastSeenAt: 2, status: 'pending', readyForReview: deviceIds.length >= 2,
+      });
+      const ready = await proposal([user.deviceId, other.deviceId]);
+      await proposal([user.deviceId]);
+      return { venueId, flagged, pending, ready };
+    });
+    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([{ _id: seeded.flagged.objectId }]);
+    const { rows: pending } = await t.query(internal.review.listPendingContributions, {});
+    expect(pending).toMatchObject([{ _id: seeded.pending, status: 'pending', venueId: seeded.venueId, fields: { title: { value: 'Water Lilies' } } }]);
+    expect(pending[0]).not.toHaveProperty('vector');
+    expect(pending[0]).not.toHaveProperty('descriptors');
+    expect((await t.query(internal.review.listPendingContributions, { status: 'private' })).rows).toHaveLength(1);
+    expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([{ _id: seeded.ready, readyForReview: true }]);
+  });
+});
+
+
+it('can list pending contributions that were accepted within document limits', async () => {
+  const t = harness({ transactionLimits: true });
+  const alice = await seedDevice(t);
+  const venueId = await t.run(seedMuseum);
+  for (let i = 0; i < 40; i++) {
+    await t.run((ctx) => seedContribution(ctx, {
+      deviceId: alice.deviceId, venueId, status: 'pending',
+      fields: {
+        title: { value: 'Water Lilies', edited: false, evidence: 'ocr' },
+        artist: { value: 'Claude Monet', edited: false, evidence: 'ocr' },
+        creditLine: { value: 'x'.repeat(450_000), edited: true, evidence: 'user_edited' },
+      },
+    }));
+  }
+  const ids: Id<'contributions'>[] = [];
+  let cursor: string | null = null;
+  let pages = 0;
+  do {
+    const result: FunctionReturnType<typeof internal.review.listPendingContributions> =
+      await t.query(internal.review.listPendingContributions, { cursor });
+    ids.push(...result.rows.map((row) => row._id));
+    cursor = result.cursor;
+    pages++;
+  } while (cursor !== null);
+  expect(pages).toBeGreaterThan(1);
+  expect(ids).toHaveLength(40);
+  expect(new Set(ids).size).toBe(40);
 });

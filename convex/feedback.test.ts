@@ -3,25 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import type { MutationCtx } from './_generated/server';
 import { labelField } from './lib/labelVerify';
 import { effectiveObjectPenalty } from './lib/rejectionPenalty';
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
+import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
 import type { LabelFields } from './lib/validators';
 import { harness, signIn } from './test.helpers';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
-
-function seedContribution(ctx: MutationCtx, row: { deviceId: Id<'devices'>; venueId: Id<'museums'>; scanId: Id<'scans'> }) {
-  return ctx.db.insert('contributions', {
-    ...row, vector: testVector(), modelVersion: model.modelVersion, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
-    keypointCount: 0, evidence: ['wikidata'], status: 'private', createdAt: Date.now(),
-    fields: {
-      title: { value: 'Water Lilies', edited: false, evidence: 'wikidata' },
-      artist: { value: 'Claude Monet', edited: false, evidence: 'wikidata' },
-    },
-  });
-}
 
 async function fixture() {
   const t = harness();

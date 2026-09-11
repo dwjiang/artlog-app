@@ -136,6 +136,14 @@ describe('contribute', () => {
     expect(mine[0]).not.toHaveProperty('descriptors');
   });
 
+  it('keeps the verified museum page identity after the scan label flow changes', async () => {
+    const sourceUrl = 'https://museum.example/works/water-lilies';
+    const { t, scanId, contribute, rows } = await fixture(verifiedFlow({ sourceUrl, wikidataId: undefined }));
+    await contribute();
+    await t.run((ctx) => ctx.db.patch(scanId, { labelFlow: verifiedFlow({ sourceUrl: 'https://museum.example/works/haystacks' }) }));
+    expect((await rows())[0].sourceUrl).toBe(sourceUrl);
+  });
+
   it.each([
     { name: 'date', edited: { date: { value: '1916', edited: true } }, wikidataId: 'Q3374376' },
     { name: 'title', edited: { title: { value: 'Water Lilies', edited: true } }, wikidataId: undefined },

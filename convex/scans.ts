@@ -97,15 +97,17 @@ async function joinCandidate(
   match: NonNullable<Doc<'scans'>['best']>,
 ): Promise<{ candidate: Infer<typeof displayCandidate>; artwork: Doc<'artworks'> } | null> {
   const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
-  if (!object || !artwork) return null;
+  if (!object || object.reverted || !artwork) return null;
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
+  // Design §5.5: a hotlinked source image only for public-domain works; a contributor's consented crop always.
+  const thumbnailUrl = object.thumbnailStorageId
+    ? await ctx.storage.getUrl(object.thumbnailStorageId)
+    : artwork.rightsStatus === 'public_domain' ? object.thumbnailUrl : undefined;
   return {
     artwork,
     candidate: {
       ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
-      institution: owner?.name, rightsStatus: artwork.rightsStatus,
-      ...(artwork.rightsStatus === 'public_domain' && object.thumbnailUrl
-        ? { thumbnailUrl: object.thumbnailUrl } : {}),
+      institution: owner?.name, rightsStatus: artwork.rightsStatus, ...(thumbnailUrl ? { thumbnailUrl } : {}),
     },
   };
 }
