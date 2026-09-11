@@ -81,6 +81,18 @@ it('queues the crop and binary features when offline', async () => {
   expect(deps.store.recordResult).not.toHaveBeenCalled();
 });
 
+it.each([true, false])('queues a capture with its local visit until the visit syncs (online: %s)', async (online) => {
+  const deps = dependencies();
+  deps.isOnline.mockReturnValue(online);
+  const atVisit = { ...input, visitLocalId: 'local-visit', venueId: 'museum-1' as CaptureInput['venueId'] };
+  const result = await runCapture(atVisit, deps, options);
+  expect(result).toMatchObject({ kind: 'queued' });
+  expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+    visitLocalId: 'local-visit', venueId: 'museum-1',
+  }), 'queued');
+  expect(deps.identify).not.toHaveBeenCalled();
+});
+
 it.each([
   new Error('Connection lost while action was in flight'),
   new Error('[CONVEX A(identify:identify)] Connection lost while action was in flight\n  Called by client'),

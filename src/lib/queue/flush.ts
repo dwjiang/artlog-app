@@ -21,6 +21,7 @@ export type FlushDependencies = {
   ): Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
   updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
+  resolveVisitId(localId: string, venueId: Id<'museums'>): Promise<Id<'visits'>>;
   identify(args: IdentifyArgs): Promise<IdentifyResponse>;
   runLabelFlow(scanId: Id<'scans'>, label: LabelInput): Promise<void>;
   reembed(cropPath: string): Promise<ScanFeatures>;
@@ -69,6 +70,11 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       if (!isCurrent()) return;
       await deps.updateFeatures(row.localId, features);
     }
+    let visitId = row.visitId ?? undefined;
+    if (row.visitLocalId) {
+      if (!row.venueId) throw new Error('The capture visit is missing its venue');
+      visitId = await deps.resolveVisitId(row.visitLocalId, row.venueId);
+    }
     if (!isCurrent()) return;
     await deps.markIdentifying(row.localId);
     if (!isCurrent()) {
@@ -77,7 +83,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     }
     const response = await deps.identify({
       localId: row.localId, ...features,
-      venueId: row.venueId ?? undefined, visitId: row.visitId ?? undefined, capturedAt: row.capturedAt,
+      venueId: row.venueId ?? undefined, visitId, capturedAt: row.capturedAt,
     });
     // Convex actions cannot be cancelled; retain an already-sent request's result after cleanup.
     await deps.recordResult(row.localId, response);

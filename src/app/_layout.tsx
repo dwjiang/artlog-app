@@ -8,8 +8,7 @@ import { convex, secureStorage } from '@/lib/convex-client';
 import { DeviceIdentity } from '@/lib/device-identity';
 import { warmUpEmbedder } from '@/lib/embed/embedder';
 import { QueueFlusher } from '@/lib/queue/use-queue';
-// Register the offline database in Metro's asset graph before venue resolution uses it.
-import '@/lib/venue-asset';
+import { VenueResolver } from '@/lib/venue/use-venue';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -22,6 +21,7 @@ export default function RootLayout() {
       <ConvexAuthProvider client={convex} storage={secureStorage}>
         <DeviceIdentity />
         <QueueFlusher />
+        <VenueResolver />
         <ThemeProvider value={DefaultTheme}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

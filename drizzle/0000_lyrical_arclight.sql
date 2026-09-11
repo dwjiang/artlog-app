@@ -15,6 +15,7 @@ CREATE TABLE `pendingScans` (
 	`modelVersion` text NOT NULL,
 	`venueId` text,
 	`visitId` text,
+	`visitLocalId` text,
 	`capturedAt` integer NOT NULL,
 	`labelPhotoPath` text,
 	`qrUrl` text,
@@ -23,7 +24,8 @@ CREATE TABLE `pendingScans` (
 	`attempts` integer DEFAULT 0 NOT NULL,
 	`lastError` text,
 	`scanId` text,
-	`createdAt` integer NOT NULL
+	`createdAt` integer NOT NULL,
+	FOREIGN KEY (`visitLocalId`) REFERENCES `visits`(`localId`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `pendingScans_status_capturedAt` ON `pendingScans` (`status`,`capturedAt`);--> statement-breakpoint
@@ -61,5 +63,6 @@ CREATE TABLE `visits` (
 	`venueName` text NOT NULL,
 	`startedAt` integer NOT NULL,
 	`endedAt` integer,
-	`remoteVisitId` text
+	`remoteVisitId` text,
+	`endSyncedAt` integer
 );

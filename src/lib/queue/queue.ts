@@ -11,6 +11,7 @@ import type { CaptureStore, IdentifyResponse } from '@/lib/capture/stages';
 import { convex } from '@/lib/convex-client';
 import { embedder } from '@/lib/embed/embedder';
 import { captureFileUri, persistCapture } from '@/lib/files/photos';
+import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { createFlusher } from './flush';
 
 /** `unsupported_version` stays with its crop so the updated app can re-embed it locally (design §5.4). */
@@ -30,6 +31,7 @@ export const captureStore: CaptureStore = {
       vector: payload.vector, descriptors: payload.descriptors, keypoints: payload.keypoints,
       modelVersion: payload.modelVersion, attemptModelVersion: payload.modelVersion,
       venueId: payload.venueId, visitId: payload.visitId,
+      visitLocalId: payload.visitLocalId,
       capturedAt: payload.capturedAt, status, createdAt: Date.now(),
     });
     if (status === 'queued') void flushQueue();
@@ -52,6 +54,7 @@ const flusher = createFlusher({
   recordFailure: pending.recordAttemptFailure,
   resetAttemptsForModel: pending.resetAttemptsForModel,
   updateFeatures: pending.updateFeatures,
+  resolveVisitId: resolveScanVisit,
   identify: (args) => convex.action(api.identify.identify, args),
   runLabelFlow: (scanId, label) => labelFlowPending(scanId, {
     labelPhotoUri: label.labelPhotoPath ? captureFileUri(label.labelPhotoPath) : undefined,

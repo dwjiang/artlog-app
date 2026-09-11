@@ -9,7 +9,7 @@ function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): Pen
   return {
     localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`,
     vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: 'v1',
-    venueId: null, visitId: null, capturedAt: 100, labelPhotoPath: null, qrUrl: null, status: 'queued',
+    venueId: null, visitId: null, visitLocalId: null, capturedAt: 100, labelPhotoPath: null, qrUrl: null, status: 'queued',
     attempts: 0, lastError: null, scanId: null, createdAt: 100,
     attemptModelVersion: overrides.modelVersion ?? 'v1', ...overrides,
   };
@@ -43,6 +43,7 @@ function fakeDependencies(rows: PendingScan[]) {
       Object.assign(store.get(localId)!, features, { attemptModelVersion: features.modelVersion, status: 'queued', attempts: 0 });
     }),
     identify: jest.fn(async ({ localId }: { localId: string }) => identified(localId)),
+    resolveVisitId: jest.fn(async (_localId: string, _venueId: Id<'museums'>) => 'remote-visit' as Id<'visits'>),
     runLabelFlow: jest.fn(async () => {}),
     reembed: jest.fn(async () => ({ vector: [9], descriptors: new ArrayBuffer(8), keypoints: new ArrayBuffer(8) })),
     isOnline: jest.fn(async (): Promise<boolean> => true),
@@ -82,6 +83,49 @@ it('does nothing while offline', async () => {
   await createFlusher(deps).start();
   expect(deps.identify).not.toHaveBeenCalled();
   expect(deps.markIdentifying).not.toHaveBeenCalled();
+});
+
+it('waits for the captured local visit before sending a queued scan', async () => {
+  const venueId = 'museum-1' as Id<'museums'>;
+  const { deps } = fakeDependencies([pendingScan('a', { venueId, visitLocalId: 'original-visit' })]);
+  let finish!: (id: Id<'visits'>) => void;
+  deps.resolveVisitId.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  const flusher = createFlusher(deps);
+  const running = flusher.start();
+  for (let tick = 0; deps.resolveVisitId.mock.calls.length === 0 && tick < 20; tick++) await Promise.resolve();
+  expect(deps.identify).not.toHaveBeenCalled();
+  finish('original-remote-visit' as Id<'visits'>);
+  await running;
+  expect(deps.resolveVisitId).toHaveBeenCalledWith('original-visit', venueId);
+  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId, visitId: 'original-remote-visit' }));
+  expect(deps.identify.mock.calls[0][0]).not.toHaveProperty('visitLocalId');
+  flusher.stop();
+});
+
+it('retries a transient visit-sync failure without identifying without a visit or spending an attempt', async () => {
+  const { deps, store } = fakeDependencies([pendingScan('a', { venueId: 'museum-1' as Id<'museums'>, visitLocalId: 'local-visit' })]);
+  deps.resolveVisitId.mockRejectedValueOnce(new ConvexError({ code: 'device_not_registered' }));
+  const flusher = createFlusher(deps);
+  await flusher.start();
+  expect(deps.identify).not.toHaveBeenCalled();
+  expect(store.get('a')).toMatchObject({ status: 'queued', attempts: 0, visitLocalId: 'local-visit' });
+  await jest.advanceTimersByTimeAsync(2000);
+  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ visitId: 'remote-visit' }));
+  flusher.stop();
+});
+
+it('does not identify after cleanup while its visit is syncing', async () => {
+  const { deps, store } = fakeDependencies([pendingScan('a', { venueId: 'museum-1' as Id<'museums'>, visitLocalId: 'local-visit' })]);
+  let finish!: (id: Id<'visits'>) => void;
+  deps.resolveVisitId.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  const flusher = createFlusher(deps);
+  const running = flusher.start();
+  for (let tick = 0; deps.resolveVisitId.mock.calls.length === 0 && tick < 20; tick++) await Promise.resolve();
+  flusher.stop();
+  finish('remote-visit' as Id<'visits'>);
+  await running;
+  expect(deps.identify).not.toHaveBeenCalled();
+  expect(store.get('a')).toMatchObject({ status: 'queued', attempts: 0 });
 });
 
 it.each([

@@ -72,10 +72,25 @@ Call `refreshVenueTableInBackground` after app launch (once per day, `settings.v
 
 ## Done criteria
 
-- [ ] Simulator with a custom location at the Met resolves `auto` and starts a visit
-- [ ] Two nearby venues produce the chooser; no venue produces POI options on a device
-- [ ] Background refresh works; `git ls-files assets/venues.db` → 1 (bundled asset committed by 02.02)
-- [ ] Tests, tsc, lint pass; `docs/plans/README.md` updated
+- [x] Simulator with a custom location resolves `auto` and starts a visit — at the Legion of Honor; the Met's own coordinate has four seeded rows within 400 m and therefore produces the chooser (see below)
+- [x] Two nearby venues produce the chooser (the Met); no venue produces POI options (Carmel-by-the-Sea on the simulator; MapKit result quality on a device in a city centre is still pending)
+- [x] Background refresh works; `git ls-files assets/venues.db` → 1 (bundled asset committed by 02.02)
+- [x] Tests, tsc, lint pass; `docs/plans/README.md` updated
+
+Completed 2026-09-10 on the simulator; see the README row for the walkthrough. Deviations:
+the venue table is opened lazily by `openVenueDb()` (expo-asset copy keyed by the asset hash,
+so a newer bundled table from an app update replaces a downloaded one) instead of a
+`SQLiteProvider`; `resolveVenueAt`/`venueIdAt` live in `venue-db.ts`; a fresh visit at one of
+several nearby venues keeps that venue without re-asking, "Not here" ends the current visit and
+suppresses prompts and automatic selection within 400 m, and a venue confirmed from MapKit is inserted into the local
+table (and carried across refreshes) so the next fix resolves to it directly. Downloads are
+staged as `venues.next.db`, then applied to the live table in a SQLite transaction at the
+next launch, retaining locally confirmed venues. The live file is never unlinked. Visit starts and ends sync serially from SQLite
+without blocking resolution; `endSyncedAt` tracks completed endings. The initial local schema
+is updated directly for this pre-release app, so existing development databases need a reset.
+Dismissing the picker cancels its pending confirmation and prevents late navigation. The sheet's root
+element must be the `ScrollView`: react-native-screens sizes only a form sheet's first-child
+scroll view, and a wrapped one collapses to a blank sheet.
 
 ## STOP conditions
 

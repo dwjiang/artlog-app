@@ -36,13 +36,15 @@ export async function runCapture(
       modelVersion: opts.modelVersion,
       venueId: input.venueId,
       visitId: input.visitId,
+      visitLocalId: input.visitLocalId,
       capturedAt: input.capturedAt,
       photoUri: input.photoUri,
       cropUri,
     };
     const online = deps.isOnline();
-    await timed('enqueue', () => deps.store.enqueue(payload, online ? 'identifying' : 'queued'));
-    if (online) {
+    const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
+    await timed('enqueue', () => deps.store.enqueue(payload, identifyNow ? 'identifying' : 'queued'));
+    if (identifyNow) {
       try {
         const response = await timed('identify', () => deps.identify(payload));
         await deps.store.recordResult(payload.localId, response);
