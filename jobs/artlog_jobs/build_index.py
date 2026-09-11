@@ -17,13 +17,15 @@ from .download import (
     SOURCE_RATES,
     SOURCE_STREAMS,
     WIKIMEDIA_MBPS,
-    ImageTask,
+    DownloadIncomplete,
+    ShardState,
     default_client_factory,
     download_shard,
     iter_tasks,
     parse_rates,
     parse_streams,
     plan_shards,
+    task_fingerprint,
 )
 from .drift_check import (
     DEFAULT_HASHES,
@@ -41,7 +43,7 @@ from .polite_http import PoliteClient
 
 log = logging.getLogger(__name__)
 
-STAGES = ("download", "drift", "embed", "cleanup")
+STAGES = ("download", "drift", "embed", "dedupe", "hubs", "push", "cleanup")
 
 
 class DriftCheckFailed(RuntimeError):
@@ -111,17 +113,31 @@ def run(
     manifest_path = features_dir / "manifest.json"
     sharded = "download" in stages or "embed" in stages
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-    shard_plan = {"limit": limit, "shardSize": shard_size}
+    tasks = list(iter_tasks(scratch / "metadata" / "objects.jsonl")) if sharded else []
+    shard_plan = {
+        "limit": limit,
+        "shardSize": shard_size,
+        "downloadInputsSha256": task_fingerprint(tasks),
+    }
     if (
         sharded
-        and "limit" in manifest
+        and ("limit" in manifest or manifest.get("shards") or checkpoint.path.exists())
         and any(manifest.get(name) != value for name, value in shard_plan.items())
     ):
         raise RuntimeError(
-            f"{features_dir} holds a run with a different --limit or --shard-size; move it, "
+            f"{features_dir} holds a run with a different --limit, --shard-size or "
+            "missing/mismatched download inputs fingerprint; move it, "
             f"{images_dir}, {scratch / 'downloads'} and {checkpoint.path} aside "
             "before starting this run"
         )
+    if "drift" in stages or "embed" in stages:
+        weights_sha256 = sha256_of(fakequant)
+        has_features = bool(manifest.get("shards") or checkpoint.done_keys("embed"))
+        if has_features and manifest.get("fakequantSha256") != weights_sha256:
+            raise RuntimeError(
+                f"{features_dir}: completed features have different or unverified weights; "
+                "use the original --fakequant file or start a fresh build in a new SCRATCH_DIR"
+            )
     if sharded:
         update_manifest(features_dir, run=shard_plan)
     rates = rates or dict(SOURCE_RATES)
@@ -131,13 +147,13 @@ def run(
     if "drift" in stages or "embed" in stages:
         drift_result = (drift or default_drift)(load, settings, dtype=dtype)
         print(format_report(drift_result) if "mean" in drift_result else drift_result)
-        update_manifest(features_dir, run={"driftCheck": drift_result})
+        update_manifest(
+            features_dir,
+            run={"driftCheck": drift_result, "fakequantSha256": weights_sha256},
+        )
         if not drift_result["passed"]:
             raise DriftCheckFailed("drift check failed; the build must not embed")
         dtype = drift_result["dtype"]
-    tasks: list[ImageTask] = []
-    if "download" in stages or "embed" in stages:
-        tasks = list(iter_tasks(scratch / "metadata" / "objects.jsonl"))
     totals = Counter(task.source for task in tasks)
     shards = plan_shards(tasks, shard_size=shard_size, limit=limit)
     download_reports, embed_reports = [], []
@@ -149,9 +165,13 @@ def run(
                 shutil.rmtree(shard_dir)
             continue
         if "download" in stages:
-            if checkpoint.is_done("download", key) and not shard_dir.exists():
-                # Images vanished before their embed; the shard must be fetched again.
-                checkpoint.unmark("download", [key])
+            if checkpoint.is_done("download", key):
+                try:
+                    ShardState(scratch / "downloads", number).require_complete(
+                        shard_tasks, shard_dir
+                    )
+                except DownloadIncomplete:
+                    checkpoint.unmark("download", [key])
             if not checkpoint.is_done("download", key):
                 reports = download(
                     number,
@@ -167,9 +187,9 @@ def run(
         if "embed" in stages:
             if not shard_dir.exists():
                 raise FileNotFoundError(f"{shard_dir} is missing; run the download stage first")
+            ShardState(scratch / "downloads", number).require_complete(shard_tasks, shard_dir)
             if embedder is None:
                 embedder = load(dtype)
-                update_manifest(features_dir, run={"fakequantSha256": sha256_of(fakequant)})
             report = embed(
                 shard_dir, features_dir, number, embedder, batch_size=batch_size, workers=workers
             )
@@ -189,6 +209,26 @@ def run(
     }
     if download_reports or embed_reports:
         summary["projection"] = projection(totals, download_reports, embed_reports)
+    merged = scratch / "merged"
+    if "dedupe" in stages:
+        from .dedupe import run as dedupe
+
+        summary["dedupe"] = dedupe(features_dir, scratch / "metadata", merged)
+    if "hubs" in stages:
+        from .hubs import run as hubs
+
+        summary["hubs"] = hubs(merged, merged / "penalties.jsonl")
+    if "push" in stages:
+        from .convex_writer import ConvexWriter
+        from .push import Corpus
+        from .push import run as push
+
+        summary["push"] = push(
+            Corpus(merged, limit=limit),
+            ConvexWriter(settings),
+            checkpoint=merged / ("push-smoke.json" if limit else "push.json"),
+            deployment_url=settings.convex_url,
+        )
     return summary
 
 

@@ -7,7 +7,12 @@ from itertools import pairwise
 import httpx
 import pytest
 
-from artlog_jobs.polite_http import PoliteClient, RobotsDisallowed, parse_retry_after
+from artlog_jobs.polite_http import (
+    BandwidthLimiter,
+    PoliteClient,
+    RobotsDisallowed,
+    parse_retry_after,
+)
 
 UA = "artlog-bot/0.1 (+https://example.org)"
 
@@ -587,3 +592,210 @@ def test_threads_sharing_a_client_keep_the_host_spacing():
     # together in pairs. Sleep overshoot on one thread can shave a few ms off a gap.
     assert times[-1] - times[0] >= 9 * period
     assert min(b - a for a, b in pairwise(times)) >= period / 2
+
+
+@pytest.mark.parametrize("retry_after", [10, 180])
+def test_waiting_worker_observes_a_new_host_cooldown(retry_after):
+    from artlog_jobs.polite_http import RetryLater
+
+    clock = FakeClock()
+    first_started = threading.Event()
+    second_sleeping = threading.Event()
+    first_finished = threading.Event()
+    sent = []
+
+    def sleep(seconds):
+        second_sleeping.set()
+        assert first_finished.wait(5)
+        clock.sleep(seconds)
+
+    def handler(request):
+        sent.append((request.url.path, clock()))
+        if request.url.path == "/first":
+            first_started.set()
+            assert second_sleeping.wait(5)
+            return httpx.Response(429, headers={"Retry-After": str(retry_after)})
+        return httpx.Response(200)
+
+    with PoliteClient(
+        user_agent=UA,
+        robots=False,
+        per_host_rps=4,
+        max_retries=0,
+        clock=clock,
+        sleep=sleep,
+        transport=httpx.MockTransport(handler),
+    ) as c:
+
+        def first():
+            try:
+                c.get("https://museum.example/first")
+            except RetryLater:
+                pass
+            finally:
+                first_finished.set()
+
+        with ThreadPoolExecutor(2) as pool:
+            a = pool.submit(first)
+            assert first_started.wait(5)
+            b = pool.submit(c.get, "https://museum.example/second")
+            a.result(timeout=5)
+            if retry_after > c.max_retry_after:
+                with pytest.raises(RetryLater):
+                    b.result(timeout=5)
+            else:
+                assert b.result(timeout=5).status_code == 200
+
+    if retry_after <= c.max_retry_after:
+        assert sent == [("/first", 1000.0), ("/second", 1000.0 + retry_after)]
+    else:
+        assert sent == [("/first", 1000.0)]
+
+
+def test_cooldown_is_published_before_reading_the_error_body():
+    from artlog_jobs.polite_http import RetryLater
+
+    reading = threading.Event()
+    release = threading.Event()
+    requests = []
+
+    class Body(httpx.SyncByteStream):
+        def __iter__(self):
+            reading.set()
+            assert release.wait(5)
+            yield b"busy"
+
+    def handler(request):
+        requests.append(request.url.path)
+        return httpx.Response(429, headers={"Retry-After": "180"}, stream=Body())
+
+    with client(handler, robots=False, max_retries=0) as c, ThreadPoolExecutor(1) as pool:
+        first = pool.submit(c.get, "https://media.example/first")
+        assert reading.wait(5)
+        try:
+            with pytest.raises(RetryLater):
+                c.get("https://media.example/second")
+        finally:
+            release.set()
+        with pytest.raises(RetryLater):
+            first.result(timeout=5)
+
+    assert requests == ["/first"]
+
+
+def test_bandwidth_budget_is_shared_by_simultaneous_response_streams():
+    chunk = b"x" * (64 * 1024)
+    budget = 200000
+    window = 0.05
+    started = threading.Barrier(2)
+    received = []
+    closed = []
+    lock = threading.Lock()
+
+    class Body(httpx.SyncByteStream):
+        def __iter__(self):
+            started.wait(timeout=5)
+            for _ in range(4):
+                with lock:
+                    received.append((time.monotonic(), len(chunk)))
+                yield chunk
+
+        def close(self):
+            closed.append(True)
+
+    limiter = BandwidthLimiter(budget * 8 / 1e6 / window, window=window)
+    with (
+        PoliteClient(
+            user_agent=UA,
+            robots=False,
+            per_host_rps=10000,
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, stream=Body())),
+        ) as c,
+        ThreadPoolExecutor(2) as pool,
+    ):
+        responses = list(
+            pool.map(
+                lambda i: c.get(f"https://media.example/{i}", limiter=limiter),
+                range(2),
+            )
+        )
+
+    assert [response.content for response in responses] == [chunk * 4, chunk * 4]
+    assert len(closed) == 2
+    for now, _ in received:
+        assert sum(size for at, size in received if now - window < at <= now) <= budget
+
+
+def test_stream_budget_counts_redirects_retries_and_compressed_bytes():
+    clock = FakeClock()
+    chunk = b"x" * (64 * 1024)
+    received = []
+    closed = []
+    replies = iter(
+        [
+            (302, {"Location": "/image"}, chunk),
+            (503, {"Retry-After": "0"}, chunk),
+            (200, {"Content-Encoding": "gzip"}, gzip.compress(b"painting" * 10000)),
+        ]
+    )
+
+    class Body(httpx.SyncByteStream):
+        def __init__(self, data):
+            self.data = data
+
+        def __iter__(self):
+            received.append((clock(), len(self.data)))
+            yield self.data
+
+        def close(self):
+            closed.append(True)
+
+    def handler(request):
+        status, headers, data = next(replies)
+        return httpx.Response(status, headers=headers, stream=Body(data))
+
+    budget = 100000
+    limiter = BandwidthLimiter(budget * 8 / 1e6 / 10, clock=clock, sleep=clock.sleep)
+    with client(handler, clock=clock, robots=False) as c:
+        response = c.get("https://media.example/start", limiter=limiter)
+
+    assert response.content == b"painting" * 10000
+    assert response.url.path == "/image"
+    assert [r.status_code for r in response.history] == [302]
+    assert len(closed) == 3
+    for now, _ in received:
+        assert sum(size for at, size in received if now - 10 < at <= now) <= budget
+
+
+def test_stream_failure_releases_its_reservation_and_closes_the_response():
+    clock = FakeClock()
+    closed = []
+    calls = 0
+
+    class BrokenBody(httpx.SyncByteStream):
+        def __iter__(self):
+            raise httpx.ReadError("connection reset")
+            yield b""  # pragma: no cover
+
+        def close(self):
+            closed.append(True)
+
+    def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, stream=BrokenBody())
+        return httpx.Response(200, stream=httpx.ByteStream(b"ok"))
+
+    limiter = BandwidthLimiter(0.08, clock=clock, sleep=clock.sleep)
+    with client(handler, clock=clock, robots=False) as c:
+        with pytest.raises(httpx.ReadError):
+            c.get("https://media.example/broken", limiter=limiter)
+        assert closed == [True]
+        assert c.get("https://media.example/recovered", limiter=limiter).content == b"ok"
+
+
+@pytest.mark.parametrize("mbps,window", [(0, 10), (-1, 10), (1, 0), (0.01, 1)])
+def test_bandwidth_budget_must_allow_a_positive_read(mbps, window):
+    with pytest.raises(ValueError):
+        BandwidthLimiter(mbps, window=window)

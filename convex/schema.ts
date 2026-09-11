@@ -118,7 +118,8 @@ export default defineSchema({
     closedAt: v.optional(v.number()),
   })
     .index('by_objectId', ['objectId'])
-    .index('by_venueId', ['venueId']),
+    .index('by_venueId', ['venueId'])
+    .index('by_objectId_venueId_source', ['objectId', 'venueId', 'source']),
 
   placementProposals: defineTable({
     objectId: v.id('objects'),
@@ -140,6 +141,7 @@ export default defineSchema({
     objectId: v.id('objects'),
     modelVersion: v.string(),
     source: vectorSource,
+    viewKey: v.optional(v.string()),
     vector: embedding,
   })
     .vectorIndex('by_vector', {
@@ -147,7 +149,8 @@ export default defineSchema({
       dimensions: model.embeddingDim,
       filterFields: ['modelVersion'],
     })
-    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source']),
+    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source'])
+    .index('by_modelVersion_source_viewKey', ['modelVersion', 'source', 'viewKey']),
 
   descriptors: defineTable({
     objectId: v.id('objects'),

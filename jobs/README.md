@@ -231,11 +231,23 @@ never copied out of scratch and no job other than `download.py`/`embed.py`
 reads them. `--keep-images` is refused without `--limit`. A run is resumable at
 shard granularity through `checkpoints/build_index.json`; interrupt it and
 repeat the same command. If an image directory disappears before its shard was
-embedded, the shard is downloaded again. Cleanup also resumes for completed
+embedded, the missing files are downloaded again. Embedding requires a completed
+download receipt and exactly the planned images minus recorded terminal failures;
+an interrupted or partially deleted shard cannot be accepted by `--stage embed`.
+Cleanup also resumes for completed
 shards whose images remain after an interruption. Ctrl-C stops workers after
-their current image fetch returns. Shard membership depends on `--limit`
-and `--shard-size`, so `build_index` refuses to start when
-`features/manifest.json` records different values (or lacks the shard size):
+their current image fetch returns. Resume requires the same `--limit`,
+`--shard-size`, and downloadable object keys and image URLs. A SHA-256
+fingerprint of those inputs is checked before any completed shard is reused;
+reordering metadata or changing unrelated fields does not invalidate it.
+`build_index` refuses mismatched or missing fingerprints, including checkpoints
+from builds that predate fingerprinting. Completed features also require the same
+`fakequantSha256` before drift checking or embedding can resume; changing the
+weights file's path is allowed when its bytes are identical. Download receipts
+record each shard's key/URL fingerprint before fetching begins. Both standalone
+downloads and embedding validate it before reusing JPEGs or terminal failures.
+Cached downloads without a matching receipt require fresh image and download-state
+directories. For a new build,
 move `features/`, `images/`, `downloads/` and
 `checkpoints/build_index.json` aside (for example to `pilot-<date>/`) between a
 pilot and the whole build.
@@ -250,7 +262,7 @@ Under `SCRATCH_DIR` (default `jobs/scratch`, gitignored):
 | `features/vectors-<n>.npy` | float32 `[N, 1536]`, L2-normalized, one row per embedded image |
 | `features/keys-<n>.json` | object keys in row order |
 | `features/descriptors-<n>.bin` + `.json` | per image: `count×32` descriptor bytes then `count×4` float32 keypoints (plan 04.01 wire format); the index lists `{key, offset, keypointCount}`; `embed.read_features()` reads a shard |
-| `features/manifest.json` | `limit`, `shardSize`, `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
+| `features/manifest.json` | `limit`, `shardSize`, `downloadInputsSha256`, `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
 | `features/drift-check.json` | the last drift result |
 | `calibration/` | the 200 calibration images, hash-checked against `jobs/calibration/image-hashes.json` |
 
@@ -262,7 +274,12 @@ ceiling 20), AIC 1 req/s with `AIC-User-Agent` (no AIC object currently carries
 an image reference, decision 005), and Wikimedia media within the Wikitech robot
 policy's media rules: at most two concurrent connections and at most 25 Mbps
 measured over 10-second windows (`BandwidthLimiter`, shared by both streams),
-standard thumbnail sizes only. Commons files are resolved through the
+standard thumbnail sizes only. Each raw HTTP response read reserves up to
+64 KiB before receiving bytes; reservations remain charged until the read
+finishes, and received bytes remain charged for the next 10 seconds. Redirect
+and retry bodies share the same budget. The budget must fit at least one
+64 KiB read per window. Cooldowns are recorded when headers arrive and checked
+again whenever a waiting worker wakes. Commons files are resolved through the
 `imageinfo` API in batches of ≤ 50 titles (one call at a time, `iiurlwidth=960`,
 a pre-rendered standard step that still exceeds the 512 px model input) and
 fetched from the returned `thumburl` on `upload.wikimedia.org`. Files no wider
@@ -570,3 +587,174 @@ No Convex schema/function signatures changed, so no codegen or deployment ran.
 | `stats.json` | 77,829 | `7224115ce70a9eddf5e8b10c42dc7bce3ce88295b8704939c8e19b3ba86f5c85` |
 
 Venue key-set SHA-256: `861b0149809145ac74a00be7a901df74045a671e78f29e843fa452522ac58087`.
+
+## Dedupe, hubs and Convex import (02.05)
+
+After the feature build, run from `jobs/`:
+
+```sh
+caffeinate -i uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push
+# Or run each stage, using explicit paths:
+uv run python -m artlog_jobs.dedupe --features "$SCRATCH_DIR/features" --metadata "$SCRATCH_DIR/metadata" --out "$SCRATCH_DIR/merged"
+uv run python -m artlog_jobs.hubs --features "$SCRATCH_DIR/merged" --out "$SCRATCH_DIR/merged/penalties.jsonl"
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged" --limit 1000
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged"
+```
+
+For these shell commands, set `SCRATCH_DIR` explicitly (for example,
+`export SCRATCH_DIR="$PWD/scratch"`); Python also defaults to `jobs/scratch`.
+The smoke limit selects 1,000 surviving objects and includes their other views
+and merged source records. It can run on completed shards of an unfinished
+build. A full push requires every expected shard in the feature manifest and
+refuses a limited pilot. Objects with no features still retain their metadata.
+
+`dedupe` reads the actual 02.04 shard format (`keys-N.json`, float32
+`vectors-N.npy`, `descriptors-N.json` with `key/offset/keypointCount`, and the
+packed descriptor/keypoint bytes). It validates dimensions, normalization,
+model version, the passing drift check and binary bounds. It also checks that
+the feature manifest's download fingerprint matches the current metadata,
+refusing stale or unverified features before writing merged output. It copies completed
+feature shards into `merged/`, retaining their original keys, and writes
+`vector-index.jsonl` to map each original view to its survivor. Accession
+matching uses NFKC, case folding and collapsed whitespace, preserving punctuation
+and accession component boundaries. Embedding matching needs cosine ≥ 0.95,
+a known matching artist, and the same nonempty owner. It cannot join groups
+with overlapping sources or conflicting nonempty accessions, including conflicts
+through aliases. Unknown or unidentified creator labels do not establish an artist
+match. Museum records win over Wikidata, with key order breaking ties. Every
+merged object points directly to its final survivor in `merges.jsonl`.
+Artwork rights are reconciled across every connected merge group using the most
+restrictive result; all linked objects lose thumbnails on a downgrade. Public-domain
+survivors retain an admitted alias thumbnail when their own record has none.
+Placements are re-keyed and deduplicated by object/venue/source, preferring
+the survivor's record. Each survivor receives one descriptor set from its
+highest-priority available view; all embedding views are retained.
+
+`hubs` samples up to 20,000 vectors with seed `20260908`. The sample centroid
+computes exactly the same mean cosines as the full pairwise matrix using
+bounded memory. Vectors above mean + 3σ are capped at the top 0.5%; their
+objects receive penalty 0.5. Other objects receive 0, clearing a previous
+build's hub flag without changing feedback's separate rejection penalty.
+The histogram and threshold are in `penalties.summary.json`.
+
+Import order is artworks → objects (survivors first) → placements → vectors
+→ descriptors → penalties. Batch ceilings are 500 metadata/penalty rows,
+**250 vectors** (decision 002's measured HTTP size), and **200 descriptor sets**
+(the writer's existing ceiling for 1,000-keypoint records). The Python writer
+uses the official client's HTTP transport, with its `requests` dependency
+explicitly installed; transport failures retry, application errors do not.
+A size rejection saves half the batch size and stops with an error. Review the
+error, then resume with the same command to use the smaller size. A server
+system-operation timeout halves the affected batch and replays it automatically;
+unrelated application errors still stop the job.
+
+Corpus vectors use the original object key as `viewKey`. Ingest replaces
+`(modelVersion, source, viewKey)` and updates its object assignment, so two
+corpus views survive a merge and a rebuild can move a view to a new survivor
+without duplicating it. User-created vectors do not need a corpus view key.
+`countExisting` resolves overlaps with dev data before the first write, and
+`counts()` must match the saved baseline plus new rows. A paginated
+`auditThumbnails` must return zero violations; both Python and the object
+mutation reject a thumbnail URL unless its artwork is public domain.
+
+`push.json` (`push-smoke.json` for a limit) records the deployment, input
+fingerprint, expected counts, per-stage offset and elapsed mutation time after
+every batch. Resume replays a batch whose response was lost safely. Input
+files and penalties are checked against their SHA-256 hashes; changed input
+or a different deployment requires a separate checkpoint (`--checkpoint`).
+Keep the merged snapshot unchanged while a push runs. The final report is
+beside the checkpoint as `push.report.json` or `push-smoke.report.json`.
+Copy `merges.jsonl`, `manifest.json`, `stats.json` and the reports into
+`jobs/out/<run>/` for the build audit trail. No image pixels enter this stage.
+
+### Partial build verification, 2026-09-11
+
+The committed 02.04 branch was integrated before implementation. Its `paris`
+workspace has **24 of 41** feature shards, with **239,995 vectors**; the full
+build is unfinished. A copied snapshot in this workspace's
+`jobs/scratch/merged/` contains **404,653 artworks, 409,973 objects,
+289,806 merged placements, 239,995 vectors and 232,291 descriptor sets**.
+There are **13,550 merges** and 169,978 metadata objects without features in
+this partial snapshot; the latter includes unprocessed objects and must not
+be reported as failed downloads. Dedupe took 20.69 seconds initially and
+50.13 seconds on a repeat while other workspaces were compiling iOS apps.
+The deterministic hub pass found no outliers (mean 0.422502, σ 0.113360,
+threshold 0.762582, maximum observed mean cosine 0.596512).
+
+The full corpus import and its database/search storage measurements remain
+pending the other 17 shards. Decision 002 did not establish a billed search
+storage projection, so its >50% comparison cannot yet be evaluated. Raw
+float payload estimates are not dashboard storage measurements.
+
+
+### Cloud smoke import, 2026-09-11
+
+The shared dev deployment was replaced by concurrent workspaces during the
+first attempt, and then contained newer account-sync fields that this branch
+cannot validate. No corpus rows were written by those attempts. Verification
+therefore used isolated **dev `elegant-caiman-324`** in the same project,
+reference `dev/plan-02-05-smoke`, created with a one-day expiry. Its credentials
+are under `.context/02-05-smoke.env`; the app's `.env.local` still targets
+`usable-owl-256`. No production deployment changed.
+
+The real smoke selected **1,000 surviving objects** and retained their source
+aliases and all available views. Final counts matched the preflight exactly:
+**3 museums, 1,123 artworks, 2,103 objects, 1,877 placements, 1,688 vectors and
+1,000 descriptor sets**. The paginated thumbnail audit checked all 2,103
+objects and found **zero violations**. `convex data vectors --limit 1`
+confirmed a 1536-float `corpus` vector with its original-object `viewKey`;
+`health.ping` passed on both the isolated and shared dev deployments.
+
+| Stage | Rows | Rows/batch | Acknowledged write seconds | Rows/s |
+| --- | ---: | ---: | ---: | ---: |
+| Artworks | 1,123 | 500 | 9.96 | 112.8 |
+| Objects | 2,103 | 500 | 54.47 | 38.6 |
+| Placements | 1,877 | 500 | 18.11 | 103.6 |
+| Vectors | 1,688 | 250 | 31.72 | **53.2** |
+| Descriptors | 1,000 | 200 | 18.09 | 55.3 |
+| Penalties | 2,103 | 500 | 15.38 | 136.8 |
+
+These rates include HTTP serialization/transport and successful mutation time;
+they exclude input validation, preflight reads, the final audit and aborted
+attempts. One 500-object mutation hit a system-operation timeout after the
+first 500 rows. Resumption replayed the failed batch and completed without
+count drift. The replay did not hit the limit again; a regression test also
+proves automatic halving if it recurs. No vector write-size error occurred.
+The resumed invocation took 174.93 seconds including local validation and
+museum seeding; this is not the wall time of all attempts combined.
+
+Final review also corrected museum identity registration for merged aliases:
+accession/page lookups now resolve to the surviving artwork, even when the
+alias retains a different source artwork record. The regression test covers
+both the shared accession and the alias page. Refreshing the 1,103 aliases
+kept all counts unchanged; a live audit of 3,218 museum identities went from
+345 pointing outside the surviving artwork set to **zero**. Audit artifacts, manifests and
+merge records are retained in `jobs/out/02-05-2026-09-11/` (gitignored).
+
+Database and search **dashboard storage remain unmeasured**. This smoke
+establishes batch correctness and Mac-to-Convex throughput, not the full-corpus
+storage projection. The full-push command was exercised and correctly refused
+the 24/41-shard snapshot before making any network write.
+
+
+Final verification: **286 Python tests pass**, **792 backend tests pass
+(3 skipped)** with `npm run test:convex -- --maxWorkers=1`, including 19 ingest
+tests. Ruff lint/format, `npm run lint`, `npx tsc -p convex/tsconfig.json
+--noEmit`, codegen and the isolated dev deployment pass. An earlier host-spacing
+fixture failure and backend timeouts during concurrent iOS compilation cleared
+on the final complete runs. Root `npx tsc --noEmit` still fails on the
+pre-existing `src/components/scan/label/contribute-result.tsx:16` TS7053 error:
+`device_reverted` and `object_reverted` have no message mapping. No app UI changed;
+`npm run ios` was not run for this jobs/backend task.
+
+The smoke counts above predate the merge review fixes. An offline audit of the
+same 24-shard snapshot with the corrected rules produces **7,844 merges**
+(7,839 accession, five embedding), downgrades rights on 342 artwork records,
+and recovers 1,345 survivor thumbnails, with zero thumbnail-rights violations.
+The three reported pairs of distinct paintings remain separate. All **321
+Python tests**, Ruff, and ESLint pass; root TypeScript still reports the same
+unrelated error above. These corrections have not been pushed to Convex.
+Regenerating import files was refused because the current upstream metadata
+does not match the saved feature fingerprint. Rebuild from matching metadata
+and feature snapshots before the next import; do not reuse the earlier merged
+output or treat its smoke counts as verification of the corrected corpus.

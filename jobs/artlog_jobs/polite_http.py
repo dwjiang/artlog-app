@@ -2,8 +2,8 @@ import email.utils
 import logging
 import threading
 import time
-from collections import OrderedDict
-from collections.abc import Callable, Mapping
+from collections import OrderedDict, deque
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Self
 from urllib import robotparser
@@ -15,6 +15,8 @@ log = logging.getLogger(__name__)
 
 TRANSIENT_STATUSES = frozenset({429, 500, 502, 503, 504})
 MAX_CACHE_ENTRIES = 128
+# HTTPX's default HTTP/1.1 transport reads at most 64 KiB from the socket at a time.
+READ_CHUNK_BYTES = 64 * 1024
 
 
 class RobotsDisallowed(Exception):
@@ -56,6 +58,92 @@ def parse_retry_after(value: str | None, now_wall: float) -> float | None:
     except (TypeError, ValueError):
         return None
     return max(0.0, parsed.timestamp() - now_wall)
+
+
+class BandwidthLimiter:
+    """Shared budget for completed and in-flight response chunks in a trailing window."""
+
+    def __init__(
+        self,
+        mbps: float,
+        *,
+        window: float = 10.0,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ):
+        if mbps <= 0 or window <= 0:
+            raise ValueError("bandwidth cap and window must be positive")
+        self.budget_bytes = int(mbps * 1e6 / 8 * window)
+        if self.budget_bytes < READ_CHUNK_BYTES:
+            raise ValueError("bandwidth budget must allow at least 64 KiB per window")
+        self.window = window
+        self._clock = clock
+        self._sleep = sleep
+        self._events: deque[tuple[float, int]] = deque()
+        self._in_flight = 0
+        self._condition = threading.Condition()
+
+    def _read_chunk(self, chunks: Iterator[bytes]) -> bytes:
+        while True:
+            with self._condition:
+                now = self._clock()
+                while self._events and self._events[0][0] <= now - self.window:
+                    self._events.popleft()
+                used = sum(size for _, size in self._events)
+                if used + self._in_flight + READ_CHUNK_BYTES <= self.budget_bytes:
+                    self._in_flight += READ_CHUNK_BYTES
+                    break
+                if not self._events:
+                    self._condition.wait()
+                    continue
+                delay = self._events[0][0] + self.window - now
+            self._sleep(delay)
+        # Failed reads may have received partial bytes; retain their entire reservation.
+        received = READ_CHUNK_BYTES
+        try:
+            chunk = next(chunks)
+            received = len(chunk)
+            if received > READ_CHUNK_BYTES:
+                raise ValueError("HTTP transport exceeded the reserved 64 KiB read size")
+            return chunk
+        except StopIteration:
+            received = 0
+            raise
+        finally:
+            with self._condition:
+                self._in_flight -= READ_CHUNK_BYTES
+                if received:
+                    self._events.append((self._clock(), received))
+                self._condition.notify_all()
+
+    def read_response(self, response: httpx.Response) -> httpx.Response:
+        headers = dict(response.headers)
+        # In-memory transports can return buffered, already decoded responses.
+        if response.is_stream_consumed:
+            chunks = response.iter_bytes(chunk_size=READ_CHUNK_BYTES)
+            headers.pop("content-encoding", None)
+            headers.pop("content-length", None)
+        else:
+            # Rechunking can read ahead past the reservation to fill an output chunk.
+            chunks = response.iter_raw()
+        body = bytearray()
+        try:
+            while True:
+                try:
+                    body.extend(self._read_chunk(chunks))
+                except StopIteration:
+                    break
+            result = httpx.Response(
+                response.status_code,
+                headers=headers,
+                content=bytes(body),
+                request=response.request,
+                extensions=response.extensions,
+            )
+            result.next_request = response.next_request
+            return result
+        finally:
+            response.close()
 
 
 class PoliteClient:
@@ -114,8 +202,14 @@ class PoliteClient:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
-    def get(self, url: str, *, headers: Mapping[str, str] | None = None) -> httpx.Response:
-        return self._get(url, headers=headers, check_robots=self.robots_enabled)
+    def get(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        limiter: BandwidthLimiter | None = None,
+    ) -> httpx.Response:
+        return self._get(url, headers=headers, check_robots=self.robots_enabled, limiter=limiter)
 
     def _get(
         self,
@@ -123,6 +217,7 @@ class PoliteClient:
         *,
         headers: Mapping[str, str] | None = None,
         check_robots: bool,
+        limiter: BandwidthLimiter | None = None,
     ) -> httpx.Response:
         request = self._http.build_request("GET", url, headers=headers)
         history: list[httpx.Response] = []
@@ -141,7 +236,7 @@ class PoliteClient:
                 if cached.last_modified:
                     request.headers["If-Modified-Since"] = cached.last_modified
 
-            response = self._send_with_retries(request)
+            response = self._send_with_retries(request, limiter=limiter)
             response.history = list(history)
             if response.next_request is None:
                 if response.status_code == 304 and cached is not None:
@@ -170,20 +265,38 @@ class PoliteClient:
             request.headers.pop("If-Modified-Since", None)
         raise httpx.TooManyRedirects("Exceeded maximum allowed redirects", request=request)
 
-    def _send_with_retries(self, request: httpx.Request) -> httpx.Response:
+    def _send_with_retries(
+        self,
+        request: httpx.Request,
+        *,
+        limiter: BandwidthLimiter | None,
+    ) -> httpx.Response:
         url = str(request.url)
         host = urlsplit(url).netloc
         for attempt in range(self.max_retries + 1):
             self._wait_for_slot(url)
-            response = self._http.send(request)
-            if response.status_code not in TRANSIENT_STATUSES:
-                return response
-            delay = parse_retry_after(response.headers.get("Retry-After"), time.time())
+            response = self._http.send(request, stream=True)
+            delay = None
+            try:
+                if response.status_code in TRANSIENT_STATUSES:
+                    delay = parse_retry_after(response.headers.get("Retry-After"), time.time())
+                    if delay is None:
+                        delay = min(self.max_retry_after, 2.0**attempt)
+                    with self._slot_lock:
+                        until = self._clock() + delay
+                        if until > self._cooldowns.get(host, (0.0, 0))[0]:
+                            self._cooldowns[host] = (until, response.status_code)
+                if limiter is not None:
+                    response = limiter.read_response(response)
+                else:
+                    response.read()
+            finally:
+                response.close()
             if delay is None:
-                delay = min(self.max_retry_after, 2.0**attempt)
-            self._cooldowns[host] = (self._clock() + delay, response.status_code)
-            if delay > self.max_retry_after:
-                raise RetryLater(host, delay, response.status_code)
+                return response
+            remaining = max(0.0, until - self._clock())
+            if remaining > self.max_retry_after:
+                raise RetryLater(host, remaining, response.status_code)
             if attempt == self.max_retries:
                 return response
             log.warning("%s %s; waiting %.1fs", response.status_code, request.url, delay)
@@ -234,9 +347,10 @@ class PoliteClient:
             entry = self._fetch_robots(parts.scheme, parts.netloc)
             self._robots[origin] = entry
             if entry.crawl_delay:
-                self._next_slot[parts.netloc] = max(
-                    self._next_slot.get(parts.netloc, 0.0), entry.fetched_at + entry.crawl_delay
-                )
+                with self._slot_lock:
+                    self._next_slot[parts.netloc] = max(
+                        self._next_slot.get(parts.netloc, 0.0), entry.fetched_at + entry.crawl_delay
+                    )
         return entry.parser.can_fetch(self.user_agent, url)
 
     def _fetch_robots(self, scheme: str, host: str) -> RobotsEntry:
@@ -267,19 +381,16 @@ class PoliteClient:
         host = parts.netloc
         entry = self._robots.get((parts.scheme, host))
         interval = max(self.interval, entry.crawl_delay or 0.0) if entry else self.interval
-        # Reserve the slot atomically so threads sharing this client keep the per-host
-        # spacing between each other; the wait itself happens outside the lock.
-        with self._slot_lock:
-            now = self._clock()
-            cooldown = self._cooldowns.get(host)
-            retry_until = cooldown[0] if cooldown else now
-            if retry_until - now > self.max_retry_after:
-                raise RetryLater(host, retry_until - now, cooldown[1])
-            slot = max(self._next_slot.get(host, now), retry_until, now)
-            self._next_slot[host] = slot + interval
-        wait = slot - now
-        if wait > 0:
-            self._sleep(wait)
-            now = self._clock()
+        while True:
             with self._slot_lock:
-                self._next_slot[host] = max(self._next_slot[host], now + interval)
+                now = self._clock()
+                cooldown = self._cooldowns.get(host)
+                retry_until = cooldown[0] if cooldown else now
+                if retry_until - now > self.max_retry_after:
+                    raise RetryLater(host, retry_until - now, cooldown[1])
+                wait = max(self._next_slot.get(host, now), retry_until) - now
+                if wait <= 0:
+                    self._next_slot[host] = now + interval
+                    return
+            # Another response can extend the cooldown while this worker is sleeping.
+            self._sleep(wait)
