@@ -21,6 +21,7 @@ jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(), launchImageLibraryAsync: (...args: unknown[]) => mockPicker(...args),
 }));
 jest.mock('./pipeline', () => ({ runCapture: (...args: unknown[]) => mockPipeline(...args) }));
+jest.mock('./default-stages', () => ({ captureOptions: { inputSize: 512, modelVersion: 'test' }, defaultStages: {} }));
 
 const input: CaptureInput = { photoUri: 'file:///photo.jpg', quad: null, source: 'camera', capturedAt: 123 };
 
@@ -42,7 +43,7 @@ it.each([
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId } });
   expect(hook.result.current.timings).toEqual({ total: 12 });
   const deps = mockPipeline.mock.calls[0][1] as CaptureDependencies;
-  const payload = { cropUri: 'file:///private.jpg', localId: 'capture-uuid' } as CapturePayload;
+  const payload = { cropUri: 'file:///private.jpg', photoUri: 'file:///private-full.jpg', localId: 'capture-uuid' } as CapturePayload;
   await deps.identify(payload);
   expect(mockIdentify).toHaveBeenCalledWith({ localId: 'capture-uuid' });
 });
