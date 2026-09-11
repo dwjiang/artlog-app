@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest';
 
 import { decodeOrbFeatures, encodeOrbFeatures, MAX_KEYPOINTS, OrbFormatError } from './features';
 import { mulberry32 } from './homography';
-import { makeRandomFeatures } from './testFixtures';
+import { makeRandomFeatures } from './test-fixtures';
 
 describe('ORB feature wire format', () => {
   it('round-trips descriptors and keypoints through standalone buffers', () => {

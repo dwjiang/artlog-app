@@ -1,3 +1,4 @@
+import { Button, Host } from '@expo/ui';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
@@ -12,10 +13,11 @@ import { LocalScanScreen } from './local-scan-screen';
 import { CardHeader } from './result/card-header';
 import { DocentSection } from './result/docent-section';
 import { FieldsForm } from './result/fields-form';
+import { MuseumSearchSection } from './result/museum-search-section';
 import { NotRightSheet } from './result/not-right-sheet';
 import { RightNowSection } from './result/right-now-section';
 import { RunnerUps } from './result/runner-ups';
-import { SaveBar } from './result/save-bar';
+import { LABEL_BUTTON, SaveBar } from './result/save-bar';
 import { FailedCard } from './states/failed-card';
 import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
@@ -24,6 +26,7 @@ import { Spacing } from '@/constants/theme';
 import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
+import { useMuseumSearch } from '@/lib/museum-search/use-museum-search';
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
 import { toResultViewState, type ResultCandidate, type ResultSelection, type ResultViewState } from '@/lib/result/state';
@@ -58,6 +61,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view = toResultViewState(scan, selection);
+  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, view.kind === 'soft' || view.kind === 'unidentified', isActive);
 
   useEffect(() => {
     if (isActive && view.editable && captureStatus === 'identified') {
@@ -122,15 +126,20 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
         {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
         {view.kind === 'failed' && <FailedCard error={view.error} />}
-        {view.editable && (
+        {view.editable && !museumSearch.flow && (
           <ResultCard
             key={`${view.kind}:${view.primary?.objectId ?? 'none'}`}
             view={view}
             onNotRight={notRight}
             onPick={pickRunnerUp}
-            onLabel={openLabel}
             {...saveProps}
           />
+        )}
+        {view.editable && <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />}
+        {view.editable && view.kind !== 'confident' && (
+          <Host matchContents colorScheme="light">
+            <Button variant="outlined" label={LABEL_BUTTON} disabled={saving} onPress={openLabel} />
+          </Host>
         )}
       </ScrollView>
       <NotRightSheet
@@ -153,12 +162,11 @@ type ResultCardProps = {
   onNotRight: () => void;
   onPick: (candidate: ResultCandidate) => void;
   onSave: (draft: SnapshotDraft) => void;
-  onLabel: () => void;
   onViewSaved: () => void;
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
-function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSave, onLabel, onViewSaved }: ResultCardProps) {
+function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSave, onViewSaved }: ResultCardProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
@@ -182,7 +190,6 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onSa
         savedId={savedId}
         error={saveError}
         onSave={() => onSave(draft)}
-        onLabel={view.kind !== 'confident' ? onLabel : undefined}
         onViewSaved={onViewSaved}
       />
       {view.kind === 'confident' && (

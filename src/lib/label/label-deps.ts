@@ -38,8 +38,14 @@ export const imageCheckDeps: ImageCheckDeps = {
   async download(url) {
     const directory = new Directory(Paths.cache, IMAGE_FOLDER);
     directory.create({ intermediates: true, idempotent: true });
-    const file = await File.downloadFileAsync(url, new File(directory, `${randomUUID()}${extension(url)}`));
-    return file.uri;
+    const destination = new File(directory, `${randomUUID()}${extension(url)}`);
+    try {
+      const file = await File.downloadFileAsync(url, destination);
+      return file.uri;
+    } catch (error) {
+      removeFile(destination.uri);
+      throw error;
+    }
   },
   async letterbox(uri) {
     // No quad: the museum's reproduction is letterboxed whole, as the index build does (jobs letterbox.py).

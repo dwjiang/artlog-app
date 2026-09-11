@@ -5,8 +5,8 @@ import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
 import { featureIndex } from './calibrator';
 import { runPipeline } from './identifyPipeline';
-import { encodeOrbFeatures, type OrbFeatures } from './orb';
-import { makeSyntheticPair } from './orb/testFixtures';
+import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
+import { makeSyntheticPair } from '../../shared/orb/test-fixtures';
 
 const pair = makeSyntheticPair({ count: 120 });
 const now = 2_000_000;

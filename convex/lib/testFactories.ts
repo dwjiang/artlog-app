@@ -2,7 +2,7 @@ import model from '../../shared/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import type { Harness, SignedIn } from '../test.helpers';
-import { encodeOrbFeatures, type OrbFeatures } from './orb';
+import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
 import { registerMuseumObject } from './museumWorkIdentity';
 
 export function testVector(similarity = 1): number[] {

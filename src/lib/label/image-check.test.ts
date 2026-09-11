@@ -1,5 +1,5 @@
-import { encodeOrbFeatures } from '../../../convex/lib/orb';
-import { makeSyntheticPair } from '../../../convex/lib/orb/testFixtures';
+import { encodeOrbFeatures } from '@/shared/orb';
+import { makeSyntheticPair } from '@/shared/orb/test-fixtures';
 import { checkImages, cosineSimilarity, type ImageCheckDeps } from './image-check';
 
 const pair = makeSyntheticPair({ count: 120 });

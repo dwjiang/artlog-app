@@ -1,9 +1,8 @@
 // Cross-language guard for the ORB wire format (plan 04.01): the bytes in
 // shared/fixtures/orb-features-v1.json were produced by jobs/artlog_jobs/orb.py.
-import { describe, expect, it } from 'vitest';
 
-import fixture from '../../../shared/fixtures/orb-features-v1.json';
-import model from '../../../shared/model-version.json';
+import fixture from '../fixtures/orb-features-v1.json';
+import model from '../model-version.json';
 
 const DESCRIPTOR_BYTES = 32;
 const KEYPOINT_FLOATS = 4;

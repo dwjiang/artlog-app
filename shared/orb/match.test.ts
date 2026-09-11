@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 
 import { mulberry32 } from './homography';
 import { matchDescriptors } from './match';
@@ -7,7 +6,7 @@ import {
   makeRandomFeatures,
   makeSyntheticPair,
   withFlippedBits,
-} from './testFixtures';
+} from './test-fixtures';
 
 const bits = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
 

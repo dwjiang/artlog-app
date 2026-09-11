@@ -4,8 +4,8 @@ import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
-import { encodeOrbFeatures } from './lib/orb';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { encodeOrbFeatures } from '../shared/orb';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
 import { harness } from './test.helpers';
 

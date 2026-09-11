@@ -1,5 +1,5 @@
 import {
-  CONTRIBUTION_CROP_QUALITY, decodedBytes, LABEL_PHOTO_QUALITY, prepareLabelPhoto, removeFile, resizeCropForContribution,
+  CONTRIBUTION_CROP_QUALITY, decodedBytes, LABEL_PHOTO_QUALITY, prepareLabelPhoto, prepareMuseumSearchCrop, removeFile, resizeCropForContribution,
 } from './crop';
 
 const mockManipulate = jest.fn();
@@ -101,4 +101,20 @@ it('computes decoded sizes from base64 padding and removes only existing files',
   mockExisting.add('file:///present.jpg');
   removeFile('file:///present.jpg');
   expect(mockDelete).toHaveBeenCalledWith('file:///present.jpg');
+});
+
+it('prepares the museum crop as JPEG 0.8 at no more than 1024 px and deletes the encoded file', async () => {
+  sizes['file:///crop.jpg'] = [2048, 2048];
+  expect(await prepareMuseumSearchCrop('file:///crop.jpg')).toBe('QUJDRA==');
+  expect(mockSave).toHaveBeenCalledWith(1024, 1024, { format: 'jpeg', compress: 0.8, base64: true });
+  expect(mockDelete).toHaveBeenCalledWith('file:///cache/out.jpg');
+});
+
+it('retries the museum crop at 800 px and rejects it if it still exceeds 1.5 MB', async () => {
+  sizes['file:///crop.jpg'] = [2048, 2048];
+  mockSave.mockResolvedValueOnce({ uri: 'file:///big.jpg', base64: 'A'.repeat(2_000_004) });
+  expect(await prepareMuseumSearchCrop('file:///crop.jpg')).toBe('QUJDRA==');
+  expect(mockResize.mock.calls).toEqual([[{ width: 1024 }], [{ width: 800 }]]);
+  mockSave.mockResolvedValue({ uri: 'file:///big.jpg', base64: 'A'.repeat(2_000_004) });
+  await expect(prepareMuseumSearchCrop('file:///crop.jpg')).rejects.toThrow('image_too_large');
 });

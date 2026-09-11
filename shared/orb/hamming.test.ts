@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest';
 
 import { descriptorWords, hammingDistance32 } from './hamming';
 import { mulberry32 } from './homography';
-import { featuresFromDescriptors, makeRandomFeatures, withFlippedBits } from './testFixtures';
+import { featuresFromDescriptors, makeRandomFeatures, withFlippedBits } from './test-fixtures';
 
 function naiveDistance(a: Uint8Array, b: Uint8Array): number {
   let distance = 0;

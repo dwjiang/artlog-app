@@ -1,4 +1,4 @@
-import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, decodeOrbFeatures } from '../../../convex/lib/orb/features';
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, decodeOrbFeatures } from '@/shared/orb/features';
 import model from '../../../shared/model-version.json';
 
 import { fakeOpenCV, type FakeOpenCVOptions } from '@/lib/image/opencv-fake';

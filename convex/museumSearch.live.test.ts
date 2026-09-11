@@ -13,8 +13,8 @@ import { expect, it } from 'vitest';
 import model from '../shared/model-version.json';
 import { api } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { encodeOrbFeatures } from './lib/orb';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { encodeOrbFeatures } from '../shared/orb';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { testVector } from './lib/testFactories';
 
 function tavilySpent(): number {

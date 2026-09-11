@@ -10,7 +10,7 @@ import { requireDeviceFromAction } from './lib/auth';
 import { DEFAULT_CALIBRATOR, featureIndex, type ScoredCandidate } from './lib/calibrator';
 import { runPipeline } from './lib/identifyPipeline';
 import { isSupported, validateVector } from './lib/modelVersion';
-import { decodeOrbFeatures, OrbFormatError, type OrbFeatures, type VerifyResult } from './lib/orb';
+import { decodeOrbFeatures, OrbFormatError, type OrbFeatures, type VerifyResult } from '../shared/orb';
 import { loadCurrentPlacement } from './lib/placements';
 import { limitDevice } from './lib/rateLimits';
 import { scanDisplay, type ScanDisplay } from './scans';

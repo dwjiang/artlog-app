@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 
 import {
   applyHomography,
@@ -9,7 +8,7 @@ import {
   solveHomography,
 } from './homography';
 import type { Match } from './match';
-import { makeSyntheticPair } from './testFixtures';
+import { makeSyntheticPair } from './test-fixtures';
 
 const known = [1.1, 0.2, 30, -0.15, 0.95, -20, 2e-4, -1e-4, 1];
 const square: Point[] = [

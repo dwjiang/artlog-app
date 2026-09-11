@@ -48,5 +48,7 @@ it('replaces the buttons with the saved link and the contribution outcome', asyn
 it('words every contribution outcome', () => {
   expect(contributionMessage({ contributionId, status: 'rejected', reason: 'duplicate' })).toBe(CONTRIBUTION_MESSAGES.duplicate);
   expect(contributionMessage({ contributionId, status: 'rejected' })).toBe(CONTRIBUTION_MESSAGES.rejected);
+  expect(contributionMessage({ contributionId, status: 'rejected', reason: 'device_reverted' })).toBe(CONTRIBUTION_MESSAGES.rejected);
+  expect(contributionMessage({ contributionId, status: 'rejected', reason: 'object_reverted' })).toBe(CONTRIBUTION_MESSAGES.rejected);
   expect(contributionMessage({ contributionId, status: 'promoted' })).toBe(CONTRIBUTION_MESSAGES.promoted);
 });
