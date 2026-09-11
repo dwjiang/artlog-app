@@ -5,8 +5,10 @@ import { v } from 'convex/values';
 
 import model from '../shared/model-version.json';
 import {
+  candidateSignal,
   challengePurpose,
   contributionField,
+  contributionRejectedReason,
   contributionStatus,
   devicePlatform,
   docentSentence,
@@ -76,6 +78,8 @@ export default defineSchema({
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
+    rejectionPenalty: v.optional(v.number()),
+    flaggedForReview: v.optional(v.boolean()),
     mergedInto: v.optional(v.id('objects')),
     provenance: v.optional(
       v.object({
@@ -206,11 +210,16 @@ export default defineSchema({
       creditLine: v.optional(contributionField),
     }),
     evidence: v.array(evidenceKind),
+    wikidataId: v.optional(v.string()),
     status: contributionStatus,
+    rejectedReason: v.optional(contributionRejectedReason),
     promotedObjectId: v.optional(v.id('objects')),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
+    .index('by_scanId', ['scanId'])
+    .index('by_cropStorageId', ['cropStorageId'])
+    .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
     .index('by_venue_status', ['venueId', 'status']),
 
@@ -227,11 +236,13 @@ export default defineSchema({
     probability: v.number(),
     calibratorVersion: v.string(),
     venueMismatch: v.boolean(),
+    penaltyAdded: v.number(),
     resolution: feedbackResolution,
     createdAt: v.number(),
   })
     .index('by_rejectedObjectId', ['rejectedObjectId'])
-    .index('by_device_object', ['deviceId', 'rejectedObjectId']),
+    .index('by_device_object', ['deviceId', 'rejectedObjectId'])
+    .index('by_scanId', ['scanId']),
 
   scans: defineTable({
     deviceId: v.id('devices'),
@@ -264,6 +275,7 @@ export default defineSchema({
         })
       )
     ),
+    candidateSignals: v.optional(v.array(candidateSignal)),
     docent: v.optional(v.array(docentSentence)),
     rightNow: v.optional(
       v.object({ text: v.string(), sourceUrl: v.string(), sourceLabel: v.string() })
@@ -288,6 +300,7 @@ export default defineSchema({
     attestedAt: v.optional(v.number()),
     attestPublicKey: v.optional(v.string()),
     attestCounter: v.number(),
+    lastContributionId: v.optional(v.id('contributions')),
   })
     .index('by_keyId', ['appAttestKeyId'])
     .index('by_authUserId', ['authUserId'])
@@ -347,6 +360,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
+    .index('by_device_savedAt', ['deviceId', 'savedAt'])
     .index('by_accountId', ['accountId']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),

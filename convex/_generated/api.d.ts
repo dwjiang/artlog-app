@@ -10,7 +10,10 @@
 
 import type * as appAttestNode from "../appAttestNode.js";
 import type * as auth from "../auth.js";
+import type * as collections from "../collections.js";
+import type * as contributions from "../contributions.js";
 import type * as devices from "../devices.js";
+import type * as feedback from "../feedback.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as identify from "../identify.js";
@@ -42,6 +45,7 @@ import type * as lib_placements from "../lib/placements.js";
 import type * as lib_plausibility from "../lib/plausibility.js";
 import type * as lib_politeFetch from "../lib/politeFetch.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
+import type * as lib_rejectionPenalty from "../lib/rejectionPenalty.js";
 import type * as lib_spend from "../lib/spend.js";
 import type * as lib_tavily from "../lib/tavily.js";
 import type * as lib_testFactories from "../lib/testFactories.js";
@@ -66,7 +70,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   appAttestNode: typeof appAttestNode;
   auth: typeof auth;
+  collections: typeof collections;
+  contributions: typeof contributions;
   devices: typeof devices;
+  feedback: typeof feedback;
   health: typeof health;
   http: typeof http;
   identify: typeof identify;
@@ -98,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "lib/plausibility": typeof lib_plausibility;
   "lib/politeFetch": typeof lib_politeFetch;
   "lib/rateLimits": typeof lib_rateLimits;
+  "lib/rejectionPenalty": typeof lib_rejectionPenalty;
   "lib/spend": typeof lib_spend;
   "lib/tavily": typeof lib_tavily;
   "lib/testFactories": typeof lib_testFactories;

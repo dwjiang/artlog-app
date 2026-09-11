@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
 import model from '../shared/model-version.json';
-import { placementProposalPayload } from '../shared/placement-proposal';
+import { placementProposalPayload } from '../shared/attested-payloads';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { sha256 } from './lib/appAttest';

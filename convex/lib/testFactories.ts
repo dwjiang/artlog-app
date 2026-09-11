@@ -71,3 +71,15 @@ export async function seedArtworkWithObject(ctx: MutationCtx, options: {
   if (options.placement) await ctx.db.insert('placements', { objectId, ...options.placement });
   return { artworkId, objectId, vectorId };
 }
+
+export async function seedScan(
+  ctx: MutationCtx,
+  overrides: Partial<Omit<Doc<'scans'>, '_id' | '_creationTime'>> & { deviceId: Id<'devices'> },
+): Promise<Id<'scans'>> {
+  const now = Date.now();
+  return ctx.db.insert('scans', {
+    localId: crypto.randomUUID(), generation: 0, modelVersion: model.modelVersion, vector: testVector(),
+    capturedAt: now, status: 'identified', outcome: 'miss', calibratorVersion: 'lr-v1', createdAt: now, updatedAt: now,
+    ...overrides,
+  });
+}

@@ -45,6 +45,18 @@ it('returns a confident match with verified corners for matching features', () =
   expect(result.verifications.get(match.object._id)?.corners).toHaveLength(4);
 });
 
+it('scores with combined corpus and rejection penalties, preserving stronger corpus penalties', () => {
+  const baseline = candidate('one', 0.93, pair.ref);
+  const probability = run([baseline]).decision.best!.probability;
+  for (const [corpus, rejection, effective] of [[0.3, 0.2, 0.5], [0.7, 0.4, 0.8], [0.9, 0.2, 0.9]]) {
+    const match = candidate('one', 0.93, pair.ref);
+    Object.assign(match.object, { calibratorPenalty: corpus, rejectionPenalty: rejection });
+    const best = run([match]).decision.best!;
+    expect(best.features[featureIndex('objectPenalty')]).toBeCloseTo(effective);
+    expect(best.probability).toBeLessThan(probability);
+  }
+});
+
 it('keeps a highly similar textured candidate soft without a valid homography', () => {
   const empty: OrbFeatures = { count: 0, descriptors: new Uint8Array(), keypoints: new Float32Array() };
   const result = run([candidate('one', 0.99, pair.ref)], undefined, empty);

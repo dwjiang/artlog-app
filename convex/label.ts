@@ -3,6 +3,7 @@ import { ConvexError, type Infer, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery, type ActionCtx } from './_generated/server';
+import { resolveFalseRejections } from './feedback';
 import { requireDeviceFromAction } from './lib/auth';
 import { isEnabled } from './lib/flags';
 import {
@@ -77,6 +78,7 @@ export const write = internalMutation({
     if (!scan || scan.deviceId !== args.deviceId) throw new ConvexError({ code: 'scan_not_found' });
     if (scan.generation !== args.generation) throw new ConvexError({ code: 'scan_restarted' });
     await ctx.db.patch(scan._id, { labelFlow: args.labelFlow, updatedAt: Date.now() });
+    await resolveFalseRejections(ctx, scan, args.labelFlow);
     return null;
   },
 });

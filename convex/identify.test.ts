@@ -41,6 +41,12 @@ describe('identify action', () => {
     expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({ lastConfidentGallery: '4', lastConfidentAt: args.capturedAt });
     const scan = await t.run((ctx) => ctx.db.get(result.scanId));
     expect(scan?.vector).toEqual(args.vector);
+    expect(scan?.candidateSignals).toHaveLength(1);
+    const [signals] = scan!.candidateSignals!;
+    expect(signals).toMatchObject({ objectId: work!.objectId, probability: result.best!.probability, homographyValid: true });
+    expect(signals.similarity).toBeCloseTo(1);
+    expect(signals.margin).toBeCloseTo(1);
+    expect(signals.orbInliers).toBeGreaterThan(0);
   });
 
   it('returns an update status for unsupported models before decoding old feature formats', async () => {
