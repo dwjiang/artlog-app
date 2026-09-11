@@ -11,7 +11,7 @@ import { CameraPermission } from './camera-permission';
 import { GuidanceLabel, ViewfinderOverlay } from './viewfinder-overlay';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
-import type { CaptureInput } from '@/lib/capture/stages';
+import type { CaptureInput, CaptureTimings } from '@/lib/capture/stages';
 import { useCapture } from '@/lib/capture/use-capture';
 import { useRectDetector } from '@/lib/capture/use-rect-detector';
 
@@ -28,7 +28,7 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
   const detector = useRectDetector(active);
   const outputs = useMemo(() => [photoOutput, detector.frameOutput], [photoOutput, detector.frameOutput]);
   const { capture, importPhoto, busy, message, timings, clearMessage } = useCapture();
-  const canCapture = active && cameraReady && detector.ready && !busy;
+  const canCapture = active && cameraReady && !busy;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
@@ -44,7 +44,7 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
     void Haptics.selectionAsync().catch(() => {});
     void capture(async () => {
       const capturedAt = Date.now();
-      const quad = detector.getQuad();
+      const quad = detector.getCaptureQuad();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       if (__DEV__) console.debug('Captured photo', filePath);
       return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, venueId, visitId };
@@ -82,7 +82,7 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
           {busy && <View style={styles.notice}><ThemedText>Processing photo…</ThemedText></View>}
           {!busy && !message && cameraReady && <GuidanceLabel guidance={detector.guidance} />}
           {__DEV__ && timings && (
-            <View style={styles.notice}><ThemedText type="code">Capture: {Math.round(timings.total)} ms</ThemedText></View>
+            <View style={styles.notice}><ThemedText type="code">{formatCaptureTimings(timings)}</ThemedText></View>
           )}
         </View>
         <View style={styles.controls}>
@@ -100,6 +100,11 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
       </View>
     </View>
   );
+}
+
+function formatCaptureTimings({ total, ...stages }: CaptureTimings): string {
+  const parts = Object.entries(stages).map(([stage, ms]) => `${stage} ${Math.round(ms)}`);
+  return [`Capture ${Math.round(total)} ms`, ...parts].join(' · ');
 }
 
 const styles = StyleSheet.create({

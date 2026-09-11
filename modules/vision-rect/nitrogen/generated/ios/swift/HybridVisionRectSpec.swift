@@ -15,7 +15,7 @@ public protocol HybridVisionRectSpec_protocol: HybridObject {
 
   // Methods
   func detect(frame: (any HybridFrameSpec), stride: Double) throws -> RectDetection?
-  func detectStill(photoPath: String) throws -> Promise<RectDetection>
+  func detectStill(photoPath: String) throws -> Promise<StillDetection>
   func warpAndLetterbox(photoPath: String, quad: [RectPoint]?, size: Double) throws -> Promise<LetterboxResult>
 }
 

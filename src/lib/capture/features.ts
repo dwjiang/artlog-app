@@ -1,11 +1,9 @@
-import type { Embedder, OrbExtractor, Triage } from './stages';
+import { extractOrb } from '@/lib/orb/extract';
+import type { Embedder, OrbExtractor } from './stages';
 
-function orbPending(): never {
-  throw new Error('Triage and ORB implemented by plan 03.04');
-}
+export { triage } from './triage';
 
-export const triage: Triage = { check: orbPending };
-export const orb: OrbExtractor = { extract: orbPending };
+export const orb: OrbExtractor = { extract: (cropUri) => extractOrb(cropUri) };
 
 export type ScanFeatures = { vector: number[]; descriptors: ArrayBuffer; keypoints: ArrayBuffer };
 

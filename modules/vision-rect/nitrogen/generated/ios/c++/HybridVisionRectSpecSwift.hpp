@@ -20,6 +20,10 @@ namespace margelo::nitro::visionrect { struct RectObservation; }
 namespace margelo::nitro::visionrect { struct RectPoint; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
+// Forward declaration of `StillDetection` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillDetection; }
+// Forward declaration of `SubjectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct SubjectObservation; }
 // Forward declaration of `LetterboxResult` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct LetterboxResult; }
 
@@ -30,7 +34,9 @@ namespace margelo::nitro::visionrect { struct LetterboxResult; }
 #include "RectPoint.hpp"
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
+#include "StillDetection.hpp"
 #include <NitroModules/Promise.hpp>
+#include "SubjectObservation.hpp"
 #include <string>
 #include "LetterboxResult.hpp"
 
@@ -92,7 +98,7 @@ namespace margelo::nitro::visionrect {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<RectDetection>> detectStill(const std::string& photoPath) override {
+    inline std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath) override {
       auto __result = _swiftPart.detectStill(photoPath);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());

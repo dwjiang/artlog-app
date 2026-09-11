@@ -14,6 +14,15 @@ export const warper: Warper = {
     const path = filePath(photoUri);
     const still = await visionRect.detectStill(path);
     const selected = selectCaptureQuad(quad, still);
+    if (__DEV__) {
+      console.debug('Still analysis', {
+        still: `${still.width}×${still.height}`,
+        subjects: still.subjects.map((subject) => `${(subject.area * 100).toFixed(1)}% fill ${subject.quadFill.toFixed(3)}`),
+        rectangles: still.rectangles.length,
+        subjectNote: still.subjectNote,
+        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ') ?? 'whole image',
+      });
+    }
     const result = await visionRect.warpAndLetterbox(path, selected ? toCorners(selected) : undefined, size);
     return { cropUri: `file://${result.cropPath}` };
   },

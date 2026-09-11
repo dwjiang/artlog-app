@@ -7,6 +7,7 @@ const mockAssertSmoke = jest.fn();
 const mockGetAppAttest = jest.fn();
 const mockWarmUp = jest.fn();
 const mockRunCalibrationExport = jest.fn();
+const mockRunOrbParityCheck = jest.fn();
 
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
@@ -27,6 +28,7 @@ jest.mock('@/lib/embed/embedder', () => ({ embedder: { warmUp: () => mockWarmUp(
 jest.mock('@/lib/embed/run-calibration-export', () => ({
   runCalibrationExport: (...args: unknown[]) => mockRunCalibrationExport(...args),
 }));
+jest.mock('@/lib/orb/run-parity-check', () => ({ runOrbParityCheck: () => mockRunOrbParityCheck() }));
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -99,4 +101,30 @@ it('shows calibration export errors and makes the export available again', async
   await fireEvent.press(screen.getByRole('button', { name: 'Export calibration embeddings' }));
   expect(screen.getByText('Expected a 512×512 crop, got 640×480')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Export calibration embeddings' })).toBeEnabled();
+});
+
+it('runs the ORB parity check and reports the row agreement, timings and triage metrics', async () => {
+  let finish!: (value: unknown) => void;
+  mockRunOrbParityCheck.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  await render(<DevTools attested />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Check ORB parity' }));
+  expect(screen.getByRole('button', { name: 'Checking ORB parity…' })).toBeDisabled();
+  await act(async () => {
+    finish({
+      count: 500, expectedCount: 500, rowsInOrder: 312, rowsAnywhere: 494, extractMs: 9.84, triageMs: 3.06,
+      blurVariance: 2047.2, glareFraction: 0.0004, device: 'iPhone17,1',
+    });
+  });
+  expect(screen.getByText(
+    'ORB: 500/500 keypoints · 494 rows match (312 in order) · extract 9.8 ms · blur 2047 · glare 0.0% · triage 3.1 ms · iPhone17,1',
+  )).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Check ORB parity' })).toBeEnabled();
+});
+
+it('shows ORB parity errors and makes the check available again', async () => {
+  mockRunOrbParityCheck.mockRejectedValue(new Error('The ORB parity fixture is not bundled'));
+  await render(<DevTools attested />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Check ORB parity' }));
+  expect(screen.getByText('The ORB parity fixture is not bundled')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Check ORB parity' })).toBeEnabled();
 });
