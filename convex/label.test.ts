@@ -505,7 +505,7 @@ describe('verifyLabel', () => {
     expect(await spend()).toMatchObject({ tavilyCredits: 1 });
   });
 
-  it('upgrades to tavily+image after the phone confirms an image, without a second search', async () => {
+  it('upgrades to tavily+image only after the phone confirms the embedding and the homography, without a second search', async () => {
     const { user, scanId, spend } = await fixture();
     wikidata({ 'Claude Monet': wikidataSearchMonet });
     tavily(tavilyMonet);
@@ -513,10 +513,12 @@ describe('verifyLabel', () => {
     const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
     const url = first.imageUrls![0];
     const before = fetchMock.mock.calls.length;
-    await expect(user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url, cosine: 0.5 } })).resolves.toMatchObject({
-      fields: { title: { evidence: 'tavily' } },
-    });
-    const upgraded = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url, cosine: 0.9 } });
+    for (const imageCheck of [{ url, cosine: 0.5, homographyValid: true }, { url, cosine: 0.9, homographyValid: false }]) {
+      await expect(user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck })).resolves.toMatchObject({
+        evidence: ['tavily'], fields: { title: { evidence: 'tavily' }, artist: { evidence: 'tavily' } },
+      });
+    }
+    const upgraded = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url, cosine: 0.9, homographyValid: true } });
     expect(upgraded).toMatchObject({
       evidence: ['tavily+image'],
       fields: { title: { evidence: 'tavily+image', locked: true }, artist: { evidence: 'tavily+image', locked: true } },
@@ -532,7 +534,7 @@ describe('verifyLabel', () => {
     const fields = { title: 'Water Lilies', artist: 'Claude Monet' };
     const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
     const result = await user.as.action(api.label.verifyLabel, {
-      scanId, fields, imageCheck: { url: first.imageUrls![0], cosine },
+      scanId, fields, imageCheck: { url: first.imageUrls![0], cosine, homographyValid: true },
     });
     expect(result).toEqual(first);
     expect(await stored()).toEqual(first);
@@ -546,7 +548,7 @@ describe('verifyLabel', () => {
     const fields = { title: 'Water Lilies', artist: 'Claude Monet' };
     let first = await user.as.action(api.label.verifyLabel, { scanId, fields });
     if (evidence === 'tavily+image') {
-      first = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: first.imageUrls![0], cosine: 0.9 } });
+      first = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true } });
     }
     vi.stubEnv('DAILY_TAVILY_CREDIT_CAP', '0');
     const result = await user.as.action(api.label.verifyLabel, { scanId, fields: { ...fields, date: '1919' } });
@@ -580,7 +582,7 @@ describe('verifyLabel', () => {
       tavily(tavilyMonet);
       const fields = { title: 'Water Lilies', artist: 'Claude Monet', accession: '1998.325.2' };
       const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
-      await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: first.imageUrls![0], cosine: 0.9 } });
+      await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true } });
       vi.stubEnv('DAILY_TAVILY_CREDIT_CAP', '0');
       const result = await user.as.action(api.label.verifyLabel, { scanId, fields: { ...fields, ...edit } });
       expect(result.fields.title?.locked).toBe(false);
@@ -687,7 +689,7 @@ describe('verifyLabel', () => {
     const unrelated = 'https://images.metmuseum.org/CRDImages/mi/web-large/238693.jpg';
     const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
     expect(first.imageUrls).not.toContain(unrelated);
-    const result = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: unrelated, cosine: 0.99 } });
+    const result = await user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck: { url: unrelated, cosine: 0.99, homographyValid: true } });
     expect(result.fields.title?.evidence).toBe('tavily');
   });
 
@@ -701,7 +703,7 @@ describe('verifyLabel', () => {
     const fields = { title: 'Water Lilies', artist: 'Claude Monet', date: '1910' };
     const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
     const result = await user.as.action(api.label.verifyLabel, {
-      scanId, fields: { ...fields, ...edit }, imageCheck: { url: first.imageUrls![0], cosine: 0.9 },
+      scanId, fields: { ...fields, ...edit }, imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true },
     });
     for (const [name, value] of Object.entries(edit)) {
       expect(result.fields[name as keyof typeof result.fields]?.value).toBe(value);

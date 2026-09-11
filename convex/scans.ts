@@ -4,7 +4,8 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
-import { docentSentence, rightsStatus, snapshotFields } from './lib/validators';
+import { displayLabelFlow } from './lib/labelVerify';
+import { docentSentence, labelFlowDisplay, rightsStatus, snapshotFields } from './lib/validators';
 import schema from './schema';
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -23,7 +24,10 @@ export const scanDisplay = v.object({
   best: v.optional(displayCandidate), runnerUps: v.optional(v.array(displayCandidate)),
   // Docent prose and its source chips come from the artwork (design §4.8); only a confident card shows them.
   docent: v.optional(v.array(docentSentence)), factSheet: v.optional(v.array(factChip)),
-  rightNow: scanFields.rightNow, error: scanFields.error,
+  rightNow: scanFields.rightNow,
+  // The label flow and museum-site search are the owner's own state (design §4.4); the raw OCR reading stays server-side.
+  labelFlow: v.optional(labelFlowDisplay), museumSearch: scanFields.museumSearch,
+  error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
 
@@ -121,7 +125,9 @@ async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDispl
     runnerUps: runnerUps.flatMap((joined) => joined ? [joined.candidate] : []),
     docent: prose?.docent?.en,
     factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({ id, sourceUrl, sourceLabel })),
-    rightNow: scan.rightNow, error: scan.error,
+    rightNow: scan.rightNow,
+    labelFlow: scan.labelFlow && displayLabelFlow(scan.labelFlow), museumSearch: scan.museumSearch,
+    error: scan.error,
   };
 }
 
