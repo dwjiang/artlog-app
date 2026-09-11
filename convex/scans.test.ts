@@ -57,6 +57,22 @@ it.each(['public_domain', 'in_copyright', 'unknown'] as const)(
   },
 );
 
+it.each(['confident', 'soft'] as const)('joins docent sentences and source chips from the artwork only for a confident card (%s)', async (outcome) => {
+  const { t, user, work, scanId, best } = await fixture();
+  const factSheet = [{ id: 'f1', text: 'Painted in 1916.', sourceUrl: 'https://www.metmuseum.org/art/1', sourceLabel: 'The Met', sourceScore: 1 }];
+  const docent = { en: [{ sentence: 'Monet painted these water lilies in 1916.', factIds: ['f1'] }] };
+  await t.run((ctx) => ctx.db.patch(work.artworkId, { factSheet, factSheetUpdatedAt: 1, docent, docentUpdatedAt: 2 }));
+  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'identified', outcome, best, calibratorVersion: 'lr-v1' });
+  const result = await user.as.query(api.scans.get, { scanId });
+  if (outcome === 'confident') {
+    expect(result?.docent).toEqual(docent.en);
+    expect(result?.factSheet).toEqual([{ id: 'f1', sourceUrl: 'https://www.metmuseum.org/art/1', sourceLabel: 'The Met' }]);
+  } else {
+    expect(result?.docent).toBeUndefined();
+    expect(result?.factSheet).toBeUndefined();
+  }
+});
+
 it('updates gallery history only for a confident result and never rolls it backwards', async () => {
   const { t, user, venueId, args, best } = await fixture();
   const visitId = await t.run((ctx) => ctx.db.insert('visits', {

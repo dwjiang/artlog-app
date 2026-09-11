@@ -120,6 +120,13 @@ export const docentSentence = v.object({
 });
 export type DocentSentence = Infer<typeof docentSentence>;
 
+export const rightNowCard = v.object({
+  text: v.string(),
+  sourceUrl: v.string(),
+  sourceLabel: v.string(),
+});
+export type RightNowCard = Infer<typeof rightNowCard>;
+
 export const snapshotFields = v.object({
   title: v.string(),
   artist: v.string(),

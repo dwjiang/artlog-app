@@ -37,7 +37,7 @@ import { checkText } from './lib/moderation';
 import { extractPage, hasArtworkMetadata } from './lib/pageExtract';
 import { assessPlausibility } from './lib/plausibility';
 import { limitDevice } from './lib/rateLimits';
-import { search } from './lib/tavily';
+import { searchWithCredit } from './lib/tavilySpend';
 import { personMatches } from './lib/textMatch';
 import { chatJson } from './lib/tokenFactory';
 import { labelFlow, type LabelFieldName, type LabelFields, type LabelFlow } from './lib/validators';
@@ -182,33 +182,10 @@ export const readLabel = action({
 });
 
 async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPair): Promise<TavilyEvidence | null> {
-  let day: string;
-  try {
-    day = await ctx.runMutation(internal.spend.reserve, { kind: 'tavily', amount: 1 });
-  } catch (error) {
-    if (error instanceof ConvexError && error.data.code === 'spend_cap') {
-      console.warn('Tavily daily cap reached; skipping web verification');
-      return null;
-    }
-    throw error;
-  }
-  let response;
-  try {
-    response = await search({
-      query: `"${pair.title.replace(/"/g, '')}" ${pair.artist}`, includeDomains: hosts, includeImages: true, maxResults: 5,
-    });
-  } catch (error) {
-    if (error instanceof ConvexError && error.data.code === 'search_unconfigured') {
-      await ctx.runMutation(internal.spend.reconcile, { kind: 'tavily', day, reserved: 1, actual: 0 });
-    }
-    // Any other failure keeps the reservation: the provider may have charged the credit.
-    console.warn('Tavily search failed', error);
-    return null;
-  }
-  if (response.credits !== undefined) {
-    await ctx.runMutation(internal.spend.reconcile, { kind: 'tavily', day, reserved: 1, actual: response.credits });
-  }
-  return selectTavilyEvidence(response, pair, hosts);
+  const response = await searchWithCredit(ctx, {
+    query: `"${pair.title.replace(/"/g, '')}" ${pair.artist}`, includeDomains: hosts, includeImages: true, maxResults: 5,
+  });
+  return response ? selectTavilyEvidence(response, pair, hosts) : null;
 }
 
 function applyImageCheck(flow: LabelFlow, check: { url: string; cosine: number }): LabelFlow {

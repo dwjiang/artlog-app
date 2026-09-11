@@ -181,6 +181,14 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
     candidateSignals: candidateSignals([...(top ? [top] : []), ...decision.runnerUps], verifications),
     calibratorVersion: decision.calibratorVersion,
   });
+  if (decision.outcome === 'confident' && top && best) {
+    // Design §9: nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
+    await ctx.scheduler.runAfter(0, internal.docent.ensure, { artworkId: best.artworkId, deviceId: scan.deviceId });
+    await ctx.scheduler.runAfter(0, internal.rightNow.fetch, {
+      scanId: scan._id, generation: scan.generation, artistId: top.candidate.artwork.artistId,
+      artist: top.candidate.artwork.artist, venueId: scan.venueId, deviceId: scan.deviceId,
+    });
+  }
   return ctx.runQuery(internal.scans.getDisplay, { scanId: scan._id, deviceId: scan.deviceId });
 }
 

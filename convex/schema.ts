@@ -23,6 +23,7 @@ import {
   placementSource,
   proposalKind,
   proposalStatus,
+  rightNowCard,
   rightsStatus,
   scanStatus,
   seedSource,
@@ -58,10 +59,15 @@ export default defineSchema({
     factSheetUpdatedAt: v.optional(v.number()),
     docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
     docentUpdatedAt: v.optional(v.number()),
+    // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
+    enrichClaimedAt: v.optional(v.number()),
+    enrichGeneration: v.optional(v.number()),
+    factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
-    .index('by_artistId', ['artistId']),
+    .index('by_artistId', ['artistId'])
+    .index('by_factSheetUpdatedAt', ['factSheetUpdatedAt']),
 
   objects: defineTable({
     key: v.string(),
@@ -91,7 +97,8 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
-    .index('by_owner_accession', ['ownerId', 'accession']),
+    .index('by_owner_accession', ['ownerId', 'accession'])
+    .index('by_source', ['source']),
 
   placements: defineTable({
     objectId: v.id('objects'),
@@ -180,6 +187,8 @@ export default defineSchema({
     descriptors: v.number(),
   }),
 
+  // "Right now" cache keyed by artist and region. A row with `pendingAt` set is being fetched; the
+  // scans listed in `waiting` receive the card when it lands, so concurrent misses spend one credit.
   artistContext: defineTable({
     artistId: v.string(),
     region: v.string(),
@@ -188,7 +197,22 @@ export default defineSchema({
     sourceLabel: v.string(),
     empty: v.boolean(),
     fetchedAt: v.number(),
+    pendingAt: v.optional(v.number()),
+    claimId: v.optional(v.string()),
+    waiting: v.optional(v.array(v.object({ scanId: v.id('scans'), generation: v.number() }))),
   }).index('by_artist_region', ['artistId', 'region']),
+
+  factCorrections: defineTable({
+    artworkId: v.id('artworks'),
+    factId: v.string(),
+    message: v.string(),
+    contact: v.optional(v.string()),
+    deviceId: v.id('devices'),
+    createdAt: v.number(),
+    status: v.union(v.literal('open'), v.literal('resolved')),
+  })
+    .index('by_status', ['status'])
+    .index('by_artworkId_status', ['artworkId', 'status']),
 
   contributions: defineTable({
     deviceId: v.id('devices'),
@@ -276,10 +300,7 @@ export default defineSchema({
       )
     ),
     candidateSignals: v.optional(v.array(candidateSignal)),
-    docent: v.optional(v.array(docentSentence)),
-    rightNow: v.optional(
-      v.object({ text: v.string(), sourceUrl: v.string(), sourceLabel: v.string() })
-    ),
+    rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
     error: v.optional(v.string()),
     createdAt: v.number(),
