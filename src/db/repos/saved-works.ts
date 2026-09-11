@@ -9,8 +9,13 @@ export async function insertSavedWork(work: NewSavedWork): Promise<void> {
   await db.insert(savedWorks).values(work);
 }
 
+/** The row as a query for `useLiveQuery`; `getSavedWork` reads it once. */
+export function selectSavedWork(localId: string) {
+  return db.select().from(savedWorks).where(eq(savedWorks.localId, localId));
+}
+
 export async function getSavedWork(localId: string): Promise<SavedWork | undefined> {
-  return db.select().from(savedWorks).where(eq(savedWorks.localId, localId)).get();
+  return selectSavedWork(localId).get();
 }
 
 function escapeLike(value: string): string {

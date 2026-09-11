@@ -5,7 +5,7 @@ import { internalMutation, internalQuery, query, type QueryCtx } from './_genera
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
 import { displayLabelFlow } from './lib/labelVerify';
-import { docentSentence, labelFlowDisplay, rightsStatus, snapshotFields } from './lib/validators';
+import { docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from './lib/validators';
 import schema from './schema';
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -14,8 +14,6 @@ const displayCandidate = snapshotFields.extend({
   rightsStatus, thumbnailUrl: v.optional(v.string()),
   gallery: v.optional(v.string()), corners: v.optional(v.array(v.array(v.number()))),
 });
-
-const factChip = v.object({ id: v.string(), sourceUrl: v.string(), sourceLabel: v.string() });
 
 export const scanDisplay = v.object({
   scanId: v.id('scans'), localId: v.string(), venueId: scanFields.venueId,
