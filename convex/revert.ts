@@ -92,14 +92,14 @@ export const revertObjectById = internalAction({
 
 const deviceCursor = v.object({
   phase: v.union(v.literal('objects'), v.literal('contributions'), v.literal('proposals'), v.literal('feedback'),
-    v.literal('firstWitness'), v.literal('secondWitness')),
+    v.literal('promotedProposals'), v.literal('firstWitness'), v.literal('secondWitness')),
   cursor: v.union(v.string(), v.null()),
 });
 type DeviceCursor = Infer<typeof deviceCursor>;
 // The device's own rows are rejected first so they carry the ban as their reason; reverting a shared
 // object afterwards only touches the partners' contributions.
 const NEXT_PHASE: Record<DeviceCursor['phase'], DeviceCursor['phase'] | null> = {
-  contributions: 'objects', objects: 'proposals', proposals: 'feedback', feedback: 'firstWitness',
+  contributions: 'objects', objects: 'proposals', proposals: 'promotedProposals', promotedProposals: 'feedback', feedback: 'firstWitness',
   firstWitness: 'secondWitness', secondWitness: null,
 };
 
@@ -152,6 +152,15 @@ async function revertDevicePhase(ctx: MutationCtx, deviceId: Id<'devices'>, at: 
       const page = await ctx.db.query('placementProposals').withIndex('by_status', (q) => q.eq('status', 'pending')).paginate(paging(at.cursor));
       for (const row of page.page) {
         if (row.deviceIds.includes(deviceId)) await ctx.db.patch(row._id, { status: 'rejected', reviewedAt: now });
+      }
+      return { cursor: page.isDone ? null : page.continueCursor, objectIds: [] };
+    }
+    case 'promotedProposals': {
+      const page = await ctx.db.query('placementProposals').withIndex('by_status', (q) => q.eq('status', 'promoted')).paginate(paging(at.cursor));
+      for (const row of page.page) {
+        if (row.kind === 'move' && row.deviceIds.includes(deviceId) && row.revertedAt === undefined) {
+          await ctx.scheduler.runAfter(0, internal.placements.revertMove, { proposalId: row._id });
+        }
       }
       return { cursor: page.isDone ? null : page.continueCursor, objectIds: [] };
     }
@@ -223,10 +232,11 @@ export const completeRightsRequest = internalMutation({
 });
 
 export const revertRightsObjects = internalAction({
-  args: { objectIds: v.array(v.id('objects')), target: rightsTarget, cursor: cursorArg },
+  args: { objectIds: v.array(v.id('objects')), proposalIds: v.array(v.id('placementProposals')), target: rightsTarget, cursor: cursorArg },
   returns: v.null(),
-  handler: async (ctx, { objectIds, target, cursor }) => {
+  handler: async (ctx, { objectIds, proposalIds, target, cursor }) => {
     const reason = target.kind === 'venue' ? `opt_out: ${target.venueId}` : `takedown: ${target.takedownId}`;
+    for (const proposalId of proposalIds) await ctx.runMutation(internal.placements.revertMove, { proposalId });
     for (const objectId of objectIds) await ctx.runAction(internal.revert.revertObjectById, { objectId, reason });
     if (cursor === null) {
       await ctx.runMutation(internal.revert.completeRightsRequest, { requestId: target.kind === 'venue' ? target.optOutId : target.takedownId });
@@ -275,12 +285,15 @@ export const revertVenueObjects = internalMutation({
   handler: async (ctx, { venueId, optOutId, cursor }) => {
     const page = await ctx.db.query('placements').withIndex('by_venueId', (q) => q.eq('venueId', venueId)).paginate(paging(cursor));
     const objectIds: Id<'objects'>[] = [];
+    const proposalIds: Id<'placementProposals'>[] = [];
     for (const placement of page.page) {
       const object = await ctx.db.get(placement.objectId);
       if (object?.source === 'user') objectIds.push(object._id);
+      if (placement.proposalId) proposalIds.push(placement.proposalId);
     }
     await ctx.scheduler.runAfter(0, internal.revert.revertRightsObjects, {
-      objectIds: [...new Set(objectIds)], target: { kind: 'venue', venueId, optOutId }, cursor: page.isDone ? null : page.continueCursor,
+      objectIds: [...new Set(objectIds)], proposalIds: [...new Set(proposalIds)],
+      target: { kind: 'venue', venueId, optOutId }, cursor: page.isDone ? null : page.continueCursor,
     });
     return null;
   },
@@ -297,7 +310,9 @@ export const applyTakedown = internalMutation({
       if (!object) throw new ConvexError({ code: 'object_not_found' });
       const takedownId = await ctx.db.insert('takedowns', { objectId, requester, receivedAt: now });
       await beginRevert(ctx, object, `takedown: ${takedownId}`);
-      await ctx.scheduler.runAfter(0, internal.revert.revertRightsObjects, { objectIds: [object._id], target: { kind: 'object', takedownId }, cursor: null });
+      await ctx.scheduler.runAfter(0, internal.revert.revertRightsObjects, {
+        objectIds: [object._id], proposalIds: [], target: { kind: 'object', takedownId }, cursor: null,
+      });
       return takedownId;
     }
     const artwork = await ctx.db.get(artworkId!);
@@ -317,7 +332,8 @@ export const revertArtworkObjects = internalMutation({
   handler: async (ctx, { artworkId, takedownId, cursor }) => {
     const page = await ctx.db.query('objects').withIndex('by_artworkId', (q) => q.eq('artworkId', artworkId)).paginate(paging(cursor));
     await ctx.scheduler.runAfter(0, internal.revert.revertRightsObjects, {
-      objectIds: page.page.map((object) => object._id), target: { kind: 'artwork', artworkId, takedownId }, cursor: page.isDone ? null : page.continueCursor,
+      objectIds: page.page.map((object) => object._id), proposalIds: [],
+      target: { kind: 'artwork', artworkId, takedownId }, cursor: page.isDone ? null : page.continueCursor,
     });
     return null;
   },

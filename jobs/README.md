@@ -758,3 +758,68 @@ Regenerating import files was refused because the current upstream metadata
 does not match the saved feature fingerprint. Rebuild from matching metadata
 and feature snapshots before the next import; do not reuse the earlier merged
 output or treat its smoke counts as verification of the corrected corpus.
+
+## Exhibition checklists (04.10)
+
+Supply a permissioned checklist as JSON using
+[`shared/fixtures/checklist-example.json`](../shared/fixtures/checklist-example.json)
+or as CSV with the header `title,artist,owner,accession,wikidata`. `owner` is the
+lender's museum key, distinct from the host venue. CSV rows with a Wikidata ID
+use that identity plus any owner/accession evidence; other rows need title and
+artist. Dates are inclusive local calendar dates at the host venue; the server
+uses its coordinates to determine the time zone. The shared fixture is synthetic.
+
+```sh
+cd jobs
+uv run python -m artlog_jobs.ingest_checklist ../shared/fixtures/checklist-example.json --dry-run
+uv run python -m artlog_jobs.ingest_checklist /path/to/checklist.json
+uv run python -m artlog_jobs.ingest_checklist /path/to/checklist.csv \
+  --venue-key example:venue --title 'Exhibition title' \
+  --from 2026-10-01 --to 2026-10-30 \
+  --source-url https://example.org/checklist.pdf --gallery 'Gallery 2'
+```
+
+`--dry-run` validates and prints the payload without credentials or writes.
+Imports validate the whole file before calling `checklists:ingestChecklist`
+through `ConvexWriter`, in batches of at most 100 works. Output is JSON with a
+`placed` count (distinct resolved objects per batch, including already placed
+objects) and every unresolved input with its reason. Correct and retry the file;
+identical placements are reused. A later batch failure leaves earlier batches
+committed. Ambiguous physical objects and title/artist-only matches stay
+unresolved. Overlap replacement affects only checklist placements of listed,
+resolved objects at the host venue, preserving exhibition provenance and saved
+collection snapshots.
+
+During its active dates, a checklist takes precedence over an off-view feed at
+the lender. On-view feeds and manual placements remain stronger evidence; the
+home placement is preserved outside the checklist window.
+
+Placement proposals require deliberate review from the dashboard or CLI:
+
+```sh
+# From the repository root, on the intended deployment:
+npx convex run placements:listProposals '{"status":"pending"}'
+npx convex run review:listProposalsReady '{}'
+npx convex run placements:reviewPlacement '{"proposalId":"<id>","decision":"approve","reviewer":"<name>"}'
+```
+
+`listProposals` returns `{ rows, cursor }`; pass a non-null cursor to fetch the next
+page. Status is `pending`, `promoted`, or `rejected`; decisions are `approve` or
+`reject`. Approval needs two distinct devices whose server-recorded scans span
+at least 24 hours, or three distinct devices. Each device contributes only its
+earliest and latest scans; valid agreement stops accumulating once ready for
+review. New submissions revalidate the retained evidence and replace invalid
+scans while the proposal is pending, recomputing readiness from the surviving
+timestamps. Approval revalidates those scans and their timestamps. Reject may be
+used before readiness. Repeated decisions are idempotent, and subsequent scans do not reopen
+reviewed proposals. Unique works move; multiple/unknown works gain a separate
+physical object, scan vectors, and a copy of the matched object's reference
+descriptors. Missing reference descriptors block new-object approval.
+
+Device bans and venue opt-outs undo affected moves, preserving subsequent valid
+moves, structured location updates, corpus objects, and saved collection snapshots.
+Prior placements resume after a superseding temporary placement ends, within
+their original end dates; an open-ended structured update remains in effect.
+Opt-out cleanup finishes the move rollbacks before marking the request applied.
+The original review decision remains recorded, with `revertedAt` marking a
+revoked move.

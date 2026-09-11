@@ -7,6 +7,7 @@ import model from '../shared/model-version.json';
 import {
   candidateSignal,
   challengePurpose,
+  checklistExhibition,
   contributionField,
   contributionRejectedReason,
   contributionStatus,
@@ -102,6 +103,7 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
+    .index('by_artworkId_ownerId', ['artworkId', 'ownerId'])
     .index('by_owner_accession', ['ownerId', 'accession'])
     .index('by_source', ['source'])
     .index('by_flaggedForReview', ['flaggedForReview']),
@@ -116,10 +118,13 @@ export default defineSchema({
     source: placementSource,
     confidence: v.number(),
     closedAt: v.optional(v.number()),
+    proposalId: v.optional(v.id('placementProposals')),
+    closedByProposalId: v.optional(v.id('placementProposals')),
+    exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
   })
     .index('by_objectId', ['objectId'])
-    .index('by_venueId', ['venueId'])
-    .index('by_objectId_venueId_source', ['objectId', 'venueId', 'source']),
+    .index('by_object_venue_source', ['objectId', 'venueId', 'source'])
+    .index('by_venueId', ['venueId']),
 
   placementProposals: defineTable({
     objectId: v.id('objects'),
@@ -133,9 +138,15 @@ export default defineSchema({
     readyForReview: v.boolean(),
     reviewer: v.optional(v.string()),
     reviewedAt: v.optional(v.number()),
+    promotion: v.optional(v.object({
+      placementId: v.id('placements'),
+      closedPlacementIds: v.array(v.id('placements')),
+    })),
+    revertedAt: v.optional(v.number()),
   })
     .index('by_object_venue', ['objectId', 'proposedVenueId'])
-    .index('by_status', ['status']),
+    .index('by_status', ['status'])
+    .index('by_status_readyForReview', ['status', 'readyForReview']),
 
   vectors: defineTable({
     objectId: v.id('objects'),
@@ -351,6 +362,7 @@ export default defineSchema({
     banned: v.boolean(),
     bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id('accounts')),
+    appleLinkProof: v.optional(v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() })),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
     attestPublicKey: v.optional(v.string()),
@@ -381,6 +393,7 @@ export default defineSchema({
 
   accounts: defineTable({
     appleUserId: v.string(),
+    email: v.optional(v.string()),
     deviceIds: v.array(v.id('devices')),
     createdAt: v.number(),
   }).index('by_appleUserId', ['appleUserId']),
@@ -402,10 +415,10 @@ export default defineSchema({
 
   collections: defineTable({
     deviceId: v.id('devices'),
-    accountId: v.optional(v.id('accounts')),
     localId: v.string(),
     visitId: v.optional(v.id('visits')),
     venueId: v.optional(v.id('museums')),
+    venueName: v.optional(v.string()),
     gallery: v.optional(v.string()),
     savedAt: v.number(),
     snapshot: snapshotFields,
@@ -413,10 +426,14 @@ export default defineSchema({
     artworkId: v.optional(v.id('artworks')),
     scanId: v.optional(v.id('scans')),
     deletedAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+    confirmationRecorded: v.optional(v.boolean()),
+    updatedAt: v.number(),
+    updatedBy: v.id('devices'),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
     .index('by_device_savedAt', ['deviceId', 'savedAt'])
-    .index('by_accountId', ['accountId']),
+    .index('by_device_updatedAt', ['deviceId', 'updatedAt']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 

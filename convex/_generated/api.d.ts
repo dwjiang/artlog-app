@@ -8,9 +8,12 @@
  * @module
  */
 
+import type * as accounts from "../accounts.js";
 import type * as appAttestNode from "../appAttestNode.js";
+import type * as appleLogin from "../appleLogin.js";
 import type * as artworks from "../artworks.js";
 import type * as auth from "../auth.js";
+import type * as checklists from "../checklists.js";
 import type * as collections from "../collections.js";
 import type * as contributions from "../contributions.js";
 import type * as corrections from "../corrections.js";
@@ -26,6 +29,7 @@ import type * as ingest from "../ingest.js";
 import type * as label from "../label.js";
 import type * as lib_agreement from "../lib/agreement.js";
 import type * as lib_appAttest from "../lib/appAttest.js";
+import type * as lib_appleToken from "../lib/appleToken.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
 import type * as lib_calibrator_features from "../lib/calibrator/features.js";
@@ -75,12 +79,14 @@ import type * as lib_venueOptOut from "../lib/venueOptOut.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as museumSearch from "../museumSearch.js";
 import type * as museums from "../museums.js";
+import type * as placements from "../placements.js";
 import type * as promotion from "../promotion.js";
 import type * as revert from "../revert.js";
 import type * as review from "../review.js";
 import type * as rightNow from "../rightNow.js";
 import type * as scans from "../scans.js";
 import type * as spend from "../spend.js";
+import type * as sync from "../sync.js";
 import type * as venueTable from "../venueTable.js";
 import type * as visits from "../visits.js";
 
@@ -91,9 +97,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accounts: typeof accounts;
   appAttestNode: typeof appAttestNode;
+  appleLogin: typeof appleLogin;
   artworks: typeof artworks;
   auth: typeof auth;
+  checklists: typeof checklists;
   collections: typeof collections;
   contributions: typeof contributions;
   corrections: typeof corrections;
@@ -109,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   label: typeof label;
   "lib/agreement": typeof lib_agreement;
   "lib/appAttest": typeof lib_appAttest;
+  "lib/appleToken": typeof lib_appleToken;
   "lib/auth": typeof lib_auth;
   "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;
   "lib/calibrator/features": typeof lib_calibrator_features;
@@ -158,12 +168,14 @@ declare const fullApi: ApiFromModules<{
   "lib/wikidata": typeof lib_wikidata;
   museumSearch: typeof museumSearch;
   museums: typeof museums;
+  placements: typeof placements;
   promotion: typeof promotion;
   revert: typeof revert;
   review: typeof review;
   rightNow: typeof rightNow;
   scans: typeof scans;
   spend: typeof spend;
+  sync: typeof sync;
   venueTable: typeof venueTable;
   visits: typeof visits;
 }>;

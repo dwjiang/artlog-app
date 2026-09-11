@@ -69,3 +69,14 @@ it('preserves the newest edit when closing during an earlier write', async () =>
   await act(async () => { finishWrite(); });
   await waitFor(async () => expect(await notes.getNote('work')).toMatchObject({ text: 'Newest note' }));
 });
+
+it('explains the note limit when reached and saves a note at the limit', async () => {
+  const { input } = await editNote();
+  const text = 'a'.repeat(20_000);
+  await fireEvent.changeText(input, text);
+  expect(screen.getByText('Notes can be up to 20,000 characters.')).toBeOnTheScreen();
+  await fireEvent(input, 'blur');
+  await waitFor(async () => expect(await notes.getNote('work')).toMatchObject({ text }));
+  await fireEvent.changeText(input, 'Shorter note');
+  expect(screen.queryByText('Notes can be up to 20,000 characters.')).toBeNull();
+});

@@ -294,7 +294,7 @@ export const upsertPlacements = internalMutation({
         confidence: row.confidence,
       };
       const existing = await ctx.db.query('placements')
-        .withIndex('by_objectId_venueId_source', q => q.eq('objectId', object._id).eq('venueId', venue._id).eq('source', row.source)).unique();
+        .withIndex('by_object_venue_source', q => q.eq('objectId', object._id).eq('venueId', venue._id).eq('source', row.source)).unique();
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
       if (existing) {
         await ctx.db.replace(existing._id, doc);
@@ -516,7 +516,7 @@ export const countExisting = internalQuery({
         if (await ctx.db.query('descriptors').withIndex('by_objectId', q => q.eq('objectId', object._id)).first()) count += 1;
       } else {
         const venue = row.venueKey && await findByKey(ctx, 'museums', row.venueKey);
-        if (venue && await ctx.db.query('placements').withIndex('by_objectId_venueId_source', q => q.eq('objectId', object._id)
+        if (venue && await ctx.db.query('placements').withIndex('by_object_venue_source', q => q.eq('objectId', object._id)
           .eq('venueId', venue._id).eq('source', row.source as Doc<'placements'>['source'])).unique()) count += 1;
       }
     }

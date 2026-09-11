@@ -29,7 +29,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   jest.resetAllMocks();
-  mockMutation.mockResolvedValue({ collectionId: 'col-1' });
+  mockMutation.mockResolvedValue({ collectionId: 'col-1', updatedAt: 20, updatedBy: 'device' });
   mockVenueName.mockResolvedValue('Legion of Honor');
 });
 
@@ -42,12 +42,11 @@ it('saves an untouched confident card locally and passes the suggestion to the s
     venueId: 'museum-met', venueName: 'The Met', visitLocalId: 'visit-local-1', gallery: 'Gallery 819',
     objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
   });
-  expect(row?.syncedAt).toBeNull();
   await synced;
   expect(getFunctionName).toBeDefined();
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', {
     localId, scanId: SCAN_ID, objectId: lilies.objectId, artworkId: lilies.artworkId, venueId: 'museum-met', visitId: 'visit-remote-1',
-    gallery: 'Gallery 819',
+    gallery: 'Gallery 819', savedAt: expect.any(Number), venueName: 'The Met',
     snapshot: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art' },
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
   });

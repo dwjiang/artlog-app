@@ -3,6 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { insertSavedWork, markSynced } from '@/db/repos/saved-works';
+import { requestCollectionSync } from '@/lib/account/sync-events';
 import { getVisit } from '@/db/repos/visits';
 import type { PendingScan } from '@/db/schema';
 import { convex } from '@/lib/convex-client';
@@ -21,7 +22,7 @@ export type SaveResultInput = {
 
 export type SaveResultOutcome = {
   localId: string;
-  /** The server copy; it never rejects, a failed sync is logged and left to the sync path (plan 04.11). */
+  /** Failed uploads stay queued for collection sync; the local save remains usable. */
   synced: Promise<void>;
 };
 
@@ -35,18 +36,19 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   const visitId = capture.visitId ?? visit?.remoteVisitId ?? undefined;
   const primary = view?.primary;
   const localId = randomUUID();
+  const savedAt = Date.now();
   await insertSavedWork({
-    localId, savedAt: Date.now(), ...snapshot,
+    localId, savedAt, ...snapshot,
     visitLocalId: visit?.localId, venueId, venueName, gallery: primary?.gallery,
     objectId: primary?.objectId, artworkId: primary?.artworkId, scanId,
     photoPath: capture.photoPath, cropPath: capture.cropPath,
   });
   const synced = convex.mutation(api.collections.saveToCollection, {
     localId, scanId, objectId: primary?.objectId, artworkId: primary?.artworkId, venueId, visitId,
-    gallery: primary?.gallery, snapshot, suggested,
+    gallery: primary?.gallery, snapshot, suggested, savedAt, venueName,
   }).then(
-    () => markSynced([localId], Date.now()),
+    (acknowledgement) => markSynced([{ ...acknowledgement, localId, revision: 0 }]),
     (error: unknown) => { console.warn('Could not sync the saved work; it stays on the phone', error); },
-  );
+  ).finally(requestCollectionSync);
   return { localId, synced };
 }

@@ -2,6 +2,7 @@ import { Button, Host } from '@expo/ui/swift-ui';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection-limits';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { getNote, setNote } from '@/db/repos/notes';
@@ -69,6 +70,7 @@ function WorkNoteEditor({ savedLocalId }: { savedLocalId: string }) {
         placeholder="Add a note about this work"
         placeholderTextColor={Colors.light.textSecondary}
         multiline
+        maxLength={MAX_NOTE_LENGTH}
         editable={draft !== undefined}
         value={draft ?? ''}
         onChangeText={(text) => {
@@ -79,6 +81,7 @@ function WorkNoteEditor({ savedLocalId }: { savedLocalId: string }) {
         onBlur={() => persist(latest.current)}
         style={styles.input}
       />
+      {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary">{NOTE_LENGTH_MESSAGE}</ThemedText>}
       {saveFailed ? (
         <>
           <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
