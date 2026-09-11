@@ -87,6 +87,12 @@ function canRetrySetup(error: unknown): boolean {
 let signInInFlight: Promise<unknown> | null = null;
 let registration: Promise<void> | null = null;
 
+export function signInAnonymously(signIn: ReturnType<typeof useAuthActions>['signIn']): Promise<unknown> {
+  signInInFlight ??= getDeviceAuthSecret().then((secret) => signIn('anonymous', { secret }))
+    .finally(() => { signInInFlight = null; });
+  return signInInFlight;
+}
+
 export function useDeviceIdentity(): void {
   const [attempt, setAttempt] = useState(0);
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -101,12 +107,7 @@ export function useDeviceIdentity(): void {
     if (!isAuthenticated) {
       registration = null;
       pendingAttestation = null;
-      signInInFlight ??= getDeviceAuthSecret()
-        .then((secret) => signIn('anonymous', { secret }))
-        .finally(() => {
-          signInInFlight = null;
-        });
-      pending = signInInFlight;
+      pending = signInAnonymously(signIn);
     } else {
       registration ??= registerAndAttest({ registerDevice, createChallenge, attestDevice }).catch(
         (error: unknown) => {

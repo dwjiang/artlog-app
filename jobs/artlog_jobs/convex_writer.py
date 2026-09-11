@@ -2,7 +2,8 @@ import logging
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Protocol
 
-from convex import ConvexClient, ConvexError
+from convex import ConvexError
+from convex.http_client import ConvexExecutionError, ConvexHttpClient
 from tenacity import (
     Retrying,
     before_sleep_log,
@@ -31,7 +32,28 @@ class Client(Protocol):
 
 def is_transient(error: BaseException) -> bool:
     # Application errors are permanent; ordinary client exceptions may be transient.
-    return isinstance(error, Exception) and not isinstance(error, ConvexError)
+    return (
+        isinstance(error, Exception)
+        and not isinstance(error, ConvexError | ConvexExecutionError)
+        and not is_size_rejection(error)
+    )
+
+
+def is_size_rejection(error: BaseException) -> bool:
+    return any(
+        message in str(error).lower()
+        for message in (
+            "request body too large",
+            "request entity too large",
+            "413",
+            "arguments too large",
+            "argument size",
+            "too many bytes written",
+            "length limit exceeded",
+            "exceeded maximum size",
+            "exceeds the maximum size",
+        )
+    )
 
 
 class ConvexWriter:
@@ -46,7 +68,7 @@ class ConvexWriter:
         if client is None:
             if not settings.convex_url or not settings.convex_deploy_key:
                 raise ValueError("CONVEX_URL and CONVEX_DEPLOY_KEY must be set")
-            convex = ConvexClient(settings.convex_url)
+            convex = ConvexHttpClient(settings.convex_url)
             convex.set_admin_auth(settings.convex_deploy_key)
             client = convex
         self.client = client

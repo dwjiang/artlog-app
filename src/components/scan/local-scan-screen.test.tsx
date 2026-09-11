@@ -75,7 +75,7 @@ beforeEach(() => {
     return { remove: () => { databaseListeners.delete(listener); } };
   });
   mockRetry.mockResolvedValue(undefined);
-  mockMutation.mockResolvedValue({ collectionId: 'col-1' });
+  mockMutation.mockResolvedValue({ collectionId: 'col-1', updatedAt: 20, updatedBy: 'device' });
   mockHaptic.mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());

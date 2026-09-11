@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 
+import { AccountSection } from '@/components/settings/account-section';
 import { DevTools } from '@/components/settings/dev-tools';
 import { MuseumSearchSection } from '@/components/settings/museum-search-section';
 import { ThemedText } from '@/components/themed-text';
@@ -23,6 +24,7 @@ export function SettingsScreen() {
           Sharing, your optional account, and export.
         </ThemedText>
         <MuseumSearchSection />
+        <AccountSection />
         {/* Placeholder backend check; removed by docs/plans/05-app-ui/06-settings-sharing-account.md */}
         <ThemedText themeColor="textSecondary">
           {health ? `Backend: connected · ${health.modelVersion}` : 'Backend: connecting…'}

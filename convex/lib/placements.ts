@@ -13,9 +13,9 @@ export type PlacementLike = {
 };
 
 const sourceRank: Record<string, number> = {
-  manual: 6,
-  feed: 5,
-  checklist: 4,
+  manual: 7,
+  feed: 6,
+  checklist: 5,
   proposal: 3,
   contribution: 2,
   wikidata: 1,
@@ -49,10 +49,15 @@ function isActive(placement: PlacementLike, now: number): boolean {
 
 function comparePlacements(a: PlacementLike, b: PlacementLike): number {
   return (
-    (sourceRank[a.source] ?? 0) - (sourceRank[b.source] ?? 0) ||
+    placementRank(a) - placementRank(b) ||
     a.confidence - b.confidence ||
     compareFrom(a.from, b.from)
   );
+}
+
+function placementRank(placement: PlacementLike): number {
+  // An off-view feed doesn't establish where a loan hangs; a checklist does.
+  return placement.source === 'feed' && !placement.onView ? 4 : (sourceRank[placement.source] ?? 0);
 }
 
 // An open-ended start sorts before any dated start.

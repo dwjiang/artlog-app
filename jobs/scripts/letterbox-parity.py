@@ -35,8 +35,12 @@ def padding_mask(source: Image.Image, size: int) -> np.ndarray:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phone", required=True, type=Path, help="PNG letterbox produced by the phone")
-    parser.add_argument("--source", required=True, type=Path, help="Source image both sides letterboxed")
+    parser.add_argument(
+        "--phone", required=True, type=Path, help="PNG letterbox produced by the phone"
+    )
+    parser.add_argument(
+        "--source", required=True, type=Path, help="Source image both sides letterboxed"
+    )
     parser.add_argument("--size", type=int, default=512)
     args = parser.parse_args()
 

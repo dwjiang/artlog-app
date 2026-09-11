@@ -145,3 +145,10 @@ def test_maximum_descriptor_sets_fit_the_payload_limit_and_checkpoint_every_row(
     assert len(checkpoints) == len(client.calls)
     assert all(len(args["rows"]) <= batch_size for _, args in client.calls)
     assert all(set(keys) == set(batch_ids) for keys, batch_ids in checkpoints)
+
+
+def test_size_rejections_are_not_retried_as_transient_errors():
+    client = FakeClient(failures=[RuntimeError("BadJsonBody: length limit exceeded")])
+    with pytest.raises(RuntimeError, match="length limit exceeded"):
+        writer(client).upsert("ingest:upsertVectors", rows(1))
+    assert len(client.calls) == 1

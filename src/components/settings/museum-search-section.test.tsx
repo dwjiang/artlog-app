@@ -9,6 +9,9 @@ jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').cre
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('./dev-tools', () => ({ DevTools: () => null }));
+jest.mock('@/lib/account/use-account', () => ({
+  useAccount: () => ({ account: null, available: false, busy: false, ready: false }),
+}));
 jest.mock('convex/react', () => ({ useQuery: () => undefined, useConvexAuth: () => ({ isAuthenticated: false }) }));
 jest.mock('expo-router', () => ({ Link: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@expo/ui', () => {
@@ -30,6 +33,7 @@ beforeEach(async () => { await setMuseumSearchConsent('unset'); });
 
 it('mounts the privacy control in Settings and requires consent before enabling it', async () => {
   await render(<SettingsScreen />);
+  expect(screen.getByText('Your account')).toBeOnTheScreen();
   const toggle = await screen.findByRole('switch', { name: MUSEUM_SEARCH_SETTING });
   await waitFor(() => expect(toggle).toBeEnabled());
   expect(toggle).not.toBeChecked();

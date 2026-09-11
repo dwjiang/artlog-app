@@ -4,7 +4,7 @@ import model from '../shared/model-version.json';
 import { placementProposalPayload } from '../shared/attested-payloads';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { action, internalQuery, mutation, type ActionCtx, type MutationCtx } from './_generated/server';
+import { action, internalQuery, mutation, type ActionCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { requireDeviceFromAction } from './lib/auth';
 import { DEFAULT_CALIBRATOR, featureIndex, type ScoredCandidate } from './lib/calibrator';
@@ -13,6 +13,7 @@ import { isSupported, validateVector } from './lib/modelVersion';
 import { decodeOrbFeatures, OrbFormatError, type OrbFeatures, type VerifyResult } from '../shared/orb';
 import { loadCurrentPlacement } from './lib/placements';
 import { limitDevice } from './lib/rateLimits';
+import { proposePlacementFromScan } from './placements';
 import { scanDisplay, type ScanDisplay } from './scans';
 import schema from './schema';
 
@@ -83,41 +84,6 @@ export const loadContext = internalQuery({
     return { visit };
   },
 });
-
-// Design §4.6: scan evidence never writes `placements`; it accrues on a proposal that a human reviews.
-export async function proposePlacementFromScan(ctx: MutationCtx, input: {
-  scan: Doc<'scans'>; objectId: Id<'objects'>; proposedVenueId: Id<'museums'>; deviceId: Id<'devices'>;
-  beforeWrite?: () => Promise<void>;
-}): Promise<null> {
-  const { scan, objectId, proposedVenueId, deviceId } = input;
-  const object = await ctx.db.get(objectId);
-  if (!object || object.reverted || object.mergedInto) throw new ConvexError({ code: 'invalid_scan' });
-  const artwork = await ctx.db.get(object.artworkId);
-  if (!artwork) throw new ConvexError({ code: 'invalid_scan' });
-  const now = Date.now();
-  const placement = await loadCurrentPlacement(ctx, objectId, now);
-  if (placement?.venueId === proposedVenueId) return null;
-  const existing = await ctx.db.query('placementProposals')
-    .withIndex('by_object_venue', (q) => q.eq('objectId', objectId).eq('proposedVenueId', proposedVenueId))
-    .unique();
-  if (existing?.scanIds.includes(scan._id)) return null;
-  await input.beforeWrite?.();
-  const deviceIds = [...new Set([...(existing?.deviceIds ?? []), deviceId])];
-  if (existing) {
-    await ctx.db.patch(existing._id, {
-      scanIds: [...existing.scanIds, scan._id], deviceIds,
-      lastSeenAt: now, readyForReview: deviceIds.length >= 2,
-    });
-  } else {
-    await ctx.db.insert('placementProposals', {
-      objectId, proposedVenueId,
-      kind: artwork.multiplicity === 'unique' ? 'move' : 'new_object',
-      scanIds: [scan._id], deviceIds, firstSeenAt: now, lastSeenAt: now,
-      status: 'pending', readyForReview: false,
-    });
-  }
-  return null;
-}
 
 export const proposeFromScan = mutation({
   args: {

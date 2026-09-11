@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import type { ReactElement } from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 
@@ -6,7 +5,7 @@ import { WorkLink } from './work-link';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { SavedWork } from '@/db/schema';
-import { captureFileUri } from '@/lib/files/photos';
+import { SavedWorkImage } from './saved-work-image';
 
 export function GridView({ works, header }: { works: SavedWork[]; header: ReactElement }) {
   return (
@@ -20,7 +19,7 @@ export function GridView({ works, header }: { works: SavedWork[]; header: ReactE
       columnWrapperStyle={styles.row}
       renderItem={({ item }) => (
         <WorkLink work={item} style={styles.cell}>
-          <Image source={captureFileUri(item.cropPath)} contentFit="cover" style={styles.thumbnail} />
+          <SavedWorkImage path={item.cropPath} title={item.title} style={styles.thumbnail} />
           <ThemedText type="small" numberOfLines={1}>{item.title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>{item.artist}</ThemedText>
         </WorkLink>

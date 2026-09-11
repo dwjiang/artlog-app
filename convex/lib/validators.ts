@@ -30,6 +30,10 @@ export const placementSource = v.union(
 );
 export type PlacementSource = Infer<typeof placementSource>;
 
+export const checklistExhibition = v.object({
+  title: v.string(), from: v.string(), to: v.string(), sourceUrl: v.string(),
+});
+
 export const seedSource = v.union(v.literal('wikidata'), v.literal('poi'), v.literal('manual'));
 export type SeedSource = Infer<typeof seedSource>;
 
@@ -158,7 +162,7 @@ export type Embedding = Infer<typeof embedding>;
 
 export const devicePlatform = v.union(v.literal('ios'), v.literal('simulator'));
 
-export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'));
+export const challengePurpose = v.union(v.literal('attest'), v.literal('assert'), v.literal('apple'));
 
 export const labelField = v.object({
   value: v.string(),

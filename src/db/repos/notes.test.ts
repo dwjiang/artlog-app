@@ -1,5 +1,5 @@
 import * as repo from './notes';
-import { insertSavedWork } from './saved-works';
+import { getSavedWork, insertSavedWork, markSynced } from './saved-works';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
 
@@ -14,4 +14,15 @@ it('replaces a note per saved work', async () => {
   expect(await repo.getNote('saved-1')).toEqual({ savedLocalId: 'saved-1', text: 'Seen with Sam and Ana', updatedAt: 20 });
   expect(await repo.getNote('saved-2')).toMatchObject({ text: 'Other' });
   await expect(repo.setNote('missing', 'orphan')).rejects.toThrow('FOREIGN KEY');
+});
+
+it('rejects oversized notes without changing the saved note or its sync state', async () => {
+  await insertSavedWork({ localId: 'limit', savedAt: 1, title: 'Painting', artist: 'Artist' });
+  const text = 'a'.repeat(20_000);
+  await repo.setNote('limit', text, 10);
+  await markSynced([{ localId: 'limit', revision: 1, updatedAt: 20, updatedBy: 'device' as never }]);
+  const saved = await getSavedWork('limit');
+  await expect(repo.setNote('limit', `${text}a`, 30)).rejects.toThrow('20,000');
+  expect(await repo.getNote('limit')).toMatchObject({ text, updatedAt: 10 });
+  expect(await getSavedWork('limit')).toEqual(saved);
 });

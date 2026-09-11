@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1dbc17c2-5ab6-4349-baa3-8e43eca6d876",
+  "id": "efb45c54-8ca8-4eb2-83c0-7972fdf70d7c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "notes": {
@@ -336,12 +336,27 @@
           "name": "cropPath",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "syncedAt": {
           "name": "syncedAt",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "syncedBy": {
+          "name": "syncedBy",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

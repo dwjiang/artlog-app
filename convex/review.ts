@@ -47,8 +47,7 @@ export const listProposalsReady = internalQuery({
   args: {},
   returns: v.array(schema.doc('placementProposals')),
   handler: (ctx) =>
-    ctx.db.query('placementProposals').withIndex('by_status', (q) => q.eq('status', 'pending'))
-      .filter((q) => q.eq(q.field('readyForReview'), true)).order('desc').take(MAX_ROWS),
+    ctx.db.query('placementProposals').withIndex('by_status_readyForReview', (q) => q.eq('status', 'pending').eq('readyForReview', true)).order('desc').take(MAX_ROWS),
 });
 
 // Dashboard query: `npx convex run review:listCorrections`.

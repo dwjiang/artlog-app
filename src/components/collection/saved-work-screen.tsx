@@ -1,6 +1,5 @@
 import { Button, Host } from '@expo/ui/swift-ui';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 
@@ -10,7 +9,7 @@ import { SnapshotFields } from './snapshot-fields';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
 import { selectSavedWork, softDeleteSavedWork } from '@/db/repos/saved-works';
-import { captureFileUri } from '@/lib/files/photos';
+import { SavedWorkImage } from './saved-work-image';
 
 export type SavedWorkScreenProps = {
   savedId: string;
@@ -37,10 +36,10 @@ export function SavedWorkScreen({ savedId }: SavedWorkScreenProps) {
         keyboardDismissMode="interactive"
         contentContainerStyle={styles.content}
       >
-        <Image
-          source={captureFileUri(work.photoPath ?? work.cropPath)}
-          contentFit="contain"
-          accessibilityLabel={`Your photo of ${work.title}`}
+        <SavedWorkImage
+          path={work.photoPath ?? work.cropPath}
+          title={work.title}
+          contain
           style={styles.photo}
         />
         <SnapshotFields work={work} />
