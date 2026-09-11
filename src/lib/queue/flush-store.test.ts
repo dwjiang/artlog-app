@@ -70,7 +70,8 @@ it('drains a healthy offline batch through the device quota without spending cap
   await jest.advanceTimersByTimeAsync(180_000);
   await started;
   flusher.stop();
-  expect(await pending.pendingScansQuery()).toEqual([]);
+  expect(await pending.pendingScansQuery()).toHaveLength(100);
+  expect(await pending.listFlushable('v1')).toEqual([]);
   for (let i = 0; i < 100; i++) {
     expect(await pending.getPendingScan(String(i))).toMatchObject({ status: 'identified', attempts: 0 });
     await pending.deletePendingScan(String(i));

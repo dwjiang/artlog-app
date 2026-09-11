@@ -11,9 +11,11 @@ import { buildSnapshot, type SnapshotDraft } from './snapshot';
 import type { ResultViewState } from './state';
 
 export type SaveResultInput = {
-  scanId: Id<'scans'>;
+  /** Absent while the scan is still queued on this phone; the server row then references no scan. */
+  scanId?: Id<'scans'>;
   capture: Pick<PendingScan, 'photoPath' | 'cropPath' | 'venueId' | 'visitId' | 'visitLocalId'>;
-  view: ResultViewState;
+  /** Absent when the card names no work (queued or unsupported); the snapshot is then whatever the user typed. */
+  view?: ResultViewState;
   draft: SnapshotDraft;
 };
 
@@ -31,7 +33,7 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   const venueId = capture.venueId ?? visit?.venueId;
   const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId).catch(() => undefined) : undefined);
   const visitId = capture.visitId ?? visit?.remoteVisitId ?? undefined;
-  const primary = view.primary;
+  const primary = view?.primary;
   const localId = randomUUID();
   await insertSavedWork({
     localId, savedAt: Date.now(), ...snapshot,

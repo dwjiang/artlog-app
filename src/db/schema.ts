@@ -84,6 +84,7 @@ export const pendingScans = sqliteTable(
     lastError: text(),
     scanId: text().$type<Id<'scans'>>(),
     createdAt: integer().notNull(),
+    reviewedAt: integer(),
   },
   (table) => [index('pendingScans_status_capturedAt').on(table.status, table.capturedAt)],
 );
