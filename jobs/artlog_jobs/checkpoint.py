@@ -35,6 +35,10 @@ class Checkpoint:
         self._done.setdefault(stage, set()).update(keys)
         self.save()
 
+    def unmark(self, stage: str, keys: Iterable[str]) -> None:
+        self._done.get(stage, set()).difference_update(keys)
+        self.save()
+
     def cursor(self, stage: str) -> str | None:
         return self._cursors.get(stage)
 

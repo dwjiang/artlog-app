@@ -1,5 +1,8 @@
 import gzip
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from itertools import pairwise
 
 import httpx
 import pytest
@@ -490,7 +493,8 @@ def test_replacing_a_cached_body_updates_the_budget_and_removes_stale_validators
 
 
 @pytest.mark.parametrize("max_retries", [0, 3])
-def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retries):
+@pytest.mark.parametrize("status", [429, 503])
+def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retries, status):
     from artlog_jobs.polite_http import RetryLater
 
     clock = FakeClock()
@@ -499,16 +503,18 @@ def test_long_retry_after_defers_the_host_without_blocking_other_hosts(max_retri
     def handler(request):
         seen.append((request.url.host, clock()))
         if len(seen) == 1:
-            return httpx.Response(429, headers={"Retry-After": "3600"})
+            return httpx.Response(status, headers={"Retry-After": "3600"})
         return httpx.Response(200)
 
     with client(handler, clock=clock, robots=False, max_retries=max_retries) as c:
         with pytest.raises(RetryLater) as raised:
             c.get("https://museum.example/a")
         assert raised.value.retry_after == 3600
+        assert raised.value.status_code == status
         assert clock.sleeps == []
-        with pytest.raises(RetryLater):
+        with pytest.raises(RetryLater) as deferred:
             c.get("https://museum.example/b")
+        assert deferred.value.status_code == status
         assert c.get("https://other.example/x").status_code == 200
         clock.now += 3600
         assert c.get("https://museum.example/b").status_code == 200
@@ -555,3 +561,29 @@ def test_new_and_refreshed_crawl_delay_applies_to_the_first_page():
         ("/robots.txt", 1091.0),
         ("/b", 1136.0),
     ]
+
+
+def test_threads_sharing_a_client_keep_the_host_spacing():
+    sent: list[float] = []
+    lock = threading.Lock()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        with lock:
+            sent.append(time.monotonic())
+        return httpx.Response(200)
+
+    period = 0.02
+    c = PoliteClient(
+        user_agent=UA,
+        per_host_rps=1 / period,
+        robots=False,
+        transport=httpx.MockTransport(handler),
+    )
+    with ThreadPoolExecutor(2) as pool:
+        list(pool.map(lambda i: c.get(f"https://museum.example/{i}"), range(10)))
+    times = sorted(sent)
+    assert len(times) == 10
+    # Reservations keep the schedule's pace; the unlocked client fired the two threads
+    # together in pairs. Sleep overshoot on one thread can shave a few ms off a gap.
+    assert times[-1] - times[0] >= 9 * period
+    assert min(b - a for a, b in pairwise(times)) >= period / 2

@@ -208,6 +208,189 @@ npx vitest run convex/venueTable
   in light mode. The 98 Python, 149 Convex, and 22 app tests, TypeScript, ESLint,
   and Ruff checks passed.
 
+## Index build (02.04)
+
+The initial index is built on the operator's Mac (Apple M5 Pro, 64 GB, PyTorch on
+`mps`); compute cost is $0 where design §10 budgeted L40S hours. From `jobs/`:
+
+```sh
+uv run python -m artlog_jobs.drift_check                      # gate: iPhone reference vs the job model
+uv run python -m artlog_jobs.embed --benchmark 256            # images/s on the configured device
+caffeinate -i uv run python -m artlog_jobs.build_index --stage download,drift,embed --limit 1000   # pilot
+caffeinate -i uv run python -m artlog_jobs.build_index --stage download,drift,embed                # whole build
+uv run python -m artlog_jobs.build_index --stage cleanup      # remove any leftover images/
+uv run python -m artlog_jobs.download --shard 0 --limit 50    # one shard by hand
+uv run python -m artlog_jobs.embed --images scratch/images/shard-0
+```
+
+`build_index` runs the drift check before every invocation that includes `embed`
+(even when `drift` is omitted from `--stage`), then every shard in order: download
+shard *n* → embed shard *n* → delete `images/shard-<n>/`. At most one shard of
+JPEGs exists at a time and none outlives the build (design §5.5). Images are
+never copied out of scratch and no job other than `download.py`/`embed.py`
+reads them. `--keep-images` is refused without `--limit`. A run is resumable at
+shard granularity through `checkpoints/build_index.json`; interrupt it and
+repeat the same command. If an image directory disappears before its shard was
+embedded, the shard is downloaded again. Cleanup also resumes for completed
+shards whose images remain after an interruption. Ctrl-C stops workers after
+their current image fetch returns. Shard membership depends on `--limit`
+and `--shard-size`, so `build_index` refuses to start when
+`features/manifest.json` records different values (or lacks the shard size):
+move `features/`, `images/`, `downloads/` and
+`checkpoints/build_index.json` aside (for example to `pilot-<date>/`) between a
+pilot and the whole build.
+
+Under `SCRATCH_DIR` (default `jobs/scratch`, gitignored):
+
+| Path | Content |
+| --- | --- |
+| `metadata/objects.jsonl` | 02.03 output; only objects with an `imageRef` are downloadable |
+| `images/shard-<n>/<quoted key>.jpg` | transient, ≤ 1024 px long side, JPEG q90, never the original |
+| `downloads/shard-<n>.json`, `shard-<n>-failed.jsonl` | per-shard, per-source progress; dead links with a reason (02.05 skips them) |
+| `features/vectors-<n>.npy` | float32 `[N, 1536]`, L2-normalized, one row per embedded image |
+| `features/keys-<n>.json` | object keys in row order |
+| `features/descriptors-<n>.bin` + `.json` | per image: `count×32` descriptor bytes then `count×4` float32 keypoints (plan 04.01 wire format); the index lists `{key, offset, keypointCount}`; `embed.read_features()` reads a shard |
+| `features/manifest.json` | `limit`, `shardSize`, `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
+| `features/drift-check.json` | the last drift result |
+| `calibration/` | the 200 calibration images, hash-checked against `jobs/calibration/image-hashes.json` |
+
+Objects are ordered by the SHA-256 of their key and cut into shards of 10,000,
+so shards are deterministic for a given `objects.jsonl`, every shard mixes the
+sources, and `--limit N` is a representative sample. Sources download
+concurrently, each with its own polite client: Met CDN 8 req/s (documented
+ceiling 20), AIC 1 req/s with `AIC-User-Agent` (no AIC object currently carries
+an image reference, decision 005), and Wikimedia media within the Wikitech robot
+policy's media rules: at most two concurrent connections and at most 25 Mbps
+measured over 10-second windows (`BandwidthLimiter`, shared by both streams),
+standard thumbnail sizes only. Commons files are resolved through the
+`imageinfo` API in batches of ≤ 50 titles (one call at a time, `iiurlwidth=960`,
+a pre-rendered standard step that still exceeds the 512 px model input) and
+fetched from the returned `thumburl` on `upload.wikimedia.org`. Files no wider
+than 960 px would come back as originals, so they are queried again at the
+largest standard step below their width (500, 330, 250, …): the media host
+throttles originals far harder than thumbnails (27 of 27 429s across three
+runs hit originals, none a thumbnail path), so the build never fetches an
+original. `Special:FilePath?width=` was measured at 0.42 images/s because it is a two-hop
+redirect chain on the Commons app servers, and `imageinfo` also renders
+TIFF/PDF originals server-side. Files the API reports missing are recorded as
+`commons_missing`. `--streams wikidata=1` and `--mbps` dial the media rules
+down; the defaults are the policy's ceiling, with Wikimedia media requests
+capped at 4 req/s across both streams. Override rates with
+`--rate met=4,wikidata=3`. Transient statuses retry three times with backoff
+and honor `Retry-After`; 20 consecutive 403/429 responses stop that source with
+`SourceBlocked` (halve the rate and report). Temporary failures, including
+403/429s and exhausted transport/server retries, remain pending instead of
+entering the terminal failure journal. They leave the shard incomplete and
+stop the build before embedding; repeat the command after recovery. These are
+the sources' designated media endpoints, requested on the same footing as
+`sources/fetch.py`'s dumps, so the client does not consult robots.txt.
+
+### Model, numerics and drift
+
+`model.py` loads RADIO at the pinned revision (`c0f3701…`, checkpoint SHA-256
+verified) and overlays `spikes/coreml-export/artifacts/fakequant_state.pt`, the
+state recovered from the CoreML int8 export (decision 001), then runs on
+`settings.device` in fp16, the phone's compute dtype. The artifact is not
+committed; reproduce it with the spike's `export.py --size 512 --precision fp16`
+then `--weights int8` (README in `spikes/coreml-export/`). Reproduced
+2026-09-10: package weight hash
+`f6f6d2d8c75ed755718114cdbff2dcbf262527b5974c2eefa2916d8533c7b6a7`, identical to
+the committed iPhone report, and `fakequant_state.pt` SHA-256
+`15e4b7200da8ae3fcece41645646186aeb56ae7ebebe96c26ebf1561675cfaf5` (recorded in
+the manifest of every build). RADIO needs `einops`, now a job dependency.
+
+`drift_check.py` downloads the 200 calibration paintings (`jobs/calibration/`,
+copied from the spike) and letterboxes them exactly as the iPhone reference
+was produced (bicubic, black pad), so the comparison isolates the Mac build path
+from the phone's Neural Engine on identical pixels; the index letterbox
+(`letterbox.py`, mean pad) is the capture contract that plan 03.02 mirrors. It
+exits non-zero below `--min-mean 0.99 --min-min 0.97`; `build_index` aborts on
+failure. When fp16 is non-finite or misses the thresholds, fp32 with the same
+weights is tried and the passing dtype is recorded and used for the embed stage.
+
+| Run (2026-09-10) | Device / dtype | Mean cosine | Min cosine | Images |
+| --- | --- | ---: | ---: | ---: |
+| Job model vs iPhone 16 Pro int8 CPU + NE reference | `mps` / float16 | **0.99702** | **0.99295** | 200 |
+
+The spike measured 0.997011 / 0.992918 for the same pair; fp32 was not needed.
+
+`embed --benchmark` (forward pass only, letterboxed fixture pixels, `mps` fp16):
+56.5 images/s at batch 64, 64.4 images/s at batch 128 (the default).
+
+### Pilot 2026-09-10 (`--limit 1000`)
+
+Inputs were rebuilt first: the 02.03 scratch output no longer existed, so the
+Met/AIC/Wikidata fetch and `build_metadata` ran again (409,973 objects; Met
+image metadata complete, 8 not found, 0 denied) with venue keys exported from
+`assets/venues.db`. `caffeinate -i /usr/bin/time -l … build_index --stage
+download,drift,embed --limit 1000` then took **955 s** wall clock, peak resident
+set **1.92 GB**, and left no `images/` directory.
+
+| Source | Objects in pilot | Downloadable in corpus | Achieved | Failed | Projected download |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| met | 10 | 5,565 | 2.92 req/s (bandwidth-bound originals; 7.6 req/s on warm CDN edges) | 0 | 0.5 h |
+| wikidata (Commons) | 990 | 396,582 | 1.10 images/s (one media request at a time) | 0 | 100 h |
+| aic | 0 | 0 (images blocked, decision 005) | — | — | — |
+
+Drift check (rerun inside the pilot): mean 0.99702 / min 0.99295, `mps`/float16.
+Embed: 1,000 images → 1,000 vectors, keypoint count median 500, min 75, none
+zero; the forward passes took 15 s (≈ 67 images/s). The pilot's reported
+44.8 s included a 30 s DataLoader teardown stall (spawned workers returning
+tensors) that was fixed afterwards; a 50-image shard now ends within a second
+of its last batch. The manifest records `modelVersion
+c-radiov3-b-int8-512-dinov2-v1`, `fakequantSha256 15e4b720…`, the drift result
+and the shard report.
+
+**Projection for the full corpus at the pilot's one-stream rate** (sources
+download concurrently, so Commons sets the wall clock): ≈ 100 h of downloads
+plus ≈ 2 h of embedding, about **4.3 days** of continuous, awake, online laptop
+time, under the plan's ~5-day STOP line but not by much. That run was started
+and then cancelled at shard 0 on 2026-09-10 as infeasible; the fetcher was then
+brought up to the media rules' actual ceiling (two streams, 25 Mbps, 960 px
+thumbnails) instead of one request per second, which decision 005 had taken
+from the rules for other Wikimedia services (correction recorded there).
+
+**Two-stream run, started 2026-09-10 02:47 PDT:** Commons sustains
+**4.5 images/s** (first 500 files, 0 failed, ≈ 8 Mbps), so the corpus projects
+to ≈ 25 h of downloads plus ≈ 2 h of embedding, about **27 h** wall clock.
+Every thumbnail request is a CDN miss for these long-tail files: about half
+are served from storage in ≈ 0.3 s and half are rendered on demand in ≈ 1 s,
+at 960 px and 1280 px alike, so with the policy's two connections latency, not
+bandwidth, sets the rate. It logs to `scratch/logs/full-run-2.log`; the
+cancelled one-stream attempt's state is under `scratch/cancelled-2026-09-10/`. Any 429/403 streak
+stops a source (`SourceBlocked`) and the run resumes from its checkpoint. The
+operator decides between this local run, a reduced corpus (for example only
+paintings with a current placement or a mapped owner), or pulling plan 02.10
+forward; Commons' one-request-at-a-time policy applies wherever the job runs,
+so cloud hardware does not shorten the download.
+
+**Throttle finding and the running build (2026-09-10 04:43–04:50 PDT):** the
+two-stream run drew HTTP 429 (`Retry-After: 11`) from `upload.wikimedia.org`
+within minutes and fell to ≈ 3.2 images/s; capped at `--rate wikidata=3.0` it
+still drew 12 in five minutes and fell to 2.0 images/s. Every one of the 27
+429s across those runs was on an original-file URL (files no wider than
+960 px, about a third of requests); thumbnail paths drew none at up to
+4.5 req/s. The resolver now requests a narrower standard step for those files
+so no original is fetched, and the build was restarted with `--rate
+wikidata=4.0` (now the default): ≈ 3 images/s with no 429s in its first
+minutes (`scratch/logs/full-run-3.log`, `full-run-4.log`). Projection: ≈ 37 h
+of downloads plus embedding between shards, about **1.6 days**; interrupting
+and repeating the command resumes.
+
+The whole build was started on 2026-09-10 after the pilot, with the pilot's
+outputs moved to `scratch/pilot-2026-09-10/`. It logs to
+`scratch/logs/full-run.log`; interrupt it and repeat the command to resume:
+
+```sh
+cd jobs
+caffeinate -i uv run python -m artlog_jobs.build_index --stage download,drift,embed
+uv run python -m artlog_jobs.build_index --stage cleanup
+```
+
+Features for 410k objects need ≈ 10 GB under `scratch/features/` (6 KB vector +
+≤ 16 KB descriptors + ≤ 8 KB keypoints each); a shard of images is ≤ 3 GB and
+is deleted once embedded.
+
 ## Corpus metadata (02.03)
 
 From `jobs/`, using the configured `SCRATCH_DIR` (default `jobs/scratch`):
