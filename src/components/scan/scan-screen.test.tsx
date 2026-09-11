@@ -5,18 +5,24 @@ import { AppState, Linking, type AppStateStatus } from 'react-native';
 import { ScanScreen } from './scan-screen';
 import type { Guidance } from '@/lib/capture/rectangle';
 import type { CaptureInput, CaptureTimings } from '@/lib/capture/stages';
+import type { VenueView } from '@/lib/venue/use-venue';
 
 let mockFocused = true;
 let mockGranted = true;
 let mockCanRequest = false;
 let mockGuidance: Guidance = 'searching';
 let mockTimings: CaptureTimings | undefined;
+let mockMessage: string | undefined;
+let mockPending = 0;
+let mockVenueView: VenueView;
 let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void };
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
 const mockCapture = jest.fn();
 const mockImport = jest.fn();
+const mockClearMessage = jest.fn();
+const mockPush = jest.fn();
 const mockSelectionHaptic = jest.fn();
 const mockImpactHaptic = jest.fn();
 const mockGetCaptureQuad = jest.fn();
@@ -33,6 +39,7 @@ jest.mock('@expo/ui', () => {
     ),
   };
 });
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('expo-haptics', () => ({
@@ -47,9 +54,10 @@ jest.mock('react-native-vision-camera', () => ({
   Camera: (props: typeof mockCameraProps): ReactNode => { mockCameraProps = props; return null; },
 }));
 jest.mock('@/lib/capture/use-capture', () => ({
-  useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false, timings: mockTimings }),
+  useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false, message: mockMessage, timings: mockTimings, clearMessage: mockClearMessage }),
 }));
-jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue() }));
+jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue(), useVenue: () => mockVenueView }));
+jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: [] }) }));
 jest.mock('@/lib/capture/use-rect-detector', () => ({
   useRectDetector: (active: boolean) => {
     mockDetectorActive.push(active);
@@ -61,6 +69,7 @@ jest.mock('./viewfinder-overlay', () => {
   return {
     ViewfinderOverlay: () => null,
     GuidanceLabel: ({ guidance }: { guidance: string }) => <Text>{`guidance:${guidance}`}</Text>,
+    OverlayCaption: ({ children }: { children: ReactNode }) => <Text>{children}</Text>,
   };
 });
 
@@ -71,6 +80,12 @@ beforeEach(() => {
   mockCanRequest = false;
   mockGuidance = 'searching';
   mockTimings = undefined;
+  mockMessage = undefined;
+  mockPending = 0;
+  mockVenueView = {
+    status: 'resolved', venue: { kind: 'seeded', venueId: 'museum-1' as never, name: 'Legion of Honor' }, options: [],
+    resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(),
+  };
   mockDetectorActive.length = 0;
   AppState.currentState = 'active';
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
@@ -92,6 +107,7 @@ it('enables the shutter once the camera runs, whatever the live outline says, wi
   const view = await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);
   expect(screen.getByRole('button', { name: 'Take photo' })).toBeDisabled();
+  expect(screen.queryByText('guidance:searching')).toBeNull();
   await act(() => mockCameraProps.onStarted());
   expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
   expect(screen.getByText('guidance:searching')).toBeOnTheScreen();
@@ -151,6 +167,25 @@ it('requests camera permission on mount and keeps import available after denial'
   expect(open).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'Import' }));
   expect(mockImport).toHaveBeenCalledTimes(1);
+});
+
+it('shows the museum pill and the waiting-for-signal badge over the preview', async () => {
+  mockPending = 2;
+  await render(<ScanScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
+  expect(mockPush).toHaveBeenCalledWith('/venue-picker');
+  expect(screen.getByLabelText('2 scans waiting for signal')).toBeOnTheScreen();
+});
+
+it('replaces the guidance with the retake banner until Retake is tapped', async () => {
+  mockMessage = 'Dodge the glare';
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.getByRole('alert')).toHaveTextContent('Dodge the glare');
+  expect(screen.queryByText('guidance:searching')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Retake' }));
+  expect(mockClearMessage).toHaveBeenCalledTimes(1);
 });
 
 it('shows the stage breakdown of the last capture in development', async () => {
