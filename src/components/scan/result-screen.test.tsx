@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { getFunctionName } from 'convex/server';
+import * as SQLite from 'expo-sqlite';
 import type { ReactNode } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -10,7 +12,7 @@ import { LABEL_BUTTON } from './result/save-bar';
 import {
   bridge, confidentScan, confidentScanWithoutProse, failedScan, haystacks, lilies, missScan, SCAN_ID, softScan, unsupportedScan,
 } from './result/__fixtures__/scan';
-import { enqueuePendingScan } from '@/db/repos/pending-scans';
+import { enqueuePendingScan, getPendingScan, markIdentified, pendingScansQuery } from '@/db/repos/pending-scans';
 import { getSavedWork } from '@/db/repos/saved-works';
 import * as visits from '@/db/repos/visits';
 
@@ -20,19 +22,24 @@ const mockSaveMutation = jest.fn();
 const mockHaptic = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let mockUuid = 0;
+let mockFocused = true;
 let client: ConvexReactClient;
 const results = new Map<string, unknown>();
 const listeners = new Set<() => void>();
+const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
+let appStateListener: (state: AppStateStatus) => void;
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of Honor' }));
 jest.mock('@/lib/attested-write', () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
+jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockSaveMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
+jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
@@ -64,10 +71,25 @@ beforeAll(async () => {
     modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-met' as Id<'museums'>, visitLocalId: 'visit-local-1', capturedAt: 1,
     status: 'identified', scanId: SCAN_ID, createdAt: 1,
   });
+  await enqueuePendingScan({
+    localId: 'capture-9', photoPath: 'photos/c9.jpg', cropPath: 'crops/c9.jpg', vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+    modelVersion: 'm', attemptModelVersion: 'm', capturedAt: 2, status: 'queued', createdAt: 2,
+  });
 });
 
 beforeEach(() => {
+  mockFocused = true;
   jest.resetAllMocks();
+  AppState.currentState = 'active';
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+    appStateListener = listener;
+    return { remove() {} };
+  });
+  databaseListeners.clear();
+  jest.spyOn(SQLite, 'addDatabaseChangeListener').mockImplementation((listener) => {
+    databaseListeners.add(listener);
+    return { remove: () => { databaseListeners.delete(listener); } };
+  });
   mockAuth.isAuthenticated = true;
   mockSign.mockResolvedValue({ nonce: 'nonce-1', assertionBase64: '', payloadJson: 'p' });
   mockSaveMutation.mockResolvedValue({ collectionId: 'col-1' });
@@ -110,6 +132,82 @@ function publish(scan: unknown) {
 function result(scanId: string = SCAN_ID) {
   return <ConvexProvider client={client}><ResultScreen scanId={scanId} /></ConvexProvider>;
 }
+
+async function unreviewedCapture(localId: string) {
+  await enqueuePendingScan({
+    localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`, vector: [0.1],
+    descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), modelVersion: 'm', attemptModelVersion: 'm',
+    capturedAt: 1, createdAt: 1, status: 'identified', scanId: localId as Id<'scans'>,
+  });
+}
+
+it('keeps a completed scan unreviewed until its loaded result is focused', async () => {
+  const localId = 'review-on-focus';
+  await unreviewedCapture(localId);
+  results.set('scans:get', undefined);
+  const view = await render(result(localId));
+  expect(await screen.findByText('Identifying…')).toBeOnTheScreen();
+  expect((await getPendingScan(localId))?.reviewedAt).toBeNull();
+  mockFocused = false;
+  await view.rerender(result(localId));
+  await publish(confidentScan);
+  expect(await screen.findByText('Match')).toBeOnTheScreen();
+  expect((await getPendingScan(localId))?.reviewedAt).toBeNull();
+  mockFocused = true;
+  await view.rerender(result(localId));
+  await waitFor(async () => expect((await getPendingScan(localId))?.reviewedAt).toEqual(expect.any(Number)));
+});
+
+it('keeps background completions in the queue until the app is active', async () => {
+  const localId = 'review-on-foreground';
+  await unreviewedCapture(localId);
+  results.set('scans:get', undefined);
+  await render(result(localId));
+  await screen.findByText('Identifying…');
+  await act(() => {
+    AppState.currentState = 'background';
+    appStateListener?.('background');
+  });
+  await publish(confidentScan);
+  expect((await pendingScansQuery()).some((row) => row.localId === localId)).toBe(true);
+  expect((await getPendingScan(localId))?.reviewedAt).toBeNull();
+  await act(() => {
+    AppState.currentState = 'active';
+    appStateListener('active');
+  });
+  await waitFor(async () => expect((await getPendingScan(localId))?.reviewedAt).toEqual(expect.any(Number)));
+});
+
+it('records review when a retry reaches SQLite after the server result', async () => {
+  const localId = 'review-after-local-completion';
+  await enqueuePendingScan({
+    localId, photoPath: 'photos/retry.jpg', cropPath: 'crops/retry.jpg', vector: [0.1],
+    descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), modelVersion: 'm', attemptModelVersion: 'm',
+    capturedAt: 1, createdAt: 1, status: 'identifying', scanId: localId as Id<'scans'>,
+  });
+  await render(result(localId));
+  await screen.findByText('Match');
+  expect((await getPendingScan(localId))?.reviewedAt).toBeNull();
+  await act(async () => {
+    await markIdentified(localId, localId as Id<'scans'>);
+    for (const listener of databaseListeners) {
+      listener({ tableName: 'pendingScans', databaseName: 'artlog.db', databaseFilePath: '', rowId: 1 });
+    }
+  });
+  await waitFor(async () => expect((await getPendingScan(localId))?.reviewedAt).toEqual(expect.any(Number)));
+  expect((await pendingScansQuery()).some((row) => row.localId === localId)).toBe(false);
+});
+
+it.each([
+  ['unsupported', unsupportedScan], ['failed', failedScan], ['unavailable', null],
+] as const)('keeps a scan in the queue when its server card is %s', async (kind, scan) => {
+  const localId = `review-${kind}`;
+  await unreviewedCapture(localId);
+  results.set('scans:get', scan);
+  await render(result(localId));
+  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: `file:///documents/crops/${localId}.jpg` }]));
+  expect((await getPendingScan(localId))?.reviewedAt).toBeNull();
+});
 
 it('shows a confident match with its fields, chip, prose, sources and news', async () => {
   await render(result());
@@ -306,12 +404,27 @@ it('waits for the device before querying and shows the unsupported, failed and q
   results.set('scans:get', unsupportedScan);
   await view.rerender(result());
   expect(await screen.findByText('Update the app to identify this painting')).toBeOnTheScreen();
-  expect(screen.queryByLabelText('Title')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Update the app' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeDisabled();
+  expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
   await publish(failedScan);
   expect(await screen.findByText('Couldn’t identify this painting')).toBeOnTheScreen();
-  expect(screen.getByText('bad_features')).toBeOnTheScreen();
+  expect(screen.getByText('The photo couldn’t be read. Try scanning the painting again.')).toBeOnTheScreen();
+  expect(screen.queryByText('bad_features')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   await view.rerender(result('local-capture-9'));
-  expect(screen.getByText('Waiting for signal')).toBeOnTheScreen();
+  expect(await screen.findByText('Waiting for signal')).toBeOnTheScreen();
+  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c9.jpg' }]));
+});
+
+it('saves an unsupported scan anyway with a typed title and keeps its scan id', async () => {
+  results.set('scans:get', unsupportedScan);
+  await render(result());
+  await fireEvent.changeText(await screen.findByLabelText('Title'), 'Blue room');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
+  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue room', scanId: SCAN_ID, objectId: null, cropPath: 'crops/c1.jpg' });
+  await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: SCAN_ID, suggested: null })));
 });
 
 it('starts a fresh card when the same screen receives another scan id', async () => {

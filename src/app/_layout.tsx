@@ -35,6 +35,16 @@ export default function RootLayout() {
                 headerShown: false,
               }}
             />
+            <Stack.Screen
+              name="queue"
+              dangerouslySingular
+              options={{
+                presentation: 'formSheet',
+                sheetAllowedDetents: [0.5],
+                sheetGrabberVisible: true,
+                headerShown: false,
+              }}
+            />
           </Stack>
         </ThemeProvider>
       </ConvexAuthProvider>

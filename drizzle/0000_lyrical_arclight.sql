@@ -25,6 +25,7 @@ CREATE TABLE `pendingScans` (
 	`lastError` text,
 	`scanId` text,
 	`createdAt` integer NOT NULL,
+	`reviewedAt` integer,
 	FOREIGN KEY (`visitLocalId`) REFERENCES `visits`(`localId`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint

@@ -1,27 +1,37 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { QueueBadge } from './queue-badge';
+import type { PendingScanStatus } from '@/db/schema';
 
-let mockPending = 0;
+const mockPush = jest.fn();
+let mockStatuses: PendingScanStatus[] = [];
 
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
-jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: [] }) }));
+jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({
+  pending: mockStatuses.filter((status) => status === 'queued' || status === 'identifying').length,
+  items: mockStatuses.map((status) => ({ status })),
+}) }));
+
+beforeEach(() => mockPush.mockReset());
 
 it('stays hidden while nothing waits for signal', async () => {
-  mockPending = 0;
+  mockStatuses = [];
   const badge = await render(<QueueBadge />);
   expect(badge.toJSON()).toBeNull();
 });
 
-it('counts the captures waiting for signal', async () => {
-  mockPending = 2;
+it('counts every capture in the queue and opens it on tap', async () => {
+  mockStatuses = ['queued', 'failed', 'identified'];
   await render(<QueueBadge />);
-  expect(screen.getByLabelText('2 scans waiting for signal')).toBeOnTheScreen();
-  expect(screen.getByText('2')).toBeOnTheScreen();
+  expect(screen.getByText('3')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: '3 scans in queue' }));
+  expect(mockPush).toHaveBeenCalledWith('/queue');
 });
 
-it('reads naturally for a single capture', async () => {
-  mockPending = 1;
+it.each(['queued', 'failed', 'identified'] as const)('keeps a lone %s scan reachable', async (status) => {
+  mockStatuses = [status];
   await render(<QueueBadge />);
-  expect(screen.getByLabelText('1 scan waiting for signal')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: '1 scan in queue' }));
+  expect(mockPush).toHaveBeenCalledWith('/queue');
 });

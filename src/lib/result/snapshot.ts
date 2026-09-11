@@ -25,14 +25,15 @@ function optional(value: string): string | undefined {
 
 /**
  * The saved snapshot and, for a confident card only, the server's suggestion so the backend can count an
- * untouched save as a confirm (design §4.6). A soft or chosen runner-up never counts.
+ * untouched save as a confirm (design §4.6). A soft or chosen runner-up never counts, and a card without
+ * a result (queued or unsupported) has nothing to suggest.
  */
-export function buildSnapshot(draft: SnapshotDraft, view: ResultViewState): { snapshot: SnapshotFields; suggested: Suggestion | null } {
+export function buildSnapshot(draft: SnapshotDraft, view?: ResultViewState): { snapshot: SnapshotFields; suggested: Suggestion | null } {
   const snapshot: SnapshotFields = {
     title: draft.title.trim(), artist: draft.artist.trim(),
     date: optional(draft.date), medium: optional(draft.medium), institution: optional(draft.institution),
   };
-  const suggested = view.kind === 'confident' && view.primary
+  const suggested = view?.kind === 'confident' && view.primary
     ? { title: view.primary.title, artist: view.primary.artist }
     : null;
   return { snapshot, suggested };

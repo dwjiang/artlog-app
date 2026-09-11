@@ -57,7 +57,7 @@ jest.mock('@/lib/capture/use-capture', () => ({
   useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false, message: mockMessage, timings: mockTimings, clearMessage: mockClearMessage }),
 }));
 jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue(), useVenue: () => mockVenueView }));
-jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: [] }) }));
+jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: Array.from({ length: mockPending }, () => ({ status: 'queued' })) }) }));
 jest.mock('@/lib/capture/use-rect-detector', () => ({
   useRectDetector: (active: boolean) => {
     mockDetectorActive.push(active);
@@ -174,7 +174,7 @@ it('shows the museum pill and the waiting-for-signal badge over the preview', as
   await render(<ScanScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
   expect(mockPush).toHaveBeenCalledWith('/venue-picker');
-  expect(screen.getByLabelText('2 scans waiting for signal')).toBeOnTheScreen();
+  expect(screen.getByLabelText('2 scans in queue')).toBeOnTheScreen();
 });
 
 it('replaces the guidance with the retake banner until Retake is tapped', async () => {
