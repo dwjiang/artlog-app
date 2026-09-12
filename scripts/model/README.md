@@ -18,30 +18,37 @@ cd scripts/model
 uv sync                                          # once; Python 3.11 with the pinned torch/coremltools
 uv run pytest -q                                 # tiny-model contract tests
 uv run python export_coreml.py --out out/        # out/CRadioV3B.mlpackage, fakequant_state.pt, model-manifest.json
-./package-model.sh                               # xcrun coremlcompiler → out/CRadioV3B-<version>.zip; pins model-asset.json
 ```
 
 `model-manifest.json` records the model version, input/output names, the weight-file and
 package hashes and the tool versions. A faithful re-export reproduces
 `weightsSha256 = f6f6d2d8c75ed755718114cdbff2dcbf262527b5974c2eefa2916d8533c7b6a7`, the spike's
-int8 package byte for byte (verified 2026-09-10 with torch 2.7.0 / coremltools 9.0). The
+int8 weight file byte for byte (verified 2026-09-10 with torch 2.7.0 / coremltools 9.0). The
 `fakequant_state.pt` next to it is the PyTorch checkpoint with the phone's dequantized weights;
 plan 02.04's index build loads it so index vectors carry the same int8 rounding as the phone.
 
+For an index-only rebuild, copy `out/fakequant_state.pt` to
+`spikes/coreml-export/artifacts/fakequant_state.pt` at the repository root. Exporting is sufficient;
+leave the published `model-asset.json` pin unchanged.
+
+For a new release or a local compiled-asset test, run `./package-model.sh` from `scripts/model`.
+It compiles the model and creates `out/CRadioV3B-<version>.zip`. The ZIP includes a manifest with
+the export time and duration, so it has a new checksum even when the weight file matches.
 The model is **not committed**. `package-model.sh` writes `model-asset.json` with the release
 asset URL and its sha256; `npm run model:fetch` (also the `eas-build-pre-install` hook) downloads
 that zip, checks the hash and the `modelVersion` against `shared/model-version.json`, and unzips
 it into `modules/coreml-embed/ios/Models/` (ignored). Re-running is a no-op while the folder's
 `.asset-sha256` matches.
 
-GitHub release assets are private with this repository. The fetch uses the authenticated GitHub
-release-asset API, with `GH_TOKEN` (or `GITHUB_TOKEN`) from the shell/build environment; locally,
-it also accepts the existing `gh auth login` session. For EAS, set `GH_TOKEN` as a **secret** in
+The fetch uses the GitHub release-asset API. Public assets can be downloaded without credentials;
+when available, it uses `GH_TOKEN` (or `GITHUB_TOKEN`) from the shell/build environment or the
+existing `gh auth login` session. While this repository is private, authentication is required.
+For EAS builds of the private repository, set `GH_TOKEN` as a **secret** in
 each build environment you use, with a fine-grained GitHub token granting this repository
 **Contents: read**. EAS's GitHub integration does not supply this token to build scripts. The
 downloader needs only Node 22.13+ (already required by SDK 57) before dependency installation;
 `gh` is optional when a token is supplied. Run `npm run test:model-fetch` from the repository
-root for the authenticated-download and asset-install regression tests.
+root for the public/private download, symlinked CLI and asset-install regression tests.
 
 The [pinned model release](https://github.com/dwjiang/artlog-app/releases/tag/model-c-radiov3-b-int8-512-dinov2-v1)
 is published. Its archive matches `model-asset.json`; the pre-install hook was verified from an

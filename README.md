@@ -1,71 +1,284 @@
-# Welcome to your Expo app 👋
+# Artlog — an art identifier for museum-goers
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Point your iPhone at a painting and Artlog names it in about a second: title, artist, date,
+medium and institution, saved to a private collection tied to the visit where you found it.
+Identification is visual retrieval, not a language model guessing from pixels. The phone embeds
+the painting with NVIDIA's C-RADIOv3-B, one versioned index on Convex returns candidates, ORB
+descriptors and a homography verify them, and a small calibrator decides whether to say
+*confident*, *soft* or *unidentified*. When a work is not in the index, the app searches the
+museum's own site (with consent) or reads the wall label, verifies what it read against the
+museum's records or Wikidata and, with the visitor's consent, adds the work to a shared index so
+the next visitor gets an instant match. Nemotron on Nebius Token Factory writes the cited
+"about this work" text once per artwork; Tavily answers what is happening with the artist right
+now. A scan taken with no signal waits on the phone and is identified when the connection
+returns.
 
-## Get started
+Built for the Nebius × NVIDIA Global AI Hackathon. iOS only. Design:
+[docs/design/art-identifier.md](docs/design/art-identifier.md). Plans and status:
+[docs/plans/README.md](docs/plans/README.md).
 
-1. Install dependencies
+## Demo
 
-   ```bash
-   npm install
-   ```
+- **TestFlight public link:** _PLACEHOLDER — added by plan 06.01 once Beta App Review clears._
+- **Video (under 3 minutes, YouTube):** _PLACEHOLDER — outline in
+  [docs/hackathon/video-outline.md](docs/hackathon/video-outline.md)._
+- Hackathon deliverables: [feedback notes](docs/hackathon/feedback-notes.md),
+  [submission checklist](docs/hackathon/submission-checklist.md).
 
-2. Start the app
+The app opens to the camera with no account; anyone with the TestFlight build can scan within
+seconds.
 
-   ```bash
-   npx expo start
-   ```
+## Where NVIDIA and Nebius are used
 
-In the output, you'll find options to open the app in a
+| Component | Model / service | Code | Runs |
+|---|---|---|---|
+| Image embedding, every scan | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, 1,536-d output, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-v1`) | `modules/coreml-embed/`, export recipe in `scripts/model/` | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. The crop never leaves the phone |
+| Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build | `jobs/artlog_jobs/model.py`, `embed.py`, `drift_check.py` | On the operator's Mac (see below) |
+| Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
+| Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
+| Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
+| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([decision 004](docs/decisions/004-token-factory-models.md)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
+| Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output and thinking disabled; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
+| Nebius Serverless AI Jobs | Proven in spike 00.08: an L40S job, a lifecycle-managed scratch bucket and a service-account REST launch ([decision 008](docs/decisions/008-jobs-and-release-logistics.md)) | `spikes/nebius-jobs/` | **Not on any production path.** See the next paragraph |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+**Where the index was actually built.** The design planned the corpus build on a Nebius
+Serverless Job with an L40S. It ran instead on the operator's Mac (Apple M5 Pro, PyTorch on the
+MPS backend, fp16), shard by shard with the same fake-quantized weights the phone runs, because
+the Wikimedia Commons download sets the wall clock, not GPU time, and the Commons robot policy
+applies wherever the job runs ([jobs/README.md](jobs/README.md), "Index build"). No Nebius job
+has embedded, enriched or migrated the index; the only Nebius compute spent was the spike's three
+probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
+Convex, and what runs on Nebius is Token Factory, live, on every label read, every consented
+museum-site search, every moderation check and the first identification of every uncached
+artwork.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Tavily
 
-### Run a development build
+Every Tavily call is a live runtime call made while a visitor uses the app; there is no batch
+usage. All of them sit behind feature flags and a daily credit cap (`DAILY_TAVILY_CREDIT_CAP`,
+reserved atomically before each call), so identification itself never depends on Tavily.
 
-The app needs native modules that Expo Go cannot load, so run it in a
-[development build](https://docs.expo.dev/develop/development-builds/introduction/):
+| Call | Code | What it does |
+|---|---|---|
+| Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: one search scoped to the venue's own hosts, with the vision model's description of the painting as the query. Up to three object pages are fetched and the phone confirms a candidate's image against the scan by embedding and homography: text proposes, pixels decide. `FLAG_MUSEUM_SEARCH`, on by default |
+| Label verification | `convex/label.ts` | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default |
+| Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | On the first identification of an uncached artwork, results filtered by per-domain source scores (`shared/source-scores.json`) become sources Nemotron 3 Super must cite |
+| "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** per [decision 007](docs/decisions/007-tavily.md) |
 
-```bash
-npx expo prebuild --platform ios --clean && npx expo run:ios
+## Architecture
+
+```text
+                     ~20 KB per scan: vector + ORB descriptors, no pixels
+ iPhone (Expo dev client) ────────────────────────────────▶ Convex (the whole request path)
+   camera → subject crop → CoreML C-RADIOv3-B → ORB           identify: vector search → ORB/RANSAC → calibrator
+   venue table (SQLite, on device) · local collection         label · museumSearch · docent · rightNow actions
+   App Attest key · offline scan queue  ◀── scans ────────    promotion cron · sync · rate limits · spend caps
+                                          subscription             │                 │              │
+                                                                   ▼                 ▼              ▼
+                                                        Nebius Token Factory       Tavily      one page on the
+                                                        (Kimi, Nemotron)                       venue's own hosts
+
+ Mac, batch, runs to completion (jobs/):
+   seed venues → corpus metadata → download / drift check / embed → dedupe / hubs → push ──▶ Convex
 ```
 
-This generates the ignored `ios/` directory, builds with Xcode, installs the dev
-client on the Simulator and starts Metro. Afterwards `npm run ios` reopens the
-installed dev client without rebuilding. For a device build use
-`eas build --platform ios --profile development` (uses EAS build minutes; ask
-before running).
+## Run the app against the hosted backend
 
-## Get a fresh project
+You need macOS with Xcode 26, Node 22.13 or newer, and a physical iPhone on iOS 17 or later
+(scanning, the label flow and museum-site search need the camera).
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+git clone https://github.com/dwjiang/artlog-app.git && cd artlog-app
+npm ci
+cp .env.example .env.local
+# edit .env.local: EXPO_PUBLIC_CONVEX_URL=https://<PLACEHOLDER hosted production deployment>.convex.cloud
+npm run model:fetch                # the 112 MB CoreML model from the pinned GitHub release
+npx expo prebuild --platform ios --clean && npx expo run:ios --device
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+`npm run model:fetch` checks the archive's SHA-256 against `scripts/model/model-asset.json` and
+unpacks it into the ignored `modules/coreml-embed/ios/Models/`. While the repository is private
+the download needs GitHub authentication (`gh auth login`, or `GH_TOKEN` with Contents: read);
+once the repository is public it needs none. `npx expo run:ios --device` builds with Xcode,
+installs on the chosen iPhone and starts Metro; afterwards `npm run ios` reopens the installed
+build without rebuilding. Expo Go cannot load the native modules.
 
-### Other setup steps
+The hosted production deployment does not exist yet (plan 06.01 creates it), so the URL above is
+a placeholder. Scanning, saving, the label flow and museum-site search work from any build.
+Writes to the shared index (contributions, rejections, venue confirmations) are signed with App
+Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
+use the TestFlight build, or run your own backend.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Run your own backend
 
-## Learn more
+For the first setup, start at the repository root and remove `CONVEX_DEPLOYMENT`,
+`CONVEX_DEPLOY_KEY` and `CONVEX_URL` from the copied `.env.local`. Clear them from the shell
+too, then choose a cloud dev deployment when prompted. This lets the CLI select your backend
+and update the app's URL without placeholder credentials or a second URL variable interfering.
 
-To learn more about developing your project with Expo, look at the following resources:
+```sh
+unset CONVEX_DEPLOYMENT CONVEX_DEPLOY_KEY CONVEX_URL
+npx convex dev    # creates a dev deployment on your Convex account and writes
+                  # CONVEX_DEPLOYMENT and EXPO_PUBLIC_CONVEX_URL into .env.local
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Leave it running, or use `npx convex dev --once` to push and exit. Server-side settings are
+Convex environment variables, set with `npx convex env set NAME value`
+([.env.example](.env.example) lists them):
 
-## Join the community
+| Variable | What it does |
+|---|---|
+| `NEBIUS_API_KEY` | Token Factory key for the label flow, museum-site search, moderation, fact sheets and docent prose |
+| `LABEL_VL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs from decision 004: `moonshotai/Kimi-K2.6`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
+| `TAVILY_API_KEY` | Tavily key for the four calls above |
+| `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP` | Global daily spend caps; decisions 004 and 007 recommend 500 calls and 20 credits |
+| `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH`, `FLAG_RIGHT_NOW` | `on` / `off` kill switches; "Right now" defaults off |
+| `SUPPORTED_MODEL_VERSIONS` | Embedding versions `identify` accepts; an older client is told to update |
+| `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `APP_ATTEST_ALLOW_DEV` | App Attest for shared writes: `true` in production, `TEAMID.app.artlog.ios`, and whether Apple's development environment is accepted. Leave `APP_ATTEST_REQUIRED` unset on a personal dev deployment |
+| `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `APPLE_BUNDLE_ID` | Convex Auth keys (generate headlessly with jose) and the audience for Sign in with Apple tokens |
+| `CRAWLER_CONTACT`, `MODERATION_BLOCKLIST` | Contact address in the page fetcher's User-Agent; optional additions to the moderation blocklist |
 
-Join our community of developers creating universal apps.
+An empty deployment has no venues and no index. The Python jobs fill it
+([jobs/README.md](jobs/README.md)):
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Before running the jobs, add `CONVEX_URL` to `.env.local` with the same literal URL as
+`EXPO_PUBLIC_CONVEX_URL` written by the CLI. The token command below writes only the deploy key.
+
+```sh
+npx convex deployment token create artlog-jobs-local --deployment dev --save-env   # CONVEX_DEPLOY_KEY into .env.local
+cd jobs && uv sync
+uv run python -m artlog_jobs.smoke                                       # prints the torch device and live table counts
+uv run python -m artlog_jobs.seed_venues --countries US --out out/ --publish   # or --all for the full 42k-venue census
+cp out/venues.db ../assets/venues.db      # the app must ship the venue table exported from the deployment it talks to
+```
+
+Continue with the rebuild steps below. The model export and corpus metadata are required for
+both a 1,000-object pilot and the full index; the commands include every stage through import.
+
+## Rebuild the index from scratch
+
+After the backend and jobs setup above, start in `jobs/` on an Apple silicon Mac with `uv`
+installed. The commands below build and import a 1,000-object pilot. For the full corpus, omit
+`--limit 1000` in steps 4 and 5. If a pilot already exists, use a new `SCRATCH_DIR` and repeat
+step 3 before starting the full build: checkpoints cannot mix pilot and full runs.
+`jobs/README.md` has every flag, resume rule and the measured runs.
+
+1. **Export the model** ([scripts/model/README.md](scripts/model/README.md)). Recreates the
+   int8 weights and writes `fakequant_state.pt`, which gives the index the phone's rounding.
+   Exporting takes about 20 s after the 546 MB checkpoint download. From `jobs/`:
+
+   ```sh
+   cd ../scripts/model
+   uv sync
+   uv run python export_coreml.py --out out/
+   mkdir -p ../../spikes/coreml-export/artifacts
+   cp out/fakequant_state.pt ../../spikes/coreml-export/artifacts/fakequant_state.pt
+   cd ../../jobs
+   ```
+
+   This leaves the published asset pin unchanged. `package-model.sh` is for preparing a release
+   or testing a local compiled asset: it rewrites `model-asset.json`, and its ZIP includes a new
+   timestamped manifest even when the model weights match.
+2. **Seed venues** (plan 02.02), if not done above:
+   `uv run python -m artlog_jobs.seed_venues --all --out out/ --publish`, then
+   `cp out/venues.db ../assets/venues.db`. The full seed contains 42,452 museums and galleries
+   with coordinates and a website from Wikidata; an 8.6 MB SQLite the app bundles.
+3. **Corpus metadata** (02.03), from `jobs/`:
+
+   ```sh
+   uv run python -m artlog_jobs.sources.fetch --met --aic --aic-live
+   uv run python -m artlog_jobs.sources.fetch --wikidata
+   uv run python -m artlog_jobs.build_metadata --sources met,aic,wikidata
+   ```
+
+   About 405k artworks, 410k objects and 296k
+   placements with `rightsStatus` and `multiplicity`. The Met's per-object API at one request per
+   second takes about 90 minutes; the Wikidata census is 883 batched queries.
+4. **Download, drift-check, embed** (02.04):
+
+   ```sh
+   uv run python -m artlog_jobs.build_index --stage download,drift,embed --limit 1000
+   ```
+
+   Every build checks the job model against the committed iPhone reference (mean cosine 0.997,
+   min 0.993, thresholds 0.99 and 0.97). One shard of up to 10,000 images exists at a time
+   and is deleted once embedded; no image outlives the build. About 1.6 days of wall clock for the
+   full corpus's Commons images at the Wikimedia robot policy's rate (embedding runs at about 65 images/s on an
+   M5 Pro). Compute cost $0 locally; the design's $3–5 L40S estimate was never spent.
+5. **Dedupe, hubs, push** (02.05):
+
+   ```sh
+   uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push --limit 1000
+   ```
+
+   This creates the merged corpus and hub penalties, then imports that directory through
+   `convex/ingest.ts` at 250 vectors per batch (about 53 vector rows/s). The orchestrator supplies
+   the merged directory to the importer and keeps the pilot limit on the push.
+6. **Enrichment** (02.07, not built yet): the batch fact-sheet and docent job. Today fact sheets
+   and prose are generated on the first identification of each artwork and cached
+   (`docent.ensure`); `enrich.claimBatch` is the hook the job will use.
+
+Measured per-call Token Factory costs at list prices (decision 004): Kimi label read about
+$0.002, Super fact sheet about $0.0012, Lightning docent call about $0.00007, Lightning
+moderation call about $0.00001. Tavily: one credit per search. Nebius compute for the build: $0.
+
+## Data sources and terms
+
+| Source | Use and terms |
+|---|---|
+| The Met Open Access | CC0. Paintings marked public domain with an API image URL; thumbnails hotlinked from the Met's CDN, never copied |
+| Art Institute of Chicago API | Metadata only (CC0 fields; `description` is CC BY 4.0), including current on-view placements. The IIIF image host answers identified requests with 403, so no AIC image is embedded or shown |
+| Wikidata and Wikimedia Commons | Wikidata is CC0; Commons files carry their own rights. Paintings with a `P18` image are embedded from standard thumbnail renditions fetched under the Wikimedia robot policy (two connections, at most 25 Mbps, never an original) and deleted after embedding. Commons thumbnails are hotlinked only for artworks the rights rule classifies as public domain |
+| Museum websites | Never crawled. One page is fetched on a visitor's request (a QR code, an accession lookup, a search candidate), only on the venue's own hosts, with an identified User-Agent, per-device rate limits and the daily cap; the per-museum opt-out registry is checked before every fetch. Nothing fetched is stored |
+| WikiArt (`huggan/wikiart`) | Not used: unknown license limited to non-commercial research, and no stable artwork identities |
+| Tavily, Convex, Nebius Token Factory | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local` |
+
+No museum image is ever stored. The rights rule and the evidence behind each row: design §4.2
+and §5.5, [decision 005](docs/decisions/005-data-sources.md).
+
+## Privacy
+
+- **A scan sends no pixels.** The phone crops, embeds and extracts ORB descriptors itself and
+  sends a 1,536-float vector, the descriptors and keypoints, the model version, the venue, the
+  visit and the capture time (about 20 KB). None of it can be turned back into the photo.
+- **Seeded venue lookup runs on the phone.** After a one-shot While Using location fix, the
+  app finds nearby rows in its bundled venue table and sends the selected venue id to Convex.
+  If there is no nearby match, it sends a search area centered on the device's coordinates to
+  Apple's [MapKit search service](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/EnablingSearch/EnablingSearch.html).
+  Confirming a returned place sends that place's name, coordinates and optional website to
+  Convex to register the venue; the device's GPS fix is not sent to Convex.
+- **Three images can leave the phone, each at the visitor's request:** the label photo (read by
+  the vision model, not retained), the artwork crop for museum-site search (after a one-time
+  consent that Settings can revoke; not stored), and a contribution crop of at most 256 px the
+  visitor chooses to share, the only image the system keeps, as the card thumbnail for the next
+  visitor.
+- **Identity is the device:** an App Attest key Apple binds to one install on one iPhone.
+  Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
+  device and stay private until promoted. Sign in with Apple is optional and only syncs the
+  collection between devices; an account is never required to scan, save or contribute.
+- **The collection is local-first**, in SQLite on the phone; photos stay on the phone.
+
+## Development
+
+Run these commands from the repository root:
+
+```sh
+npm run typecheck                                    # tsc --noEmit
+npm run lint                                         # expo lint (ESLint)
+npm test                                             # Jest (src/, modules/, shared/), Vitest + convex-test (convex/), model-fetch tests
+(cd jobs && uv run pytest -q && uv run ruff check .)   # Python jobs
+npx convex dev --once                                # push backend functions to your deployment
+npx convex codegen                                   # after a schema or function-signature change; commit convex/_generated/
+npm run ios                                          # reopen the installed dev client on a Simulator or device
+```
+
+Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
+`src/db/`), `modules/` (native modules `vision-rect`, `coreml-embed`, `poi-search`), `convex/`
+(backend, pure libraries under `convex/lib/`), `jobs/` (Python index jobs), `shared/` (contracts
+shared by phone, backend and jobs), `scripts/model/` (CoreML export), `spikes/` (kickoff
+investigations behind `docs/decisions/`), `docs/` (design, decisions, plans, hackathon
+deliverables). Agent guide: [AGENTS.md](AGENTS.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
