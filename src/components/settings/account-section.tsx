@@ -10,10 +10,10 @@ export function AccountSection() {
   const { account, available, busy, error, ready, signInWithApple, signOut, deleteAccount } = useAccount();
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold">Your account</ThemedText>
       {account?.linked ? <>
-        <ThemedText>{account.email ? `Signed in as ${account.email}` : 'Signed in with Apple'}</ThemedText>
-        <ThemedText themeColor="textSecondary">Syncing across {account.deviceCount} {account.deviceCount === 1 ? 'device' : 'devices'}. Photos stay on the phone that took them.</ThemedText>
+        <ThemedText>Signed in · {account.deviceCount} {account.deviceCount === 1 ? 'device' : 'devices'}</ThemedText>
+        {account.email && <ThemedText>{account.email}</ThemedText>}
+        <ThemedText themeColor="textSecondary">Photos stay on the phone that took them.</ThemedText>
         {!busy && <Host matchContents colorScheme="light">
           <VStack alignment="leading" spacing={Spacing.two}>
             <Button label="Sign out" onPress={() => { void signOut(); }} />
@@ -24,7 +24,7 @@ export function AccountSection() {
           </VStack>
         </Host>}
       </> : <>
-        <ThemedText themeColor="textSecondary">Sign in with Apple to sync your collection. Your saved works and photos stay on this phone when you sign out.</ThemedText>
+        <ThemedText themeColor="textSecondary">Sign in with Apple to sync across devices. Your saved works and photos stay on this phone when you sign out.</ThemedText>
         {available && ready && !busy && <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}

@@ -267,7 +267,7 @@ export default defineSchema({
     .index('by_cropStorageId', ['cropStorageId'])
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
-    .index('by_promotedObjectId', ['promotedObjectId'])
+    .index('by_promotedObject_device', ['promotedObjectId', 'deviceId'])
     .index('by_venue_status', ['venueId', 'status']),
 
   feedback: defineTable({

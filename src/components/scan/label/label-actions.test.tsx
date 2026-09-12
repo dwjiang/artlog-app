@@ -16,6 +16,9 @@ jest.mock('@expo/ui', () => {
   };
 });
 
+jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
+jest.mock('@/db/client', () => ({ db: jest.requireActual('../../../db/test-db').createTestDatabase() }));
+
 const handlers = { onSave: jest.fn(), onShare: jest.fn(), onViewSaved: jest.fn() };
 const contributionId = 'contrib-1' as Id<'contributions'>;
 beforeEach(() => jest.clearAllMocks());

@@ -20,3 +20,7 @@ export async function setNote(savedLocalId: string, text: string, updatedAt = Da
 export async function getNote(savedLocalId: string): Promise<Note | undefined> {
   return db.select().from(notes).where(eq(notes.savedLocalId, savedLocalId)).get();
 }
+
+export function listNotes() {
+  return db.select().from(notes);
+}

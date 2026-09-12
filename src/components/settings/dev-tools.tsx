@@ -1,4 +1,4 @@
-import { Button, Host } from '@expo/ui';
+import { Button, Host, Switch } from '@expo/ui';
 import { useMutation } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -10,12 +10,15 @@ import { signPayload } from '@/lib/attested-write';
 import { embedder } from '@/lib/embed/embedder';
 import { runCalibrationExport } from '@/lib/embed/run-calibration-export';
 import { runOrbParityCheck } from '@/lib/orb/run-parity-check';
+import { useDevTimings } from '@/lib/settings/use-dev-timings';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 export function DevTools({ attested }: { attested: boolean }) {
+  const timings = useDevTimings();
+  const [savingTimings, setSavingTimings] = useState(false);
   const assertSmoke = useMutation(api.devices.assertSmoke);
   const [result, setResult] = useState<string>();
   const [running, setRunning] = useState(false);
@@ -102,6 +105,13 @@ export function DevTools({ attested }: { attested: boolean }) {
 
   return (
     <>
+      <Host matchContents colorScheme="light">
+        <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
+          onValueChange={(value) => {
+            setSavingTimings(true);
+            void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
+          }} />
+      </Host>
       <ThemedText themeColor="textSecondary">
         {supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}
       </ThemedText>
