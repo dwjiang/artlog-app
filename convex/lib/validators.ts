@@ -88,6 +88,7 @@ export type EvidenceKind = Infer<typeof evidenceKind>;
 export const contributionRejectedReason = v.union(
   v.literal('duplicate'),
   v.literal('device_reverted'),
+  v.literal('withdrawn'),
   v.literal('object_reverted')
 );
 export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;

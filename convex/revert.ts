@@ -12,7 +12,7 @@ const CHUNK_BYTES = 2 * 1024 * 1024;
 const cursorArg = v.union(v.string(), v.null());
 const cleanupPhase = v.union(v.literal('vectors'), v.literal('descriptors'), v.literal('placements'), v.literal('contributions'));
 
-async function beginRevert(ctx: MutationCtx, object: Doc<'objects'>, reason: string): Promise<void> {
+export async function beginRevert(ctx: MutationCtx, object: Doc<'objects'>, reason: string): Promise<void> {
   if (object.reverted) return;
   await ctx.db.patch(object._id, {
     reverted: true, revertedReason: reason, thumbnailStorageId: undefined,
@@ -60,7 +60,7 @@ export const cleanupObjectPage = internalMutation({
         return page.isDone ? null : page.continueCursor;
       }
       case 'contributions': {
-        const page = await ctx.db.query('contributions').withIndex('by_promotedObjectId', (q) => q.eq('promotedObjectId', objectId)).paginate(options);
+        const page = await ctx.db.query('contributions').withIndex('by_promotedObject_device', (q) => q.eq('promotedObjectId', objectId)).paginate(options);
         for (const row of page.page) {
           const missingCrop = row.cropStorageId && !await ctx.db.system.get('_storage', row.cropStorageId);
           await ctx.db.patch(row._id, {

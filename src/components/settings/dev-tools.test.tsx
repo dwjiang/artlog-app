@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
+import { getSetting, setSetting } from '@/db/repos/settings';
+import { DevTimings } from '@/components/scan/dev-timings';
 import { DevTools } from './dev-tools';
 
 const mockSignPayload = jest.fn();
@@ -9,17 +11,9 @@ const mockWarmUp = jest.fn();
 const mockRunCalibrationExport = jest.fn();
 const mockRunOrbParityCheck = jest.fn();
 
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}>
-        <Text>{label}</Text>
-      </Pressable>
-    ),
-  };
-});
+jest.mock('@expo/ui');
+jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
+jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('convex/react', () => ({ useMutation: () => mockAssertSmoke }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/app-attest', () => ({ getAppAttest: () => mockGetAppAttest() }));
@@ -127,4 +121,16 @@ it('shows ORB parity errors and makes the check available again', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Check ORB parity' }));
   expect(screen.getByText('The ORB parity fixture is not bundled')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Check ORB parity' })).toBeEnabled();
+});
+
+it('persists the timings switch and hides capture timings when returning to the scan', async () => {
+  await setSetting('dev-timings', 'true');
+  const view = await render(<DevTools attested />);
+  const toggle = await screen.findByRole('switch', { name: 'Show capture timings' });
+  expect(toggle).toBeChecked();
+  await fireEvent.press(toggle);
+  expect(await getSetting('dev-timings')).toBe('false');
+  await view.unmount();
+  const scan = await render(<DevTimings timings={{ total: 200, warp: 100 }} />);
+  expect(scan.toJSON()).toBeNull();
 });

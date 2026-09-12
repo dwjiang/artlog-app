@@ -54,10 +54,10 @@ RTL tests for sections; pure test for the export; device check for share and sig
 
 ## Done criteria
 
-- [ ] `npm run test:app` ≥ 8 new; tsc/lint; `npm run test:convex` covers `withdraw`
-- [ ] Placeholder link gone; health line lives in About
-- [ ] Museum-search consent control and persisted revocation survive the Settings redesign
-- [ ] `docs/plans/README.md` updated
+- [x] `npm run test:app` ≥ 8 new; tsc/lint; `npm run test:convex` covers `withdraw`
+- [x] Placeholder link gone; health line lives in About
+- [x] Museum-search consent control and persisted revocation survive the Settings redesign
+- [x] `docs/plans/README.md` updated
 
 ## STOP conditions
 

@@ -5,6 +5,7 @@ import { ContributeResult } from './contribute-result';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { ContributionOutcome } from '@/lib/label/contribute';
+import { useSharingDefault } from '@/lib/settings/use-sharing-default';
 
 export const SHARE_BUTTON = 'Add to the shared index';
 
@@ -22,10 +23,10 @@ export type LabelActionsProps = {
   onViewSaved: () => void;
 };
 
-/** Save follows the result card's path; sharing is always offered because the consent sheet is the opt-in (design §4.5). */
 export function LabelActions({
   canSave, canShare, saving, sharing, savedId, shared, saveError, shareError, onSave, onShare, onViewSaved,
 }: LabelActionsProps) {
+  const offerSharing = useSharingDefault();
   return (
     <View style={styles.bar}>
       {savedId ? (
@@ -43,7 +44,7 @@ export function LabelActions({
       )}
       {shared ? (
         <ContributeResult result={shared} />
-      ) : (
+      ) : offerSharing ? (
         <>
           <Host matchContents colorScheme="light">
             <Button variant="outlined" label={sharing ? 'Sharing…' : SHARE_BUTTON} disabled={!canShare || sharing} onPress={onShare} />
@@ -51,7 +52,7 @@ export function LabelActions({
           {!canShare && <ThemedText type="small" themeColor="textSecondary">A title and an artist are needed to share.</ThemedText>}
           {shareError && <ThemedText type="small">{shareError}</ThemedText>}
         </>
-      )}
+      ) : null}
     </View>
   );
 }
