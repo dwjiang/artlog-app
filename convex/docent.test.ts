@@ -36,6 +36,8 @@ const museumEntity = { id: 'Q160236', type: 'item', labels: { en: { language: 'e
 const searchResponse = {
   results: [
     { url: SEARCH_HIT, title: 'Wheat Field with Cypresses', content: 'The Met acquired the painting in 1993.', score: 0.9 },
+    { url: 'https://www.metmuseum.org/art/collection/search/99999', title: 'Wheat Field with Cypresses', content: 'Another version was made in a different year.', score: 0.99 },
+    { url: 'https://www.metmuseum.org/art/collection/search/caf%E9', title: 'Latin-1 escape', content: 'Malformed percent escape must not abort the action.', score: 0.9 },
     { url: 'https://www.pinterest.com/pin/1', title: 'Wheat field', content: 'Pinned image', score: 0.95 },
     { url: 'https://randomblog.example/vangogh', title: 'Blog', content: 'My thoughts', score: 0.8 },
     { url: 'https://store.metmuseum.org/van-gogh-wheat-field-tee', title: 'Van Gogh tee', content: 'Reproduced on this comfy tee.', score: 0.9 },
@@ -125,7 +127,7 @@ async function fixture(options: { pageUrl?: string | null; wikidataId?: string |
     name: 'The Metropolitan Museum of Art', website: 'https://www.metmuseum.org/', optOut: options.optOut ?? false,
   }));
   const work = await t.run((ctx) => seedArtworkWithObject(ctx, {
-    artwork: { title: 'Wheat Field with Cypresses', artist: 'Vincent van Gogh', wikidataId: options.wikidataId === null ? undefined : options.wikidataId ?? 'Q18689458' },
+    artwork: { title: 'Wheat Field with Cypresses', artist: 'Vincent van Gogh', date: '1889', wikidataId: options.wikidataId === null ? undefined : options.wikidataId ?? 'Q18689458' },
     object: { ownerId: museumId, pageUrl: options.pageUrl === null ? undefined : options.pageUrl ?? PAGE },
   }));
   const artwork = () => t.run((ctx) => ctx.db.get(work.artworkId));
@@ -163,7 +165,10 @@ describe('docent.ensure', () => {
     expect(search.include_domains).not.toContain('pinterest.com');
     const [sheet, docent] = bodies(TOKEN_FACTORY);
     expect(sheet).toMatchObject({ model: FACT_SHEET_MODEL, temperature: 0, max_tokens: 4096, chat_template_kwargs: { enable_thinking: false } });
-    const input = JSON.parse(sheet.messages[1].content).input as { url: string; label: string; score: number; text: string }[];
+    expect(JSON.parse(sheet.messages[1].content).input.target).toEqual({
+      title: 'Wheat Field with Cypresses', artist: 'Vincent van Gogh', date: '1889', wikidataId: 'Q18689458',
+    });
+    const input = JSON.parse(sheet.messages[1].content).input.sources as { url: string; label: string; score: number; text: string }[];
     expect(input.map(({ url, label, score }) => ({ url, label, score }))).toEqual([
       { url: PAGE, label: 'The Metropolitan Museum of Art', score: 1 },
       { url: SEARCH_HIT, label: 'metmuseum.org', score: 1 },
@@ -215,13 +220,13 @@ describe('docent.ensure', () => {
     everything();
     await offHost.ensure();
     expect(calls('https://mirror.example')).toEqual([]);
-    expect((await offHost.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([SEARCH_HIT, WIKIDATA_PAGE]);
+    expect((await offHost.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([WIKIDATA_PAGE]);
 
     fetchMock.mockClear();
     const optedOut = await fixture({ optOut: true });
     await optedOut.ensure();
     expect(calls(PAGE)).toEqual([]);
-    expect((await optedOut.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([SEARCH_HIT, WIKIDATA_PAGE]);
+    expect((await optedOut.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([WIKIDATA_PAGE]);
   });
 
   it('caches an empty sheet when no admissible source exists, but retries later after fetch failures', async () => {

@@ -1,7 +1,7 @@
 import { type Infer, v } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
-import { internalMutation, type MutationCtx } from './_generated/server';
+import { internalMutation, internalQuery, type QueryCtx } from './_generated/server';
 import { currentPlacement } from './lib/placements';
 import schema from './schema';
 
@@ -18,7 +18,7 @@ function claimable(artwork: Doc<'artworks'>, now: number): boolean {
     (artwork.enrichClaimedAt === undefined || artwork.enrichClaimedAt < now - STALE_CLAIM_MS);
 }
 
-async function onView(ctx: MutationCtx, artworkId: Id<'artworks'>, now: number): Promise<boolean> {
+async function onView(ctx: QueryCtx, artworkId: Id<'artworks'>, now: number): Promise<boolean> {
   for await (const object of ctx.db.query('objects').withIndex('by_artworkId', (q) => q.eq('artworkId', artworkId))) {
     if (object.reverted || object.mergedInto) continue;
     let current: Doc<'placements'> | null = null;
@@ -30,41 +30,71 @@ async function onView(ctx: MutationCtx, artworkId: Id<'artworks'>, now: number):
   return false;
 }
 
-// One bounded page per transaction. Empty pages still advance `after`; null completes the sweep.
-// Contributions are examined before on-view works. Native cursors preserve ties in creation time.
-export const claimBatch = internalMutation({
-  args: { limit: v.number(), after: v.optional(batchCursor) },
-  returns: v.object({ artworks: v.array(schema.doc('artworks')), after: v.union(batchCursor, v.null()) }),
-  handler: async (ctx, args): Promise<{ artworks: Doc<'artworks'>[]; after: BatchCursor | null }> => {
-    const limit = Math.max(1, Math.min(MAX_LIMIT, Math.floor(args.limit)));
-    const after = args.after ?? { phase: 'contributions', cursor: null };
-    const now = Date.now();
-    const claimed: Doc<'artworks'>[] = [];
-    const take = async (artwork: Doc<'artworks'>) => {
-      const fields = { enrichClaimedAt: now, enrichGeneration: (artwork.enrichGeneration ?? 0) + 1 };
-      await ctx.db.patch(artwork._id, fields);
-      claimed.push({ ...artwork, ...fields });
-    };
-    if (after.phase === 'contributions') {
-      const page = await ctx.db.query('objects').withIndex('by_source', (q) => q.eq('source', 'user'))
-        .paginate({ cursor: after.cursor, numItems: limit, maximumBytesRead: 1024 * 1024 });
-      for (const object of page.page) {
-        if (object.reverted || object.mergedInto) continue;
-        const artwork = await ctx.db.get(object.artworkId);
-        if (artwork && claimable(artwork, now)) await take(artwork);
-      }
-      return {
-        artworks: claimed,
-        after: page.isDone ? { phase: 'artworks', cursor: null } : { phase: 'contributions', cursor: page.continueCursor },
-      };
-    }
-    const page = await ctx.db.query('artworks')
-      .withIndex('by_factSheetUpdatedAt', (q) => q.eq('factSheetUpdatedAt', undefined))
+const pageArgs = { limit: v.number(), after: v.optional(batchCursor) };
+const pageResult = v.object({ artworks: v.array(schema.doc('artworks')), after: v.union(batchCursor, v.null()) });
+
+async function pendingPage(
+  ctx: QueryCtx, args: { limit: number; after?: BatchCursor },
+): Promise<{ artworks: Doc<'artworks'>[]; after: BatchCursor | null }> {
+  const limit = Math.max(1, Math.min(MAX_LIMIT, Math.floor(args.limit)));
+  const after = args.after ?? { phase: 'contributions', cursor: null };
+  const now = Date.now();
+  const artworks: Doc<'artworks'>[] = [];
+  if (after.phase === 'contributions') {
+    const page = await ctx.db.query('objects').withIndex('by_source', (q) => q.eq('source', 'user'))
       .paginate({ cursor: after.cursor, numItems: limit, maximumBytesRead: 1024 * 1024 });
-    for (const artwork of page.page) {
-      if (claimable(artwork, now) && await onView(ctx, artwork._id, now)) await take(artwork);
+    const seen = new Set<Id<'artworks'>>();
+    for (const object of page.page) {
+      if (object.reverted || object.mergedInto || seen.has(object.artworkId)) continue;
+      seen.add(object.artworkId);
+      const artwork = await ctx.db.get(object.artworkId);
+      if (artwork && claimable(artwork, now)) artworks.push(artwork);
     }
-    return { artworks: claimed, after: page.isDone ? null : { phase: 'artworks', cursor: page.continueCursor } };
+    return {
+      artworks,
+      after: page.isDone ? { phase: 'artworks', cursor: null } : { phase: 'contributions', cursor: page.continueCursor },
+    };
+  }
+  const page = await ctx.db.query('artworks')
+    .withIndex('by_factSheetUpdatedAt', (q) => q.eq('factSheetUpdatedAt', undefined))
+    .paginate({ cursor: after.cursor, numItems: limit, maximumBytesRead: 1024 * 1024 });
+  for (const artwork of page.page) {
+    if (claimable(artwork, now) && await onView(ctx, artwork._id, now)) artworks.push(artwork);
+  }
+  return { artworks, after: page.isDone ? null : { phase: 'artworks', cursor: page.continueCursor } };
+}
+
+// Empty pages still advance `after`; null completes the sweep. Contributions precede on-view works.
+export const claimBatch = internalMutation({
+  args: pageArgs,
+  returns: pageResult,
+  handler: async (ctx, args) => {
+    const page = await pendingPage(ctx, args);
+    const artworks: Doc<'artworks'>[] = [];
+    for (const artwork of page.artworks) {
+      const fields = { enrichClaimedAt: Date.now(), enrichGeneration: (artwork.enrichGeneration ?? 0) + 1 };
+      await ctx.db.patch(artwork._id, fields);
+      artworks.push({ ...artwork, ...fields });
+    }
+    return { artworks, after: page.after };
+  },
+});
+
+export const previewBatch = internalQuery({
+  args: pageArgs,
+  returns: pageResult,
+  handler: pendingPage,
+});
+
+// Corpus keys can identify either a canonical artwork or one of its physical objects.
+export const lookup = internalQuery({
+  args: { key: v.string() },
+  returns: v.union(schema.doc('artworks'), v.null()),
+  handler: async (ctx, { key }) => {
+    const artwork = await ctx.db.query('artworks').withIndex('by_key', (q) => q.eq('key', key)).unique();
+    if (artwork) return artwork;
+    const object = await ctx.db.query('objects').withIndex('by_key', (q) => q.eq('key', key)).unique();
+    return object && !object.reverted && !object.mergedInto ? ctx.db.get(object.artworkId) : null;
   },
 });
 

@@ -208,8 +208,15 @@ class PoliteClient:
         *,
         headers: Mapping[str, str] | None = None,
         limiter: BandwidthLimiter | None = None,
+        allowed_hosts: frozenset[str] | None = None,
     ) -> httpx.Response:
-        return self._get(url, headers=headers, check_robots=self.robots_enabled, limiter=limiter)
+        return self._get(
+            url,
+            headers=headers,
+            check_robots=self.robots_enabled,
+            limiter=limiter,
+            allowed_hosts=allowed_hosts,
+        )
 
     def _get(
         self,
@@ -218,11 +225,19 @@ class PoliteClient:
         headers: Mapping[str, str] | None = None,
         check_robots: bool,
         limiter: BandwidthLimiter | None = None,
+        allowed_hosts: frozenset[str] | None = None,
     ) -> httpx.Response:
         request = self._http.build_request("GET", url, headers=headers)
         history: list[httpx.Response] = []
         for _ in range(self._http.max_redirects + 1):
             url = str(request.url)
+            if allowed_hosts is not None:
+                host = (request.url.host or "").lower().rstrip(".").removeprefix("www.")
+                # Subdomains count, as in convex/lib/venueFetch.ts hostAllowed.
+                if request.url.scheme != "https" or not any(
+                    host == allowed or host.endswith("." + allowed) for allowed in allowed_hosts
+                ):
+                    raise ValueError(f"{url} is outside the permitted source hosts")
             if check_robots and not self.allowed(url):
                 raise RobotsDisallowed(url)
             cached = self._cache.get(url)

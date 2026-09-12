@@ -109,3 +109,15 @@ describe('enrich.claimBatch', () => {
     expect(claimed(await sweep(t, 100, first.after!))).toEqual(expected);
   });
 });
+
+it('previews pending work without claims or generations and resolves object keys', async () => {
+  const { t, ids } = await fixture();
+  const page = await t.query(internal.enrich.previewBatch, { limit: 100 });
+  expect(claimed(page.artworks)).toEqual([ids.contribution, ids.staleClaim]);
+  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichGeneration).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichClaimedAt).toBeUndefined();
+  const object = await t.run((ctx) => ctx.db.query('objects')
+    .withIndex('by_artworkId', (q) => q.eq('artworkId', ids.contribution)).first());
+  expect((await t.query(internal.enrich.lookup, { key: object!.key }))?._id).toBe(ids.contribution);
+  expect(await t.query(internal.enrich.lookup, { key: 'missing' })).toBeNull();
+});

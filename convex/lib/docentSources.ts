@@ -62,6 +62,20 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
   return lines.join('\n');
 }
 
+function sourceIdentity(value: string): string {
+  const url = new URL(value);
+  const query = [...url.searchParams.entries()]
+    .filter(([key]) => !key.startsWith('utm_') && !['lang', 'fbclid', 'gclid'].includes(key)).sort();
+  const suffix = new URLSearchParams(query).toString();
+  let path = url.pathname;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Legacy museum links carry non-UTF-8 escapes; the raw path still identifies the page.
+  }
+  return `${bareHost(value)}${path.replace(/ /g, '_').replace(/\/$/, '')}${suffix ? `?${suffix}` : ''}`;
+}
+
 // Design §4.8: the owner's collection page, Wikidata, and score-filtered search results. Fetch errors
 // are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
@@ -92,9 +106,15 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     includeDomains: admissibleDomains(), maxResults: SEARCH_RESULTS,
   });
   if (!response) failures++;
+  const anchors = new Set([
+    ...(input.pageUrl ? [sourceIdentity(input.pageUrl)] : []),
+    ...(input.artwork.wikidataId ? [sourceIdentity(`https://www.wikidata.org/wiki/${input.artwork.wikidataId}`)] : []),
+  ]);
   for (const result of response?.results ?? []) {
     const score = sourceScore(result.url);
     if (score === null || !result.content.trim()) continue;
+    // A trusted domain can describe another work with the same title; require the known identity.
+    if (anchors.size && !anchors.has(sourceIdentity(result.url))) continue;
     sources.push({ url: result.url, label: bareHost(result.url), score, text: `${result.title}\n${result.content}`.trim() });
   }
   return { sources: sources.sort((a, b) => b.score - a.score), failures };

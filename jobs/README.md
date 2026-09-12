@@ -825,6 +825,122 @@ Opt-out cleanup finishes the move rollbacks before marking the request applied.
 The original review decision remains recorded, with `revertedAt` marking a
 revoked move.
 
+## Enrichment (02.07)
+
+`enrich.run` builds source-linked fact sheets with Super and validates Lightning
+sentences against the sheet before writing `docent.en`. Set `NEBIUS_API_KEY`,
+`TAVILY_API_KEY`, `FACT_SHEET_MODEL`, and `DOCENT_MODEL` in the root `.env.local`
+or process environment, alongside the existing Convex jobs credentials. Model
+IDs are required; decision 004 selects `nvidia/nemotron-3-super-120b-a12b` and
+`nvidia/Nemotron-3_5-Lightning`. The same model settings must be configured on
+Convex for the cache-miss action.
+
+```sh
+# From the repo root: shared dev can be replaced by another workspace's push.
+npx convex dev --once
+cd jobs
+uv run python -m artlog_jobs.enrich.run --artwork met:436535 --dry-run
+uv run python -m artlog_jobs.enrich.run --budget 200 --batch 20
+uv run pytest -q artlog_jobs/enrich
+uv run ruff check . && uv run ruff format --check .
+# From the repo root:
+npx vitest run convex/lib/docentValidator
+```
+
+`--budget` limits attempted artworks, including failures; `--batch` is a page
+size from 1 to 100. Contributions are visited before on-view works. Empty pages
+advance the cursor; only a null cursor ends the sweep. `--artwork` accepts an
+artwork key or an object's corpus key. Existing fact sheets can be reused for
+sentence-only regeneration. Review-blocked artworks are never overwritten.
+
+`--dry-run` leaves artworks and claims untouched and prints the complete sources,
+fact sheet, sentences, and usage as JSON Lines. **It still spends provider usage
+and reserves that usage in Convex.** This is the exception to the draft plan's
+“writes nothing”: paid previews must obey the same shared cap as normal runs.
+Redirect stdout to a local file for review; stderr contains progress and the
+final summary. The summary includes failures, superseded writes, claim-release
+failures, validator counts, schema fallbacks, and parse failures.
+
+Both daily caps are checked, and each provider request reserves one call/credit
+atomically before dispatch. Reservations already record spend, so the worker
+never additionally calls `spend.record`. Tavily's reported credits are reconciled
+when they differ from the basic-search reservation. Paid calls and non-idempotent
+Convex operations are not automatically retried; ambiguous timeouts retain their
+reservation. The worker stops at a cap (exit 2), and releases unstarted/failed
+claims using their original generation. Failed releases are logged and expire
+after an hour. Rejected writes are never retried with another generation.
+
+The first 20 attempted artworks trigger a stop if more than 40% of generated
+sentences are dropped; the check continues for longer runs. Inspect the summary
+before another run. Model HTTP errors, malformed JSON, and truncation leave the
+artwork retryable. Only an explicit Super `json_schema` rejection enables
+`json_object` with a `facts` wrapper and the same strict local field validation;
+`parseFailures / modelResponses` reports its parse-failure rate.
+
+Search results use `shared/source-scores.json`, with excluded/low-score domains
+and museum merchandise removed. The owner's page is canonical at score 1 once it
+passes the host check, as in the Convex action: owner URLs are upgraded to HTTPS
+and checked against the owner's site hosts before every redirect. HTML boilerplate
+is stripped and each source is capped at 6,000 characters. Wikidata entity
+documents supply labels, dates, material, dimensions, collection/location,
+accession, qualified copyright statements, and the lead of the English Wikipedia
+sitelink's article when one exists (the plan's REST summary endpoint sits under
+Wikipedia's robots-disallowed `/api/` prefix, which `PoliteClient` honours).
+Failed label lookups do not discard other entity facts. Search uses eight basic
+results. When an owner page or Wikidata entity identifies
+the work, search results must match those canonical URLs (or its English
+Wikipedia sitelink). Domain trust alone did not prevent different *Bathers*
+paintings from being mixed during the live review. Unanchored works still use
+score-filtered search with the supplied title/artist identity.
+
+The Python and Convex prompts are versioned together as `docent-v3`. Fact
+extraction receives `{ input: { target, sources }, schema }`; the target's title,
+artist, date and Wikidata ID disambiguate similarly named works. It supplies
+identity, not additional evidence. Docent generation retains `{ input: facts,
+schema }`. The v1 preview incorrectly mixed the Met's 1887 *Sunflowers* with the
+later Arles series; v3 excludes other versions, ambiguous claims, and transient
+on-view information. The fact schema stays aligned with the evaluated model
+schema, and source labels/scores always come from the input sources. Python and
+TypeScript share `shared/fixtures/docent-validator.json`, including ECMAScript
+whitespace and UTF-16 character-limit cases.
+
+Cost logs estimate model tokens at decision 004's prices: Super $0.30/$0.90 and
+Lightning $0.06/$0.24 per million input/output tokens. They exclude Tavily charges
+and unreported token usage; review these rates when changing model settings.
+
+### Dev verification, 2026-09-11
+
+Shared dev (`usable-owl-256`) initially contained one cached artwork and no
+placements, so the verification imported 20 existing corpus records with on-view
+feed placements (four each by Van Gogh, Monet, Degas, Cézanne, and Renoir). The
+final worker reached **15/20 enriched artworks** before `spend.status` reported
+Tavily **20/20**. All 15 final sheets and sentences were read back and matched
+the generated output; all five unfinished claims were released. The cap was not
+raised. Completing the remaining five is still required for the plan's live gate.
+
+The final generations produced 117 facts, with 53 of
+63 sentences retained (15.9% dropped).
+Every fact URL belonged to its supplied source set. Five sheets were spot-checked:
+*Sunflowers*, *The Green Wave*, *The Ballet from “Robert le Diable”*, *Baigneuses
+(Bathers)*, and *Madame Édouard Bernier*. Review caught same-title collisions
+before the final replacements; canonical-source replay corrected them. This
+sample does not establish semantic accuracy for all generated prose.
+
+Final-generation model cost averaged **$0.000982 per artwork**
+($0.014727 for 15). All reported model calls in this session,
+including discarded previews and repairs, totaled **$0.062260**.
+Three live previews were followed by source replays for the identity fixes;
+replays reserved model calls but made no Tavily requests. No model schema fallback
+or parse failure occurred. Raw JSONL, source text, read-back report, and logs are
+in the workspace's gitignored `.context/enrichment-*` files.
+
+Verification: 406 Python tests (54 enrichment), 28 focused Convex tests, TypeScript,
+ESLint, Ruff, codegen and the dev push passed. Generated Convex bindings had no
+content changes. `npm run ios -- --device <Seoul simulator> --port 8097` built and
+launched in light mode; Metro was restarted with an IPv4 address because localhost
+bound only to IPv6. The app's capture model is absent in this workspace, so its
+warm-up warns; this worker has no new iOS interaction to exercise.
+
 ## Calibrator training (02.09)
 
 The job fits the eleven features in `convex/lib/calibrator/features.ts` and emits

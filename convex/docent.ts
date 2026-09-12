@@ -122,7 +122,7 @@ async function generate(
     let factSheet = cached;
     if (!factSheet) {
       const sheet = await chatJson({
-        model: models.factSheet, system: FACT_SHEET_PROMPT, user: factSheetUser(sources!.sources), schemaName: 'factSheet',
+        model: models.factSheet, system: FACT_SHEET_PROMPT, user: factSheetUser(sources!.sources, artwork), schemaName: 'factSheet',
         schema: FACT_SHEET_SCHEMA, maxTokens: FACT_SHEET_MAX_TOKENS, parse: parseFactSheet, timeoutMs: MODEL_TIMEOUT_MS,
       });
       calls += sheet.calls;
