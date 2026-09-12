@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import model from '../shared/model-version.json';
 import { internal } from './_generated/api';
-import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS } from './ingest';
+import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE } from './ingest';
 import { seedContribution, seedDevice } from './lib/testFactories';
 import schema from './schema';
 
@@ -69,6 +69,75 @@ async function errorData(promise: Promise<unknown>) {
   }
   throw new Error('expected a ConvexError');
 }
+
+describe('calibrator training exports', () => {
+  it('exports only the requested model, resolves merged views and retains sampling rights and penalties', async () => {
+    const { t, objectId } = await seeded();
+    const { ids } = await t.mutation(internal.ingest.upsertObjects, {
+      rows: [{ ...metObject, key: 'met:alias', mergedIntoKey: metObject.key }],
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(objectId, { calibratorPenalty: 0.3, rejectionPenalty: 0.2 });
+      for (const [id, version] of [[objectId, 'old'], [ids['met:alias'], model.modelVersion]] as const) {
+        await ctx.db.insert('vectors', { objectId: id, modelVersion: version, source: 'corpus', vector: vector(1) });
+      }
+    });
+    const page = await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion });
+    expect(page.isDone).toBe(true);
+    expect(page.page).toHaveLength(1);
+    expect(page.page[0].object).toEqual({
+      objectId, key: metObject.key, source: 'corpus', imageRef: metObject.imageRef,
+      rightsStatus: 'public_domain', objectPenalty: 0.5,
+    });
+    expect(page.page[0].vector).toEqual(vector(1));
+    await t.run((ctx) => ctx.db.patch(objectId, { reverted: true }));
+    expect((await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion })).page).toEqual([]);
+  });
+
+  it('pages vectors without dropping or repeating views', async () => {
+    const { t, objectId } = await seeded();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < TRAINING_EXPORT_PAGE_SIZE + 1; i++) {
+        await ctx.db.insert('vectors', {
+          objectId, modelVersion: model.modelVersion, source: 'corpus',
+          viewKey: String(i), vector: vector(i),
+        });
+      }
+    });
+    const ids = new Set<string>();
+    let cursor: string | undefined;
+    let done = false;
+    let pages = 0;
+    while (!done) {
+      const result = await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion, cursor });
+      expect(result.page.length).toBeLessThanOrEqual(TRAINING_EXPORT_PAGE_SIZE);
+      for (const row of result.page) {
+        expect(ids.has(row.vectorId)).toBe(false);
+        ids.add(row.vectorId);
+      }
+      cursor = result.continueCursor;
+      done = result.isDone;
+      pages++;
+    }
+    expect(pages).toBeGreaterThan(1);
+    expect(ids.size).toBe(TRAINING_EXPORT_PAGE_SIZE + 1);
+  });
+
+  it('preserves descriptor bytes and zero counts, excluding superseded references', async () => {
+    const { t, objectId } = await seeded();
+    await t.mutation(internal.ingest.upsertDescriptors, { rows: [{
+      objectKey: metObject.key, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+      keypointCount: 0, inputSize: 512, extractedFrom: metObject.imageRef,
+    }] });
+    const page = await t.query(internal.ingest.exportDescriptors, {});
+    expect(page.page).toEqual([{
+      objectId, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+      keypointCount: 0, inputSize: 512,
+    }]);
+    await t.run((ctx) => ctx.db.patch(objectId, { mergedInto: objectId }));
+    expect((await t.query(internal.ingest.exportDescriptors, {})).page).toEqual([]);
+  });
+});
 
 describe('upserting museums and artworks', () => {
   it('inserts once, then updates the same row on a second upsert', async () => {
