@@ -124,6 +124,28 @@
       "expectedKept": [
         { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
       ]
+    },
+    {
+      "name": "UTF-16 character limit includes surrogate pairs",
+      "factIds": ["f1"],
+      "sentences": [
+        {"sentence": "A painting shows boats \ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8", "factIds": ["f1"]},
+        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
+      ],
+      "expectedKept": [
+        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
+      ]
+    },
+    {
+      "name": "ECMAScript whitespace includes BOM and excludes NEL",
+      "factIds": ["f1"],
+      "sentences": [
+        {"sentence": "\ufeffThe\u00a0painting\u2028shows\tthree boats.\ufeff", "factIds": ["f1"]},
+        {"sentence": "The\u0085painting shows boats.", "factIds": ["f1"]}
+      ],
+      "expectedKept": [
+        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
+      ]
     }
   ]
 }
