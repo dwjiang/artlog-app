@@ -5,6 +5,7 @@ import { ConvexError, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
 import { registerMuseumObject } from './lib/museumWorkIdentity';
+import { effectiveObjectPenalty } from './lib/rejectionPenalty';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -23,6 +24,9 @@ import {
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
+export const TRAINING_EXPORT_PAGE_SIZE = 500;
+// Descriptor rows can contain 1,000 keypoints. Bound bytes as well as rows.
+const TRAINING_EXPORT_BYTES = 5_000_000;
 const DESCRIPTOR_BYTES = 32;
 const KEYPOINT_BYTES = 16;
 const MAX_KEYPOINTS = 1000;
@@ -470,6 +474,82 @@ export const exportVenues = internalQuery({
       continueCursor: result.continueCursor,
       isDone: result.isDone,
     };
+  },
+});
+
+const trainingObject = v.object({
+  objectId: v.id('objects'),
+  key: v.string(),
+  source: objectSource,
+  imageRef: v.optional(v.string()),
+  rightsStatus,
+  objectPenalty: v.number(),
+});
+
+export const exportVectors = internalQuery({
+  args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
+  returns: v.object({
+    page: v.array(v.object({
+      vectorId: v.id('vectors'), vector: v.array(v.float64()), object: trainingObject,
+    })),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { modelVersion, cursor }) => {
+    const result = await ctx.db.query('vectors')
+      .withIndex('by_modelVersion_source_viewKey', q => q.eq('modelVersion', modelVersion))
+      .paginate({
+        numItems: TRAINING_EXPORT_PAGE_SIZE, cursor: cursor ?? null,
+        maximumBytesRead: TRAINING_EXPORT_BYTES,
+      });
+    const page = [];
+    for (const row of result.page) {
+      let object = await ctx.db.get(row.objectId);
+      if (!object || object.reverted) continue;
+      if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
+      // Match identify.loadCandidates: only one-hop merges are part of the active index.
+      if (!object || object.reverted || object.mergedInto) continue;
+      const artwork = await ctx.db.get(object.artworkId);
+      if (!artwork) continue;
+      page.push({
+        vectorId: row._id, vector: row.vector,
+        object: {
+          objectId: object._id, key: object.key, source: object.source,
+          imageRef: object.imageRef, rightsStatus: artwork.rightsStatus,
+          objectPenalty: effectiveObjectPenalty(object),
+        },
+      });
+    }
+    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+  },
+});
+
+export const exportDescriptors = internalQuery({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    page: v.array(v.object({
+      objectId: v.id('objects'), descriptors: v.bytes(), keypoints: v.bytes(),
+      keypointCount: v.number(), inputSize: v.number(),
+    })),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const result = await ctx.db.query('descriptors').withIndex('by_objectId')
+      .paginate({
+        numItems: TRAINING_EXPORT_PAGE_SIZE, cursor: cursor ?? null,
+        maximumBytesRead: TRAINING_EXPORT_BYTES,
+      });
+    const page = [];
+    for (const row of result.page) {
+      const object = await ctx.db.get(row.objectId);
+      if (!object || object.reverted || object.mergedInto) continue;
+      page.push({
+        objectId: row.objectId, descriptors: row.descriptors, keypoints: row.keypoints,
+        keypointCount: row.keypointCount, inputSize: row.inputSize,
+      });
+    }
+    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
   },
 });
 

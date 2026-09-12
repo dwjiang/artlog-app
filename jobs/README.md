@@ -940,3 +940,105 @@ content changes. `npm run ios -- --device <Seoul simulator> --port 8097` built a
 launched in light mode; Metro was restarted with an IPv4 address because localhost
 bound only to IPv6. The app's capture model is absent in this workspace, so its
 warm-up warns; this worker has no new iOS interaction to exercise.
+
+## Calibrator training (02.09)
+
+The job fits the eleven features in `convex/lib/calibrator/features.ts` and emits
+the [training-output contract](../shared/calibrator/README.md). It never installs
+weights or changes the default calibrator.
+
+Prerequisites: finish the 02.04/02.05 index build and import, configure the existing
+`CONVEX_URL` and admin deploy key, and have the fake-quantized RADIO state from
+decision 001. Run against a stable index: the export pages are separate queries,
+not a database snapshot. The default sample is 5,000 distinct canonical
+public-domain corpus objects with images, vectors and descriptors. The sampler
+fails if fewer are eligible; objects whose image cannot be fetched are skipped
+and listed in the manifest rather than failing the run.
+
+```sh
+# Repository root, after checking the configured deployment:
+npx convex dev --once
+
+# From jobs/:
+uv sync --locked
+uv run python -m artlog_jobs.calibrator.augment fixtures/test-painting.jpg
+uv run python -m artlog_jobs.calibrator.sample --fakequant /path/to/fakequant_state.pt
+uv run python -m artlog_jobs.calibrator.train
+
+# Verify the shared transforms (fixture regeneration is deterministic):
+uv run python -m artlog_jobs.calibrator.features
+uv run pytest artlog_jobs/calibrator -q
+uv run ruff check .
+# From the repository root:
+npx vitest run convex/lib/calibrator/features convex/ingest.test.ts
+```
+
+`sample` runs embeddings on `settings.device`; cosine retrieval uses NumPy on
+CPU. `--objects`, `--seed`, `--out`, `--fakequant`, and `--dtype` are its
+overrides. Use the same accepted compute dtype as the index build. A smaller
+`--objects` run is a pilot, not the required 5,000-object fit. `train` accepts
+`--features`, `--out`, and `--seed`. Defaults are under `jobs/out/`, gitignored.
+
+The two admin-only queries, `ingest:exportVectors({ modelVersion, cursor })`
+and `ingest:exportDescriptors({ cursor })`, return
+`{ page, continueCursor, isDone }`. Each page reads at most 500 rows, with a
+5 MB byte budget that can produce shorter pages. Continue even after an empty
+filtered page. Vectors include the canonical object's identity, image reference,
+rights and effective penalty; descriptors retain their binary wire format.
+Reverted objects and superseded references are excluded, and merged vector
+views resolve exactly as in `identify.loadCandidates`.
+
+The image sample is proportional to eligible Met/AIC/Wikidata source counts.
+Only public-domain corpus images are fetched. Hard negatives use the active
+index's already-stored vectors/descriptors; no negative images are downloaded.
+Downloads reuse the source-specific rates, retries and Commons resolution in
+`download.py`, in batches of 25. A batch left with retryable failures (429s,
+exhausted transports) is retried up to three times, refetching only missing
+images; objects still missing afterwards, or failed permanently (404, decode
+error), are skipped with a warning and recorded as `skippedObjects` in the
+manifest, whose `objects` and `sourceObjects` describe the published set. A
+blocked source (consecutive 403/429s) still stops the run. Images are deleted
+after their four augmented queries are written; the temporary directory is
+removed even after a failure, and nothing is published if every image failed.
+
+Runtime parity accounts for changes since planning: top 32 vector hits collapse
+by canonical object, then retain at most 20 objects, and only the first 10
+available references are verified. Other candidates keep their known keypoint
+count with zero inliers and an invalid homography; a missing reference has a
+null keypoint count. ORB uses ratio 0.8, distance ≤ 64, RANSAC 5 px, 1,000
+iterations, confidence 0.995, and the TypeScript winding/area/determinant rules.
+OpenCV and TypeScript use different RANSAC solvers; the feature transforms and
+hard-rule constants agree, but the solvers are not bit-identical.
+
+Context priors are simulated, not observed museum visits:
+
+- Positive `atVenue`: 0.85; negative: 0.10.
+- At venue, positive gallery same/unknown/different: 0.50/0.40/0.10;
+  negative: 0.10/0.80/0.10. Off venue, gallery is always unknown.
+- On-view true/false/unknown: 0.80/0.10/0.10 for both labels.
+- Penalties come from the export; labels compare canonical object IDs.
+
+The manifest records published and skipped IDs/keys, source counts, seed,
+model/dtype/device, index fingerprint and feature/model hashes. Together with feature rows, it
+identifies the training set for a later purged retrain. Feature rows contain
+`queryId`, `sourceObjectId`, `candidateObjectId`, `label`, `signals`, and
+`features`. Future feedback adapters can supply the same shape (`features`
+may be omitted); all candidates of a query must share one source-object group.
+
+Training holds out 20% of source objects, fitting StandardScaler and balanced
+logistic regression only on the rest. The scaler is folded into the exported
+weights and bias. Thresholds use the highest-probability candidate per query,
+after the app's hard rules; missed retrievals count against recall. Confidence
+requires ≥ 0.99 precision with nonzero support, and soft acceptance requires
+≥ 0.90 correct-object top-1 recall. Ties are evaluated together. The holdout
+also selects thresholds, so these are tuning estimates rather than an
+independent museum-photo evaluation.
+
+Outputs are `calibrator-lr-v2.json`, `calibrator-report.md` and
+`calibrator-metrics.json`. The report contains decision counts, precision/recall,
+ten calibration bins, folded weights and the 60/80/100 × 10/15/20 rule sweep.
+The v1 rules stay unchanged. AUC < 0.90 or unreachable precision/recall targets
+exit nonzero, write diagnostics, and remove any stale v2 artifact at that output
+path. After a successful real run, copy its summary and JSON into
+[decision 009](../docs/decisions/009-calibrator-v2.md); adoption into
+`weights.ts` remains a separate human-reviewed change.

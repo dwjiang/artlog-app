@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import pythonFixture from '../../../shared/fixtures/calibrator-features.json';
 import { type CandidateSignals, FEATURE_NAMES, featureIndex, featurize } from './features';
 
 const zeroSignals: CandidateSignals = {
@@ -27,6 +28,17 @@ function expectOnly(features: Float64Array, name: (typeof FEATURE_NAMES)[number]
 }
 
 describe('featurize', () => {
+  it('matches all eleven features emitted by the Python training job', () => {
+    expect(pythonFixture).toHaveLength(10);
+    for (const row of pythonFixture) {
+      const actual = featurize(row.signals as CandidateSignals);
+      expect(row.expectedFeatures).toHaveLength(FEATURE_NAMES.length);
+      row.expectedFeatures.forEach((expected, i) => {
+        expect(actual[i], FEATURE_NAMES[i]).toBeCloseTo(expected, 12);
+      });
+    }
+  });
+
   it('returns one slot per FEATURE_NAMES entry and all zeros for empty signals', () => {
     const features = featurize(zeroSignals);
     expect(features).toHaveLength(FEATURE_NAMES.length);
