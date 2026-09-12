@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useIsFocused } from 'expo-router/react-navigation';
@@ -8,16 +7,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
 import { CameraPermission } from './camera-permission';
+import { DevTimings } from './dev-timings';
+import { OverlayCaption } from './overlay-caption';
+import { QueueBadge } from './queue-badge';
+import { RetakeBanner } from './retake-banner';
+import { VenuePill } from './venue-pill';
 import { GuidanceLabel, ViewfinderOverlay } from './viewfinder-overlay';
-import { ThemedText } from '@/components/themed-text';
+import { GlassSurface } from '@/components/glass-surface';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
-import type { CaptureInput } from '@/lib/capture/stages';
 import { useCapture } from '@/lib/capture/use-capture';
 import { useRectDetector } from '@/lib/capture/use-rect-detector';
+import { resolveVenueForScan } from '@/lib/venue/use-venue';
 
-type ScanScreenProps = Pick<CaptureInput, 'venueId' | 'visitId'>;
+const SHUTTER_SIZE = 72;
+const SHUTTER_RING = 4;
+const SHUTTER_GAP = 3;
+const IMPORT_SIZE = 56;
 
-export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
+export function ScanScreen() {
   const isFocused = useIsFocused();
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
@@ -28,7 +35,7 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
   const detector = useRectDetector(active);
   const outputs = useMemo(() => [photoOutput, detector.frameOutput], [photoOutput, detector.frameOutput]);
   const { capture, importPhoto, busy, message, timings, clearMessage } = useCapture();
-  const canCapture = active && cameraReady && detector.ready && !busy;
+  const canCapture = active && cameraReady && !busy;
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
@@ -44,10 +51,11 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
     void Haptics.selectionAsync().catch(() => {});
     void capture(async () => {
       const capturedAt = Date.now();
-      const quad = detector.getQuad();
+      const quad = detector.getCaptureQuad();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       if (__DEV__) console.debug('Captured photo', filePath);
-      return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, venueId, visitId };
+      const context = await resolveVenueForScan();
+      return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, ...context };
     });
   }
 
@@ -68,34 +76,31 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
         <ViewfinderOverlay liveQuad={detector.liveQuad} guidance={detector.guidance} />
       </CameraPermission>
       <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
-        <View style={styles.status}>
-          {(message || cameraError) && (
-            <View style={styles.notice}>
-              <ThemedText selectable>{message ?? cameraError}</ThemedText>
-              {message && (
-                <Host matchContents colorScheme="light">
-                  <Button label="Retake" onPress={clearMessage} />
-                </Host>
-              )}
-            </View>
-          )}
-          {busy && <View style={styles.notice}><ThemedText>Processing photo…</ThemedText></View>}
-          {!busy && !message && cameraReady && <GuidanceLabel guidance={detector.guidance} />}
-          {__DEV__ && timings && (
-            <View style={styles.notice}><ThemedText type="code">Capture: {Math.round(timings.total)} ms</ThemedText></View>
-          )}
+        <View pointerEvents="box-none" style={styles.topRow}>
+          <VenuePill />
+          <QueueBadge />
         </View>
-        <View style={styles.controls}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Import" disabled={busy}
-            accessibilityState={{ disabled: busy }} onPress={() => { void importPhoto(); }}
-            style={[styles.importButton, busy && styles.disabled]}>
-            <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.text} />
-            <ThemedText>Import</ThemedText>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Take photo" disabled={!canCapture}
-            accessibilityState={{ disabled: !canCapture, busy }} onPress={takePhoto}
-            style={[styles.shutter, !canCapture && styles.disabled]} />
-          <View style={styles.balance} />
+        <View pointerEvents="box-none" style={styles.bottom}>
+          <DevTimings timings={timings} />
+          {message ? <RetakeBanner message={message} onRetake={clearMessage} />
+            : cameraError ? <OverlayCaption>{cameraError}</OverlayCaption>
+            : busy ? <OverlayCaption>Processing photo…</OverlayCaption>
+            : cameraReady && <GuidanceLabel guidance={detector.guidance} />}
+          <View style={styles.controls}>
+            <GlassSurface isInteractive style={styles.importButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Import" disabled={busy}
+                accessibilityState={{ disabled: busy }} onPress={() => { void importPhoto(); }}
+                style={({ pressed }) => [styles.importContent, (pressed || busy) && styles.dimmed]}>
+                <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
+              </Pressable>
+            </GlassSurface>
+            <Pressable accessibilityRole="button" accessibilityLabel="Take photo" disabled={!canCapture}
+              accessibilityState={{ disabled: !canCapture, busy }} onPress={takePhoto}
+              style={({ pressed }) => [styles.shutter, !canCapture && styles.disabled, pressed && styles.dimmed]}>
+              <View style={styles.shutterCore} />
+            </Pressable>
+            <View style={styles.balance} />
+          </View>
         </View>
       </View>
     </View>
@@ -105,12 +110,22 @@ export function ScanScreen({ venueId, visitId }: ScanScreenProps) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
   overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.four },
-  status: { gap: Spacing.two },
-  notice: { backgroundColor: Colors.light.background, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
+  bottom: { gap: Spacing.three },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  importButton: { width: 76, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: Spacing.one, backgroundColor: Colors.light.background, borderRadius: Spacing.three },
+  importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
+  importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   importIcon: { width: 24, height: 24 },
-  shutter: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.light.background, borderWidth: 4, borderColor: Colors.light.textSecondary },
-  balance: { width: 76 },
-  disabled: { opacity: 0.45 },
+  shutter: {
+    width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: SHUTTER_RING,
+    borderColor: Colors.light.overlayText, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 3, shadowOffset: { width: 0, height: 0 },
+  },
+  shutterCore: {
+    width: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP), height: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP),
+    borderRadius: (SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP)) / 2, backgroundColor: Colors.light.overlayText,
+  },
+  balance: { width: IMPORT_SIZE },
+  disabled: { opacity: 0.4 },
+  dimmed: { opacity: 0.7 },
 });

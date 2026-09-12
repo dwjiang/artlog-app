@@ -1,3 +1,6 @@
+import type { Doc, Id } from '../_generated/dataModel';
+import type { QueryCtx } from '../_generated/server';
+
 export type PlacementLike = {
   venueId: string;
   gallery?: string;
@@ -10,11 +13,11 @@ export type PlacementLike = {
 };
 
 const sourceRank: Record<string, number> = {
-  manual: 6,
-  feed: 5,
-  checklist: 4,
+  manual: 7,
+  feed: 6,
+  checklist: 5,
   proposal: 3,
-  crawl: 2,
+  contribution: 2,
   wikidata: 1,
 };
 
@@ -27,6 +30,18 @@ export function currentPlacement<T extends PlacementLike>(placements: T[], now: 
   return best;
 }
 
+export async function loadCurrentPlacement(
+  ctx: QueryCtx,
+  objectId: Id<'objects'>,
+  now: number
+): Promise<Doc<'placements'> | null> {
+  let placement: Doc<'placements'> | null = null;
+  for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
+    placement = currentPlacement(placement ? [placement, row] : [row], now);
+  }
+  return placement;
+}
+
 function isActive(placement: PlacementLike, now: number): boolean {
   if (placement.closedAt !== undefined) return false;
   return (placement.from ?? -Infinity) <= now && now <= (placement.to ?? Infinity);
@@ -34,10 +49,15 @@ function isActive(placement: PlacementLike, now: number): boolean {
 
 function comparePlacements(a: PlacementLike, b: PlacementLike): number {
   return (
-    (sourceRank[a.source] ?? 0) - (sourceRank[b.source] ?? 0) ||
+    placementRank(a) - placementRank(b) ||
     a.confidence - b.confidence ||
     compareFrom(a.from, b.from)
   );
+}
+
+function placementRank(placement: PlacementLike): number {
+  // An off-view feed doesn't establish where a loan hangs; a checklist does.
+  return placement.source === 'feed' && !placement.onView ? 4 : (sourceRank[placement.source] ?? 0);
 }
 
 // An open-ended start sorts before any dated start.

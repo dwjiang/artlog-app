@@ -13,6 +13,10 @@ export const Colors = {
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
     accent: '#208AEF',
+    success: '#34C759',
+    warning: '#FF9500',
+    overlayScrim: 'rgba(0, 0, 0, 0.55)',
+    overlayText: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +25,10 @@ export const Colors = {
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
     accent: '#208AEF',
+    success: '#34C759',
+    warning: '#FF9500',
+    overlayScrim: 'rgba(0, 0, 0, 0.55)',
+    overlayText: '#ffffff',
   },
 } as const;
 

@@ -1,12 +1,11 @@
-import { paginationResultValidator } from 'convex/server';
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
-import { rightsStatus, snapshotFields } from './lib/validators';
+import { displayLabelFlow } from './lib/labelVerify';
+import { docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from './lib/validators';
 import schema from './schema';
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -21,8 +20,12 @@ export const scanDisplay = v.object({
   visitId: scanFields.visitId, capturedAt: v.number(), status: scanFields.status,
   outcome: scanFields.outcome, calibratorVersion: scanFields.calibratorVersion,
   best: v.optional(displayCandidate), runnerUps: v.optional(v.array(displayCandidate)),
-  docent: scanFields.docent, rightNow: scanFields.rightNow, error: scanFields.error,
-  indexStatus: v.optional(schema.tables.museums.validator.fields.indexStatus),
+  // Docent prose and its source chips come from the artwork (design §4.8); only a confident card shows them.
+  docent: v.optional(v.array(docentSentence)), factSheet: v.optional(v.array(factChip)),
+  rightNow: scanFields.rightNow,
+  // The label flow and museum-site search are the owner's own state (design §4.4); the raw OCR reading stays server-side.
+  labelFlow: v.optional(labelFlowDisplay), museumSearch: scanFields.museumSearch,
+  error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
 
@@ -65,31 +68,19 @@ export const create = internalMutation({
 export const setResult = internalMutation({
   args: {
     scanId: v.id('scans'), generation: v.number(), status: scanFields.status, outcome: scanFields.outcome,
-    best: scanFields.best, runnerUps: scanFields.runnerUps, calibratorVersion: v.string(),
-    error: v.optional(v.string()),
-    keepFeatures: v.optional(v.object({ descriptors: v.bytes(), keypoints: v.bytes(), keypointCount: v.number() })),
+    best: scanFields.best, runnerUps: scanFields.runnerUps, candidateSignals: scanFields.candidateSignals,
+    calibratorVersion: v.string(), error: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId);
     if (!scan) throw new ConvexError({ code: 'scan_not_found' });
-    if (scan.generation !== args.generation || (scan.status !== 'pending' && scan.status !== 'waiting')) return null;
-    if (args.status === 'waiting' && !args.keepFeatures) {
-      throw new ConvexError({ code: 'bad_features' });
-    }
-    const features = args.status === 'waiting' ? args.keepFeatures : undefined;
+    if (scan.generation !== args.generation || scan.status !== 'pending') return null;
     await ctx.db.patch(scan._id, {
       status: args.status, outcome: args.outcome, best: args.best, runnerUps: args.runnerUps,
-      calibratorVersion: args.calibratorVersion, error: args.error, updatedAt: Date.now(),
-      descriptors: features?.descriptors, keypoints: features?.keypoints, keypointCount: features?.keypointCount,
+      candidateSignals: args.candidateSignals, calibratorVersion: args.calibratorVersion, error: args.error,
+      updatedAt: Date.now(),
     });
-    if (args.status === 'waiting' && scan.venueId) {
-      const venue = await ctx.db.get(scan.venueId);
-      if (venue?.indexStatus.status !== 'queued' && venue?.indexStatus.status !== 'building') {
-        // Index completion may have drained the waiting queue before this write committed.
-        await ctx.scheduler.runAfter(0, internal.identify.rerunScan, { scanId: scan._id, generation: scan.generation });
-      }
-    }
     if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
       if (visit?.deviceId === scan.deviceId && visit.venueId === scan.venueId &&
@@ -104,31 +95,39 @@ export const setResult = internalMutation({
 async function joinCandidate(
   ctx: QueryCtx,
   match: NonNullable<Doc<'scans'>['best']>,
-): Promise<Infer<typeof displayCandidate> | null> {
+): Promise<{ candidate: Infer<typeof displayCandidate>; artwork: Doc<'artworks'> } | null> {
   const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
-  if (!object || !artwork) return null;
+  if (!object || object.reverted || !artwork) return null;
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
+  // Design §5.5: a hotlinked source image only for public-domain works; a contributor's consented crop always.
+  const thumbnailUrl = object.thumbnailStorageId
+    ? await ctx.storage.getUrl(object.thumbnailStorageId)
+    : artwork.rightsStatus === 'public_domain' ? object.thumbnailUrl : undefined;
   return {
-    ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
-    institution: owner?.name, rightsStatus: artwork.rightsStatus,
-    ...(artwork.rightsStatus === 'public_domain' && object.thumbnailUrl
-      ? { thumbnailUrl: object.thumbnailUrl } : {}),
+    artwork,
+    candidate: {
+      ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
+      institution: owner?.name, rightsStatus: artwork.rightsStatus, ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    },
   };
 }
 
 async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDisplay> {
-  const [best, runnerUps, venue] = await Promise.all([
+  const [best, runnerUps] = await Promise.all([
     scan.best ? joinCandidate(ctx, scan.best) : null,
     Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match))),
-    scan.venueId ? ctx.db.get(scan.venueId) : null,
   ]);
+  const prose = scan.outcome === 'confident' ? best?.artwork : undefined;
   return {
     scanId: scan._id, localId: scan.localId, venueId: scan.venueId, visitId: scan.visitId,
     capturedAt: scan.capturedAt, status: scan.status, outcome: scan.outcome,
-    calibratorVersion: scan.calibratorVersion, best: best ?? undefined,
-    runnerUps: runnerUps.flatMap((candidate) => candidate ? [candidate] : []),
-    docent: scan.docent, rightNow: scan.rightNow, error: scan.error,
-    indexStatus: scan.status === 'waiting' ? venue?.indexStatus : undefined,
+    calibratorVersion: scan.calibratorVersion, best: best?.candidate,
+    runnerUps: runnerUps.flatMap((joined) => joined ? [joined.candidate] : []),
+    docent: prose?.docent?.en,
+    factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({ id, sourceUrl, sourceLabel })),
+    rightNow: scan.rightNow,
+    labelFlow: scan.labelFlow && displayLabelFlow(scan.labelFlow), museumSearch: scan.museumSearch,
+    error: scan.error,
   };
 }
 
@@ -156,12 +155,4 @@ export const getDisplay = internalQuery({
     if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: 'scan_not_found' });
     return displayScan(ctx, scan);
   },
-});
-
-export const listWaiting = internalQuery({
-  args: { venueId: v.id('museums'), cursor: v.optional(v.string()) },
-  returns: paginationResultValidator(schema.doc('scans')),
-  handler: (ctx, { venueId, cursor }) => ctx.db.query('scans')
-    .withIndex('by_venue_status', (q) => q.eq('venueId', venueId).eq('status', 'waiting'))
-    .paginate({ numItems: 25, cursor: cursor ?? null }),
 });

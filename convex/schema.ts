@@ -5,23 +5,27 @@ import { v } from 'convex/values';
 
 import model from '../shared/model-version.json';
 import {
+  candidateSignal,
   challengePurpose,
+  checklistExhibition,
   contributionField,
+  contributionRejectedReason,
   contributionStatus,
-  crawlRunStatus,
   devicePlatform,
   docentSentence,
   embedding,
   evidenceKind,
   factSheetEntry,
   feedbackResolution,
-  indexStatusKind,
+  labelFlow,
   matchOutcome,
   multiplicity,
+  museumSearchDisplay,
   objectSource,
   placementSource,
   proposalKind,
   proposalStatus,
+  rightNowCard,
   rightsStatus,
   scanStatus,
   seedSource,
@@ -57,10 +61,15 @@ export default defineSchema({
     factSheetUpdatedAt: v.optional(v.number()),
     docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
     docentUpdatedAt: v.optional(v.number()),
+    // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
+    enrichClaimedAt: v.optional(v.number()),
+    enrichGeneration: v.optional(v.number()),
+    factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
-    .index('by_artistId', ['artistId']),
+    .index('by_artistId', ['artistId'])
+    .index('by_factSheetUpdatedAt', ['factSheetUpdatedAt']),
 
   objects: defineTable({
     key: v.string(),
@@ -74,21 +83,30 @@ export default defineSchema({
     imageRef: v.optional(v.string()),
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
+    // The contributor's consented crop: the card thumbnail for `source: user` works (design §4.7).
+    thumbnailStorageId: v.optional(v.id('_storage')),
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
+    rejectionPenalty: v.optional(v.number()),
+    flaggedForReview: v.optional(v.boolean()),
     mergedInto: v.optional(v.id('objects')),
     provenance: v.optional(
       v.object({
         contributionIds: v.array(v.id('contributions')),
         deviceIds: v.array(v.id('devices')),
+        verifiedAccession: v.optional(v.string()),
       })
     ),
     reverted: v.boolean(),
+    revertedReason: v.optional(v.string()),
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
-    .index('by_owner_accession', ['ownerId', 'accession']),
+    .index('by_artworkId_ownerId', ['artworkId', 'ownerId'])
+    .index('by_owner_accession', ['ownerId', 'accession'])
+    .index('by_source', ['source'])
+    .index('by_flaggedForReview', ['flaggedForReview']),
 
   placements: defineTable({
     objectId: v.id('objects'),
@@ -100,8 +118,12 @@ export default defineSchema({
     source: placementSource,
     confidence: v.number(),
     closedAt: v.optional(v.number()),
+    proposalId: v.optional(v.id('placementProposals')),
+    closedByProposalId: v.optional(v.id('placementProposals')),
+    exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
   })
     .index('by_objectId', ['objectId'])
+    .index('by_object_venue_source', ['objectId', 'venueId', 'source'])
     .index('by_venueId', ['venueId']),
 
   placementProposals: defineTable({
@@ -116,14 +138,21 @@ export default defineSchema({
     readyForReview: v.boolean(),
     reviewer: v.optional(v.string()),
     reviewedAt: v.optional(v.number()),
+    promotion: v.optional(v.object({
+      placementId: v.id('placements'),
+      closedPlacementIds: v.array(v.id('placements')),
+    })),
+    revertedAt: v.optional(v.number()),
   })
     .index('by_object_venue', ['objectId', 'proposedVenueId'])
-    .index('by_status', ['status']),
+    .index('by_status', ['status'])
+    .index('by_status_readyForReview', ['status', 'readyForReview']),
 
   vectors: defineTable({
     objectId: v.id('objects'),
     modelVersion: v.string(),
     source: vectorSource,
+    viewKey: v.optional(v.string()),
     vector: embedding,
   })
     .vectorIndex('by_vector', {
@@ -131,7 +160,8 @@ export default defineSchema({
       dimensions: model.embeddingDim,
       filterFields: ['modelVersion'],
     })
-    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source']),
+    .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source'])
+    .index('by_modelVersion_source_viewKey', ['modelVersion', 'source', 'viewKey']),
 
   descriptors: defineTable({
     objectId: v.id('objects'),
@@ -155,40 +185,10 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
-    crawlPolicy: v.optional(
-      v.object({
-        robotsAllowed: v.boolean(),
-        termsChecked: v.boolean(),
-        checkedAt: v.number(),
-        crawlDelaySeconds: v.optional(v.number()),
-        notes: v.optional(v.string()),
-      })
-    ),
-    useTavilyCrawl: v.boolean(),
-    queuePriority: v.number(),
-    failureCount: v.number(),
-    lastBumpedAt: v.optional(v.number()),
-    indexStatus: v.object({
-      status: indexStatusKind,
-      pagesMapped: v.number(),
-      worksIndexed: v.number(),
-      updatedAt: v.number(),
-    }),
-    lastCrawledAt: v.optional(v.number()),
-    changeDetection: v.optional(
-      v.object({
-        sitemapLastmod: v.optional(v.string()),
-        etag: v.optional(v.string()),
-        lastModified: v.optional(v.string()),
-      })
-    ),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
-    .index('by_lat', ['lat'])
-    .index('by_queuePriority', ['queuePriority'])
-    .index('by_indexStatus', ['indexStatus.status', 'queuePriority'])
-    .index('by_status_lastCrawledAt', ['indexStatus.status', 'lastCrawledAt']),
+    .index('by_lat', ['lat']),
 
   venueTables: defineTable({
     version: v.number(),
@@ -207,36 +207,8 @@ export default defineSchema({
     descriptors: v.number(),
   }),
 
-  crawlRuns: defineTable({
-    venueId: v.id('museums'),
-    startedAt: v.number(),
-    updatedAt: v.number(),
-    claimedBy: v.optional(v.string()),
-    finishedAt: v.optional(v.number()),
-    status: crawlRunStatus,
-    pagesMapped: v.number(),
-    worksIndexed: v.number(),
-    error: v.optional(v.string()),
-  })
-    .index('by_venueId', ['venueId'])
-    .index('by_status_updatedAt', ['status', 'updatedAt']),
-
-  crawlPages: defineTable({
-    venueId: v.id('museums'),
-    url: v.string(),
-    sitemapLastmod: v.optional(v.string()),
-    etag: v.optional(v.string()),
-    lastModified: v.optional(v.string()),
-    processedAt: v.number(),
-  }).index('by_venueId_url', ['venueId', 'url']),
-
-  crawlLaunches: defineTable({
-    at: v.number(),
-    mode: v.string(),
-    ok: v.boolean(),
-    response: v.string(),
-  }).index('by_at', ['at']),
-
+  // "Right now" cache keyed by artist and region. A row with `pendingAt` set is being fetched; the
+  // scans listed in `waiting` receive the card when it lands, so concurrent misses spend one credit.
   artistContext: defineTable({
     artistId: v.string(),
     region: v.string(),
@@ -245,7 +217,22 @@ export default defineSchema({
     sourceLabel: v.string(),
     empty: v.boolean(),
     fetchedAt: v.number(),
+    pendingAt: v.optional(v.number()),
+    claimId: v.optional(v.string()),
+    waiting: v.optional(v.array(v.object({ scanId: v.id('scans'), generation: v.number() }))),
   }).index('by_artist_region', ['artistId', 'region']),
+
+  factCorrections: defineTable({
+    artworkId: v.id('artworks'),
+    factId: v.string(),
+    message: v.string(),
+    contact: v.optional(v.string()),
+    deviceId: v.id('devices'),
+    createdAt: v.number(),
+    status: v.union(v.literal('open'), v.literal('resolved')),
+  })
+    .index('by_status', ['status'])
+    .index('by_artworkId_status', ['artworkId', 'status']),
 
   contributions: defineTable({
     deviceId: v.id('devices'),
@@ -258,6 +245,7 @@ export default defineSchema({
     keypointCount: v.number(),
     cropStorageId: v.optional(v.id('_storage')),
     rawOcr: v.optional(v.any()),
+    sourceUrl: v.optional(v.string()),
     fields: v.object({
       title: contributionField,
       artist: contributionField,
@@ -267,12 +255,19 @@ export default defineSchema({
       creditLine: v.optional(contributionField),
     }),
     evidence: v.array(evidenceKind),
+    wikidataId: v.optional(v.string()),
     status: contributionStatus,
+    rejectedReason: v.optional(contributionRejectedReason),
     promotedObjectId: v.optional(v.id('objects')),
+    promotionNote: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
+    .index('by_scanId', ['scanId'])
+    .index('by_cropStorageId', ['cropStorageId'])
+    .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
+    .index('by_promotedObject_device', ['promotedObjectId', 'deviceId'])
     .index('by_venue_status', ['venueId', 'status']),
 
   feedback: defineTable({
@@ -288,11 +283,32 @@ export default defineSchema({
     probability: v.number(),
     calibratorVersion: v.string(),
     venueMismatch: v.boolean(),
+    penaltyAdded: v.number(),
     resolution: feedbackResolution,
+    // A duplicate depends on another resolution's vector and must be reconsidered if that vector is removed.
+    multiViewAt: v.optional(v.number()),
+    multiViewVectorId: v.optional(v.id('vectors')),
+    multiViewDuplicateVectorId: v.optional(v.id('vectors')),
+    multiViewAgreement: v.optional(v.object({ firstDeviceId: v.id('devices'), secondDeviceId: v.id('devices') })),
     createdAt: v.number(),
   })
     .index('by_rejectedObjectId', ['rejectedObjectId'])
-    .index('by_device_object', ['deviceId', 'rejectedObjectId']),
+    .index('by_device_object', ['deviceId', 'rejectedObjectId'])
+    .index('by_scanId', ['scanId'])
+    .index('by_venueId', ['venueId'])
+    .index('by_resolution_object_venue', ['resolution.kind', 'resolution.objectId', 'venueId', 'createdAt'])
+    .index('by_resolution_multiView', ['resolution.kind', 'multiViewAt', 'createdAt'])
+    .index('by_multiViewFirstDevice', ['multiViewAgreement.firstDeviceId'])
+    .index('by_multiViewDuplicateVectorId', ['multiViewDuplicateVectorId'])
+    .index('by_multiViewSecondDevice', ['multiViewAgreement.secondDeviceId']),
+
+  promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),
+
+  museumWorkIdentities: defineTable({
+    venueId: v.id('museums'),
+    identity: v.string(),
+    artworkId: v.id('artworks'),
+  }).index('by_venue_identity', ['venueId', 'identity']),
 
   scans: defineTable({
     deviceId: v.id('devices'),
@@ -303,10 +319,6 @@ export default defineSchema({
     gallery: v.optional(v.string()),
     modelVersion: v.string(),
     vector: embedding,
-    // Descriptors and keypoints are kept only while status is `waiting` and cleared on resolution.
-    descriptors: v.optional(v.bytes()),
-    keypoints: v.optional(v.bytes()),
-    keypointCount: v.optional(v.number()),
     capturedAt: v.number(),
     status: scanStatus,
     calibratorVersion: v.optional(v.string()),
@@ -329,18 +341,17 @@ export default defineSchema({
         })
       )
     ),
-    docent: v.optional(v.array(docentSentence)),
-    rightNow: v.optional(
-      v.object({ text: v.string(), sourceUrl: v.string(), sourceLabel: v.string() })
-    ),
-    labelFlow: v.optional(v.any()),
+    candidateSignals: v.optional(v.array(candidateSignal)),
+    rightNow: v.optional(rightNowCard),
+    labelFlow: v.optional(labelFlow),
+    museumSearch: v.optional(museumSearchDisplay),
+    museumSearchRevision: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
-    .index('by_deviceId', ['deviceId'])
-    .index('by_venue_status', ['venueId', 'status']),
+    .index('by_deviceId', ['deviceId']),
 
   devices: defineTable({
     // Set by attestDevice once Apple has verified the key; absent until then.
@@ -349,11 +360,14 @@ export default defineSchema({
     firstSeenAt: v.number(),
     trustWeight: v.number(),
     banned: v.boolean(),
+    bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id('accounts')),
+    appleLinkProof: v.optional(v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() })),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
     attestPublicKey: v.optional(v.string()),
     attestCounter: v.number(),
+    lastContributionId: v.optional(v.id('contributions')),
   })
     .index('by_keyId', ['appAttestKeyId'])
     .index('by_authUserId', ['authUserId'])
@@ -379,6 +393,7 @@ export default defineSchema({
 
   accounts: defineTable({
     appleUserId: v.string(),
+    email: v.optional(v.string()),
     deviceIds: v.array(v.id('devices')),
     createdAt: v.number(),
   }).index('by_appleUserId', ['appleUserId']),
@@ -400,10 +415,10 @@ export default defineSchema({
 
   collections: defineTable({
     deviceId: v.id('devices'),
-    accountId: v.optional(v.id('accounts')),
     localId: v.string(),
     visitId: v.optional(v.id('visits')),
     venueId: v.optional(v.id('museums')),
+    venueName: v.optional(v.string()),
     gallery: v.optional(v.string()),
     savedAt: v.number(),
     snapshot: snapshotFields,
@@ -411,9 +426,14 @@ export default defineSchema({
     artworkId: v.optional(v.id('artworks')),
     scanId: v.optional(v.id('scans')),
     deletedAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+    confirmationRecorded: v.optional(v.boolean()),
+    updatedAt: v.number(),
+    updatedBy: v.id('devices'),
   })
     .index('by_device_localId', ['deviceId', 'localId'])
-    .index('by_accountId', ['accountId']),
+    .index('by_device_savedAt', ['deviceId', 'savedAt'])
+    .index('by_device_updatedAt', ['deviceId', 'updatedAt']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 

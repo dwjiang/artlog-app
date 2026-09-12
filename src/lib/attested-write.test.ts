@@ -14,9 +14,12 @@ jest.mock('@/lib/app-attest', () => ({
   getAppAttest: () => mockGetAppAttest(),
 }));
 jest.mock('../../convex/_generated/api', () => ({ api: { devices: { createChallenge: 'challenge' } } }));
+jest.mock('expo-device', () => ({ get isDevice() { return mockIsDevice; } }));
+let mockIsDevice = true;
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockIsDevice = true;
   mockGetItem.mockResolvedValue('saved-key');
   mockMutation.mockResolvedValue({ nonce: 'server-nonce' });
   mockAssertion.mockResolvedValue('base64-assertion');
@@ -32,11 +35,19 @@ it('signs the stored key with the exact nonce.payloadJson contract', async () =>
   expect(mockAssertion).toHaveBeenCalledWith('saved-key', 'server-nonce.{"a":{"c":1},"z":2}');
 });
 
-it('returns null only for unsupported devices without requesting a challenge', async () => {
+it('returns null only for unsupported physical devices without requesting a challenge', async () => {
   mockGetAppAttest.mockReturnValue(null);
   expect(await signPayload({ a: 1 })).toBeNull();
   expect(mockGetItem).not.toHaveBeenCalled();
   expect(mockMutation).not.toHaveBeenCalled();
+});
+
+it('sends a challenge with an empty assertion from a simulator, where attestation is unsupported', async () => {
+  mockGetAppAttest.mockReturnValue(null);
+  mockIsDevice = false;
+  expect(await signPayload({ a: 1 })).toEqual({ nonce: 'server-nonce', assertionBase64: '', payloadJson: '{"a":1}' });
+  expect(mockGetItem).not.toHaveBeenCalled();
+  expect(mockMutation).toHaveBeenCalledWith('challenge', { purpose: 'assert' });
 });
 
 it('requires a saved key before requesting a challenge', async () => {
@@ -60,6 +71,11 @@ it('snapshots the payload before waiting for a challenge', async () => {
   });
   expect((await signPayload(payload))?.payloadJson).toBe('{"value":1}');
   expect(mockAssertion).toHaveBeenCalledWith('saved-key', 'server-nonce.{"value":1}');
+});
+
+it('signs a pre-serialized payload verbatim', async () => {
+  expect((await signPayload('{"operation":"rejectMatch","scanId":"s"}'))?.payloadJson).toBe('{"operation":"rejectMatch","scanId":"s"}');
+  expect(mockAssertion).toHaveBeenCalledWith('saved-key', 'server-nonce.{"operation":"rejectMatch","scanId":"s"}');
 });
 
 it('rejects non-JSON payloads before contacting the server', async () => {

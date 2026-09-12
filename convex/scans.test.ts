@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
+import { labelField } from './lib/labelVerify';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
 import { harness } from './test.helpers';
 
@@ -57,21 +58,20 @@ it.each(['public_domain', 'in_copyright', 'unknown'] as const)(
   },
 );
 
-it('keeps waiting features, then clears them while retaining the embedding', async () => {
-  const { t, scanId, args } = await fixture();
-  await t.run((ctx) => ctx.db.patch(args.venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  const keepFeatures = { descriptors: new ArrayBuffer(32), keypoints: new ArrayBuffer(16), keypointCount: 1 };
-  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'waiting', keepFeatures, calibratorVersion: 'lr-v1' });
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject(keepFeatures);
-  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'identified', outcome: 'miss', calibratorVersion: 'lr-v1' });
-  const scan = await t.run((ctx) => ctx.db.get(scanId));
-  expect(scan?.descriptors).toBeUndefined();
-  expect(scan?.keypoints).toBeUndefined();
-  expect(scan?.keypointCount).toBeUndefined();
-  expect(scan?.vector).toEqual(args.vector);
-  expect(scan?.calibratorVersion).toBe('lr-v1');
+it.each(['confident', 'soft'] as const)('joins docent sentences and source chips from the artwork only for a confident card (%s)', async (outcome) => {
+  const { t, user, work, scanId, best } = await fixture();
+  const factSheet = [{ id: 'f1', text: 'Painted in 1916.', sourceUrl: 'https://www.metmuseum.org/art/1', sourceLabel: 'The Met', sourceScore: 1 }];
+  const docent = { en: [{ sentence: 'Monet painted these water lilies in 1916.', factIds: ['f1'] }] };
+  await t.run((ctx) => ctx.db.patch(work.artworkId, { factSheet, factSheetUpdatedAt: 1, docent, docentUpdatedAt: 2 }));
+  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'identified', outcome, best, calibratorVersion: 'lr-v1' });
+  const result = await user.as.query(api.scans.get, { scanId });
+  if (outcome === 'confident') {
+    expect(result?.docent).toEqual(docent.en);
+    expect(result?.factSheet).toEqual([{ id: 'f1', sourceUrl: 'https://www.metmuseum.org/art/1', sourceLabel: 'The Met' }]);
+  } else {
+    expect(result?.docent).toBeUndefined();
+    expect(result?.factSheet).toBeUndefined();
+  }
 });
 
 it('updates gallery history only for a confident result and never rolls it backwards', async () => {
@@ -102,22 +102,6 @@ it('refuses another device’s visit or a visit at another venue', async () => {
   await expect(t.mutation(internal.scans.create, { ...args, localId: 'wrong-venue', visitId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
 });
 
-it('paginates only waiting scans for the requested venue', async () => {
-  const { t, scanId, venueId, args } = await fixture();
-  await t.run((ctx) => ctx.db.patch(venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
-  });
-  await t.mutation(internal.scans.create, { ...args, localId: 'pending' });
-  const page = await t.query(internal.scans.listWaiting, { venueId });
-  expect(page.page.map((scan) => scan._id)).toEqual([scanId]);
-  expect(page.isDone).toBe(true);
-  expect((await t.query(internal.scans.listWaiting, { venueId: await t.run((ctx) => seedMuseum(ctx)) })).page).toEqual([]);
-});
-
 it('ignores results from an older payload after an unsupported capture is restarted', async () => {
   const { t, args, scanId } = await fixture();
   await t.mutation(internal.scans.setResult, {
@@ -136,30 +120,54 @@ it('ignores results from an older payload after an unsupported capture is restar
   expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({ status: 'identified', outcome: 'miss' });
 });
 
-it('replaces a queued old-model payload and clears its provisional results', async () => {
-  const { t, args, scanId, best } = await fixture();
-  await t.run((ctx) => ctx.db.patch(args.venueId, {
-    indexStatus: { status: 'building', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
-  }));
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', outcome: 'soft', best, calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
+it('exposes the museum-site search state and the label flow without raw OCR to the owner only', async () => {
+  const { t, user, scanId } = await fixture();
+  await t.mutation(internal.scans.setResult, { scanId, generation: 0, status: 'identified', outcome: 'miss', calibratorVersion: 'lr-v1' });
+  const before = await user.as.query(api.scans.get, { scanId });
+  expect(before?.labelFlow).toBeUndefined();
+  expect(before?.museumSearch).toBeUndefined();
+  const candidate = {
+    sourceUrl: 'https://www.metmuseum.org/art/collection/search/437137',
+    fields: { title: 'Water Lilies', artist: 'Claude Monet', accession: '1998.325.2' },
+    imageUrls: ['https://images.metmuseum.org/work.jpg'],
+  };
+  const write = async (museumSearch: Parameters<typeof t.mutation<typeof internal.museumSearch.write>>[1]['museumSearch']) => {
+    const revision = await t.mutation(internal.museumSearch.beginSearch, { scanId, deviceId: user.deviceId, generation: 0 });
+    return t.mutation(internal.museumSearch.write, { scanId, deviceId: user.deviceId, generation: 0, revision, museumSearch });
+  };
+  await write({ stage: 'candidates', candidates: [candidate], promptVersion: 'describe-v1', updatedAt: 1 });
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
+    stage: 'candidates', candidates: [candidate], promptVersion: 'describe-v1', updatedAt: 1,
   });
-  vi.stubEnv('SUPPORTED_MODEL_VERSIONS', 'replacement');
-  const updated = await t.mutation(internal.scans.create, { ...args, modelVersion: 'replacement', vector: testVector(0.5) });
-  expect(updated.scan).toMatchObject({ _id: scanId, generation: 1, status: 'pending', modelVersion: 'replacement', vector: testVector(0.5) });
-  expect(updated.scan.best).toBeUndefined();
-  expect(updated.scan.descriptors).toBeUndefined();
-});
+  await write({ stage: 'none', reason: 'cap', updatedAt: 2 });
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({ stage: 'none', reason: 'cap', updatedAt: 2 });
+  await write({ stage: 'none', reason: 'no_candidates', promptVersion: 'describe-v1', updatedAt: 3 });
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({ reason: 'no_candidates', promptVersion: 'describe-v1' });
 
-it('reruns a waiting write that arrives after index completion drained the queue', async () => {
-  vi.useFakeTimers();
-  const { t, scanId } = await fixture();
-  await t.mutation(internal.scans.setResult, {
-    scanId, generation: 0, status: 'waiting', outcome: 'miss', calibratorVersion: 'lr-v1',
-    keepFeatures: { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), keypointCount: 0 },
+  const fields = {
+    title: labelField('Water Lilies', 'tavily+image'), artist: labelField('Claude Monet', 'tavily+image'),
+    accession: labelField('1998.325.2', 'tavily'),
+  };
+  const selected = { sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrls[0] };
+  await t.run((ctx) => ctx.db.patch(scanId, {
+    labelFlow: {
+      stage: 'verified', fields, evidence: ['tavily+image', 'tavily'], warnings: [], moderation: 'clear',
+      rawOcr: { title: 'Water Lilies' }, sourceUrl: candidate.sourceUrl, imageUrls: candidate.imageUrls, updatedAt: 4,
+    },
+    museumSearch: { stage: 'confirmed', candidates: [candidate], selected, promptVersion: 'describe-v1', updatedAt: 4 },
+  }));
+  const confirmed = await user.as.query(api.scans.get, { scanId });
+  expect(confirmed?.museumSearch).toEqual({ stage: 'confirmed', candidates: [candidate], selected, promptVersion: 'describe-v1', updatedAt: 4 });
+  expect(confirmed?.labelFlow).toEqual({
+    stage: 'verified', fields, evidence: ['tavily+image', 'tavily'], warnings: [], moderation: 'clear',
+    sourceUrl: candidate.sourceUrl, imageUrls: candidate.imageUrls, updatedAt: 4,
   });
-  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({ status: 'identified' });
-  expect((await t.run((ctx) => ctx.db.get(scanId)))?.descriptors).toBeUndefined();
+  expect(confirmed?.labelFlow).not.toHaveProperty('rawOcr');
+  expect(confirmed).not.toHaveProperty('vector');
+  expect(confirmed).not.toHaveProperty('deviceId');
+  expect(confirmed).not.toHaveProperty('museumSearchRevision');
+  const other = await seedDevice(t);
+  expect(await other.as.query(api.scans.get, { scanId })).toBeNull();
+  expect(await t.query(internal.scans.getDisplay, { scanId, deviceId: user.deviceId })).toEqual(confirmed);
+  await expect(t.query(internal.scans.getDisplay, { scanId, deviceId: other.deviceId })).rejects.toMatchObject({ data: { code: 'scan_not_found' } });
 });

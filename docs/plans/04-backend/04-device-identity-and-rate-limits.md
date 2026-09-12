@@ -9,6 +9,8 @@
 > **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/ src/app/_layout.tsx src/lib package.json .env.example`
 > Compare `convex/schema.ts` against plan 01.03's table list before editing; STOP on mismatch.
 
+> **Superseded in part (2026-09-10):** the `queueBump` rate limit was removed with the crawler; 04.12 adds `museumSearch`.
+
 ## Status
 
 - **Priority**: P1

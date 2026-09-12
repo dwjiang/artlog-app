@@ -15,13 +15,14 @@ from artlog_jobs.download import (
     COMMONS_THUMB_WIDTH,
     COMMONS_TITLES_PER_CALL,
     MAX_SIDE,
-    BandwidthLimiter,
     ImageTask,
     ShardState,
     SourceBlocked,
+    SourceReport,
     commons_batches,
     commons_title,
     download_shard,
+    fetch_one,
     image_filename,
     iter_tasks,
     key_from_filename,
@@ -29,7 +30,7 @@ from artlog_jobs.download import (
     resolve_commons,
     source_of,
 )
-from artlog_jobs.polite_http import PoliteClient
+from artlog_jobs.polite_http import BandwidthLimiter, PoliteClient
 
 UA = "artlog-bot/0.1 (+https://example.org)"
 MET = "https://images.metmuseum.org/CRDImages/ep/original/"
@@ -327,6 +328,70 @@ def test_a_429_is_retried_after_the_server_cooldown(tmp_path):
     assert max(sleeper.calls) == pytest.approx(1.0, abs=0.05)
 
 
+@pytest.mark.parametrize("failed", [False, True])
+def test_resume_rejects_changed_image_urls_before_reusing_pixels_or_failures(tmp_path, failed):
+    server = Server()
+    task = ImageTask("met:1", f"{MET}old.jpg", "met")
+    if not failed:
+        server.images[media_path(task)] = jpeg(40, 30)
+    run(server, [task], tmp_path)
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    server.requests.clear()
+    replacement = ImageTask(task.key, f"{MET}replacement.jpg", task.source)
+
+    with pytest.raises(ValueError, match="download inputs"):
+        run(server, [replacement], tmp_path)
+
+    assert server.requests == []
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
+
+
+@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("missing", ["fingerprint", "receipt"])
+def test_cached_downloads_require_a_saved_input_fingerprint(tmp_path, failed, missing):
+    server = Server()
+    tasks = tasks_for(server, 2)
+    if failed:
+        server.images.clear()
+    run(server, tasks, tmp_path)
+    receipt = tmp_path / "downloads" / "shard-0.json"
+    if missing == "receipt":
+        receipt.unlink()
+    else:
+        data = json.loads(receipt.read_text())
+        data.pop("downloadInputsSha256", None)
+        receipt.write_text(json.dumps(data))
+    server.requests.clear()
+
+    with pytest.raises(ValueError, match="download inputs"):
+        run(server, tasks, tmp_path)
+
+    assert server.requests == []
+
+
+def test_download_resume_accepts_reordered_inputs(tmp_path):
+    server = Server()
+    tasks = tasks_for(server, 4)
+    run(server, tasks, tmp_path)
+    server.requests.clear()
+
+    reports, _ = run(server, list(reversed(tasks)), tmp_path)
+
+    assert server.requests == []
+    assert sum(report.skipped for report in reports.values()) == len(tasks)
+    ShardState(tmp_path / "downloads", 0).require_complete(tasks, tmp_path / "images/shard-0")
+
+
+def test_embedding_receipt_rejects_replacement_urls_even_when_filenames_match(tmp_path):
+    server = Server()
+    tasks = tasks_for(server, 2)
+    run(server, tasks, tmp_path)
+    changed = [ImageTask(task.key, task.url + "?replacement", task.source) for task in tasks]
+
+    with pytest.raises(ValueError, match="download inputs"):
+        ShardState(tmp_path / "downloads", 0).require_complete(changed, tmp_path / "images/shard-0")
+
+
 def test_consecutive_denials_stop_the_source_with_a_reportable_error(tmp_path):
     server = Server()
     tasks = [task for task in tasks_for(server, 60) if task.source == "met"]
@@ -439,22 +504,46 @@ def test_shard_directories_hold_only_their_own_images(tmp_path: Path):
     assert len(list((tmp_path / "images" / "shard-1").iterdir())) == 2
 
 
-def test_bandwidth_limiter_keeps_any_trailing_window_under_the_cap():
+@pytest.mark.parametrize("sizes", [[64 * 1024] * 6, [30000, 60000, 60000, 60000, 30000]])
+def test_download_limits_streamed_bytes_before_reading_an_entire_image(tmp_path, sizes):
     sleeper = Sleeper()
-    limiter = BandwidthLimiter(25.0, clock=sleeper.clock, sleep=sleeper)  # 31.25 MB per 10 s
+    received = []
+    closed = []
+    budget = 200000
 
-    limiter.wait()
-    limiter.account(20_000_000)
-    sleeper(2.0)
-    limiter.wait()
-    limiter.account(12_000_000)
-    limiter.wait()
+    class Body(httpx.SyncByteStream):
+        def __iter__(self):
+            for size in sizes:
+                received.append((sleeper.clock(), size))
+                yield b"x" * size
 
-    assert sleeper.now == pytest.approx(10.0)  # the first 20 MB left the window
-    limiter.wait()
-    assert sleeper.now == pytest.approx(10.0)
-    with pytest.raises(ValueError):
-        BandwidthLimiter(0)
+        def close(self):
+            closed.append(True)
+
+    limiter = BandwidthLimiter(budget * 8 / 1e6 / 10, clock=sleeper.clock, sleep=sleeper)
+    with PoliteClient(
+        user_agent=UA,
+        robots=False,
+        max_retries=0,
+        clock=sleeper.clock,
+        sleep=sleeper,
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, stream=Body())),
+    ) as c:
+        result = fetch_one(
+            c,
+            ImageTask("wikidata:Q1", "unused", "wikidata"),
+            "https://media.example/image",
+            tmp_path / "image.jpg",
+            SourceReport(),
+            limiter=limiter,
+            sleep=sleeper,
+        )
+
+    assert result == ("failed", "decode_error", 200)
+    assert closed
+    assert len(received) == len(sizes)
+    for now, _ in received:
+        assert sum(size for at, size in received if now - 10 < at <= now) <= budget
 
 
 def test_commons_media_uses_two_streams_and_never_overlaps_api_calls(tmp_path):

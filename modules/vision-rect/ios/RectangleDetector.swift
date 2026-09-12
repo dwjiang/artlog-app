@@ -21,13 +21,13 @@ struct DetectedRectangle {
   let corners: [CGPoint]
 
   var area: CGFloat { quadArea(corners) }
-}
 
-struct RectangleDetectionResult {
-  let width: Int
-  let height: Int
-  /// Largest first.
-  let rectangles: [DetectedRectangle]
+  /// Axis-aligned bounds of the corners.
+  var bounds: CGRect {
+    let xs = corners.map(\.x)
+    let ys = corners.map(\.y)
+    return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+  }
 }
 
 func quadArea(_ corners: [CGPoint]) -> CGFloat {
@@ -55,6 +55,11 @@ enum RectangleDetector {
   static func detect(handler: VNImageRequestHandler) throws -> [DetectedRectangle] {
     let request = makeRequest()
     try handler.perform([request])
+    return rectangles(from: request)
+  }
+
+  /// Largest first.
+  static func rectangles(from request: VNDetectRectanglesRequest) -> [DetectedRectangle] {
     let rectangles = (request.results ?? []).map { observation in
       // Vision reports normalized corners with the origin at the bottom-left.
       let corners = [observation.topLeft, observation.topRight, observation.bottomRight, observation.bottomLeft]
@@ -69,16 +74,6 @@ enum RectangleDetector {
   static func detect(sampleBuffer: CMSampleBuffer, orientation: CGImagePropertyOrientation) throws -> [DetectedRectangle] {
     let handler = VNImageRequestHandler(cmSampleBuffer: sampleBuffer, orientation: orientation, options: [:])
     return try detect(handler: handler)
-  }
-
-  static func detect(fileURL: URL) throws -> RectangleDetectionResult {
-    let properties = try ImageFile.properties(of: fileURL)
-    let handler = VNImageRequestHandler(url: fileURL, orientation: properties.orientation, options: [:])
-    return RectangleDetectionResult(
-      width: properties.uprightWidth,
-      height: properties.uprightHeight,
-      rectangles: try detect(handler: handler)
-    )
   }
 }
 

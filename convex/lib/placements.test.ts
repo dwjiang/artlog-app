@@ -46,9 +46,23 @@ describe('currentPlacement', () => {
     expect(currentPlacement([closed], now)).toBeNull();
   });
 
+  it('ranks an active checklist above an off-view feed, preserving stronger location evidence', () => {
+    const offView = placement({ venueId: 'home', source: 'feed', onView: false, confidence: 1 });
+    const loan = placement({ venueId: 'loan', source: 'checklist', from: now - day, to: now + day });
+    const feed = placement({ venueId: 'confirmed', source: 'feed' });
+    const manual = placement({ venueId: 'manual', source: 'manual', onView: false });
+    const proposal = placement({ venueId: 'proposed', source: 'proposal' });
+
+    for (const rows of [[offView, loan], [loan, offView]]) expect(currentPlacement(rows, now)).toBe(loan);
+    expect(currentPlacement([offView, loan], now + 2 * day)).toBe(offView);
+    expect(currentPlacement([offView, loan, feed], now)).toBe(feed);
+    expect(currentPlacement([offView, loan, manual], now)).toBe(manual);
+    expect(currentPlacement([offView, proposal], now)).toBe(offView);
+  });
+
   it('breaks a source tie by confidence, then by the latest start', () => {
-    const weak = placement({ venueId: 'weak', source: 'crawl', confidence: 0.3 });
-    const strong = placement({ venueId: 'strong', source: 'crawl', confidence: 0.8 });
+    const weak = placement({ venueId: 'weak', source: 'wikidata', confidence: 0.3 });
+    const strong = placement({ venueId: 'strong', source: 'wikidata', confidence: 0.8 });
     expect(currentPlacement([weak, strong], now)).toBe(strong);
 
     const earlier = placement({ venueId: 'earlier', source: 'feed', confidence: 0.8, from: now - 5 * day });

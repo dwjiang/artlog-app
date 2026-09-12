@@ -2,11 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "allowImportingTsExtensions": true,
     "types": ["jest"],
     "paths": {
       "@/*": [
         "./src/*"
       ],
+      "@/shared/*": ["./shared/*"],
       "@/assets/*": [
         "./assets/*"
       ]

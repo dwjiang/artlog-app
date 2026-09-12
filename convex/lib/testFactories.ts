@@ -2,7 +2,8 @@ import model from '../../shared/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import type { Harness, SignedIn } from '../test.helpers';
-import { encodeOrbFeatures, type OrbFeatures } from './orb';
+import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
+import { registerMuseumObject } from './museumWorkIdentity';
 
 export function testVector(similarity = 1): number[] {
   const vector = Array<number>(model.embeddingDim).fill(0);
@@ -36,9 +37,7 @@ export async function seedMuseum(
 ): Promise<Id<'museums'>> {
   return ctx.db.insert('museums', {
     key: crypto.randomUUID(), name: 'Test Museum', lat: 0, lng: 0,
-    seedSource: 'manual', region: 'US', optOut: false, useTavilyCrawl: false,
-    queuePriority: 0, failureCount: 0,
-    indexStatus: { status: 'complete', pagesMapped: 20, worksIndexed: 20, updatedAt: Date.now() },
+    seedSource: 'manual', region: 'US', optOut: false,
     ...overrides,
   });
 }
@@ -62,6 +61,7 @@ export async function seedArtworkWithObject(ctx: MutationCtx, options: {
     confirmCount: 0, rejectCount: 0, calibratorPenalty: 0, reverted: false,
     ...options.object,
   });
+  await registerMuseumObject(ctx, { artworkId, ownerId: options.placement?.venueId, ...options.object });
   const vectorId = await ctx.db.insert('vectors', {
     objectId, modelVersion: options.modelVersion ?? model.modelVersion,
     source: 'corpus', vector: options.vector ?? testVector(),
@@ -72,4 +72,31 @@ export async function seedArtworkWithObject(ctx: MutationCtx, options: {
   });
   if (options.placement) await ctx.db.insert('placements', { objectId, ...options.placement });
   return { artworkId, objectId, vectorId };
+}
+
+export async function seedScan(
+  ctx: MutationCtx,
+  overrides: Partial<Omit<Doc<'scans'>, '_id' | '_creationTime'>> & { deviceId: Id<'devices'> },
+): Promise<Id<'scans'>> {
+  const now = Date.now();
+  return ctx.db.insert('scans', {
+    localId: crypto.randomUUID(), generation: 0, modelVersion: model.modelVersion, vector: testVector(),
+    capturedAt: now, status: 'identified', outcome: 'miss', calibratorVersion: 'lr-v1', createdAt: now, updatedAt: now,
+    ...overrides,
+  });
+}
+
+export async function seedContribution(
+  ctx: MutationCtx,
+  overrides: Partial<Omit<Doc<'contributions'>, '_id' | '_creationTime'>> & { deviceId: Id<'devices'>; venueId: Id<'museums'> },
+): Promise<Id<'contributions'>> {
+  return ctx.db.insert('contributions', {
+    vector: testVector(), modelVersion: model.modelVersion, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+    keypointCount: 0, evidence: ['wikidata'], status: 'private', createdAt: Date.now(),
+    fields: {
+      title: { value: 'Water Lilies', edited: false, evidence: 'wikidata' },
+      artist: { value: 'Claude Monet', edited: false, evidence: 'wikidata' },
+    },
+    ...overrides,
+  });
 }

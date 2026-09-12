@@ -8,6 +8,7 @@
     "scheme": "artlog",
     "userInterfaceStyle": "light",
     "ios": {
+      "deploymentTarget": "17.0",
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "app.artlog.ios",
       "appleTeamId": "J4UW2CVVY4",
@@ -15,12 +16,12 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Artlog uses the camera to identify paintings and read wall labels.",
         "NSPhotoLibraryUsageDescription": "Artlog can identify paintings from photos you already took.",
-        "NSLocationWhenInUseUsageDescription": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.developer.devicecheck.appattest-environment": "production"
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -54,7 +55,18 @@
           "cameraPermission": "Artlog uses the camera to identify paintings and read wall labels.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
+      "expo-apple-authentication",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,6 +9,8 @@
 > **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/ shared/ src/app/_layout.tsx .env.example package.json tsconfig.json`
 > If `convex/` already exists, STOP and reconcile with whoever created it.
 
+> **Superseded in part (2026-09-10):** `crawlRuns`, `crawlPages`, `crawlLaunches`, the crawl fields on `museums`, `indexStatusKind`, `crawlRunStatus`, the `crawl` source literals and the `waiting` scan status were removed with the crawler (`docs/plans/README.md`, "No crawler").
+
 ## Status
 
 - **Priority**: P1

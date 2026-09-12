@@ -1,17 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getFunctionName, type FunctionArgs } from 'convex/server';
 
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
-import type { ActionCtx } from './_generated/server';
-import { identify } from './identify';
-import type { ScanDisplay } from './scans';
-import { encodeOrbFeatures } from './lib/orb';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { encodeOrbFeatures } from '../shared/orb';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
+import { completion, jsonResponse } from './lib/labelFixtures';
+import { FIXTURE_NOW } from './lib/rightNowFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 const pair = makeSyntheticPair({ count: 120 });
 const capture = () => ({
@@ -19,12 +17,10 @@ const capture = () => ({
   modelVersion: model.modelVersion, capturedAt: Date.now(),
 });
 
-async function fixture(indexStatus: 'complete' | 'queued' | 'building' = 'complete', withWork = true) {
+async function fixture(withWork = true) {
   const t = harness();
   const user = await seedDevice(t);
-  const venueId = await t.run((ctx) => seedMuseum(ctx, {
-    indexStatus: { status: indexStatus, pagesMapped: 20, worksIndexed: 3, updatedAt: Date.now() },
-  }));
+  const venueId = await t.run((ctx) => seedMuseum(ctx));
   const visitId = await t.run((ctx) => ctx.db.insert('visits', {
     deviceId: user.deviceId, venueId, startedAt: Date.now(),
   }));
@@ -47,7 +43,12 @@ describe('identify action', () => {
     expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({ lastConfidentGallery: '4', lastConfidentAt: args.capturedAt });
     const scan = await t.run((ctx) => ctx.db.get(result.scanId));
     expect(scan?.vector).toEqual(args.vector);
-    expect(scan?.descriptors).toBeUndefined();
+    expect(scan?.candidateSignals).toHaveLength(1);
+    const [signals] = scan!.candidateSignals!;
+    expect(signals).toMatchObject({ objectId: work!.objectId, probability: result.best!.probability, homographyValid: true });
+    expect(signals.similarity).toBeCloseTo(1);
+    expect(signals.margin).toBeCloseTo(1);
+    expect(signals.orbInliers).toBeGreaterThan(0);
   });
 
   it('returns an update status for unsupported models before decoding old feature formats', async () => {
@@ -69,30 +70,22 @@ describe('identify action', () => {
     expect(await t.run((ctx) => ctx.db.query('scans').collect())).toHaveLength(1);
   });
 
-  it.each(['pending', 'waiting'] as const)('preserves a supported %s generation when a retired-model retry arrives', async (status) => {
-    const { t, user, venueId, args } = await fixture('building', false);
+  it('preserves a supported pending generation when a retired-model retry arrives', async () => {
+    const { t, user, venueId, args } = await fixture(false);
     const obsoleteArgs = { ...args, modelVersion: 'retired', vector: [1] };
     const obsolete = await user.as.action(api.identify.identify, obsoleteArgs);
-    if (status === 'pending') {
-      await t.mutation(internal.scans.create, {
-        deviceId: user.deviceId, localId: args.localId, venueId, visitId: args.visitId,
-        modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
-      });
-    } else {
-      await user.as.action(api.identify.identify, args);
-    }
+    await t.mutation(internal.scans.create, {
+      deviceId: user.deviceId, localId: args.localId, venueId, visitId: args.visitId,
+      modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
+    });
     const before = await t.run((ctx) => ctx.db.get(obsolete.scanId));
-    expect(before).toMatchObject({ status, generation: 1, modelVersion: model.modelVersion });
-    expect(await user.as.action(api.identify.identify, obsoleteArgs)).toMatchObject({ scanId: obsolete.scanId, status });
+    expect(before).toMatchObject({ status: 'pending', generation: 1, modelVersion: model.modelVersion });
+    expect(await user.as.action(api.identify.identify, obsoleteArgs)).toMatchObject({ scanId: obsolete.scanId, status: 'pending' });
     expect(await t.run((ctx) => ctx.db.get(obsolete.scanId))).toEqual(before);
 
-    await t.run(async (ctx) => {
-      await seedArtworkWithObject(ctx, { descriptors: pair.ref,
-        placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
-      await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
-    });
-    if (status === 'pending') await user.as.action(api.identify.identify, args);
-    else await t.action(internal.identify.rerunWaiting, { venueId });
+    await t.run((ctx) => seedArtworkWithObject(ctx, { descriptors: pair.ref,
+      placement: { venueId, onView: true, source: 'feed', confidence: 1 } }));
+    await user.as.action(api.identify.identify, args);
     expect(await user.as.query(api.scans.get, { scanId: obsolete.scanId }))
       .toMatchObject({ status: 'identified', outcome: 'confident' });
   });
@@ -145,7 +138,7 @@ describe('identify action', () => {
   });
 
   it('filters vector search only by model version, including equally similar vectors from other models', async () => {
-    const { t, user, args } = await fixture('complete', false);
+    const { t, user, args } = await fixture(false);
     await t.run(async (ctx) => {
       for (let i = 0; i < 33; i++) await seedArtworkWithObject(ctx, { modelVersion: 'other-model', descriptors: pair.ref });
     });
@@ -161,152 +154,20 @@ describe('identify action', () => {
     expect(result.best?.corners).toBeUndefined();
   });
 
-  it.each(['queued', 'building'] as const)('retains features and soft candidates while the venue is %s', async (status) => {
-    const { t, user, args } = await fixture(status);
-    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) });
-    expect(result).toMatchObject({ status: 'waiting', outcome: 'soft', indexStatus: { status, pagesMapped: 20, worksIndexed: 3 } });
-    expect(result.best?.title).toBe('Water Lilies');
-    expect(await t.run((ctx) => ctx.db.get(result.scanId))).toMatchObject({ keypointCount: 0, descriptors: new ArrayBuffer(0) });
-  });
-
-  it('returns confident results immediately even when the venue is building', async () => {
-    const { user, args } = await fixture('building');
-    expect(await user.as.action(api.identify.identify, args)).toMatchObject({ status: 'identified', outcome: 'confident' });
-  });
-
-  it.each([0, 120])('waits for missing reference descriptors before identifying a work with %s keypoints', async (count) => {
-    const { t, user, venueId, args } = await fixture('building', false);
-    const work = await t.run((ctx) => seedArtworkWithObject(ctx, {
-      placement: { venueId, onView: true, source: 'feed', confidence: 1 },
-    }));
-    const waiting = await user.as.action(api.identify.identify, args);
-    expect(waiting).toMatchObject({ status: 'waiting', outcome: 'soft', best: { objectId: work.objectId } });
-    expect(await t.run((ctx) => ctx.db.get(waiting.scanId))).toMatchObject({
-      descriptors: args.descriptors, keypoints: args.keypoints,
-    });
-    await t.run(async (ctx) => {
+  it.each([0, 120])('identifies a work with %s stored keypoints, returning corners only when verifiable', async (count) => {
+    const { t, user, venueId, args } = await fixture(false);
+    const work = await t.run(async (ctx) => {
+      const work = await seedArtworkWithObject(ctx, { placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
       await ctx.db.insert('descriptors', {
         objectId: work.objectId, keypointCount: count, inputSize: model.inputSize, extractedFrom: 'test reference',
         ...(count === 0 ? { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) } : encodeOrbFeatures(pair.ref)),
       });
-      await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
+      return work;
     });
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    const result = await user.as.query(api.scans.get, { scanId: waiting.scanId });
+    const result = await user.as.action(api.identify.identify, args);
     expect(result).toMatchObject({ status: 'identified', outcome: 'confident', best: { objectId: work.objectId } });
-    if (count === 0) expect(result?.best?.corners).toBeUndefined();
-    else expect(result?.best?.corners).toHaveLength(4);
-    expect((await t.run((ctx) => ctx.db.get(waiting.scanId)))?.descriptors).toBeUndefined();
-  });
-
-  it('resolves a waiting scan with newly indexed candidates and clears temporary features', async () => {
-    const { t, user, venueId, args } = await fixture('building', false);
-    const waiting = await user.as.action(api.identify.identify, args);
-    expect(waiting.status).toBe('waiting');
-    await t.run(async (ctx) => {
-      await seedArtworkWithObject(ctx, { descriptors: pair.ref,
-        placement: { venueId, gallery: '4', onView: true, source: 'feed', confidence: 1 } });
-      await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 20, worksIndexed: 20, updatedAt: Date.now() } });
-    });
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    const result = await user.as.query(api.scans.get, { scanId: waiting.scanId });
-    expect(result).toMatchObject({ status: 'identified', outcome: 'confident' });
-    expect((await t.run((ctx) => ctx.db.get(waiting.scanId)))?.descriptors).toBeUndefined();
-  });
-
-  it('forces a terminal result when rerunning even if index status still says building', async () => {
-    const { t, user, venueId, args } = await fixture('building', false);
-    const waiting = await user.as.action(api.identify.identify, args);
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    expect(await user.as.query(api.scans.get, { scanId: waiting.scanId })).toMatchObject({ status: 'identified', outcome: 'miss' });
-  });
-
-  it('continues across pages when a waiting scan belongs to a banned device', async () => {
-    vi.useFakeTimers();
-    const { t, user, venueId, args } = await fixture('building', false);
-    const bannedScan = await user.as.action(api.identify.identify, args);
-    const healthy = await seedDevice(t);
-    const scanIds = await t.run(async (ctx) => {
-      await ctx.db.patch(user.deviceId, { banned: true });
-      const ids = [];
-      for (let i = 0; i < 26; i++) ids.push(await ctx.db.insert('scans', {
-        ...args, visitId: undefined, localId: String(i), generation: 0, deviceId: healthy.deviceId, keypointCount: pair.query.count,
-        status: 'waiting', createdAt: Date.now(), updatedAt: Date.now(),
-      }));
-      return ids;
-    });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
-    expect(await t.run((ctx) => ctx.db.get(bannedScan.scanId))).toMatchObject({ status: 'failed' });
-    const scans = await t.run((ctx) => Promise.all(scanIds.map((id) => ctx.db.get(id))));
-    expect(scans.every((scan) => scan?.status === 'identified' && scan.descriptors === undefined)).toBe(true);
-  });
-
-  it('preserves a completed rerun when an older identify retry finishes later', async () => {
-    const { t, user, venueId, args } = await fixture('building', false);
-    const first = await user.as.action(api.identify.identify, args);
-    let signalPaused!: () => void;
-    let resume!: () => void;
-    const paused = new Promise<void>((resolve) => { signalPaused = resolve; });
-    const resumed = new Promise<void>((resolve) => { resume = resolve; });
-    const handler = (identify as unknown as {
-      _handler: (ctx: ActionCtx, args: FunctionArgs<typeof api.identify.identify>) => Promise<ScanDisplay>;
-    })._handler;
-    const retry = user.as.action(async (ctx) => handler({ ...ctx,
-      runMutation: async (ref, mutationArgs) => {
-        let name: string | undefined;
-        try { name = getFunctionName(ref); } catch { /* Component references have no function name. */ }
-        if (name === 'scans:setResult') {
-          signalPaused();
-          await resumed;
-        }
-        return ctx.runMutation(ref, mutationArgs);
-      },
-    }, args));
-    await paused;
-    let completed: ScanDisplay | null = null;
-    try {
-      await t.run(async (ctx) => {
-        await seedArtworkWithObject(ctx, { descriptors: pair.ref,
-          placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
-        await ctx.db.patch(venueId, { indexStatus: { status: 'complete', pagesMapped: 1, worksIndexed: 1, updatedAt: Date.now() } });
-      });
-      await t.action(internal.identify.rerunWaiting, { venueId });
-      completed = await user.as.query(api.scans.get, { scanId: first.scanId });
-      expect(completed).toMatchObject({ status: 'identified', outcome: 'confident' });
-    } finally {
-      resume();
-    }
-    expect(await retry).toEqual(completed);
-    expect((await t.run((ctx) => ctx.db.get(first.scanId)))?.descriptors).toBeUndefined();
-  });
-
-  it('resolves every page of waiting scans as earlier pages leave the waiting index', async () => {
-    vi.useFakeTimers();
-    const { t, user, venueId, args } = await fixture('building', false);
-    const scanIds = await t.run(async (ctx) => {
-      const ids = [];
-      for (let i = 0; i < 27; i++) ids.push(await ctx.db.insert('scans', {
-        ...args, localId: String(i), generation: 0, deviceId: user.deviceId, keypointCount: pair.query.count,
-        status: 'waiting', createdAt: Date.now(), updatedAt: Date.now(),
-      }));
-      return ids;
-    });
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
-    const scans = await t.run(async (ctx) => Promise.all(scanIds.map((id) => ctx.db.get(id))));
-    expect(scans.every((scan) => scan?.status === 'identified' && scan.descriptors === undefined)).toBe(true);
-    expect((await t.query(internal.scans.listWaiting, { venueId })).page).toEqual([]);
-  });
-
-  it('marks queued scans unsupported and clears features if their model is retired', async () => {
-    const { t, user, venueId, args } = await fixture('building', false);
-    const waiting = await user.as.action(api.identify.identify, args);
-    vi.stubEnv('SUPPORTED_MODEL_VERSIONS', 'replacement-model');
-    await t.action(internal.identify.rerunWaiting, { venueId });
-    expect(await user.as.query(api.scans.get, { scanId: waiting.scanId })).toMatchObject({ status: 'unsupported_version' });
-    expect((await t.run((ctx) => ctx.db.get(waiting.scanId)))?.keypoints).toBeUndefined();
+    if (count === 0) expect(result.best?.corners).toBeUndefined();
+    else expect(result.best?.corners).toHaveLength(4);
   });
 
   it('returns the same stored result on retry even if the index has since changed', async () => {
@@ -319,7 +180,7 @@ describe('identify action', () => {
 
   it('rejects the 21st identify call in a burst', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
-    const { user, args } = await fixture('complete', false);
+    const { user, args } = await fixture(false);
     for (let i = 0; i < 20; i++) await user.as.action(api.identify.identify, args);
     await expect(user.as.action(api.identify.identify, args)).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'identify' } });
   });
@@ -348,8 +209,90 @@ describe('identify action', () => {
     const otherScan = await other.as.action(api.identify.identify, firstArgs);
     await propose(other.as, otherScan.scanId);
     const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
-    expect(proposal).toMatchObject({ readyForReview: true, deviceIds: [user.deviceId, other.deviceId] });
+    expect(proposal).toMatchObject({ readyForReview: false, deviceIds: [user.deviceId, other.deviceId] });
     expect(proposal?.scanIds).toHaveLength(3);
+  });
+});
+
+describe('enrichment after identification', () => {
+  const TOKEN_FACTORY = 'https://api.tokenfactory.nebius.com/v1/chat/completions';
+  const TAVILY = 'https://api.tavily.com/search';
+  const SOURCE = 'https://www.metmuseum.org/art/collection/search/437127';
+
+  function stubProviders() {
+    vi.stubEnv('NEBIUS_API_KEY', 'nebius-test');
+    vi.stubEnv('TAVILY_API_KEY', 'tvly-test');
+    vi.stubEnv('FACT_SHEET_MODEL', 'super');
+    vi.stubEnv('DOCENT_MODEL', 'lightning');
+    vi.stubEnv('FLAG_RIGHT_NOW', 'on');
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body));
+      if (url === TOKEN_FACTORY) {
+        return completion(body.model === 'super'
+          ? [{ id: 'f1', text: 'Monet painted Water Lilies in 1916.', sourceUrl: SOURCE, sourceLabel: 'x', sourceScore: 1 }]
+          : [{ sentence: 'Claude Monet painted these water lilies in 1916.', fact_ids: ['f1'] }]);
+      }
+      if (url === TAVILY && body.topic === 'news') {
+        return jsonResponse({
+          answer: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+          results: [{
+            url: 'https://www.sfmoma.org/press/monet-water-lilies-returns', title: 'Monet’s Water Lilies returns',
+            content: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+            score: 0.82, published_date: new Date(FIXTURE_NOW - 24 * 60 * 60 * 1000).toUTCString(),
+          }],
+          usage: { credits: 1 },
+        });
+      }
+      if (url === TAVILY) {
+        return jsonResponse({
+          results: [{ url: SOURCE, title: 'Water Lilies', content: 'Claude Monet painted this canvas in 1916.', score: 0.9 }],
+          usage: { credits: 1 },
+        });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    return fetchMock;
+  }
+
+  it('schedules docent prose and "Right now" after a confident result without delaying the card', async () => {
+    vi.useFakeTimers({ now: FIXTURE_NOW });
+    const fetchMock = stubProviders();
+    const { t, user, venueId, args, work } = await fixture();
+    await t.run((ctx) => ctx.db.patch(venueId, { region: 'sf-bay-area' }));
+    const result = await user.as.action(api.identify.identify, args);
+    expect(result.outcome).toBe('confident');
+    expect(result.docent).toBeUndefined();
+    expect(result.rightNow).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en).toEqual([
+      { sentence: 'Claude Monet painted these water lilies in 1916.', factIds: ['f1'] },
+    ]);
+    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    expect(display?.docent).toEqual([{ sentence: 'Claude Monet painted these water lilies in 1916.', factIds: ['f1'] }]);
+    expect(display?.factSheet).toEqual([{ id: 'f1', sourceUrl: SOURCE, sourceLabel: 'metmuseum.org' }]);
+    expect(display?.rightNow).toEqual({
+      text: 'Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.',
+      sourceUrl: 'https://www.sfmoma.org/press/monet-water-lilies-returns', sourceLabel: 'sfmoma.org',
+    });
+    expect(await t.run((ctx) => ctx.db.query('dailySpend').collect())).toMatchObject([{ tokenFactoryCalls: 2, tavilyCredits: 2 }]);
+  });
+
+  it('schedules nothing for a soft result', async () => {
+    vi.useFakeTimers({ now: FIXTURE_NOW });
+    const fetchMock = stubProviders();
+    const { t, user, args, work } = await fixture();
+    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) });
+    expect(result.outcome).toBe('soft');
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent).toBeUndefined();
+    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    expect(display).not.toHaveProperty('docent');
+    expect(display).not.toHaveProperty('factSheet');
   });
 });
 

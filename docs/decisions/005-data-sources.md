@@ -347,7 +347,7 @@ rewrite saved visits or infer today's placement from these historical examples.
 
 ## 7. Fact-sheet source-score seed
 
-[jobs/config/source-scores.json](../../jobs/config/source-scores.json) is the
+[shared/source-scores.json](../../shared/source-scores.json) is the
 machine-readable proposal for 02.07: default 0.3, acceptance threshold 0.5.
 Scores are **editorial priors, not measured probabilities, truth guarantees,
 image licenses, or permission to crawl**. Prefer the owning museum for

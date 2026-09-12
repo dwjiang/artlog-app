@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { CommonResolutions, useFrameOutput, type Frame } from 'react-native-vision-camera';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { getVisionRect, type RectDetection } from '../../../modules/vision-rect/src';
-import { RectTrackerStore, type Guidance } from './rectangle';
+import { RectTrackerStore, quadArea, type Guidance } from './rectangle';
 import type { Quad } from './stages';
 
 /** Every third frame sustained about 10 Vision calls/s in decision 006. */
@@ -17,7 +17,7 @@ export type RectDetector = {
   liveQuad: SharedValue<LiveQuad>;
   guidance: Guidance;
   ready: boolean;
-  getQuad: () => Quad | null;
+  getCaptureQuad: () => Quad | null;
 };
 
 export function useRectDetector(active: boolean): RectDetector {
@@ -25,10 +25,22 @@ export function useRectDetector(active: boolean): RectDetector {
   const store = useMemo(() => new RectTrackerStore(), []);
   const liveQuad = useSharedValue<LiveQuad>(null);
   const guidance = useSyncExternalStore(store.subscribe, store.getGuidance);
+  const lastLogAt = useRef(0);
 
   const onDetection = useCallback((detection: RectDetection) => {
-    const next = store.push(detection, performance.now());
+    const now = performance.now();
+    const next = store.push(detection, now);
     liveQuad.set(next.quad ? { quad: next.quad, frameWidth: detection.width, frameHeight: detection.height } : null);
+    if (__DEV__ && now - lastLogAt.current > 1000) {
+      lastLogAt.current = now;
+      console.debug('Rect tracker', {
+        guidance: next.guidance,
+        jitter: Number(next.jitter.toFixed(4)),
+        candidates: detection.observations.length,
+        area: next.quad ? Number(quadArea(next.quad).toFixed(3)) : 0,
+        frame: `${detection.width}×${detection.height}`,
+      });
+    }
   }, [liveQuad, store]);
 
   useEffect(() => {
@@ -50,5 +62,5 @@ export function useRectDetector(active: boolean): RectDetector {
   // 4:3 keeps the frame and the default photo output on the same field of view, so normalized quads transfer.
   const frameOutput = useFrameOutput({ targetResolution: CommonResolutions.HD_4_3, pixelFormat: 'yuv', onFrame });
 
-  return { frameOutput, liveQuad, guidance, ready: guidance === 'ready', getQuad: () => store.quad };
+  return { frameOutput, liveQuad, guidance, ready: guidance === 'ready', getCaptureQuad: () => store.captureQuad };
 }

@@ -1,15 +1,12 @@
 import model from '../../../shared/model-version.json';
 
 import { getVisionRect } from '../../../modules/vision-rect/src';
+import { embedder } from '@/lib/embed/embedder';
+import { filePath } from '@/lib/file-uri';
+import { captureStore } from '@/lib/queue/queue';
+import { orb, triage } from './features';
 import { selectCaptureQuad, toCorners } from './rectangle';
 import type { CaptureDependencies, CaptureOptions, Warper } from './stages';
-
-function embedPending(): never { throw new Error('Embedder implemented by plan 03.03'); }
-function orbPending(): never { throw new Error('Triage and ORB implemented by plan 03.04'); }
-
-function filePath(uri: string): string {
-  return uri.startsWith('file://') ? decodeURI(uri.slice('file://'.length)) : uri;
-}
 
 export const warper: Warper = {
   async warpAndLetterbox(photoUri, quad, size) {
@@ -17,6 +14,15 @@ export const warper: Warper = {
     const path = filePath(photoUri);
     const still = await visionRect.detectStill(path);
     const selected = selectCaptureQuad(quad, still);
+    if (__DEV__) {
+      console.debug('Still analysis', {
+        still: `${still.width}×${still.height}`,
+        subjects: still.subjects.map((subject) => `${(subject.area * 100).toFixed(1)}% fill ${subject.quadFill.toFixed(3)}`),
+        rectangles: still.rectangles.length,
+        subjectNote: still.subjectNote,
+        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ') ?? 'whole image',
+      });
+    }
     const result = await visionRect.warpAndLetterbox(path, selected ? toCorners(selected) : undefined, size);
     return { cropUri: `file://${result.cropPath}` };
   },
@@ -24,12 +30,10 @@ export const warper: Warper = {
 
 export const captureOptions: CaptureOptions = { inputSize: model.inputSize, modelVersion: model.modelVersion };
 
-export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'enqueue'> = {
+export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'store'> = {
   warper,
-  triage: { check: orbPending },
-  embedder: { embed: embedPending, modelVersion: model.modelVersion },
-  orb: { extract: orbPending },
-  enqueue: async ({ localId }) => {
-    console.warn('Offline queue pending plan 03.06; capture is not persisted', { localId });
-  },
+  triage,
+  embedder,
+  orb,
+  store: captureStore,
 };

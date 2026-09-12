@@ -21,6 +21,27 @@ export interface RectDetection {
   observations: RectObservation[];
 }
 
+export interface SubjectObservation {
+  /** Share of the image covered by the subject's largest connected region. */
+  area: number;
+  /** Region area over quad area: about 1 for a quadrilateral, further off for rounder shapes such as people. */
+  quadFill: number;
+  /** Corners fitted to the region's sides, in order top-left, top-right, bottom-right, bottom-left. */
+  quad: RectPoint[];
+}
+
+export interface StillDetection {
+  /** Upright image size in pixels. */
+  width: number;
+  height: number;
+  /** Rectangle candidates, largest first. */
+  rectangles: RectObservation[];
+  /** Foreground subjects lifted from the background, largest first. */
+  subjects: SubjectObservation[];
+  /** Why subject lifting produced nothing, when it did: its error (the iOS Simulator cannot run it) or what it rejected. */
+  subjectNote?: string;
+}
+
 export interface LetterboxResult {
   cropPath: string;
   /** The region that was warped, normalized to the upright still; the whole image when no quad was given. */
@@ -35,6 +56,7 @@ export interface VisionRect extends HybridObject<{ ios: 'swift' }> {
    * Call from the frame worklet; the caller disposes the frame.
    */
   detect(frame: Frame, stride: number): RectDetection | undefined;
-  detectStill(photoPath: string): Promise<RectDetection>;
+  /** Rectangle detection and subject lifting on a captured still or library photo. */
+  detectStill(photoPath: string): Promise<StillDetection>;
   warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;
 }

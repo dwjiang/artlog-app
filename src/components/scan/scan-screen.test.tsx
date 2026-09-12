@@ -4,21 +4,29 @@ import { AppState, Linking, type AppStateStatus } from 'react-native';
 
 import { ScanScreen } from './scan-screen';
 import type { Guidance } from '@/lib/capture/rectangle';
-import type { CaptureInput } from '@/lib/capture/stages';
+import type { CaptureInput, CaptureTimings } from '@/lib/capture/stages';
+import type { VenueView } from '@/lib/venue/use-venue';
 
 let mockFocused = true;
 let mockGranted = true;
 let mockCanRequest = false;
 let mockGuidance: Guidance = 'searching';
+let mockTimings: CaptureTimings | undefined;
+let mockMessage: string | undefined;
+let mockPending = 0;
+let mockVenueView: VenueView;
 let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void };
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
 const mockCapture = jest.fn();
 const mockImport = jest.fn();
+const mockClearMessage = jest.fn();
+const mockPush = jest.fn();
 const mockSelectionHaptic = jest.fn();
 const mockImpactHaptic = jest.fn();
-const mockGetQuad = jest.fn();
+const mockGetCaptureQuad = jest.fn();
+const mockResolveVenue = jest.fn();
 const mockFrameOutput = { kind: 'frame-output' };
 const mockDetectorActive: boolean[] = [];
 
@@ -31,7 +39,9 @@ jest.mock('@expo/ui', () => {
     ),
   };
 });
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
+jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('expo-haptics', () => ({
   selectionAsync: () => mockSelectionHaptic(),
@@ -45,12 +55,14 @@ jest.mock('react-native-vision-camera', () => ({
   Camera: (props: typeof mockCameraProps): ReactNode => { mockCameraProps = props; return null; },
 }));
 jest.mock('@/lib/capture/use-capture', () => ({
-  useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false }),
+  useCapture: () => ({ capture: mockCapture, importPhoto: mockImport, busy: false, message: mockMessage, timings: mockTimings, clearMessage: mockClearMessage }),
 }));
+jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue(), useVenue: () => mockVenueView }));
+jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: Array.from({ length: mockPending }, () => ({ status: 'queued' })) }) }));
 jest.mock('@/lib/capture/use-rect-detector', () => ({
   useRectDetector: (active: boolean) => {
     mockDetectorActive.push(active);
-    return { frameOutput: mockFrameOutput, liveQuad: { value: null }, guidance: mockGuidance, ready: mockGuidance === 'ready', getQuad: mockGetQuad };
+    return { frameOutput: mockFrameOutput, liveQuad: { value: null }, guidance: mockGuidance, ready: mockGuidance === 'ready', getCaptureQuad: mockGetCaptureQuad };
   },
 }));
 jest.mock('./viewfinder-overlay', () => {
@@ -67,6 +79,13 @@ beforeEach(() => {
   mockGranted = true;
   mockCanRequest = false;
   mockGuidance = 'searching';
+  mockTimings = undefined;
+  mockMessage = undefined;
+  mockPending = 0;
+  mockVenueView = {
+    status: 'resolved', venue: { kind: 'seeded', venueId: 'museum-1' as never, name: 'Legion of Honor' }, options: [],
+    resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(),
+  };
   mockDetectorActive.length = 0;
   AppState.currentState = 'active';
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
@@ -78,33 +97,35 @@ beforeEach(() => {
   mockImpactHaptic.mockResolvedValue(undefined);
   mockRequest.mockResolvedValue(true);
   mockImport.mockResolvedValue(undefined);
-  mockGetQuad.mockReturnValue(null);
+  mockGetCaptureQuad.mockReturnValue(null);
+  mockResolveVenue.mockResolvedValue({ venueId: 'museum-1', visitId: 'visit-1', visitLocalId: 'local-visit' });
   mockCapture.mockImplementation(async (getInput: () => Promise<CaptureInput>) => getInput());
 });
 afterEach(() => jest.restoreAllMocks());
 
-it('enables the shutter only once the camera runs and the painting is ready, with a haptic on ready', async () => {
+it('enables the shutter once the camera runs, whatever the live outline says, with a haptic when it locks', async () => {
   const view = await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);
-  await act(() => mockCameraProps.onStarted());
   expect(screen.getByRole('button', { name: 'Take photo' })).toBeDisabled();
+  expect(screen.queryByText('guidance:searching')).toBeNull();
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
   expect(screen.getByText('guidance:searching')).toBeOnTheScreen();
   mockGuidance = 'hold-still';
   await view.rerender(<ScanScreen />);
-  expect(screen.getByRole('button', { name: 'Take photo' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
   expect(mockImpactHaptic).not.toHaveBeenCalled();
   mockGuidance = 'ready';
   await view.rerender(<ScanScreen />);
-  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
   expect(mockImpactHaptic).toHaveBeenCalledWith('light');
   expect(screen.getByText('guidance:ready')).toBeOnTheScreen();
 });
 
-it('captures a URI and the live quad in preview orientation with a selection haptic', async () => {
+it('captures a URI, the unsmoothed quad and the resolved venue in preview orientation with a selection haptic', async () => {
   jest.spyOn(console, 'debug').mockImplementation(() => {});
   const quad: CaptureInput['quad'] = [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]];
   mockGuidance = 'ready';
-  mockGetQuad.mockReturnValue(quad);
+  mockGetCaptureQuad.mockReturnValue(quad);
   await render(<ScanScreen />);
   expect(mockCameraProps.orientationSource).toBe('interface');
   expect(mockCameraProps.allowHapticsAndSystemSoundsPlayback).toBe(true);
@@ -113,8 +134,9 @@ it('captures a URI and the live quad in preview orientation with a selection hap
   expect(mockSelectionHaptic).toHaveBeenCalledTimes(1);
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   await expect(mockCapture.mock.results[0].value).resolves.toMatchObject({
-    photoUri: 'file:///photo.jpg', quad, source: 'camera', capturedAt: expect.any(Number),
+    photoUri: 'file:///photo.jpg', quad, source: 'camera', capturedAt: expect.any(Number), venueId: 'museum-1', visitId: 'visit-1', visitLocalId: 'local-visit',
   });
+  expect(mockResolveVenue).toHaveBeenCalledTimes(1);
 });
 
 it('pauses the camera and detector when another tab is focused or the app backgrounds', async () => {
@@ -145,4 +167,29 @@ it('requests camera permission on mount and keeps import available after denial'
   expect(open).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'Import' }));
   expect(mockImport).toHaveBeenCalledTimes(1);
+});
+
+it('shows the museum pill and the waiting-for-signal badge over the preview', async () => {
+  mockPending = 2;
+  await render(<ScanScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
+  expect(mockPush).toHaveBeenCalledWith('/venue-picker');
+  expect(screen.getByLabelText('2 scans in queue')).toBeOnTheScreen();
+});
+
+it('replaces the guidance with the retake banner until Retake is tapped', async () => {
+  mockMessage = 'Dodge the glare';
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.getByRole('alert')).toHaveTextContent('Dodge the glare');
+  expect(screen.queryByText('guidance:searching')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Retake' }));
+  expect(mockClearMessage).toHaveBeenCalledTimes(1);
+});
+
+it('shows the stage breakdown of the last capture in development', async () => {
+  mockTimings = { warp: 273.4, triage: 8.6, embed: 480.2, orb: 11.7, identify: 38.1, total: 812.0 };
+  await render(<ScanScreen />);
+  expect(screen.getByText('Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38')).toBeOnTheScreen();
 });

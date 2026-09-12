@@ -8,7 +8,6 @@ import logging
 import sys
 import threading
 import time
-from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -21,7 +20,7 @@ import httpx
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .config import Settings, get_settings, setup_logging
-from .polite_http import PoliteClient, RetryLater
+from .polite_http import BandwidthLimiter, PoliteClient, RetryLater
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +51,6 @@ PERMANENT_STATUSES = frozenset({400, 401, 403, 404, 410, 451})
 SOURCE_RATES = {"met": 8.0, "aic": 1.0, "wikidata": 4.0}
 SOURCE_STREAMS = {"met": 1, "aic": 1, "wikidata": 2}
 WIKIMEDIA_MBPS = 25.0
-BANDWIDTH_WINDOW_SECONDS = 10.0
 
 
 class DownloadIncomplete(RuntimeError):
@@ -106,46 +104,6 @@ class SourceReport:
             "retryable": self.retryable,
             "rate": round(self.rate, 3),
         }
-
-
-class BandwidthLimiter:
-    """Keeps the bytes received in any trailing window under a cap (Wikimedia: 25 Mbps over
-    10 s); shared by every stream of a source."""
-
-    def __init__(
-        self,
-        mbps: float,
-        *,
-        window: float = BANDWIDTH_WINDOW_SECONDS,
-        clock: Callable[[], float] = time.monotonic,
-        sleep: Callable[[float], None] = time.sleep,
-    ):
-        if mbps <= 0 or window <= 0:
-            raise ValueError("bandwidth cap and window must be positive")
-        self.budget_bytes = mbps * 1e6 / 8 * window
-        self.window = window
-        self._clock = clock
-        self._sleep = sleep
-        self._events: deque[tuple[float, int]] = deque()
-        self._lock = threading.Lock()
-
-    def _used(self, now: float) -> float:
-        while self._events and self._events[0][0] <= now - self.window:
-            self._events.popleft()
-        return sum(size for _, size in self._events)
-
-    def account(self, size: int) -> None:
-        with self._lock:
-            self._events.append((self._clock(), size))
-
-    def wait(self) -> None:
-        while True:
-            with self._lock:
-                now = self._clock()
-                if self._used(now) < self.budget_bytes:
-                    return
-                delay = self._events[0][0] + self.window - now
-            self._sleep(max(delay, 0.01))
 
 
 def source_of(key: str) -> str:
@@ -270,6 +228,13 @@ def iter_tasks(objects_path: Path) -> Iterator[ImageTask]:
                 yield ImageTask(row["key"], row["imageRef"], source_of(row["key"]))
 
 
+def task_fingerprint(tasks: Iterable[ImageTask]) -> str:
+    digest = hashlib.sha256()
+    for key, url in sorted((task.key, task.url) for task in tasks):
+        digest.update((json.dumps([key, url], ensure_ascii=False) + "\n").encode())
+    return digest.hexdigest()
+
+
 def plan_shards(
     tasks: Iterable[ImageTask], *, shard_size: int = SHARD_SIZE, limit: int | None = None
 ) -> list[list[ImageTask]]:
@@ -319,6 +284,30 @@ class ShardState:
     @property
     def complete(self) -> bool:
         return bool(self.data.get("complete"))
+
+    def bind_inputs(self, tasks: list[ImageTask], images_dir: Path) -> None:
+        if self.path.exists() or self.failed_path.exists() or any(images_dir.iterdir()):
+            self.require_inputs(tasks)
+            return
+        self.data["downloadInputsSha256"] = task_fingerprint(tasks)
+        self._save()
+
+    def require_inputs(self, tasks: list[ImageTask]) -> None:
+        if self.data.get("downloadInputsSha256") != task_fingerprint(tasks):
+            raise ValueError(
+                f"{self.path}: missing or mismatched download inputs fingerprint; "
+                "use fresh image and download-state directories"
+            )
+
+    def require_complete(self, tasks: list[ImageTask], images_dir: Path) -> None:
+        self.require_inputs(tasks)
+        expected = {image_filename(task.key) for task in tasks if task.key not in self.failed}
+        present = {path.name for path in images_dir.glob("*.jpg") if path.is_file()}
+        if not self.complete or not images_dir.is_dir() or expected != present:
+            raise DownloadIncomplete(
+                f"{images_dir}: incomplete download; {len(expected - present)} missing images, "
+                f"{len(present - expected)} unexpected images. Resume the download stage first."
+            )
 
     def record_failure(self, task: ImageTask, reason: str, status: int | None) -> None:
         with self._lock:
@@ -393,10 +382,8 @@ def fetch_one(
         if attempt:
             report.count_retry()
             sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
-        if limiter is not None:
-            limiter.wait()
         try:
-            response = client.get(url, headers=headers)
+            response = client.get(url, headers=headers, limiter=limiter)
         except RetryLater as cooldown:
             last_status = cooldown.status_code
             report.count_status(last_status)
@@ -411,8 +398,6 @@ def fetch_one(
             continue
         last_status = response.status_code
         report.count_status(last_status)
-        if limiter is not None:
-            limiter.account(len(response.content))
         if response.status_code == 200:
             try:
                 data = resize_to_jpeg(response.content)
@@ -544,6 +529,7 @@ def download_shard(
     shard_dir = Path(images_dir) / f"shard-{shard}"
     shard_dir.mkdir(parents=True, exist_ok=True)
     state = ShardState(state_dir, shard)
+    state.bind_inputs(tasks, shard_dir)
     by_source: dict[str, list[ImageTask]] = {}
     for task in tasks:
         by_source.setdefault(task.source, []).append(task)

@@ -1,33 +1,63 @@
-import { Link } from 'expo-router';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { Link, Stack } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import { CanvasView } from './canvas-view';
+import { GridView } from './grid-view';
+import { ViewModePicker, type ViewMode } from './view-mode-picker';
+import { VisitsView } from './visits-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { listSavedWorks } from '@/db/repos/saved-works';
+import { listVisits } from '@/db/repos/visits';
+import { groupByVisit } from '@/lib/collection/group-by-visit';
+import { filterWorks } from '@/lib/collection/search';
 
 export function CollectionScreen() {
+  const [search, setSearch] = useState('');
+  const [mode, setMode] = useState<ViewMode>('grid');
+  const { data: works, updatedAt } = useLiveQuery(listSavedWorks());
+  const { data: visits } = useLiveQuery(listVisits());
+  const shown = filterWorks(works, search);
+  const header = <ViewModePicker mode={mode} onChange={setMode} />;
+
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-        <ThemedText type="subtitle">Collection</ThemedText>
-        <ThemedText themeColor="textSecondary">
-          Works you have saved and the visits they came from.
-        </ThemedText>
-        {/* Placeholder navigation; removed by docs/plans/05-app-ui/* */}
-        <Link href="/demo">
-          <ThemedText type="link">Open saved work</ThemedText>
-        </Link>
-      </ScrollView>
+      <Stack.SearchBar
+        placeholder="Title, artist or museum"
+        autoCapitalize="none"
+        onChangeText={(event) => setSearch(event.nativeEvent.text)}
+        onCancelButtonPress={() => setSearch('')}
+      />
+      {!updatedAt ? null : works.length === 0 ? (
+        <Message>
+          <ThemedText>Scan a painting to start your collection.</ThemedText>
+          <Link href="/"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
+        </Message>
+      ) : shown.length === 0 ? (
+        <Message><ThemedText themeColor="textSecondary">No works match “{search.trim()}”.</ThemedText></Message>
+      ) : mode === 'grid' ? (
+        <GridView works={shown} header={header} />
+      ) : mode === 'canvas' ? (
+        <CanvasView works={shown} header={header} />
+      ) : (
+        <VisitsView sections={groupByVisit(shown, visits)} header={header} />
+      )}
     </ThemedView>
   );
 }
 
+function Message({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.message}>
+      {children}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: Spacing.four,
-    gap: Spacing.three,
-  },
+  container: { flex: 1 },
+  message: { padding: Spacing.four, gap: Spacing.two, alignItems: 'center' },
 });

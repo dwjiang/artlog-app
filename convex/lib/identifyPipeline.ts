@@ -1,7 +1,8 @@
 import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
 import { decide, scoreCandidates, type CalibratorConfig, type Decision, type GalleryRelation } from './calibrator';
-import { decodeOrbFeatures, verifyOrb, type OrbFeatures, type VerifyResult } from './orb';
+import { decodeOrbFeatures, verifyOrb, type OrbFeatures, type VerifyResult } from '../../shared/orb';
+import { effectiveObjectPenalty } from './rejectionPenalty';
 
 const GALLERY_TTL_MS = 15 * 60_000;
 
@@ -41,7 +42,7 @@ export function runPipeline(input: {
         candidateCount: candidates.length, atVenue, gallery,
         onView: candidate.placement?.onView ?? null, keypointCount: candidate.keypointCount,
         orbInliers: verification?.inlierCount ?? 0, homographyValid: verification?.verified ?? false,
-        objectPenalty: candidate.object.calibratorPenalty,
+        objectPenalty: effectiveObjectPenalty(candidate.object),
       },
     };
   }), input.config);

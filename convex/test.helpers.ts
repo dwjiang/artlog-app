@@ -11,8 +11,8 @@ export type Harness = TestConvex<typeof schema>;
 
 export type SignedIn = { userId: Id<'users'>; as: ReturnType<Harness['withIdentity']> };
 
-export function harness(): Harness {
-  const t = convexTest(schema, modules);
+export function harness(options: { transactionLimits?: boolean } = {}): Harness {
+  const t = convexTest({ schema, modules, ...options });
   rateLimiter.register(t);
   return t;
 }

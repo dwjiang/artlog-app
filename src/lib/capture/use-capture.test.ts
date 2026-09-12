@@ -9,6 +9,7 @@ const mockPipeline = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 const mockWarning = jest.fn();
+const mockVenueIdAt = jest.fn();
 let mockReachable: boolean | undefined = true;
 
 jest.mock('convex/react', () => ({ useAction: () => mockIdentify }));
@@ -21,6 +22,8 @@ jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(), launchImageLibraryAsync: (...args: unknown[]) => mockPicker(...args),
 }));
 jest.mock('./pipeline', () => ({ runCapture: (...args: unknown[]) => mockPipeline(...args) }));
+jest.mock('@/lib/venue/venue-db', () => ({ venueIdAt: (...args: unknown[]) => mockVenueIdAt(...args) }));
+jest.mock('./default-stages', () => ({ captureOptions: { inputSize: 512, modelVersion: 'test' }, defaultStages: {} }));
 
 const input: CaptureInput = { photoUri: 'file:///photo.jpg', quad: null, source: 'camera', capturedAt: 123 };
 
@@ -42,7 +45,7 @@ it.each([
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId } });
   expect(hook.result.current.timings).toEqual({ total: 12 });
   const deps = mockPipeline.mock.calls[0][1] as CaptureDependencies;
-  const payload = { cropUri: 'file:///private.jpg', localId: 'capture-uuid' } as CapturePayload;
+  const payload = { cropUri: 'file:///private.jpg', photoUri: 'file:///private-full.jpg', localId: 'capture-uuid', visitLocalId: 'local-visit' } as CapturePayload;
   await deps.identify(payload);
   expect(mockIdentify).toHaveBeenCalledWith({ localId: 'capture-uuid' });
 });
@@ -67,6 +70,27 @@ it('requests photo permission only on import and preserves EXIF capture time', a
   expect(mockPipeline.mock.calls[0][0]).toEqual({
     photoUri: 'file:///library.jpg', quad: null, source: 'library', capturedAt: new Date(2020, 0, 2, 3, 4, 5).getTime(),
   });
+  expect(mockVenueIdAt).not.toHaveBeenCalled();
+});
+
+it('names the venue of an imported photo from its EXIF position without starting a visit', async () => {
+  mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///library.jpg', exif: { GPSLatitude: 40.7794, GPSLatitudeRef: 'N', GPSLongitude: 73.9633, GPSLongitudeRef: 'W' } }] });
+  mockVenueIdAt.mockResolvedValue('museum-met');
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.importPhoto(); });
+  expect(mockVenueIdAt).toHaveBeenCalledWith({ lat: 40.7794, lng: -73.9633 });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ source: 'library', venueId: 'museum-met' });
+  expect(mockPipeline.mock.calls[0][0]).not.toHaveProperty('visitId');
+});
+
+it('imports without a venue when the local table cannot be read', async () => {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///library.jpg', exif: { GPSLatitude: 1, GPSLongitude: 2 } }] });
+  mockVenueIdAt.mockRejectedValue(new Error('no table'));
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.importPhoto(); });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ source: 'library', venueId: undefined });
+  expect(hook.result.current.message).toBeUndefined();
 });
 
 it('leaves the screen unchanged when the picker is canceled', async () => {

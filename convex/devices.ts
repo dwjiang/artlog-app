@@ -108,11 +108,11 @@ export const createChallenge = mutation({
   },
 });
 
-async function consumeChallenge(
+export async function consumeChallenge(
   ctx: MutationCtx,
   device: Doc<'devices'>,
   nonce: string,
-  purpose: 'attest' | 'assert'
+  purpose: 'attest' | 'assert' | 'apple'
 ): Promise<void> {
   const now = Date.now();
   const challenge = await ctx.db

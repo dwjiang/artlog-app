@@ -20,6 +20,10 @@ namespace margelo::nitro::visionrect { struct RectDetection; }
 namespace margelo::nitro::visionrect { struct RectObservation; }
 // Forward declaration of `RectPoint` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct RectPoint; }
+// Forward declaration of `StillDetection` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillDetection; }
+// Forward declaration of `SubjectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct SubjectObservation; }
 
 // Include C++ defined types
 #include "HybridVisionRectSpec.hpp"
@@ -27,6 +31,8 @@ namespace margelo::nitro::visionrect { struct RectPoint; }
 #include "RectDetection.hpp"
 #include "RectObservation.hpp"
 #include "RectPoint.hpp"
+#include "StillDetection.hpp"
+#include "SubjectObservation.hpp"
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/Result.hpp>
 #include <VisionCamera/HybridFrameSpec.hpp>

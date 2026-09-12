@@ -24,7 +24,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 ## Current state
 
 - `assets/venues.db` (SQLite `venues(id, key, name, lat, lng, website, region)`, `meta(version, generatedAt, rowCount)`) and `metro.config.js` with the `db` asset extension (02.02); Convex `venueTable.latest` → `{ version, rowCount, url }`.
-- Convex (04.05): `startVisit({ venueId, localVisitId })` → `{ visitId, indexStatus }`; `confirmPoiVenue({ name, website?, lat, lng })` → `{ venueId }` (attested write); `museums.getStatus`.
+- Convex (04.05): `startVisit({ venueId, localVisitId })` → `{ visitId }`; `confirmPoiVenue({ name, website?, lat, lng })` → `{ venueId }` (attested write).
 - `src/app/venue-picker.tsx` renders `VenuePickerSheet` (formSheet, 01.02).
 - Verified SDK 57 facts: `expo-location` `requestForegroundPermissionsAsync()`, `getCurrentPositionAsync({ accuracy: Accuracy.Balanced })`, plugin `["expo-location", { "locationWhenInUsePermission": "…" }]`; `expo-sqlite` `SQLiteProvider databaseName="venues.db" assetSource={{ assetId: require('@/assets/venues.db') }}` + `useSQLiteContext()`, `openDatabaseAsync`, `db.getAllAsync(sql, params)`; `expo-file-system` `File.downloadFileAsync(url, dest)`, `Paths.document`; MapKit: `MKLocalPointsOfInterestRequest(center:radius:)` with `pointOfInterestFilter = MKPointOfInterestFilter(including: [.museum])`, `MKLocalSearch(request:).start()` → `mapItems` (`name`, `placemark.coordinate`, `url`), fallback `MKLocalSearch.Request` with `naturalLanguageQuery = "art gallery"` and a region; minimum iOS 14.0 for `MKLocalPointsOfInterestRequest`, below the app’s 16.4 minimum (00.06 SDK-header and device check).
 
@@ -32,7 +32,7 @@ Design §4.2 "The venue table" / §5.1: the venue table ships in the app; on ope
 
 **In scope**: `package.json`, `app.json` (location plugin), `src/lib/venue/{resolve,venue-db,refresh,use-venue}.ts` (+ tests), `modules/poi-search/**` (Expo DSL module), `src/components/venue/venue-picker-sheet.tsx` (real content), `src/app/_layout.tsx` (mount `SQLiteProvider` for the venue DB), `src/components/scan/scan-screen.tsx` (call `useVenue` and pass `venueId/visitId` to the pipeline).
 
-**Out of scope**: visit UI in the collection (05.04), server-side queue bump (04.05), geofencing (explicitly rejected by design).
+**Out of scope**: visit UI in the collection (05.04), geofencing (explicitly rejected by design).
 
 ## Steps
 
@@ -72,10 +72,25 @@ Call `refreshVenueTableInBackground` after app launch (once per day, `settings.v
 
 ## Done criteria
 
-- [ ] Simulator with a custom location at the Met resolves `auto` and starts a visit
-- [ ] Two nearby venues produce the chooser; no venue produces POI options on a device
-- [ ] Background refresh works; `git ls-files assets/venues.db` → 1 (bundled asset committed by 02.02)
-- [ ] Tests, tsc, lint pass; `docs/plans/README.md` updated
+- [x] Simulator with a custom location resolves `auto` and starts a visit — at the Legion of Honor; the Met's own coordinate has four seeded rows within 400 m and therefore produces the chooser (see below)
+- [x] Two nearby venues produce the chooser (the Met); no venue produces POI options (Carmel-by-the-Sea on the simulator; MapKit result quality on a device in a city centre is still pending)
+- [x] Background refresh works; `git ls-files assets/venues.db` → 1 (bundled asset committed by 02.02)
+- [x] Tests, tsc, lint pass; `docs/plans/README.md` updated
+
+Completed 2026-09-10 on the simulator; see the README row for the walkthrough. Deviations:
+the venue table is opened lazily by `openVenueDb()` (expo-asset copy keyed by the asset hash,
+so a newer bundled table from an app update replaces a downloaded one) instead of a
+`SQLiteProvider`; `resolveVenueAt`/`venueIdAt` live in `venue-db.ts`; a fresh visit at one of
+several nearby venues keeps that venue without re-asking, "Not here" ends the current visit and
+suppresses prompts and automatic selection within 400 m, and a venue confirmed from MapKit is inserted into the local
+table (and carried across refreshes) so the next fix resolves to it directly. Downloads are
+staged as `venues.next.db`, then applied to the live table in a SQLite transaction at the
+next launch, retaining locally confirmed venues. The live file is never unlinked. Visit starts and ends sync serially from SQLite
+without blocking resolution; `endSyncedAt` tracks completed endings. The initial local schema
+is updated directly for this pre-release app, so existing development databases need a reset.
+Dismissing the picker cancels its pending confirmation and prevents late navigation. The sheet's root
+element must be the `ScrollView`: react-native-screens sizes only a form sheet's first-child
+scroll view, and a wrapped one collapses to a blank sheet.
 
 ## STOP conditions
 

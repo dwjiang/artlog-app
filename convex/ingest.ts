@@ -4,6 +4,8 @@
 import { ConvexError, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
+import { registerMuseumObject } from './lib/museumWorkIdentity';
+import { effectiveObjectPenalty } from './lib/rejectionPenalty';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -22,6 +24,9 @@ import {
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
+export const TRAINING_EXPORT_PAGE_SIZE = 500;
+// Descriptor rows can contain 1,000 keypoints. Bound bytes as well as rows.
+const TRAINING_EXPORT_BYTES = 5_000_000;
 const DESCRIPTOR_BYTES = 32;
 const KEYPOINT_BYTES = 16;
 const MAX_KEYPOINTS = 1000;
@@ -81,6 +86,7 @@ const vectorRow = v.object({
   objectKey: v.string(),
   modelVersion: v.string(),
   source: vectorSource,
+  viewKey: v.string(),
   vector: v.array(v.float64()),
 });
 
@@ -171,10 +177,6 @@ export const upsertMuseums = internalMutation({
         ids[row.key] = await ctx.db.insert('museums', {
           ...fields,
           optOut: false,
-          useTavilyCrawl: false,
-          queuePriority: 0,
-          failureCount: 0,
-          indexStatus: { status: 'none', pagesMapped: 0, worksIndexed: 0, updatedAt: Date.now() },
         });
         inserted += 1;
       }
@@ -230,6 +232,9 @@ export const upsertObjects = internalMutation({
     let inserted = 0;
     for (const row of rows) {
       const artwork = await requireByKey(ctx, 'artworks', row.artworkKey);
+      if (row.thumbnailUrl !== undefined && artwork.rightsStatus !== 'public_domain') {
+        throw new ConvexError({ code: 'thumbnail_rights', objectKey: row.key });
+      }
       const owner = row.ownerKey ? await requireByKey(ctx, 'museums', row.ownerKey) : null;
       const mergedInto = row.mergedIntoKey
         ? await requireByKey(ctx, 'objects', row.mergedIntoKey)
@@ -262,6 +267,10 @@ export const upsertObjects = internalMutation({
         });
         inserted += 1;
       }
+      await registerMuseumObject(ctx, {
+        ...fields,
+        artworkId: mergedInto?.artworkId ?? fields.artworkId,
+      });
     }
     await bumpCounter(ctx, 'objects', inserted);
     return { ids };
@@ -288,12 +297,8 @@ export const upsertPlacements = internalMutation({
         source: row.source,
         confidence: row.confidence,
       };
-      const existing = (
-        await ctx.db
-          .query('placements')
-          .withIndex('by_objectId', (q) => q.eq('objectId', object._id))
-          .collect()
-      ).find((p) => p.venueId === venue._id && p.source === row.source);
+      const existing = await ctx.db.query('placements')
+        .withIndex('by_object_venue_source', q => q.eq('objectId', object._id).eq('venueId', venue._id).eq('source', row.source)).unique();
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
       if (existing) {
         await ctx.db.replace(existing._id, doc);
@@ -329,15 +334,16 @@ export const upsertVectors = internalMutation({
         objectId: object._id,
         modelVersion: row.modelVersion,
         source: row.source,
+        viewKey: row.viewKey,
         vector: row.vector,
       };
       const existing = await ctx.db
         .query('vectors')
-        .withIndex('by_objectId_modelVersion_source', (q) =>
-          q.eq('objectId', object._id).eq('modelVersion', row.modelVersion).eq('source', row.source)
+        .withIndex('by_modelVersion_source_viewKey', (q) =>
+          q.eq('modelVersion', row.modelVersion).eq('source', row.source).eq('viewKey', row.viewKey)
         )
         .unique();
-      const naturalKey = `${row.objectKey}|${row.modelVersion}|${row.source}`;
+      const naturalKey = `${row.modelVersion}|${row.source}|${row.viewKey}`;
       if (existing) {
         await ctx.db.replace(existing._id, doc);
         ids[naturalKey] = existing._id;
@@ -468,5 +474,132 @@ export const exportVenues = internalQuery({
       continueCursor: result.continueCursor,
       isDone: result.isDone,
     };
+  },
+});
+
+const trainingObject = v.object({
+  objectId: v.id('objects'),
+  key: v.string(),
+  source: objectSource,
+  imageRef: v.optional(v.string()),
+  rightsStatus,
+  objectPenalty: v.number(),
+});
+
+export const exportVectors = internalQuery({
+  args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
+  returns: v.object({
+    page: v.array(v.object({
+      vectorId: v.id('vectors'), vector: v.array(v.float64()), object: trainingObject,
+    })),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { modelVersion, cursor }) => {
+    const result = await ctx.db.query('vectors')
+      .withIndex('by_modelVersion_source_viewKey', q => q.eq('modelVersion', modelVersion))
+      .paginate({
+        numItems: TRAINING_EXPORT_PAGE_SIZE, cursor: cursor ?? null,
+        maximumBytesRead: TRAINING_EXPORT_BYTES,
+      });
+    const page = [];
+    for (const row of result.page) {
+      let object = await ctx.db.get(row.objectId);
+      if (!object || object.reverted) continue;
+      if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
+      // Match identify.loadCandidates: only one-hop merges are part of the active index.
+      if (!object || object.reverted || object.mergedInto) continue;
+      const artwork = await ctx.db.get(object.artworkId);
+      if (!artwork) continue;
+      page.push({
+        vectorId: row._id, vector: row.vector,
+        object: {
+          objectId: object._id, key: object.key, source: object.source,
+          imageRef: object.imageRef, rightsStatus: artwork.rightsStatus,
+          objectPenalty: effectiveObjectPenalty(object),
+        },
+      });
+    }
+    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+  },
+});
+
+export const exportDescriptors = internalQuery({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    page: v.array(v.object({
+      objectId: v.id('objects'), descriptors: v.bytes(), keypoints: v.bytes(),
+      keypointCount: v.number(), inputSize: v.number(),
+    })),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const result = await ctx.db.query('descriptors').withIndex('by_objectId')
+      .paginate({
+        numItems: TRAINING_EXPORT_PAGE_SIZE, cursor: cursor ?? null,
+        maximumBytesRead: TRAINING_EXPORT_BYTES,
+      });
+    const page = [];
+    for (const row of result.page) {
+      const object = await ctx.db.get(row.objectId);
+      if (!object || object.reverted || object.mergedInto) continue;
+      page.push({
+        objectId: row.objectId, descriptors: row.descriptors, keypoints: row.keypoints,
+        keypointCount: row.keypointCount, inputSize: row.inputSize,
+      });
+    }
+    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+  },
+});
+
+export const auditThumbnails = internalQuery({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({ checked: v.number(), violations: v.number(), continueCursor: v.string(), isDone: v.boolean() }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query('objects').withIndex('by_key')
+      .paginate({ cursor: cursor ?? null, numItems: 500 });
+    let violations = 0;
+    for (const object of page.page) {
+      if (object.thumbnailUrl !== undefined) {
+        const artwork = await ctx.db.get(object.artworkId);
+        if (artwork?.rightsStatus !== 'public_domain') violations += 1;
+      }
+    }
+    return { checked: page.page.length, violations, continueCursor: page.continueCursor, isDone: page.isDone };
+  },
+});
+
+export const countExisting = internalQuery({
+  args: {
+    table: v.union(v.literal('artworks'), v.literal('objects'), v.literal('placements'), v.literal('vectors'), v.literal('descriptors')),
+    rows: v.array(v.object({ key: v.string(), venueKey: v.optional(v.string()), modelVersion: v.optional(v.string()), source: v.optional(v.string()), viewKey: v.optional(v.string()) })),
+  },
+  returns: v.number(),
+  handler: async (ctx, { table, rows }) => {
+    checkBatch(rows);
+    let count = 0;
+    for (const row of rows) {
+      if (table === 'artworks' || table === 'objects') {
+        if (await findByKey(ctx, table, row.key)) count += 1;
+        continue;
+      }
+      if (table === 'vectors') {
+        if (!row.modelVersion || !row.source || !row.viewKey) throw new ConvexError({ code: 'bad_vector_identity' });
+        if (await ctx.db.query('vectors').withIndex('by_modelVersion_source_viewKey', q =>
+          q.eq('modelVersion', row.modelVersion!).eq('source', row.source as Doc<'vectors'>['source']).eq('viewKey', row.viewKey)).unique()) count += 1;
+        continue;
+      }
+      const object = await findByKey(ctx, 'objects', row.key);
+      if (!object) continue;
+      if (table === 'descriptors') {
+        if (await ctx.db.query('descriptors').withIndex('by_objectId', q => q.eq('objectId', object._id)).first()) count += 1;
+      } else {
+        const venue = row.venueKey && await findByKey(ctx, 'museums', row.venueKey);
+        if (venue && await ctx.db.query('placements').withIndex('by_object_venue_source', q => q.eq('objectId', object._id)
+          .eq('venueId', venue._id).eq('source', row.source as Doc<'placements'>['source'])).unique()) count += 1;
+      }
+    }
+    return count;
   },
 });

@@ -28,9 +28,22 @@ spikes/**/.venv/
 spikes/**/__pycache__/
 spikes/**/.pytest_cache/
 
+# Local model exports; the compiled model is fetched by eas-build-pre-install.
+scripts/model/.venv/
+scripts/model/cache/
+scripts/model/out/
+scripts/model/__pycache__/
+scripts/model/.pytest_cache/
+modules/coreml-embed/ios/Models/
+
 # Not needed inside a build archive.
 docs/
-jobs/
 spikes/
 .context/
 *.test.*
+
+# Metro resolves the calibration URL asset even in production builds.
+jobs/*
+!jobs/calibration
+jobs/calibration/*
+!jobs/calibration/urls.txt

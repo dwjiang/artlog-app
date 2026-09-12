@@ -1,13 +1,13 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
 import model from '../shared/model-version.json';
-import { placementProposalPayload } from '../shared/placement-proposal';
+import { placementProposalPayload } from '../shared/attested-payloads';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { sha256 } from './lib/appAttest';
 import { authenticatorData, makeSigner, signAssertion } from './lib/appAttest.fixtures';
-import { encodeOrbFeatures } from './lib/orb';
-import { makeSyntheticPair } from './lib/orb/testFixtures';
+import { encodeOrbFeatures } from '../shared/orb';
+import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedMuseum, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
 

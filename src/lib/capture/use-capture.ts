@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { api } from '../../../convex/_generated/api';
+import { venueIdAt } from '@/lib/venue/venue-db';
 import { captureOptions, defaultStages } from './default-stages';
 import { extractCaptureMeta } from './exif';
 import { runCapture } from './pipeline';
@@ -38,7 +39,7 @@ export function useCapture() {
       if (!input) return;
       const result = await runCapture(input, {
         ...defaultStages,
-        identify: ({ cropUri: _cropUri, ...payload }) => identify(payload),
+        identify: ({ cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, ...payload }) => identify(payload),
         isOnline: () => online.current !== false,
       }, captureOptions);
       if (!mounted.current) return;
@@ -67,9 +68,15 @@ export function useCapture() {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], exif: true, quality: 1 });
       if (result.canceled || !result.assets[0]) return null;
       const photo = result.assets[0];
-      const { capturedAt } = extractCaptureMeta(photo.exif);
-      // Imported photos get their own venue/visit context in plan 03.05.
-      return { photoUri: photo.uri, quad: null, source: 'library', capturedAt };
+      const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
+      // The photo's own position names the venue; no visit starts for an import.
+      const venueId = lat !== undefined && lng !== undefined
+        ? await venueIdAt({ lat, lng }).catch((error: unknown) => {
+          console.warn('Could not resolve the venue of the imported photo', error);
+          return undefined;
+        })
+        : undefined;
+      return { photoUri: photo.uri, quad: null, source: 'library', capturedAt, venueId };
     });
   }
 

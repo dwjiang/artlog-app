@@ -29,9 +29,9 @@ describe('App navigation', () => {
     });
   });
 
-  it('keeps the tabs underneath a directly opened venue picker', () => {
-    const root = getRootState('/venue-picker');
-    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', 'venue-picker']);
+  it.each(['venue-picker', 'queue'])('keeps the tabs underneath a directly opened %s sheet', (sheet) => {
+    const root = getRootState(`/${sheet}`);
+    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', sheet]);
     expect(root?.index).toBe(1);
   });
 

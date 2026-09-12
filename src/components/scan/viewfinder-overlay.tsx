@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useDerivedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { OverlayCaption } from './overlay-caption';
+import { Colors } from '@/constants/theme';
 import type { Guidance } from '@/lib/capture/rectangle';
 import type { LiveQuad } from '@/lib/capture/use-rect-detector';
 
@@ -16,22 +16,33 @@ export const guidanceMessages: Record<Guidance, string | null> = {
   ready: null,
 };
 
+/** Shown under "Point at a painting" once nothing has been found for this long. */
+export const SEARCHING_HINT_MS = 3000;
+export const searchingHint = 'Fill the frame with the painting. The outline lights up once it’s framed.';
+
 const CORNER_SIZE = 10;
 const EDGE_WIDTH = 2;
 const FOLLOW_MS = 90;
+const FADE_MS = 150;
 // Edge directions keep every angle near 0 or π/2 so the rotation never wraps while animating.
 const EDGES: [number, number][] = [[0, 1], [3, 2], [0, 3], [1, 2]];
 
 type ViewPoint = [number, number];
 
 export function GuidanceLabel({ guidance }: { guidance: Guidance }) {
+  const [hintShown, setHintShown] = useState(false);
+  useEffect(() => {
+    if (guidance !== 'searching') return;
+    const timer = setTimeout(() => setHintShown(true), SEARCHING_HINT_MS);
+    return () => {
+      clearTimeout(timer);
+      setHintShown(false);
+    };
+  }, [guidance]);
+
   const message = guidanceMessages[guidance];
   if (!message) return null;
-  return (
-    <View style={styles.label}>
-      <ThemedText>{message}</ThemedText>
-    </View>
-  );
+  return <OverlayCaption hint={hintShown ? searchingHint : undefined}>{message}</OverlayCaption>;
 }
 
 export function ViewfinderOverlay({ liveQuad, guidance }: { liveQuad: SharedValue<LiveQuad>; guidance: Guidance }) {
@@ -45,7 +56,7 @@ export function ViewfinderOverlay({ liveQuad, guidance }: { liveQuad: SharedValu
     const offsetY = (layout.height - live.frameHeight * scale) / 2;
     return live.quad.map(([x, y]) => [x * live.frameWidth * scale + offsetX, y * live.frameHeight * scale + offsetY]);
   }, [layout]);
-  const color = guidance === 'ready' ? Colors.light.accent : Colors.light.background;
+  const color = guidance === 'ready' ? Colors.light.accent : Colors.light.overlayText;
 
   function onLayout({ nativeEvent }: LayoutChangeEvent) {
     setLayout({ width: nativeEvent.layout.width, height: nativeEvent.layout.height });
@@ -64,27 +75,29 @@ type Shared = { points: SharedValue<ViewPoint[] | null>; color: string };
 function Corner({ points, index, color }: Shared & { index: number }) {
   const style = useAnimatedStyle(() => {
     const point = points.get()?.[index];
-    if (!point) return { opacity: 0 };
+    if (!point) return { opacity: withTiming(0, { duration: FADE_MS }) };
     return {
-      opacity: withTiming(1, { duration: FOLLOW_MS }),
+      opacity: withTiming(1, { duration: FADE_MS }),
+      backgroundColor: withTiming(color, { duration: FADE_MS }),
       transform: [
         { translateX: withTiming(point[0] - CORNER_SIZE / 2, { duration: FOLLOW_MS }) },
         { translateY: withTiming(point[1] - CORNER_SIZE / 2, { duration: FOLLOW_MS }) },
       ],
     };
   });
-  return <Animated.View style={[styles.corner, { backgroundColor: color }, style]} />;
+  return <Animated.View style={[styles.corner, style]} />;
 }
 
 function Edge({ points, from, to, color }: Shared & { from: number; to: number }) {
   const style = useAnimatedStyle(() => {
     const a = points.get()?.[from];
     const b = points.get()?.[to];
-    if (!a || !b) return { opacity: 0 };
+    if (!a || !b) return { opacity: withTiming(0, { duration: FADE_MS }) };
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
     return {
-      opacity: withTiming(1, { duration: FOLLOW_MS }),
+      opacity: withTiming(1, { duration: FADE_MS }),
+      backgroundColor: withTiming(color, { duration: FADE_MS }),
       width: withTiming(length, { duration: FOLLOW_MS }),
       transform: [
         { translateX: withTiming((a[0] + b[0]) / 2 - length / 2, { duration: FOLLOW_MS }) },
@@ -93,11 +106,10 @@ function Edge({ points, from, to, color }: Shared & { from: number; to: number }
       ],
     };
   });
-  return <Animated.View style={[styles.edge, { backgroundColor: color }, style]} />;
+  return <Animated.View style={[styles.edge, style]} />;
 }
 
 const styles = StyleSheet.create({
-  label: { alignSelf: 'center', backgroundColor: Colors.light.background, borderRadius: Spacing.three, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
-  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderRadius: CORNER_SIZE / 2 },
+  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderRadius: CORNER_SIZE / 2, opacity: 0 },
   edge: { position: 'absolute', height: EDGE_WIDTH, opacity: 0 },
 });

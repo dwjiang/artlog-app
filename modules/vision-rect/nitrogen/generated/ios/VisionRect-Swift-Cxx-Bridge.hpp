@@ -20,6 +20,10 @@ namespace margelo::nitro::visionrect { struct RectDetection; }
 namespace margelo::nitro::visionrect { struct RectObservation; }
 // Forward declaration of `RectPoint` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct RectPoint; }
+// Forward declaration of `StillDetection` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillDetection; }
+// Forward declaration of `SubjectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct SubjectObservation; }
 
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridFrameSpec_cxx` to properly resolve imports.
@@ -33,6 +37,8 @@ namespace VisionRect { class HybridVisionRectSpec_cxx; }
 #include "RectDetection.hpp"
 #include "RectObservation.hpp"
 #include "RectPoint.hpp"
+#include "StillDetection.hpp"
+#include "SubjectObservation.hpp"
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/PromiseHolder.hpp>
 #include <NitroModules/Result.hpp>
@@ -99,38 +105,64 @@ namespace margelo::nitro::visionrect::bridge::swift {
   using std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ = std::weak_ptr<margelo::nitro::camera::HybridFrameSpec>;
   inline std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ weakify_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& strong) noexcept { return strong; }
   
-  // pragma MARK: std::shared_ptr<Promise<RectDetection>>
+  // pragma MARK: std::vector<SubjectObservation>
   /**
-   * Specialized version of `std::shared_ptr<Promise<RectDetection>>`.
+   * Specialized version of `std::vector<SubjectObservation>`.
    */
-  using std__shared_ptr_Promise_RectDetection__ = std::shared_ptr<Promise<RectDetection>>;
-  inline std::shared_ptr<Promise<RectDetection>> create_std__shared_ptr_Promise_RectDetection__() noexcept {
-    return Promise<RectDetection>::create();
-  }
-  inline PromiseHolder<RectDetection> wrap_std__shared_ptr_Promise_RectDetection__(std::shared_ptr<Promise<RectDetection>> promise) noexcept {
-    return PromiseHolder<RectDetection>(std::move(promise));
+  using std__vector_SubjectObservation_ = std::vector<SubjectObservation>;
+  inline std::vector<SubjectObservation> create_std__vector_SubjectObservation_(size_t size) noexcept {
+    std::vector<SubjectObservation> vector;
+    vector.reserve(size);
+    return vector;
   }
   
-  // pragma MARK: std::function<void(const RectDetection& /* result */)>
+  // pragma MARK: std::optional<std::string>
   /**
-   * Specialized version of `std::function<void(const RectDetection&)>`.
+   * Specialized version of `std::optional<std::string>`.
    */
-  using Func_void_RectDetection = std::function<void(const RectDetection& /* result */)>;
+  using std__optional_std__string_ = std::optional<std::string>;
+  inline std::optional<std::string> create_std__optional_std__string_(const std::string& value) noexcept {
+    return std::optional<std::string>(value);
+  }
+  inline bool has_value_std__optional_std__string_(const std::optional<std::string>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::string get_std__optional_std__string_(const std::optional<std::string>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<StillDetection>>
   /**
-   * Wrapper class for a `std::function<void(const RectDetection& / * result * /)>`, this can be used from Swift.
+   * Specialized version of `std::shared_ptr<Promise<StillDetection>>`.
    */
-  class Func_void_RectDetection_Wrapper final {
+  using std__shared_ptr_Promise_StillDetection__ = std::shared_ptr<Promise<StillDetection>>;
+  inline std::shared_ptr<Promise<StillDetection>> create_std__shared_ptr_Promise_StillDetection__() noexcept {
+    return Promise<StillDetection>::create();
+  }
+  inline PromiseHolder<StillDetection> wrap_std__shared_ptr_Promise_StillDetection__(std::shared_ptr<Promise<StillDetection>> promise) noexcept {
+    return PromiseHolder<StillDetection>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const StillDetection& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const StillDetection&)>`.
+   */
+  using Func_void_StillDetection = std::function<void(const StillDetection& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const StillDetection& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_StillDetection_Wrapper final {
   public:
-    explicit Func_void_RectDetection_Wrapper(std::function<void(const RectDetection& /* result */)>&& func): _function(std::make_unique<std::function<void(const RectDetection& /* result */)>>(std::move(func))) {}
-    inline void call(RectDetection result) const noexcept {
+    explicit Func_void_StillDetection_Wrapper(std::function<void(const StillDetection& /* result */)>&& func): _function(std::make_unique<std::function<void(const StillDetection& /* result */)>>(std::move(func))) {}
+    inline void call(StillDetection result) const noexcept {
       _function->operator()(result);
     }
   private:
-    std::unique_ptr<std::function<void(const RectDetection& /* result */)>> _function;
+    std::unique_ptr<std::function<void(const StillDetection& /* result */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_RectDetection create_Func_void_RectDetection(void* NON_NULL swiftClosureWrapper) noexcept;
-  inline Func_void_RectDetection_Wrapper wrap_Func_void_RectDetection(Func_void_RectDetection value) noexcept {
-    return Func_void_RectDetection_Wrapper(std::move(value));
+  Func_void_StillDetection create_Func_void_StillDetection(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_StillDetection_Wrapper wrap_Func_void_StillDetection(Func_void_StillDetection value) noexcept {
+    return Func_void_StillDetection_Wrapper(std::move(value));
   }
   
   // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
@@ -236,13 +268,13 @@ namespace margelo::nitro::visionrect::bridge::swift {
     return Result<std::optional<RectDetection>>::withError(error);
   }
   
-  // pragma MARK: Result<std::shared_ptr<Promise<RectDetection>>>
-  using Result_std__shared_ptr_Promise_RectDetection___ = Result<std::shared_ptr<Promise<RectDetection>>>;
-  inline Result_std__shared_ptr_Promise_RectDetection___ create_Result_std__shared_ptr_Promise_RectDetection___(const std::shared_ptr<Promise<RectDetection>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<RectDetection>>>::withValue(value);
+  // pragma MARK: Result<std::shared_ptr<Promise<StillDetection>>>
+  using Result_std__shared_ptr_Promise_StillDetection___ = Result<std::shared_ptr<Promise<StillDetection>>>;
+  inline Result_std__shared_ptr_Promise_StillDetection___ create_Result_std__shared_ptr_Promise_StillDetection___(const std::shared_ptr<Promise<StillDetection>>& value) noexcept {
+    return Result<std::shared_ptr<Promise<StillDetection>>>::withValue(value);
   }
-  inline Result_std__shared_ptr_Promise_RectDetection___ create_Result_std__shared_ptr_Promise_RectDetection___(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<RectDetection>>>::withError(error);
+  inline Result_std__shared_ptr_Promise_StillDetection___ create_Result_std__shared_ptr_Promise_StillDetection___(const std::exception_ptr& error) noexcept {
+    return Result<std::shared_ptr<Promise<StillDetection>>>::withError(error);
   }
   
   // pragma MARK: Result<std::shared_ptr<Promise<LetterboxResult>>>

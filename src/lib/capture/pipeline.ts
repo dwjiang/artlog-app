@@ -1,13 +1,7 @@
-import { ConvexError } from 'convex/values';
-
+import { errorMessage, isNetworkError } from '@/lib/network-error';
+import { roundVector } from './features';
 import { createCaptureId } from './ids';
 import type { CaptureDependencies, CaptureInput, CaptureOptions, CapturePayload, CaptureResult, CaptureTimings } from './stages';
-
-function isNetworkError(error: unknown): boolean {
-  if (error instanceof ConvexError || !(error instanceof Error)) return false;
-  return /^(Network request failed|Failed to fetch|Load failed)$/i.test(error.message) ||
-    /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(error.message);
-}
 
 export async function runCapture(
   input: CaptureInput,
@@ -36,24 +30,30 @@ export async function runCapture(
     const features = await timed('orb', () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
       localId: createCaptureId(),
-      vector: Array.from(embedding, (value) => Number(value.toFixed(5))),
+      vector: roundVector(embedding),
       descriptors: features.descriptors,
       keypoints: features.keypoints,
       modelVersion: opts.modelVersion,
       venueId: input.venueId,
       visitId: input.visitId,
+      visitLocalId: input.visitLocalId,
       capturedAt: input.capturedAt,
+      photoUri: input.photoUri,
       cropUri,
     };
-    if (deps.isOnline()) {
+    const online = deps.isOnline();
+    const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
+    await timed('enqueue', () => deps.store.enqueue(payload, identifyNow ? 'identifying' : 'queued'));
+    if (identifyNow) {
       try {
         const response = await timed('identify', () => deps.identify(payload));
+        await deps.store.recordResult(payload.localId, response);
         return { kind: 'sent', scanId: response.scanId, response, timings };
       } catch (error) {
+        await deps.store.requeue(payload.localId, errorMessage(error));
         if (!isNetworkError(error)) throw error;
       }
     }
-    await timed('enqueue', () => deps.enqueue(payload));
     return { kind: 'queued', localId: payload.localId, timings };
   } finally {
     timings.total = performance.now() - started;

@@ -65,10 +65,15 @@ Design §4.3: the calibrator is "trained initially on augmented corpus samples (
 
 ## Done criteria
 
-- [ ] Tests pass in both languages; `ruff` clean
+- [x] Tests pass in both languages; `ruff` clean
 - [ ] `calibrator-lr-v2.json` emitted; held-out precision at `confident` ≥ 0.99 recorded
-- [ ] A human has copied the JSON into `convex/lib/calibrator/weights.ts` as `CALIBRATOR_V2` and switched the default (separate tiny PR; the Step-2 order test guards it) — or the record states it is pending
-- [ ] `docs/plans/README.md` status row updated
+- [x] A human has copied the JSON into `convex/lib/calibrator/weights.ts` as `CALIBRATOR_V2` and switched the default (separate tiny PR; the Step-2 order test guards it) — or the record states it is pending
+- [x] `docs/plans/README.md` status row updated
+
+Execution, 2026-09-11: implementation and verification are recorded in
+[decision 009](../../decisions/009-calibrator-v2.md). The real fit is blocked by
+the unfinished 02.05 import (dev exports have zero vectors/descriptors); no
+corpus-trained v2 artifact or real precision/recall claim has been produced.
 
 ## STOP conditions
 
