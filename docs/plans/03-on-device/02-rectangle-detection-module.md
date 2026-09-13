@@ -38,7 +38,7 @@ Design §4.1 step 1: rectangle detection runs live on preview frames; the shutte
 
 ## Scope
 
-**In scope**: `modules/vision-rect/**` (native module; `nitro.json`, `src/*.nitro.ts`, `ios/*.swift`, podspec), `src/lib/capture/rectangle.ts` (+ test), `src/lib/capture/default-stages.ts` (real `warper`), `src/components/scan/scan-screen.tsx` (frame output + shutter gating + guidance text), `src/components/scan/viewfinder-overlay.tsx` (quad outline + guidance label), `shared/fixtures/letterbox/` (one test image + the Python letterboxed PNG for the parity check), `jobs/scripts/letterbox-parity.py` (compares a phone-produced letterbox to Python).
+**In scope**: `modules/vision-rect/**` (native module; `nitro.json`, `src/*.nitro.ts`, `ios/*.swift`, podspec), `src/lib/capture/rectangle.ts` (+ test), `src/lib/capture/default-stages.ts` (real `warper`), `src/components/scan/scan-screen.tsx` (frame output + shutter gating + guidance text), `src/components/scan/viewfinder-overlay.tsx` (quad outline + guidance label), `shared/model/fixtures/letterbox/` (one test image + the Python letterboxed PNG for the parity check), `jobs/scripts/letterbox-parity.py` (compares a phone-produced letterbox to Python).
 
 **Out of scope**: embedding/ORB stages (03.03/03.04), any change to `jobs/artlog_jobs/letterbox.py` (if parity fails, STOP).
 

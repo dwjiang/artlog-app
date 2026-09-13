@@ -10,7 +10,7 @@ Regenerate after any change to `letterbox.py` or the pinned Pillow version:
 cd jobs && uv run python -c "
 from PIL import Image
 from artlog_jobs.letterbox import letterbox
-letterbox(Image.open('fixtures/test-painting.jpg'), 512).save('../shared/fixtures/letterbox/test-painting-512.png', optimize=True)"
+letterbox(Image.open('fixtures/test-painting.jpg'), 512).save('../shared/model/fixtures/letterbox/test-painting-512.png', optimize=True)"
 ```
 
 Check a phone- or Mac-produced PNG against Python:

@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan
 > in `docs/plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/ shared/model-version.json`
+> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/ shared/model/model-version.json`
 > Confirm `convex/lib/orb/index.ts`, `convex/lib/calibrator/index.ts`, `convex/lib/auth.ts`, `convex/lib/rateLimits.ts`, `convex/lib/placements.ts` exist (plans 04.01, 04.02, 04.04, 01.03). STOP if any is missing.
 
 > **Superseded in part (2026-09-10):** `waiting` scans, `keepFeatures`, `listWaiting`, `rerunWaiting` and `rerunScan` were removed with the crawler; every scan resolves to `identified` on its first run and `scans` no longer stores descriptors.
@@ -38,7 +38,7 @@ Design excerpts to implement literally:
 - Libraries: `verifyOrb`, `decodeOrbFeatures`, `OrbFormatError` (`convex/lib/orb`); `scoreCandidates`, `decide`, `CALIBRATOR_V1`, `CandidateSignals` (`convex/lib/calibrator`); `currentPlacement` (`convex/lib/placements`); `requireDeviceFromAction`, `limitDevice` (`convex/lib/auth`, `convex/lib/rateLimits`).
 - Schema (plan 01.03 + 04.04): `scans` has `localId`, optional `descriptors/keypoints/keypointCount` for waiting scans, `status`, `outcome`, `best`, `runnerUps`, `docent`, `rightNow`; `vectors` has `vectorIndex("by_vector", { vectorField: "vector", dimensions, filterFields: ["modelVersion"] })`; `descriptors` by `by_objectId`; `placements` by `by_objectId`; `placementProposals` by `by_object_venue`; `visits` has `lastConfidentGallery/lastConfidentAt`.
 - Verified Convex facts: `ctx.vectorSearch(table, index, { vector, limit ≤ 256, filter: q => q.eq("modelVersion", v) })` is **action-only** and returns `[{ _id, _score }]` (cosine, −1..1); load docs afterwards with `ctx.runQuery`. Default runtime: 64 MiB memory, no `setTimeout`, WebCrypto available. Function args up to 16 MiB. `convex-test` implements `vectorSearch` with brute-force cosine, so the whole action is testable in-memory.
-- `shared/model-version.json` gives `modelVersion`, `embeddingDim`, `inputSize`.
+- `shared/model/model-version.json` gives `modelVersion`, `embeddingDim`, `inputSize`.
 - Env (plan 04.04 documented the names): `SUPPORTED_MODEL_VERSIONS` — comma-separated allowlist; default to the JSON's `modelVersion` when unset.
 
 ## Commands you will need

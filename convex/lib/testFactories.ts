@@ -1,4 +1,4 @@
-import model from '../../shared/model-version.json';
+import model from '../../shared/model/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { ActionCtx, MutationCtx } from '../_generated/server';
 import type { Harness, SignedIn } from '../test.helpers';

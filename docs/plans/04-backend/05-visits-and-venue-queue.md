@@ -49,7 +49,7 @@ Design §5.3: `startVisit(venueId)` records the visit and, for an un-indexed or 
 
 `museums.ts`: `getStatus` (public query, `{ venueId }` → `{ name, indexStatus, region }`), `bumpVenue` (public mutation, attested via `requireAttestedWrite`, `limitDevice('queueBump')`) → if `indexStatus.status ∈ { none, queued }` or (`complete` and `lastCrawledAt` older than 30 days) and `lastBumpedAt` older than 24 h and `collectionSiteUrl` present and not `optOut` → `queuePriority += 10`, `indexStatus.status = 'queued'` (including stale `complete` venues), `lastBumpedAt = now`, then `ctx.scheduler.runAfter(0, internal.crawl.maybeLaunch)`; returns `{ bumped: boolean, indexStatus }`. Venues with `status: none` and **no** `collectionSiteUrl` get `internal.museums.probeCollectionSite` scheduled instead.
 
-Both `bumpVenue` and `confirmPoiVenue` also take `{ nonce, assertionBase64, payloadJson }`. Sign `stableStringify({ action: "museums.bumpVenue", venueId })` or `stableStringify({ action: "museums.confirmPoiVenue", name, website?, lat, lng })`, using `shared/stable-stringify.ts`. The server verifies the signed payload matches the operation and arguments.
+Both `bumpVenue` and `confirmPoiVenue` also take `{ nonce, assertionBase64, payloadJson }`. Sign `stableStringify({ action: "museums.bumpVenue", venueId })` or `stableStringify({ action: "museums.confirmPoiVenue", name, website?, lat, lng })`, using `shared/attestation/stable-stringify.ts`. The server verifies the signed payload matches the operation and arguments.
 
 **Verify**: tests: bump requires attestation (simulator bypass when flag off), rate limit on the 4th per day, cooldown, opt-out never bumps.
 

@@ -25,7 +25,7 @@ Everything batch — the corpus build, the crawler, enrichment, re-embedding, ca
 ## Current state
 
 - No `jobs/` directory. `convex/schema.ts` (plan 01.03) defines the tables; nothing writes to them yet.
-- `shared/model-version.json`: `{ modelVersion, embeddingDim: 1536, inputSize: 512, orbMaxKeypoints: 500 }`.
+- `shared/model/model-version.json`: `{ modelVersion, embeddingDim: 1536, inputSize: 512, orbMaxKeypoints: 500 }`.
 - Wire format for ORB features (plan 04.01): `descriptors` = `count×32` bytes; `keypoints` = `count×4` little-endian float32 `[x, y, size, angle]` in letterboxed pixel space; `count ≤ 1000`.
 - Verified platform facts (2026-09-08): Python client `pip install convex` (0.7.0): `ConvexClient(url)`, `client.set_admin_auth(deploy_key)`, `client.mutation("file:fn", args)`, `client.query(...)`; Python `bytes` ↔ `v.bytes()`, `float` ↔ `v.float64()`, `dict`/`list` ↔ object/array. Per-mutation limits: 16,000 documents / 16 MiB written, 16 MiB args; Pro write throughput 8 MiB/s. Local machine (verified 2026-09-08): Apple M5 Pro (6 performance + 12 efficiency cores), 64 GB unified memory, 1.3 TiB free disk, macOS 26.5, `uv` 0.12, no Docker; PyTorch 2.14 installed through `uv` reports `torch.backends.mps.is_available() == True` and an fp16 matmul on `mps` works. Python ≥ 3.12 comes from `uv` (the system `python3` is 3.9).
 - `AGENTS.md`: kebab-case for new source files applies to app code; Python modules use snake_case (PEP 8). Tests co-located as `*_test.py`. Comments only for non-obvious reasons.
@@ -44,7 +44,7 @@ Everything batch — the corpus build, the crawler, enrichment, re-embedding, ca
 
 ## Scope
 
-**In scope**: `jobs/pyproject.toml`, `jobs/uv.lock`, `jobs/README.md`, `jobs/artlog_jobs/{__init__,config,convex_writer,letterbox,orb,model_version,checkpoint,polite_http,smoke}.py` + `*_test.py`, `jobs/fixtures/` (a small CC0 test image and the ORB byte fixture), `convex/ingest.ts` + `convex/ingest.test.ts`, `.gitignore` (`jobs/.venv`, `jobs/out`, `jobs/checkpoints`, `jobs/scratch`), `.easignore` (`jobs/`), `shared/fixtures/orb-features-v1.json`.
+**In scope**: `jobs/pyproject.toml`, `jobs/uv.lock`, `jobs/README.md`, `jobs/artlog_jobs/{__init__,config,convex_writer,letterbox,orb,model_version,checkpoint,polite_http,smoke}.py` + `*_test.py`, `jobs/fixtures/` (a small CC0 test image and the ORB byte fixture), `convex/ingest.ts` + `convex/ingest.test.ts`, `.gitignore` (`jobs/.venv`, `jobs/out`, `jobs/checkpoints`, `jobs/scratch`), `.easignore` (`jobs/`), `shared/orb/fixtures/orb-features-v1.json`.
 
 **Out of scope**: any real data source or model code (02.02–02.09); the crawler's Convex queue functions (04.05); Docker images, the Nebius launcher and any GitHub workflow (plan 02.10); secrets of any kind in files.
 
@@ -62,9 +62,9 @@ Everything batch — the corpus build, the crawler, enrichment, re-embedding, ca
 
 ### Step 2: Shared image functions
 
-`letterbox.py`: `letterbox(img: PIL.Image, size: int) -> PIL.Image` — convert to RGB; resize so the long side equals `size` using `Image.Resampling.BILINEAR`; paste centered onto a `size×size` canvas filled with the image's per-channel mean color (computed on the resized image); return. This is the specification the phone's Swift implementation (plan 03.02) must match: bilinear resize, centered, mean-color pad. `model_version.py`: loads `../shared/model-version.json` (path resolved relative to the repo root) and exposes `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS`.
+`letterbox.py`: `letterbox(img: PIL.Image, size: int) -> PIL.Image` — convert to RGB; resize so the long side equals `size` using `Image.Resampling.BILINEAR`; paste centered onto a `size×size` canvas filled with the image's per-channel mean color (computed on the resized image); return. This is the specification the phone's Swift implementation (plan 03.02) must match: bilinear resize, centered, mean-color pad. `model_version.py`: loads `../shared/model/model-version.json` (path resolved relative to the repo root) and exposes `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS`.
 
-`orb.py`: `extract_orb(img: np.ndarray (gray uint8, size×size), nfeatures=ORB_MAX_KEYPOINTS) -> OrbFeatures(descriptors: bytes, keypoints: bytes, count: int)` with `cv2.ORB_create(nfeatures=nfeatures)`; descriptors `des.tobytes()` (shape `(N,32)` uint8); keypoints packed with `np.array([[k.pt[0], k.pt[1], k.size, k.angle] for k in kps], dtype='<f4').tobytes()`; `count = 0` → both `b''`. Generate `shared/fixtures/orb-features-v1.json` = `{ "count": N, "descriptorsBase64", "keypointsBase64" }` from `jobs/fixtures/test-painting.jpg` (a CC0 Met image ≤ 200 KB, attribution in `jobs/fixtures/README.md`); plan 04.01's TypeScript tests decode this fixture to prove cross-language agreement (add that test to `convex/lib/orb/features.test.ts` as part of this plan — one test, in scope by exception).
+`orb.py`: `extract_orb(img: np.ndarray (gray uint8, size×size), nfeatures=ORB_MAX_KEYPOINTS) -> OrbFeatures(descriptors: bytes, keypoints: bytes, count: int)` with `cv2.ORB_create(nfeatures=nfeatures)`; descriptors `des.tobytes()` (shape `(N,32)` uint8); keypoints packed with `np.array([[k.pt[0], k.pt[1], k.size, k.angle] for k in kps], dtype='<f4').tobytes()`; `count = 0` → both `b''`. Generate `shared/orb/fixtures/orb-features-v1.json` = `{ "count": N, "descriptorsBase64", "keypointsBase64" }` from `jobs/fixtures/test-painting.jpg` (a CC0 Met image ≤ 200 KB, attribution in `jobs/fixtures/README.md`); plan 04.01's TypeScript tests decode this fixture to prove cross-language agreement (add that test to `convex/lib/orb/features.test.ts` as part of this plan — one test, in scope by exception).
 
 **Verify**: `uv run pytest -q artlog_jobs/letterbox_test.py artlog_jobs/orb_test.py` → letterbox output is `size×size`, a 300×100 input yields pad rows equal to the mean color, `orb` fixture round-trips; `npm run test:convex` → the new fixture test passes.
 

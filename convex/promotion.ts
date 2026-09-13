@@ -1,6 +1,6 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, internalQuery, type ActionCtx, type MutationCtx } from './_generated/server';

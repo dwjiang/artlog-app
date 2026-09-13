@@ -16,7 +16,7 @@ from artlog_jobs.orb import (
 )
 
 FIXTURE_IMAGE = REPO_ROOT / "jobs" / "fixtures" / "test-painting.jpg"
-FIXTURE_JSON = REPO_ROOT / "shared" / "fixtures" / "orb-features-v1.json"
+FIXTURE_JSON = REPO_ROOT / "shared" / "orb" / "fixtures" / "orb-features-v1.json"
 
 
 def test_features_from_the_test_painting_follow_the_wire_format():

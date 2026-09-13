@@ -1,6 +1,6 @@
 import type { DocentSentence } from './validators';
 
-// Shared with the Python enrichment job through shared/fixtures/docent-validator.json.
+// Shared with the Python enrichment job through shared/docent/fixtures/docent-validator.json.
 export const MAX_DOCENT_SENTENCES = 4;
 export const MAX_SENTENCE_CHARS = 240;
 export const MIN_SENTENCE_WORDS = 4;

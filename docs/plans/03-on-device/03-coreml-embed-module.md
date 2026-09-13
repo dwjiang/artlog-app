@@ -23,7 +23,7 @@ Design §5.1: "The embedding model ships in the app… ~90 MB in the binary (who
 
 ## Current state
 
-- Spike 00.01 produced `spikes/coreml-export/export.py` and the decision (`inputSize`, int8 per-channel weights, fp16 compute, `modelVersion`, output name). `shared/model-version.json` matches it.
+- Spike 00.01 produced `spikes/coreml-export/export.py` and the decision (`inputSize`, int8 per-channel weights, fp16 compute, `modelVersion`, output name). `shared/model/model-version.json` matches it.
 - `src/lib/capture/stages.ts` defines `Embedder { embed(cropUri): Promise<Float32Array>; modelVersion }`; `default-stages.ts` has a throwing stub.
 - Verified facts: CocoaPods resources are not compiled by Xcode → precompile with `xcrun coremlcompiler compile Model.mlpackage <dir>` and ship the `.mlmodelc` directory via the module podspec `s.resources`; load with `Bundle(for: EmbedModule.self).url(forResource: "CRadioV3B", withExtension: "mlmodelc")`, `MLModelConfiguration().computeUnits = .all`; input `CVPixelBuffer` (BGRA/RGB at `S×S`) named per the export's `ImageType`; output `MLMultiArray` of 1536 floats. EAS: archives up to 2 GB; Git LFS files are not fetched by GitHub-triggered builds → **do not commit the model**; fetch it at build time.
 - Expo local module scaffolding: `npx create-expo-module@latest coreml-embed --local --platform apple --features AsyncFunction Constant`.
@@ -48,7 +48,7 @@ Design §5.1: "The embedding model ships in the app… ~90 MB in the binary (who
 
 ### Step 1: Reproducible export and manifest
 
-`export_coreml.py` (from the spike, cleaned): loads via torch.hub with `adaptor_names=['dino_v2']`, wraps to return the 1536 summary, traces at `inputSize`, converts (ML Program, fp16 compute, `ImageType(scale=1/255)`), quantizes int8 per-channel, saves `.mlpackage`, writes `fakequant_state.pt` and `model-manifest.json` `{ modelVersion, inputSize, embeddingDim, outputName, sha256 of the mlpackage, exportedAt, coremltoolsVersion }`. Assert `modelVersion === shared/model-version.json.modelVersion`.
+`export_coreml.py` (from the spike, cleaned): loads via torch.hub with `adaptor_names=['dino_v2']`, wraps to return the 1536 summary, traces at `inputSize`, converts (ML Program, fp16 compute, `ImageType(scale=1/255)`), quantizes int8 per-channel, saves `.mlpackage`, writes `fakequant_state.pt` and `model-manifest.json` `{ modelVersion, inputSize, embeddingDim, outputName, sha256 of the mlpackage, exportedAt, coremltoolsVersion }`. Assert `modelVersion === shared/model/model-version.json.modelVersion`.
 
 **Verify**: run produces the three artifacts; the manifest's `modelVersion` matches.
 
@@ -72,7 +72,7 @@ Design §5.1: "The embedding model ships in the app… ~90 MB in the binary (who
 
 ### Step 5: Calibration export (dev-only)
 
-`dev-tools.tsx` (rendered in Settings only when `__DEV__`): "Export calibration embeddings" downloads `jobs/calibration/urls.txt` (bundled copy), letterboxes each via `VisionRect.warpAndLetterbox(uri, null, S)`, embeds, and shares a JSON `{ url: number[] }` via the share sheet; commit the result as `jobs/calibration/iphone-embeddings.json` (regenerated whenever the export changes).
+`dev-tools.tsx` (rendered in Settings only when `__DEV__`): "Export calibration embeddings" downloads `shared/model/calibration/urls.txt` (bundled copy), letterboxes each via `VisionRect.warpAndLetterbox(uri, null, S)`, embeds, and shares a JSON `{ url: number[] }` via the share sheet; commit the result as `jobs/calibration/iphone-embeddings.json` (regenerated whenever the export changes).
 
 **Verify**: a fresh reference file is produced and `uv run python -m artlog_jobs.drift_check --reference …` (02.04) passes ≥ 0.99.
 

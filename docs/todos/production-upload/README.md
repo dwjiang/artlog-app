@@ -9,8 +9,8 @@
 > `docs/plans/README.md`.
 >
 > **Drift check:** run `git diff --stat 1fe0c14..HEAD -- jobs/artlog_jobs
-> jobs/scripts convex shared/model-version.json docs/runbooks/release.md` and
-> `git diff --stat -- jobs/artlog_jobs convex shared/model-version.json`.
+> jobs/scripts convex shared/model/model-version.json docs/runbooks/release.md` and
+> `git diff --stat -- jobs/artlog_jobs convex shared/model/model-version.json`.
 > This plan was written against an already dirty working tree. HEAD alone does
 > not identify its importer: compare the fingerprints below and review changes
 > before running anything. Preserve unrelated work and do not rename the branch.
@@ -146,7 +146,7 @@ a8e946d783564d383bba9118ec142a1f08b905d0660ca4be01b3e2ff662b14fb  jobs/artlog_jo
 1c4f4941b63a7c1ba7ee1142d62c0ea069385177c2af5cfef5ff6d8fdba0351c  jobs/artlog_jobs/convex_writer.py
 dff9f6bf6ad300c94657d1236ed1bb5d4a5fb28dd18ccb556f0ab11eff76519a  convex/ingest.ts
 066f586e7065d23a120590d606b07db4b1ee8f91bf641d3c03c094668b365856  convex/schema.ts
-16e247eb57c13e09ef109fb59591649775130e1865256110312e2faedd651a0f  shared/model-version.json
+16e247eb57c13e09ef109fb59591649775130e1865256110312e2faedd651a0f  shared/model/model-version.json
 ```
 
 ## Scope and conventions

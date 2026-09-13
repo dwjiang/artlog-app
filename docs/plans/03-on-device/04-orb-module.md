@@ -24,7 +24,7 @@ Design §4.1 step 2 / §5.1: "in the same pass the phone extracts ORB keypoints 
 ## Current state
 
 - `stages.ts` (03.01) defines `OrbExtractor` and `Triage`; stubs in `default-stages.ts`.
-- Wire format and encoder: `convex/lib/orb/features.ts` exports `encodeOrbFeatures({ count, descriptors: Uint8Array, keypoints: Float32Array })` (plan 04.01); the app may import it (`@convex/lib/orb` alias or relative path) — it is pure TS. Cross-language fixture `shared/fixtures/orb-features-v1.json` (02.01).
+- Wire format and encoder: `convex/lib/orb/features.ts` exports `encodeOrbFeatures({ count, descriptors: Uint8Array, keypoints: Float32Array })` (plan 04.01); the app may import it (`@convex/lib/orb` alias or relative path) — it is pure TS. Cross-language fixture `shared/orb/fixtures/orb-features-v1.json` (02.01).
 - Verified `react-native-fast-opencv` 1.0.1 facts: New Architecture only; `Mat.createFromBase64(b64)`, `Mat.createFromBuffer('uint8', h, w, channels, buffer)`; `OpenCV.cvtColor(src, dst, ColorConversionCodes.COLOR_BGR2GRAY)`; `OpenCV.ORB_create(nfeatures)`; `OpenCV.detectAndCompute(detector, image, mask?) → { keypoints: KeyPointVector, descriptors: Mat }`; `keypointVector.toArray()` → array of `{ x, y, size, angle, response, octave }`; `mat.toBuffer('uint8') → { rows, cols, channels, buffer: Uint8Array }`; also `Laplacian`, `meanStdDev`, `threshold`, `countNonZero`, `resize`. Install `npx expo install react-native-fast-opencv`; no config plugin; dev build required. Spike 00.06 measured 2.0 ms reported median extraction at both 300 and 500 caps on iPhone 16 Pro, with 300/498 actual points and correct descriptor/keypoint byte counts. Retain cap 500; verify a common fixture against Python. Read metadata before releasing native objects (the initial spike probe failed by reading a released Mat).
 
 ## Commands you will need
@@ -53,7 +53,7 @@ Design §4.1 step 2 / §5.1: "in the same pass the phone extracts ORB keypoints 
 
 `extract.ts`: `extractOrb(cropUri, maxKeypoints = modelVersion.orbMaxKeypoints)`: gray Mat → `ORB_create(maxKeypoints)` → `detectAndCompute` → descriptors `toBuffer('uint8').buffer` (length `count*32`; assert) → keypoints via `toArray()` → `pack.ts`'s `packKeypoints(kps) → Float32Array` (`[x, y, size, angle]` per keypoint, same order) → `encodeOrbFeatures({ count, descriptors, keypoints })` → `{ descriptors: ArrayBuffer, keypoints: ArrayBuffer, count }`. Release Mats.
 
-**Verify**: `pack.test.ts` (jest): packing order and byte length; `extract.test.ts` with a mocked OpenCV module asserts the assert-on-length; on device, extracting from `jobs/fixtures/test-painting.jpg` (letterboxed) logs `count` and the first 32 descriptor bytes — compare by hand with `shared/fixtures/orb-features-v1.json` (expect the same count ± 5% and ≥ 80% identical descriptor rows; record the numbers in the PR).
+**Verify**: `pack.test.ts` (jest): packing order and byte length; `extract.test.ts` with a mocked OpenCV module asserts the assert-on-length; on device, extracting from `jobs/fixtures/test-painting.jpg` (letterboxed) logs `count` and the first 32 descriptor bytes — compare by hand with `shared/orb/fixtures/orb-features-v1.json` (expect the same count ± 5% and ≥ 80% identical descriptor rows; record the numbers in the PR).
 
 ### Step 3: Triage
 

@@ -1,7 +1,7 @@
 import { getFunctionName, type FunctionArgs, type FunctionReturnType } from 'convex/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import type { ActionCtx } from './_generated/server';

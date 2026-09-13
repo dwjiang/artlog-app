@@ -98,7 +98,7 @@ Design §4.4 step 6 / §4.5 / §4.7: a contribution — the embedding and descri
 
 Contracts downstream plans (04.08, 05.02, 05.03, 02.09) rely on:
 
-- Attested payloads live in `shared/attested-payloads.ts`: `contributionPayload({ scanId, cropStorageId, fields })`
+- Attested payloads live in `shared/attestation/attested-payloads.ts`: `contributionPayload({ scanId, cropStorageId, fields })`
   and `rejectionPayload(scanId, objectId)`; the phone signs the same object through `signPayload` (03.07).
 - `contribute({ scanId, descriptors, keypoints, fields, cropStorageId, consent: true, nonce, assertionBase64 })`:
   `evidence` and `wikidataId` are not arguments; both come from the scan's stored `labelFlow`. Every submitted

@@ -39,11 +39,6 @@ modules/coreml-embed/ios/Models/
 # Not needed inside a build archive.
 docs/
 spikes/
+jobs/
 .context/
 *.test.*
-
-# Metro resolves the calibration URL asset even in production builds.
-jobs/*
-!jobs/calibration
-jobs/calibration/*
-!jobs/calibration/urls.txt

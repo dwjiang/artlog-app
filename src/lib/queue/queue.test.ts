@@ -1,7 +1,7 @@
 import { ConvexError } from 'convex/values';
 import { AppState } from 'react-native';
 
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';

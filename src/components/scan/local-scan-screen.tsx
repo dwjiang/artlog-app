@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { CardHeader } from './result/card-header';
 import { FailedCard } from './states/failed-card';

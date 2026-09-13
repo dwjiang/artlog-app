@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan
 > in `docs/plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- jobs/artlog_jobs/calibrator convex/lib/calibrator shared/calibrator shared/fixtures/calibrator-features.json`
+> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- jobs/artlog_jobs/calibrator convex/lib/calibrator shared/calibrator shared/calibrator/fixtures/calibrator-features.json`
 
 ## Status
 
@@ -29,7 +29,7 @@ Design §4.3: the calibrator is "trained initially on augmented corpus samples (
 
 ## Scope
 
-**In scope**: `jobs/artlog_jobs/calibrator/{__init__,augment,sample,features,verify,train,report}.py` (+ tests), `shared/fixtures/calibrator-features.json` (parity fixture consumed by `convex/lib/calibrator/features.test.ts` — add that one test), `convex/ingest.ts` (two export queries), `jobs/README.md`.
+**In scope**: `jobs/artlog_jobs/calibrator/{__init__,augment,sample,features,verify,train,report}.py` (+ tests), `shared/calibrator/fixtures/calibrator-features.json` (parity fixture consumed by `convex/lib/calibrator/features.test.ts` — add that one test), `convex/ingest.ts` (two export queries), `jobs/README.md`.
 
 **Out of scope**: updating `weights.ts` (a human does it with the emitted JSON — note in done criteria), the feedback-based retrain action (04.07), the evaluation harness (§3 deferred).
 
@@ -43,7 +43,7 @@ Design §4.3: the calibrator is "trained initially on augmented corpus samples (
 
 ### Step 2: Candidates, verification and features
 
-`features.py`: load all index vectors (export queries → numpy; ~300k × 1536 floats fits in 2 GB), for each augmented query take cosine top-32 (numpy matmul on GPU/CPU), run ORB verification (`cv2.BFMatcher(NORM_HAMMING).knnMatch(k=2)` + ratio 0.8 + `cv2.findHomography(RANSAC, 5.0)`; inliers = mask sum; `homographyValid` = inliers ≥ 15 and the quad sanity rule from plan 04.01), and compute the 11 features exactly as `featurize` does. Venue/gallery/onView signals are simulated (documented): for the positive candidate `atVenue = True` with p=0.85, gallery `same` p=0.5 / `unknown` p=0.4 / `different` p=0.1; for negatives `atVenue = True` p=0.1 (same-museum confusions), gallery mostly `unknown`. `objectPenalty` from the pushed penalties. Label: positive iff candidate object == source object or merged into it. Write `shared/fixtures/calibrator-features.json` with 10 `{ signals, expectedFeatures }` rows produced by the Python `featurize` so the TS test proves parity.
+`features.py`: load all index vectors (export queries → numpy; ~300k × 1536 floats fits in 2 GB), for each augmented query take cosine top-32 (numpy matmul on GPU/CPU), run ORB verification (`cv2.BFMatcher(NORM_HAMMING).knnMatch(k=2)` + ratio 0.8 + `cv2.findHomography(RANSAC, 5.0)`; inliers = mask sum; `homographyValid` = inliers ≥ 15 and the quad sanity rule from plan 04.01), and compute the 11 features exactly as `featurize` does. Venue/gallery/onView signals are simulated (documented): for the positive candidate `atVenue = True` with p=0.85, gallery `same` p=0.5 / `unknown` p=0.4 / `different` p=0.1; for negatives `atVenue = True` p=0.1 (same-museum confusions), gallery mostly `unknown`. `objectPenalty` from the pushed penalties. Label: positive iff candidate object == source object or merged into it. Write `shared/calibrator/fixtures/calibrator-features.json` with 10 `{ signals, expectedFeatures }` rows produced by the Python `featurize` so the TS test proves parity.
 
 **Verify**: `features_test.py` on tiny synthetic data; `npx vitest run convex/lib/calibrator/features` passes the parity fixture.
 

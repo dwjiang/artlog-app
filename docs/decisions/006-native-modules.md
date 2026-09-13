@@ -188,7 +188,7 @@ preserving descriptor row order: 32 descriptor bytes + 16 keypoint bytes per
 point. Thus 300/500 points occupy 14,400/24,000 binary bytes before transport
 encoding. Read needed metadata before releasing all native objects.
 
-Keep the existing `shared/model-version.json` cap of **500**: measured extraction
+Keep the existing `shared/model/model-version.json` cap of **500**: measured extraction
 is comfortably below the 80 ms budget at both caps, with no observed latency
 reason to reduce the feature budget. Plan 03.04 must compare a common fixture
 against Python and exercise the production encoder. If later integration fails,

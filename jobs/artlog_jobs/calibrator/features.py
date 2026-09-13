@@ -179,7 +179,7 @@ def parity_rows() -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write the Python → TypeScript parity fixture")
     parser.add_argument(
-        "--out", type=Path, default=REPO_ROOT / "shared/fixtures/calibrator-features.json"
+        "--out", type=Path, default=REPO_ROOT / "shared/calibrator/fixtures/calibrator-features.json"
     )
     args = parser.parse_args()
     args.out.write_text(json.dumps(parity_rows(), indent=2, allow_nan=False) + "\n")
