@@ -1,4 +1,4 @@
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { getVisionRect } from '../../../modules/vision-rect/src';
 import { embedder } from '@/lib/embed/embedder';

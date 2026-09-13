@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 

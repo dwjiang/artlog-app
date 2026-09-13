@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { labelField } from './lib/labelVerify';

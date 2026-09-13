@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import model from '../../shared/model-version.json';
+import model from '../../shared/model/model-version.json';
 import { expectedDim, isSupported, supportedModelVersions, validateVector } from './modelVersion';
 
 afterEach(() => vi.unstubAllEnvs());

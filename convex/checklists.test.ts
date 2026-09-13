@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import example from '../shared/fixtures/checklist-example.json';
+import example from '../shared/sources/fixtures/checklist-example.json';
 import { internal } from './_generated/api';
 import { seedArtworkWithObject, seedMuseum } from './lib/testFactories';
 import { harness } from './test.helpers';

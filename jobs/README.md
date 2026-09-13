@@ -40,9 +40,9 @@ features, metadata and checkpoints.
 | Module | Contract |
 | --- | --- |
 | `config.py` | `Settings` (above), `get_settings()`, `setup_logging()` |
-| `model_version.py` | `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS` from `../shared/model-version.json` |
+| `model_version.py` | `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS` from `../shared/model/model-version.json` |
 | `letterbox.py` | `letterbox(img, size)`: RGB, bilinear resize so the long side equals `size`, centered on a `size×size` canvas filled with the resized image's per-channel mean (half-up rounded). The phone's Swift version (plan 03.02) must match it |
-| `orb.py` | `extract_orb(gray, nfeatures)` → `OrbFeatures(descriptors, keypoints, count)` in plan 04.01's wire format; `extract_from_image(img)` letterboxes first; `python -m artlog_jobs.orb <image> <fixture.json>` writes `shared/fixtures/orb-features-v1.json` |
+| `orb.py` | `extract_orb(gray, nfeatures)` → `OrbFeatures(descriptors, keypoints, count)` in plan 04.01's wire format; `extract_from_image(img)` letterboxes first; `python -m artlog_jobs.orb <image> <fixture.json>` writes `shared/orb/fixtures/orb-features-v1.json` |
 | `convex_writer.py` | `ConvexWriter(settings)`: `upsert(fn, rows, batch_size≤500, on_batch)` splits (descriptor batches capped at 200 rows), retries transient errors (never `ConvexError`), merges returned `ids`; `query`, `mutation` |
 | `checkpoint.py` | `Checkpoint.for_job(settings, job)`: per-stage `done` key sets and cursors, written atomically after every change |
 | `polite_http.py` | `PoliteClient(user_agent, per_host_rps)`: per-host spacing and robots checks on each page redirect, robots.txt cache (daily refresh; 5xx, 401/403/429 or HTML ⇒ disallow all; 404 ⇒ allow), `Crawl-delay`, `Retry-After`, ETag / Last-Modified conditional GETs |
@@ -103,7 +103,7 @@ same counts and also exits 0.
 ## Layout
 
 - `artlog_jobs/` — the package; tests co-located as `*_test.py`
-- `../shared/source-scores.json` — Tavily domain scores from spike 00.05, shared with `convex/lib/sourceScores.ts`
+- `../shared/sources/source-scores.json` — Tavily domain scores from spike 00.05, shared with `convex/lib/sourceScores.ts`
 - `fixtures/` — test inputs (attribution in `fixtures/README.md`)
 - `scratch/`, `out/`, `checkpoints/` — gitignored run outputs
 
@@ -163,7 +163,7 @@ run. Rows are deduplicated by Q-ID, keeping the first
 website/coordinates; multiple country claims use the first selected ISO code
 in sorted order. Labels prefer English, then any available label, then Q-ID.
 
-`shared/regions.json` is the sole region config, copied from the Tavily spike
+`shared/sources/regions.json` is the sole region config, copied from the Tavily spike
 with its proposed centers. The metro administrative IDs were verified against
 Wikidata: San Francisco `Q62`, New York City `Q60`, London `Q84`, Paris `Q90`.
 The importer resolves `P131` ancestry to those IDs. Within the venue's country,
@@ -325,8 +325,9 @@ the committed iPhone report, and `fakequant_state.pt` SHA-256
 `15e4b7200da8ae3fcece41645646186aeb56ae7ebebe96c26ebf1561675cfaf5` (recorded in
 the manifest of every build). RADIO needs `einops`, now a job dependency.
 
-`drift_check.py` downloads the 200 calibration paintings (`jobs/calibration/`,
-copied from the spike) and letterboxes them exactly as the iPhone reference
+`drift_check.py` downloads the 200 calibration paintings listed in
+`shared/model/calibration/urls.txt` and checks them against `jobs/calibration/`'s
+reference embeddings and hashes. It letterboxes them exactly as the iPhone reference
 was produced (bicubic, black pad), so the comparison isolates the Mac build path
 from the phone's Neural Engine on identical pixels; the index letterbox
 (`letterbox.py`, mean pad) is the capture contract that plan 03.02 mirrors. It
@@ -996,7 +997,7 @@ import remains pending. iOS recognition verification requires the subsequent imp
 ## Exhibition checklists (04.10)
 
 Supply a permissioned checklist as JSON using
-[`shared/fixtures/checklist-example.json`](../shared/fixtures/checklist-example.json)
+[`shared/sources/fixtures/checklist-example.json`](../shared/sources/fixtures/checklist-example.json)
 or as CSV with the header `title,artist,owner,accession,wikidata`. `owner` is the
 lender's museum key, distinct from the host venue. CSV rows with a Wikidata ID
 use that identity plus any owner/accession evidence; other rows need title and
@@ -1005,7 +1006,7 @@ uses its coordinates to determine the time zone. The shared fixture is synthetic
 
 ```sh
 cd jobs
-uv run python -m artlog_jobs.ingest_checklist ../shared/fixtures/checklist-example.json --dry-run
+uv run python -m artlog_jobs.ingest_checklist ../shared/sources/fixtures/checklist-example.json --dry-run
 uv run python -m artlog_jobs.ingest_checklist /path/to/checklist.json
 uv run python -m artlog_jobs.ingest_checklist /path/to/checklist.csv \
   --venue-key example:venue --title 'Exhibition title' \
@@ -1110,7 +1111,7 @@ artwork retryable. Only an explicit Super `json_schema` rejection enables
 `json_object` with a `facts` wrapper and the same strict local field validation;
 `parseFailures / modelResponses` reports its parse-failure rate.
 
-Search results use `shared/source-scores.json`, with excluded/low-score domains
+Search results use `shared/sources/source-scores.json`, with excluded/low-score domains
 and museum merchandise removed. The owner's page is canonical at score 1 once it
 passes the host check, as in the Convex action: owner URLs are upgraded to HTTPS
 and checked against the owner's site hosts before every redirect. HTML boilerplate
@@ -1134,7 +1135,7 @@ schema }`. The v1 preview incorrectly mixed the Met's 1887 *Sunflowers* with the
 later Arles series; v3 excludes other versions, ambiguous claims, and transient
 on-view information. The fact schema stays aligned with the evaluated model
 schema, and source labels/scores always come from the input sources. Python and
-TypeScript share `shared/fixtures/docent-validator.json`, including ECMAScript
+TypeScript share `shared/docent/fixtures/docent-validator.json`, including ECMAScript
 whitespace and UTF-16 character-limit cases.
 
 Cost logs estimate model tokens at decision 004's prices: Super $0.30/$0.90 and

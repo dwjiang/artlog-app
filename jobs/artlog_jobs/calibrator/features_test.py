@@ -93,7 +93,7 @@ def test_candidate_signals_match_the_twenty_object_and_ten_verification_budgets(
 
 
 def test_committed_fixture_is_python_output():
-    path = Path(__file__).parents[3] / "shared/fixtures/calibrator-features.json"
+    path = Path(__file__).parents[3] / "shared/calibrator/fixtures/calibrator-features.json"
     rows = json.loads(path.read_text())
     assert len(rows) == 10
     for row in rows:

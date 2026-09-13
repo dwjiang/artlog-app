@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 
-import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection-limits';
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection/collection-limits';
 import { requestCollectionSync } from '../../lib/account/sync-events';
 
 import { db } from '../client';

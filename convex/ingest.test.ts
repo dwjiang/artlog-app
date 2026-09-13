@@ -4,7 +4,7 @@ import { ConvexError } from 'convex/values';
 import { getFunctionName, type FunctionArgs, type FunctionReturnType } from 'convex/server';
 import { describe, expect, it } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { internal } from './_generated/api';
 import type { ActionCtx } from './_generated/server';
 import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE, upsertDescriptors } from './ingest';

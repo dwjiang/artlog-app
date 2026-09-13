@@ -6,7 +6,7 @@ import { convex } from '@/lib/convex-client';
 import { captureFileUri } from '@/lib/files/photos';
 import { prepareMuseumSearchCrop } from '@/lib/label/crop';
 import { imageCheckDeps } from '@/lib/label/label-deps';
-import model from '@/shared/model-version.json';
+import model from '@/shared/model/model-version.json';
 import { runMuseumSearch, type MuseumSearchStage } from './flow';
 import { restoreConfirmedMuseumFlow } from './restore';
 

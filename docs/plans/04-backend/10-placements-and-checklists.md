@@ -29,7 +29,7 @@ Design §3/§4.2: exhibition checklists and loans are ingested as time-bounded p
 
 ## Scope
 
-**In scope**: `convex/checklists.ts` (`ingestChecklist` internal mutation + `resolveWork` helper), `convex/placements.ts` (`reviewPlacement`, `listProposals`, refine `proposeFromScan`), `convex/lib/placements.ts` (rank update), `jobs/artlog_jobs/ingest_checklist.py` (+ test) converting CSV/JSON into the call, tests, `shared/fixtures/checklist-example.json`.
+**In scope**: `convex/checklists.ts` (`ingestChecklist` internal mutation + `resolveWork` helper), `convex/placements.ts` (`reviewPlacement`, `listProposals`, refine `proposeFromScan`), `convex/lib/placements.ts` (rank update), `jobs/artlog_jobs/ingest_checklist.py` (+ test) converting CSV/JSON into the call, tests, `shared/sources/fixtures/checklist-example.json`.
 
 **Out of scope**: automatic placement promotion (explicitly never), UI.
 
@@ -39,7 +39,7 @@ Design §3/§4.2: exhibition checklists and loans are ingested as time-bounded p
 
 `checklists.ts` `ingestChecklist` (internal mutation) args = the JSON shape above (validated with `v.*`) → for each work resolve the object: by `objectKey`; else by `wikidataId` → artwork `by_wikidataId` → its first non-reverted object (prefer one whose `ownerId` matches `ownerKey` when given); else by `(ownerKey, accession)` via `objects.by_owner_accession`; else by normalized `title+artist` against `artworks` (no index for that: skip and report). For resolved objects: close any existing `checklist` placement with the same `venueId` and overlapping window, insert `{ venueId, gallery, onView: true, from, to, source: 'checklist', confidence: 0.85 }`. Return `{ placed: n, unresolved: [{ input, reason }] }`. Idempotent for re-ingestion of the same checklist.
 
-`ingest_checklist.py`: reads a CSV (`title,artist,owner,accession,wikidata`) or JSON, builds the payload, calls `checklists:ingestChecklist` through `ConvexWriter`, prints the unresolved list. Include `shared/fixtures/checklist-example.json`.
+`ingest_checklist.py`: reads a CSV (`title,artist,owner,accession,wikidata`) or JSON, builds the payload, calls `checklists:ingestChecklist` through `ConvexWriter`, prints the unresolved list. Include `shared/sources/fixtures/checklist-example.json`.
 
 **Verify**: `checklists.test.ts`: each resolution path; overlap replacement; idempotency; `currentPlacement` returns the checklist placement inside the window and the home placement outside (assert via `identify`'s `loadCandidates` on a seeded object).
 

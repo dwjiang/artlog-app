@@ -25,7 +25,7 @@ Design §5.7 steps 3–4: images are streamed through a scratch bucket that dies
 
 - `jobs/` has `letterbox.py`, `orb.py`, `model_version.py`, `PoliteClient`, checkpoints (02.01); `metadata/*.jsonl` from 02.03 in scratch.
 - Spike 00.01 produced: `spikes/coreml-export/{wrapper.py,export.py}`, the fake-quantization recipe (`fakequant_state.pt`: per-channel symmetric int8 round-tripped weights), `calibration/urls.txt` (200 Met CC0 images) and on-device reference embeddings `calibration/iphone-embeddings.json` (`{ url: [1536 floats] }`) exported by its bench app.
-- Verified model facts: load via `torch.hub.load('NVlabs/RADIO', 'radio_model', version='c-radio_v3-b', adaptor_names=['dino_v2'])`; call returns a dict; `out['dino_v2'].summary` is `(B, 1536)`; input 0–1 RGB, normalization internal; input size from `shared/model-version.json` (512) is a multiple of 16.
+- Verified model facts: load via `torch.hub.load('NVlabs/RADIO', 'radio_model', version='c-radio_v3-b', adaptor_names=['dino_v2'])`; call returns a dict; `out['dino_v2'].summary` is `(B, 1536)`; input 0–1 RGB, normalization internal; input size from `shared/model/model-version.json` (512) is a multiple of 16.
 - Rate limits: Met CDN — keep ≤ 20 req/s; AIC IIIF — 1 req/s, `AIC-User-Agent` header; Commons — ≤ 2 concurrent, ≥ 1 s spacing, standard sizes only for thumbs but originals via `Special:FilePath` (originals can be large: cap at 1024 px after download; prefer `?width=1280` thumbs, a standard size, to save bandwidth).
 - Local machine (verified 2026-09-08): Apple M5 Pro, 64 GB unified memory, 1.3 TiB free disk, PyTorch 2.14 with `mps` available and fp16 matmul working; `settings.device` from 02.01 resolves to `mps`. `SCRATCH_DIR` defaults to `jobs/scratch` (gitignored). Per-object feature size ≈ 6 KB vector + ≤ 16 KB descriptors + ≤ 8 KB keypoints, so 300k objects ≈ 9 GB of features; a 10,000-image shard at ≤ 1024 px is ~2–3 GB of JPEGs and is deleted once embedded.
 
@@ -93,7 +93,7 @@ Run `caffeinate -i uv run python -m artlog_jobs.build_index --stage download,dri
 - [ ] `uv run pytest -q` passes; `ruff` clean
 - [ ] Drift check ≥ 0.99 mean / ≥ 0.97 min on the real run on `mps` (numbers, device and dtype in `jobs/README.md`)
 - [ ] Pilot numbers recorded; no `images/` directory remains under `SCRATCH_DIR` after the full run
-- [ ] `manifest.json` from the full run has `modelVersion === shared/model-version.json.modelVersion`
+- [ ] `manifest.json` from the full run has `modelVersion === shared/model/model-version.json.modelVersion`
 - [ ] `grep -rn "images/" jobs/artlog_jobs/push.py` → no reads of image files outside `download.py`/`embed.py` (images stay in scratch)
 - [ ] `docs/plans/README.md` status row updated
 
@@ -107,5 +107,5 @@ Run `caffeinate -i uv run python -m artlog_jobs.build_index --stage download,dri
 
 ## Maintenance notes
 
-- Any change to `shared/model-version.json` requires a new full run (or plan 02.08's reembed).
+- Any change to `shared/model/model-version.json` requires a new full run (or plan 02.08's reembed).
 - Keep the calibration set and the iPhone reference vectors versioned with the model; regenerate the reference whenever the CoreML export changes (plan 03.03).

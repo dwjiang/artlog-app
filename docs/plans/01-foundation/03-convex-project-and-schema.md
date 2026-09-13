@@ -63,7 +63,7 @@ Vector dimension is a build-time constant (1536, the DINOv2-adaptor summary of C
 
 - `package.json` (dependencies `convex`, dev `convex-test`; add script `"convex:codegen": "convex codegen"`), `package-lock.json`
 - `convex/schema.ts`, `convex/lib/validators.ts`, `convex/lib/placements.ts` (+ test), `convex/health.ts` (+ test), `convex/convex.config.ts`, `convex/tsconfig.json` if `npx convex dev` generates one, `convex/_generated/**` (commit it)
-- `shared/model-version.json`
+- `shared/model/model-version.json`
 - `.env.example` (create), `.env.local` (created by the CLI; gitignored — never commit)
 - `src/app/_layout.tsx` (wrap in `ConvexProvider`), `src/lib/convex-client.ts` (create), `src/components/settings/settings-screen.tsx` (add the health line)
 - `tsconfig.json` only if `resolveJsonModule` must be enabled for the JSON import
@@ -100,7 +100,7 @@ Then mirror the two real values into the Conductor root checkout's `.env.local` 
 
 ### Step 2: The shared model-version constant
 
-Create `shared/model-version.json`:
+Create `shared/model/model-version.json`:
 
 ```json
 {
@@ -113,7 +113,7 @@ Create `shared/model-version.json`:
 
 These values come from research done while planning (verified 2026-09-08 against the `nvidia/C-RADIOv3-B` repo and the NVlabs/RADIO source): the DINOv2-adaptor summary head outputs **1536** floats (the backbone summary is 2304 = three 768-wide teacher CLS tokens concatenated, so 768 was never an option), and the model's `preferred_resolution` is 512×512 with a patch size of 16. Plan 00.01 confirms them on the Neural Engine; if it changes either number the string must change too. Ensure `tsconfig.json` allows JSON imports (`expo/tsconfig.base` sets `resolveJsonModule: true`; if `npx tsc --noEmit` complains after Step 3, add it under `compilerOptions`).
 
-**Verify**: `node -e "console.log(require('./shared/model-version.json').embeddingDim)"` → `1536`.
+**Verify**: `node -e "console.log(require('./shared/model/model-version.json').embeddingDim)"` → `1536`.
 
 ### Step 3: Shared validators (`convex/lib/validators.ts`)
 
@@ -141,7 +141,7 @@ Export these `v.union(v.literal(...))` validators and their inferred TS types (`
 
 ### Step 4: The schema (`convex/schema.ts`)
 
-Import `defineSchema, defineTable` from `convex/server`, `v` from `convex/values`, the validators from `./lib/validators`, and `modelVersion` JSON from `../shared/model-version.json`. Define exactly these tables (field → validator; `?` = `v.optional`; timestamps are `v.number()` ms since epoch):
+Import `defineSchema, defineTable` from `convex/server`, `v` from `convex/values`, the validators from `./lib/validators`, and `modelVersion` JSON from `../shared/model/model-version.json`. Define exactly these tables (field → validator; `?` = `v.optional`; timestamps are `v.number()` ms since epoch):
 
 | Table | Fields | Indexes |
 |---|---|---|
@@ -241,7 +241,7 @@ Wrap the root `Stack` in `src/app/_layout.tsx` with `<ConvexProvider client={con
   and `EXPO_PUBLIC_CONVEX_SITE_URL`; all three are documented in `.env.example`
   and mirrored to the Conductor root checkout's `.env.local`.
 - The CLI generated `convex/tsconfig.json` (kept; `resolveJsonModule: true` added
-  so the CLI's own typecheck accepts the `../shared/model-version.json` import) and
+  so the CLI's own typecheck accepts the `../shared/model/model-version.json` import) and
   a boilerplate `convex/README.md` (removed).
 - The vector index accepted `dimensions: 1536` and the nested
   `indexStatus.status` index path; the shared JSON import bundles fine.
@@ -258,7 +258,7 @@ Wrap the root `Stack` in `src/app/_layout.tsx` with `<ConvexProvider client={con
   `EXPO_PUBLIC_CONVEX_URL` for tests; this is the one addition outside the scope
   list.
 - Step 7's expected string (`…-448-…`) predates decision 001; the app shows
-  `c-radiov3-b-int8-512-dinov2-v1`, matching `shared/model-version.json`.
+  `c-radiov3-b-int8-512-dinov2-v1`, matching `shared/model/model-version.json`.
 - Simulator (iPhone 17 Pro, iOS 26.5, light mode): as in plan 01.02, Expo Go kept
   the stale bundle after `npm run ios` until it was terminated and reopened;
   Settings then showed "Backend: connected · c-radiov3-b-int8-512-dinov2-v1".
@@ -277,6 +277,6 @@ Stop and report back (do not improvise) if:
 ## Maintenance notes
 
 - This file is the contract. Plans 02.01 (Python writer), 04.03 (identify), 04.07/04.08 (contributions, promotion), 03.06 (local snapshots) all name these fields; if you rename anything, grep `docs/plans/` and update every mention.
-- `embeddingDim` is baked into the vector index; changing it (plan 00.01 outcome) means editing `shared/model-version.json`, re-pushing the schema (Convex rebuilds the index) and re-running the index build. Do it before any vectors exist.
+- `embeddingDim` is baked into the vector index; changing it (plan 00.01 outcome) means editing `shared/model/model-version.json`, re-pushing the schema (Convex rebuilds the index) and re-running the index build. Do it before any vectors exist.
 - Reviewers should check: every enum is a `v.literal` union from `validators.ts`, every table has the indexes listed, no `v.string()` where an id belongs, `convex/_generated` committed.
 - Deferred: `dailySpend`/flags tables (plan 04.04), `calibratorVersions` (plan 04.07), retention policy (design §3 deferred).

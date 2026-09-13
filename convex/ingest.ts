@@ -3,7 +3,7 @@
 // jobs/artlog_jobs in the same PR.
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../shared/orb';
 import { internal } from './_generated/api';
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from './lib/orbStorage';

@@ -12,7 +12,7 @@ from artlog_jobs.model_version import REPO_ROOT
 from artlog_jobs.polite_http import PoliteClient, RetryLater, RobotsDisallowed
 
 log = logging.getLogger(__name__)
-SCORES = json.loads((REPO_ROOT / "shared/source-scores.json").read_text())
+SCORES = json.loads((REPO_ROOT / "shared/sources/source-scores.json").read_text())
 MAX_CHARS = 6000
 PROPERTIES = {
     "P1476": "Title",

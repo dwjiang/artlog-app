@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 

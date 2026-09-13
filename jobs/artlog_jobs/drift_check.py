@@ -16,13 +16,13 @@ from PIL import Image, ImageOps
 
 from .config import get_settings, setup_logging
 from .model import DEFAULT_FAKEQUANT, Embedder, NonFiniteEmbedding, load_embedder, sha256_of
-from .model_version import INPUT_SIZE, MODEL_VERSION
+from .model_version import INPUT_SIZE, MODEL_VERSION, REPO_ROOT
 from .polite_http import PoliteClient
 
 log = logging.getLogger(__name__)
 
 CALIBRATION_DIR = Path(__file__).resolve().parents[1] / "calibration"
-DEFAULT_URLS = CALIBRATION_DIR / "urls.txt"
+DEFAULT_URLS = REPO_ROOT / "shared/model/calibration/urls.txt"
 DEFAULT_REFERENCE = CALIBRATION_DIR / "iphone-embeddings.json"
 DEFAULT_HASHES = CALIBRATION_DIR / "image-hashes.json"
 MIN_MEAN = 0.99

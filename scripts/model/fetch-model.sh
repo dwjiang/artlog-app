@@ -11,9 +11,9 @@ models="$root/modules/coreml-embed/ios/Models"
 version=$(node -p "require('$pin').modelVersion")
 sha256=$(node -p "require('$pin').sha256")
 url="${MODEL_ASSET_URL:-$(node -p "require('$pin').url")}"
-expected=$(node -p "require('$root/shared/model-version.json').modelVersion")
+expected=$(node -p "require('$root/shared/model/model-version.json').modelVersion")
 if [ "$version" != "$expected" ]; then
-  echo "model-asset.json pins $version but shared/model-version.json expects $expected; package a new export first" >&2
+  echo "model-asset.json pins $version but shared/model/model-version.json expects $expected; package a new export first" >&2
   exit 1
 fi
 if [ "$(cat "$models/.asset-sha256" 2>/dev/null || true)" = "$sha256" ]; then

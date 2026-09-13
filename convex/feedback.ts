@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
 
-import { rejectionPayload } from '../shared/attested-payloads';
+import { rejectionPayload } from '../shared/attestation/attested-payloads';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalQuery, mutation, type MutationCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';

@@ -95,12 +95,12 @@ Date · Status: accepted
 inputSize=…, embeddingDim=1536, weights=int8 per-channel symmetric, compute=fp16, modelVersion="…"
 ## Evidence (tables from steps 2–4)
 ## Consequences
-- shared/model-version.json values; whether 4-bit is viable; devices below the latency bar
+- shared/model/model-version.json values; whether 4-bit is viable; devices below the latency bar
 - The fake-quant recipe the index build must apply (file + function name)
 ## Open questions
 ```
 
-Update `shared/model-version.json` **only if** the numbers differ from `1536 / 512` (plan 01.03 already assumes those); if you change them, say so in the record and in `docs/plans/README.md`.
+Update `shared/model/model-version.json` **only if** the numbers differ from `1536 / 512` (plan 01.03 already assumes those); if you change them, say so in the record and in `docs/plans/README.md`.
 
 ## Done criteria
 

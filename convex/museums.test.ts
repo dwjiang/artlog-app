@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-import { stableStringify } from '../shared/stable-stringify';
+import { stableStringify } from '../shared/attestation/stable-stringify';
 import { api, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { authenticatorData, makeSigner, signAssertion } from './lib/appAttest.fixtures';

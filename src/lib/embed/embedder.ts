@@ -1,4 +1,4 @@
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { getCoremlEmbed } from '../../../modules/coreml-embed/src';
 import type { CoremlEmbed, WarmUpResult } from '../../../modules/coreml-embed/src';
@@ -9,7 +9,7 @@ export type ModelEmbedder = Embedder & { warmUp(): Promise<WarmUpResult> };
 
 /**
  * The capture pipeline's `Embedder` over the native module. The bundled model version is checked
- * against `shared/model-version.json` on first use, so a stale asset fails loudly instead of
+ * against `shared/model/model-version.json` on first use, so a stale asset fails loudly instead of
  * producing vectors the index cannot match.
  */
 export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): ModelEmbedder {

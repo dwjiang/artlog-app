@@ -38,7 +38,7 @@ def test_export_writes_the_package_checkpoint_and_manifest(tmp_path):
     assert len(ops) == 1
     np.testing.assert_array_equal(ops[0].materialized_val_inference(), state["radio.weight"].numpy())
 
-    shared = json.loads((export_coreml.REPO_ROOT / "shared" / "model-version.json").read_text())
+    shared = json.loads((export_coreml.REPO_ROOT / "shared" / "model" / "model-version.json").read_text())
     written = json.loads((tmp_path / "model-manifest.json").read_text())
     assert written == manifest
     assert (manifest["modelVersion"], manifest["inputSize"], manifest["embeddingDim"]) == (
@@ -51,7 +51,7 @@ def test_export_writes_the_package_checkpoint_and_manifest(tmp_path):
 
 def test_export_refuses_a_recipe_that_disagrees_with_the_shared_model_version(tmp_path, monkeypatch):
     monkeypatch.setattr(export_coreml, "MODEL_VERSION", "c-radiov3-b-int8-512-dinov2-v2")
-    with pytest.raises(RuntimeError, match="shared/model-version.json"):
+    with pytest.raises(RuntimeError, match="shared/model/model-version.json"):
         export_coreml.export(tmp_path, build=lambda: ImageSummary().eval())
     assert not (tmp_path / "CRadioV3B.mlpackage").exists()
 

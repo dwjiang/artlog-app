@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import model from '../shared/model-version.json';
-import { placementProposalPayload } from '../shared/attested-payloads';
+import model from '../shared/model/model-version.json';
+import { placementProposalPayload } from '../shared/attestation/attested-payloads';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalQuery, mutation, type ActionCtx } from './_generated/server';

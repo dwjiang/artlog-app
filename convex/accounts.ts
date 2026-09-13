@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 
-import { stableStringify } from '../shared/stable-stringify';
+import { stableStringify } from '../shared/attestation/stable-stringify';
 import { mutation, query } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { requireDevice } from './lib/auth';

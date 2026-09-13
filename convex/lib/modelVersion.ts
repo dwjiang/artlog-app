@@ -1,6 +1,6 @@
 import { ConvexError } from 'convex/values';
 
-import model from '../../shared/model-version.json';
+import model from '../../shared/model/model-version.json';
 
 export function supportedModelVersions(): string[] {
   const configured: string | undefined = process.env.SUPPORTED_MODEL_VERSIONS;

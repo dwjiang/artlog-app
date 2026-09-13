@@ -234,7 +234,7 @@ See Apple's [compression API](https://apple.github.io/coremltools/docs-guides/so
 
 ## Consequences and open questions
 
-- Keep `embeddingDim=1536` and `inputSize=512`. `shared/model-version.json` does
+- Keep `embeddingDim=1536` and `inputSize=512`. `shared/model/model-version.json` does
   not exist yet; this spike does not create it because the assumed numbers are
   unchanged. Plan 01.03 owns that file.
 - The model version string identifies this source, head,

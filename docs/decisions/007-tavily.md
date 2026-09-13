@@ -485,7 +485,7 @@ The 60 km radius is the downstream plan's simple approximation, not a
 measured metro-boundary dataset.
 
 The spike keeps the proposal here. Plan 02.02 should materialize it at
-**`shared/regions.json`**, the canonical location already named by 02.02 and
+**`shared/sources/regions.json`**, the canonical location already named by 02.02 and
 04.09; the spike plan's older `jobs/config/regions.json` wording does not
 require a duplicate config. Jobs and Convex should read the same file.
 

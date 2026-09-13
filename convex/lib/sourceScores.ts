@@ -1,4 +1,4 @@
-import scores from '../../shared/source-scores.json';
+import scores from '../../shared/sources/source-scores.json';
 
 function bareHost(url: string): string | null {
   try {

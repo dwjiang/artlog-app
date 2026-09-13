@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 
-import { stableStringify } from '../shared/stable-stringify';
+import { stableStringify } from '../shared/attestation/stable-stringify';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalAction, internalMutation, internalQuery, mutation, type QueryCtx } from './_generated/server';

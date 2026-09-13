@@ -39,7 +39,7 @@ Venue resolution runs on the phone against a bundled table of every museum and g
 
 ## Scope
 
-**In scope**: `jobs/artlog_jobs/seed_venues.py` (+ test), `jobs/artlog_jobs/wikidata.py` (SPARQL client with slicing, retries, UA) (+ test), `shared/regions.json` (from spike 00.07; shared with Convex, which reads it for "Right now"), `jobs/config/countries.json` (ISO → Wikidata Q-id list used for slicing), `convex/venueTable.ts` (+ test), `convex/schema.ts` (add `venueTables { version: number, storageId: id('_storage'), rowCount: number, createdAt }` with `by_version`), `assets/venues.db` (committed, ≤ 10 MB) , `metro.config.js` (create with `assetExts.push('db')`), `README` note in `jobs/README.md`.
+**In scope**: `jobs/artlog_jobs/seed_venues.py` (+ test), `jobs/artlog_jobs/wikidata.py` (SPARQL client with slicing, retries, UA) (+ test), `shared/sources/regions.json` (from spike 00.07; shared with Convex, which reads it for "Right now"), `jobs/config/countries.json` (ISO → Wikidata Q-id list used for slicing), `convex/venueTable.ts` (+ test), `convex/schema.ts` (add `venueTables { version: number, storageId: id('_storage'), rowCount: number, createdAt }` with `by_version`), `assets/venues.db` (committed, ≤ 10 MB) , `metro.config.js` (create with `assetExts.push('db')`), `README` note in `jobs/README.md`.
 
 **Out of scope**: the phone-side resolution (03.05); POI venues (04.05).
 
@@ -53,7 +53,7 @@ Venue resolution runs on the phone against a bundled table of every museum and g
 
 ### Step 2: Region assignment
 
-`regions.py`: `region_for(row, regions_config) -> str`: metro match by admin area Q-id or by distance ≤ 60 km from a metro center listed in `shared/regions.json` (`{ "sf-bay-area": { "name": "San Francisco Bay Area", "center": [37.77, -122.42], "domains": [...] } }`), else `country:<ISO>`. Copy spike 00.07's proposed list into `shared/regions.json` (Convex imports the same file in plan 04.09) and add `center` coordinates per metro.
+`regions.py`: `region_for(row, regions_config) -> str`: metro match by admin area Q-id or by distance ≤ 60 km from a metro center listed in `shared/sources/regions.json` (`{ "sf-bay-area": { "name": "San Francisco Bay Area", "center": [37.77, -122.42], "domains": [...] } }`), else `country:<ISO>`. Copy spike 00.07's proposed list into `shared/sources/regions.json` (Convex imports the same file in plan 04.09) and add `center` coordinates per metro.
 
 **Verify**: tests: a Bay Area museum → `sf-bay-area`; a rural US museum → `country:US`.
 
@@ -111,4 +111,4 @@ the asset hash are in `jobs/README.md`.
 ## Maintenance notes
 
 - Re-run quarterly; the app refreshes from `venueTables.latest` (plan 03.05) so a re-run does not need an app release.
-- `shared/regions.json` is also read by `rightNow` (plan 04.09) through `museums.region`; keep keys stable.
+- `shared/sources/regions.json` is also read by `rightNow` (plan 04.09) through `museums.region`; keep keys stable.

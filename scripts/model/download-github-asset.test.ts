@@ -124,12 +124,12 @@ async function modelFixture() {
   const modelFiles = join(directory, 'package');
   const models = join(directory, 'modules/coreml-embed/ios/Models');
   await mkdir(scripts, { recursive: true });
-  await mkdir(join(directory, 'shared'));
+  await mkdir(join(directory, 'shared/model'), { recursive: true });
   await mkdir(join(modelFiles, 'TestModel.mlmodelc'), { recursive: true });
   await writeFile(join(modelFiles, 'TestModel.mlmodelc/model.bin'), 'test weights');
   await writeFile(join(modelFiles, 'model-manifest.json'), JSON.stringify({ modelVersion: version, modelName: 'TestModel' }));
   await copyFile(new URL('./fetch-model.sh', import.meta.url), join(scripts, 'fetch-model.sh'));
-  await writeFile(join(directory, 'shared/model-version.json'), JSON.stringify({ modelVersion: version }));
+  await writeFile(join(directory, 'shared/model/model-version.json'), JSON.stringify({ modelVersion: version }));
   const archive = join(directory, 'model.zip');
   execFileSync('zip', ['-qr', archive, 'TestModel.mlmodelc', 'model-manifest.json'], { cwd: modelFiles });
   const sha256 = createHash('sha256').update(await readFile(archive)).digest('hex');

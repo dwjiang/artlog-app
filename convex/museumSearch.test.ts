@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { completion, jsonLdPage, jsonResponse, metaPage, plainPage, tavilyMonet } from './lib/labelFixtures';

@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { api } from './_generated/api';
 import schema from './schema';
 

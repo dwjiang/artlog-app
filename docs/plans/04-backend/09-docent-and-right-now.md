@@ -6,7 +6,7 @@
 > report — do not improvise. When done, update the status row for this plan
 > in `docs/plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/docent.ts convex/rightNow.ts convex/enrich.ts convex/lib/docentValidator.ts convex/identify.ts shared/regions.json`
+> **Drift check (run first)**: `git diff --stat 86571a3..HEAD -- convex/docent.ts convex/rightNow.ts convex/enrich.ts convex/lib/docentValidator.ts convex/identify.ts shared/sources/regions.json`
 
 ## Status
 
@@ -23,9 +23,9 @@ Design §4.8: docent sentences are generated once per artwork from a sourced fac
 
 ## Current state
 
-- `artworks.{factSheet, factSheetUpdatedAt, docent.en, docentUpdatedAt}`; `artistContext` (7-day cache); `scans.{docent, rightNow}`; `museums.region`; `shared/regions.json` (02.02) `{ "<key>": { name, center, domains } }`.
+- `artworks.{factSheet, factSheetUpdatedAt, docent.en, docentUpdatedAt}`; `artistContext` (7-day cache); `scans.{docent, rightNow}`; `museums.region`; `shared/sources/regions.json` (02.02) `{ "<key>": { name, center, domains } }`.
 - Clients from 04.06: `tokenFactory.chatJson`, `tavily.search`, `wikidata.getEntity`; flags/spend from 04.04; models `FACT_SHEET_MODEL`, `DOCENT_MODEL`.
-- Python enrichment (02.07) shares the validator through `shared/fixtures/docent-validator.json` and calls `enrich.claimBatch` / `docent.writeEnrichment`.
+- Python enrichment (02.07) shares the validator through `shared/docent/fixtures/docent-validator.json` and calls `enrich.claimBatch` / `docent.writeEnrichment`.
 - Convex: schedule from actions with `ctx.scheduler.runAfter(0, internal.fn, args)`; the `scans.get` query joins artwork fields reactively — the app's subscription updates when the artwork's `docent` is written.
 
 ## Scope
@@ -38,13 +38,13 @@ Design §4.8: docent sentences are generated once per artwork from a sourced fac
 
 ### Step 1: Shared validator
 
-`docentValidator.ts`: `validateDocent(sentences: { sentence: string; factIds: string[] }[], sheetIds: Set<string>) → kept[]` with exactly the rules of plan 02.07 Step 3 (empty ids, unknown id, duplicates, > 240 chars, < 4 words, max 4). Test loads `shared/fixtures/docent-validator.json` (created by 02.07 — if it does not exist yet, create it here with the same ≥ 8 cases and tell 02.07 to reuse it).
+`docentValidator.ts`: `validateDocent(sentences: { sentence: string; factIds: string[] }[], sheetIds: Set<string>) → kept[]` with exactly the rules of plan 02.07 Step 3 (empty ids, unknown id, duplicates, > 240 chars, < 4 words, max 4). Test loads `shared/docent/fixtures/docent-validator.json` (created by 02.07 — if it does not exist yet, create it here with the same ≥ 8 cases and tell 02.07 to reuse it).
 
 **Verify**: `npx vitest run convex/lib/docentValidator` → all fixture cases pass.
 
 ### Step 2: Docent on cache miss
 
-`docent.ts`: `ensure` (internal action) args `{ artworkId, scanId, deviceId }`: if `docent.en` exists → return; `internal.docent.claim` (mutation: sets `enrichClaimedAt` unless claimed < 10 min ago → returns the new generation or `null`); gather sources (owner page via `object.pageUrl` with the same-host rule as 04.06, Wikidata entity summary, Tavily basic search 5 results filtered by `shared/source-scores.json` — copy 02.07's `jobs/config/source-scores.json` to `shared/` and have both read it); `assertUnderCap('tokenFactory')`; `limitDevice('docent', deviceId)`; fact sheet via `FACT_SHEET_MODEL` (drop facts with unknown URLs, cap 14, ids `f1…`); sentences via `DOCENT_MODEL` (temperature 0); validate; `writeEnrichment` (internal mutation: requires the owning `generation`, refuses reviewed or superseded runs, patches artwork fields + `docentUpdatedAt`, clears claim; the action reserves and reconciles spend). `invalidateDocent({ artworkId })` clears `docent`/`docentUpdatedAt` and invalidates in-flight generations. `enrich.ts`: `claimBatch({ limit, after? })` returns a bounded page of claims plus a cursor `{ phase: 'contributions' | 'artworks', cursor: string | null }`. Sweep contributions first, then on-view artworks, passing `after` through empty pages until it is `null`. `releaseClaim({ artworkId, generation })` releases only that generation. See 02.07 for the worker contract.
+`docent.ts`: `ensure` (internal action) args `{ artworkId, scanId, deviceId }`: if `docent.en` exists → return; `internal.docent.claim` (mutation: sets `enrichClaimedAt` unless claimed < 10 min ago → returns the new generation or `null`); gather sources (owner page via `object.pageUrl` with the same-host rule as 04.06, Wikidata entity summary, Tavily basic search 5 results filtered by `shared/sources/source-scores.json` — copy 02.07's `jobs/config/source-scores.json` to `shared/` and have both read it); `assertUnderCap('tokenFactory')`; `limitDevice('docent', deviceId)`; fact sheet via `FACT_SHEET_MODEL` (drop facts with unknown URLs, cap 14, ids `f1…`); sentences via `DOCENT_MODEL` (temperature 0); validate; `writeEnrichment` (internal mutation: requires the owning `generation`, refuses reviewed or superseded runs, patches artwork fields + `docentUpdatedAt`, clears claim; the action reserves and reconciles spend). `invalidateDocent({ artworkId })` clears `docent`/`docentUpdatedAt` and invalidates in-flight generations. `enrich.ts`: `claimBatch({ limit, after? })` returns a bounded page of claims plus a cursor `{ phase: 'contributions' | 'artworks', cursor: string | null }`. Sweep contributions first, then on-view artworks, passing `after` through empty pages until it is `null`. `releaseClaim({ artworkId, generation })` releases only that generation. See 02.07 for the worker contract.
 
 **Verify**: `docent.test.ts` with stubbed `fetch`: cache hit makes no model call; miss writes sheet + sentences and records spend; concurrent claim is skipped; validator drops a bad sentence; flag/cap paths.
 

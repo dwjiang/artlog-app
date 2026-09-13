@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { completion } from './lib/labelFixtures';
 import { seedArtworkWithObject, seedDevice, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
