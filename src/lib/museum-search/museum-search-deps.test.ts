@@ -2,7 +2,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { runMuseumSearch } from './flow';
 import { runMuseumSearchForScan } from './museum-search-deps';
 import { convex } from '@/lib/convex-client';
-import { candidates, confirmed, verified } from './__fixtures__/search';
+import { candidates, confirmed, exhibitionCandidates, verified } from './__fixtures__/search';
 import { loadLabelDraft } from '@/lib/label/draft';
 import { formStateFromFlow, setFieldValue } from '@/lib/label/fields';
 
@@ -42,6 +42,12 @@ it('uses freshly stored candidates if the live subscription has not caught up', 
   jest.mocked(convex.query).mockResolvedValue({ museumSearch: candidates });
   await runMuseumSearchForScan({ scanId: 'scan-2' as Id<'scans'>, localId: 'capture-2', canContinue: () => true, onStage: jest.fn() });
   expect(runMuseumSearch).toHaveBeenCalledWith(expect.objectContaining({ stored: candidates }));
+});
+
+it('resumes freshly stored exhibition images after remounting', async () => {
+  jest.mocked(convex.query).mockResolvedValue({ museumSearch: exhibitionCandidates });
+  await runMuseumSearchForScan({ scanId: 'scan-exhibition' as Id<'scans'>, localId: 'capture-exhibition', canContinue: () => true, onStage: jest.fn() });
+  expect(runMuseumSearch).toHaveBeenCalledWith(expect.objectContaining({ stored: exhibitionCandidates }));
 });
 
 it('restores a freshly confirmed search without preparing or uploading a crop', async () => {

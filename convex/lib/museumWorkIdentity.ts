@@ -5,7 +5,7 @@ export function normalizeAccession(value: string): string {
   return value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export async function museumIdentityKeys(input: { accession?: string; pageUrl?: string; names?: string }) {
+export async function museumIdentityKeys(input: { accession?: string; pageUrl?: string; imageUrl?: string; names?: string }) {
   const identities: string[] = [];
   const accession = input.accession && normalizeAccession(input.accession);
   if (accession) identities.push(`accession:${accession}`);
@@ -13,7 +13,8 @@ export async function museumIdentityKeys(input: { accession?: string; pageUrl?: 
     const url = new URL(input.pageUrl);
     url.hash = '';
     url.searchParams.sort();
-    identities.push(`page:${url.href}`);
+    // One exhibition page can identify several works; its matched image distinguishes them.
+    identities.push(input.imageUrl ? `page-image:${url.href}\n${input.imageUrl}` : `page:${url.href}`);
   }
   // A museum identifier distinguishes identically named works at the same venue.
   if (!identities.length && input.names) identities.push(`names:${input.names}`);

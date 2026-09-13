@@ -6,7 +6,7 @@ import { museumIdentityKeys } from './museumWorkIdentity';
 
 async function identityKeys(candidate: Doc<'contributions'>): Promise<{ key: string; specific: boolean }[]> {
   return museumIdentityKeys({
-    accession: verifiedAccession(candidate), pageUrl: candidate.sourceUrl, names: workKey(candidate.fields),
+    accession: verifiedAccession(candidate), pageUrl: candidate.sourceUrl, imageUrl: candidate.identityImageUrl, names: workKey(candidate.fields),
   });
 }
 

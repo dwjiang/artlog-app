@@ -68,7 +68,7 @@ it('prevents any photo preparation or upload after revoking consent in Settings 
     scanId: 'scan-1' as import('../../../convex/_generated/dataModel').Id<'scans'>,
     localId: 'capture-1', inputSize: 512, canContinue: () => true,
     getCapture: jest.fn(), prepareCrop,
-    api: { searchMuseumSite, confirmSearchCandidate: jest.fn() },
+    api: { searchExhibitions: jest.fn(), searchMuseumSite, confirmSearchCandidate: jest.fn() },
     images: { download: jest.fn(), letterbox: jest.fn(), embed: jest.fn(), extractOrb: jest.fn(), remove: jest.fn() },
   })).toEqual({ stage: 'cancelled' });
   expect(prepareCrop).not.toHaveBeenCalled();

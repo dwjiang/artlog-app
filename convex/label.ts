@@ -261,6 +261,7 @@ export const verifyLabel = action({
     const museum = (name: LabelFieldName) => fields[name] !== undefined && MUSEUM_EVIDENCE.has(fields[name].evidence);
     const verified = (name: LabelFieldName) => fields[name] !== undefined && LOCKING_EVIDENCE.has(fields[name].evidence);
     let sourceUrl = objectUnchanged ? stored?.sourceUrl : undefined;
+    let identityImageUrl = objectUnchanged ? stored?.identityImageUrl : undefined;
     let wikidataId = pairUnchanged ? stored?.wikidataId : undefined;
     let imageUrls = objectUnchanged ? stored?.imageUrls : undefined;
 
@@ -278,12 +279,13 @@ export const verifyLabel = action({
         if (!fields[name] && value) fields[name] = labelField(value, 'accession');
       }
       sourceUrl = accession.sourceUrl;
+      identityImageUrl = undefined;
     }
 
     let artist: WikidataEntity | null | undefined;
     let countryMatch: boolean | undefined;
     // A title/artist pair cannot bind a Wikidata ID to the specific museum object, even if its names agree.
-    const museumIdentity = museum('title') || museum('artist') || museum('accession');
+    const museumIdentity = museum('title') || museum('artist') || museum('accession') || identityImageUrl !== undefined;
     if (museumIdentity) wikidataId = undefined;
     if (input.artist) {
       try {
@@ -311,6 +313,7 @@ export const verifyLabel = action({
           if (field && !museum(name)) fields[name] = withEvidence(field, 'tavily');
         }
         sourceUrl = evidence.sourceUrl;
+        identityImageUrl = undefined;
         imageUrls = evidence.imageUrls;
       }
     }
@@ -329,7 +332,7 @@ export const verifyLabel = action({
     } : {
       stage: 'verified', fields, evidence: evidenceSummary(fields), warnings,
       moderation, promptVersion: stored?.promptVersion, rawOcr: stored?.rawOcr,
-      sourceUrl, wikidataId, imageUrls, updatedAt: Date.now(),
+      sourceUrl, identityImageUrl, wikidataId, imageUrls, updatedAt: Date.now(),
     };
     if (args.imageCheck) flow = applyImageCheck(flow, args.imageCheck);
     await ctx.runMutation(internal.label.write, { scanId: args.scanId, deviceId: device._id, generation: scan.generation, labelFlow: flow });

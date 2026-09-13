@@ -35,8 +35,9 @@ export function runMuseumSearchForScan(input: {
     }
     return runMuseumSearch({
       ...input,
-      stored: input.stored ?? (latest?.museumSearch?.stage === 'candidates' ? latest.museumSearch : undefined),
+      stored: input.stored ?? (latest?.museumSearch?.stage === 'candidates' || latest?.museumSearch?.stage === 'exhibitions' ? latest.museumSearch : undefined),
       api: {
+        searchExhibitions: (args) => convex.action(api.museumSearch.searchExhibitions, args),
         searchMuseumSite: (args) => convex.action(api.museumSearch.searchMuseumSite, args),
         confirmSearchCandidate: (args) => convex.action(api.museumSearch.confirmSearchCandidate, args),
       },

@@ -9,7 +9,7 @@ export async function checkCandidates(
   options: { inputSize: number; canContinue: () => Promise<boolean> },
 ): Promise<{ sourceUrl: string; imageCheck: ImageCheck } | null> {
   for (const candidate of candidates.slice(0, 3)) {
-    for (const url of candidate.imageUrls.slice(0, 2)) {
+    for (const url of candidate.imageUrls.slice(0, candidate.exhibition ? 6 : 2)) {
       if (!await options.canContinue()) return null;
       // A single URL makes the label flow's shared cosine + homography check stop at the first passing image.
       const imageCheck = await checkImages([url], scan, deps, options);

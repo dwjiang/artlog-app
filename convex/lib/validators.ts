@@ -200,6 +200,7 @@ export const labelFlow = v.object({
   promptVersion: v.optional(v.string()),
   rawOcr: v.optional(v.any()),
   sourceUrl: v.optional(v.string()),
+  identityImageUrl: v.optional(v.string()),
   wikidataId: v.optional(v.string()),
   imageUrls: v.optional(v.array(v.string())),
   updatedAt: v.number(),
@@ -216,8 +217,9 @@ export type ImageCheck = Infer<typeof imageCheck>;
 
 export const searchCandidate = v.object({
   sourceUrl: v.string(),
+  exhibition: v.optional(v.object({ title: v.string(), content: v.string() })),
   fields: v.object({
-    title: v.string(),
+    title: v.optional(v.string()),
     artist: v.optional(v.string()),
     date: v.optional(v.string()),
     accession: v.optional(v.string()),
@@ -231,8 +233,13 @@ export type SearchCandidate = Infer<typeof searchCandidate>;
 // Museum-site search state on a scan. `promptVersion` is present whenever a description was attempted.
 export const museumSearchDisplay = v.union(
   v.object({
+    stage: v.literal('exhibitions'),
+    candidates: v.array(searchCandidate),
+    updatedAt: v.number(),
+  }),
+  v.object({
     stage: v.literal('none'),
-    reason: v.union(v.literal('cap'), v.literal('no_candidates')),
+    reason: v.union(v.literal('cap'), v.literal('no_candidates'), v.literal('identity_unresolved')),
     promptVersion: v.optional(v.string()),
     updatedAt: v.number(),
   }),
@@ -246,7 +253,7 @@ export const museumSearchDisplay = v.union(
     stage: v.literal('confirmed'),
     candidates: v.array(searchCandidate),
     selected: v.object({ sourceUrl: v.string(), imageUrl: v.string() }),
-    promptVersion: v.string(),
+    promptVersion: v.optional(v.string()),
     updatedAt: v.number(),
   })
 );

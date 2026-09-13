@@ -15,6 +15,11 @@ export const verified: LabelFlowDisplay = {
     artist: { value: 'A. Painter', evidence: 'tavily+image', locked: true },
   },
 };
+export const exhibitionCandidates: MuseumSearchDisplay = {
+  stage: 'exhibitions', updatedAt: 1,
+  candidates: [{ ...candidate, sourceUrl: 'https://museum.example/exhibitions/colour', fields: {},
+    exhibition: { title: 'A Century of Colour', content: 'Paintings from the collection.' } }],
+};
 export const confirmed: MuseumSearchDisplay = {
   ...candidates, stage: 'confirmed', selected: { sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrls[0] }, updatedAt: 2,
 };

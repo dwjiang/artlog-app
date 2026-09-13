@@ -47,6 +47,22 @@ async function fixture() {
 }
 
 describe('promotion.run with strong evidence', () => {
+  it('keeps different artworks on one exhibition page separate, while reusing a repeated image identity', async () => {
+    const { alice, venueId, run, all, seed } = await fixture();
+    const sourceUrl = 'https://museum.example/exhibitions/colour';
+    const fields = { title: field('Untitled', 'tavily+image'), artist: field('A. Painter', 'tavily+image') };
+    for (const [i, image] of ['red', 'blue', 'red'].entries()) {
+      await seed({ deviceId: alice.deviceId, venueId, fields, evidence: ['tavily+image'], sourceUrl,
+        identityImageUrl: `https://museum.example/${image}.jpg`, vector: testVector(i === 1 ? 0 : 1) });
+      expect(await run()).toMatchObject({ promoted: 1 });
+    }
+    const objects = await all('objects');
+    expect(await all('artworks')).toHaveLength(2);
+    expect(objects[0].artworkId).not.toBe(objects[1].artworkId);
+    expect(objects[2].artworkId).toBe(objects[0].artworkId);
+    // The exhibition page is not the work's own page for the docent.
+    expect(objects.map((object) => object.pageUrl)).toEqual([undefined, undefined, undefined]);
+  });
   it.each(['accession', 'qr', 'tavily+image'] as const)('promotes %s alone into the shared index', async (kind) => {
     const { t, alice, venueId, run, get, all, seed } = await fixture();
     const cropStorageId = await storeCrop(t);

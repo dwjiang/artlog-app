@@ -34,12 +34,12 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     if (!scan || !canRun.current || inFlight.current || stored?.stage === 'confirmed') return;
     inFlight.current = true;
     attempted.current = true;
-    setPhase({ stage: 'running', progress: stored?.stage === 'candidates' ? 'check' : 'describe' });
+    setPhase({ stage: 'running', progress: stored?.stage === 'candidates' || stored?.stage === 'exhibitions' ? 'check' : 'exhibitions' });
     try {
       const result = await runMuseumSearchForScan({
         scanId: scan.scanId, localId: scan.localId,
         retry,
-        stored: stored?.stage === 'candidates' ? stored : undefined,
+        stored: stored?.stage === 'candidates' || stored?.stage === 'exhibitions' ? stored : undefined,
         canContinue: () => mounted.current && canRun.current,
         onStage: (progress) => { if (mounted.current) setPhase({ stage: 'running', progress }); },
       });
@@ -54,7 +54,7 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
 
   useEffect(() => {
     if (phase.stage !== 'running' && available && active && online && consent === 'granted' && !attempted.current &&
-      (!stored || stored.stage === 'candidates')) void run();
+      (!stored || stored.stage === 'candidates' || stored.stage === 'exhibitions')) void run();
   }, [available, active, online, consent, stored, run, phase.stage]);
 
   useEffect(() => {

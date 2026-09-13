@@ -41,6 +41,8 @@ import type * as lib_describePrompt from "../lib/describePrompt.js";
 import type * as lib_docentPrompts from "../lib/docentPrompts.js";
 import type * as lib_docentSources from "../lib/docentSources.js";
 import type * as lib_docentValidator from "../lib/docentValidator.js";
+import type * as lib_exhibitionIdentity from "../lib/exhibitionIdentity.js";
+import type * as lib_exhibitionSearch from "../lib/exhibitionSearch.js";
 import type * as lib_flags from "../lib/flags.js";
 import type * as lib_identifyPipeline from "../lib/identifyPipeline.js";
 import type * as lib_labelFixtures from "../lib/labelFixtures.js";
@@ -125,6 +127,8 @@ declare const fullApi: ApiFromModules<{
   "lib/docentPrompts": typeof lib_docentPrompts;
   "lib/docentSources": typeof lib_docentSources;
   "lib/docentValidator": typeof lib_docentValidator;
+  "lib/exhibitionIdentity": typeof lib_exhibitionIdentity;
+  "lib/exhibitionSearch": typeof lib_exhibitionSearch;
   "lib/flags": typeof lib_flags;
   "lib/identifyPipeline": typeof lib_identifyPipeline;
   "lib/labelFixtures": typeof lib_labelFixtures;

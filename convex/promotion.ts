@@ -28,6 +28,12 @@ export const CONFIRMED_TRUST_WEIGHT = 1.0;
 export const MULTI_VIEW_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 export const MULTI_VIEW_DUPLICATE_COSINE = 0.995;
 
+// The docent reads `pageUrl` as the work's own page. An exhibition page names a work only through
+// its matched image, so it identifies the artwork (`identityImageUrl`) without becoming its page.
+function objectPageUrl(rows: Doc<'contributions'>[]): string | undefined {
+  return rows.find((row) => row.sourceUrl && !row.identityImageUrl && hasStrongEvidence(row))?.sourceUrl;
+}
+
 const compactContribution = v.object({
   _id: v.id('contributions'), deviceId: v.id('devices'), venueId: v.id('museums'), modelVersion: v.string(),
   vector: embedding, fields: v.object({ title: contributionField, artist: contributionField, accession: v.optional(contributionField) }),
@@ -114,7 +120,7 @@ export const apply = internalMutation({
       key: `user:${candidate._id}`, artworkId, ownerId: candidate.venueId,
       accession: candidate.fields.accession?.value, medium: candidate.fields.medium?.value,
       source: 'user', sourceId: candidate._id,
-      pageUrl: set.find((row) => row.sourceUrl && hasStrongEvidence(row))?.sourceUrl,
+      pageUrl: objectPageUrl(set),
       imageRef: crop ? `storage:${crop}` : undefined, thumbnailStorageId: crop,
       provenance: { contributionIds: set.map((row) => row._id), deviceIds, verifiedAccession: set.map(verifiedAccession).find(Boolean) },
       confirmCount: 0, rejectCount: 0, calibratorPenalty: 0, reverted: false,
@@ -198,7 +204,7 @@ export const appendPartners = internalMutation({
     }
     if (accepted.length) {
       await ctx.db.patch(object._id, {
-        pageUrl: object.pageUrl ?? accepted.find((row) => row.sourceUrl && hasStrongEvidence(row))?.sourceUrl,
+        pageUrl: object.pageUrl ?? objectPageUrl(accepted),
         provenance: {
           contributionIds: [...new Set([...(object.provenance?.contributionIds ?? []), ...accepted.map((row) => row._id)])],
           deviceIds: [...new Set([...(object.provenance?.deviceIds ?? []), ...accepted.map((row) => row.deviceId)])],

@@ -16,6 +16,8 @@ import {
   searchQuery,
 } from './lib/describePrompt';
 import { isEnabled } from './lib/flags';
+import { exhibitionCandidates } from './lib/exhibitionSearch';
+import { resolveExhibitionIdentity } from './lib/exhibitionIdentity';
 import {
   FIELD_NAMES,
   displayLabelFlow,
@@ -49,11 +51,11 @@ const MAX_DESCRIBE_CALLS = 2;
 const SEARCH_CREDITS = 1;
 const MAX_RESULTS = 5;
 
-type Retained = Extract<MuseumSearchDisplay, { stage: 'candidates' | 'confirmed' }>;
+type Retained = Exclude<MuseumSearchDisplay, { stage: 'none' }>;
 
 export const load = internalQuery({
   args: { scanId: v.id('scans'), deviceId: v.id('devices') },
-  returns: v.object({ scan: schema.doc('scans'), hosts: v.array(v.string()) }),
+  returns: v.object({ scan: schema.doc('scans'), hosts: v.array(v.string()), venueName: v.string() }),
   handler: async (ctx, { scanId, deviceId }) => {
     const scan = await ctx.db.get(scanId);
     if (!scan || scan.deviceId !== deviceId || !scan.venueId || scan.status !== 'identified' || scan.outcome === 'confident') {
@@ -63,7 +65,7 @@ export const load = internalQuery({
     const hosts = venue ? venueHosts(venue) : [];
     if (!venue || !hosts.length) throw new ConvexError({ code: 'no_venue_site' });
     if (await isVenueOptedOut(ctx, venue)) throw new ConvexError({ code: 'venue_opted_out' });
-    return { scan, hosts };
+    return { scan, hosts, venueName: venue.name };
   },
 });
 
@@ -189,6 +191,47 @@ export const searchMuseumSite = action({
   },
 });
 
+export const searchExhibitions = action({
+  args: { scanId: v.id('scans') },
+  returns: museumSearchDisplay,
+  handler: async (ctx, { scanId }): Promise<MuseumSearchDisplay> => {
+    const device = await requireDeviceFromAction(ctx);
+    if (!isEnabled('museumSearch')) throw new ConvexError({ code: 'feature_off' });
+    const { scan, hosts, venueName } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
+    await limitDevice(ctx, 'museumSearch', device._id);
+    const revision = await ctx.runMutation(internal.museumSearch.beginSearch, {
+      scanId, deviceId: device._id, generation: scan.generation,
+    });
+    const write = (museumSearch: MuseumSearchDisplay) => ctx.runMutation(internal.museumSearch.write, {
+      scanId, deviceId: device._id, generation: scan.generation, revision, museumSearch,
+    });
+    let day: string;
+    try {
+      day = await ctx.runMutation(internal.spend.reserve, { kind: 'tavily', amount: 1 });
+    } catch (error) {
+      if (!(error instanceof ConvexError) || error.data.code !== 'spend_cap') throw error;
+      const state: MuseumSearchDisplay = { stage: 'none', reason: 'cap', updatedAt: Date.now() };
+      await write(state);
+      return state;
+    }
+    let credits = 1;
+    try {
+      const response = await search({ query: `${venueName} current exhibitions`, includeDomains: hosts, includeImages: true, maxResults: 5 });
+      credits = response.credits ?? 1;
+      const state: MuseumSearchDisplay = {
+        stage: 'exhibitions', candidates: exhibitionCandidates(response, hosts), updatedAt: Date.now(),
+      };
+      await write(state);
+      return state;
+    } catch (error) {
+      if (error instanceof ConvexError && error.data.code === 'search_unconfigured') credits = 0;
+      throw error;
+    } finally {
+      await ctx.runMutation(internal.spend.reconcile, { kind: 'tavily', day, reserved: 1, actual: credits });
+    }
+  },
+});
+
 function retainedCandidate(
   state: MuseumSearchDisplay | undefined, sourceUrl: string, imageUrl: string,
 ): { state: Retained; candidate: SearchCandidate } | null {
@@ -212,6 +255,7 @@ function confirmedFlow(candidate: SearchCandidate, imageUrl: string, fields: Lab
   return {
     stage: 'verified', fields, evidence: evidenceSummary(fields), warnings: [], moderation,
     sourceUrl: candidate.sourceUrl, imageUrls: [imageUrl], updatedAt: Date.now(),
+    ...(candidate.exhibition ? { identityImageUrl: imageUrl } : {}),
   };
 }
 
@@ -255,7 +299,8 @@ export const confirm = internalMutation({
       // Confirming a retained candidate supersedes any search still in flight.
       museumSearchRevision: (scan.museumSearchRevision ?? 0) + 1,
       museumSearch: {
-        stage: 'confirmed', candidates: retained.state.candidates, promptVersion: retained.state.promptVersion,
+        stage: 'confirmed', candidates: retained.state.candidates,
+        ...('promptVersion' in retained.state ? { promptVersion: retained.state.promptVersion } : {}),
         selected, updatedAt: flow.updatedAt,
       },
       updatedAt: Date.now(),
@@ -265,21 +310,54 @@ export const confirm = internalMutation({
   },
 });
 
+// A matched image the page could not name is a terminal outcome: reopening the scan must not repeat
+// the page fetch and caption model call. A newer search or confirmation is left untouched.
+export const markUnresolved = internalMutation({
+  args: { scanId: v.id('scans'), deviceId: v.id('devices'), generation: v.number(), sourceUrl: v.string(), imageUrl: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const scan = ownedCurrentScan(await ctx.db.get(args.scanId), args);
+    if (scan.museumSearch?.stage !== 'exhibitions' || !retainedCandidate(scan.museumSearch, args.sourceUrl, args.imageUrl)) return null;
+    const updatedAt = Date.now();
+    await ctx.db.patch(scan._id, { museumSearch: { stage: 'none', reason: 'identity_unresolved', updatedAt }, updatedAt });
+    return null;
+  },
+});
+
 export const confirmSearchCandidate = action({
   args: { scanId: v.id('scans'), sourceUrl: v.string(), imageCheck },
   returns: labelFlowDisplay,
   handler: async (ctx, { scanId, sourceUrl, imageCheck: check }): Promise<LabelFlowDisplay> => {
     const device = await requireDeviceFromAction(ctx);
     if (!isEnabled('museumSearch')) throw new ConvexError({ code: 'feature_off' });
-    const { scan } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
+    const { scan, hosts } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
     const retained = retainedCandidate(scan.museumSearch, sourceUrl, check.url);
     if (!retained) throw new ConvexError({ code: 'unknown_candidate' });
     if (!imageCheckPasses(check)) throw new ConvexError({ code: 'image_mismatch' });
-    const fields = candidateFields(retained.candidate);
+    let candidate = retained.candidate;
+    if (candidate.exhibition) {
+      const previous = scan.labelFlow;
+      if (scan.museumSearch?.stage === 'confirmed' && previous?.stage === 'verified' &&
+        scan.museumSearch.selected.sourceUrl === sourceUrl && scan.museumSearch.selected.imageUrl === check.url &&
+        previous.sourceUrl === sourceUrl && previous.identityImageUrl === check.url) return displayLabelFlow(previous);
+      await limitDevice(ctx, 'labelVerify', device._id);
+      // A page fetch or model failure propagates: only a page that cannot name the image is terminal.
+      const identity = await resolveExhibitionIdentity(ctx, {
+        sourceUrl, imageUrl: check.url, exhibitionTitle: candidate.exhibition.title, hosts,
+      });
+      if (!identity?.title || !identity.artist) {
+        await ctx.runMutation(internal.museumSearch.markUnresolved, {
+          scanId, deviceId: device._id, generation: scan.generation, sourceUrl, imageUrl: check.url,
+        });
+        throw new ConvexError({ code: 'identity_unresolved' });
+      }
+      candidate = { ...candidate, fields: identity };
+    }
+    const fields = candidateFields(candidate);
     const clear = confirmedFlow(retained.candidate, check.url, fields, 'clear');
     const stored = storedConfirmation(scan, clear);
     if (stored) return displayLabelFlow(stored);
-    await limitDevice(ctx, 'labelVerify', device._id);
+    if (!candidate.exhibition) await limitDevice(ctx, 'labelVerify', device._id);
     const moderation = await moderateVerifiedFields(ctx, fields, scan.labelFlow);
     return ctx.runMutation(internal.museumSearch.confirm, {
       scanId, deviceId: device._id, generation: scan.generation,
