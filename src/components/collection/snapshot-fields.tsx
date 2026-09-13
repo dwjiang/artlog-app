@@ -5,7 +5,7 @@ import { Spacing } from '@/constants/theme';
 import type { SavedWork } from '@/db/schema';
 import { formatDay } from '@/lib/collection/group-by-visit';
 
-// Read-only by design (design §4.2 *Moves*): a saved work is what the user saw, where and when.
+// Read-only by design: a saved work is what the user saw, where and when.
 export function SnapshotFields({ work }: { work: SavedWork }) {
   const rows: [string, string | null][] = [['Date', work.date], ['Medium', work.medium], ['Institution', work.institution]];
   const seen = [work.venueName, formatDay(work.savedAt), work.gallery].filter(Boolean).join(' · ');

@@ -1,7 +1,7 @@
-# Convex vector scale spike (00.02)
+# Convex vector scale benchmark
 
 This is a disposable backend, separate from the Expo app and its deployment.
-The [decision record](../../docs/decisions/002-vector-search-scale.md) records the
+The [vector-search findings](../../docs/todos/experiment-findings/README.md#vector-search-scale) record the
 measured scope, limitations, and architecture recommendation. Checked-in JSONL
 under `results/` contains raw samples; unit tests only check correctness.
 
@@ -101,11 +101,11 @@ on Free: its raw float payload alone is 1.229 GB.
   in a separate query and can race deletion; missing documents are counted
   independently from filter violations. Synthetic nearest-neighbor checks are
   not a real-artwork recall benchmark.
-- The vectors table uses exactly the planned fields and indexes. A tiny
+- The vectors table uses the benchmark schema's fields and indexes. A tiny
   `progress` table holds one atomic counter/checkpoint per version so stats and
   resumes do not scan gigabytes of floats. It adds one indexed checkpoint read
   and write per insert transaction; measured throughput includes that overhead.
-- `deleteVersion` scans bounded pages of the planned object-first index. It
+- `deleteVersion` scans bounded pages of the object-first index. It
   cannot seek by model version alone. Both scanned and deleted rows are logged;
   deletion cost therefore scales with the entire table. Writes to the deleted
   version are blocked after deletion starts.
@@ -124,5 +124,5 @@ run. This limit is distinct from Convex's 16 MiB transaction-write limit.
 After saving the results and usage evidence, delete this **disposable project**
 in Dashboard → Project settings → Delete project. This also removes its
 deployment and credential. Verify it is absent from the team project list and
-record that in the decision. The one-day expiration is a backup, not a substitute
+save cleanup evidence with the measurements. The one-day expiration is a backup, not a substitute
 for cleanup. Remove the local credential file after cleanup; never commit it.

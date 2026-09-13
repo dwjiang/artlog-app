@@ -6,5 +6,5 @@
   "algorithm": "RS256",
   "subjectPresent": true,
   "wrongAudienceRejected": true,
-  "accountSessionFlow": "not exercised; belongs to plan 04.11"
+  "accountSessionFlow": "not exercised in this session"
 }

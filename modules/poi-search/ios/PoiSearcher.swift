@@ -19,7 +19,7 @@ struct PoiRecord {
   }
 }
 
-/// Museum-category and "art gallery" text searches run together: decision 006 found SFMOMA missing
+/// Museum-category and "art gallery" text searches run together: SFMOMA was missing
 /// from the museum filter (classified as a landmark), so neither request alone is complete.
 enum PoiSearcher {
   static let maxResults = 8

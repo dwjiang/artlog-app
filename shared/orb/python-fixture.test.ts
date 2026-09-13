@@ -1,4 +1,4 @@
-// Cross-language guard for the ORB wire format (plan 04.01): the bytes in
+// Cross-language guard for the ORB wire format: the bytes in
 // shared/fixtures/orb-features-v1.json were produced by jobs/artlog_jobs/orb.py.
 
 import fixture from '../fixtures/orb-features-v1.json';

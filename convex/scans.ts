@@ -20,10 +20,10 @@ export const scanDisplay = v.object({
   visitId: scanFields.visitId, capturedAt: v.number(), status: scanFields.status,
   outcome: scanFields.outcome, calibratorVersion: scanFields.calibratorVersion,
   best: v.optional(displayCandidate), runnerUps: v.optional(v.array(displayCandidate)),
-  // Docent prose and its source chips come from the artwork (design §4.8); only a confident card shows them.
+  // Docent prose and its source chips come from the artwork; only a confident card shows them.
   docent: v.optional(v.array(docentSentence)), factSheet: v.optional(v.array(factChip)),
   rightNow: scanFields.rightNow,
-  // The label flow and museum-site search are the owner's own state (design §4.4); the raw OCR reading stays server-side.
+  // The label flow and museum-site search are the owner's own state; the raw OCR reading stays server-side.
   labelFlow: v.optional(labelFlowDisplay), museumSearch: scanFields.museumSearch,
   error: scanFields.error,
 });
@@ -99,7 +99,7 @@ async function joinCandidate(
   const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
   if (!object || object.reverted || !artwork) return null;
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
-  // Design §5.5: a hotlinked source image only for public-domain works; a contributor's consented crop always.
+  // A hotlinked source image only for public-domain works; a contributor's consented crop always.
   const thumbnailUrl = object.thumbnailStorageId
     ? await ctx.storage.getUrl(object.thumbnailStorageId)
     : artwork.rightsStatus === 'public_domain' ? object.thumbnailUrl : undefined;

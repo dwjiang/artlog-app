@@ -6,7 +6,7 @@ import { SourceChip } from './source-chip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-/** A web-sourced line about the artist (design §4.8), labelled so it reads as a different kind of claim. */
+/** A web-sourced line about the artist, labelled so it reads as a different kind of claim. */
 export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {
   if (!rightNow) return null;
   return (

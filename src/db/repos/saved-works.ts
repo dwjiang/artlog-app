@@ -6,7 +6,7 @@ import { requestCollectionSync } from '../../lib/account/sync-events';
 import { db } from '../client';
 import { notes, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
 
-// Snapshot fields are immutable by construction: this module exposes no update to them (design §4.2 *Moves*).
+// Snapshot fields are immutable by construction: this module exposes no update to them.
 
 export async function insertSavedWork(work: NewSavedWork): Promise<void> {
   await db.insert(savedWorks).values(work);

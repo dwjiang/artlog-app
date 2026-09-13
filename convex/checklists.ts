@@ -73,7 +73,7 @@ export const ingestChecklist = internalMutation({
     if (!['https:', 'http:'].includes(source.protocol) || !args.exhibition.title.trim()) {
       throw new ConvexError({ code: 'invalid_checklist_source' });
     }
-    // The wire dates are inclusive host-local days (decision 005), including DST changes.
+    // The wire dates are inclusive host-local days, including DST changes.
     const timeZone = tzLookup(venue.lat, venue.lng);
     const start = moment.tz(args.exhibition.from, 'YYYY-MM-DD', true, timeZone);
     const end = moment.tz(args.exhibition.to, 'YYYY-MM-DD', true, timeZone);

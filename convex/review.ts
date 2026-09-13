@@ -19,7 +19,7 @@ const contributionReview = v.object({
   createdAt: contributionFields.createdAt,
 });
 
-// Design §8: flagged works and agreed proposals land in a review queue read from the dashboard, e.g.
+// Flagged works and agreed proposals land in a review queue read from the dashboard, e.g.
 // `npx convex run review:listFlaggedObjects`.
 export const listFlaggedObjects = internalQuery({
   args: {},

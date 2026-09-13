@@ -24,9 +24,9 @@ import {
 import schema from './schema';
 import { beginRevert } from './revert';
 
-// Design §8: a vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
+// A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
 export const DUPLICATE_COSINE = 0.995;
-// The phone resizes the consented crop to ≤ 256 px JPEG (05.03); anything larger is not a crop.
+// The phone resizes the consented crop to ≤ 256 px JPEG; anything larger is not a crop.
 export const MAX_CROP_BYTES = 200 * 1024;
 const CROP_CONTENT_TYPE = 'image/jpeg';
 const MAX_LISTED = 200;
@@ -269,7 +269,7 @@ async function otherBacker(
 }
 
 // A withdrawal removes only what this device shared. An object other devices still back keeps its
-// entry; a partner's consented crop and features replace the withdrawn ones (design §4.5).
+// entry; a partner's consented crop and features replace the withdrawn ones.
 async function detachContribution(
   ctx: MutationCtx, object: Doc<'objects'>, row: Doc<'contributions'>, partner: Doc<'contributions'>,
 ): Promise<void> {

@@ -16,7 +16,7 @@ export type NotRightSheetProps = {
   notice?: string;
 };
 
-/** "Not right?" (design §4.6): runner-ups first, then the label. */
+/** "Not right?": runner-ups first, then the label. */
 export function NotRightSheet({ open, onDismiss, runnerUps, onPick, onLabel, notice }: NotRightSheetProps) {
   const hasRunnerUps = runnerUps.length > 0;
   return (

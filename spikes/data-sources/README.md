@@ -1,9 +1,7 @@
-# Data-source spike 00.05
+# Data-source evaluation
 
-Findings and downstream decisions: [005-data-sources.md](../../docs/decisions/005-data-sources.md).
+Findings and limits: [data-source evaluation](../../docs/todos/experiment-findings/README.md#data-sources).
 This directory contains bounded, read-only probes; none writes to Convex.
-Python source names use kebab case per the project guide, replacing the
-snake-case script names suggested in the plan.
 
 ## Reproduce
 
@@ -54,8 +52,8 @@ slices; if both fail, the script stops painting queries and reports unknown.
 It never invents a dump estimate or downloads the whole Wikidata dump.
 
 `venues-probe.py` fetches policy metadata only, with **zero object pages**.
-Terms decisions were reviewed separately and are documented with links in the
-decision record. Disallowed/unknown sites stay disabled. The replacement probe
+The [source findings](../../docs/todos/experiment-findings/README.md#data-sources)
+summarize the reviewed access limits. Disallowed/unknown sites stay disabled. The replacement probe
 checks two Cleveland sitemap children, one object page, and one API listing
 limited to one artwork. Its exact observed counts are in `results/replacement.json`.
 
@@ -70,9 +68,8 @@ policy endpoint does not prove absence on unvisited object pages.
 Tests cover count boundaries, robots errors and path matching, sitemap
 classification, interrupted rate-limit responses, cached CSV reuse, and failed
 type discovery without network access. Both venue probes share robots-response
-validation. The source
-score configuration is in `jobs/config/source-scores.json`; plan 02.06 creates
-`jobs/config/venues.seed.json` from the decision table after rechecking policy.
+validation. Source scores live in `shared/source-scores.json`; museum-page
+access policy is checked by the runtime fetcher before each request.
 
 The Met email is [drafted](met-inquiry.md), not sent. The contact log is
 `results/contacts.json`; do not describe it as an unanswered sent inquiry.

@@ -10,7 +10,7 @@ export type RunnerUpsProps = {
   onPick: (candidate: ResultCandidate) => void;
 };
 
-/** Similar works as rows; a museum thumbnail appears only where the server hotlinked a public-domain one (design §5.5). */
+/** Similar works as rows; a museum thumbnail appears only where the server hotlinked a public-domain one. */
 export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
   return (
     <View style={styles.list}>

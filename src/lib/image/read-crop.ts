@@ -35,6 +35,6 @@ export async function loadGray(imageUri: string, cv: FastOpenCV): Promise<GrayIm
   } finally {
     decoded.release();
   }
-  // Read dimensions while the Mat is alive; a released Mat throws on access (decision 006).
+  // Read dimensions while the Mat is alive; a released Mat throws on access.
   return { gray, width: gray.cols, height: gray.rows };
 }

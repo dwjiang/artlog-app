@@ -121,9 +121,9 @@ it('blocks a second capture until the first finishes, then exposes errors for re
   expect(hook.result.current.busy).toBe(true);
   await act(async () => { await hook.result.current.capture(getInput); });
   expect(getInput).toHaveBeenCalledTimes(1);
-  await act(async () => { reject(new Error('Warper implemented by plan 03.02')); await first; });
+  await act(async () => { reject(new Error('Unable to correct the painting perspective')); await first; });
   expect(hook.result.current.busy).toBe(false);
-  expect(hook.result.current.message).toBe('Warper implemented by plan 03.02');
+  expect(hook.result.current.message).toBe('Unable to correct the painting perspective');
 });
 
 it('checks current reachability after processing, not the value at shutter press', async () => {

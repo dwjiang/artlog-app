@@ -59,7 +59,7 @@ const MAX_IMAGE_BYTES = 1_500_000;
 // The label read and the moderation check are each retried at most once (tokenFactory.chatJson).
 const MAX_READ_CALLS = 4;
 const MAX_MODERATION_CALLS = 2;
-// Decision 004 measured p95 3.3 s for Kimi before upload time; the default 8 s is too tight with an image.
+// Measured p95 was 3.3 s for Kimi before upload time; the default 8 s is too tight with an image.
 export const READ_TIMEOUT_MS = 20_000;
 
 const labelInput = v.object({

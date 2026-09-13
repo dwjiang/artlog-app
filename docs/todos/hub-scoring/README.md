@@ -1,8 +1,7 @@
 # Hub scoring for the artwork index
 
 **Status: DEFERRED by the user on 2026-09-12.** Resume only when the user asks
-to take up this work. This is step #3 of the fetched-feature workflow, formerly
-the hubs step in [plan 02.05](../../plans/02-index-build/05-dedupe-hubs-push.md).
+to take up this work.
 
 ## Purpose
 
@@ -19,8 +18,9 @@ against actual retrieval results.
   equivalence to pairwise mean cosine, repeatable sampling, and empty/constant
   distributions.
 - Full deduplication is complete: 41 shards, 402,139 embedding views, and
-  397,047 objects with embeddings. Its output is `jobs/scratch/merged/` and
-  its audit is `jobs/out/02-05-2026-09-12-dedupe/`, both local artifacts.
+  397,047 objects with embeddings. Under `/Users/dwjiang/Documents/Artlog Data/`,
+  its output is `jobs/scratch/merged/` and its audit is
+  `jobs/out/02-05-2026-09-12-dedupe/`, both local artifacts.
   Revalidate or rebuild those artifacts if unavailable when this task resumes.
 - Hub scoring has not run on this completed corpus. The earlier partial-corpus
   experiment recorded in [the jobs runbook](../../../jobs/README.md) is historical.
@@ -56,11 +56,13 @@ The importer writes penalties through `ingest:setObjectPenalty` into
 signals and stores resulting probabilities in `scans.best.probability` and
 `scans.runnerUps[].probability`, with `scans.calibratorVersion`. The raw hub
 scores belong in the offline audit. Calibrator weights and thresholds live in
-[deployed code](../../../convex/lib/calibrator/weights.ts).
+[the active configuration](../../../convex/lib/calibrator/weights.ts).
 
 The `0.5` penalty and detection threshold are existing heuristics. Their effect
 on false matches and valid matches needs evaluation during recognition testing
-and [calibrator training](../../plans/02-index-build/09-calibrator-training.md).
+and [calibrator training](../../../jobs/README.md). The current v2 penalty
+coefficient is zero: neither hub nor rejection penalties change its scores.
+See the [training limitations](../experiment-findings/README.md#calibrator-v2).
 This task does not change user-feedback rejection penalties or adopt new
 calibrator weights.
 
@@ -72,16 +74,17 @@ calibrator weights.
   tied scores; preserve deterministic output.
 - [ ] Run the existing numerical and repeatability tests plus relevant import tests.
 - [ ] Score the full verified corpus and audit flagged objects and artifact hashes.
-- [ ] Confirm candidate confidence decreases when the penalty increases, while
-  ORB and venue eligibility rules remain enforced.
-- [ ] Archive the output and evaluation results, then update the parent plan.
+- [ ] Evaluate the penalty's effect with a configuration that gives it weight;
+  the current v2 should remain unchanged until a separately authorized retrain.
+  Preserve ORB and venue eligibility rules.
+- [ ] Archive the output and evaluation results, then update this todo.
 
 Future scoring command, from `jobs/`, after this task is resumed:
 
 ```sh
 uv run python -m artlog_jobs.hubs \
-  --features scratch/merged \
-  --out scratch/merged/penalties.jsonl
+  --features "/Users/dwjiang/Documents/Artlog Data/jobs/scratch/merged" \
+  --out "/Users/dwjiang/Documents/Artlog Data/jobs/scratch/merged/penalties.jsonl"
 ```
 
 Generating local scoring artifacts does not itself import them into Convex.

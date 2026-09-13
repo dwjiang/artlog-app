@@ -9,21 +9,20 @@ descriptors and a homography verify them, and a small calibrator decides whether
 museum's own site (with consent) or reads the wall label, verifies what it read against the
 museum's records or Wikidata and, with the visitor's consent, adds the work to a shared index so
 the next visitor gets an instant match. Nemotron on Nebius Token Factory writes the cited
-"about this work" text once per artwork; Tavily answers what is happening with the artist right
-now. A scan taken with no signal waits on the phone and is identified when the connection
+"about this work" text once per artwork; Tavily finds museum-site evidence and fact-sheet
+sources. A scan taken with no signal waits on the phone and is identified when the connection
 returns.
 
-Built for the Nebius × NVIDIA Global AI Hackathon. iOS only. Design:
-[docs/design/art-identifier.md](docs/design/art-identifier.md). Plans and status:
-[docs/plans/README.md](docs/plans/README.md).
+Built for the Nebius × NVIDIA Global AI Hackathon. iOS only.
+[Open work](docs/todos/) and [experiment findings](docs/todos/experiment-findings/README.md).
 
 ## Demo
 
-- **TestFlight public link:** _PLACEHOLDER — added by plan 06.01 once Beta App Review clears._
+- **TestFlight public link:** _PLACEHOLDER — available once Beta App Review clears._
 - **Video (under 3 minutes, YouTube):** _PLACEHOLDER — outline in
-  [docs/hackathon/video-outline.md](docs/hackathon/video-outline.md)._
-- Hackathon deliverables: [feedback notes](docs/hackathon/feedback-notes.md),
-  [submission checklist](docs/hackathon/submission-checklist.md).
+  [docs/todos/hackathon/video-outline.md](docs/todos/hackathon/video-outline.md)._
+- Hackathon deliverables: [feedback notes](docs/todos/hackathon/feedback-notes.md),
+  [submission checklist](docs/todos/hackathon/README.md).
 
 The app opens to the camera with no account; anyone with the TestFlight build can scan within
 seconds.
@@ -32,21 +31,20 @@ seconds.
 
 | Component | Model / service | Code | Runs |
 |---|---|---|---|
-| Image embedding, every scan | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, 1,536-d output, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-v1`) | `modules/coreml-embed/`, export recipe in `scripts/model/` | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. The crop never leaves the phone |
+| Image embedding, every scan | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, 1,536-d output, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-v1`) | `modules/coreml-embed/`, export recipe in `scripts/model/` | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. Normal identification sends features without uploading the crop |
 | Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build | `jobs/artlog_jobs/model.py`, `embed.py`, `drift_check.py` | On the operator's Mac (see below) |
 | Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
 | Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
 | Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
-| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([decision 004](docs/decisions/004-token-factory-models.md)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
+| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([model evaluation](docs/todos/experiment-findings/README.md#token-factory-models)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
 | Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output and thinking disabled; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
-| Nebius Serverless AI Jobs | Proven in spike 00.08: an L40S job, a lifecycle-managed scratch bucket and a service-account REST launch ([decision 008](docs/decisions/008-jobs-and-release-logistics.md)) | `spikes/nebius-jobs/` | **Not on any production path.** See the next paragraph |
+| Nebius Serverless AI Jobs | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/todos/experiment-findings/README.md#batch-infrastructure)) | `spikes/nebius-jobs/` | **Not on any production path.** See the next paragraph |
 
-**Where the index was actually built.** The design planned the corpus build on a Nebius
-Serverless Job with an L40S. It ran instead on the operator's Mac (Apple M5 Pro, PyTorch on the
+**Where the index was actually built.** The corpus build ran on the operator's Mac (Apple M5 Pro, PyTorch on the
 MPS backend, fp16), shard by shard with the same fake-quantized weights the phone runs, because
 the Wikimedia Commons download sets the wall clock, not GPU time, and the Commons robot policy
 applies wherever the job runs ([jobs/README.md](jobs/README.md), "Index build"). No Nebius job
-has embedded, enriched or migrated the index; the only Nebius compute spent was the spike's three
+has embedded, enriched or migrated the index; the only Nebius compute spent was three
 probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
 Convex, and what runs on Nebius is Token Factory, live, on every label read, every consented
 museum-site search, every moderation check and the first identification of every uncached
@@ -54,16 +52,17 @@ artwork.
 
 ## Tavily
 
-Every Tavily call is a live runtime call made while a visitor uses the app; there is no batch
-usage. All of them sit behind feature flags and a daily credit cap (`DAILY_TAVILY_CREDIT_CAP`,
-reserved atomically before each call), so identification itself never depends on Tavily.
+Tavily supports the runtime calls below and the batch enrichment worker. Runtime features
+sit behind feature flags; runtime and batch calls share a daily credit cap
+(`DAILY_TAVILY_CREDIT_CAP`, reserved atomically before each call). Visual index matching
+does not depend on Tavily.
 
 | Call | Code | What it does |
 |---|---|---|
 | Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: first search the venue's current exhibitions with source-linked images. The phone checks up to six images on each of three pages by embedding and homography. A match is identified only from artwork metadata or a caption attached to that image; otherwise the visitor is asked for the label. If no image matches, a second search uses the vision model's painting description and checks individual object pages. One credit per search, at most two per attempt. `FLAG_MUSEUM_SEARCH`, on by default |
 | Label verification | `convex/label.ts` | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default |
 | Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | On the first identification of an uncached artwork, results filtered by per-domain source scores (`shared/source-scores.json`) become sources Nemotron 3 Super must cite |
-| "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** per [decision 007](docs/decisions/007-tavily.md) |
+| "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/todos/experiment-findings/README.md#tavily-and-right-now) |
 
 ## Architecture
 
@@ -100,11 +99,11 @@ npx expo prebuild --platform ios --clean && npx expo run:ios --device
 unpacks it into the ignored `modules/coreml-embed/ios/Models/`. While the repository is private
 the download needs GitHub authentication (`gh auth login`, or `GH_TOKEN` with Contents: read);
 once the repository is public it needs none. `npx expo run:ios --device` builds with Xcode,
-installs on the chosen iPhone and starts Metro; afterwards `npm run ios` reopens the installed
-build without rebuilding. Expo Go cannot load the native modules.
+installs on the chosen iPhone and starts Metro; `npm run ios` also builds and launches the iOS
+app through Expo. Expo Go cannot load the native modules.
 
 The hosted production backend is `admired-goldfinch-660`; its corpus and release checks are
-recorded in the [release runbook](docs/runbooks/release.md). Scanning, saving, the label flow and museum-site search work from any build.
+recorded in the [release checklist](docs/todos/release/README.md). Scanning, saving, the label flow and museum-site search work from any build.
 Writes to the shared index (contributions, rejections, venue confirmations) are signed with App
 Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
 use the TestFlight build, or run your own backend.
@@ -129,9 +128,9 @@ Convex environment variables, set with `npx convex env set NAME value`
 | Variable | What it does |
 |---|---|
 | `NEBIUS_API_KEY` | Token Factory key for the label flow, museum-site search, moderation, fact sheets and docent prose |
-| `LABEL_VL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs from decision 004: `moonshotai/Kimi-K2.6`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
+| `LABEL_VL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs: `moonshotai/Kimi-K2.6`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
 | `TAVILY_API_KEY` | Tavily key for the four calls above |
-| `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP` | Global daily spend caps; decisions 004 and 007 recommend 500 calls and 20 credits |
+| `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP` | Global daily spend caps; defaults are 2,000 calls and 20 credits |
 | `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH`, `FLAG_RIGHT_NOW` | `on` / `off` kill switches; "Right now" defaults off |
 | `SUPPORTED_MODEL_VERSIONS` | Embedding versions `identify` accepts; an older client is told to update |
 | `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `APP_ATTEST_ALLOW_DEV` | App Attest for shared writes: `true` in production, `TEAMID.app.artlog.ios`, and whether Apple's development environment is accepted. Leave `APP_ATTEST_REQUIRED` unset on a personal dev deployment |
@@ -179,11 +178,11 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    This leaves the published asset pin unchanged. `package-model.sh` is for preparing a release
    or testing a local compiled asset: it rewrites `model-asset.json`, and its ZIP includes a new
    timestamped manifest even when the model weights match.
-2. **Seed venues** (plan 02.02), if not done above:
+2. **Seed venues**, if not done above:
    `uv run python -m artlog_jobs.seed_venues --all --out out/ --publish`, then
    `cp out/venues.db ../assets/venues.db`. The full seed contains 42,452 museums and galleries
    with coordinates and a website from Wikidata; an 8.6 MB SQLite the app bundles.
-3. **Corpus metadata** (02.03), from `jobs/`:
+3. **Corpus metadata**, from `jobs/`:
 
    ```sh
    uv run python -m artlog_jobs.sources.fetch --met --aic --aic-live
@@ -194,7 +193,7 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    About 405k artworks, 410k objects and 296k
    placements with `rightsStatus` and `multiplicity`. The Met's per-object API at one request per
    second takes about 90 minutes; the Wikidata census is 883 batched queries.
-4. **Download, drift-check, embed** (02.04):
+4. **Download, drift-check, embed**:
 
    ```sh
    uv run python -m artlog_jobs.build_index --stage download,drift,embed --limit 1000
@@ -204,24 +203,23 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    min 0.993, thresholds 0.99 and 0.97). One shard of up to 10,000 images exists at a time
    and is deleted once embedded; no image outlives the build. About 1.6 days of wall clock for the
    full corpus's Commons images at the Wikimedia robot policy's rate (embedding runs at about 65 images/s on an
-   M5 Pro). Compute cost $0 locally; the design's $3–5 L40S estimate was never spent.
-5. **Dedupe and import preparation** (02.05):
+   M5 Pro). Compute cost $0 locally.
+5. **Dedupe and import preparation**:
 
    ```sh
    uv run python -m artlog_jobs.build_index --stage dedupe
    ```
 
    [Hub scoring is deferred](docs/todos/hub-scoring/README.md) as of 2026-09-12.
-   The existing sample-export and import commands still require penalty artifacts;
-   import preparation must handle that dependency before continuing, while keeping
-   scoring deferred. The intended development/preview sample contains 1,000 surviving
-   paintings across sources, retaining alternate views and related metadata.
+   Sample exports and imports require no penalty artifacts; the importer assigns zero
+   hub penalties. A development/preview sample can contain 1,000 surviving paintings
+   across sources, retaining alternate views and related metadata.
    See [the import workflow](jobs/README.md#small-corpus-for-development-and-previews).
-6. **Enrichment** (02.07, not built yet): the batch fact-sheet and docent job. Today fact sheets
-   and prose are generated on the first identification of each artwork and cached
-   (`docent.ensure`); `enrich.claimBatch` is the hook the job will use.
+6. **Enrichment:** run the [batch fact-sheet and docent worker](jobs/README.md#enrichment)
+   to populate the cache. The app also generates and caches missing fact sheets and prose
+   on the first identification of each artwork (`docent.ensure`).
 
-Measured per-call Token Factory costs at list prices (decision 004): Kimi label read about
+Measured per-call Token Factory costs at the 2026-09-08 list prices: Kimi label read about
 $0.002, Super fact sheet about $0.0012, Lightning docent call about $0.00007, Lightning
 moderation call about $0.00001. Tavily: one credit per search. Nebius compute for the build: $0.
 
@@ -236,8 +234,9 @@ moderation call about $0.00001. Tavily: one credit per search. Nebius compute fo
 | WikiArt (`huggan/wikiart`) | Not used: unknown license limited to non-commercial research, and no stable artwork identities |
 | Tavily, Convex, Nebius Token Factory | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local` |
 
-No museum image is ever stored. The rights rule and the evidence behind each row: design §4.2
-and §5.5, [decision 005](docs/decisions/005-data-sources.md).
+Museum images are retained only in temporary build scratch and deleted after embedding.
+Rights classification is implemented in `jobs/artlog_jobs/rights.py`;
+[data-source findings](docs/todos/experiment-findings/README.md#data-sources) record the evidence and limits.
 
 ## Privacy
 
@@ -278,8 +277,8 @@ npm run ios                                          # reopen the installed dev 
 Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
 `src/db/`), `modules/` (native modules `vision-rect`, `coreml-embed`, `poi-search`), `convex/`
 (backend, pure libraries under `convex/lib/`), `jobs/` (Python index jobs), `shared/` (contracts
-shared by phone, backend and jobs), `scripts/model/` (CoreML export), `spikes/` (kickoff
-investigations behind `docs/decisions/`), `docs/` (design, decisions, plans, hackathon
+shared by phone, backend and jobs), `scripts/model/` (CoreML export), `spikes/` (isolated
+experiments and raw evidence), `docs/todos/` (open work, experiment findings and hackathon
 deliverables). Agent guide: [AGENTS.md](AGENTS.md).
 
 ## License

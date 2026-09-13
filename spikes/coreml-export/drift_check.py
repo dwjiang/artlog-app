@@ -138,7 +138,7 @@ def main():
             index = pytorch_embeddings(quantized, index_images, half=True, device=args.torch_device)
             np.savez(cache, signature=signature, vectors=index)
         report["top1_agreement_percent"] = {name: agreement(fp32, values, index) for name, values in batches.items() if name != "pytorch_fp32"}
-    report["acceptance"] = "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
+    report["acceptance"] = "Measurements only; compare candidate size, latency, and drift before selecting an export"
     destination = ARTIFACTS / f"drift-{args.size}.json"
     destination.write_text(json.dumps(report, indent=2) + "\n")
     np.savez(ARTIFACTS / f"embeddings-{args.size}.npz", urls=urls, **batches)

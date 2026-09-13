@@ -101,7 +101,7 @@ export const resolveRejection = mutation({
   },
 });
 
-// Design §4.6: a label naming the rejected work means the user misread; the rejection stops counting.
+// A label naming the rejected work means the user misread; the rejection stops counting.
 export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<'scans'>, flow: LabelFlow): Promise<void> {
   const title = flow.fields.title?.value;
   const artist = flow.fields.artist?.value;

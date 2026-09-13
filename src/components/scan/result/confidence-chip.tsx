@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { ResultKind } from '@/lib/result/state';
 
-// Product voice (design §4.4): a soft match is a "Maybe", never presented as fact.
+// Product voice: a soft match is a "Maybe", never presented as fact.
 export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   confident: 'Match', soft: 'Maybe', unidentified: 'Unidentified',
 };

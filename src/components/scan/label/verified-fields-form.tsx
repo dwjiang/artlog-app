@@ -22,7 +22,7 @@ export type VerifiedFieldsFormProps = {
   onUnlock: (name: LabelFieldName) => void;
 };
 
-/** Verified fields locked with their source, the rest editable (design §4.4); the parent owns the state. */
+/** Verified fields locked with their source, the rest editable; the parent owns the state. */
 export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlock }: VerifiedFieldsFormProps) {
   function confirmUnlock(name: LabelFieldName) {
     const evidence = state[name].evidence;

@@ -33,7 +33,7 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<'_s
   return storageId;
 }
 
-/** Design §4.5: the fingerprint, the label fields and the consented crop leave the phone; the full photo never does. */
+/** The fingerprint, the label fields and the consented crop leave the phone; the full photo never does. */
 export async function contributeLabel({ scanId, capture, state, museumSearchUpdatedAt }: ContributeInput): Promise<ContributionOutcome> {
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error('A title and an artist are required to share');

@@ -7,7 +7,7 @@ import { SourceChip } from './source-chip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-/** How long a fresh card waits for its first prose before the section disappears (design §9: 2–3 s expected). */
+/** How long a fresh card waits for its first prose before the section disappears. */
 export const DOCENT_WAIT_MS = 10_000;
 
 export type DocentSectionProps = {
@@ -19,7 +19,7 @@ export type DocentSectionProps = {
   pending?: boolean;
 };
 
-/** Cited docent prose (design §4.8): every sentence carries a chip per source it rests on. */
+/** Cited docent prose: every sentence carries a chip per source it rests on. */
 export function DocentSection({ docent, factSheet, title, pending = false }: DocentSectionProps) {
   const [expired, setExpired] = useState(false);
   useEffect(() => {

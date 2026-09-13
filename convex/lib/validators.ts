@@ -211,7 +211,7 @@ export type LabelFlow = Infer<typeof labelFlow>;
 export const labelFlowDisplay = labelFlow.omit('rawOcr');
 export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
 
-// The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography (design §4.4).
+// The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography.
 export const imageCheck = v.object({ url: v.string(), cosine: v.number(), homographyValid: v.boolean() });
 export type ImageCheck = Infer<typeof imageCheck>;
 

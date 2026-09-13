@@ -25,7 +25,7 @@ function optional(value: string): string | undefined {
 
 /**
  * The saved snapshot and, for a confident card only, the server's suggestion so the backend can count an
- * untouched save as a confirm (design §4.6). A soft or chosen runner-up never counts, and a card without
+ * untouched save as a confirm. A soft or chosen runner-up never counts, and a card without
  * a result (queued or unsupported) has nothing to suggest.
  */
 export function buildSnapshot(draft: SnapshotDraft, view?: ResultViewState): { snapshot: SnapshotFields; suggested: Suggestion | null } {

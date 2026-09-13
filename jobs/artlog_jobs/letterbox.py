@@ -4,7 +4,7 @@ from PIL import Image, ImageStat
 def letterbox(img: Image.Image, size: int) -> Image.Image:
     """Square `size`×`size` canvas: bilinear resize so the long side equals `size`, centered,
     padded with the resized image's per-channel mean color. The phone's Swift implementation
-    (plan 03.02) must match this exactly."""
+    must match this exactly."""
     rgb = img.convert("RGB")
     width, height = rgb.size
     scale = size / max(width, height)

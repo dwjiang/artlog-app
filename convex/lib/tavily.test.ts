@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('Tavily search', () => {
-  it('posts the decision 007 label-verification request shape and parses results, images and credits', async () => {
+  it('posts the label-verification request shape and parses results, images and credits', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(tavilySeurat));
     const response = await search({
       query: '"A Sunday on La Grande Jatte" Georges Seurat', includeDomains: ['artic.edu'], includeImages: true, maxResults: 5,

@@ -76,7 +76,7 @@ function sourceIdentity(value: string): string {
   return `${bareHost(value)}${path.replace(/ /g, '_').replace(/\/$/, '')}${suffix ? `?${suffix}` : ''}`;
 }
 
-// Design §4.8: the owner's collection page, Wikidata, and score-filtered search results. Fetch errors
+// The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
 // are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
   const sources: SourceDoc[] = [];

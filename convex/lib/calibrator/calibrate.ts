@@ -6,7 +6,7 @@ export type ScoredCandidate<T> = {
   candidate: T;
   probability: number;
   features: Float64Array;
-  /** Both hard rules from design §4.3 are satisfied; `decide` never returns `confident` without it. */
+  /** Required evidence is satisfied independently of the probability threshold for a confident match. */
   eligibleForConfident: boolean;
   reasons: string[];
 };

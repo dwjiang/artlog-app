@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-describe('Tavily evidence selection (decision 007 cases)', () => {
+describe('Tavily evidence selection with recorded responses', () => {
   it.each(['search', 'metadata'])('rejects a poster of After the Bath identified by %s', async (source) => {
     const title = 'After the Bath';
     const artist = 'Edgar Degas';

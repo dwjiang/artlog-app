@@ -2,7 +2,7 @@ import ExpoModulesCore
 
 enum ModelBundle {
   /// The pod is a static framework, so CocoaPods copies the model into the app bundle; keep the
-  /// `Bundle(for:)` lookup first in case the linkage changes (decision 006).
+  /// `Bundle(for:)` lookup first in case the linkage changes.
   private static func url(_ name: String, _ ext: String) -> URL? {
     Bundle(for: CoremlEmbedModule.self).url(forResource: name, withExtension: ext)
       ?? Bundle.main.url(forResource: name, withExtension: ext)

@@ -1,4 +1,4 @@
-// The describe prompt is a product surface (design §4.4): the model proposes a query, the museum's
+// The describe prompt is a product surface: the model proposes a query, the museum's
 // page supplies the words, the phone's pixels decide. Bump the version on any change.
 export const DESCRIBE_PROMPT_VERSION = 'describe-v1';
 export const DESCRIBE_MAX_TOKENS = 256;

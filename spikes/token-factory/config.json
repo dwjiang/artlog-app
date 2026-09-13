@@ -1,6 +1,6 @@
 {
   "pricing_date": "2026-09-08",
-  "pricing_basis": "Nebius public models_info fetched 2026-09-08 (results/public-models-info.json); original candidates' rates match the plan. Estimates exclude cache discounts and are not invoice totals.",
+  "pricing_basis": "Nebius public models_info fetched 2026-09-08 (results/public-models-info.json). Estimates exclude cache discounts and are not invoice totals.",
   "budget_usd": 4.5,
   "reservation_usd": 1.0,
   "models": {

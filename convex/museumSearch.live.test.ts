@@ -1,4 +1,4 @@
-// Manual live check for plan 04.12 against the dev deployment; skipped unless MUSEUM_SEARCH_LIVE=1.
+// Manual live museum-search check against the dev deployment; skipped unless MUSEUM_SEARCH_LIVE=1.
 // Describes a public-domain Met crop, runs one Tavily search on the venue's hosts (one credit) and
 // prints the candidates. The credit count comes from `npx convex run spend:status` before and after.
 //   set -a; source .env.local; set +a

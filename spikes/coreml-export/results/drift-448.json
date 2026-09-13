@@ -47,5 +47,5 @@
     "coreml_int8": 93.0,
     "iphone_int8": 93.0
   },
-  "acceptance": "Measurements only; acceptance is recorded in docs/decisions/001-embedding-model-export.md"
+  "acceptance": "Measurements only; compare candidate size, latency, and drift before selecting an export"
 }

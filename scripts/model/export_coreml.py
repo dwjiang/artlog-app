@@ -1,11 +1,11 @@
-"""Export C-RADIOv3-B's DINOv2 summary head to the CoreML package the app ships (plan 03.03).
+"""Export C-RADIOv3-B's DINOv2 summary head to the CoreML package the app ships.
 
     cd scripts/model && uv run python export_coreml.py --out out/
 
 Writes `out/CRadioV3B.mlpackage`, `out/fakequant_state.pt` (the PyTorch checkpoint with the
 phone's int8-rounded weights, consumed by the index build) and `out/model-manifest.json`.
 
-The recipe is decision 001: a fixed INPUT_SIZE RGB image scaled by 1/255 inside CoreML, fp16
+The export uses a fixed INPUT_SIZE RGB image scaled by 1/255 inside CoreML, fp16
 compute, symmetric per-channel int8 on the two-dimensional Linear weights only, and an
 unnormalized EMBEDDING_DIM float32 output. Any change here is a new model version.
 """

@@ -17,7 +17,7 @@ Code, types, tests, and configuration are the source of implementation details.
 - Give each rule one owner. Merge duplicates and omit implementation descriptions
   that a behavior-preserving refactor would make stale.
 - Put directory-specific rules in nested `AGENTS.md` with a one-line `CLAUDE.md`
-  pointing to it; use `docs/agents/` for cross-directory rules when needed.
+  pointing to it; keep cross-directory rules in the root guide.
   Root routes use plain relative paths to existing guides, never `@` imports.
 - Read guides that apply to the files being changed; tests follow their production
   code's guides. Load supporting docs only when relevant to the task.

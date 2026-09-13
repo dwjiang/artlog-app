@@ -27,7 +27,7 @@ export function parseYearRange(value: string): YearRange | null {
   return null;
 }
 
-// Design §8: the date must fall within the artist's lifespan. A living artist's window opens ten
+// The date must fall within the artist's lifespan. A living artist's window opens ten
 // years after birth; a death-only record allows a long working life before it.
 export function lifespanWindow(span: Lifespan, now = new Date().getUTCFullYear()): YearRange | null {
   if (span.birth !== undefined && span.death !== undefined) return { start: span.birth, end: span.death };

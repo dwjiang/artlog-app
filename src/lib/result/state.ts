@@ -47,7 +47,7 @@ export function toResultViewState(scan: ScanResult | Error | undefined, selectio
   const rejected = new Set(selection.rejectedObjectIds ?? []);
   const candidates = dedupe([...(scan.best ? [scan.best] : []), ...(scan.runnerUps ?? [])]);
   const chosen = candidates.find((candidate) => candidate.objectId === selection.chosenObjectId);
-  // A miss keeps its low-probability best among the suggestions rather than naming it (design §4.5).
+  // A miss keeps its low-probability best among the suggestions rather than naming it.
   const primary = chosen ?? (scan.outcome === 'miss' ? undefined : scan.best);
   const runnerUps = candidates.filter((candidate) => candidate !== primary && !rejected.has(candidate.objectId));
   const kind: ResultKind = !primary ? 'unidentified'

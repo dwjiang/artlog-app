@@ -1,7 +1,6 @@
 # C-RADIOv3-B CoreML investigation
 
-Spike [00.01](../../docs/plans/00-kickoff-spikes/01-coreml-export-and-neural-engine.md).
-Read the [decision and measured results](../../docs/decisions/001-embedding-model-export.md)
+Read the [model findings](../../docs/todos/experiment-findings/README.md#embedding-model)
 before using an export in the app or building an index. This is an isolated
 investigation, not an Expo native module.
 
@@ -130,7 +129,8 @@ manifest hashes, including cached images. Only calibration images become hashed
 
 The report compares fp32 PyTorch, fp16 PyTorch with recovered int8 weights, and
 each CoreML variant with `CPU_AND_NE` on macOS. It rejects zero/nonfinite vectors.
-Reports record the sample count; acceptance belongs in the decision record. When `index-urls.txt`
+Reports record the sample count; the [model findings](../../docs/todos/experiment-findings/README.md#embedding-model)
+explain the accepted configuration and limits. When `index-urls.txt`
 exists, it must contain exactly 2,000 unique URLs disjoint from calibration;
 the index is embedded once using the recovered weights and cached separately
 for each PyTorch device, with a weight/URL signature. Agreement@1 compares query

@@ -1,5 +1,5 @@
 """Embed a downloaded image shard with the phone's numerics and extract ORB features from the
-same letterboxed input, writing one feature shard per image shard (design §5.7 step 4)."""
+same letterboxed input, writing one feature shard per image shard."""
 
 import argparse
 import json
@@ -81,7 +81,7 @@ def embed_shard(
     workers: int = WORKERS,
 ) -> dict:
     """Writes `vectors-<n>.npy` (float32 [N, dim], L2-normalized), `keys-<n>.json` (row order),
-    `descriptors-<n>.bin` (per image: descriptors then keypoints in plan 04.01's wire format)
+    `descriptors-<n>.bin` (per image: descriptors then keypoints in the shared ORB wire format)
     and `descriptors-<n>.json` (`[{key, offset, keypointCount}]`)."""
     files = shard_files(images_dir)
     out_dir = Path(out_dir)
@@ -135,7 +135,7 @@ def embed_shard(
 
 
 def read_features(features_dir: Path, shard: int) -> Iterator[tuple[str, np.ndarray, OrbFeatures]]:
-    """Reader for plan 02.05: yields `(key, vector, features)` in shard row order."""
+    """Yields `(key, vector, features)` in shard row order."""
     features_dir = Path(features_dir)
     vectors = np.load(features_dir / f"vectors-{shard}.npy")
     keys = json.loads((features_dir / f"keys-{shard}.json").read_text())

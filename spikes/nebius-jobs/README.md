@@ -1,13 +1,11 @@
-# Plan 00.08 — Nebius jobs spike
+# Nebius jobs probes
 
-Status (2026-09-09): **Nebius half done — L40S job, scratch bucket and
-service-account REST path proven. The CPU preset was not exercised (the
-`compute.instance.non-gpu.vcpu` quota is 0 in `eu-north1`; plan 02.10 decides
-whether to request it or pay L40S rates). Convex benchmark deferred to plan
-02.05; Apple/EAS waits on plan 01.04 and the operator.** Read [decision 008](../../docs/decisions/008-jobs-and-release-logistics.md)
-and [the execution log](results/log.md) before touching anything here. These
-scripts are a spike, not the production launcher for plan 02.10. Source
-filenames use kebab case per the root project guide.
+Measured 2026-09-09: an L40S job, scratch persistence, and service-account REST
+authentication succeeded. The CPU preset was not exercised because the
+`compute.instance.non-gpu.vcpu` quota was 0 in `eu-north1`.
+Read the [batch infrastructure findings](../../docs/todos/experiment-findings/README.md#batch-infrastructure)
+and [execution log](results/log.md) for evidence and limits. These are isolated
+probes; the production index jobs run locally.
 
 ## Local verification (no cloud access or credentials)
 
@@ -54,7 +52,7 @@ bash spikes/nebius-jobs/run-quickstart.sh gpu     # nvidia-smi on gpu-l40s-a —
 bash spikes/nebius-jobs/run-quickstart.sh cpu     # python --version on cpu-d3 — needs the vCPU quota (0 today)
 ```
 
-Scratch mount, bucket-ID form (no credentials; preferred for plan 02.10):
+Scratch mount, bucket-ID form (no credentials):
 
 ```bash
 NEBIUS_SCRATCH_BUCKET_ID=storagebucket-e007391623532510352106 NEBIUS_SCRATCH_ON_GPU=1 \
@@ -95,8 +93,9 @@ build arguments, result logs, or this README.
 ## Convex benchmark (deferred)
 
 Requires a personal dev deployment with the temporary contract below, a
-published `Dockerfile.cpu` image, and a CPU preset — none available today.
-Plan 02.05 measures the batch size locally instead.
+published `Dockerfile.cpu` image, and an available CPU preset.
+The [production import workflow](../../jobs/README.md#dedupe-hubs-and-convex-import)
+documents the measured batch limits.
 
 | Surface | Contract |
 | --- | --- |
@@ -107,13 +106,3 @@ Plan 02.05 measures the batch size locally instead.
 
 Then `bash spikes/nebius-jobs/run-cpu-bench.sh --dry-run` and, with
 `NEBIUS_BENCH_IMAGE`, `CONVEX_URL` and `NEBIUS_CONVEX_SECRET` set, the real run.
-
-## Remaining
-
-1. Only if plan 02.10 runs CPU workers on Nebius: request a
-   `compute.instance.non-gpu.vcpu` increase for `eu-north1` (or run them on
-   the L40S preset), then rerun the CPU probe and, optionally, the benchmark.
-2. Plan 02.10: create a job through `POST /ai/v1/jobs` with the schema in
-   decision 008 §5, then do the signing inside a Convex action.
-3. Plan 01.04, then the single `development-simulator` build, Apple enrollment
-   date, App Store Connect record and TestFlight group.

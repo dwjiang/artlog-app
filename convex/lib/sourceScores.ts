@@ -15,7 +15,7 @@ function matches(host: string, domain: string): boolean {
 // Museum shops repeat curatorial text on product pages; a T-shirt listing is not a source chip.
 const MERCHANDISE = /^(?:shop|store|customprints|prints)\.|\/(?:shop|store|products?)(?:\/|$)/i;
 
-// Design §4.8: a source is admitted only when its domain scores above the threshold; excluded
+// A source is admitted only when its domain scores above the threshold; excluded
 // domains and unlisted domains (which take the default score) are dropped.
 export function sourceScore(url: string): number | null {
   const host = bareHost(url);

@@ -1,29 +1,31 @@
-# Feedback notes — Token Factory, Serverless AI Jobs, NVIDIA models, Tavily
+# Hackathon feedback notes
 
-A dated running log for the hackathon's written-feedback deliverable (Most Valuable Feedback
-prize). **Every executor appends here** when a plan touches a Nebius, NVIDIA or Tavily surface:
-one dated bullet per finding, what was expected, what happened, and where the evidence is
-(a decision record, a spike result file or a runbook section). Keep entries factual; the
-submission copy is distilled from this file, so an entry that only says "worked fine" is not
-worth adding, and one that names a deprecation, a surprise or a missing document is.
+Recorded observations from **2026-09-08 to 2026-09-10**, consolidated on
+2026-09-11. These preserve evidence for the written-feedback deliverable;
+model availability, prices, quotas, vendor behavior, and latency are historical
+measurements, not current guarantees. No vendor requirements were rechecked
+while moving these notes.
 
-Seeded 2026-09-11 from decisions [001](../decisions/001-embedding-model-export.md),
-[004](../decisions/004-token-factory-models.md), [007](../decisions/007-tavily.md) and
-[008](../decisions/008-jobs-and-release-logistics.md).
+Supporting records remain in the [Token Factory results](../../../spikes/token-factory/results/),
+[Nebius job execution log](../../../spikes/nebius-jobs/results/log.md),
+[CoreML measurements](../../../spikes/coreml-export/), and
+[Tavily results](../../../spikes/tavily/results/). Findings can be distilled into
+expected behavior, observed behavior, and a concrete improvement for submission.
+“Right now” remains off; its search experiments do not establish readiness.
 
 ## Token Factory
 
-- **2026-09-08 — Deprecations found the hard way.** The plan named Nemotron Nano 2 VL and Nano
+- **2026-09-08 — Deprecations found the hard way.** The initial model shortlist named Nemotron Nano 2 VL and Nano
   Omni for label reading. Nano 2 VL's public endpoint was retired 2026-04-13 and Nano Omni's on
   2026-08-31 (the August deprecation notice); dedicated deployments are unaffected. There was no
   NVIDIA vision endpoint on the public catalog on 2026-09-08. Deprecation notices are easy to miss
   from the model page; a "replaced by" pointer on the retired model's card would have saved a
-  spike. Evidence: decision 004, `spikes/token-factory/results/models.json`.
+  spike. Evidence: [catalog snapshot](../../../spikes/token-factory/results/models.json).
 - **2026-09-08 — `/v1/models` carries no modality tags.** The list response cannot tell a
   text-only model from a vision one. Modalities, use cases, context limits and prices exist in
   the public `models_info` endpoint, which we found only through alternate links in the pricing
   page's HTML. Exposing that metadata on `/v1/models` (or documenting `models_info`) would remove
-  the guesswork. Evidence: `spikes/token-factory/results/public-models-info.json`.
+  the guesswork. Evidence: [metadata snapshot](../../../spikes/token-factory/results/public-models-info.json).
 - **2026-09-08 — Structured output behaves, with a thinking caveat.** All 195 main-suite requests
   with `response_format: json_schema` (`strict: true`) returned schema-valid JSON across Kimi,
   Lightning, Nano and Super. But Lightning with default thinking and a 128-token ceiling spent the
@@ -42,16 +44,16 @@ Seeded 2026-09-11 from decisions [001](../decisions/001-embedding-model-export.m
 - **2026-09-08 — GLM 5.3 Flash was unusable during the spike.** A 56 s timeout, then three
   HTTP 500s reporting CUDA out-of-memory on a single-image request, in both `json_schema` and
   `json_object` modes. Availability failed before quality could be judged; a status page per
-  model would have told us not to retry. Evidence: `spikes/token-factory/results/label-glm-*`.
+  model would have told us not to retry. Evidence: [request results](../../../spikes/token-factory/results/) (`label-glm-*`).
 - **2026-09-10 — Live label read in the app.** Kimi read a de Young Thiebaud label in 4.2 s with
-  all seven fields correct (plan 04.06 live check). The read is the slowest step of the label
+  all seven fields correct (recorded manual app check). The read is the slowest step of the label
   flow; a smaller vision model on the public catalog would matter more than a smarter one.
 
 ## Serverless AI Jobs
 
 - **2026-09-08 — The tenant started out suspended.** The project reported `suspension_state`
-  until about 06:56 UTC on 2026-09-09, which blocked the spike for a day and was the immediate
-  reason the index build moved to a local Mac. The console gave no reason or ETA.
+  until about 06:56 UTC on 2026-09-09, which blocked the experiment for a day. The console gave no reason or ETA.
+  The production index was ultimately built on a local Mac.
 - **2026-09-09 — CLI ergonomics.** `nebius ai job create` blocks until the job reaches a terminal
   state and prints plain text (`Job ID: aijob-…` first) even with `--format json`; scripts must
   parse the first line and then poll `job get --format json`. A non-blocking create with a JSON
@@ -88,9 +90,9 @@ Seeded 2026-09-11 from decisions [001](../decisions/001-embedding-model-export.m
   summary head to an iOS 17 ML Program with no unsupported ops. Per-channel symmetric int8 on the
   53 Linear weights keeps minimum cosine ≥ 0.99 against fp32 on 200 paintings; the 4-bit palette
   collapses to a mean cosine of 0.74 and is no faster. The int8 package is 119 MB, above the
-  design's ~90 MB estimate, and loads in about 4 s on an iPhone 16 Pro before the first 67 ms
+  initial ~90 MB estimate, and loads in about 4 s on an iPhone 16 Pro before the first 67 ms
   prediction. Full CPU fp16 in PyTorch produced NaNs (block 1's attention projection); MPS fp16
-  did not. Evidence: decision 001, `spikes/coreml-export/`.
+  did not. Evidence: [export measurements](../../../spikes/coreml-export/).
 - **2026-09-08 — Nemotron JSON reliability.** Lightning and Nano returned valid JSON on 60/60
   docent requests with zero invalid citations, but violated the requested 3–4 sentence count on
   21.7% (Lightning) and 63.3% (Nano) of outputs, so cardinality must be enforced downstream.
@@ -107,9 +109,11 @@ Seeded 2026-09-11 from decisions [001](../decisions/001-embedding-model-export.m
 - **2026-09-08 — Search behaves; billing reconciliation does not.** 71 requests reported 65
   credits in their responses, yet the `/usage` endpoint reported the same 14 before and after.
   We budget against response-reported credits and treat the dashboard as separate evidence; the
-  cause is unknown. Evidence: decision 007 §5, `spikes/tavily/results/usage-*.json`.
+  cause is unknown. Evidence: [usage before](../../../spikes/tavily/results/usage-before.json),
+  [usage after](../../../spikes/tavily/results/usage-after.json), and
+  [usage recheck](../../../spikes/tavily/results/usage-recheck.json).
 - **2026-09-08 — `published_date` was present on every news result** (52/52 artist calls, all
-  within the 31-day window, none in the future), so the planned date guard rejected nothing. The
+  within the 31-day window, none in the future), so the date guard rejected nothing in this test. The
   problem is the opposite of gaps: an empty topic still returns a confident answer with recent
   dates (both synthetic-artist controls did), so relevance score and source-sentence matching,
   not dates, carry the acceptance decision. `include_answer` answers blended sources (an August 9
@@ -118,8 +122,9 @@ Seeded 2026-09-11 from decisions [001](../decisions/001-embedding-model-export.m
   collection-search page returned zero URLs and zero credits; an object-page start returned only
   the supplied URL; a broad `.*` control returned ten URLs for one credit and included a sibling
   `shop.` host despite `allow_external: false`. Documented costs (200 credits per 2,000 mapped
-  pages, extraction on top for Crawl) could not be checked at scale. We use API, IIIF and sitemap
-  discovery before Map, and an exact host check on every URL.
+  pages, extraction on top for Crawl) could not be checked at scale. The experiment favored API, IIIF and sitemap
+  discovery before Map, and an exact host check on every URL. This is a historical
+  comparison, not a claim that the app currently crawls museum sites.
 - **2026-09-08 — Label verification fallback.** Museum-scoped search found the title/artist pair
   in the top five for 10/10 known works, but the canonical object page ranked fifth twice behind
   audio, video and study pages, and `images[0]` showed a different painting or cast in 2/10 cases.

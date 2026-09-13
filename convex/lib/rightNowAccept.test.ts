@@ -12,7 +12,7 @@ function accept(fixture: RightNowFixture, now = FIXTURE_NOW) {
   return acceptRightNow(fixture.response, { artist: fixture.artist, domains: regionDomains(fixture.region)!, now });
 }
 
-describe('recorded decision 007 cases', () => {
+describe('recorded Tavily acceptance cases', () => {
   it.each(['kusamaSf', 'crosbyNy', 'deOthelloNy'] as const)('refuses %s: shared entities do not validate a paraphrased event claim', (name) => {
     expect(accept(rightNowFixtures[name])).toBeNull();
   });

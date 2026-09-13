@@ -5,7 +5,7 @@ import { components } from '../_generated/api';
 import type { Id } from '../_generated/dataModel';
 import type { ActionCtx, MutationCtx } from '../_generated/server';
 
-// Starting points from design §8; tune here, never at a call site.
+// Centralize rate-limit tuning here so callers share the same limits.
 const limits = {
   registerDevice: { kind: 'fixed window', rate: 10, period: HOUR },
   attestChallenge: { kind: 'fixed window', rate: 30, period: HOUR },

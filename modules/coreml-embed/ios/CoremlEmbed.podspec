@@ -17,6 +17,6 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
   s.source_files = '**/*.{h,m,mm,swift}'
-  # Precompiled by `xcrun coremlcompiler`; Xcode does not compile CocoaPods resources (decision 006).
+  # Precompiled by `xcrun coremlcompiler`; Xcode does not compile CocoaPods resources.
   s.resources = ['Models/*.mlmodelc', 'Models/model-manifest.json']
 end

@@ -1,6 +1,6 @@
 {
   "prepared_at": "2026-09-08",
-  "note": "Five Met paintings. Owner-page metadata obtained via the Met public API, a live Wikidata snapshot, and five live web-search snippets per work. Search used the built-in web tool because the Tavily connector OAuth refresh failed. Search is restricted to the owner museum; short and some off-topic snippets are retained to test source selection. This does not evaluate Tavily (plan 00.07). Source scores are fixture trust inputs, not measured relevance scores.",
+  "note": "Five Met paintings. Owner-page metadata obtained via the Met public API, a live Wikidata snapshot, and five live web-search snippets per work. Search used the built-in web tool because the Tavily connector OAuth refresh failed. Search is restricted to the owner museum; short and some off-topic snippets are retained to test source selection. This does not evaluate Tavily. Source scores are fixture trust inputs, not measured relevance scores.",
   "cases": [
     {
       "id": "436535",

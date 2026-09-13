@@ -22,7 +22,7 @@ export type ChatJsonRequest<T> = {
 // `calls` counts every request sent, including the retry, for spend reconciliation.
 export type ChatJsonResponse<T> = { value: T; calls: number };
 
-// Decision 004: thinking is disabled through each model family's template parameter.
+// Thinking is disabled through each model family's template parameter.
 function chatTemplateKwargs(model: string): Record<string, boolean> {
   return /kimi/i.test(model) ? { thinking: false } : { enable_thinking: false };
 }

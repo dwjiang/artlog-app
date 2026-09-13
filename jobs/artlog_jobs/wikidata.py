@@ -241,7 +241,7 @@ def _unmapped_bindings(
     user_agent: str,
     fetch: Callable[..., list[dict]],
 ) -> list[dict]:
-    # Global anti-joins time out on WDQS; enumerate the spike's class ID sets and subtract locally.
+    # Global anti-joins time out on WDQS; enumerate the class ID sets and subtract locally.
     all_qids: set[str] = set()
     try:
         for class_qid in ("Q33506", "Q1007870"):

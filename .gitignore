@@ -51,7 +51,7 @@ spikes/**/.venv/
 spikes/**/__pycache__/
 spikes/**/.pytest_cache/
 
-# Python jobs (plan 02.01)
+# Python jobs
 jobs/.venv/
 jobs/out/
 jobs/checkpoints/
@@ -60,7 +60,7 @@ jobs/**/__pycache__/
 jobs/.pytest_cache/
 jobs/.ruff_cache/
 
-# CoreML export and the fetched model asset (plan 03.03; `npm run model:fetch`)
+# CoreML export and the fetched model asset
 scripts/model/.venv/
 scripts/model/cache/
 scripts/model/out/

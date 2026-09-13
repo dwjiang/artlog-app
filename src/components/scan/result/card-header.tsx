@@ -8,7 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import type { ResultKind } from '@/lib/result/state';
 
 export type CardHeaderProps = {
-  /** The user's own crop; the card never shows a museum image here (design §5.5). */
+  /** The user's own crop; the card never shows a museum image here. */
   cropUri?: string;
   corners?: number[][];
   inputSize: number;

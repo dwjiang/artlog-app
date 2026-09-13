@@ -7,7 +7,7 @@ import { getVisionRect, type RectDetection } from '../../../modules/vision-rect/
 import { RectTrackerStore, quadArea, type Guidance } from './rectangle';
 import type { Quad } from './stages';
 
-/** Every third frame sustained about 10 Vision calls/s in decision 006. */
+/** Every third frame sustained about 10 Vision calls/s on the iPhone 16 Pro. */
 export const DETECTION_STRIDE = 3;
 
 export type LiveQuad = { quad: Quad; frameWidth: number; frameHeight: number } | null;

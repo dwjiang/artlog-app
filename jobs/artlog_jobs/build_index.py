@@ -1,5 +1,5 @@
 """The local index build: drift gate, then per shard download → embed → delete the images,
-so at most one shard of JPEGs exists at a time and none outlives the build (design §5.5)."""
+so at most one shard of JPEGs exists at a time and none outlives the build."""
 
 import argparse
 import json
