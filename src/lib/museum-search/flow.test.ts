@@ -1,10 +1,11 @@
 import { ConvexError } from 'convex/values';
 
 import type { Id } from '../../../convex/_generated/dataModel';
+import type { MuseumSearchDisplay } from '../../../convex/lib/validators';
 import { getMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { encodeOrbFeatures } from '@/shared/orb';
 import { makeSyntheticPair } from '@/shared/orb/test-fixtures';
-import { candidate, candidates, verified } from './__fixtures__/search';
+import { candidate, candidates, exhibitionCandidates, verified } from './__fixtures__/search';
 import { museumSearchMessage, runMuseumSearch } from './flow';
 
 jest.mock('@/lib/settings/museum-search', () => ({ getMuseumSearchConsent: jest.fn() }));
@@ -14,7 +15,8 @@ const scanId = 'scan-1' as Id<'scans'>;
 function input() {
   return {
     scanId, localId: 'capture-1', inputSize: 512,
-    api: { searchMuseumSite: jest.fn(async () => candidates), confirmSearchCandidate: jest.fn(async () => verified) },
+    api: { searchExhibitions: jest.fn(async (): Promise<MuseumSearchDisplay> => ({ stage: 'exhibitions', updatedAt: 1, candidates: [] })),
+      searchMuseumSite: jest.fn(async () => candidates), confirmSearchCandidate: jest.fn(async () => verified) },
     images: {
       download: jest.fn(async (url: string) => `file:///cache/${url.split('/').pop()}`),
       letterbox: jest.fn(async (uri: string) => `${uri}.box.jpg`),
@@ -33,7 +35,7 @@ beforeEach(() => { jest.resetAllMocks(); jest.mocked(getMuseumSearchConsent).moc
 it('describes, searches, checks and confirms only the first passing image', async () => {
   const deps = input();
   expect(await runMuseumSearch(deps)).toEqual({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
-  expect(deps.onStage.mock.calls.flat()).toEqual(['describe', 'search', 'check', 'done']);
+  expect(deps.onStage.mock.calls.flat()).toEqual(['exhibitions', 'describe', 'search', 'check', 'done']);
   expect(deps.prepareCrop).toHaveBeenCalledWith('crops/one.jpg');
   expect(deps.api.searchMuseumSite).toHaveBeenCalledWith({ scanId, imageBase64: 'encoded-crop' });
   expect(deps.api.confirmSearchCandidate).toHaveBeenCalledWith({ scanId, sourceUrl: candidate.sourceUrl,
@@ -134,4 +136,62 @@ it('does not display a confirmed candidate whose fields failed moderation', asyn
   const deps = input();
   deps.api.confirmSearchCandidate.mockResolvedValue({ ...verified, moderation: 'flagged', fields: {} });
   expect(await runMuseumSearch(deps)).toEqual({ stage: 'none', reason: 'model_error' });
+});
+
+it('matches an exhibition image without preparing or uploading the visitor photo', async () => {
+  const deps = input();
+  deps.api.searchExhibitions.mockResolvedValue(exhibitionCandidates);
+  expect(await runMuseumSearch(deps)).toEqual({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
+  expect(deps.api.searchExhibitions).toHaveBeenCalledWith({ scanId });
+  expect(deps.onStage.mock.calls.flat()).toEqual(['exhibitions', 'check', 'done']);
+  expect(deps.prepareCrop).not.toHaveBeenCalled();
+  expect(deps.api.searchMuseumSite).not.toHaveBeenCalled();
+  expect(deps.api.confirmSearchCandidate).toHaveBeenCalledWith(expect.objectContaining({ sourceUrl: 'https://museum.example/exhibitions/colour' }));
+  expect(deps.images.remove).toHaveBeenCalledTimes(2);
+});
+
+it('continues with the painting search when none of the exhibition images match', async () => {
+  const deps = input();
+  deps.api.searchExhibitions.mockResolvedValue(exhibitionCandidates);
+  deps.images.embed.mockResolvedValueOnce(Float32Array.from([0, 1])).mockResolvedValueOnce(Float32Array.from([0, 1]));
+  expect(await runMuseumSearch(deps)).toMatchObject({ stage: 'done' });
+  expect(deps.api.searchMuseumSite).toHaveBeenCalledTimes(1);
+  expect(deps.api.confirmSearchCandidate).toHaveBeenCalledTimes(1);
+  expect(deps.images.remove).toHaveBeenCalledTimes(6);
+});
+
+it('resumes exhibition candidates without repeating the live lookup', async () => {
+  const deps = input();
+  expect(await runMuseumSearch({ ...deps, stored: exhibitionCandidates })).toMatchObject({ stage: 'done' });
+  expect(deps.api.searchExhibitions).not.toHaveBeenCalled();
+  expect(deps.prepareCrop).not.toHaveBeenCalled();
+});
+
+it('asks for the label when an image matches but the artwork identity is unresolved', async () => {
+  const deps = input();
+  deps.api.searchExhibitions.mockResolvedValue(exhibitionCandidates);
+  deps.api.confirmSearchCandidate.mockRejectedValue(new ConvexError({ code: 'identity_unresolved' }));
+  expect(await runMuseumSearch(deps)).toEqual({ stage: 'none', reason: 'identity_unresolved' });
+  expect(museumSearchMessage('identity_unresolved')).toContain('Point at the label');
+  expect(deps.prepareCrop).not.toHaveBeenCalled();
+  expect(deps.api.searchMuseumSite).not.toHaveBeenCalled();
+});
+
+it('stops after exhibition lookup when consent is revoked, before downloading any image', async () => {
+  const deps = input();
+  deps.api.searchExhibitions.mockImplementation(async () => {
+    jest.mocked(getMuseumSearchConsent).mockResolvedValue('declined');
+    return exhibitionCandidates;
+  });
+  expect(await runMuseumSearch(deps)).toEqual({ stage: 'cancelled' });
+  expect(deps.images.download).not.toHaveBeenCalled();
+  expect(deps.prepareCrop).not.toHaveBeenCalled();
+});
+
+it('does not start the description search when the exhibition lookup reaches the daily cap', async () => {
+  const deps = input();
+  deps.api.searchExhibitions.mockResolvedValue({ stage: 'none', reason: 'cap', updatedAt: 1 });
+  expect(await runMuseumSearch(deps)).toEqual({ stage: 'none', reason: 'cap' });
+  expect(deps.prepareCrop).not.toHaveBeenCalled();
+  expect(deps.api.searchMuseumSite).not.toHaveBeenCalled();
 });

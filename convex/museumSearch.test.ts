@@ -254,13 +254,16 @@ describe('searchMuseumSite', () => {
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 1 });
   });
 
-  it('limits a device to ten searches per hour', async () => {
-    const { search } = await fixture();
+  it('limits a device to ten attempts per hour, each an exhibition search plus a description search', async () => {
+    const { user, scanId, search } = await fixture();
     vision();
     tavily({ results: [], usage: { credits: 1 } });
-    for (let i = 0; i < 10; i++) await search();
+    for (let i = 0; i < 10; i++) {
+      await user.as.action(api.museumSearch.searchExhibitions, { scanId });
+      await search();
+    }
     await expect(search()).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'museumSearch' } });
-    expect(calls(TAVILY)).toHaveLength(10);
+    expect(calls(TAVILY)).toHaveLength(20);
   });
 
   it.each(['candidates', 'none'])('preserves a newer confirmation when an older search finishes with %s', async (stage) => {
@@ -536,5 +539,146 @@ describe('confirmSearchCandidate', () => {
     resumeFetch();
     await rejected;
     expect((await stored()).labelFlow).toBeUndefined();
+  });
+});
+
+describe('live exhibition lookup', () => {
+  const url = 'https://www.metmuseum.org/exhibitions/colour';
+  const blue = 'https://www.metmuseum.org/blue.jpg';
+  const red = 'https://www.metmuseum.org/red.jpg';
+  const results = { results: [{ url, title: 'A Century of Colour', content: 'Two paintings.', score: 0.9, images: [red, blue] }], usage: { credits: 1 } };
+  const exhibitHtml = `<title>A Century of Colour</title><script type="application/ld+json">${JSON.stringify([
+    { '@type': 'Painting', name: 'Red', creator: 'First Artist', image: red },
+    { '@type': 'Painting', name: 'Blue', creator: 'Second Artist', image: blue },
+  ])}</script>`;
+
+  async function exhibitionFixture() {
+    const f = await fixture({ ...MET, name: 'The Metropolitan Museum of Art' });
+    const search = () => f.user.as.action(api.museumSearch.searchExhibitions, { scanId: f.scanId });
+    const confirm = (imageUrl = blue) => f.user.as.action(api.museumSearch.confirmSearchCandidate, {
+      scanId: f.scanId, sourceUrl: url, imageCheck: { url: imageUrl, cosine: 0.9, homographyValid: true },
+    });
+    return { ...f, search, confirm };
+  }
+
+  it('makes one museum-scoped search with images, retains the source content, and sends no photo to a model', async () => {
+    const { search, stored, spend } = await exhibitionFixture();
+    tavily(results);
+    const state = await search();
+    expect(state).toMatchObject({ stage: 'exhibitions', candidates: [{ sourceUrl: url, fields: {}, imageUrls: [red, blue],
+      exhibition: { title: 'A Century of Colour', content: 'Two paintings.' } }] });
+    expect((await stored()).museumSearch).toEqual(state);
+    expect(JSON.parse(String(calls(TAVILY)[0][1]?.body))).toMatchObject({
+      query: 'The Metropolitan Museum of Art current exhibitions', include_images: true, include_domains: ['metmuseum.org'],
+    });
+    expect(calls(TAVILY)).toHaveLength(1);
+    expect(calls(TOKEN_FACTORY)).toHaveLength(0);
+    expect(venueFetches()).toHaveLength(0);
+    expect(await spend()).toMatchObject({ tavilyCredits: 1, tokenFactoryCalls: 0 });
+  });
+
+  it('confirms the second image with only its own metadata and returns retries without another fetch', async () => {
+    const { search, confirm, stored } = await exhibitionFixture();
+    tavily(results);
+    page(url, exhibitHtml);
+    await search();
+    const flow = await confirm();
+    expect(flow).toMatchObject({ identityImageUrl: blue, sourceUrl: url, imageUrls: [blue], evidence: ['tavily+image'],
+      fields: { title: { value: 'Blue', evidence: 'tavily+image' }, artist: { value: 'Second Artist', evidence: 'tavily+image' } } });
+    expect((await stored()).museumSearch).toMatchObject({ stage: 'confirmed', selected: { sourceUrl: url, imageUrl: blue } });
+    const count = fetchMock.mock.calls.length;
+    expect(await confirm()).toEqual(flow);
+    expect(fetchMock).toHaveBeenCalledTimes(count);
+  });
+
+  it('refuses to identify a matching image from a generic exhibition title and records the outcome', async () => {
+    const { search, confirm, stored } = await exhibitionFixture();
+    tavily(results);
+    page(url, '<meta property="og:title" content="A Century of Colour"><meta name="author" content="Museum curator">');
+    await search();
+    await expect(confirm()).rejects.toMatchObject({ data: { code: 'identity_unresolved' } });
+    expect((await stored()).labelFlow).toBeUndefined();
+    expect((await stored()).museumSearch).toMatchObject({ stage: 'none', reason: 'identity_unresolved' });
+    expect(calls(TOKEN_FACTORY)).toHaveLength(0);
+    // Reopening the scan finds a finished search, so the page is not fetched again.
+    const fetches = venueFetches().length;
+    await expect(confirm()).rejects.toMatchObject({ data: { code: 'unknown_candidate' } });
+    expect(venueFetches()).toHaveLength(fetches);
+  });
+
+  it('keeps the exhibition candidates when the page cannot be fetched, so a later confirmation retries', async () => {
+    const { search, confirm, stored } = await exhibitionFixture();
+    tavily(results);
+    page(url, 'slow down', { status: 429 });
+    await search();
+    await expect(confirm()).rejects.toMatchObject({ data: { code: 'page_unavailable' } });
+    expect((await stored()).museumSearch).toMatchObject({ stage: 'exhibitions' });
+    expect((await stored()).labelFlow).toBeUndefined();
+    routes = [];
+    page(url, exhibitHtml);
+    expect(await confirm()).toMatchObject({ fields: { title: { value: 'Blue' }, artist: { value: 'Second Artist' } } });
+  });
+
+  it('resolves only the matched image caption, grounds model fields in it, and accounts for both extraction and moderation', async () => {
+    const { search, confirm, spend } = await exhibitionFixture();
+    vi.stubEnv('DOCENT_MODEL', 'caption-model');
+    tavily(results);
+    page(url, `<figure><img src="${red}"><figcaption>First Artist, Red.</figcaption></figure>` +
+      `<figure><img src="${blue}"><figcaption>Second Artist, Blue, 2020.</figcaption></figure>`);
+    routes.push((url, init) => url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === 'caption-model'
+      ? completion({ title: 'Blue', artist: 'Second Artist' }) : undefined);
+    await search();
+    expect(await confirm()).toMatchObject({ fields: { title: { value: 'Blue' }, artist: { value: 'Second Artist' } } });
+    const request = JSON.parse(String(calls(TOKEN_FACTORY)[0][1]?.body));
+    expect(JSON.parse(request.messages[1].content)).toEqual({ caption: 'Second Artist, Blue, 2020.' });
+    expect(await spend()).toMatchObject({ tavilyCredits: 1, tokenFactoryCalls: 2 });
+  });
+
+  it('retains image-specific evidence when the visitor shares unchanged fields', async () => {
+    const { user, scanId, search, confirm } = await exhibitionFixture();
+    tavily(results);
+    page(url, exhibitHtml);
+    await search();
+    await confirm();
+    const flow = await user.as.action(api.label.verifyLabel, { scanId, fields: { title: 'Blue', artist: 'Second Artist' } });
+    expect(flow).toMatchObject({ identityImageUrl: blue, sourceUrl: url,
+      fields: { title: { evidence: 'tavily+image' }, artist: { evidence: 'tavily+image' } } });
+    expect(flow.wikidataId).toBeUndefined();
+  });
+
+  it('applies the daily cap before any request', async () => {
+    const { search, stored, spend } = await exhibitionFixture();
+    vi.stubEnv('DAILY_TAVILY_CREDIT_CAP', '0');
+    expect(await search()).toMatchObject({ stage: 'none', reason: 'cap' });
+    expect((await stored()).museumSearch).toMatchObject({ stage: 'none', reason: 'cap' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await spend()).toBeUndefined();
+  });
+
+  it('refuses unowned scans, opted-out venues, and the disabled feature before searching', async () => {
+    const { t, user, scanId, venueId, search } = await exhibitionFixture();
+    const other = await seedDevice(t);
+    await expect(other.as.action(api.museumSearch.searchExhibitions, { scanId })).rejects.toMatchObject({ data: { code: 'invalid_scan' } });
+    vi.stubEnv('FLAG_MUSEUM_SEARCH', 'off');
+    await expect(search()).rejects.toMatchObject({ data: { code: 'feature_off' } });
+    vi.stubEnv('FLAG_MUSEUM_SEARCH', 'on');
+    await t.run((ctx) => ctx.db.insert('optOuts', { venueId, requester: 'museum', receivedAt: Date.now() }));
+    await expect(user.as.action(api.museumSearch.searchExhibitions, { scanId })).rejects.toMatchObject({ data: { code: 'venue_opted_out' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a newer confirmed result when an old exhibition request finishes', async () => {
+    const { search, confirm, stored } = await exhibitionFixture();
+    const pending = pauseNextFetch(jsonResponse(results));
+    tavily(results);
+    page(url, exhibitHtml);
+    const obsolete = expect(search()).rejects.toMatchObject({ data: { code: 'search_superseded' } });
+    await pending.started;
+    await search();
+    await confirm();
+    const latest = await stored();
+    pending.resume();
+    await obsolete;
+    expect(await stored()).toEqual(latest);
   });
 });

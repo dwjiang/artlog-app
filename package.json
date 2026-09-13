@@ -41,6 +41,7 @@
     "jose": "^6.2.12",
     "moment-timezone": "^0.6.3",
     "node-app-attest": "^1.0.1",
+    "parse5": "7.3.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",

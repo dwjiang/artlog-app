@@ -7,7 +7,7 @@ import { Spacing } from '@/constants/theme';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 export const SEARCH_CONSENT_TITLE = "Search this museum's collection?";
-export const SEARCH_CONSENT_BODY = "We'll send a copy of your photo of the painting to a vision model that describes what it shows, then search the museum's website for a match. The photo isn't stored. You can turn this off in Settings.";
+export const SEARCH_CONSENT_BODY = "We'll search the museum's current exhibitions and compare its images with your photo on this phone. If we don't find a match, we'll send a copy of your photo to a vision model and search the museum's collection using its description. The photo isn't stored by this search. You can turn this off in Settings.";
 
 type Props = { open: boolean; onGranted: () => void; onDismiss: () => void };
 

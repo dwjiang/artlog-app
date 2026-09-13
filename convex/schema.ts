@@ -248,6 +248,7 @@ export default defineSchema({
     cropStorageId: v.optional(v.id('_storage')),
     rawOcr: v.optional(v.any()),
     sourceUrl: v.optional(v.string()),
+    identityImageUrl: v.optional(v.string()),
     fields: v.object({
       title: contributionField,
       artist: contributionField,

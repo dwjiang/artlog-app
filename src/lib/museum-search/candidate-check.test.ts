@@ -71,3 +71,15 @@ it('cleans downloaded files when native ORB extraction fails', async () => {
   await expect(checkCandidates([candidate], scan, images, options)).rejects.toThrow('native extraction failed');
   expect(images.remove.mock.calls.flat()).toEqual(['file:///cache/blue.jpg', 'file:///cache/blue.jpg.box.jpg']);
 });
+
+it('can match a later artwork on an exhibition page and caps downloads at six per page', async () => {
+  const images = deps();
+  const exhibition = { ...candidate, exhibition: { title: 'Colour', content: '' },
+    imageUrls: Array.from({ length: 8 }, (_, i) => `https://museum.example/${i}.jpg`) };
+  images.embed.mockResolvedValueOnce(Float32Array.from([0, 1])).mockResolvedValueOnce(Float32Array.from([0, 1]));
+  expect(await checkCandidates([exhibition], scan, images, options)).toMatchObject({ imageCheck: { url: exhibition.imageUrls[2] } });
+  images.download.mockClear();
+  images.embed.mockResolvedValue(Float32Array.from([0, 1]));
+  expect(await checkCandidates([exhibition], scan, images, options)).toBeNull();
+  expect(images.download).toHaveBeenCalledTimes(6);
+});

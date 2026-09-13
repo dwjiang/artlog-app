@@ -80,23 +80,23 @@ function isArtworkNode(node: Record<string, unknown>): boolean {
   );
 }
 
-function text(value: unknown): string | undefined {
+export function jsonLdText(value: unknown): string | undefined {
   if (typeof value === 'string') return value.trim() || undefined;
   if (typeof value === 'number') return String(value);
-  if (Array.isArray(value)) return text(value[0]);
+  if (Array.isArray(value)) return jsonLdText(value[0]);
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    return text(record.name ?? record.value ?? record['@value']);
+    return jsonLdText(record.name ?? record.value ?? record['@value']);
   }
   return undefined;
 }
 
-function urls(value: unknown): string[] {
+export function jsonLdUrls(value: unknown): string[] {
   if (typeof value === 'string') return value.trim() ? [value.trim()] : [];
-  if (Array.isArray(value)) return value.flatMap(urls);
+  if (Array.isArray(value)) return value.flatMap(jsonLdUrls);
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    return urls(record.url ?? record.contentUrl);
+    return jsonLdUrls(record.url ?? record.contentUrl);
   }
   return [];
 }
@@ -141,16 +141,16 @@ export function extractPage(html: string): ExtractedPage {
   const imageUrls: string[] = [];
   const fields: PageFields = {};
   const node = jsonLdNodes(html).find(isArtworkNode);
-  const artworkTitle = node ? text(node.name ?? node.headline) : undefined;
+  const artworkTitle = node ? jsonLdText(node.name ?? node.headline) : undefined;
   if (node) {
     fields.title = artworkTitle;
-    fields.artist = text(node.creator ?? node.author ?? node.artist);
-    fields.date = text(node.dateCreated);
-    fields.medium = text(node.artMedium ?? node.material ?? node.artform);
-    fields.creditLine = text(node.creditText);
-    const identifier = text(node.identifier);
+    fields.artist = jsonLdText(node.creator ?? node.author ?? node.artist);
+    fields.date = jsonLdText(node.dateCreated);
+    fields.medium = jsonLdText(node.artMedium ?? node.material ?? node.artform);
+    fields.creditLine = jsonLdText(node.creditText);
+    const identifier = jsonLdText(node.identifier);
     if (identifier && !/^https?:/i.test(identifier)) fields.accession = identifier;
-    imageUrls.push(...urls(node.image));
+    imageUrls.push(...jsonLdUrls(node.image));
   }
   const body = visibleText(html);
   fields.artist ??= meta.get('author');

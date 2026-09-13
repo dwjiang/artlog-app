@@ -9,13 +9,14 @@ import { errorMessage } from '@/lib/network-error';
 import { getMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { checkCandidates } from './candidate-check';
 
-export type MuseumSearchStage = 'describe' | 'search' | 'check' | 'done' | 'none';
+export type MuseumSearchStage = 'exhibitions' | 'describe' | 'search' | 'check' | 'done' | 'none';
 export type MuseumSearchOutcome =
   | { stage: 'done'; flow: LabelFlowDisplay; confirmedAt: number }
   | { stage: 'none'; reason: string }
   | { stage: 'cancelled' };
 
 export type MuseumSearchApi = {
+  searchExhibitions(args: FunctionArgs<typeof api.museumSearch.searchExhibitions>): Promise<MuseumSearchDisplay>;
   searchMuseumSite(args: FunctionArgs<typeof api.museumSearch.searchMuseumSite>): Promise<MuseumSearchDisplay>;
   confirmSearchCandidate(args: FunctionArgs<typeof api.museumSearch.confirmSearchCandidate>): Promise<LabelFlowDisplay>;
 };
@@ -27,6 +28,7 @@ export function museumSearchMessage(reason: string): string | undefined {
     case 'rate_limited': return 'Try again in a minute';
     case 'spend_cap': case 'cap': return 'Museum search is paused for today';
     case 'no_candidates': case 'no_match': return "Not on the museum's site — point at the label";
+    case 'identity_unresolved': return 'Found a matching image, but couldn’t verify its title and artist. Point at the label.';
     default: return "Couldn't search right now";
   }
 }
@@ -60,6 +62,26 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     const capture = await input.getCapture(input.localId);
     if (!capture || capture.scanId !== scanId) return none('missing_capture');
     if (!search) {
+      onStage?.('exhibitions');
+      search = await api.searchExhibitions({ scanId });
+      if (!await canContinue()) return { stage: 'cancelled' };
+    }
+    if (search.stage === 'exhibitions') {
+      if (search.candidates.length) {
+        onStage?.('check');
+        const match = await checkCandidates(search.candidates, capture, input.images, { inputSize: input.inputSize, canContinue });
+        if (!await canContinue()) return { stage: 'cancelled' };
+        if (match) {
+          const flow = await api.confirmSearchCandidate({ scanId, ...match });
+          if (!await canContinue()) return { stage: 'cancelled' };
+          if (flow.moderation !== 'clear' || flow.stage !== 'verified') return none('model_error');
+          onStage?.('done');
+          return { stage: 'done', flow, confirmedAt: flow.updatedAt };
+        }
+      }
+      search = undefined;
+    }
+    if (!search) {
       onStage?.('describe');
       const imageBase64 = await input.prepareCrop(capture.cropPath);
       if (!await canContinue()) return { stage: 'cancelled' };
@@ -74,6 +96,7 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     if (!await canContinue()) return { stage: 'cancelled' };
     if (!match) return none('no_match');
     const flow = await api.confirmSearchCandidate({ scanId, ...match });
+    if (!await canContinue()) return { stage: 'cancelled' };
     if (flow.moderation !== 'clear' || flow.stage !== 'verified') return none('model_error');
     onStage?.('done');
     return { stage: 'done', flow, confirmedAt: flow.updatedAt };

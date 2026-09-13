@@ -196,6 +196,7 @@ export const commit = internalMutation({
       keypointCount: args.keypointCount,
       cropStorageId: duplicate ? undefined : cropStorageId, rawOcr: flow.rawOcr, fields, evidence: evidenceOf(fields),
       sourceUrl: flow.sourceUrl,
+      identityImageUrl: flow.identityImageUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
       wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
       status: duplicate ? 'rejected' : 'private', rejectedReason: duplicate ? 'duplicate' : undefined, createdAt: Date.now(),
