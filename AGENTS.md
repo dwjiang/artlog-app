@@ -3,6 +3,12 @@
 Agent docs record routing, workflow gates, and durable invariants; code, types,
 tests, configuration, and history record implementation.
 
+## Communication
+
+- At the start of each session, read `.agents/skills/i-have-adhd/SKILL.md`
+  and apply it by default to user-facing responses. Keep it active unless the
+  user asks to stop ADHD mode or return to normal mode.
+
 ## Maintaining agent docs
 
 - Refactor test: omit statements made stale by a behavior-preserving rename,
