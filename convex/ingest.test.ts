@@ -1,15 +1,29 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test';
 import { ConvexError } from 'convex/values';
+import { getFunctionName, type FunctionArgs, type FunctionReturnType } from 'convex/server';
 import { describe, expect, it } from 'vitest';
 
 import model from '../shared/model-version.json';
 import { internal } from './_generated/api';
-import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE } from './ingest';
+import type { ActionCtx } from './_generated/server';
+import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE, upsertDescriptors } from './ingest';
+import { loadOrb } from './lib/orbStorage';
 import { seedContribution, seedDevice } from './lib/testFactories';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.*s');
+
+const runDescriptorImport = (upsertDescriptors as unknown as {
+  _handler: (ctx: ActionCtx, args: FunctionArgs<typeof internal.ingest.upsertDescriptors>) =>
+    Promise<FunctionReturnType<typeof internal.ingest.upsertDescriptors>>;
+})._handler;
+
+const orbRow = {
+  objectKey: 'met:436535', descriptors: new Uint8Array(64).fill(7).buffer,
+  keypoints: new Float32Array([1, 2, 31, 90, 3, 4, 31, 180]).buffer,
+  keypointCount: 2, inputSize: model.inputSize, extractedFrom: 'test reference',
+};
 
 const met = {
   key: 'wikidata:Q160236',
@@ -125,17 +139,17 @@ describe('calibrator training exports', () => {
 
   it('preserves descriptor bytes and zero counts, excluding superseded references', async () => {
     const { t, objectId } = await seeded();
-    await t.mutation(internal.ingest.upsertDescriptors, { rows: [{
+    await t.action(internal.ingest.upsertDescriptors, { rows: [{
       objectKey: metObject.key, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
       keypointCount: 0, inputSize: 512, extractedFrom: metObject.imageRef,
     }] });
-    const page = await t.query(internal.ingest.exportDescriptors, {});
+    const page = await t.action(internal.ingest.exportDescriptors, {});
     expect(page.page).toEqual([{
       objectId, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
       keypointCount: 0, inputSize: 512,
     }]);
     await t.run((ctx) => ctx.db.patch(objectId, { mergedInto: objectId }));
-    expect((await t.query(internal.ingest.exportDescriptors, {})).page).toEqual([]);
+    expect((await t.action(internal.ingest.exportDescriptors, {})).page).toEqual([]);
   });
 });
 
@@ -395,8 +409,8 @@ describe('placements, vectors and descriptors', () => {
       inputSize: model.inputSize,
       extractedFrom: metObject.imageRef,
     };
-    await t.mutation(internal.ingest.upsertDescriptors, { rows: [row] });
-    await t.mutation(internal.ingest.upsertDescriptors, {
+    await t.action(internal.ingest.upsertDescriptors, { rows: [row] });
+    await t.action(internal.ingest.upsertDescriptors, {
       rows: [{ ...row, extractedFrom: 'contribution:abc' }],
     });
 
@@ -408,13 +422,94 @@ describe('placements, vectors and descriptors', () => {
     );
     expect(stored).toHaveLength(1);
     expect(stored[0].extractedFrom).toBe('contribution:abc');
-    expect(stored[0].descriptors.byteLength).toBe(64);
+    expect(stored[0]).not.toHaveProperty('descriptors');
+    expect(stored[0]).not.toHaveProperty('keypoints');
+    expect(await t.run(async (ctx) => (await ctx.storage.get(stored[0].storageId))!.size)).toBe(96);
 
     expect(
       await errorData(
-        t.mutation(internal.ingest.upsertDescriptors, { rows: [{ ...row, keypointCount: 3 }] })
+        t.action(internal.ingest.upsertDescriptors, { rows: [{ ...row, keypointCount: 3 }] })
       )
     ).toMatchObject({ code: 'bad_descriptors' });
+  });
+});
+
+describe('ORB file imports', () => {
+  it('reuses identical bytes on replay and deletes the previous file when the bytes change', async () => {
+    const { t } = await seeded();
+    const first = await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
+    const before = (await t.run((ctx) => ctx.db.get(first.ids[orbRow.objectKey])))!;
+    expect(await t.action(internal.ingest.upsertDescriptors, { rows: [{ ...orbRow, extractedFrom: 'new URL' }] })).toEqual(first);
+    expect(await t.run((ctx) => ctx.db.get(before._id))).toMatchObject({ storageId: before.storageId, extractedFrom: 'new URL' });
+    expect(await t.run((ctx) => loadOrb(ctx, before.storageId, before.keypointCount)))
+      .toEqual({ descriptors: orbRow.descriptors, keypoints: orbRow.keypoints });
+
+    const changed = { ...orbRow, descriptors: new Uint8Array(64).fill(8).buffer };
+    expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
+    const after = (await t.run((ctx) => ctx.db.get(before._id)))!;
+    expect(after.storageId).not.toBe(before.storageId);
+    expect(await t.run((ctx) => ctx.db.system.get('_storage', before.storageId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toHaveLength(1);
+    expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 1 });
+  });
+
+  it.each([false, true])('cleans up safely when a commit fails (response lost after commit: %s)', async (afterCommit) => {
+    const { t } = await seeded();
+    await expect(t.action((ctx) => runDescriptorImport({
+      ...ctx,
+      runMutation: async (reference, args) => {
+        if (getFunctionName(reference) !== 'ingest:commitDescriptors') return ctx.runMutation(reference, args);
+        if (afterCommit) await ctx.runMutation(reference, args);
+        throw new Error('connection lost');
+      },
+    }, { rows: [orbRow] }))).rejects.toThrow('connection lost');
+    const beforeRetry = await t.run((ctx) => ctx.db.system.query('_storage').collect());
+    expect(beforeRetry).toHaveLength(afterCommit ? 1 : 0);
+    await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
+    const files = await t.run((ctx) => ctx.db.system.query('_storage').collect());
+    expect(files).toHaveLength(1);
+    if (afterCommit) expect(files[0]._id).toBe(beforeRetry[0]._id);
+    expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 1 });
+  });
+
+  it('waits for concurrent file writes before cleaning up a failed batch', async () => {
+    const { t } = await seeded();
+    await t.mutation(internal.ingest.upsertObjects, { rows: [{ ...metObject, key: 'met:second' }] });
+    let writes = 0;
+    await expect(t.action((ctx) => runDescriptorImport({
+      ...ctx,
+      storage: { ...ctx.storage, store: async (blob) => {
+        if (++writes === 1) throw new Error('storage unavailable');
+        // convex-test's action storage writes can race with its global transaction stack.
+        return t.run((transaction) => transaction.storage.store(blob));
+      } },
+    }, { rows: [orbRow, { ...orbRow, objectKey: 'met:second' }] }))).rejects.toThrow('storage unavailable');
+    expect(writes).toBe(2);
+    expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query('descriptors').collect())).toEqual([]);
+    expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 0 });
+  });
+
+  it('bounds exported file bytes even though the database references are small', async () => {
+    const { t, objectId } = await seeded();
+    await t.action(internal.ingest.upsertDescriptors, { rows: [{
+      ...orbRow, descriptors: new ArrayBuffer(32_000), keypoints: new ArrayBuffer(16_000), keypointCount: 1000,
+    }] });
+    await t.run(async (ctx) => {
+      const { _id: _objectId, _creationTime: _objectTime, ...object } = (await ctx.db.get(objectId))!;
+      const { _id: _referenceId, _creationTime: _referenceTime, ...reference } = (await ctx.db.query('descriptors').unique())!;
+      for (let i = 0; i < 104; i++) {
+        const copy = await ctx.db.insert('objects', { ...object, key: `met:copy:${i}` });
+        await ctx.db.insert('descriptors', { ...reference, objectId: copy });
+      }
+    });
+    const first = await t.action(internal.ingest.exportDescriptors, {});
+    expect(first.page).toHaveLength(104);
+    expect(first.page.reduce((sum, row) => sum + row.descriptors.byteLength + row.keypoints.byteLength, 0)).toBeLessThanOrEqual(5_000_000);
+    expect(first.isDone).toBe(false);
+    const last = await t.action(internal.ingest.exportDescriptors, { cursor: first.continueCursor });
+    expect(last.page).toHaveLength(1);
+    expect(last.isDone).toBe(true);
   });
 });
 

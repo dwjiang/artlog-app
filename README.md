@@ -91,7 +91,7 @@ You need macOS with Xcode 26, Node 22.13 or newer, and a physical iPhone on iOS 
 git clone https://github.com/dwjiang/artlog-app.git && cd artlog-app
 npm ci
 cp .env.example .env.local
-# edit .env.local: EXPO_PUBLIC_CONVEX_URL=https://<PLACEHOLDER hosted production deployment>.convex.cloud
+# edit .env.local: EXPO_PUBLIC_CONVEX_URL=https://admired-goldfinch-660.convex.cloud
 npm run model:fetch                # the 112 MB CoreML model from the pinned GitHub release
 npx expo prebuild --platform ios --clean && npx expo run:ios --device
 ```
@@ -103,8 +103,8 @@ once the repository is public it needs none. `npx expo run:ios --device` builds 
 installs on the chosen iPhone and starts Metro; afterwards `npm run ios` reopens the installed
 build without rebuilding. Expo Go cannot load the native modules.
 
-The hosted production deployment does not exist yet (plan 06.01 creates it), so the URL above is
-a placeholder. Scanning, saving, the label flow and museum-site search work from any build.
+The hosted production backend is `admired-goldfinch-660`; its corpus and release checks are
+recorded in the [release runbook](docs/runbooks/release.md). Scanning, saving, the label flow and museum-site search work from any build.
 Writes to the shared index (contributions, rejections, venue confirmations) are signed with App
 Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
 use the TestFlight build, or run your own backend.
@@ -205,15 +205,18 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    and is deleted once embedded; no image outlives the build. About 1.6 days of wall clock for the
    full corpus's Commons images at the Wikimedia robot policy's rate (embedding runs at about 65 images/s on an
    M5 Pro). Compute cost $0 locally; the design's $3–5 L40S estimate was never spent.
-5. **Dedupe, hubs, push** (02.05):
+5. **Dedupe and import preparation** (02.05):
 
    ```sh
-   uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push --limit 1000
+   uv run python -m artlog_jobs.build_index --stage dedupe
    ```
 
-   This creates the merged corpus and hub penalties, then imports that directory through
-   `convex/ingest.ts` at 250 vectors per batch (about 53 vector rows/s). The orchestrator supplies
-   the merged directory to the importer and keeps the pilot limit on the push.
+   [Hub scoring is deferred](docs/todos/hub-scoring/README.md) as of 2026-09-12.
+   The existing sample-export and import commands still require penalty artifacts;
+   import preparation must handle that dependency before continuing, while keeping
+   scoring deferred. The intended development/preview sample contains 1,000 surviving
+   paintings across sources, retaining alternate views and related metadata.
+   See [the import workflow](jobs/README.md#small-corpus-for-development-and-previews).
 6. **Enrichment** (02.07, not built yet): the batch fact-sheet and docent job. Today fact sheets
    and prose are generated on the first identification of each artwork and cached
    (`docent.ensure`); `enrich.claimBatch` is the hook the job will use.

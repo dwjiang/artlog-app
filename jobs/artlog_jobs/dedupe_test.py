@@ -51,13 +51,46 @@ def test_empty_accessions_and_unowned_records_do_not_merge():
 
 
 def test_transitive_merges_point_to_final_survivor_and_are_deterministic():
-    objects = [obj("wikidata:Q1", accession="a"), obj("wikidata:Q2", accession="a"), obj("met:1")]
+    objects = [obj("wikidata:Q1", accession="a"), obj("met:1", accession="a"), obj("aic:1")]
     vectors = {o["key"]: np.array([1.0, 0.0]) for o in objects}
     artists = {o["key"]: o["artist"] for o in objects}
     result = find_merges(objects, vectors, artists)
     assert result == find_merges(list(reversed(objects)), vectors, artists)
-    assert set(result[0].values()) == {"met:1"}
-    assert all(r["into"] == "met:1" for r in result[1])
+    assert set(result[0].values()) == {"aic:1"}
+    assert all(r["into"] == "aic:1" for r in result[1])
+
+
+@pytest.mark.parametrize("museum_record", [False, True])
+def test_shared_accession_does_not_collapse_distinct_source_records(museum_record):
+    objects = [
+        obj("wikidata:Q106750764", accession="GE-0351-2"),
+        obj("wikidata:Q106750772", accession="ge-0351-2"),
+    ]
+    if museum_record:
+        objects.append(obj("met:1", accession="GE-0351-2"))
+
+    mapping, audit = find_merges(objects, {}, {})
+
+    assert mapping == {row["key"]: row["key"] for row in objects}
+    assert audit == []
+
+
+def test_visual_evidence_can_resolve_one_view_of_an_ambiguous_accession():
+    objects = [
+        obj("met:1", accession="album"),
+        obj("wikidata:Q1", accession="album"),
+        obj("wikidata:Q2", accession="album"),
+    ]
+    vectors = {
+        "met:1": np.array([1.0, 0.0]),
+        "wikidata:Q1": np.array([1.0, 0.0]),
+        "wikidata:Q2": np.array([0.0, 1.0]),
+    }
+
+    mapping, audit = find_merges(objects, vectors, dict.fromkeys(vectors, "Jan Baegert"))
+
+    assert mapping == {"met:1": "met:1", "wikidata:Q1": "met:1", "wikidata:Q2": "wikidata:Q2"}
+    assert audit == [{"from": "wikidata:Q1", "into": "met:1", "rule": "embedding"}]
 
 
 @pytest.mark.parametrize("left,right", [("1982.73", "1982.7.3"), ("AB 12", "AB12")])

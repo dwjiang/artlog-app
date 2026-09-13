@@ -8,7 +8,8 @@ import { action, internalQuery, mutation, type ActionCtx } from './_generated/se
 import { requireAttestedWrite } from './devices';
 import { requireDeviceFromAction } from './lib/auth';
 import { DEFAULT_CALIBRATOR, featureIndex, type ScoredCandidate } from './lib/calibrator';
-import { runPipeline } from './lib/identifyPipeline';
+import { MAX_ORB_VERIFICATIONS, runPipeline } from './lib/identifyPipeline';
+import { loadOrb } from './lib/orbStorage';
 import { isSupported, validateVector } from './lib/modelVersion';
 import { decodeOrbFeatures, OrbFormatError, type OrbFeatures, type VerifyResult } from '../shared/orb';
 import { loadCurrentPlacement } from './lib/placements';
@@ -21,10 +22,10 @@ const loadedCandidate = v.object({
   object: schema.doc('objects'), artwork: schema.doc('artworks'),
   similarity: v.number(), runnerUpSimilarity: v.number(),
   placement: v.union(schema.doc('placements'), v.null()), institution: v.optional(v.string()),
-  descriptors: v.optional(v.bytes()), keypoints: v.optional(v.bytes()),
+  orbStorageId: v.optional(v.id('_storage')),
   keypointCount: v.union(v.number(), v.null()), inputSize: v.optional(v.number()),
 });
-export type LoadedCandidate = Infer<typeof loadedCandidate>;
+export type LoadedCandidate = Infer<typeof loadedCandidate> & { descriptors?: ArrayBuffer; keypoints?: ArrayBuffer };
 
 export const loadCandidates = internalQuery({
   args: { vectorIds: v.array(v.id('vectors')), scores: v.array(v.number()), venueId: v.optional(v.id('museums')), now: v.number() },
@@ -56,7 +57,7 @@ export const loadCandidates = internalQuery({
       const placement = await loadCurrentPlacement(ctx, object._id, now);
       candidates.push({
         object, artwork, similarity, runnerUpSimilarity: 0, placement, institution: owner?.name,
-        descriptors: descriptors?.descriptors, keypoints: descriptors?.keypoints,
+        orbStorageId: descriptors?.storageId,
         keypointCount: descriptors?.keypointCount ?? null, inputSize: descriptors?.inputSize,
       });
     }
@@ -128,6 +129,10 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
     }),
     ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
   ]);
+  const references = candidates.filter((candidate) => candidate.orbStorageId !== undefined).slice(0, MAX_ORB_VERIFICATIONS);
+  await Promise.all(references.map(async (candidate) => {
+    Object.assign(candidate, await loadOrb(ctx, candidate.orbStorageId!, candidate.keypointCount!));
+  }));
   const { decision, verifications } = runPipeline({
     query, candidates, venueId: scan.venueId, visit: context.visit ?? undefined, now, inputSize: model.inputSize,
   });

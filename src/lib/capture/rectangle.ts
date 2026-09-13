@@ -32,6 +32,8 @@ export const STILL_MATCH_TOLERANCE = 0.05;
  * figures inside a canvas 0.94 and 1.19, and visitors merged with the painting behind them 0.96.
  */
 export const SUBJECT_QUAD_FILL_TOLERANCE = 0.025;
+// Small lifted regions can be details inside an edge-to-edge painting, despite a rectangular mask.
+export const MIN_UNGUIDED_SUBJECT_AREA_FRACTION = 0.2;
 
 export type FrameSize = { width: number; height: number };
 export type Guidance = 'searching' | 'move-closer' | 'fit-whole-painting' | 'straighten' | 'hold-still' | 'ready';
@@ -203,8 +205,9 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
 
 /**
  * Chooses the region to warp from a capture. A subject lifted from the background that is shaped like a
- * quadrilateral and lies inside the image is the painting, frame included, and wins: the largest under
- * the preview quad, else the largest. Subjects cut off by the edge are doors and walls, or a painting
+ * quadrilateral and lies inside the image wins: the largest under the preview quad, else the largest.
+ * Small subjects need a preview target or a matching rectangle to avoid cropping to painted details.
+ * Subjects cut off by the edge are doors and walls, or a painting
  * whose mask ran off the photo and fits a tilted quad; those fall through. Without a subject the
  * rectangle candidates stand in: the one matching the preview quad, else the preview quad, else the
  * largest. Library imports thereby keep the outer candidate: decision 006 rejected inner-rectangle
@@ -213,7 +216,11 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
 export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
   const rectangles = still.rectangles.filter((observation) => observation.corners.length === 4);
   const subjects = still.subjects.filter(isQuadrilateralSubject).map((subject) => toQuad(subject.quad))
-    .filter((quad) => !isCutOff(quad)).sort((a, b) => quadArea(b) - quadArea(a));
+    .filter((quad) => !isCutOff(quad) && (
+      quadArea(quad) >= MIN_UNGUIDED_SUBJECT_AREA_FRACTION
+      || (previewQuad !== null && enclosesCentroid(previewQuad, quad))
+      || closestRectangle(rectangles, quad) !== null
+    )).sort((a, b) => quadArea(b) - quadArea(a));
   const subject = (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad))) ?? subjects[0];
   if (subject) return subject;
   if (previewQuad) return closestRectangle(rectangles, previewQuad) ?? previewQuad;

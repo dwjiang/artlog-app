@@ -69,6 +69,9 @@ def find_merges(objects: list[dict], vectors: dict, artists: dict, *, block_size
         if row.get("ownerKey") and (number := accession(row.get("accession"))):
             groups[row["ownerKey"], number].append(row["key"])
     for keys in groups.values():
+        # Shared accession numbers can identify an album or set of distinct panels.
+        if len({key.split(":", 1)[0] for key in keys}) != len(keys):
+            continue
         for key in keys[1:]:
             merge(keys[0], key, "accession")
     groups.clear()

@@ -49,6 +49,21 @@ async function fixture() {
 }
 
 describe('revertObject', () => {
+  it('keeps a shared ORB file until the last object reference is removed', async () => {
+    const t = harness();
+    const { first, second, storageId } = await t.run(async (ctx) => {
+      const first = await seedArtworkWithObject(ctx, { descriptors: pair.ref });
+      const second = await seedArtworkWithObject(ctx);
+      const { _id: _referenceId, _creationTime: _createdAt, ...reference } = (await ctx.db.query('descriptors').unique())!;
+      await ctx.db.insert('descriptors', { ...reference, objectId: second.objectId });
+      return { first, second, storageId: reference.storageId };
+    });
+    await t.action(internal.revert.revertObjectById, { objectId: first.objectId, reason: 'test' });
+    expect(await t.run((ctx) => ctx.db.system.get('_storage', storageId))).not.toBeNull();
+    await t.action(internal.revert.revertObjectById, { objectId: second.objectId, reason: 'test' });
+    expect(await t.run((ctx) => ctx.db.system.get('_storage', storageId))).toBeNull();
+  });
+
   it('removes the work from identification, closes its placement, deletes the crop and rejects its contributions', async () => {
     const { t, alice, venueId, get, all } = await fixture();
     const cropStorageId = await t.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(1000)], { type: 'image/jpeg' })));

@@ -1,5 +1,6 @@
 import email.utils
 import logging
+import random
 import threading
 import time
 from collections import OrderedDict, deque
@@ -14,6 +15,7 @@ import httpx
 log = logging.getLogger(__name__)
 
 TRANSIENT_STATUSES = frozenset({429, 500, 502, 503, 504})
+NETWORK_RETRIES = 5
 MAX_CACHE_ENTRIES = 128
 # HTTPX's default HTTP/1.1 transport reads at most 64 KiB from the socket at a time.
 READ_CHUNK_BYTES = 64 * 1024
@@ -36,7 +38,7 @@ class CachedBody:
     etag: str | None
     last_modified: str | None
     content: bytes
-    headers: dict[str, str]
+    headers: httpx.Headers
     vary_headers: dict[str, str | None]
 
 
@@ -117,7 +119,7 @@ class BandwidthLimiter:
                 self._condition.notify_all()
 
     def read_response(self, response: httpx.Response) -> httpx.Response:
-        headers = dict(response.headers)
+        headers = response.headers.copy()
         # In-memory transports can return buffered, already decoded responses.
         if response.is_stream_consumed:
             chunks = response.iter_bytes(chunk_size=READ_CHUNK_BYTES)
@@ -255,7 +257,8 @@ class PoliteClient:
             response.history = list(history)
             if response.next_request is None:
                 if response.status_code == 304 and cached is not None:
-                    replay_headers = {**cached.headers, **dict(response.headers)}
+                    replay_headers = cached.headers.copy()
+                    replay_headers.update(response.headers)
                     # Revalidation can update Vary, but the cached body is already decoded.
                     for name in ("content-encoding", "content-length", "transfer-encoding"):
                         replay_headers.pop(name, None)
@@ -288,34 +291,62 @@ class PoliteClient:
     ) -> httpx.Response:
         url = str(request.url)
         host = urlsplit(url).netloc
-        for attempt in range(self.max_retries + 1):
+        status_retries = 0
+        network_retries = 0
+        while True:
             self._wait_for_slot(url)
-            response = self._http.send(request, stream=True)
-            delay = None
             try:
-                if response.status_code in TRANSIENT_STATUSES:
-                    delay = parse_retry_after(response.headers.get("Retry-After"), time.time())
-                    if delay is None:
-                        delay = min(self.max_retry_after, 2.0**attempt)
-                    with self._slot_lock:
-                        until = self._clock() + delay
-                        if until > self._cooldowns.get(host, (0.0, 0))[0]:
-                            self._cooldowns[host] = (until, response.status_code)
-                if limiter is not None:
-                    response = limiter.read_response(response)
-                else:
-                    response.read()
-            finally:
-                response.close()
+                response = self._http.send(request, stream=True)
+                delay = None
+                try:
+                    if response.status_code in TRANSIENT_STATUSES:
+                        delay = parse_retry_after(response.headers.get("Retry-After"), time.time())
+                        if delay is None:
+                            delay = min(self.max_retry_after, 2.0**status_retries)
+                        with self._slot_lock:
+                            until = self._clock() + delay
+                            if until > self._cooldowns.get(host, (0.0, 0))[0]:
+                                self._cooldowns[host] = (until, response.status_code)
+                    if limiter is not None:
+                        response = limiter.read_response(response)
+                    else:
+                        response.read()
+                finally:
+                    response.close()
+            except (httpx.NetworkError, httpx.TimeoutException, httpx.RemoteProtocolError) as error:
+                if network_retries == NETWORK_RETRIES:
+                    log.error(
+                        "%s failed after %d network retries: %s: %s",
+                        url,
+                        network_retries,
+                        type(error).__name__,
+                        error,
+                    )
+                    raise
+                delay = 2.0 ** (network_retries + 1) * random.uniform(0.8, 1.2)
+                network_retries += 1
+                log.warning(
+                    "%s: %s for %s; retrying %d/%d in %.1fs",
+                    type(error).__name__,
+                    error,
+                    url,
+                    network_retries,
+                    NETWORK_RETRIES,
+                    delay,
+                )
+                self._sleep(delay)
+                continue
             if delay is None:
+                if network_retries and response.is_success:
+                    log.info("%s recovered after %d network retries", url, network_retries)
                 return response
             remaining = max(0.0, until - self._clock())
             if remaining > self.max_retry_after:
                 raise RetryLater(host, remaining, response.status_code)
-            if attempt == self.max_retries:
+            if status_retries == self.max_retries:
                 return response
+            status_retries += 1
             log.warning("%s %s; waiting %.1fs", response.status_code, request.url, delay)
-        raise AssertionError("max_retries must be non-negative")
 
     def _remember(self, url: str, response: httpx.Response) -> None:
         previous = self._cache.pop(url, None)
@@ -342,7 +373,7 @@ class PoliteClient:
             _, evicted = self._cache.popitem(last=False)
             self._cache_bytes -= len(evicted.content)
         # HTTPX already decoded the body; replay must describe those decoded bytes.
-        headers = dict(response.headers)
+        headers = response.headers.copy()
         for name in ("content-encoding", "content-length", "transfer-encoding"):
             headers.pop(name, None)
         self._cache[url] = CachedBody(

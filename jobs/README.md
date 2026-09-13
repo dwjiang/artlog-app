@@ -56,6 +56,12 @@ entries. Set `cache_max_bytes=0` for one-pass image downloads; bodies larger
 than the budget are never cached. Cached compressed responses replay their
 decoded bytes with matching headers.
 
+GET requests retry network disconnects and timeouts five times, with delays of
+roughly 2, 4, 8, 16 and 32 seconds (±20% jitter). This covers API lookups and
+image bodies; retries still respect per-host spacing and server cooldowns.
+The client logs retry attempts, recovery and exhaustion, then raises the last
+network error if all five retries fail.
+
 A server `Retry-After` longer than `max_retry_after` (default 120 seconds)
 raises `RetryLater`, exposing `host` and the remaining `retry_after` seconds
 so the job can defer that work. The client remembers the full host cooldown,
@@ -296,10 +302,12 @@ down; the defaults are the policy's ceiling, with Wikimedia media requests
 capped at 4 req/s across both streams. Override rates with
 `--rate met=4,wikidata=3`. Transient statuses retry three times with backoff
 and honor `Retry-After`; 20 consecutive 403/429 responses stop that source with
-`SourceBlocked` (halve the rate and report). Temporary failures, including
-403/429s and exhausted transport/server retries, remain pending instead of
-entering the terminal failure journal. They leave the shard incomplete and
-stop the build before embedding; repeat the command after recovery. These are
+`SourceBlocked` (halve the rate and report). Images still returning HTTP 500
+after retries are logged and entered in the terminal failure journal as
+`http_500`, so the build continues and resumes skip them. Other temporary
+failures, including 403/429s and exhausted network retries, leave images
+pending and stop the build before embedding; repeat the command after recovery.
+A failed Commons API lookup also leaves its batch pending. These are
 the sources' designated media endpoints, requested on the same footing as
 `sources/fetch.py`'s dumps, so the client does not consult robots.txt.
 
@@ -591,23 +599,77 @@ Venue key-set SHA-256: `861b0149809145ac74a00be7a901df74045a671e78f29e843fa45252
 
 ## Dedupe, hubs and Convex import (02.05)
 
+**Hub scoring is deferred by the user as of 2026-09-12.** Remaining work is in
+[the hub-scoring todo](../docs/todos/hub-scoring/README.md). Exports, dry runs,
+and imports require no penalty files. The importer sets `calibratorPenalty`
+to `0` for every imported object, including merged records, and ignores old
+hub-scoring artifacts. User-feedback rejection penalties remain independent.
+
 After the feature build, run from `jobs/`:
 
 ```sh
-caffeinate -i uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push
-# Or run each stage, using explicit paths:
+caffeinate -i uv run python -m artlog_jobs.build_index --stage dedupe
+# Or use explicit paths:
 uv run python -m artlog_jobs.dedupe --features "$SCRATCH_DIR/features" --metadata "$SCRATCH_DIR/metadata" --out "$SCRATCH_DIR/merged"
-uv run python -m artlog_jobs.hubs --features "$SCRATCH_DIR/merged" --out "$SCRATCH_DIR/merged/penalties.jsonl"
-uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged" --limit 1000
-uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged"
 ```
 
 For these shell commands, set `SCRATCH_DIR` explicitly (for example,
 `export SCRATCH_DIR="$PWD/scratch"`); Python also defaults to `jobs/scratch`.
-The smoke limit selects 1,000 surviving objects and includes their other views
-and merged source records. It can run on completed shards of an unfinished
-build. A full push requires every expected shard in the feature manifest and
-refuses a limited pilot. Objects with no features still retain their metadata.
+Imports default to a small corpus of 1,000 surviving objects for development
+and previews. Selection cycles through source prefixes (`aic`, `met`,
+`wikidata`), taking objects in SHA-256 key order within each source. This gives
+repeatable coverage across sources rather than taking the first source's
+records. Every selected object's other views, merged source records, artwork
+metadata, placements, and ORB descriptors are retained. `--limit N`
+changes the number of survivors; views and merged records can make the actual
+row counts higher. Selection is stable for the same input corpus, not across
+corpus rebuilds; reuse the exported artifact to keep environments identical.
+
+### Small corpus for development and previews
+
+Prepare a portable artifact locally:
+
+```sh
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged" --export "$SCRATCH_DIR/small-corpus"
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/small-corpus" --dry-run
+```
+
+Both commands work without Convex credentials and make no network calls.
+Export copies only the selected feature bytes into a compact shard, along with
+the selected metadata and integrity hashes. It needs a new output directory
+and leaves the source unchanged. Keep this artifact outside git and reuse it
+for each development or preview deployment; neither needs the full feature
+directory. `selection.json` lists the selected keys, row counts, source coverage,
+required museum keys, and feature sizes. Float64 embedding bytes are a raw
+database payload estimate, excluding document overhead and search indexes.
+
+When ready to upload, configure `CONVEX_URL` and `CONVEX_DEPLOY_KEY` for the
+intended deployment, seed the museums listed in `requiredVenueKeys` using the
+existing venue seed, then run:
+
+```sh
+# Small corpus, development or preview; use a separate checkpoint per deployment.
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/small-corpus" --checkpoint "$SCRATCH_DIR/push-dev.json"
+
+# Full corpus, only when deliberately requested for the target deployment.
+uv run python -m artlog_jobs.push --in "$SCRATCH_DIR/merged" --full
+```
+
+The orchestrator's push stage also defaults to 1,000 survivors. Use
+`build_index --stage push --push-limit N` to change this, or
+`build_index --stage push --full-corpus` to import everything. Its existing
+`--limit` applies to the download/embed pilot, independently of `--push-limit`.
+No deployment is created, reset, or automatically seeded. Imports upsert;
+a small import does **not** remove a previously uploaded full corpus, and
+different selections accumulate if uploaded to the same deployment.
+
+A small corpus can use completed shards of an unfinished build. Both small
+and full corpora still require the feature manifest's download fingerprint to
+match the source metadata before deduplication. A full push requires every
+expected shard from a full build and refuses pilots and exported subsets.
+Full imports also retain metadata for objects with no features.
+
+### Import format and behavior
 
 `dedupe` reads the actual 02.04 shard format (`keys-N.json`, float32
 `vectors-N.npy`, `descriptors-N.json` with `key/offset/keypointCount`, and the
@@ -618,7 +680,10 @@ refusing stale or unverified features before writing merged output. It copies co
 feature shards into `merged/`, retaining their original keys, and writes
 `vector-index.jsonl` to map each original view to its survivor. Accession
 matching uses NFKC, case folding and collapsed whitespace, preserving punctuation
-and accession component boundaries. Embedding matching needs cosine ≥ 0.95,
+and accession component boundaries. An accession shared by multiple records within
+one source is ambiguous (for example, an album or set of panels), so the whole
+group skips accession matching; visual evidence can still resolve individual
+cross-source matches. Embedding matching needs cosine ≥ 0.95,
 a known matching artist, and the same nonempty owner. It cannot join groups
 with overlapping sources or conflicting nonempty accessions, including conflicts
 through aliases. Unknown or unidentified creator labels do not establish an artist
@@ -631,12 +696,10 @@ Placements are re-keyed and deduplicated by object/venue/source, preferring
 the survivor's record. Each survivor receives one descriptor set from its
 highest-priority available view; all embedding views are retained.
 
-`hubs` samples up to 20,000 vectors with seed `20260908`. The sample centroid
-computes exactly the same mean cosines as the full pairwise matrix using
-bounded memory. Vectors above mean + 3σ are capped at the top 0.5%; their
-objects receive penalty 0.5. Other objects receive 0, clearing a previous
-build's hub flag without changing feedback's separate rejection penalty.
-The histogram and threshold are in `penalties.summary.json`.
+The existing hub algorithm and its proposed artifact contract are documented
+in [the deferred todo](../docs/todos/hub-scoring/README.md). Portable packages
+contain no penalty artifacts; the import plan records `hubPenalty: 0` and
+generates the zero-penalty rows for the selected objects.
 
 Import order is artworks → objects (survivors first) → placements → vectors
 → descriptors → penalties. Batch ceilings are 500 metadata/penalty rows,
@@ -649,6 +712,21 @@ error, then resume with the same command to use the smaller size. A server
 system-operation timeout halves the affected batch and replays it automatically;
 unrelated application errors still stop the job.
 
+ORB data is stored in Convex file storage as one binary file per descriptor
+set: `count × 32` descriptor bytes followed by `count × 16` keypoint bytes.
+The `descriptors` table keeps the storage ID, SHA-256, keypoint count, input
+size and extraction source. `ingest:upsertDescriptors` is an internal action;
+it validates each batch, stores up to eight files concurrently, then commits
+the references in one mutation. Replaying identical bytes reuses the stored
+file. Failed batches discard unreferenced files, and replacements delete the
+previous file only when no object or contribution still references it.
+The feature shards and Python input format are unchanged.
+
+Contributions use the same file format; promotion and placement approval
+share references. Recognition reads candidate metadata first, then loads
+only the ten ORB files selected for verification, concurrently. Missing files
+fail the scan explicitly. File contents are not returned in candidate queries.
+
 Corpus vectors use the original object key as `viewKey`. Ingest replaces
 `(modelVersion, source, viewKey)` and updates its object assignment, so two
 corpus views survive a merge and a rebuild can move a view to a new survivor
@@ -658,15 +736,146 @@ without duplicating it. User-created vectors do not need a corpus view key.
 `auditThumbnails` must return zero violations; both Python and the object
 mutation reject a thumbnail URL unless its artwork is public domain.
 
-`push.json` (`push-smoke.json` for a limit) records the deployment, input
-fingerprint, expected counts, per-stage offset and elapsed mutation time after
+`push.json` (`push-small-N.json` for a small corpus) records the deployment, input
+fingerprint, expected counts, per-stage offset and elapsed function time after
 every batch. Resume replays a batch whose response was lost safely. Input
-files and penalties are checked against their SHA-256 hashes; changed input
+files are checked against their SHA-256 hashes; the fingerprint includes the
+neutral hub penalty, so older scored imports cannot reuse their checkpoints. Changed input
 or a different deployment requires a separate checkpoint (`--checkpoint`).
 Keep the merged snapshot unchanged while a push runs. The final report is
-beside the checkpoint as `push.report.json` or `push-smoke.report.json`.
+beside the checkpoint as `push.report.json` or `push-small-N.report.json`.
 Copy `merges.jsonl`, `manifest.json`, `stats.json` and the reports into
 `jobs/out/<run>/` for the build audit trail. No image pixels enter this stage.
+
+### Development sample import, 2026-09-12
+
+`jobs/scratch/small-corpus/` packages **1,000 canonical paintings** from the
+completed merged corpus: 334 AIC, 333 Met, and 333 Wikidata survivors. It keeps
+**1,356 artworks, 1,649 object records, 1,572 placements, 1,287 embedding views,
+and 1,000 selected ORB descriptor sets**. The additional 649 object records
+retain merged source metadata; the compact feature shard also preserves the
+ORB bytes for all 1,287 embedding views. The package is approximately 39.5 MB.
+
+The offline export and dry run passed without penalty files. All selected
+metadata and feature bytes match the original merged corpus. All **162 required
+museum keys** already existed on dev `usable-owl-256`, so no museums were seeded.
+The workspace's ORB file-storage backend was deployed before import. One pending,
+unpromoted contribution with obsolete inline ORB fields blocked schema validation;
+it was archived in `.context/dev-sample-old-contribution.zip` and removed under
+the pre-release data policy. The full pre-import database snapshot is
+`.context/dev-sample-before-import.zip` (database only; stored files were unchanged).
+
+Import completed without retries or batch reductions. Every imported object,
+including merged records, received `calibratorPenalty: 0`. The existing 21 dev
+objects remain. Final deployment counts match the saved baseline plus the sample:
+
+| Table | Imported rows | Deployment total |
+| --- | ---: | ---: |
+| museums | 0 | 42,453 |
+| artworks | 1,356 | 1,377 |
+| objects | 1,649 | 1,670 |
+| placements | 1,572 | 1,592 |
+| vectors | 1,287 | 1,287 |
+| descriptors | 1,000 | 1,000 |
+
+Remote readback matched every imported metadata field and reference, all 1,287
+embedding views, and the stored bytes and SHA-256 of all 1,000 ORB files against
+the package. All 1,649 imported objects have a zero hub penalty. Direct table
+counts match the ingest counters. The thumbnail audit checked all 1,670 objects
+with zero violations. Reports,
+package metadata, the import checkpoint, and a portable `small-corpus.tar.gz`
+with its SHA-256 are in `jobs/out/02-05-2026-09-12-dev-sample/`. Resume against
+this deployment with the same artifact and checkpoint:
+
+```sh
+uv run python -m artlog_jobs.push --in scratch/small-corpus --checkpoint scratch/push-dev-1000-2026-09-12.json
+```
+
+Verification: 90 focused Python tests and 31 Convex ingest/storage tests passed,
+along with Ruff, root TypeScript, ESLint, and the dev deployment. `npm run ios`
+built, installed, and launched on the iOS simulator in light mode.
+
+The physical-iPhone recognition milestone is also complete. On the iPhone 16 Pro,
+all 30 indexed test views matched confidently after fixing unsupported crops to
+small subjects inside paintings. Six outside-index images produced no confident
+false matches, four tentative suggestions, and two misses. Median pipeline
+latency was 1.65 seconds. The operator confirmed the manual camera checklist
+complete after testing the demo. Forty capture regression tests, TypeScript,
+ESLint, and the physical iOS build passed. The workspace report and per-case
+results are in `.context/recognition-report.md` and
+`.context/recognition-results.json`. The subsequent index expansion and calibrator
+training are recorded below; hub scoring stays deferred with zero penalties.
+
+### Calibrator index expansion, 2026-09-12
+
+Dev `usable-owl-256` now contains **10,000 canonical corpus paintings**, retaining
+the verified 1,000-painting sample. The package at
+`jobs/scratch/calibrator-corpus-10000/` contains 1,495 AIC, 4,253 Met, and 4,252
+Wikidata survivors, with all merged metadata, **13,616 embedding views**, and
+**10,000 selected ORB references**. All 793 required museum keys already existed.
+The offline export, dry run, import, and full readback audit passed. The importer
+needed no retries or batch reductions.
+
+| Table | Deployment total |
+| --- | ---: |
+| museums | 42,454 |
+| artworks | 11,726 |
+| objects | 15,431 |
+| placements | 14,260 |
+| vectors | 13,616 |
+| descriptors | 10,000 |
+
+Every imported metadata field and reference, all vectors, and all ORB bytes and
+storage hashes match the package. All 15,427 imported object records, including
+the 5,427 merged aliases, have `calibratorPenalty: 0`. The thumbnail audit checked
+15,431 objects with zero violations. The run artifacts and checkpoint are under
+`jobs/out/02-09-2026-09-12-calibrator/`.
+
+The exported index has **7,523 training-eligible public-domain objects**: 3,894
+Met and 3,629 Wikidata. Canonical AIC records have no direct `imageRef`, so the
+current sampler does not select them; their vectors and ORB references remain
+available as candidates. Sampling uses the verified export snapshot, identified
+by its fingerprint and file hash in `readback-audit.json`.
+
+The first sampling attempt exposed a Unicode response-header crash after 200
+objects. The downloader now preserves `httpx.Headers` through bandwidth-limited
+reads and cached-response replay, retaining non-ASCII bytes and repeated headers.
+Six regression cases cover UTF-8/Latin-1, buffered/streamed responses, and cache
+revalidation; 140 HTTP, download, and calibrator tests pass, along with Ruff,
+TypeScript, and ESLint. The incomplete sample was discarded and sampling restarted
+with the same seed and index.
+
+The completed run processed **5,500 paintings with zero skips**, producing
+22,000 augmented queries and 435,600 candidate rows. On 4,400 held-out queries,
+the fitted v2 achieved **99.9313% confident precision**, **99.8636% accepted
+recall**, and candidate-level AUC **0.999966**. The production TypeScript scoring
+and decision functions reproduced the Python outcome counts exactly. These are
+tuning estimates from augmented collection images and simulated context; they
+do not establish independent museum-camera accuracy.
+
+The trained JSON, report, and metrics are saved in the run directory. The complete
+configuration and evaluation limits are recorded in
+[decision 009](../docs/decisions/009-calibrator-v2.md). On 2026-09-13, the operator
+authorized adoption: `CALIBRATOR_V2` replaced the hand-set priors on dev and
+production. The adopted default exactly matches the artifact and reproduces the
+held-out evaluation; a subsequent physical-iPhone scan on dev confidently
+identified Wheat Field with Cypresses using `lr-v2`.
+
+### Initial production import, 2026-09-13
+
+Production `admired-goldfinch-660` contains the same verified 10,000-painting
+package as dev, with all merged metadata, 13,616 embedding views, 10,000 ORB
+references, and zero hub penalties. Its 42,452 seeded museums preserve the
+collection-site metadata; the two dev POIs were excluded. The published SQLite
+venue asset uses production IDs. Counts, museum/painting metadata and references,
+all vectors, and all ORB bytes and storage hashes passed readback verification.
+
+The backend uses the exact trained `lr-v2` configuration. Authenticated production
+API checks matched Roses, Wheat Field with Cypresses, and The Bedroom confidently;
+missing geometry stayed soft and an unsupported model was refused. This did not
+test a production iPhone build. The checkpoint, input, audits and logs are under
+`jobs/out/06-01-2026-09-13-production/`. Configuration and release status are in
+[the release runbook](../docs/runbooks/release.md).
 
 ### Partial build verification, 2026-09-11
 
@@ -759,6 +968,30 @@ Regenerating import files was refused because the current upstream metadata
 does not match the saved feature fingerprint. Rebuild from matching metadata
 and feature snapshots before the next import; do not reuse the earlier merged
 output or treat its smoke counts as verification of the corrected corpus.
+
+### Full corpus deduplication, 2026-09-12
+
+The completed 41-shard feature build was verified against its preserved Met and
+Wikidata source snapshots, and the missing input fingerprints were reconstructed.
+The fresh `jobs/scratch/merged/` output contains **7,019 merges** (7,008 accession,
+11 embedding), **402,139 embedding views**, and **397,047 objects with reference
+descriptors**. It retains all 409,973 source object records, with aliases pointing
+directly to 402,954 survivors, all 404,653 artwork records, and 296,344 placements.
+The 7,834 source records without features comprise 7,826 with no image URL and
+eight recorded download failures.
+
+Auditing the initial run exposed accession numbers shared by distinct album pages
+and panels within one source. Accession matching now skips those ambiguous
+groups; regression tests cover the ambiguity and subsequent visual matching.
+The corrected full output has no merges across owners or within a source, no
+dangling references, and zero thumbnail-rights violations. Rights were downgraded
+on 278 artwork records, and 1,342 survivor thumbnails were recovered. All 171
+output hashes were verified; copied feature bytes match the input provenance audit.
+
+The audit, merge records, manifest, and statistics are in
+`jobs/out/02-05-2026-09-12-dedupe/`. The 83 relevant Python tests, Ruff, root
+TypeScript, and ESLint pass. Hub scoring was subsequently deferred by the user;
+import remains pending. iOS recognition verification requires the subsequent import.
 
 ## Exhibition checklists (04.10)
 
@@ -979,12 +1212,14 @@ overrides. Use the same accepted compute dtype as the index build. A smaller
 `--objects` run is a pilot, not the required 5,000-object fit. `train` accepts
 `--features`, `--out`, and `--seed`. Defaults are under `jobs/out/`, gitignored.
 
-The two admin-only queries, `ingest:exportVectors({ modelVersion, cursor })`
-and `ingest:exportDescriptors({ cursor })`, return
-`{ page, continueCursor, isDone }`. Each page reads at most 500 rows, with a
-5 MB byte budget that can produce shorter pages. Continue even after an empty
-filtered page. Vectors include the canonical object's identity, image reference,
-rights and effective penalty; descriptors retain their binary wire format.
+The admin-only query `ingest:exportVectors({ modelVersion, cursor })` and
+action `ingest:exportDescriptors({ cursor })` return
+`{ page, continueCursor, isDone }`. Vector pages read at most 500 rows with a
+5 MB database byte budget. Descriptor pages load at most 104 files, bounding
+the returned ORB bytes to 5 MB even at 1,000 keypoints per file. Continue even
+after an empty filtered page. Vectors include the canonical object's identity,
+image reference, rights and effective penalty; the descriptor action reads
+file storage and returns the original binary wire format.
 Reverted objects and superseded references are excluded, and merged vector
 views resolve exactly as in `identify.loadCandidates`.
 

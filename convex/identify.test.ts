@@ -1,15 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import model from '../shared/model-version.json';
 import { api, internal } from './_generated/api';
 import { encodeOrbFeatures } from '../shared/orb';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { completion, jsonResponse } from './lib/labelFixtures';
+import { storeOrb } from './lib/orbStorage';
 import { FIXTURE_NOW } from './lib/rightNowFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 const pair = makeSyntheticPair({ count: 120 });
 const capture = () => ({
@@ -32,10 +34,35 @@ async function fixture(withWork = true) {
 }
 
 describe('identify action', () => {
+  it('fetches only the ten ORB references it verifies, skipping candidates without references', async () => {
+    const { t, user, venueId, args } = await fixture(false);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 20; i++) {
+        const work = await seedArtworkWithObject(ctx, {
+          vector: testVector(1 - i / 100), descriptors: i === 0 ? undefined : pair.ref,
+          placement: { venueId, onView: true, source: 'feed', confidence: 1 },
+        });
+        if (i > 10) {
+          const reference = (await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', work.objectId)).unique())!;
+          await ctx.storage.delete(reference.storageId);
+        }
+      }
+    });
+    const result = await user.as.action(api.identify.identify, args);
+    expect(result.status).toBe('identified');
+    expect(result.best?.corners).toHaveLength(4);
+  });
+
+  it('reports a missing file among verified candidates as an error', async () => {
+    const { t, user, args } = await fixture();
+    await t.run(async (ctx) => ctx.storage.delete((await ctx.db.query('descriptors').unique())!.storageId));
+    await expect(user.as.action(api.identify.identify, args)).rejects.toMatchObject({ data: { code: 'orb_file_missing' } });
+  });
+
   it('returns verified corners and display data, persists the embedding, and updates the visit gallery', async () => {
     const { t, user, visitId, args, work } = await fixture();
     const result = await user.as.action(api.identify.identify, args);
-    expect(result).toMatchObject({ status: 'identified', outcome: 'confident', calibratorVersion: 'lr-v1', best: {
+    expect(result).toMatchObject({ status: 'identified', outcome: 'confident', calibratorVersion: 'lr-v2', best: {
       objectId: work!.objectId, title: 'Water Lilies', artist: 'Claude Monet', rightsStatus: 'public_domain',
     } });
     expect(result.best?.corners).toHaveLength(4);
@@ -159,8 +186,9 @@ describe('identify action', () => {
     const work = await t.run(async (ctx) => {
       const work = await seedArtworkWithObject(ctx, { placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
       await ctx.db.insert('descriptors', {
-        objectId: work.objectId, keypointCount: count, inputSize: model.inputSize, extractedFrom: 'test reference',
-        ...(count === 0 ? { descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) } : encodeOrbFeatures(pair.ref)),
+        objectId: work.objectId, inputSize: model.inputSize, extractedFrom: 'test reference',
+        ...await storeOrb(ctx, count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).descriptors,
+          count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).keypoints),
       });
       return work;
     });
@@ -199,6 +227,7 @@ describe('identify action', () => {
     await propose(user.as, result.scanId);
     await user.as.action(api.identify.identify, firstArgs);
     await propose(user.as, result.scanId);
+    vi.setSystemTime(Date.now() + 1000);
     const another = await user.as.action(api.identify.identify, { ...firstArgs, localId: 'another-capture' });
     await propose(user.as, another.scanId);
     const before = await t.run((ctx) => ctx.db.query('placementProposals').collect());
@@ -333,7 +362,7 @@ describe('candidate loading', () => {
     })).toEqual([]);
   });
 
-  it('loads at most 20 candidates with full descriptor rows and treats venue and rights as attributes', async () => {
+  it('loads at most 20 candidates with small ORB references and treats venue and rights as attributes', async () => {
     const t = harness();
     const pair = makeSyntheticPair({ count: 375, outlierFraction: 0 });
     const { venueId, rows } = await t.run(async (ctx) => {
@@ -352,7 +381,9 @@ describe('candidate loading', () => {
     expect(candidates).toHaveLength(20);
     expect(candidates[0]).toMatchObject({ placement: { venueId, onView: false, gallery: '2' }, institution: 'Test Museum' });
     expect(candidates.every((c) => c.keypointCount === 375)).toBe(true);
-    expect(candidates[0].descriptors!.byteLength + candidates[0].keypoints!.byteLength).toBe(18000);
+    expect(candidates.every((c) => c.orbStorageId !== undefined)).toBe(true);
+    expect(candidates[0]).not.toHaveProperty('descriptors');
+    expect(candidates[0]).not.toHaveProperty('keypoints');
     expect(candidates.map((c) => c.object._id)).toEqual(rows.slice(0, 20).map((r) => r.objectId));
   });
 });

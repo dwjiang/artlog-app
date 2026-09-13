@@ -1,9 +1,12 @@
 import model from '../../shared/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
+import type { ActionCtx, MutationCtx } from '../_generated/server';
 import type { Harness, SignedIn } from '../test.helpers';
 import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
 import { registerMuseumObject } from './museumWorkIdentity';
+import { storeOrb } from './orbStorage';
+
+type TestCtx = MutationCtx & Pick<ActionCtx, 'storage'>;
 
 export function testVector(similarity = 1): number[] {
   const vector = Array<number>(model.embeddingDim).fill(0);
@@ -42,7 +45,7 @@ export async function seedMuseum(
   });
 }
 
-export async function seedArtworkWithObject(ctx: MutationCtx, options: {
+export async function seedArtworkWithObject(ctx: TestCtx, options: {
   vector?: number[];
   modelVersion?: string;
   descriptors?: OrbFeatures;
@@ -66,10 +69,13 @@ export async function seedArtworkWithObject(ctx: MutationCtx, options: {
     objectId, modelVersion: options.modelVersion ?? model.modelVersion,
     source: 'corpus', vector: options.vector ?? testVector(),
   });
-  if (options.descriptors) await ctx.db.insert('descriptors', {
-    objectId, ...encodeOrbFeatures(options.descriptors), keypointCount: options.descriptors.count,
-    inputSize: model.inputSize, extractedFrom: 'synthetic fixture',
-  });
+  if (options.descriptors) {
+    const encoded = encodeOrbFeatures(options.descriptors);
+    await ctx.db.insert('descriptors', {
+      objectId, ...await storeOrb(ctx, encoded.descriptors, encoded.keypoints),
+      inputSize: model.inputSize, extractedFrom: 'synthetic fixture',
+    });
+  }
   if (options.placement) await ctx.db.insert('placements', { objectId, ...options.placement });
   return { artworkId, objectId, vectorId };
 }
@@ -87,16 +93,21 @@ export async function seedScan(
 }
 
 export async function seedContribution(
-  ctx: MutationCtx,
-  overrides: Partial<Omit<Doc<'contributions'>, '_id' | '_creationTime'>> & { deviceId: Id<'devices'>; venueId: Id<'museums'> },
+  ctx: TestCtx,
+  overrides: Partial<Omit<Doc<'contributions'>, '_id' | '_creationTime'>> & {
+    deviceId: Id<'devices'>; venueId: Id<'museums'>; descriptors?: ArrayBuffer; keypoints?: ArrayBuffer;
+  },
 ): Promise<Id<'contributions'>> {
+  const { descriptors = new ArrayBuffer((overrides.keypointCount ?? 0) * 32),
+    keypoints = new ArrayBuffer((overrides.keypointCount ?? 0) * 16), ...fields } = overrides;
+  const orb = await storeOrb(ctx, descriptors, keypoints);
   return ctx.db.insert('contributions', {
-    vector: testVector(), modelVersion: model.modelVersion, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+    vector: testVector(), modelVersion: model.modelVersion, orbStorageId: orb.storageId, orbSha256: orb.sha256,
     keypointCount: 0, evidence: ['wikidata'], status: 'private', createdAt: Date.now(),
     fields: {
       title: { value: 'Water Lilies', edited: false, evidence: 'wikidata' },
       artist: { value: 'Claude Monet', edited: false, evidence: 'wikidata' },
     },
-    ...overrides,
+    ...fields,
   });
 }

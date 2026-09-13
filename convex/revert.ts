@@ -3,6 +3,7 @@ import { ConvexError, type Infer, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { deleteOrbIfUnreferenced } from './lib/orbStorage';
 import { clearDocent } from './docent';
 import { bumpCounter } from './ingest';
 
@@ -48,7 +49,10 @@ export const cleanupObjectPage = internalMutation({
       }
       case 'descriptors': {
         const page = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).paginate(options);
-        for (const row of page.page) await ctx.db.delete(row._id);
+        for (const row of page.page) {
+          await ctx.db.delete(row._id);
+          await deleteOrbIfUnreferenced(ctx, row.storageId);
+        }
         await bumpCounter(ctx, 'descriptors', -page.page.length);
         return page.isDone ? null : page.continueCursor;
       }

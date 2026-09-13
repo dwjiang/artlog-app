@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import model from '../../shared/model-version.json';
 import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
-import { featureIndex } from './calibrator';
+import { DEFAULT_CALIBRATOR, featureIndex } from './calibrator';
 import { runPipeline } from './identifyPipeline';
 import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
 import { makeSyntheticPair } from '../../shared/orb/test-fixtures';
@@ -45,13 +45,21 @@ it('returns a confident match with verified corners for matching features', () =
   expect(result.verifications.get(match.object._id)?.corners).toHaveLength(4);
 });
 
-it('scores with combined corpus and rejection penalties, preserving stronger corpus penalties', () => {
+it('applies combined corpus and rejection penalties through the configured coefficient', () => {
+  const config = {
+    ...DEFAULT_CALIBRATOR,
+    bias: 0,
+    weights: DEFAULT_CALIBRATOR.weights.map((_, i) => i === featureIndex('objectPenalty') ? -3 : 0),
+  };
+  const score = (match: LoadedCandidate) => runPipeline({
+    query: pair.query, candidates: [match], venueId: 'museum', now, inputSize: model.inputSize, config,
+  }).decision.best!;
   const baseline = candidate('one', 0.93, pair.ref);
-  const probability = run([baseline]).decision.best!.probability;
+  const probability = score(baseline).probability;
   for (const [corpus, rejection, effective] of [[0.3, 0.2, 0.5], [0.7, 0.4, 0.8], [0.9, 0.2, 0.9]]) {
     const match = candidate('one', 0.93, pair.ref);
     Object.assign(match.object, { calibratorPenalty: corpus, rejectionPenalty: rejection });
-    const best = run([match]).decision.best!;
+    const best = score(match);
     expect(best.features[featureIndex('objectPenalty')]).toBeCloseTo(effective);
     expect(best.probability).toBeLessThan(probability);
   }

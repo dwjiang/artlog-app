@@ -1,5 +1,10 @@
 # Plan 02.05: Deduplicate by owner, flag hubs, and push the corpus into Convex
 
+> **Scope update, 2026-09-12:** The user deferred hub scoring. Its remaining
+> work is in [the hub-scoring todo](../../todos/hub-scoring/README.md).
+> Skip the deferred step. Exports and imports require no penalty files;
+> imported objects receive a neutral hub penalty of `0`.
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
@@ -32,15 +37,13 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 | Purpose | Command | Expected |
 |---|---|---|
 | Dedupe | `uv run python -m artlog_jobs.dedupe --features $SCRATCH_DIR/features --metadata $SCRATCH_DIR/metadata --out $SCRATCH_DIR/merged` | `merges.jsonl`, updated `objects.jsonl` |
-| Hubs | `uv run python -m artlog_jobs.hubs --features $SCRATCH_DIR/merged --out $SCRATCH_DIR/merged/penalties.jsonl` | penalties file |
-| Push | `uv run python -m artlog_jobs.push --in $SCRATCH_DIR/merged` | counts printed |
-| Whole | `caffeinate -i uv run python -m artlog_jobs.build_index --stage dedupe,hubs,push` | completes; resumable |
+| Push full corpus, after import preparation | `uv run python -m artlog_jobs.push --in $SCRATCH_DIR/merged --full` | counts printed |
 
 ## Scope
 
-**In scope**: `jobs/artlog_jobs/{dedupe,hubs,push}.py` (+ tests), `build_index.py` (add stages), `jobs/README.md`.
+**In scope**: `jobs/artlog_jobs/{dedupe,push}.py` (+ tests), `build_index.py`, `jobs/README.md`.
 
-**Out of scope**: calibrator penalties from feedback (04.07).
+**Out of scope**: [deferred hub scoring](../../todos/hub-scoring/README.md), calibrator penalties from feedback (04.07).
 
 ## Steps
 
@@ -50,11 +53,11 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 **Verify**: `dedupe_test.py`: accession merge; embedding merge requires artist match; cross-owner never merges; merged vectors re-keyed.
 
-### Step 2: Hubs
+### Step 2: Hubs — deferred
 
-`hubs.py`: for each vector compute mean cosine to a fixed random sample of 20,000 vectors (seeded); objects whose mean exceeds `mean + 3σ` of the distribution (or the top 0.5%, whichever is smaller) get `calibratorPenalty = 0.5`; write `penalties.jsonl` and a histogram summary.
-
-**Verify**: `hubs_test.py` with a synthetic near-uniform vector flagged.
+Moved to [the hub-scoring todo](../../todos/hub-scoring/README.md) at the user's
+request on 2026-09-12. The algorithm, storage contract, remaining tests, and
+evaluation work are recorded there.
 
 ### Step 3: Push
 
@@ -64,13 +67,17 @@ Design §5.7 steps 5–7: merge duplicate records of the same physical painting 
 
 ### Step 4: Full push and record
 
-Run the full stage set on the Mac under `caffeinate -i` (the push is bound by Pro's write throughput and the laptop's uplink, so budget hours); record durations, rows/s, counts and Convex dashboard storage (DB and search) in `jobs/README.md`; confirm the dev deployment still serves `health.ping`.
+**Deferred by the user on 2026-09-13.** The preserved data location and steps for
+resuming production upload are in [the production-upload todo](../../todos/production-upload/README.md).
+Do not run this step until the user resumes it.
+
+After import preparation accounts for the deferred hub stage, run the full import on the Mac under `caffeinate -i` (the push is bound by Pro's write throughput and the laptop's uplink, so budget hours); record durations, rows/s, counts and Convex dashboard storage (DB and search) in `jobs/README.md`; confirm the dev deployment still serves `health.ping`.
 
 **Verify**: `counts()` equals `stats.json` minus failed downloads; dashboard search storage recorded.
 
 ## Test plan
 
-`dedupe_test.py`, `hubs_test.py`, `push_test.py`; `build_index_test.py` stage additions.
+`dedupe_test.py`, `push_test.py`, `build_index_test.py`. Hub tests belong to the deferred todo.
 
 ## Done criteria
 

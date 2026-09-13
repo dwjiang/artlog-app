@@ -393,9 +393,8 @@ def fetch_one(
             sleep(cooldown.retry_after)
             continue
         except httpx.TransportError as error:
-            last_status = None
             log.warning("%s transport error for %s: %s", task.source, task.key, error)
-            continue
+            return "failed", "transient_exhausted", None
         last_status = response.status_code
         report.count_status(last_status)
         if response.status_code == 200:
@@ -473,11 +472,14 @@ def download_source(
                 report.done += 1
             else:
                 report.failed += 1
+                if status == 500:
+                    reason = "http_500"
                 if status in (403, 429) or reason in ("transient_exhausted", "cooldown_too_long"):
                     report.retryable += 1
                     log.warning("%s remains pending for resume: %s", task.key, reason)
                 else:
                     state.record_failure(task, reason or "unknown", status)
+                    log.warning("%s skipped: %s (%s)", task.key, reason, task.url)
             denials = denials + 1 if status in (403, 429) else 0
             report.seconds = clock() - started
             if denials >= CONSECUTIVE_DENIALS_LIMIT and not halt.is_set():

@@ -1,13 +1,17 @@
 // The Python ↔ Convex ingest contract (plan 02.01). Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // jobs/artlog_jobs in the same PR.
-import { ConvexError, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model-version.json';
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../shared/orb';
+import { internal } from './_generated/api';
+import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from './lib/orbStorage';
 import { registerMuseumObject } from './lib/museumWorkIdentity';
 import { effectiveObjectPenalty } from './lib/rejectionPenalty';
 import type { Doc, Id } from './_generated/dataModel';
 import {
+  internalAction,
   internalMutation,
   internalQuery,
   type MutationCtx,
@@ -25,11 +29,8 @@ import {
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
 export const TRAINING_EXPORT_PAGE_SIZE = 500;
-// Descriptor rows can contain 1,000 keypoints. Bound bytes as well as rows.
+// Bound vector reads and exported ORB bytes as well as row counts.
 const TRAINING_EXPORT_BYTES = 5_000_000;
-const DESCRIPTOR_BYTES = 32;
-const KEYPOINT_BYTES = 16;
-const MAX_KEYPOINTS = 1000;
 
 const museumRow = v.object({
   key: v.string(),
@@ -357,52 +358,98 @@ export const upsertVectors = internalMutation({
   },
 });
 
-export const upsertDescriptors = internalMutation({
-  args: { rows: v.array(descriptorRow) },
-  returns: v.object({ ids: v.record(v.string(), v.id('descriptors')) }),
+const descriptorReference = v.object({
+  objectKey: v.string(), storageId: v.id('_storage'), sha256: v.string(),
+  keypointCount: v.number(), inputSize: v.number(), extractedFrom: v.string(),
+});
+const descriptorIds = v.object({ ids: v.record(v.string(), v.id('descriptors')) });
+
+export const existingDescriptors = internalQuery({
+  args: { objectKeys: v.array(v.string()) },
+  returns: v.array(v.union(descriptorReference, v.null())),
+  handler: async (ctx, { objectKeys }) => {
+    checkBatch(objectKeys);
+    return Promise.all(objectKeys.map(async (objectKey) => {
+      const object = await requireByKey(ctx, 'objects', objectKey);
+      const row = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', object._id)).unique();
+      if (!row || !await ctx.db.system.get('_storage', row.storageId)) return null;
+      const { storageId, sha256, keypointCount, inputSize, extractedFrom } = row;
+      return { objectKey, storageId, sha256, keypointCount, inputSize, extractedFrom };
+    }));
+  },
+});
+
+export const commitDescriptors = internalMutation({
+  args: { rows: v.array(descriptorReference) },
+  returns: descriptorIds,
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
     const ids: Record<string, Id<'descriptors'>> = {};
+    const replaced: Id<'_storage'>[] = [];
     let inserted = 0;
-    for (const row of rows) {
-      const wellFormed =
-        Number.isInteger(row.keypointCount) &&
-        row.keypointCount >= 0 &&
-        row.keypointCount <= MAX_KEYPOINTS &&
-        row.descriptors.byteLength === row.keypointCount * DESCRIPTOR_BYTES &&
-        row.keypoints.byteLength === row.keypointCount * KEYPOINT_BYTES;
-      if (!wellFormed) {
-        throw new ConvexError({
-          code: 'bad_descriptors',
-          objectKey: row.objectKey,
-          keypointCount: row.keypointCount,
-          descriptorBytes: row.descriptors.byteLength,
-          keypointBytes: row.keypoints.byteLength,
-        });
+    for (const { objectKey, ...reference } of rows) {
+      const file = await ctx.db.system.get('_storage', reference.storageId);
+      if (!file || file.size !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
+        throw new ConvexError({ code: 'bad_orb_file', storageId: reference.storageId });
       }
-      const object = await requireByKey(ctx, 'objects', row.objectKey);
-      const doc = {
-        objectId: object._id,
-        descriptors: row.descriptors,
-        keypoints: row.keypoints,
-        keypointCount: row.keypointCount,
-        inputSize: row.inputSize,
-        extractedFrom: row.extractedFrom,
-      };
-      const existing = await ctx.db
-        .query('descriptors')
-        .withIndex('by_objectId', (q) => q.eq('objectId', object._id))
-        .first();
+      const object = await requireByKey(ctx, 'objects', objectKey);
+      const existing = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', object._id)).unique();
+      const doc = { objectId: object._id, ...reference };
       if (existing) {
         await ctx.db.replace(existing._id, doc);
-        ids[row.objectKey] = existing._id;
+        ids[objectKey] = existing._id;
+        if (existing.storageId !== reference.storageId) replaced.push(existing.storageId);
       } else {
-        ids[row.objectKey] = await ctx.db.insert('descriptors', doc);
+        ids[objectKey] = await ctx.db.insert('descriptors', doc);
         inserted += 1;
       }
     }
+    for (const storageId of replaced) await deleteOrbIfUnreferenced(ctx, storageId);
     await bumpCounter(ctx, 'descriptors', inserted);
     return { ids };
+  },
+});
+
+export const upsertDescriptors = internalAction({
+  args: { rows: v.array(descriptorRow) },
+  returns: descriptorIds,
+  handler: async (ctx, { rows }): Promise<Infer<typeof descriptorIds>> => {
+    checkBatch(rows);
+    if (new Set(rows.map((row) => row.objectKey)).size !== rows.length) throw new ConvexError({ code: 'duplicate_descriptor_keys' });
+    // Validate the entire batch before creating files, including the preserved zero-keypoint case.
+    const packed = rows.map((row) => {
+      if (!Number.isInteger(row.keypointCount) || row.keypointCount < 0 || row.keypointCount > MAX_KEYPOINTS ||
+          row.inputSize !== model.inputSize || row.descriptors.byteLength !== row.keypointCount * DESCRIPTOR_BYTES ||
+          row.keypoints.byteLength !== row.keypointCount * KEYPOINT_BYTES) {
+        throw new ConvexError({ code: 'bad_descriptors', objectKey: row.objectKey });
+      }
+      return packOrb(row.descriptors, row.keypoints);
+    });
+    const existing = await ctx.runQuery(internal.ingest.existingDescriptors, { objectKeys: rows.map((row) => row.objectKey) });
+    const created: Id<'_storage'>[] = [];
+    const references: Infer<typeof descriptorReference>[] = [];
+    try {
+      for (let start = 0; start < rows.length; start += 8) {
+        const results = await Promise.allSettled(rows.slice(start, start + 8).map(async (row, offset) => {
+          const i = start + offset;
+          const sha256 = await orbHash(packed[i]);
+          let storageId = existing[i]?.sha256 === sha256 ? existing[i]!.storageId : undefined;
+          if (!storageId) {
+            storageId = await ctx.storage.store(new Blob([packed[i]], { type: ORB_CONTENT_TYPE }));
+            created.push(storageId);
+          }
+          return { objectKey: row.objectKey, storageId, sha256, keypointCount: row.keypointCount,
+            inputSize: row.inputSize, extractedFrom: row.extractedFrom };
+        }));
+        for (const result of results) {
+          if (result.status === 'rejected') throw result.reason;
+          references.push(result.value);
+        }
+      }
+      return await ctx.runMutation(internal.ingest.commitDescriptors, { rows: references });
+    } finally {
+      if (created.length) await ctx.runMutation(internal.orbFiles.discard, { storageIds: created });
+    }
   },
 });
 
@@ -524,11 +571,11 @@ export const exportVectors = internalQuery({
   },
 });
 
-export const exportDescriptors = internalQuery({
+export const exportDescriptorReferences = internalQuery({
   args: { cursor: v.optional(v.string()) },
   returns: v.object({
     page: v.array(v.object({
-      objectId: v.id('objects'), descriptors: v.bytes(), keypoints: v.bytes(),
+      objectId: v.id('objects'), storageId: v.id('_storage'),
       keypointCount: v.number(), inputSize: v.number(),
     })),
     continueCursor: v.string(),
@@ -537,7 +584,8 @@ export const exportDescriptors = internalQuery({
   handler: async (ctx, { cursor }) => {
     const result = await ctx.db.query('descriptors').withIndex('by_objectId')
       .paginate({
-        numItems: TRAINING_EXPORT_PAGE_SIZE, cursor: cursor ?? null,
+        numItems: Math.floor(TRAINING_EXPORT_BYTES / (MAX_KEYPOINTS * (DESCRIPTOR_BYTES + KEYPOINT_BYTES))),
+        cursor: cursor ?? null,
         maximumBytesRead: TRAINING_EXPORT_BYTES,
       });
     const page = [];
@@ -545,11 +593,33 @@ export const exportDescriptors = internalQuery({
       const object = await ctx.db.get(row.objectId);
       if (!object || object.reverted || object.mergedInto) continue;
       page.push({
-        objectId: row.objectId, descriptors: row.descriptors, keypoints: row.keypoints,
+        objectId: row.objectId, storageId: row.storageId,
         keypointCount: row.keypointCount, inputSize: row.inputSize,
       });
     }
     return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+  },
+});
+
+const descriptorExport = v.object({
+  page: v.array(v.object({
+    objectId: v.id('objects'), descriptors: v.bytes(), keypoints: v.bytes(), keypointCount: v.number(), inputSize: v.number(),
+  })),
+  continueCursor: v.string(), isDone: v.boolean(),
+});
+
+export const exportDescriptors = internalAction({
+  args: { cursor: v.optional(v.string()) },
+  returns: descriptorExport,
+  handler: async (ctx, args): Promise<Infer<typeof descriptorExport>> => {
+    const result = await ctx.runQuery(internal.ingest.exportDescriptorReferences, args);
+    const page = [];
+    for (let start = 0; start < result.page.length; start += 8) {
+      page.push(...await Promise.all(result.page.slice(start, start + 8).map(async ({ storageId, ...row }) => ({
+        ...row, ...await loadOrb(ctx, storageId, row.keypointCount),
+      }))));
+    }
+    return { ...result, page };
   },
 });
 

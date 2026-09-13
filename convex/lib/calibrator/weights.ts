@@ -13,16 +13,28 @@ export type CalibratorConfig = {
   lowTexture: { minSimilarity: number; minMargin: number; requireVenueAgreement: boolean };
 };
 
-// These weights are priors, not trained values; plan 02.09's training job replaces them as CALIBRATOR_V2.
-export const CALIBRATOR_V1: CalibratorConfig = {
-  version: 'lr-v1',
+// Fitted configuration and evaluation limits: docs/decisions/009-calibrator-v2.md.
+export const CALIBRATOR_V2: CalibratorConfig = {
+  version: 'lr-v2',
   featureNames: FEATURE_NAMES,
-  weights: [12.0, 20.0, -0.3, 1.2, 0.8, -0.4, 0.3, 0.1, 1.5, 1.5, -3.0],
-  bias: -14.0,
-  thresholds: { confident: 0.85, soft: 0.45 },
+  weights: [
+    7.474195072142699,
+    383.78817433584715,
+    -4.045085586473862,
+    2.778795932765667,
+    2.470154752909581,
+    -0.2672894750022002,
+    -0.46764532924772256,
+    -0.7245000823878253,
+    0.7926605931130953,
+    4.306513855067736,
+    0.0,
+  ],
+  bias: 1.5125644129619618,
+  thresholds: { confident: 0.13716605621132733, soft: 0.13716605621132733 },
   lowTextureKeypoints: 80,
   textured: { minInliers: 15 },
   lowTexture: { minSimilarity: 0.93, minMargin: 0.04, requireVenueAgreement: true },
 };
 
-export const DEFAULT_CALIBRATOR: CalibratorConfig = CALIBRATOR_V1;
+export const DEFAULT_CALIBRATOR: CalibratorConfig = CALIBRATOR_V2;
