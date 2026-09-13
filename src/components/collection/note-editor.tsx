@@ -2,7 +2,7 @@ import { Button, Host } from '@expo/ui/swift-ui';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection-limits';
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection/collection-limits';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { getNote, setNote } from '@/db/repos/notes';

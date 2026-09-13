@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import fixture from '../../shared/fixtures/docent-validator.json';
+import fixture from '../../shared/docent/fixtures/docent-validator.json';
 import { validateDocent } from './docentValidator';
 
 describe('docent validator (shared fixture)', () => {

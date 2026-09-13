@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 
-import { MAX_NOTE_LENGTH } from '../shared/collection-limits';
+import { MAX_NOTE_LENGTH } from '../shared/collection/collection-limits';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';

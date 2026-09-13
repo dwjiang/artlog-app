@@ -29,7 +29,7 @@ from coremltools.converters.mil.frontend.milproto.load import load as load_mil
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parents[1]
 CACHE = ROOT / "cache"
-SHARED_MODEL = json.loads((REPO_ROOT / "shared" / "model-version.json").read_text())
+SHARED_MODEL = json.loads((REPO_ROOT / "shared" / "model" / "model-version.json").read_text())
 
 RADIO_REVISION = "c0f37017930e9dda53f93424cf4bf39fc51f287e"
 RADIO_VERSION = "c-radio_v3-b"
@@ -77,7 +77,7 @@ def assert_recipe_matches_shared_model():
     expected = {"modelVersion": MODEL_VERSION, "inputSize": INPUT_SIZE, "embeddingDim": EMBEDDING_DIM}
     actual = {key: SHARED_MODEL[key] for key in expected}
     if actual != expected:
-        raise RuntimeError(f"shared/model-version.json {actual} does not match this export recipe {expected}")
+        raise RuntimeError(f"shared/model/model-version.json {actual} does not match this export recipe {expected}")
 
 
 def mil_program(model):

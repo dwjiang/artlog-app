@@ -2,7 +2,7 @@ import type { FunctionArgs } from 'convex/server';
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';

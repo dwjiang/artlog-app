@@ -3,7 +3,7 @@ import { File, UploadType } from 'expo-file-system';
 
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
-import { contributionPayload } from '../../../shared/attested-payloads';
+import { contributionPayload } from '../../../shared/attestation/attested-payloads';
 import type { PendingScan } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';

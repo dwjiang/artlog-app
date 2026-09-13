@@ -8,7 +8,7 @@ import { stdout } from 'node:process';
 import { ConvexHttpClient } from 'convex/browser';
 import { expect, it } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { api } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { encodeOrbFeatures } from '../shared/orb';

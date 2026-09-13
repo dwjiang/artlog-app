@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from . import ingest_checklist
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "shared/fixtures/checklist-example.json"
+EXAMPLE = Path(__file__).resolve().parents[2] / "shared/sources/fixtures/checklist-example.json"
 
 
 def test_shared_json_shape_and_provenance_survive_conversion():

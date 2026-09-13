@@ -4,7 +4,7 @@ Produces the CoreML package the app ships and the index build's weights. The
 [accepted recipe](../../docs/todos/experiment-findings/README.md#embedding-model) is C-RADIOv3-B, DINOv2 adaptor
 summary, 512×512 RGB input scaled by 1/255 inside CoreML, fp16 compute, symmetric per-channel
 int8 on the 53 two-dimensional Linear weights, unnormalized 1536-float output. `export_coreml.py`
-asserts that its recipe constants match `shared/model-version.json`; any change to either is a
+asserts that its recipe constants match `shared/model/model-version.json`; any change to either is a
 new `modelVersion` and an index rebuild.
 
 Requires Apple silicon macOS, Xcode 26, `uv`, and about 3 GB of disk (a 546 MB checkpoint under
@@ -36,7 +36,7 @@ It compiles the model and creates `out/CRadioV3B-<version>.zip`. The ZIP include
 the export time and duration, so it has a new checksum even when the weight file matches.
 The model is **not committed**. `package-model.sh` writes `model-asset.json` with the release
 asset URL and its sha256; `npm run model:fetch` (also the `eas-build-pre-install` hook) downloads
-that zip, checks the hash and the `modelVersion` against `shared/model-version.json`, and unzips
+that zip, checks the hash and the `modelVersion` against `shared/model/model-version.json`, and unzips
 it into `modules/coreml-embed/ios/Models/` (ignored). Re-running is a no-op while the folder's
 `.asset-sha256` matches.
 
@@ -58,7 +58,7 @@ For future model versions, publish the asset once (from the repository root):
 
 ```sh
 gh release create "model-$(node -p "require('./scripts/model/model-asset.json').modelVersion")" \
-  scripts/model/out/CRadioV3B-*.zip --title "CoreML model $(node -p "require('./shared/model-version.json').modelVersion")" \
+  scripts/model/out/CRadioV3B-*.zip --title "CoreML model $(node -p "require('./shared/model/model-version.json').modelVersion")" \
   --notes "Compiled C-RADIOv3-B int8 package for the coreml-embed module"
 ```
 
@@ -87,7 +87,7 @@ on all 200 calibration images, so a Mac harness pass is the model-numerics half 
 check; only latency and memory need the phone.
 
 The on-device reference for the drift check comes from the app itself: Settings → dev tools →
-**Export calibration embeddings** (dev builds only) downloads `jobs/calibration/urls.txt`,
+**Export calibration embeddings** (dev builds only) downloads `shared/model/calibration/urls.txt`,
 letterboxes each image with the production vision-rect module, embeds it, and shares
 `iphone-embeddings.json` (`{ url: number[] }`, normalized) plus `iphone-report.json`. Commit
 the embeddings as `jobs/calibration/iphone-embeddings.json` whenever the export changes.

@@ -2,7 +2,7 @@ import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import {
   candidateSignal,
   challengePurpose,

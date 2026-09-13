@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import model from '../shared/model-version.json';
+import model from '../shared/model/model-version.json';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { runPipeline } from './lib/identifyPipeline';

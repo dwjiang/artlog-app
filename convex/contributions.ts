@@ -1,6 +1,6 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
-import { contributionPayload } from '../shared/attested-payloads';
+import { contributionPayload } from '../shared/attestation/attested-payloads';
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from '../shared/orb';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';

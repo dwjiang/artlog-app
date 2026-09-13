@@ -16,7 +16,7 @@ class Region(TypedDict):
 
 
 def load_regions() -> dict[str, Region]:
-    return json.loads((REPO_ROOT / "shared/regions.json").read_text())
+    return json.loads((REPO_ROOT / "shared/sources/regions.json").read_text())
 
 
 def distance_km(lat: float, lng: float, center: list[float]) -> float:

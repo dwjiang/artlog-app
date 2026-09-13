@@ -26,7 +26,7 @@ evaluated. CPU fp16 produced NaNs; MPS fp16 passed. CUDA agreement was not
 established. The export comparison used black letterboxing; production capture
 and corpus preprocessing use the shared mean-color, bilinear contract.
 Evidence: [export results](../../../spikes/coreml-export/results/),
-[preprocessing fixtures](../../../shared/fixtures/letterbox/README.md).
+[preprocessing fixtures](../../../shared/model/fixtures/letterbox/README.md).
 
 ## Vector search scale
 
@@ -109,7 +109,7 @@ to ECDSA/SHA-256 verification; the unhashed concatenation failed. The public
 fixture contains no private key. Museum-only MapKit filtering missed SFMOMA,
 which motivated combining category and natural-language candidates.
 Evidence: [native observations and assertion fixture](../../../spikes/native-modules/notes/README.md),
-[ORB fixtures](../../../shared/fixtures/orb-features-v1.json).
+[ORB fixtures](../../../shared/orb/fixtures/orb-features-v1.json).
 
 ## Tavily and Right now
 

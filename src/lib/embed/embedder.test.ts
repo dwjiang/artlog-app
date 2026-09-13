@@ -1,4 +1,4 @@
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import type { CoremlEmbed } from '../../../modules/coreml-embed/src';
 import { createEmbedder } from './embedder';
@@ -27,7 +27,7 @@ it('embeds the crop file path and returns a typed array of the model dimension',
   expect(native.warmUp).not.toHaveBeenCalled();
 });
 
-it('rejects a bundled model whose version differs from shared/model-version.json, naming both', () => {
+it('rejects a bundled model whose version differs from shared/model/model-version.json, naming both', () => {
   const embedder = createEmbedder(() => fakeNative({ modelVersion: 'c-radiov3-b-int8-512-dinov2-v2' }));
   expect(() => embedder.modelVersion).toThrow(
     `Embedding model version mismatch: bundled "c-radiov3-b-int8-512-dinov2-v2", expected "${model.modelVersion}"`,

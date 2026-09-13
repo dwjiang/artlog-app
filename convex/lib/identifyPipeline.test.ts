@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import model from '../../shared/model-version.json';
+import model from '../../shared/model/model-version.json';
 import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
 import { DEFAULT_CALIBRATOR, featureIndex } from './calibrator';

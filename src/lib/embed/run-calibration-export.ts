@@ -4,8 +4,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { Share } from 'react-native';
 
 // The 200 Met calibration URLs shared with the index build's drift check.
-import calibrationUrlsAsset from '../../../jobs/calibration/urls.txt';
-import model from '../../../shared/model-version.json';
+import calibrationUrlsAsset from '../../../shared/model/calibration/urls.txt';
+import model from '../../../shared/model/model-version.json';
 
 import { getVisionRect } from '../../../modules/vision-rect/src';
 import { filePath } from '@/lib/file-uri';

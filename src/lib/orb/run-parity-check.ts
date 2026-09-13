@@ -1,7 +1,7 @@
 import { Asset } from 'expo-asset';
 import * as Device from 'expo-device';
 
-import fixture from '../../../shared/fixtures/orb-features-v1.json';
+import fixture from '../../../shared/orb/fixtures/orb-features-v1.json';
 
 import { measureCrop, type TriageMetrics } from '@/lib/capture/triage';
 import { extractOrb } from './extract';
@@ -11,12 +11,12 @@ export type OrbParityReport = OrbParity & TriageMetrics & { extractMs: number; t
 
 /**
  * Dev-only tripwire for the phone ↔ Python ORB contract: extracts from the Python letterbox fixture
- * PNG and compares descriptor rows with `shared/fixtures/orb-features-v1.json`, which
+ * PNG and compares descriptor rows with `shared/orb/fixtures/orb-features-v1.json`, which
  * `jobs/artlog_jobs/orb.py` wrote from the same pixels. Triage metrics on the same crop calibrate
  * the thresholds against Python's numbers.
  */
 export async function runOrbParityCheck(): Promise<OrbParityReport> {
-  const asset = await Asset.fromModule(require('../../../shared/fixtures/letterbox/test-painting-512.png')).downloadAsync();
+  const asset = await Asset.fromModule(require('../../../shared/model/fixtures/letterbox/test-painting-512.png')).downloadAsync();
   if (!asset.localUri) throw new Error('The ORB parity fixture is not bundled');
   const extractStarted = performance.now();
   const features = await extractOrb(asset.localUri);

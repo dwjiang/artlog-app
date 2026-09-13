@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import pythonFixture from '../../../shared/fixtures/calibrator-features.json';
+import pythonFixture from '../../../shared/calibrator/fixtures/calibrator-features.json';
 import { type CandidateSignals, FEATURE_NAMES, featureIndex, featurize } from './features';
 
 const zeroSignals: CandidateSignals = {

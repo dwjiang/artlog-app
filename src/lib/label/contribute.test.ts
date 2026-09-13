@@ -3,7 +3,7 @@ import { ConvexError } from 'convex/values';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
-import { contributionPayload } from '../../../shared/attested-payloads';
+import { contributionPayload } from '../../../shared/attestation/attested-payloads';
 import { contributeLabel, contributionErrorMessage, uploadCrop } from './contribute';
 import { clearLabelDraft, loadLabelDraft } from './draft';
 import { formStateFromFlow, setFieldValue, unlockField } from './fields';

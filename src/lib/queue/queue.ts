@@ -1,7 +1,7 @@
 import { addNetworkStateListener, getNetworkStateAsync } from 'expo-network';
 import { AppState } from 'react-native';
 
-import model from '../../../shared/model-version.json';
+import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
 import * as pending from '@/db/repos/pending-scans';

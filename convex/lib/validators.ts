@@ -157,7 +157,7 @@ export const contributionField = v.object({
 });
 export type ContributionField = Infer<typeof contributionField>;
 
-// Length is enforced in code against shared/model-version.json embeddingDim, not here.
+// Length is enforced in code against shared/model/model-version.json embeddingDim, not here.
 export const embedding = v.array(v.float64());
 export type Embedding = Infer<typeof embedding>;
 

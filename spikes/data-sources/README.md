@@ -68,7 +68,7 @@ policy endpoint does not prove absence on unvisited object pages.
 Tests cover count boundaries, robots errors and path matching, sitemap
 classification, interrupted rate-limit responses, cached CSV reuse, and failed
 type discovery without network access. Both venue probes share robots-response
-validation. Source scores live in `shared/source-scores.json`; museum-page
+validation. Source scores live in `shared/sources/source-scores.json`; museum-page
 access policy is checked by the runtime fetcher before each request.
 
 The Met email is [drafted](met-inquiry.md), not sent. The contact log is

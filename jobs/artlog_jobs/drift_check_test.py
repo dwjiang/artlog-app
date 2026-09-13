@@ -9,6 +9,7 @@ from PIL import Image
 
 from artlog_jobs.drift_check import (
     CALIBRATION_DIR,
+    DEFAULT_URLS,
     check_with_fallback,
     compare,
     fetch_calibration_images,
@@ -137,7 +138,7 @@ def test_fp32_is_tried_when_fp16_is_non_finite(tmp_path):
 
 
 def test_committed_calibration_set_is_consistent():
-    urls = (CALIBRATION_DIR / "urls.txt").read_text().splitlines()
+    urls = DEFAULT_URLS.read_text().splitlines()
     hashes = json.loads((CALIBRATION_DIR / "image-hashes.json").read_text())
     reference = json.loads((CALIBRATION_DIR / "iphone-embeddings.json").read_text())
     report = json.loads((CALIBRATION_DIR / "iphone-report.json").read_text())
