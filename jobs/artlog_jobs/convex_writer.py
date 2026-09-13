@@ -25,6 +25,8 @@ BatchCallback = Callable[[Sequence[Row], dict[str, str]], None]
 
 
 class Client(Protocol):
+    def action(self, name: str, args: dict[str, Any] | None = None) -> Any: ...
+
     def mutation(self, name: str, args: dict[str, Any] | None = None) -> Any: ...
 
     def query(self, name: str, args: dict[str, Any] | None = None) -> Any: ...
@@ -86,6 +88,9 @@ class ConvexWriter:
     def mutation(self, fn: str, args: dict[str, Any] | None = None) -> Any:
         return self._retrying(self.client.mutation, fn, args or {})
 
+    def action(self, fn: str, args: dict[str, Any] | None = None) -> Any:
+        return self._retrying(self.client.action, fn, args or {})
+
     def upsert(
         self,
         fn: str,
@@ -100,7 +105,8 @@ class ConvexWriter:
         ids: dict[str, str] = {}
         for start in range(0, len(rows), batch_size):
             batch = rows[start : start + batch_size]
-            result = self.mutation(fn, {"rows": list(batch)})
+            call = self.action if fn == "ingest:upsertDescriptors" else self.mutation
+            result = call(fn, {"rows": list(batch)})
             batch_ids = dict(result.get("ids", {})) if isinstance(result, Mapping) else {}
             ids.update(batch_ids)
             if on_batch is not None:

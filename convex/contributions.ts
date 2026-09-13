@@ -1,6 +1,7 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import { contributionPayload } from '../shared/attested-payloads';
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from '../shared/orb';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server';
@@ -11,6 +12,7 @@ import { REPLAY_COSINE } from './lib/agreement';
 import { requireDevice, requireDeviceFromAction } from './lib/auth';
 import { cosine } from './lib/cosine';
 import { FIELD_NAMES } from './lib/labelVerify';
+import { deleteOrbIfUnreferenced, storeOrb } from './lib/orbStorage';
 import { limitDevice } from './lib/rateLimits';
 import {
   contributionRejectedReason,
@@ -163,7 +165,7 @@ export const authorize = internalMutation({
 
 export const commit = internalMutation({
   args: {
-    scanId: v.id('scans'), generation: v.number(), descriptors: v.bytes(), keypoints: v.bytes(), keypointCount: v.number(),
+    scanId: v.id('scans'), generation: v.number(), orbStorageId: v.id('_storage'), orbSha256: v.string(), keypointCount: v.number(),
     fields: submittedFields, cropStorageId: v.id('_storage'), duplicate: v.boolean(),
     previousContributionId: v.union(v.id('contributions'), v.null()),
   },
@@ -184,11 +186,14 @@ export const commit = internalMutation({
       throw new ConvexError({ code: 'contributions_changed' });
     }
     const { flow, fields } = await validateSubmission(ctx, scan, args.fields, cropStorageId);
+    const orb = await ctx.db.system.get('_storage', args.orbStorageId);
+    if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) throw new ConvexError({ code: 'bad_orb_file' });
     const duplicate = args.duplicate;
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId);
     const contributionId = await ctx.db.insert('contributions', {
       deviceId: device._id, venueId: scan.venueId, scanId, vector: scan.vector, modelVersion: scan.modelVersion,
-      descriptors: args.descriptors, keypoints: args.keypoints, keypointCount: args.keypointCount,
+      orbStorageId: duplicate ? undefined : args.orbStorageId, orbSha256: duplicate ? undefined : args.orbSha256,
+      keypointCount: args.keypointCount,
       cropStorageId: duplicate ? undefined : cropStorageId, rawOcr: flow.rawOcr, fields, evidence: evidenceOf(fields),
       sourceUrl: flow.sourceUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
@@ -208,7 +213,7 @@ export const contribute = action({
   returns: contributionResult,
   handler: async (ctx, { consent: _consent, ...args }): Promise<ContributionResult> => {
     const keypointCount = decodeQuery(args.descriptors, args.keypoints).count;
-    const { nonce, assertionBase64, ...submission } = args;
+    const { nonce, assertionBase64, descriptors, keypoints, ...submission } = args;
     const authorization = await ctx.runMutation(internal.contributions.authorize, {
       scanId: args.scanId, cropStorageId: args.cropStorageId, fields: args.fields, nonce, assertionBase64,
     });
@@ -218,32 +223,37 @@ export const contribute = action({
     const matches = await ctx.vectorSearch('vectors', 'by_vector', {
       vector: scan.vector, limit: 3, filter: (q) => q.eq('modelVersion', scan.modelVersion),
     });
-    for (let attempt = 0; attempt < MAX_COMMIT_ATTEMPTS; attempt++) {
-      let duplicate = matches.some((match) => match._score >= DUPLICATE_COSINE);
-      let cursor: string | null = null;
-      do {
-        if (duplicate) break;
-        const page: DuplicatePage = await ctx.runQuery(internal.contributions.checkDuplicatePage, {
-          scanId: scan._id, generation: scan.generation, cursor,
-        });
-        duplicate = page.duplicate;
-        cursor = page.cursor;
-      } while (cursor !== null);
-      try {
-        return await ctx.runMutation(internal.contributions.commit, {
-          ...submission, generation: scan.generation, keypointCount, duplicate, previousContributionId,
-        });
-      } catch (error) {
-        if (!(error instanceof ConvexError) || error.data.code !== 'contributions_changed') throw error;
-        previousContributionId = (await requireDeviceFromAction(ctx)).lastContributionId ?? null;
+    const orb = await storeOrb(ctx, descriptors, keypoints);
+    try {
+      for (let attempt = 0; attempt < MAX_COMMIT_ATTEMPTS; attempt++) {
+        let duplicate = matches.some((match) => match._score >= DUPLICATE_COSINE);
+        let cursor: string | null = null;
+        do {
+          if (duplicate) break;
+          const page: DuplicatePage = await ctx.runQuery(internal.contributions.checkDuplicatePage, {
+            scanId: scan._id, generation: scan.generation, cursor,
+          });
+          duplicate = page.duplicate;
+          cursor = page.cursor;
+        } while (cursor !== null);
+        try {
+          return await ctx.runMutation(internal.contributions.commit, {
+            ...submission, generation: scan.generation, keypointCount, duplicate, previousContributionId,
+            orbStorageId: orb.storageId, orbSha256: orb.sha256,
+          });
+        } catch (error) {
+          if (!(error instanceof ConvexError) || error.data.code !== 'contributions_changed') throw error;
+          previousContributionId = (await requireDeviceFromAction(ctx)).lastContributionId ?? null;
+        }
       }
+      throw new ConvexError({ code: 'contribution_busy' });
+    } finally {
+      await ctx.runMutation(internal.orbFiles.discard, { storageIds: [orb.storageId] });
     }
-    throw new ConvexError({ code: 'contribution_busy' });
   },
 });
 
-// Backers are read one at a time and only until the first live one: each carries a vector and ORB
-// features, so a popular work's full set does not fit one transaction (see promotion's partner batches).
+// Stop at the first live backer; a popular work's vectors need not fit in one transaction.
 async function otherBacker(
   ctx: MutationCtx, object: Doc<'objects'>, row: Doc<'contributions'>, deviceId?: Id<'devices'>,
 ): Promise<Doc<'contributions'> | null> {
@@ -272,8 +282,9 @@ async function detachContribution(
   }
   const descriptors = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', object._id)).unique();
   if (descriptors?.extractedFrom === `contribution:${row._id}`) {
+    if (!partner.orbStorageId || !partner.orbSha256) throw new ConvexError({ code: 'reference_descriptors_required' });
     await ctx.db.patch(descriptors._id, {
-      descriptors: partner.descriptors, keypoints: partner.keypoints, keypointCount: partner.keypointCount,
+      storageId: partner.orbStorageId, sha256: partner.orbSha256, keypointCount: partner.keypointCount,
       extractedFrom: `contribution:${partner._id}`,
     });
   }
@@ -312,7 +323,11 @@ export const withdraw = mutation({
       }
     }
     if (row.cropStorageId && await ctx.db.system.get('_storage', row.cropStorageId)) await ctx.storage.delete(row.cropStorageId);
-    await ctx.db.patch(row._id, { status: 'rejected', rejectedReason: 'withdrawn', cropStorageId: undefined });
+    await ctx.db.patch(row._id, {
+      status: 'rejected', rejectedReason: 'withdrawn', cropStorageId: undefined,
+      orbStorageId: undefined, orbSha256: undefined,
+    });
+    if (row.orbStorageId) await deleteOrbIfUnreferenced(ctx, row.orbStorageId);
     return null;
   },
 });

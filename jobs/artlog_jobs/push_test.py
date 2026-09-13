@@ -2,8 +2,18 @@ import json
 
 import pytest
 
-from artlog_jobs.features import file_hash, read_jsonl
-from artlog_jobs.push import BATCH_SIZES, MUTATIONS, STAGES, BatchSizeReduced, Corpus, run
+from artlog_jobs.features import file_hash, read_jsonl, write_jsonl
+from artlog_jobs.push import (
+    BATCH_SIZES,
+    DEFAULT_CORPUS_LIMIT,
+    FUNCTIONS,
+    STAGES,
+    BatchSizeReduced,
+    Corpus,
+    main,
+    run,
+    select_objects,
+)
 from artlog_jobs.sources.fetch import write_json
 
 
@@ -31,8 +41,16 @@ class Writer:
             }
         raise AssertionError(name)
 
+    def action(self, name, args):
+        assert name == "ingest:upsertDescriptors"
+        return self._write(name, args)
+
     def mutation(self, name, args):
-        stage = next(s for s in STAGES if name == f"ingest:{MUTATIONS[s]}")
+        assert name != "ingest:upsertDescriptors"
+        return self._write(name, args)
+
+    def _write(self, name, args):
+        stage = next(s for s in STAGES if name == f"ingest:{FUNCTIONS[s]}")
         self.calls.append((stage, args["rows"]))
         if self.fail == stage and not self.after_commit:
             self.fail = None
@@ -54,6 +72,146 @@ def push(directory, writer, checkpoint=None):
         checkpoint=checkpoint or directory / "push.json",
         deployment_url="https://dev.test",
     )
+
+
+def test_small_selection_is_stable_balanced_and_has_no_duplicate_survivors():
+    keys = [f"{source}:{i}" for source in ("aic", "met", "wikidata") for i in range(100)]
+    selected = select_objects(keys + keys[:5], 30)
+    assert selected == select_objects(list(reversed(keys)), 30)
+    assert len(selected) == 30
+    assert all(
+        sum(key.startswith(source + ":") for key in selected) == 10
+        for source in ("aic", "met", "wikidata")
+    )
+    assert select_objects(keys, 15) <= selected
+    assert select_objects(["met:1", "wikidata:1", "wikidata:2"], 10) == {
+        "met:1",
+        "wikidata:1",
+        "wikidata:2",
+    }
+
+
+def test_small_corpus_keeps_views_merge_targets_and_all_references(merged_corpus):
+    corpus = Corpus(merged_corpus(), limit=2)
+    assert {row["key"] for row in corpus.rows["objects"]} == {"met:0", "met:1", "wikidata:Q1"}
+    assert {row["viewKey"] for row in corpus.rows["vectors"]} == {"met:0", "met:1", "wikidata:Q1"}
+    assert {row["key"] for row in corpus.rows["artworks"]} == {"art:0", "art:1"}
+    for stage in ("placements", "descriptors", "penalties"):
+        assert all(row["objectKey"] in corpus.objects for row in corpus.rows[stage])
+    plan = corpus.plan()
+    assert plan["selectedSurvivors"] == ["met:0", "met:1"]
+    assert plan["requiredVenueKeys"] == ["museum:1"]
+    assert plan["featureBytes"] == {
+        "embeddingsFloat32": 3 * 1536 * 4,
+        "embeddingsFloat64": 3 * 1536 * 8,
+        "orb": 2 * 48,
+    }
+
+
+def test_dry_run_defaults_to_small_corpus_without_credentials_or_network(
+    merged_corpus, monkeypatch, capsys
+):
+    from artlog_jobs import push as module
+
+    directory = merged_corpus(1002)
+    (directory / "penalties.jsonl").unlink()
+    (directory / "penalties.summary.json").unlink()
+    monkeypatch.setattr(module, "get_settings", lambda: pytest.fail("dry run read settings"))
+    monkeypatch.setattr(module, "ConvexWriter", lambda *_: pytest.fail("dry run connected"))
+    main(["--in", str(directory), "--dry-run"])
+    plan = json.loads(capsys.readouterr().out)
+    assert plan["limit"] == DEFAULT_CORPUS_LIMIT == 1000
+    assert len(plan["selectedSurvivors"]) == 1000
+    assert plan["hubPenalty"] == 0
+    assert plan["inputCounts"]["penalties"] == plan["inputCounts"]["objects"]
+    assert not list(directory.glob("push*.json"))
+    main(["--in", str(directory), "--full", "--dry-run"])
+    assert json.loads(capsys.readouterr().out)["inputCounts"]["objects"] == 1003
+
+
+def test_export_is_self_contained_preserves_bytes_and_uploads_through_existing_contract(
+    merged_corpus, tmp_path, monkeypatch, capsys
+):
+    from artlog_jobs import push as module
+
+    directory = merged_corpus()
+    (directory / "penalties.jsonl").unlink()
+    (directory / "penalties.summary.json").unlink()
+    source = Corpus(directory, limit=2)
+    expected = {stage: source.batch(stage, 0, 100) for stage in STAGES}
+    source_hashes = {p.name: file_hash(p) for p in directory.iterdir() if p.is_file()}
+    out = tmp_path / "small-corpus"
+    monkeypatch.setattr(module, "get_settings", lambda: pytest.fail("export read settings"))
+    monkeypatch.setattr(module, "ConvexWriter", lambda *_: pytest.fail("export connected"))
+    main(["--in", str(directory), "--limit", "2", "--export", str(out)])
+    report = json.loads(capsys.readouterr().out)
+    assert report["inputCounts"]["vectors"] == 3
+    assert source_hashes == {p.name: file_hash(p) for p in directory.iterdir() if p.is_file()}
+    # The exported artifact must remain usable when the large source is unavailable.
+    directory.rename(tmp_path / "source-unavailable")
+    restored = Corpus(out, limit=DEFAULT_CORPUS_LIMIT)
+    assert {stage: restored.batch(stage, 0, 100) for stage in STAGES} == expected
+    assert restored.rows["penalties"] == [
+        {"objectKey": row["key"], "calibratorPenalty": 0} for row in restored.rows["objects"]
+    ]
+    assert not list(out.glob("penalties*"))
+    assert all(not p.is_symlink() for p in out.iterdir())
+    writer = Writer()
+    report = run(
+        restored, writer, checkpoint=out / "test-push.json", deployment_url="https://dev.test"
+    )
+    assert report["countsMatch"]
+    assert report["actual"]["objects"] == 3
+    assert report["actual"]["descriptors"] == 2
+    assert [row for stage, rows in writer.calls if stage == "penalties" for row in rows] == (
+        restored.rows["penalties"]
+    )
+    with pytest.raises(ValueError, match="requires all feature shards"):
+        Corpus(out)
+    (out / "descriptors-0.bin").write_bytes(b"corrupt")
+    with pytest.raises(ValueError, match="Merged input changed"):
+        Corpus(out, limit=DEFAULT_CORPUS_LIMIT)
+
+
+def test_deferred_hubs_ignore_old_penalty_artifacts(merged_corpus):
+    directory = merged_corpus()
+    original = Corpus(directory)
+    write_jsonl(
+        directory / "penalties.jsonl",
+        [{"objectKey": "met:0", "calibratorPenalty": 0.5}],
+    )
+    (directory / "penalties.summary.json").write_text("stale summary")
+    corpus = Corpus(directory)
+    assert corpus.fingerprint == original.fingerprint
+    assert corpus.rows["penalties"] == [
+        {"objectKey": row["key"], "calibratorPenalty": 0} for row in corpus.rows["objects"]
+    ]
+
+
+def test_export_refuses_to_overwrite_an_existing_directory(merged_corpus, tmp_path):
+    from artlog_jobs.subset import export
+
+    directory = merged_corpus()
+    corpus = Corpus(directory, limit=2)
+    for out in (directory, tmp_path / "existing"):
+        out.mkdir(exist_ok=True)
+        with pytest.raises(FileExistsError):
+            export(corpus, out)
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--limit", "0"],
+        ["--limit", "-1"],
+        ["--limit", "5", "--full"],
+        ["--full", "--export", "sample"],
+    ],
+)
+def test_invalid_corpus_options_fail_before_loading_any_data(flags):
+    with pytest.raises(SystemExit) as error:
+        main(["--in", "not-a-corpus", *flags])
+    assert error.value.code == 2
 
 
 def test_order_batches_metadata_without_vectors_and_multiview(merged_corpus):
@@ -83,16 +241,17 @@ def test_order_batches_metadata_without_vectors_and_multiview(merged_corpus):
 
 
 @pytest.mark.parametrize("after_commit", [False, True])
-def test_resume_after_failure_or_lost_response_is_idempotent(merged_corpus, after_commit):
+@pytest.mark.parametrize("stage", ["vectors", "descriptors"])
+def test_resume_after_failure_or_lost_response_is_idempotent(merged_corpus, after_commit, stage):
     directory = merged_corpus()
-    writer = Writer(fail="vectors")
+    writer = Writer(fail=stage)
     writer.after_commit = after_commit
     with pytest.raises(RuntimeError):
         push(directory, writer)
     before = len(writer.calls)
     report = push(directory, writer)
     assert report["countsMatch"]
-    assert writer.calls[before][0] == "vectors"
+    assert writer.calls[before][0] == stage
     before = len(writer.calls)
     push(directory, writer)
     assert len(writer.calls) == before
@@ -138,9 +297,6 @@ def test_rights_gate_runs_before_any_write(merged_corpus):
     stats = json.loads((directory / "stats.json").read_text())
     stats["files"]["artworks.jsonl"] = file_hash(path)
     write_json(directory / "stats.json", stats)
-    summary = json.loads((directory / "penalties.summary.json").read_text())
-    summary["inputFiles"] = stats["files"]
-    write_json(directory / "penalties.summary.json", summary)
     with pytest.raises(ValueError, match="Non-public-domain thumbnail"):
         Corpus(directory)
 

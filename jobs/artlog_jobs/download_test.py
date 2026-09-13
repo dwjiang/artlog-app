@@ -392,6 +392,42 @@ def test_embedding_receipt_rejects_replacement_urls_even_when_filenames_match(tm
         ShardState(tmp_path / "downloads", 0).require_complete(changed, tmp_path / "images/shard-0")
 
 
+def test_persistent_500_is_logged_and_skipped_on_resume_without_blocking_other_images(
+    tmp_path, caplog
+):
+    server = Server()
+    tasks = [task for task in tasks_for(server, 4) if task.source == "wikidata"]
+    failed_task = tasks[0]
+
+    def handler(request):
+        if request.url.path == media_path(failed_task):
+            return httpx.Response(500)
+        return server(request)
+
+    reports, _ = run(handler, tasks, tmp_path)
+
+    assert reports["wikidata"].done == 1
+    assert reports["wikidata"].failed == 1
+    assert reports["wikidata"].retryable == 0
+    state = ShardState(tmp_path / "downloads", 0)
+    assert state.complete
+    assert json.loads(state.failed_path.read_text()) == {
+        "key": failed_task.key,
+        "url": failed_task.url,
+        "source": "wikidata",
+        "reason": "http_500",
+        "status": 500,
+    }
+    assert f"{failed_task.key} skipped: http_500" in caplog.text
+
+    def no_requests(request):
+        pytest.fail(f"Resume fetched a completed or failed image: {request.url}")
+
+    reports, _ = run(no_requests, tasks, tmp_path)
+    assert reports["wikidata"].skipped == 2
+    assert len(state.failed_path.read_text().splitlines()) == 1
+
+
 def test_consecutive_denials_stop_the_source_with_a_reportable_error(tmp_path):
     server = Server()
     tasks = [task for task in tasks_for(server, 60) if task.source == "met"]
@@ -442,6 +478,62 @@ def test_temporary_failures_leave_the_shard_incomplete_and_retry_on_resume(tmp_p
 
     assert reports["met"].done == 1
     assert ShardState(tmp_path / "downloads", 0).complete
+
+
+@pytest.mark.parametrize("phase", ["api", "media"])
+def test_commons_disconnects_recover_without_interrupting_the_shard(tmp_path, phase):
+    server = Server()
+    tasks = tasks_for(server, 1)
+    disconnected = False
+
+    def handler(request):
+        nonlocal disconnected
+        is_api = request.url.path == "/w/api.php"
+        if is_api == (phase == "api") and not disconnected:
+            disconnected = True
+            raise httpx.RemoteProtocolError("server disconnected", request=request)
+        return server(request)
+
+    reports, _ = run(handler, tasks, tmp_path)
+
+    assert disconnected
+    assert reports["wikidata"].done == 1
+    assert ShardState(tmp_path / "downloads", 0).complete
+
+
+@pytest.mark.parametrize("phase", ["api", "media"])
+def test_exhausted_commons_disconnects_preserve_progress_and_leave_images_pending(tmp_path, phase):
+    server = Server()
+    tasks = [task for task in tasks_for(server, 102) if task.source == "wikidata"]
+    failed_requests = []
+
+    def handler(request):
+        pending_api = (
+            request.url.path == "/w/api.php"
+            and request.url.params.get("titles") == commons_title(tasks[-1].url)
+        )
+        pending_media = request.url.path == media_path(tasks[-1])
+        if (phase == "api" and pending_api) or (phase == "media" and pending_media):
+            failed_requests.append(request)
+            raise httpx.RemoteProtocolError("server disconnected", request=request)
+        return server(request)
+
+    with pytest.raises((httpx.RemoteProtocolError, download_module.DownloadIncomplete)):
+        run(handler, tasks, tmp_path)
+
+    state = ShardState(tmp_path / "downloads", 0)
+    assert len(failed_requests) == 6
+    assert not state.complete and not state.failed
+    assert len(list((tmp_path / "images" / "shard-0").glob("*.jpg"))) == 50
+
+    server.requests.clear()
+    reports, _ = run(server, tasks, tmp_path)
+
+    assert reports["wikidata"].done == 1
+    assert reports["wikidata"].skipped == 50
+    assert ShardState(tmp_path / "downloads", 0).complete
+    media = [r.url.path for r in server.requests if r.url.host == "upload.wikimedia.org"]
+    assert media == [media_path(tasks[-1])]
 
 
 def test_repeated_long_429_cooldowns_stop_the_source(tmp_path):

@@ -2,8 +2,9 @@
 
 The match calibrator (`convex/lib/calibrator/`) is a logistic regression over the fixed
 feature vector produced by `featurize()`. Its weights ship as versioned constants in
-`convex/lib/calibrator/weights.ts`; `CALIBRATOR_V1` holds hand-set priors until the
-training job (plan 02.09) emits trained values.
+`convex/lib/calibrator/weights.ts`; `CALIBRATOR_V2` is the default trained on 5,500
+paintings. The fitted configuration and its evaluation limits are recorded in
+[decision 009](../../docs/decisions/009-calibrator-v2.md).
 
 ## What the training job must emit
 

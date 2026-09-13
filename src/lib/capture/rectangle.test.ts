@@ -136,6 +136,19 @@ describe('selectCaptureQuad', () => {
     expect(selectCaptureQuad(null, still([], [{ quad: petitPalaisPainting, quadFill: 1.03 }]))).toBeNull();
   });
 
+  it.each([
+    { title: 'The Bedroom', quad: [[0.478, 0.268], [0.919, 0.339], [0.935, 0.774], [0.598, 0.846]] as Quad, quadFill: 1.004 },
+    { title: 'La Grande Jatte', quad: [[0.764, 0.115], [0.903, 0.165], [0.951, 0.849], [0.784, 0.883]] as Quad, quadFill: 0.981 },
+  ])('keeps the whole $title image when a small interior subject lifts without a painting boundary', ({ quad, quadFill }) => {
+    // iPhone 16 Pro detections on the original collection images: the bed and a figure, respectively.
+    expect(selectCaptureQuad(null, still([], [{ quad, quadFill }]))).toBeNull();
+  });
+
+  it('accepts a small lifted painting when a rectangle corroborates its boundary', () => {
+    const painting = toQuad(box(0.3, 0.3, 0.7, 0.6));
+    expect(selectCaptureQuad(null, still([painting], [{ quad: painting, quadFill: 1.004 }]))).toEqual(painting);
+  });
+
   it('prefers the subject under the preview quad and drops subjects cut off by the image edge', () => {
     // Alte Pinakothek Room XIII (Mattes, CC BY-SA 3.0), cropped around the left wall: two framed paintings lifted.
     const left: Quad = [[0.2076, 0.1839], [0.5967, 0.2334], [0.5801, 0.8001], [0.1835, 0.8538]];

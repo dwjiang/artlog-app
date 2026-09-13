@@ -17,7 +17,8 @@ export const RUN_PAGE_SIZE = 200;
 export const MULTI_VIEW_PAGE_SIZE = 100;
 const PAGE_ITEMS = 64;
 const PAGE_BYTES = 4 * 1024 * 1024;
-// A contribution can approach the 1 MiB document limit; leave room for reads and writes around it.
+// Each backer carries a full embedding and is re-indexed as a vector row; small batches keep a
+// popular work's set within one mutation's read and write budget.
 const PARTNER_BATCH_SIZE = 8;
 const PENDING_BATCH_SIZE = 8;
 export const CONTRIBUTION_PLACEMENT_CONFIDENCE = 0.7;
@@ -126,8 +127,11 @@ export const apply = internalMutation({
     for (const row of set) {
       await ctx.db.insert('vectors', { objectId, modelVersion: row.modelVersion, source: 'user', vector: row.vector });
     }
+    if (!candidate.orbStorageId || !candidate.orbSha256 || !await ctx.db.system.get('_storage', candidate.orbStorageId)) {
+      throw new ConvexError({ code: 'reference_descriptors_required' });
+    }
     await ctx.db.insert('descriptors', {
-      objectId, descriptors: candidate.descriptors, keypoints: candidate.keypoints, keypointCount: candidate.keypointCount,
+      objectId, storageId: candidate.orbStorageId, sha256: candidate.orbSha256, keypointCount: candidate.keypointCount,
       inputSize: model.inputSize, extractedFrom: `contribution:${candidate._id}`,
     });
     for (const row of set) {

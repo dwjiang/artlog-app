@@ -25,7 +25,7 @@ Judging runs through a TestFlight public link (§2). TestFlight external testing
 
 ## Current state
 
-- `eas.json` profiles (01.04); `ios.bundleIdentifier`, usage strings, entitlement (01.04); model fetched by `eas-build-pre-install` (03.03); Convex prod deployment not yet created (`npx convex deploy` creates/pushes prod; env vars are per deployment).
+- `eas.json` profiles (01.04); `ios.bundleIdentifier`, usage strings, entitlement (01.04); model fetched by `eas-build-pre-install` (03.03). Updated 2026-09-13: production `admired-goldfinch-660` already existed empty. Backend/schema with v2 and all 19 environment settings are now deployed; the 10,000-painting corpus import, full byte/reference audit, and authenticated recognition checks passed. See [the release runbook](../../runbooks/release.md).
 - Convex env var names (04.04+): `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `APP_ATTEST_REQUIRED`, `APP_ATTEST_APP_ID`, `APP_ATTEST_ALLOW_DEV`, `SUPPORTED_MODEL_VERSIONS`, `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH`, `FLAG_RIGHT_NOW`, `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP`, `NEBIUS_API_KEY`, `TAVILY_API_KEY`, `LABEL_VL_MODEL`, `DOCENT_MODEL`, `FACT_SHEET_MODEL`, `MODERATION_MODEL`, `APPLE_BUNDLE_ID`.
 - EAS facts: free tier 15 iOS builds/month; `eas build --platform ios --profile production`; `eas submit --platform ios --latest` (needs `ascAppId`/Apple credentials in `eas.json` `submit.production.ios` or an ASC API key); the 200 MB figure is the cellular-download prompt threshold, not a hard limit.
 
@@ -39,9 +39,9 @@ Judging runs through a TestFlight public link (§2). TestFlight external testing
 
 ### Step 1: Production Convex deployment and env
 
-`npx convex deploy` (creates prod for the project) then `npx convex env set --prod NAME value` for every variable above (`APP_ATTEST_REQUIRED=true`, `APP_ATTEST_ALLOW_DEV=false`, `FLAG_RIGHT_NOW=on` for release / `off` during museum testing, caps per 00.04/00.07). Push the index to prod (plan 02.05's `push.py` against the prod URL with a prod deploy key) or promote data via `npx convex export`/`import` from dev (document the choice). Set `EXPO_PUBLIC_CONVEX_URL` for the production build via EAS environment variables (`eas env:create --environment production --name EXPO_PUBLIC_CONVEX_URL --value <prod url>`), and `MODEL_ASSET_URL`.
+The backend portion was completed on 2026-09-13: production code/schema, independent authentication keys, all environment settings, the museum directory, and the verified 10,000-painting package. The import method, checks, and explicit deployment-target commands are in [the release runbook](../../runbooks/release.md). Keep `FLAG_RIGHT_NOW=off` until decision 007's acceptance review is complete. Production build configuration remains pending: set its EAS `EXPO_PUBLIC_CONVEX_URL` to `https://admired-goldfinch-660.convex.cloud` and configure the model asset settings before the requested TestFlight build.
 
-**Verify**: `npx convex env list --prod` shows every name; `curl <prod url>` health via the app pointed at prod (`EXPO_PUBLIC_CONVEX_URL` override) shows "connected".
+**Verify**: with the runbook's target file, `npx convex env list --prod --env-file .context/production-target.env` shows every name and `npx convex run health:ping --prod --env-file .context/production-target.env` succeeds. Backend checks passed; the installed production iPhone build must still show "connected".
 
 ### Step 2: Remove dev-only surface
 
@@ -73,10 +73,10 @@ No automated tests; the verification is the installed TestFlight build identifyi
 
 ## Done criteria
 
-- [ ] Prod deployment configured with every env var; `APP_ATTEST_REQUIRED=true`
+- [x] Prod deployment configured with every env var; `APP_ATTEST_REQUIRED=true`
 - [ ] Production build < 200 MB; TestFlight internal install works; external review submitted; public link (when approved) in README
-- [ ] `docs/runbooks/release.md` exists
-- [ ] `docs/plans/README.md` updated
+- [x] `docs/runbooks/release.md` exists
+- [x] `docs/plans/README.md` updated
 
 ## STOP conditions
 

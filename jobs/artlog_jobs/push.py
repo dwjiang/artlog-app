@@ -3,17 +3,20 @@ import hashlib
 import json
 import logging
 import time
+from collections import Counter, defaultdict
+from itertools import zip_longest
 from pathlib import Path
 
 from .config import Settings, get_settings, setup_logging
 from .convex_writer import ConvexWriter, is_size_rejection
 from .features import Features, file_hash, read_jsonl
-from .model_version import MODEL_VERSION
+from .model_version import EMBEDDING_DIM, MODEL_VERSION
+from .orb import DESCRIPTOR_BYTES, KEYPOINT_BYTES
 from .sources.fetch import write_json
 
 log = logging.getLogger(__name__)
 STAGES = ("artworks", "objects", "placements", "vectors", "descriptors", "penalties")
-MUTATIONS = dict(
+FUNCTIONS = dict(
     zip(
         STAGES,
         (
@@ -28,10 +31,31 @@ MUTATIONS = dict(
     )
 )
 BATCH_SIZES = dict.fromkeys(STAGES, 500) | {"vectors": 250, "descriptors": 200}
+DEFAULT_CORPUS_LIMIT = 1000
 
 
 class BatchSizeReduced(RuntimeError):
     pass
+
+
+def select_objects(keys: list[str], limit: int) -> set[str]:
+    if limit < 1:
+        raise ValueError("--limit must be positive")
+    sources = defaultdict(list)
+    for key in sorted(set(keys), key=lambda key: (hashlib.sha256(key.encode()).digest(), key)):
+        sources[key.split(":", 1)[0]].append(key)
+    selected = set()
+    for group in zip_longest(*(sources[source] for source in sorted(sources))):
+        for key in group:
+            if key is not None:
+                selected.add(key)
+                if len(selected) == limit:
+                    return selected
+    return selected
+
+
+def checkpoint_name(limit: int | None) -> str:
+    return f"push-small-{limit}.json" if limit is not None else "push.json"
 
 
 class Corpus:
@@ -39,23 +63,19 @@ class Corpus:
         if limit is not None and limit < 1:
             raise ValueError("--limit must be positive")
         self.directory = directory
+        self.limit = limit
         self.stats = json.loads((directory / "stats.json").read_text())
         if limit is None and not self.stats["completeFeatures"]:
             raise ValueError(
-                "Full push requires all feature shards; use --limit for a smoke import"
+                "Full push requires all feature shards from a full build; use a small corpus"
             )
         for name, digest in self.stats["files"].items():
             if file_hash(directory / name) != digest:
-                raise ValueError(f"Merged input changed: {name}; rerun dedupe and hubs")
-        summary = json.loads((directory / "penalties.summary.json").read_text())
-        if summary["inputFiles"] != self.stats["files"] or summary["penaltiesSha256"] != file_hash(
-            directory / "penalties.jsonl"
-        ):
-            raise ValueError("Hub penalties belong to different input; rerun hubs")
+                raise ValueError(f"Merged input changed: {name}; rerun dedupe")
         self.features = Features(directory)
         self.rows = {
             name: read_jsonl(directory / f"{name}.jsonl")
-            for name in ("artworks", "objects", "placements", "penalties")
+            for name in ("artworks", "objects", "placements")
         }
         self.rows["vectors"] = read_jsonl(directory / "vector-index.jsonl")
         self.rows["descriptors"] = read_jsonl(directory / "descriptor-index.jsonl")
@@ -71,13 +91,15 @@ class Corpus:
             if target and (target not in self.objects or "mergedIntoKey" in self.objects[target]):
                 raise ValueError("Merge targets must be surviving objects")
         self.rows["objects"].sort(key=lambda row: ("mergedIntoKey" in row, row["key"]))
+        # Hub scoring is deferred; also clear prior corpus penalties when reimporting.
+        self.rows["penalties"] = [
+            {"objectKey": row["key"], "calibratorPenalty": 0} for row in self.rows["objects"]
+        ]
         for stage in STAGES[:-1]:
             if len(self.rows[stage]) != self.stats[stage]:
                 raise ValueError(f"Merged {stage} count disagrees with stats.json")
         if limit is not None:
-            selected = set(
-                list(dict.fromkeys(row["objectKey"] for row in self.rows["vectors"]))[:limit]
-            )
+            selected = select_objects([row["objectKey"] for row in self.rows["vectors"]], limit)
             # Keep all original records and views belonging to each selected survivor.
             selected |= {
                 row["key"] for row in self.objects.values() if row.get("mergedIntoKey") in selected
@@ -97,12 +119,36 @@ class Corpus:
             json.dumps(
                 {
                     "files": self.stats["files"],
-                    "penalties": summary["penaltiesSha256"],
+                    "hubPenalty": 0,
                     "limit": limit,
+                    "selectedSurvivors": sorted({row["objectKey"] for row in self.rows["vectors"]}),
                 },
                 sort_keys=True,
             ).encode()
         ).hexdigest()
+
+    def plan(self) -> dict:
+        survivors = sorted({row["objectKey"] for row in self.rows["vectors"]})
+        venues = {row["ownerKey"] for row in self.rows["objects"] if row.get("ownerKey")}
+        venues.update(row["venueKey"] for row in self.rows["placements"])
+        return {
+            "limit": self.limit,
+            "hubPenalty": 0,
+            "fingerprint": self.fingerprint,
+            "inputCounts": {stage: len(self.rows[stage]) for stage in STAGES},
+            "selectedSurvivors": survivors,
+            "sources": dict(sorted(Counter(key.split(":", 1)[0] for key in survivors).items())),
+            "requiredVenueKeys": sorted(venues),
+            "featureBytes": {
+                "embeddingsFloat32": len(self.rows["vectors"]) * EMBEDDING_DIM * 4,
+                "embeddingsFloat64": len(self.rows["vectors"]) * EMBEDDING_DIM * 8,
+                "orb": sum(
+                    self.features.locations[row["viewKey"]]["keypointCount"]
+                    * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
+                    for row in self.rows["descriptors"]
+                ),
+            },
+        }
 
     @staticmethod
     def identity(stage: str, row: dict) -> dict:
@@ -180,7 +226,8 @@ def run(corpus: Corpus, writer: ConvexWriter, *, checkpoint: Path, deployment_ur
             rows = corpus.batch(stage, progress["offset"], size)
             started = time.monotonic()
             try:
-                response = writer.mutation(f"ingest:{MUTATIONS[stage]}", {"rows": rows})
+                call = writer.action if stage == "descriptors" else writer.mutation
+                response = call(f"ingest:{FUNCTIONS[stage]}", {"rows": rows})
             except Exception as error:
                 size_rejection = is_size_rejection(error)
                 operation_limit = "timed out performing too many system operations" in str(error)
@@ -238,20 +285,43 @@ def run(corpus: Corpus, writer: ConvexWriter, *, checkpoint: Path, deployment_ur
     return report
 
 
-def main():
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(
         description="Push a merged corpus to Convex, resuming each stage"
     )
     parser.add_argument("--in", dest="directory", type=Path, required=True)
-    parser.add_argument(
-        "--limit", type=int, help="smoke: select the first N surviving objects and all their views"
+    size = parser.add_mutually_exclusive_group()
+    size.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_CORPUS_LIMIT,
+        help="sample N surviving objects across sources (default: 1000)",
+    )
+    size.add_argument("--full", action="store_true", help="explicitly import the full corpus")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help="print the local import plan only")
+    mode.add_argument(
+        "--export", type=Path, help="write a portable small corpus locally; no upload"
     )
     parser.add_argument("--checkpoint", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    limit = None if args.full else args.limit
+    if limit is not None and limit < 1:
+        parser.error("--limit must be positive")
+    if args.export and args.full:
+        parser.error("--export is for small corpora; omit --full")
+    corpus = Corpus(args.directory, limit=limit)
+    if args.dry_run:
+        print(json.dumps(corpus.plan(), indent=2))
+        return
+    if args.export:
+        from .subset import export
+
+        print(json.dumps(export(corpus, args.export), indent=2))
+        return
     settings: Settings = get_settings()
     setup_logging(settings)
-    corpus = Corpus(args.directory, limit=args.limit)
-    path = args.checkpoint or args.directory / ("push-smoke.json" if args.limit else "push.json")
+    path = args.checkpoint or args.directory / checkpoint_name(limit)
     log.info("Import target: %s", settings.convex_url)
     print(
         json.dumps(

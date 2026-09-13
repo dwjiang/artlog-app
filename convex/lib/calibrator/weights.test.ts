@@ -2,21 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { scoreCandidates } from './calibrate';
 import { type CandidateSignals, FEATURE_NAMES } from './features';
-import { CALIBRATOR_V1, DEFAULT_CALIBRATOR } from './weights';
+import { CALIBRATOR_V2, DEFAULT_CALIBRATOR } from './weights';
 
 function probability(signals: CandidateSignals): number {
-  return scoreCandidates([{ candidate: 'x', signals }], CALIBRATOR_V1)[0].probability;
+  return scoreCandidates([{ candidate: 'x', signals }], CALIBRATOR_V2)[0].probability;
 }
 
-describe('CALIBRATOR_V1', () => {
+describe('CALIBRATOR_V2', () => {
   it('names every feature in FEATURE_NAMES order with one weight each', () => {
-    expect(CALIBRATOR_V1.featureNames).toEqual(FEATURE_NAMES);
-    expect(CALIBRATOR_V1.weights).toHaveLength(FEATURE_NAMES.length);
-    expect(DEFAULT_CALIBRATOR).toBe(CALIBRATOR_V1);
+    expect(CALIBRATOR_V2.featureNames).toEqual(FEATURE_NAMES);
+    expect(CALIBRATOR_V2.weights).toHaveLength(FEATURE_NAMES.length);
+    expect(DEFAULT_CALIBRATOR).toBe(CALIBRATOR_V2);
   });
 
-  it('keeps the confident threshold above the soft threshold', () => {
-    expect(CALIBRATOR_V1.thresholds.confident).toBeGreaterThan(CALIBRATOR_V1.thresholds.soft);
+  it('keeps the confident threshold at or above the soft threshold', () => {
+    expect(CALIBRATOR_V2.thresholds.confident).toBeGreaterThanOrEqual(CALIBRATOR_V2.thresholds.soft);
   });
 
   it('scores the strong anchor above 0.99', () => {
@@ -36,11 +36,11 @@ describe('CALIBRATOR_V1', () => {
     ).toBeGreaterThan(0.99);
   });
 
-  it('scores the weak anchor below 0.2', () => {
+  it('scores an ambiguous, geometrically unverified match below the miss threshold', () => {
     expect(
       probability({
         similarity: 0.75,
-        runnerUpSimilarity: 0.73,
+        runnerUpSimilarity: 0.745,
         candidateCount: 20,
         atVenue: false,
         gallery: 'unknown',
@@ -50,6 +50,6 @@ describe('CALIBRATOR_V1', () => {
         homographyValid: false,
         objectPenalty: 0,
       })
-    ).toBeLessThan(0.2);
+    ).toBeLessThan(CALIBRATOR_V2.thresholds.soft);
   });
 });

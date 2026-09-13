@@ -4,6 +4,7 @@ import model from '../shared/model-version.json';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { runPipeline } from './lib/identifyPipeline';
+import { loadOrb } from './lib/orbStorage';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { loadCurrentPlacement } from './lib/placements';
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
@@ -135,7 +136,12 @@ it.each(['multiple', 'unknown'] as const)('approving %s creates a physical objec
   const candidates = await t.query(internal.identify.loadCandidates, {
     vectorIds: [vectors[0]._id], scores: [0.99], now: NOW + DAY,
   });
-  expect(runPipeline({ candidates, query: pair.query, venueId, now: NOW + DAY, inputSize: model.inputSize }).decision.outcome)
+  const reference = await t.run((ctx) => ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).unique());
+  expect(candidates[0].orbStorageId).toBe(reference!.storageId);
+  const hydrated = await t.run(async (ctx) => Promise.all(candidates.map(async (candidate) => ({
+    ...candidate, ...await loadOrb(ctx, candidate.orbStorageId!, candidate.keypointCount!),
+  }))));
+  expect(runPipeline({ candidates: hydrated, query: pair.query, venueId, now: NOW + DAY, inputSize: model.inputSize }).decision.outcome)
     .toBe('confident');
   expect(await t.run((ctx) => ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).unique()))
     .toMatchObject({ venueId: home, source: 'feed' });
@@ -143,12 +149,13 @@ it.each(['multiple', 'unknown'] as const)('approving %s creates a physical objec
   expect(await t.query(internal.ingest.counts, {})).toMatchObject({ objects: 1, placements: 1, vectors: 2 });
 });
 
-it('refuses to index a new physical object without reference descriptors', async () => {
+it.each(['row', 'file'])('refuses to index a new physical object without its reference %s', async (missing) => {
   const { t, ready, objectId } = await fixture('multiple');
   const p = await ready();
   await t.run(async (ctx) => {
     const reference = (await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).unique())!;
-    await ctx.db.delete(reference._id);
+    if (missing === 'row') await ctx.db.delete(reference._id);
+    else await ctx.storage.delete(reference.storageId);
   });
   await expect(t.mutation(internal.placements.reviewPlacement, { proposalId: p._id, decision: 'approve', reviewer: 'curator' }))
     .rejects.toMatchObject({ data: { code: 'reference_descriptors_required' } });

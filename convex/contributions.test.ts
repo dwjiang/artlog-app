@@ -7,6 +7,7 @@ import type { Id } from './_generated/dataModel';
 import type { ActionCtx } from './_generated/server';
 import { contribute as contributeAction } from './contributions';
 import { labelField } from './lib/labelVerify';
+import { loadOrb, storeOrb } from './lib/orbStorage';
 import { encodeOrbFeatures } from '../shared/orb';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
@@ -76,7 +77,7 @@ describe('withdraw', () => {
       const own = (await ctx.db.get(contributionId))!;
       const partnerId = await seedContribution(ctx, {
         deviceId: partner.deviceId, venueId: own.venueId, vector: testVector(0.95), cropStorageId: partnerCrop,
-        descriptors: new Uint8Array([1, 2, 3]).buffer, keypoints: new Uint8Array([4, 5]).buffer, keypointCount: 2,
+        descriptors: new Uint8Array(64).fill(1).buffer, keypoints: new Float32Array(8).buffer, keypointCount: 2,
       });
       const { objectId, vectorId } = await seedArtworkWithObject(ctx, {
         object: {
@@ -90,7 +91,7 @@ describe('withdraw', () => {
         await ctx.db.patch(row._id, { status: 'promoted', promotedObjectId: objectId });
       }
       await ctx.db.insert('descriptors', {
-        objectId, descriptors: own.descriptors, keypoints: own.keypoints, keypointCount: own.keypointCount,
+        objectId, storageId: own.orbStorageId!, sha256: own.orbSha256!, keypointCount: own.keypointCount,
         inputSize: model.inputSize, extractedFrom: `contribution:${contributionId}`,
       });
       return { partnerId, objectId };
@@ -109,6 +110,8 @@ describe('withdraw', () => {
     const { t, user, contribute, cropStorageId } = await fixture();
     const { contributionId } = await contribute();
     const { partner, partnerId, partnerCrop, objectId } = await promotedWithPartner(t, contributionId);
+    const ownOrb = (await t.run((ctx) => ctx.db.get(contributionId)))!.orbStorageId!;
+    const partnerOrb = (await t.run((ctx) => ctx.db.get(partnerId)))!.orbStorageId!;
     await user.as.mutation(api.contributions.withdraw, { contributionId });
     const { object, vectors, descriptors } = await objectState(t, objectId);
     expect(object).toMatchObject({
@@ -117,6 +120,9 @@ describe('withdraw', () => {
     });
     expect(vectors).toEqual([testVector(0.95)]);
     expect(descriptors).toMatchObject({ extractedFrom: `contribution:${partnerId}`, keypointCount: 2 });
+    expect(descriptors.storageId).toBe(partnerOrb);
+    expect(await stored(t, ownOrb)).toBe(false);
+    expect(await stored(t, partnerOrb)).toBe(true);
     expect(await stored(t, cropStorageId)).toBe(false);
     expect(await stored(t, partnerCrop)).toBe(true);
     expect(await t.run((ctx) => ctx.db.get(contributionId))).toMatchObject({ status: 'rejected', rejectedReason: 'withdrawn' });
@@ -142,10 +148,13 @@ describe('withdraw', () => {
   it('withdraws a private contribution, deletes its crop and tolerates a retry', async () => {
     const { t, user, contribute, cropStorageId } = await fixture();
     const { contributionId } = await contribute();
+    const orbStorageId = (await t.run((ctx) => ctx.db.get(contributionId)))!.orbStorageId!;
     await user.as.mutation(api.contributions.withdraw, { contributionId });
     await user.as.mutation(api.contributions.withdraw, { contributionId });
     expect(await t.run((ctx) => ctx.db.get(contributionId))).toMatchObject({ status: 'rejected', rejectedReason: 'withdrawn' });
     expect(await t.run((ctx) => ctx.storage.get(cropStorageId))).toBeNull();
+    expect(await t.run((ctx) => ctx.storage.get(orbStorageId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(contributionId))).not.toHaveProperty('orbStorageId');
     expect(await user.as.query(api.contributions.mine, {})).toMatchObject([{ rejectedReason: 'withdrawn' }]);
   });
 
@@ -274,7 +283,7 @@ describe('contribute', () => {
   });
 
   it('stores a private contribution with the scan vector, the verified evidence and the consented crop', async () => {
-    const { user, venueId, scanId, cropStorageId, contribute, rows } = await fixture();
+    const { t, user, venueId, scanId, cropStorageId, contribute, rows } = await fixture();
     const result = await contribute();
     expect(result).toEqual({ contributionId: expect.any(String), status: 'private' });
     const [row] = await rows();
@@ -287,7 +296,9 @@ describe('contribute', () => {
         date: { value: '1916', edited: false, evidence: 'ocr' },
       },
     });
-    expect(row.descriptors.byteLength).toBe(features.descriptors.byteLength);
+    expect(row).not.toHaveProperty('descriptors');
+    expect(row).not.toHaveProperty('keypoints');
+    expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
     expect(row.rejectedReason).toBeUndefined();
     const mine = await user.as.query(api.contributions.mine, {});
     expect(mine).toMatchObject([{ contributionId: result.contributionId, status: 'private', venueId, scanId, wikidataId: 'Q3374376' }]);
@@ -355,7 +366,9 @@ describe('contribute', () => {
     const [row] = await rows();
     expect(row).toMatchObject({ _id: result.contributionId, status: 'rejected', rejectedReason: 'duplicate' });
     expect(row.cropStorageId).toBeUndefined();
+    expect(row.orbStorageId).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.system.get('_storage', cropStorageId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toEqual([]);
   });
 
   it('ignores indexed vectors below the duplicate threshold or from another model version', async () => {
@@ -429,7 +442,7 @@ describe('contribute', () => {
     };
     for (let batch = 0; batch < 12; batch++) {
       await t.run(async (ctx) => {
-        for (let index = 1; index <= 50; index++) await ctx.db.insert('contributions', {
+        for (let index = 1; index <= 50; index++) await seedContribution(ctx, {
           deviceId: user.deviceId, venueId: historyVenue, vector: vectorAt(batch * 50 + index), modelVersion: model.modelVersion,
           descriptors: new ArrayBuffer(16_000), keypoints: new ArrayBuffer(8_000), keypointCount: 500,
           fields: {
@@ -448,12 +461,21 @@ describe('contribute', () => {
   });
 
   it('accepts only one of two concurrent duplicate scans', async () => {
-    const { t, user, venueId, contribute, rows } = await fixture();
+    const { t, user, venueId, args, sign, rows } = await fixture();
     const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId, labelFlow: verifiedFlow() }));
     const cropStorageId = await storeCrop(t);
-    const results = await Promise.all([contribute(), contribute({ scanId, cropStorageId })]);
+    const contribute = async (overrides: Partial<typeof args>) => {
+      const signed = await sign();
+      return user.as.action((ctx) => runContribute({
+        ...ctx,
+        // convex-test's action storage writes race with concurrent mutation transactions.
+        storage: { ...ctx.storage, store: (blob) => t.run((transaction) => transaction.storage.store(blob)) },
+      }, { ...args, ...overrides, ...signed }));
+    };
+    const results = await Promise.all([contribute({}), contribute({ scanId, cropStorageId })]);
     expect(results.map((result) => result.status).sort()).toEqual(['private', 'rejected']);
     expect((await rows()).filter((row) => row.status === 'private')).toHaveLength(1);
+    expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toHaveLength(2);
   });
 
   it('refuses a stale duplicate check and retries the commit without another authorization', async () => {
@@ -463,7 +485,9 @@ describe('contribute', () => {
     const signed = await sign();
     await user.as.mutation(internal.contributions.authorize, { scanId, cropStorageId, fields, ...signed });
     const first = await contribute();
-    const { consent: _consent, ...rest } = args;
+    const { consent: _consent, descriptors, keypoints, ...submission } = args;
+    const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
+    const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
     await expect(user.as.mutation(internal.contributions.commit, {
       ...rest, scanId, cropStorageId, generation: 0, keypointCount: pair.query.count,
       duplicate: false, previousContributionId: null,
@@ -522,11 +546,13 @@ describe('contribute', () => {
   });
 
   it('ignores a contribution whose scan was restarted meanwhile', async () => {
-    const { user, args, sign, rows } = await fixture();
+    const { t, user, args, sign, rows } = await fixture();
     await user.as.mutation(internal.contributions.authorize, {
       scanId: args.scanId, cropStorageId: args.cropStorageId, fields, ...(await sign()),
     });
-    const { consent: _consent, ...rest } = args;
+    const { consent: _consent, descriptors, keypoints, ...submission } = args;
+    const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
+    const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
     await expect(user.as.mutation(internal.contributions.commit, {
       ...rest, generation: 1, keypointCount: pair.query.count, duplicate: false, previousContributionId: null,
     })).rejects.toMatchObject({ data: { code: 'scan_restarted' } });

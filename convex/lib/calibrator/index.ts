@@ -13,4 +13,4 @@ export {
   featurize,
   type GalleryRelation,
 } from './features';
-export { CALIBRATOR_V1, type CalibratorConfig, DEFAULT_CALIBRATOR } from './weights';
+export { CALIBRATOR_V2, type CalibratorConfig, DEFAULT_CALIBRATOR } from './weights';

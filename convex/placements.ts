@@ -154,7 +154,9 @@ export const reviewPlacement = internalMutation({
         }
       } else {
         const reference = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).unique();
-        if (!reference) throw new ConvexError({ code: 'reference_descriptors_required' });
+        if (!reference || !await ctx.db.system.get('_storage', reference.storageId)) {
+          throw new ConvexError({ code: 'reference_descriptors_required' });
+        }
         objectId = await ctx.db.insert('objects', {
           key: `user:proposal:${proposalId}`, artworkId: object.artworkId, ownerId: venue._id,
           source: 'user', sourceId: proposalId, provenance: { contributionIds: [], deviceIds },
@@ -165,7 +167,7 @@ export const reviewPlacement = internalMutation({
           await ctx.db.insert('vectors', { objectId, modelVersion: scan.modelVersion, source: 'user_scan', vector: scan.vector });
         }
         await ctx.db.insert('descriptors', {
-          objectId, descriptors: reference.descriptors, keypoints: reference.keypoints, keypointCount: reference.keypointCount,
+          objectId, storageId: reference.storageId, sha256: reference.sha256, keypointCount: reference.keypointCount,
           inputSize: reference.inputSize, extractedFrom: reference.extractedFrom,
         });
         await bumpCounter(ctx, 'objects', 1);

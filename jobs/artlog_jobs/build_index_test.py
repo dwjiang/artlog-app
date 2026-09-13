@@ -505,20 +505,38 @@ def test_stage_parsing_and_projection():
     assert result["wallClockDays"] == pytest.approx((100 + 396_000 / 10 / 3600) / 24, abs=0.01)
 
 
-def test_dedupe_hubs_push_run_in_dependency_order_without_model_loading(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "options, expected_limit", [({}, 1000), ({"push_limit": 25}, 25), ({"push_limit": None}, None)]
+)
+def test_dedupe_hubs_push_run_in_dependency_order_without_model_loading(
+    tmp_path, monkeypatch, options, expected_limit
+):
     from artlog_jobs import convex_writer, dedupe, hubs, push
 
     seen = []
     monkeypatch.setattr(dedupe, "run", lambda *args: seen.append("dedupe"))
     monkeypatch.setattr(hubs, "run", lambda *args: seen.append("hubs"))
-    monkeypatch.setattr(push, "Corpus", lambda *args, **kwargs: object())
+
+    def corpus(directory, *, limit):
+        assert limit == expected_limit
+        return object()
+
+    monkeypatch.setattr(push, "Corpus", corpus)
     monkeypatch.setattr(convex_writer, "ConvexWriter", lambda *args: object())
-    monkeypatch.setattr(push, "run", lambda *args, **kwargs: seen.append("push"))
+
+    def push_corpus(*args, checkpoint, **kwargs):
+        assert checkpoint.name == (
+            f"push-small-{expected_limit}.json" if expected_limit is not None else "push.json"
+        )
+        seen.append("push")
+
+    monkeypatch.setattr(push, "run", push_corpus)
     settings = Settings(_env_file=None, scratch_dir=tmp_path)
     run(
         parse_stages("push,hubs,dedupe"),
         settings=settings,
         load=lambda *_: pytest.fail("postprocessing must not load the embedder"),
+        **options,
     )
     assert seen == ["dedupe", "hubs", "push"]
 

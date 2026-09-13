@@ -111,7 +111,8 @@ def test_requires_credentials_without_an_injected_client():
 @pytest.mark.parametrize("batch_size", [50, 500])
 def test_maximum_descriptor_sets_fit_the_payload_limit_and_checkpoint_every_row(batch_size):
     class DescriptorClient(FakeClient):
-        def mutation(self, name, args=None):
+        def action(self, name, args=None):
+            assert name == "ingest:upsertDescriptors"
             self.calls.append((name, args))
             encoded = json.dumps(convex_to_json(args)).encode()
             assert len(encoded) < 16 * 1024 * 1024

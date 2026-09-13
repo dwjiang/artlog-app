@@ -64,10 +64,10 @@ class Index:
         return digest.hexdigest()
 
 
-def _pages(writer: ConvexWriter, name: str, args: dict):
+def _pages(call, name: str, args: dict):
     cursor = None
     while True:
-        result = writer.query(name, args | ({"cursor": cursor} if cursor is not None else {}))
+        result = call(name, args | ({"cursor": cursor} if cursor is not None else {}))
         yield result["page"]
         if result["isDone"]:
             return
@@ -81,7 +81,7 @@ def load_index(writer: ConvexWriter, *, model_version: str = MODEL_VERSION) -> I
     chunks = []
     object_ids = []
     objects = {}
-    for page in _pages(writer, "ingest:exportVectors", {"modelVersion": model_version}):
+    for page in _pages(writer.query, "ingest:exportVectors", {"modelVersion": model_version}):
         if not page:
             continue
         chunk = np.asarray([row["vector"] for row in page], dtype=np.float32)
@@ -102,7 +102,7 @@ def load_index(writer: ConvexWriter, *, model_version: str = MODEL_VERSION) -> I
     if not chunks:
         raise ValueError(f"no indexed vectors for {model_version}; finish plan 02.05 first")
     descriptors = {}
-    for page in _pages(writer, "ingest:exportDescriptors", {}):
+    for page in _pages(writer.action, "ingest:exportDescriptors", {}):
         for row in page:
             if row["objectId"] not in objects:
                 continue

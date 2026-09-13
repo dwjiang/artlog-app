@@ -1,4 +1,5 @@
 import gzip
+import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -158,6 +159,78 @@ def test_gives_up_after_max_retries_and_returns_the_last_response():
     assert c.get("https://museum.example/x").status_code == 503
 
 
+@pytest.mark.parametrize(
+    "error_type", [httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadTimeout]
+)
+def test_network_failures_retry_with_backoff_and_log_recovery(error_type, caplog):
+    clock = FakeClock()
+    attempts = []
+
+    def handler(request):
+        attempts.append(clock())
+        if len(attempts) <= 5:
+            raise error_type("server disconnected", request=request)
+        return httpx.Response(200, text="recovered")
+
+    caplog.set_level(logging.INFO)
+    with client(handler, robots=False, clock=clock) as c:
+        assert c.get("https://museum.example/x").text == "recovered"
+
+    assert len(attempts) == 6
+    for delay, expected in zip(clock.sleeps, [2, 4, 8, 16, 32], strict=True):
+        assert expected * 0.8 <= delay <= expected * 1.2
+    assert "retrying 5/5" in caplog.text
+    assert "https://museum.example/x recovered after 5 network retries" in caplog.text
+
+
+def test_persistent_disconnect_exhausts_five_retries_and_reports_the_error(caplog):
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        raise httpx.RemoteProtocolError("server disconnected", request=request)
+
+    with (
+        client(handler, robots=False) as c,
+        pytest.raises(httpx.RemoteProtocolError, match="server disconnected"),
+    ):
+        c.get("https://museum.example/x")
+
+    assert len(attempts) == 6
+    assert "https://museum.example/x failed after 5 network retries" in caplog.text
+
+
+def test_network_retries_still_observe_rate_limits_and_server_cooldowns():
+    clock = FakeClock()
+    attempts = []
+
+    def handler(request):
+        attempts.append(clock())
+        if len(attempts) == 1:
+            raise httpx.ReadError("connection reset", request=request)
+        if len(attempts) == 2:
+            return httpx.Response(429, headers={"Retry-After": "30"})
+        return httpx.Response(200)
+
+    with client(handler, robots=False, clock=clock, per_host_rps=0.1) as c:
+        assert c.get("https://museum.example/x").status_code == 200
+
+    assert attempts == pytest.approx([1000, 1010, 1040])
+
+
+def test_local_protocol_errors_are_not_retried():
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        raise httpx.LocalProtocolError("invalid request", request=request)
+
+    with client(handler, robots=False) as c, pytest.raises(httpx.LocalProtocolError):
+        c.get("https://museum.example/x")
+
+    assert len(attempts) == 1
+
+
 def test_conditional_get_replays_the_cached_body_on_304():
     seen_headers = []
 
@@ -179,6 +252,27 @@ def test_conditional_get_replays_the_cached_body_on_304():
     assert second.extensions["from_cache"] is True
     assert seen_headers[1]["if-none-match"] == '"v1"'
     assert seen_headers[1]["if-modified-since"] == "Mon, 01 Jan 2024 00:00:00 GMT"
+
+
+@pytest.mark.parametrize("title", ["Painting – study".encode(), b"Peinture \xe9tude"])
+def test_conditional_get_preserves_raw_headers_from_cached_and_revalidated_responses(title):
+    def handler(request):
+        if "If-None-Match" in request.headers:
+            return httpx.Response(304, headers=[(b"x-title", title)])
+        return httpx.Response(
+            200,
+            content=b"painting",
+            headers=[(b"etag", b'"v1"'), (b"content-disposition", title)],
+        )
+
+    with client(handler, robots=False) as c:
+        c.get("https://museum.example/painting")
+        replay = c.get("https://museum.example/painting")
+
+    assert replay.content == b"painting"
+    assert replay.extensions["from_cache"]
+    assert (b"content-disposition", title) in replay.headers.raw
+    assert (b"x-title", title) in replay.headers.raw
 
 
 @pytest.mark.parametrize(
@@ -767,6 +861,29 @@ def test_stream_budget_counts_redirects_retries_and_compressed_bytes():
         assert sum(size for at, size in received if now - 10 < at <= now) <= budget
 
 
+@pytest.mark.parametrize("buffered", [True, False])
+@pytest.mark.parametrize("title", ["Painting – study".encode(), b"Peinture \xe9tude"])
+def test_bandwidth_limited_responses_preserve_non_ascii_and_repeated_headers(buffered, title):
+    headers = [
+        (b"content-disposition", title),
+        (b"set-cookie", b"first=1"),
+        (b"set-cookie", b"second=2"),
+    ]
+
+    def handler(request):
+        body = {"content": b"painting"} if buffered else {"stream": httpx.ByteStream(b"painting")}
+        return httpx.Response(200, headers=headers, **body)
+
+    clock = FakeClock()
+    limiter = BandwidthLimiter(0.08, clock=clock, sleep=clock.sleep)
+    with client(handler, clock=clock, robots=False, cache_max_bytes=0) as c:
+        response = c.get("https://media.example/painting", limiter=limiter)
+
+    assert response.content == b"painting"
+    assert (b"content-disposition", title) in response.headers.raw
+    assert response.headers.get_list("set-cookie") == ["first=1", "second=2"]
+
+
 def test_stream_failure_releases_its_reservation_and_closes_the_response():
     clock = FakeClock()
     closed = []
@@ -789,10 +906,9 @@ def test_stream_failure_releases_its_reservation_and_closes_the_response():
 
     limiter = BandwidthLimiter(0.08, clock=clock, sleep=clock.sleep)
     with client(handler, clock=clock, robots=False) as c:
-        with pytest.raises(httpx.ReadError):
-            c.get("https://media.example/broken", limiter=limiter)
+        assert c.get("https://media.example/broken", limiter=limiter).content == b"ok"
+        assert calls == 2
         assert closed == [True]
-        assert c.get("https://media.example/recovered", limiter=limiter).content == b"ok"
 
 
 @pytest.mark.parametrize("mbps,window", [(0, 10), (-1, 10), (1, 0), (0.01, 1)])

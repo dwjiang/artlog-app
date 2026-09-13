@@ -40,6 +40,7 @@ from .drift_check import (
 from .embed import BATCH_SIZE, WORKERS, embed_shard, update_manifest
 from .model import DEFAULT_FAKEQUANT, load_embedder, sha256_of
 from .polite_http import PoliteClient
+from .push import DEFAULT_CORPUS_LIMIT, checkpoint_name
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +92,7 @@ def run(
     *,
     settings: Settings,
     limit: int | None = None,
+    push_limit: int | None = DEFAULT_CORPUS_LIMIT,
     keep_images: bool = False,
     shard_size: int = SHARD_SIZE,
     rates: dict[str, float] | None = None,
@@ -105,6 +107,8 @@ def run(
     embed: Callable = embed_shard,
     drift: Callable | None = None,
 ) -> dict:
+    if push_limit is not None and push_limit < 1:
+        raise ValueError("--push-limit must be positive")
     if keep_images and limit is None:
         raise ValueError("--keep-images is only for debugging a --limit pilot")
     scratch = settings.scratch_dir
@@ -224,9 +228,9 @@ def run(
         from .push import run as push
 
         summary["push"] = push(
-            Corpus(merged, limit=limit),
+            Corpus(merged, limit=push_limit),
             ConvexWriter(settings),
-            checkpoint=merged / ("push-smoke.json" if limit else "push.json"),
+            checkpoint=merged / checkpoint_name(push_limit),
             deployment_url=settings.convex_url,
         )
     return summary
@@ -262,6 +266,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the index features in SCRATCH_DIR")
     parser.add_argument("--stage", type=parse_stages, default=list(STAGES[:3]))
     parser.add_argument("--limit", type=int, help="pilot: only the first N downloadable objects")
+    push_size = parser.add_mutually_exclusive_group()
+    push_size.add_argument(
+        "--push-limit",
+        type=int,
+        default=DEFAULT_CORPUS_LIMIT,
+        help="push only N surviving objects (default: 1000)",
+    )
+    push_size.add_argument(
+        "--full-corpus",
+        dest="push_limit",
+        action="store_const",
+        const=None,
+        help="explicitly push the full corpus",
+    )
     parser.add_argument("--keep-images", action="store_true", help="debugging a --limit pilot only")
     parser.add_argument("--shard-size", type=int, default=SHARD_SIZE)
     parser.add_argument(
@@ -280,6 +298,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.keep_images and args.limit is None:
         parser.error("--keep-images is refused without --limit")
+    if args.push_limit is not None and args.push_limit < 1:
+        parser.error("--push-limit must be positive")
     settings = get_settings()
     setup_logging(settings)
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -288,6 +308,7 @@ def main(argv: list[str] | None = None) -> int:
             args.stage,
             settings=settings,
             limit=args.limit,
+            push_limit=args.push_limit,
             keep_images=args.keep_images,
             shard_size=args.shard_size,
             rates=args.rate,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { decide, scoreCandidates, sigmoid } from './calibrate';
 import { type CandidateSignals, featureIndex } from './features';
-import { CALIBRATOR_V1, type CalibratorConfig } from './weights';
+import { CALIBRATOR_V2, type CalibratorConfig } from './weights';
 
 const strong: CandidateSignals = {
   similarity: 0.9,
@@ -64,14 +64,14 @@ describe('scoreCandidates', () => {
 
   it('treats an unknown gallery as neutral', () => {
     const galleryFree: CalibratorConfig = {
-      ...CALIBRATOR_V1,
-      weights: CALIBRATOR_V1.weights.map((w, i) =>
+      ...CALIBRATOR_V2,
+      weights: CALIBRATOR_V2.weights.map((w, i) =>
         i === featureIndex('gallerySame') || i === featureIndex('galleryDifferent') ? 0 : w
       ),
     };
-    const unknown = signals({ gallery: 'unknown' });
+    const unknown = signals({ gallery: 'unknown', similarity: 0.8, runnerUpSimilarity: 0.795 });
     expect(probability(unknown)).toBe(probability(unknown, galleryFree));
-    expect(probability(signals({ gallery: 'same' }))).not.toBe(probability(unknown));
+    expect(probability({ ...unknown, gallery: 'same' })).toBeGreaterThan(probability(unknown));
   });
 
   it('blocks confidence for textured works without a homography or enough inliers', () => {
@@ -121,7 +121,7 @@ describe('scoreCandidates', () => {
     ]);
     expect(scored.map((s) => s.candidate)).toEqual(['strong', 'middle', 'weak']);
 
-    const flat: CalibratorConfig = { ...CALIBRATOR_V1, weights: CALIBRATOR_V1.weights.map(() => 0) };
+    const flat: CalibratorConfig = { ...CALIBRATOR_V2, weights: CALIBRATOR_V2.weights.map(() => 0) };
     const tied = scoreCandidates(
       [
         { candidate: 'lower', signals: signals({ similarity: 0.7 }) },
@@ -133,7 +133,7 @@ describe('scoreCandidates', () => {
   });
 
   it('rejects a config whose weight count does not match the feature vector', () => {
-    const short: CalibratorConfig = { ...CALIBRATOR_V1, weights: [1, 2, 3] };
+    const short: CalibratorConfig = { ...CALIBRATOR_V2, weights: [1, 2, 3] };
     expect(() => scoreCandidates([{ candidate: 'x', signals: strong }], short)).toThrow(RangeError);
   });
 });
@@ -144,7 +144,7 @@ describe('decide', () => {
       keypointCount, similarity: 0.99, runnerUpSimilarity: 0.8,
       homographyValid: false, orbInliers: 0,
     }));
-    expect(decision.best?.probability).toBeGreaterThan(CALIBRATOR_V1.thresholds.confident);
+    expect(decision.best?.probability).toBeGreaterThan(CALIBRATOR_V2.thresholds.confident);
     expect(decision.outcome).toBe(keypointCount === null ? 'soft' : 'confident');
   });
 
@@ -152,7 +152,7 @@ describe('decide', () => {
     const decision = decideOne(strong);
     expect(decision.outcome).toBe('confident');
     expect(decision.best?.candidate).toBe('x');
-    expect(decision.calibratorVersion).toBe(CALIBRATOR_V1.version);
+    expect(decision.calibratorVersion).toBe(CALIBRATOR_V2.version);
   });
 
   it('downgrades a high-probability textured candidate without a homography to soft', () => {
@@ -179,7 +179,7 @@ describe('decide', () => {
     const decision = decideOne(
       signals({ similarity: 0.7, runnerUpSimilarity: 0.69, atVenue: false, gallery: 'unknown', orbInliers: 3, homographyValid: false })
     );
-    expect(decision.best?.probability).toBeLessThan(CALIBRATOR_V1.thresholds.soft);
+    expect(decision.best?.probability).toBeLessThan(CALIBRATOR_V2.thresholds.soft);
     expect(decision.outcome).toBe('miss');
     expect(decision.best?.candidate).toBe('x');
   });
@@ -189,7 +189,7 @@ describe('decide', () => {
       outcome: 'miss',
       best: null,
       runnerUps: [],
-      calibratorVersion: CALIBRATOR_V1.version,
+      calibratorVersion: CALIBRATOR_V2.version,
     });
   });
 

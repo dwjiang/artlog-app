@@ -68,6 +68,10 @@ def test_exports_follow_empty_pages_and_preserve_zero_descriptors():
                     "isDone": True,
                     "continueCursor": "end",
                 }
+            raise AssertionError(name)
+
+        def action(self, name, args):
+            assert name == "ingest:exportDescriptors"
             return {
                 "page": [
                     {

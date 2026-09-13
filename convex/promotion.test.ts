@@ -514,7 +514,7 @@ it('promotes every member of a large agreeing set into one object within transac
           deviceId, venueId,
           vector: Array.from({ length: model.embeddingDim }, (_, axis) => axis === 0 ? 0.95 : axis === batch * 50 + i + 1 ? Math.sqrt(1 - 0.95 ** 2) : 0),
           descriptors: new ArrayBuffer(16_000),
-          keypoints: new ArrayBuffer(4_000), keypointCount: 500,
+          keypoints: new ArrayBuffer(8_000), keypointCount: 500,
         });
       }
     });

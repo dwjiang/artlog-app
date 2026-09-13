@@ -165,12 +165,14 @@ export default defineSchema({
 
   descriptors: defineTable({
     objectId: v.id('objects'),
-    descriptors: v.bytes(),
-    keypoints: v.bytes(),
+    storageId: v.id('_storage'),
+    sha256: v.string(),
     keypointCount: v.number(),
     inputSize: v.number(),
     extractedFrom: v.string(),
-  }).index('by_objectId', ['objectId']),
+  })
+    .index('by_objectId', ['objectId'])
+    .index('by_storageId', ['storageId']),
 
   museums: defineTable({
     key: v.string(),
@@ -240,8 +242,8 @@ export default defineSchema({
     scanId: v.optional(v.id('scans')),
     vector: embedding,
     modelVersion: v.string(),
-    descriptors: v.bytes(),
-    keypoints: v.bytes(),
+    orbStorageId: v.optional(v.id('_storage')),
+    orbSha256: v.optional(v.string()),
     keypointCount: v.number(),
     cropStorageId: v.optional(v.id('_storage')),
     rawOcr: v.optional(v.any()),
@@ -265,6 +267,7 @@ export default defineSchema({
     .index('by_deviceId', ['deviceId'])
     .index('by_scanId', ['scanId'])
     .index('by_cropStorageId', ['cropStorageId'])
+    .index('by_orbStorageId', ['orbStorageId'])
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
     .index('by_promotedObject_device', ['promotedObjectId', 'deviceId'])

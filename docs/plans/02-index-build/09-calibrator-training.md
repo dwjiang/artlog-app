@@ -66,14 +66,21 @@ Design §4.3: the calibrator is "trained initially on augmented corpus samples (
 ## Done criteria
 
 - [x] Tests pass in both languages; `ruff` clean
-- [ ] `calibrator-lr-v2.json` emitted; held-out precision at `confident` ≥ 0.99 recorded
-- [x] A human has copied the JSON into `convex/lib/calibrator/weights.ts` as `CALIBRATOR_V2` and switched the default (separate tiny PR; the Step-2 order test guards it) — or the record states it is pending
+- [x] `calibrator-lr-v2.json` emitted; held-out precision at `confident` ≥ 0.99 recorded
+- [x] Operator-authorized adoption copied the exact artifact into `convex/lib/calibrator/weights.ts` as `CALIBRATOR_V2` and switched the default; the feature-order test guards it
 - [x] `docs/plans/README.md` status row updated
 
-Execution, 2026-09-11: implementation and verification are recorded in
-[decision 009](../../decisions/009-calibrator-v2.md). The real fit is blocked by
-the unfinished 02.05 import (dev exports have zero vectors/descriptors); no
-corpus-trained v2 artifact or real precision/recall claim has been produced.
+Execution, 2026-09-12: the real 5,500-object fit passed against the verified
+10,000-painting dev index. All 22,000 augmented queries produced 435,600 rows with
+zero image skips. On 4,400 held-out queries, confident precision was 99.9313%,
+accepted recall 99.8636%, and candidate-level AUC 0.999966. TypeScript reproduced
+the Python outcome counts exactly. The artifact, threshold rationale, limitations,
+and validation are recorded in [decision 009](../../decisions/009-calibrator-v2.md).
+Adoption, 2026-09-13: the operator authorized the separate change. The exact trained
+artifact is now `CALIBRATOR_V2`, the default on dev and production. The adopted
+default reproduces all held-out outcome counts; 864 backend tests, TypeScript,
+and ESLint pass. A new physical-iPhone scan on dev recorded `lr-v2` and confidently
+identified Wheat Field with Cypresses.
 
 ## STOP conditions
 

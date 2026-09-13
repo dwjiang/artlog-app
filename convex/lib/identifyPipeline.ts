@@ -5,6 +5,7 @@ import { decodeOrbFeatures, verifyOrb, type OrbFeatures, type VerifyResult } fro
 import { effectiveObjectPenalty } from './rejectionPenalty';
 
 const GALLERY_TTL_MS = 15 * 60_000;
+export const MAX_ORB_VERIFICATIONS = 10;
 
 export function runPipeline(input: {
   query: OrbFeatures;
@@ -22,7 +23,7 @@ export function runPipeline(input: {
   const recentGallery = lastAt !== undefined && input.now >= lastAt && input.now - lastAt <= GALLERY_TTL_MS;
 
   const scored = scoreCandidates(candidates.map((candidate) => {
-    if (verifications.size < 10 && candidate.descriptors && candidate.keypoints) {
+    if (verifications.size < MAX_ORB_VERIFICATIONS && candidate.descriptors && candidate.keypoints) {
       const reference = decodeOrbFeatures(candidate.descriptors, candidate.keypoints);
       verifications.set(candidate.object._id, verifyOrb(input.query, reference, {
         inputSize: candidate.inputSize ?? input.inputSize,
