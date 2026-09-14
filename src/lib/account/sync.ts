@@ -7,7 +7,7 @@ import type * as repository from '../../db/repos/saved-works';
 type SyncArgs = FunctionArgs<typeof api.sync.syncCollection>;
 type SyncResult = FunctionReturnType<typeof api.sync.syncCollection>;
 export type SyncContext = { scope: string; deviceId: Id<'devices'>; accountId: Id<'accounts'> | null };
-type Checkpoint = { scope: string; accountId: Id<'accounts'> | null; since: number; cursor?: SyncArgs['cursor'] };
+type Checkpoint = SyncContext & { since: number; cursor?: SyncArgs['cursor'] };
 
 export type SyncDependencies = Pick<typeof repository, 'listUnsynced' | 'markSynced' | 'upsertFromRemote' | 'queueAllForSync'> & {
   getCheckpoint: () => Promise<string | undefined>;
@@ -19,8 +19,10 @@ export async function syncCollection(deps: SyncDependencies, context: SyncContex
   const stored = await deps.getCheckpoint();
   let checkpoint: Checkpoint | undefined = stored ? JSON.parse(stored) : undefined;
   if (!isCurrent()) return;
-  if (checkpoint && checkpoint.accountId !== context.accountId) await deps.queueAllForSync();
-  if (checkpoint?.scope !== context.scope) checkpoint = { scope: context.scope, accountId: context.accountId, since: 0 };
+  if (checkpoint && (checkpoint.accountId !== context.accountId || checkpoint.deviceId !== context.deviceId)) {
+    await deps.queueAllForSync({ resetPhotos: checkpoint.deviceId !== context.deviceId });
+  }
+  if (checkpoint?.scope !== context.scope) checkpoint = { ...context, since: 0 };
   while (isCurrent()) {
     const pending = await deps.listUnsynced();
     if (!isCurrent()) return;
@@ -43,7 +45,7 @@ export async function syncCollection(deps: SyncDependencies, context: SyncContex
     await deps.upsertFromRemote(result.pulled);
     if (!isCurrent()) return;
     checkpoint = {
-      scope: context.scope, accountId: context.accountId,
+      ...context,
       since: result.cursor ? checkpoint.since : result.serverTime,
       ...(result.cursor ? { cursor: result.cursor } : {}),
     };

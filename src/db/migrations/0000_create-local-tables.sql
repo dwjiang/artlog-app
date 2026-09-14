@@ -47,6 +47,8 @@ CREATE TABLE `savedWorks` (
 	`scanId` text,
 	`photoPath` text,
 	`cropPath` text,
+	`photoStorageId` text,
+	`cropStorageId` text,
 	`syncedAt` integer,
 	`revision` integer DEFAULT 0 NOT NULL,
 	`syncedBy` text,

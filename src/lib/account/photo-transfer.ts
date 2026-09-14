@@ -1,0 +1,63 @@
+import { Directory, File, Paths, UploadType } from 'expo-file-system';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+
+import type { Id } from '../../../convex/_generated/dataModel';
+import { COLLECTION_PHOTO_LONG_SIDE, MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from '../../../shared/collection/photo-limits';
+import { captureFileUri } from '../files/photos';
+
+function endpoint(localId: string, kind: CollectionPhotoKind): string {
+  const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
+  if (!site) throw new Error('EXPO_PUBLIC_CONVEX_SITE_URL is not configured');
+  const url = new URL('/collection-photo', site);
+  url.searchParams.set('localId', localId);
+  url.searchParams.set('kind', kind);
+  return url.href;
+}
+
+export async function uploadCollectionPhoto(
+  token: string, localId: string, kind: CollectionPhotoKind, path: string, isCurrent = () => true,
+): Promise<Id<'_storage'>> {
+  const context = ImageManipulator.manipulate(captureFileUri(path));
+  const source = await context.renderAsync();
+  const longSide = kind === 'photo' ? COLLECTION_PHOTO_LONG_SIDE : 512;
+  const resize = ImageManipulator.manipulate(source);
+  let rendered = source;
+  let file: File | undefined;
+  try {
+    if (Math.max(source.width, source.height) > longSide) {
+      rendered = await resize.resize(source.width >= source.height ? { width: longSide } : { height: longSide }).renderAsync();
+    }
+    // Re-encoding the rendered image omits the original camera and location metadata.
+    const encoded = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
+    file = new File(encoded.uri);
+    if (file.size > MAX_COLLECTION_PHOTO_BYTES) throw new Error('Photo exceeds the upload limit');
+    if (!isCurrent()) throw new Error('Photo upload cancelled');
+    const response = await file.upload(endpoint(localId, kind), {
+      httpMethod: 'POST', uploadType: UploadType.BINARY_CONTENT,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+    });
+    if (response.status !== 200) throw new Error(`Photo upload failed with HTTP ${response.status}`);
+    const result = JSON.parse(response.body) as { storageId?: Id<'_storage'> };
+    if (!result.storageId) throw new Error('Photo upload did not return a storage reference');
+    return result.storageId;
+  } finally {
+    if (file?.exists) file.delete();
+    if (rendered !== source) rendered.release();
+    resize.release(); source.release(); context.release();
+  }
+}
+
+export async function downloadCollectionPhoto(token: string, localId: string, kind: CollectionPhotoKind, storageId: Id<'_storage'>): Promise<string> {
+  const directory = new Directory(Paths.document, 'collection-photos');
+  directory.create({ intermediates: true, idempotent: true });
+  const path = `collection-photos/${encodeURIComponent(localId)}-${kind}-${storageId}.jpg`;
+  await File.downloadFileAsync(endpoint(localId, kind), new File(captureFileUri(path)), {
+    headers: { Authorization: `Bearer ${token}` }, idempotent: true,
+  });
+  return path;
+}
+
+export function removePhotoFile(path: string): void {
+  const file = new File(captureFileUri(path));
+  if (file.exists) file.delete();
+}

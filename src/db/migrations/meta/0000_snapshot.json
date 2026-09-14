@@ -367,6 +367,20 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "photoStorageId": {
+          "name": "photoStorageId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cropStorageId": {
+          "name": "cropStorageId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {

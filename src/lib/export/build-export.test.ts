@@ -4,7 +4,7 @@ import { buildExport } from './build-export';
 const work: SavedWork = {
   localId: 'work-1', title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas',
   institution: 'The Met', venueName: 'The Met', venueId: null, gallery: '819', savedAt: 123,
-  visitLocalId: 'visit-1', objectId: null, artworkId: null, scanId: null, photoPath: 'photos/full.jpg', cropPath: 'photos/crop.jpg',
+  visitLocalId: 'visit-1', objectId: null, artworkId: null, scanId: null, photoPath: 'photos/full.jpg', photoStorageId: null, cropStorageId: null, cropPath: 'photos/crop.jpg',
   syncedAt: 456, syncedBy: null, revision: 3, deletedAt: null,
 };
 const visit: Visit = { localId: 'visit-1', venueId: 'museum-1' as Visit['venueId'], venueName: 'The Met', startedAt: 100, endedAt: null, remoteVisitId: null, endSyncedAt: null };

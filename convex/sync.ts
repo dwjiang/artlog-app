@@ -4,6 +4,7 @@ import { MAX_NOTE_LENGTH } from '../shared/collection/collection-limits';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireDevice } from './lib/auth';
+import { deleteUnreferencedCollectionPhotos } from './lib/collectionPhotos';
 import { limitDevice } from './lib/rateLimits';
 import { snapshotFields } from './lib/validators';
 import schema from './schema';
@@ -15,7 +16,7 @@ const pushedWork = v.object({
   objectId: v.optional(v.id('objects')), artworkId: v.optional(v.id('artworks')),
   note: v.optional(v.string()), deletedAt: v.optional(v.number()),
 });
-const cursor = v.object({ deviceIndex: v.number(), page: v.union(v.string(), v.null()), until: v.number() });
+const cursor = v.object({ deviceIndex: v.number(), page: v.union(v.string(), v.null()), until: v.number(), photos: v.boolean() });
 const collectionDoc = v.object({ _id: v.id('collections'), _creationTime: v.number(), ...schema.tables.collections.validator.fields });
 
 async function retainImportedWork(ctx: MutationCtx, deviceId: Id<'devices'>, row: Doc<'collections'>): Promise<void> {
@@ -27,18 +28,27 @@ async function retainImportedWork(ctx: MutationCtx, deviceId: Id<'devices'>, row
       deviceId, localId: row.localId, snapshot: row.snapshot, savedAt: row.savedAt,
       venueId: row.venueId, venueName: row.venueName, gallery: row.gallery,
       objectId: row.objectId, artworkId: row.artworkId, note: row.note, deletedAt: row.deletedAt,
-      updatedAt: row.updatedAt, updatedBy: row.updatedBy, confirmationRecorded: true,
+      photoStorageId: row.photoStorageId, cropStorageId: row.cropStorageId,
+      updatedAt: row.updatedAt, updatedBy: row.updatedBy, photoUpdatedAt: row.photoUpdatedAt, confirmationRecorded: true,
     });
     return;
   }
   // Retention keeps the original edit version; copying a stale note must not make it win a conflict.
   const newer = row.updatedAt > existing.updatedAt ||
     (row.updatedAt === existing.updatedAt && row.updatedBy > existing.updatedBy);
-  if (newer || (existing.deletedAt === undefined && row.deletedAt !== undefined)) {
+  const photos = {
+    photoStorageId: existing.photoStorageId ?? row.photoStorageId,
+    cropStorageId: existing.cropStorageId ?? row.cropStorageId,
+  };
+  if (newer || (existing.deletedAt === undefined && row.deletedAt !== undefined) ||
+    photos.photoStorageId !== existing.photoStorageId || photos.cropStorageId !== existing.cropStorageId) {
     await ctx.db.patch(existing._id, {
+      ...photos,
+      photoUpdatedAt: Math.max(existing.photoUpdatedAt ?? 0, row.photoUpdatedAt ?? 0) || undefined,
       ...(newer ? { note: row.note, updatedAt: row.updatedAt, updatedBy: row.updatedBy } : {}),
       deletedAt: existing.deletedAt ?? row.deletedAt,
     });
+    if (existing.deletedAt !== undefined || row.deletedAt !== undefined) await deleteUnreferencedCollectionPhotos(ctx, photos);
   }
 }
 
@@ -75,6 +85,7 @@ export const syncCollection = mutation({
       if (existing) {
         // A push republishes this copy; snapshots stay immutable and deletion stays terminal.
         await ctx.db.patch(existing._id, { note: work.note, deletedAt, ...version });
+        if (deletedAt !== undefined) await deleteUnreferencedCollectionPhotos(ctx, existing);
       } else {
         await ctx.db.insert('collections', { ...work, deviceId: device._id, ...version });
       }
@@ -82,7 +93,7 @@ export const syncCollection = mutation({
     }
     // Read retained copies first so new imports are not returned twice in the same pull window.
     const siblings = account ? [device._id, ...members.filter((id) => id !== device._id).sort()] : [];
-    const state = args.cursor ?? { deviceIndex: 0, page: null, until: now };
+    const state = args.cursor ?? { deviceIndex: 0, page: null, until: now, photos: false };
     if (!Number.isInteger(state.deviceIndex) || state.deviceIndex < 0 || state.deviceIndex > siblings.length ||
       !Number.isFinite(state.until) || state.until > now || state.until < args.since) {
       throw new ConvexError({ code: 'invalid_sync_cursor' });
@@ -90,14 +101,19 @@ export const syncCollection = mutation({
     const sibling = siblings[state.deviceIndex];
     if (!sibling) return { accepted, pulled: [], serverTime: state.until, cursor: null };
     // Inclusive lower / exclusive upper bounds also preserve writes made in the checkpoint's millisecond.
-    const page = await ctx.db.query('collections')
-      .withIndex('by_device_updatedAt', (q) => q.eq('deviceId', sibling).gte('updatedAt', args.since).lt('updatedAt', state.until))
-      .paginate({ numItems: 500, cursor: state.page, maximumBytesRead: 500_000 });
+    // Edited rows carry their photos, so the photo pass only covers photos that arrived after an older edit was pulled.
+    const latePhotos = () => ctx.db.query('collections').withIndex('by_device_photoUpdatedAt',
+      (q) => q.eq('deviceId', sibling).gte('photoUpdatedAt', args.since).lt('photoUpdatedAt', state.until))
+      .filter((q) => q.lt(q.field('updatedAt'), args.since));
+    const changes = state.photos ? latePhotos() : ctx.db.query('collections').withIndex('by_device_updatedAt',
+      (q) => q.eq('deviceId', sibling).gte('updatedAt', args.since).lt('updatedAt', state.until));
+    const page = await changes.paginate({ numItems: 500, cursor: state.page, maximumBytesRead: 500_000 });
     for (const row of page.page) await retainImportedWork(ctx, device._id, row);
-    const next = page.isDone
-      ? state.deviceIndex + 1 < siblings.length ? { ...state, deviceIndex: state.deviceIndex + 1, page: null } : null
-      : { ...state, page: page.continueCursor };
-    const pulled = page.page.filter((row) => row.updatedBy !== device._id || row.deletedAt !== undefined);
+    // A sibling without late photos costs one round trip; only a non-empty photo pass takes another.
+    const next = !page.isDone ? { ...state, page: page.continueCursor }
+      : !state.photos && await latePhotos().first() ? { ...state, page: null, photos: true }
+        : state.deviceIndex + 1 < siblings.length ? { ...state, deviceIndex: state.deviceIndex + 1, page: null, photos: false } : null;
+    const pulled = page.page.filter((row) => row.updatedBy !== device._id || row.deletedAt !== undefined || row.photoStorageId || row.cropStorageId);
     return { accepted, pulled, serverTime: state.until, cursor: next };
   },
 });

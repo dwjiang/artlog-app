@@ -23,11 +23,11 @@ it('states exactly what leaves the phone before sharing', async () => {
   expect(screen.getByText('Share this work with other visitors?')).toBeOnTheScreen();
   expect(screen.getByText(
     'What leaves your phone: a numeric fingerprint of your photo (not the photo), the details read from the label, and a small crop ' +
-    'of your own photo of the painting. The crop becomes the thumbnail other visitors see for this work. Full photos never leave ' +
-    'your phone. You can withdraw a contribution from Settings.',
+    'of your own photo of the painting. The crop becomes the thumbnail other visitors see for this work. Only this small crop is shared with the index. ' +
+    'Your saved collection photos stay private. You can withdraw a contribution from Settings.',
   )).toBeOnTheScreen();
   expect(CONSENT_TITLE).toBe('Share this work with other visitors?');
-  expect(CONSENT_BODY).toContain('Full photos never leave your phone.');
+  expect(CONSENT_BODY).toContain('Your saved collection photos stay private.');
   await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
   expect(handlers.onShare).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));

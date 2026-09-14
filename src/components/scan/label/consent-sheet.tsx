@@ -9,7 +9,7 @@ export const CONSENT_TITLE = 'Share this work with other visitors?';
 export const CONSENT_BODY =
   'What leaves your phone: a numeric fingerprint of your photo (not the photo), the details read from the label, ' +
   'and a small crop of your own photo of the painting. The crop becomes the thumbnail other visitors see for this work. ' +
-  'Full photos never leave your phone. You can withdraw a contribution from Settings.';
+  'Only this small crop is shared with the index. Your saved collection photos stay private. You can withdraw a contribution from Settings.';
 
 export type ConsentSheetProps = { open: boolean; onShare: () => void; onDismiss: () => void };
 

@@ -101,3 +101,12 @@ it('does not move the confirmed version backward when an older upload response a
   expect(await getNote(remote.localId)).toMatchObject({ text: 'Latest note' });
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({ syncedAt: 30 });
 });
+
+it('accepts an image reference without replacing a newer local note or original photo', async () => {
+  await repo.insertSavedWork({ localId: remote.localId, title: 'Painting', artist: '', savedAt: 1, photoPath: 'original.heic' });
+  await setNote(remote.localId, 'Still uploading');
+  const photoStorageId = 'cloud-photo' as Id<'_storage'>;
+  await repo.upsertFromRemote([{ ...remote, photoStorageId }]);
+  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ photoPath: 'original.heic', photoStorageId, syncedAt: null });
+  expect(await getNote(remote.localId)).toMatchObject({ text: 'Still uploading' });
+});

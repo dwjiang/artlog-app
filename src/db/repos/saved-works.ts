@@ -1,10 +1,10 @@
-import { and, desc, eq, isNull, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 
 import type { Doc } from '../../../convex/_generated/dataModel';
 import { requestCollectionSync } from '../../lib/account/sync-events';
 
 import { db } from '../client';
-import { notes, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
+import { notes, pendingScans, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
 
 // Snapshot fields are immutable by construction: this module exposes no update to them.
 
@@ -77,8 +77,11 @@ export async function listUnsynced() {
     .where(isNull(savedWorks.syncedAt)).orderBy(savedWorks.savedAt, savedWorks.localId).limit(500);
 }
 
-export async function queueAllForSync(): Promise<void> {
-  await db.update(savedWorks).set({ syncedAt: null, revision: sql`${savedWorks.revision} + 1` });
+export async function queueAllForSync({ resetPhotos = false } = {}): Promise<void> {
+  await db.update(savedWorks).set({
+    syncedAt: null, revision: sql`${savedWorks.revision} + 1`,
+    ...(resetPhotos ? { photoStorageId: null, cropStorageId: null } : {}),
+  });
 }
 
 export async function upsertFromRemote(rows: Doc<'collections'>[]): Promise<void> {
@@ -87,6 +90,10 @@ export async function upsertFromRemote(rows: Doc<'collections'>[]): Promise<void
       const existing = tx.select().from(savedWorks).where(eq(savedWorks.localId, row.localId)).get();
       const newlyDeleted = existing?.deletedAt === null && row.deletedAt !== undefined;
       if (existing) {
+        tx.update(savedWorks).set({
+          photoStorageId: existing.photoStorageId ?? row.photoStorageId ?? null,
+          cropStorageId: existing.cropStorageId ?? row.cropStorageId ?? null,
+        }).where(eq(savedWorks.localId, row.localId)).run();
         // Tombstones must survive even when a local edit is pending or a newer note arrived first.
         if (newlyDeleted) {
           tx.update(savedWorks).set({ deletedAt: row.deletedAt, syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
@@ -100,10 +107,46 @@ export async function upsertFromRemote(rows: Doc<'collections'>[]): Promise<void
           localId: row.localId, ...row.snapshot, venueId: row.venueId, venueName: row.venueName, gallery: row.gallery,
           savedAt: row.savedAt, objectId: row.objectId, artworkId: row.artworkId,
           photoPath: null, cropPath: null, syncedAt: row.updatedAt, syncedBy: row.updatedBy, deletedAt: row.deletedAt,
+          photoStorageId: row.photoStorageId, cropStorageId: row.cropStorageId,
         }).run();
       }
       tx.insert(notes).values({ savedLocalId: row.localId, text: row.note ?? '', updatedAt: row.updatedAt })
         .onConflictDoUpdate({ target: notes.savedLocalId, set: { text: row.note ?? '', updatedAt: row.updatedAt } }).run();
     }
   });
+}
+
+export function listPhotoTransfers() {
+  return db.select().from(savedWorks).where(and(isNull(savedWorks.deletedAt), or(
+    and(isNotNull(savedWorks.photoPath), isNull(savedWorks.photoStorageId)),
+    and(isNull(savedWorks.photoPath), isNotNull(savedWorks.photoStorageId)),
+    and(isNotNull(savedWorks.cropPath), isNull(savedWorks.cropStorageId)),
+    and(isNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
+  ))).orderBy(savedWorks.localId).limit(20);
+}
+
+export async function updatePhotoTransfer(localId: string, values: Partial<Pick<SavedWork,
+  'photoPath' | 'cropPath' | 'photoStorageId' | 'cropStorageId'>>): Promise<boolean> {
+  const updated = await db.update(savedWorks).set(values)
+    .where(and(eq(savedWorks.localId, localId), isNull(savedWorks.deletedAt))).returning({ localId: savedWorks.localId });
+  return updated.length > 0;
+}
+
+export function listDeletedPhotoFiles() {
+  return db.select({ localId: savedWorks.localId, photoPath: savedWorks.photoPath, cropPath: savedWorks.cropPath })
+    .from(savedWorks).where(and(isNotNull(savedWorks.deletedAt), or(isNotNull(savedWorks.photoPath), isNotNull(savedWorks.cropPath))))
+    .limit(20);
+}
+
+export async function isPhotoFileReferenced(path: string): Promise<boolean> {
+  const saved = await db.select({ localId: savedWorks.localId }).from(savedWorks).where(and(isNull(savedWorks.deletedAt),
+    or(eq(savedWorks.photoPath, path), eq(savedWorks.cropPath, path)))).limit(1);
+  const pending = await db.select({ localId: pendingScans.localId }).from(pendingScans)
+    .where(or(eq(pendingScans.photoPath, path), eq(pendingScans.cropPath, path))).limit(1);
+  return saved.length > 0 || pending.length > 0;
+}
+
+export async function clearDeletedPhotoPaths(localId: string): Promise<void> {
+  await db.update(savedWorks).set({ photoPath: null, cropPath: null })
+    .where(and(eq(savedWorks.localId, localId), isNotNull(savedWorks.deletedAt)));
 }
