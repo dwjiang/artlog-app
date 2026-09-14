@@ -7,7 +7,7 @@ import { AppState, Text } from 'react-native';
 import { LocalScanScreen } from '@/components/scan/local-scan-screen';
 import { QueueSheet } from '@/components/scan/states/queue-sheet';
 
-let mockRows: { localId: string; status: 'queued' | 'identified'; cropPath: string; capturedAt?: number; scanId?: string }[] = [];
+let mockRows: { owner: string; localId: string; status: 'queued' | 'identified'; cropPath: string; capturedAt?: number; scanId?: string }[] = [];
 const mockListeners = new Set<() => void>();
 beforeEach(() => { AppState.currentState = 'active'; });
 afterEach(() => jest.useRealTimers());
@@ -41,7 +41,7 @@ function ResultRoute() {
 }
 
 it('keeps label capture open on completion and shows the result when returning', async () => {
-  mockRows = [{ localId: 'one', status: 'queued', cropPath: 'crops/one.jpg' }];
+  mockRows = [{ owner: 'device:test-installation', localId: 'one', status: 'queued', cropPath: 'crops/one.jpg' }];
   const view = renderRouter({
     _layout: () => <Stack />,
     index: () => <Text>Camera</Text>,
@@ -65,7 +65,7 @@ it('keeps label capture open on completion and shows the result when returning',
 });
 
 it('checks opening a row from the root queue sheet leaves one underlying stack', async () => {
-  mockRows = [{ localId: 'one', status: 'queued', cropPath: 'crops/one.jpg', capturedAt: Date.now() }];
+  mockRows = [{ owner: 'device:test-installation', localId: 'one', status: 'queued', cropPath: 'crops/one.jpg', capturedAt: Date.now() }];
   const view = renderRouter({
     _layout: { default: () => <Stack />, unstable_settings: { anchor: '(tabs)' } },
     '(tabs)/_layout': () => <Stack />,

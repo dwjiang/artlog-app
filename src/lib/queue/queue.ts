@@ -1,6 +1,7 @@
 import { addNetworkStateListener, getNetworkStateAsync } from 'expo-network';
 import { AppState } from 'react-native';
 
+import { captureOwner, getLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
@@ -17,17 +18,24 @@ import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { createFlusher } from './flush';
 
 /** `unsupported_version` stays with its crop so the updated app can re-embed it locally. */
-export async function recordResult(localId: string, response: IdentifyResponse): Promise<void> {
+export async function recordResult(localId: string, response: IdentifyResponse, owner = getLocalOwner()): Promise<void> {
   if (response.status === 'unsupported_version') {
-    await pending.markFailed(localId, response.error ?? 'Update the app to identify.', response.scanId);
+    await pending.markFailed(localId, response.error ?? 'Update the app to identify.', response.scanId, owner);
   } else {
-    await pending.markIdentified(localId, response.scanId);
+    await pending.markIdentified(localId, response.scanId, owner);
   }
 }
 
 export const captureStore: CaptureStore = {
   async enqueue(payload, status) {
+    const current = captureOwner();
+    if (payload.owner !== current.owner) throw new Error('Journal owner changed');
     const files = await persistCapture({ localId: payload.localId, photoUri: payload.photoUri, cropUri: payload.cropUri });
+    if (!current.isOwnerCurrent()) {
+      removeFile(captureFileUri(files.photoPath));
+      removeFile(captureFileUri(files.cropPath));
+      throw new Error('Journal owner changed');
+    }
     await pending.enqueuePendingScan({
       localId: payload.localId, ...files,
       vector: payload.vector, descriptors: payload.descriptors, keypoints: payload.keypoints,
@@ -35,31 +43,38 @@ export const captureStore: CaptureStore = {
       venueId: payload.venueId, visitId: payload.visitId,
       visitLocalId: payload.visitLocalId,
       capturedAt: payload.capturedAt, status, createdAt: Date.now(),
-    });
+    }, payload.owner);
     if (status === 'queued') void flushQueue();
   },
   recordResult,
-  async requeue(localId, error) {
-    await pending.recordAttemptFailure(localId, error, { countAttempt: false });
+  async requeue(localId, error, owner = getLocalOwner()) {
+    await pending.recordAttemptFailure(localId, error, { countAttempt: false }, owner);
     void flushQueue();
   },
 };
 
-const flusher = createFlusher({
-  listFlushable: pending.listFlushable,
-  listPendingLabels: pending.listPendingLabels,
-  recordLabelFailure: pending.recordLabelFailure,
+function makeFlusher() {
+  const current = captureOwner();
+  const owner = current.owner;
+  return createFlusher({
+  isCurrent: current.isCurrent,
+  listFlushable: (version) => pending.listFlushable(version, owner),
+  listPendingLabels: () => pending.listPendingLabels(owner),
+  recordLabelFailure: (id, error, options) => pending.recordLabelFailure(id, error, options, owner),
   clearPendingLabel: async (localId, label) => {
-    await pending.clearPendingLabel(localId, label);
+    await pending.clearPendingLabel(localId, label, owner);
     if (label.labelPhotoPath) removeFile(captureFileUri(label.labelPhotoPath));
   },
-  markIdentifying: pending.markIdentifying,
-  recordResult,
-  recordFailure: pending.recordAttemptFailure,
-  resetAttemptsForModel: pending.resetAttemptsForModel,
-  updateFeatures: pending.updateFeatures,
+  markIdentifying: (id) => pending.markIdentifying(id, owner),
+  recordResult: (id, response) => recordResult(id, response, owner),
+  recordFailure: (id, error, options) => pending.recordAttemptFailure(id, error, options, owner),
+  resetAttemptsForModel: (id, version) => pending.resetAttemptsForModel(id, version, owner),
+  updateFeatures: (id, features) => pending.updateFeatures(id, features, owner),
   resolveVisitId: resolveScanVisit,
-  identify: (args) => convex.action(api.identify.identify, args),
+  identify: (args) => {
+    if (!current.isCurrent() || !current.scope) throw new Error('Journal owner changed');
+    return convex.action(api.identify.identify, { ...args, scope: current.scope });
+  },
   runLabelFlow: async (scanId, label) => {
     try {
       await runLabelFlowForScan(scanId, {
@@ -72,12 +87,12 @@ const flusher = createFlusher({
     }
   },
   reembed: (cropPath) => extractFeatures(captureFileUri(cropPath), { embedder, orb }),
-  isOnline: async () => (await getNetworkStateAsync()).isInternetReachable !== false,
+  isOnline: async () => current.isCurrent() && !!current.scope && (await getNetworkStateAsync()).isInternetReachable !== false,
   modelVersion: model.modelVersion,
 });
-
-export const flushQueue = flusher.flush;
-let recovery: Promise<void> | undefined;
+}
+let flusher: ReturnType<typeof createFlusher> | undefined;
+export const flushQueue = () => flusher?.flush() ?? Promise.resolve();
 
 export async function retryPendingScan(localId: string): Promise<void> {
   await pending.retryPendingScan(localId);
@@ -90,21 +105,23 @@ export async function retryPendingLabel(localId: string): Promise<void> {
 }
 
 export async function discardPendingLabel(localId: string): Promise<void> {
-  const row = await pending.getPendingScan(localId);
+  const owner = getLocalOwner();
+  const row = await pending.getPendingScan(localId, owner);
   if (!row) return;
   await pending.clearPendingLabel(localId, {
     labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined,
-  });
+  }, owner);
   if (row.labelPhotoPath) removeFile(captureFileUri(row.labelPhotoPath));
 }
 
 /** Flushes now, on reconnect and on foreground; the flusher's own backoff covers failures in between. */
 export function startQueueFlusher(): () => void {
   let active = true;
-  // Only a process restart interrupts these rows; auth changes may still have a request in flight.
-  recovery ??= pending.requeueInterrupted()
+  const currentFlusher = makeFlusher();
+  flusher = currentFlusher;
+  const recovery = pending.requeueInterrupted()
     .catch((error: unknown) => console.warn('Could not requeue interrupted scans', error));
-  void recovery.then(() => { if (active) return flusher.start(); });
+  void recovery.then(() => { if (active) return currentFlusher.start(); });
   const network = addNetworkStateListener((state) => {
     if (state.isInternetReachable ?? state.isConnected) void flushQueue();
   });
@@ -115,6 +132,7 @@ export function startQueueFlusher(): () => void {
     active = false;
     network.remove();
     appState.remove();
-    flusher.stop();
+    currentFlusher.stop();
+    if (flusher === currentFlusher) flusher = undefined;
   };
 }

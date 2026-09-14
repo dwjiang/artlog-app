@@ -76,7 +76,7 @@ describe('revertObject', () => {
     const capture = () => ({
       localId: crypto.randomUUID(), venueId, vector: testVector(), ...encodeOrbFeatures(pair.query), modelVersion: model.modelVersion, capturedAt: Date.now(),
     });
-    expect((await alice.as.action(api.identify.identify, capture())).best?.objectId).toBe(object._id);
+    expect((await alice.as.action(api.identify.identify, { ...capture(), scope: (await alice.as.query(api.accounts.me, {})).scope })).best?.objectId).toBe(object._id);
     await t.action(internal.revert.revertObjectById, { objectId: object._id, reason: 'mislabeled' });
     expect(await get(object._id)).toMatchObject({ reverted: true, revertedReason: 'mislabeled' });
     expect((await get(object._id))?.thumbnailStorageId).toBeUndefined();
@@ -86,7 +86,7 @@ describe('revertObject', () => {
     expect(await t.run((ctx) => ctx.db.system.get('_storage', cropStorageId))).toBeNull();
     expect(await get(contributionId)).toMatchObject({ status: 'rejected', rejectedReason: 'object_reverted', promotedObjectId: object._id });
     expect((await get(contributionId))?.cropStorageId).toBeUndefined();
-    const after = await alice.as.action(api.identify.identify, capture());
+    const after = await alice.as.action(api.identify.identify, { ...capture(), scope: (await alice.as.query(api.accounts.me, {})).scope });
     expect(after.outcome).toBe('miss');
     expect(after.best).toBeUndefined();
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({ vectors: 0, descriptors: 0 });
@@ -358,10 +358,10 @@ it('removes a taken-down object from a previously identified scan card', async (
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   expect((await t.run((ctx) => ctx.db.get(requestId)))?.appliedAt).toEqual(expect.any(Number));
   expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();
-  const cached = await user.as.action(api.identify.identify, {
+  const cached = await user.as.action(api.identify.identify, { ...{
     localId: (await t.run((ctx) => ctx.db.get(scanId)))!.localId, vector: testVector(),
     ...features, modelVersion: model.modelVersion, capturedAt: Date.now(),
-  });
+  }, scope: (await user.as.query(api.accounts.me, {})).scope });
   expect(cached.best).toBeUndefined();
 });
 

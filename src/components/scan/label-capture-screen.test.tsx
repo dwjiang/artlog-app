@@ -105,7 +105,7 @@ jest.mock('@/lib/result/save', () => ({ saveResult: (input: unknown) => mockSave
 
 const scanId = 'scan-1' as Id<'scans'>;
 const capture = {
-  localId: 'cap-1', photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg', vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4),
+  owner: 'device:test-installation', localId: 'cap-1', photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg', vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4),
   modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-1' as Id<'museums'>, visitId: null, visitLocalId: null, capturedAt: 1,
   labelPhotoPath: null, qrUrl: null, status: 'identified', attempts: 0, lastError: null, scanId, createdAt: 1, reviewedAt: null,
 } satisfies PendingScan;
@@ -265,7 +265,7 @@ it('keeps the label photo with the scan while offline and returns to the card', 
   await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
   expect(await screen.findByText(QUEUED_MESSAGE)).toBeOnTheScreen();
   expect(mockPersistLabel).toHaveBeenCalledWith({ localId: 'cap-1', photoUri: 'file:///tmp/label.jpg' });
-  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg');
+  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg', 'device:test-installation');
   expect(mockRun).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Back to the scan' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
@@ -278,7 +278,7 @@ it('stores a QR code on a queued capture even with signal, since identify has no
   expect(mockUseScan).toHaveBeenCalledWith(undefined);
   await act(async () => mockQr.onCode('https://museum.example/qr/1'));
   expect(await screen.findByText(QUEUED_MESSAGE)).toBeOnTheScreen();
-  expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', 'https://museum.example/qr/1');
+  expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', 'https://museum.example/qr/1', 'device:test-installation');
   expect(mockRun).not.toHaveBeenCalled();
 });
 
@@ -293,7 +293,7 @@ it.each(['read', 'verify'] as const)('queues the photo when signal is lost durin
 
   expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
   expect(mockPersistLabel).toHaveBeenCalledWith({ localId: 'cap-1', photoUri: 'file:///tmp/label.jpg' });
-  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg');
+  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg', 'device:test-installation');
   expect(mockRemove).not.toHaveBeenCalled();
   expect(mockFlush).toHaveBeenCalledTimes(1);
 
@@ -311,7 +311,7 @@ it('queues a QR source when its request is rate limited', async () => {
   await act(async () => mockQr.onCode(url));
   await flow.fail(new LabelFlowError('rate_limited', { cause: new ConvexError({ code: 'rate_limited', retryAfter: 60_000 }) }));
   expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
-  expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', url);
+  expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', url, 'device:test-installation');
   expect(mockPersistLabel).not.toHaveBeenCalled();
   expect(mockRemove).not.toHaveBeenCalled();
   expect(mockFlush).toHaveBeenCalledTimes(1);
@@ -323,7 +323,7 @@ it('retains an interrupted label even after navigating away', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
   await view.unmount();
   await flow.fail(new LabelFlowError('network', { cause: new Error('Connection lost while action was in flight') }));
-  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg');
+  expect(mockSetLabelPhoto).toHaveBeenCalledWith('cap-1', 'labels/cap-1.jpg', 'device:test-installation');
   expect(mockRemove).not.toHaveBeenCalled();
   expect(mockFlush).toHaveBeenCalledTimes(1);
 });

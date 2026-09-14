@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
 import { CardHeader } from './result/card-header';
@@ -22,10 +23,11 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 export const MISSING_TITLE = 'This scan isn’t on this phone anymore';
 
 export function LocalScanScreen({ localId }: { localId: string }) {
+  const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
-  const { data, updatedAt } = useLiveQuery(selectPendingScan(localId), [localId]);
-  const row = data[0];
+  const { data, updatedAt } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  const row = data.find((row) => row.owner === owner);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
   const scanId = pending ? undefined : row?.scanId;
   const { saving, savedId, error: saveError, save } = useSaveResult();

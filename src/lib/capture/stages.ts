@@ -22,7 +22,7 @@ export interface OrbExtractor {
 }
 
 export type IdentifyResponse = FunctionReturnType<typeof api.identify.identify>;
-export type CapturePayload = FunctionArgs<typeof api.identify.identify> & { photoUri: string; cropUri: string; visitLocalId?: string };
+export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, 'scope'> & { owner: string; scope?: string; photoUri: string; cropUri: string; visitLocalId?: string };
 export type CaptureInput = Pick<CapturePayload, 'capturedAt' | 'venueId' | 'visitId' | 'visitLocalId'> & {
   photoUri: string;
   quad: Quad | null;
@@ -41,9 +41,9 @@ export type CaptureResult = (
 export interface CaptureStore {
   /** Moves the photo and crop into place and inserts the row; `identifying` claims it for the inline identify. */
   enqueue(payload: CapturePayload, status: 'queued' | 'identifying'): Promise<void>;
-  recordResult(localId: string, response: IdentifyResponse): Promise<void>;
+  recordResult(localId: string, response: IdentifyResponse, owner?: string): Promise<void>;
   /** Returns the row to the queue after the inline identify failed, so the flusher retries it. */
-  requeue(localId: string, error: string): Promise<void>;
+  requeue(localId: string, error: string, owner?: string): Promise<void>;
 }
 
 export type CaptureDependencies = {

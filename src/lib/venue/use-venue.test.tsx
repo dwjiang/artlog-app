@@ -32,7 +32,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('convex/react', () => ({ useConvexAuth: () => mockAuth, useQuery: () => mockAuth.isAuthenticated ? 'registered' : null }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isInternetReachable: mockReachable }) }));
 jest.mock('../../../convex/_generated/api', () => ({
-  api: { devices: { me: 'me' }, visits: { startVisit: 'startVisit', endVisit: 'endVisit' }, museums: { confirmPoiVenue: 'confirmPoiVenue' } },
+  api: { devices: { me: 'me' }, museums: { confirmPoiVenue: 'confirmPoiVenue' } },
 }));
 jest.mock('../../../modules/poi-search/src', () => ({
   getPoiSearch: () => ({ searchNearby: (...args: unknown[]) => mockSearchNearby(...args) }),
@@ -45,25 +45,37 @@ jest.mock('@/db/repos/settings', () => ({
 jest.mock('@/db/repos/visits', () => ({
   upsertVisit: async (visit: NewVisit) => {
     const existing = mockVisits.get(visit.localId);
-    const merged = { endedAt: null, remoteVisitId: null, endSyncedAt: null, ...existing, ...Object.fromEntries(Object.entries(visit).filter(([, v]) => v !== undefined)) } as Visit;
+    const merged = { owner: 'device:test-installation', endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'America/New_York', reflection: null, syncedAt: null, syncedBy: null, revision: 0, ...existing, ...Object.fromEntries(Object.entries(visit).filter(([, v]) => v !== undefined)) } as Visit;
     mockVisits.set(visit.localId, merged);
   },
   getVisit: async (localId: string) => mockVisits.get(localId),
   patchVisit: async (localId: string, fields: Partial<Visit>) => {
     const row = mockVisits.get(localId);
-    if (row) mockVisits.set(localId, { ...row, ...fields });
+    if (row) mockVisits.set(localId, { ...row, ...fields, syncedAt: null });
   },
-  getNextVisitToSync: async () => [...mockVisits.values()]
-    .filter((visit) => visit.remoteVisitId === null || (visit.endedAt !== null && visit.endSyncedAt === null))
-    .sort((a, b) => a.startedAt - b.startedAt)[0],
+
 }));
 jest.mock('@/lib/attested-write', () => ({ signPayload: (...args: unknown[]) => mockSignPayload(...args) }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (...args: unknown[]) => mockMutation(...args) } }));
 jest.mock('./venue-db', () => ({
+  venueCoordinates: async () => ({ lat: 40.779, lng: -73.963 }),
   openVenueDb: async () => 'venue-db',
   nearest: (...args: unknown[]) => mockNearest(...args),
   insertConfirmedVenue: (...args: unknown[]) => mockInsertConfirmed(...args),
 }));
+let mockSyncRunning: Promise<void> | undefined;
+jest.mock('./visit-sync', () => ({ syncVisits: async () => {
+  if (mockSyncRunning) await mockSyncRunning;
+  mockSyncRunning = (async () => {
+    for (const visit of mockVisits.values()) {
+      if (visit.syncedAt !== null) continue;
+      const result = await mockMutation('syncVisit', { ...visit });
+      visit.remoteVisitId = result?.visitId ?? visit.remoteVisitId;
+      visit.syncedAt = mockNow;
+    }
+  })();
+  try { await mockSyncRunning; } finally { mockSyncRunning = undefined; }
+} }));
 jest.mock('./refresh', () => ({ refreshVenueTableInBackground: () => mockRefresh() }));
 
 const met = { lat: 40.779444444, lng: -73.963333333 };
@@ -92,7 +104,7 @@ beforeEach(() => {
   mockGetPosition.mockResolvedValue({ coords: { latitude: met.lat, longitude: met.lng }, timestamp: mockNow });
   mockNearest.mockResolvedValue([]);
   mockSearchNearby.mockResolvedValue([]);
-  mockMutation.mockImplementation(async (ref: string) => ref === 'startVisit' ? { visitId: 'remote-1' } : ref === 'endVisit' ? null : { venueId: 'id-corner' });
+  mockMutation.mockImplementation(async (ref: string) => ref === 'syncVisit' ? { visitId: 'remote-1' } : { venueId: 'id-corner' });
   mockSignPayload.mockResolvedValue({ nonce: 'nonce', assertionBase64: 'assertion', payloadJson: '{}' });
   mockInsertConfirmed.mockResolvedValue(undefined);
   controller = createVenueController();
@@ -111,9 +123,9 @@ it('resolves a single nearby venue, persists a local visit and starts it on the 
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-1', venueId: 'id-met', visitId: 'remote-1' });
   expect(mockGetPosition).toHaveBeenCalledWith({ accuracy: 3 });
   expect(mockNearest).toHaveBeenCalledWith('venue-db', { lat: met.lat, lng: met.lng, at: mockNow }, 400);
-  expect(mockMutation).toHaveBeenCalledWith('startVisit', { venueId: 'id-met', localVisitId: 'uuid-1' });
+  expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-met', localId: 'uuid-1' }));
   expect(mockVisits.get('uuid-1')).toMatchObject({ venueId: 'id-met', venueName: 'Metropolitan Museum of Art', startedAt: mockNow, endedAt: null, remoteVisitId: 'remote-1' });
-  expect(mockSettings.get('currentVisit')).toBe('uuid-1');
+  expect(mockSettings.get('currentVisit:device:test-installation')).toBe('uuid-1');
   expect(controller.getState().status).toBe('resolved');
 });
 
@@ -140,7 +152,7 @@ it('asks between two seeded venues, opens the picker once, and a choice starts t
   expect(mockMutation).not.toHaveBeenCalled();
   const option = controller.getState().options[1];
   await act(async () => { await controller.confirm(option); });
-  expect(mockMutation).toHaveBeenCalledWith('startVisit', { venueId: 'id-neue', localVisitId: 'uuid-1' });
+  expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-neue', localId: 'uuid-1' }));
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-1', venueId: 'id-neue', visitId: 'remote-1' });
 });
 
@@ -155,7 +167,7 @@ it('searches MapKit when nothing seeded is near and confirms a place through the
   expect(mockSignPayload).toHaveBeenCalledWith({ action: 'museums.confirmPoiVenue', ...fields });
   expect(mockMutation).toHaveBeenCalledWith('confirmPoiVenue', { ...fields, nonce: 'nonce', assertionBase64: 'assertion', payloadJson: '{}' });
   expect(mockInsertConfirmed).toHaveBeenCalledWith('venue-db', { id: 'id-corner', ...fields });
-  expect(mockMutation).toHaveBeenCalledWith('startVisit', { venueId: 'id-corner', localVisitId: 'uuid-1' });
+  expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-corner', localId: 'uuid-1' }));
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-1', venueId: 'id-corner', visitId: 'remote-1' });
 });
 
@@ -174,7 +186,7 @@ it('ends the visit when a later fix finds nothing nearby', async () => {
   mockNow += 10 * 60 * 1000;
   await expect(controller.resolve()).resolves.toEqual({});
   expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: mockNow });
-  expect(mockSettings.has('currentVisit')).toBe(false);
+  expect(mockSettings.has('currentVisit:device:test-installation')).toBe(false);
   expect(controller.getState().visit).toBeUndefined();
 });
 
@@ -188,12 +200,12 @@ it('moves to a new visit when a later fix resolves a different venue', async () 
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-2', venueId: 'id-neue', visitId: 'remote-2' });
   expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: mockNow });
   expect(mockVisits.get('uuid-2')).toMatchObject({ venueId: 'id-neue', endedAt: null, remoteVisitId: 'remote-2' });
-  expect(mockSettings.get('currentVisit')).toBe('uuid-2');
+  expect(mockSettings.get('currentVisit:device:test-installation')).toBe('uuid-2');
 });
 
 it('restores an open visit and resumes it instead of starting another local one', async () => {
-  mockVisits.set('existing', { localId: 'existing', venueId: 'id-met' as Id<'museums'>, venueName: 'Metropolitan Museum of Art', startedAt: mockNow - 10 * 60 * 1000, endedAt: null, remoteVisitId: null, endSyncedAt: null });
-  mockSettings.set('currentVisit', 'existing');
+  mockVisits.set('existing', { owner: 'device:test-installation', localId: 'existing', venueId: 'id-met' as Id<'museums'>, venueName: 'Metropolitan Museum of Art', startedAt: mockNow - 10 * 60 * 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'America/New_York', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockSettings.set('currentVisit:device:test-installation', 'existing');
   mockNearest.mockResolvedValue([metRow]);
   await controller.hydrate();
   expect(controller.getContext()).toEqual({ visitLocalId: 'existing', venueId: 'id-met' });
@@ -201,15 +213,15 @@ it('restores an open visit and resumes it instead of starting another local one'
   await controller.syncRemoteVisit();
   expect(controller.getContext()).toEqual({ visitLocalId: 'existing', venueId: 'id-met', visitId: 'remote-1' });
   expect(mockVisits.size).toBe(1);
-  expect(mockMutation).toHaveBeenCalledWith('startVisit', { venueId: 'id-met', localVisitId: 'existing' });
+  expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-met', localId: 'existing' }));
 });
 
 it('closes a visit older than the resume window at launch', async () => {
-  mockVisits.set('stale', { localId: 'stale', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt: mockNow - 5 * 60 * 60 * 1000, endedAt: null, remoteVisitId: 'remote-old' as Id<'visits'>, endSyncedAt: null });
-  mockSettings.set('currentVisit', 'stale');
+  mockVisits.set('stale', { owner: 'device:test-installation', localId: 'stale', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt: mockNow - 5 * 60 * 60 * 1000, endedAt: null, remoteVisitId: 'remote-old' as Id<'visits'>, visitedOn: '1970-01-01', timeZone: 'America/New_York', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockSettings.set('currentVisit:device:test-installation', 'stale');
   await controller.hydrate();
   expect(mockVisits.get('stale')).toMatchObject({ endedAt: mockNow });
-  expect(mockSettings.has('currentVisit')).toBe(false);
+  expect(mockSettings.has('currentVisit:device:test-installation')).toBe(false);
   expect(controller.getContext()).toEqual({});
 });
 
@@ -255,19 +267,19 @@ it('starts the server visit later when the session was not ready at resolution',
   mockAuth.isAuthenticated = true;
   mockMutation.mockResolvedValue({ visitId: 'remote-1' });
   await act(async () => { await view.rerender(<VenueResolver controller={controller} />); });
-  expect(mockMutation).toHaveBeenLastCalledWith('startVisit', { venueId: 'id-met', localVisitId: 'uuid-1' });
+  expect(mockMutation).toHaveBeenLastCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-met', localId: 'uuid-1' }));
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-1', venueId: 'id-met', visitId: 'remote-1' });
 });
 
 it('"Not here" ends an undecided visit and does not reopen the sheet nearby', async () => {
-  mockVisits.set('old', { localId: 'old', venueId: 'id-old' as Id<'museums'>, venueName: 'Old', startedAt: mockNow - 1000, endedAt: null, remoteVisitId: null, endSyncedAt: null });
-  mockSettings.set('currentVisit', 'old');
+  mockVisits.set('old', { owner: 'device:test-installation', localId: 'old', venueId: 'id-old' as Id<'museums'>, venueName: 'Old', startedAt: mockNow - 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'America/New_York', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockSettings.set('currentVisit:device:test-installation', 'old');
   mockNearest.mockResolvedValue([metRow, neueRow]);
   await act(async () => { await render(<VenueResolver controller={controller} />); });
   expect(mockPush).toHaveBeenCalledTimes(1);
   await act(async () => { controller.dismiss(); });
   expect(mockVisits.get('old')).toMatchObject({ endedAt: mockNow });
-  expect(mockSettings.has('currentVisit')).toBe(false);
+  expect(mockSettings.has('currentVisit:device:test-installation')).toBe(false);
   mockNow += 5 * 60 * 1000;
   await act(async () => { await controller.resolve(); });
   expect(mockGetPosition).toHaveBeenCalledTimes(2);
@@ -293,7 +305,8 @@ it('keeps resolving local venues and confirming seeded choices while the server 
   expect(mockVisits.size).toBe(2);
   remote.resolve({ visitId: 'remote-old' });
   await controller.syncRemoteVisit();
-  expect(mockMutation.mock.calls.map(([ref]) => ref)).toEqual(['startVisit', 'endVisit', 'startVisit']);
+  expect(mockVisits.get('uuid-2')?.remoteVisitId).toBeTruthy();
+  expect(mockVisits.get('uuid-1')?.endedAt).toBe(mockNow);
 });
 
 it('ends a server visit when the phone leaves the venue', async () => {
@@ -303,7 +316,7 @@ it('ends a server visit when the phone leaves the venue', async () => {
   mockNow += 5 * 60 * 1000;
   await controller.resolve();
   await controller.syncRemoteVisit();
-  expect(mockMutation).toHaveBeenCalledWith('endVisit', { visitId: 'remote-1' });
+  expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ remoteVisitId: 'remote-1', endedAt: mockNow }));
   expect(controller.getContext()).toEqual({});
 });
 
@@ -359,12 +372,12 @@ it('retries an unsent visit ending when connectivity returns', async () => {
   mockMutation.mockRejectedValue(new Error('offline'));
   await act(async () => { controller.dismiss(); });
   await controller.syncRemoteVisit();
-  expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: mockNow, endSyncedAt: null });
+  expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: mockNow, syncedAt: null });
   mockMutation.mockResolvedValue(null);
   mockReachable = true;
   await act(async () => { await view.rerender(<VenueResolver controller={controller} />); });
-  expect(mockMutation).toHaveBeenLastCalledWith('endVisit', { visitId: 'remote-1' });
-  expect(mockVisits.get('uuid-1')).toMatchObject({ endSyncedAt: mockNow });
+  expect(mockMutation).toHaveBeenLastCalledWith('syncVisit', expect.objectContaining({ remoteVisitId: 'remote-1', endedAt: mockNow }));
+  expect(mockVisits.get('uuid-1')).toMatchObject({ syncedAt: mockNow });
 });
 
 it.each(['none', 'auto'] as const)('keeps a confirmed visit when an older fix returns %s', async (result) => {
@@ -385,7 +398,7 @@ it.each(['none', 'auto'] as const)('keeps a confirmed visit when an older fix re
   expect([...mockVisits.values()].filter((visit) => visit.endedAt === null)).toEqual([
     expect.objectContaining({ localId: 'uuid-1', venueId: 'id-neue' }),
   ]);
-  expect(mockSettings.get('currentVisit')).toBe('uuid-1');
+  expect(mockSettings.get('currentVisit:device:test-installation')).toBe('uuid-1');
   await controller.hydrate();
   expect(controller.getContext().venueId).toBe('id-neue');
 });

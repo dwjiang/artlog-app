@@ -6,6 +6,8 @@ struct PoiRecord {
   let name: String
   let lat: Double
   let lng: Double
+  let city: String?
+  let country: String?
   let website: String?
   let category: String
   let distanceMeters: Double
@@ -14,6 +16,8 @@ struct PoiRecord {
     var value: [String: Any] = [
       "name": name, "lat": lat, "lng": lng, "category": category, "distanceMeters": distanceMeters,
     ]
+    if let city { value["city"] = city }
+    if let country { value["country"] = country }
     if let website { value["website"] = website }
     return value
   }
@@ -80,7 +84,8 @@ enum PoiSearcher {
       let distance = origin.distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
       guard distance <= radius else { return nil }
       return PoiRecord(
-        name: name, lat: coordinate.latitude, lng: coordinate.longitude, website: item.url?.absoluteString,
+        name: name, lat: coordinate.latitude, lng: coordinate.longitude,
+        city: item.placemark.locality, country: item.placemark.isoCountryCode, website: item.url?.absoluteString,
         category: category(of: item), distanceMeters: distance
       )
     }.sorted { $0.distanceMeters < $1.distanceMeters }

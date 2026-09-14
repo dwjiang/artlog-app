@@ -1,5 +1,7 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
+import { sameOwner } from '../shared/journal/contracts';
+import { ownerForDevice } from './lib/ownership';
 import model from '../shared/model/model-version.json';
 import { placementProposalPayload } from '../shared/attestation/attested-payloads';
 import { internal } from './_generated/api';
@@ -79,8 +81,8 @@ export const loadContext = internalQuery({
       ctx.db.get(scan.deviceId),
     ]);
     if (!device || device.banned) throw new ConvexError({ code: 'device_banned' });
-    if (scan.visitId && (!visit || visit.deviceId !== scan.deviceId || visit.venueId !== scan.venueId)) {
-      throw new ConvexError({ code: 'invalid_visit' });
+    if (scan.visitId && (!visit || !sameOwner(visit.owner, await ownerForDevice(ctx, device)) || visit.venueId !== scan.venueId)) {
+      throw new ConvexError({ code: 'not_found' });
     }
     return { visit };
   },
@@ -174,7 +176,7 @@ export function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): O
 
 export const identify = action({
   args: {
-    localId: v.string(), vector: v.array(v.number()), descriptors: v.bytes(), keypoints: v.bytes(),
+    scope: v.string(), localId: v.string(), vector: v.array(v.number()), descriptors: v.bytes(), keypoints: v.bytes(),
     modelVersion: v.string(), venueId: v.optional(v.id('museums')), visitId: v.optional(v.id('visits')),
     capturedAt: v.number(),
   },
@@ -189,7 +191,7 @@ export const identify = action({
       query = decodeQuery(args.descriptors, args.keypoints);
     }
     const { scan, existing } = await ctx.runMutation(internal.scans.create, {
-      deviceId: device._id, localId: args.localId, venueId: args.venueId, visitId: args.visitId,
+      scope: args.scope, deviceId: device._id, localId: args.localId, venueId: args.venueId, visitId: args.visitId,
       modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
     });
     const scanId = scan._id;

@@ -7,7 +7,7 @@ import * as repo from './saved-works';
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
 const deviceId = 'this-device' as Id<'devices'>;
 const remote: Doc<'collections'> = {
-  _id: 'collection-1' as Id<'collections'>, _creationTime: 1, deviceId: 'sibling' as Id<'devices'>,
+  _id: 'collection-1' as Id<'collections'>, _creationTime: 1, owner: { kind: 'device', deviceId: 'sibling' as Id<'devices'> }, changeVersion: 1,
   localId: 'work', savedAt: 1, updatedAt: 10, updatedBy: 'sibling' as Id<'devices'>,
   snapshot: { title: 'Water Lilies', artist: 'Monet', institution: 'Museum' }, note: 'Seen together',
 };
@@ -26,7 +26,7 @@ it('imports metadata and notes without a photo, then deduplicates a replay', asy
 
 it('keeps an existing photo and immutable snapshot when remote metadata changes', async () => {
   await repo.insertSavedWork({ localId: 'work', title: 'Original', artist: 'Artist', savedAt: 1, photoPath: 'photo.jpg', cropPath: 'crop.jpg', syncedAt: 1 });
-  await repo.upsertFromRemote([{ ...remote, deviceId }]);
+  await repo.upsertFromRemote([{ ...remote, updatedBy: deviceId }]);
   expect(await repo.getSavedWork('work')).toMatchObject({ title: 'Original', photoPath: 'photo.jpg', cropPath: 'crop.jpg', syncedAt: 10 });
 });
 
@@ -35,7 +35,7 @@ it('keeps an in-flight note edit dirty even if the old upload is acknowledged', 
   const [pending] = await repo.listUnsynced();
   await setNote('work', 'Newer note', 12);
   await repo.markSynced([{ localId: 'work', revision: pending.work.revision, updatedAt: 20, updatedBy: deviceId }]);
-  await repo.upsertFromRemote([{ ...remote, deviceId }]);
+  await repo.upsertFromRemote([{ ...remote, updatedBy: deviceId }]);
   expect(await repo.listUnsynced()).toMatchObject([{ work: { localId: 'work', syncedAt: null, revision: 1 }, note: 'Newer note' }]);
 });
 
@@ -47,12 +47,6 @@ it('queues deletion after sync and never resurrects a deleted row on remote repl
   await repo.markSynced([{ localId: pending.work.localId, revision: pending.work.revision, updatedAt: 20, updatedBy: deviceId }]);
   await repo.upsertFromRemote([remote]);
   expect(await repo.listSavedWorks()).toEqual([]);
-});
-
-it('preserves saved works, notes and photos when changing sync targets', async () => {
-  await repo.upsertFromRemote([remote]);
-  await repo.queueAllForSync();
-  expect(await repo.listUnsynced()).toMatchObject([{ work: { title: 'Water Lilies', localId: 'work' }, note: 'Seen together' }]);
 });
 
 it('applies a server deletion when uploading a stale local note edit', async () => {

@@ -8,7 +8,7 @@ jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file
 
 const now = new Date(2026, 8, 11, 12, 0, 0).getTime();
 const row: PendingScan = {
-  localId: 'cap-1', photoPath: 'photos/cap-1.jpg', cropPath: 'crops/cap-1.jpg', vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+  owner: 'device:test-installation', localId: 'cap-1', photoPath: 'photos/cap-1.jpg', cropPath: 'crops/cap-1.jpg', vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
   modelVersion: 'm', venueId: null, visitId: null, visitLocalId: null, capturedAt: now - 5 * 60_000, labelPhotoPath: null, qrUrl: null,
   status: 'queued', attemptModelVersion: 'm', attempts: 0, lastError: null, scanId: null, reviewedAt: null, createdAt: now,
 };

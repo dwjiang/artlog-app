@@ -51,7 +51,7 @@ it('walks a row from queued through identifying to identified', async () => {
 it('keeps failed and waiting captures even if their server card was opened', async () => {
   await enqueueAll(row('waiting', { scanId }), row('failed', { status: 'failed', scanId }));
   await repo.markScanReviewed(scanId);
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['waiting', 'failed']);
+  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['failed', 'waiting']);
   expect((await repo.getPendingScan('failed'))?.reviewedAt).toBeNull();
   await repo.deletePendingScan('waiting');
   await repo.deletePendingScan('failed');

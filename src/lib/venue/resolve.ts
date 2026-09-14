@@ -17,6 +17,8 @@ export type VenueRow = {
   lng: number;
   website: string | null;
   region: string;
+  city?: string | null;
+  country?: string | null;
 };
 
 export type VenueCandidate = VenueRow & { distanceM: number };

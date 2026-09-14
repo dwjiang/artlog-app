@@ -1,4 +1,4 @@
-import { customType, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type { Id } from '../../convex/_generated/dataModel';
 
@@ -16,21 +16,28 @@ const bytes = customType<{ data: ArrayBuffer; driverData: Uint8Array }>({
 // File columns are relative to Paths.document; src/lib/files/photos.ts resolves their current URIs.
 
 export const visits = sqliteTable('visits', {
-  localId: text().primaryKey(),
+  owner: text().notNull(),
+  localId: text().notNull(),
   venueId: text().$type<Id<'museums'>>().notNull(),
   venueName: text().notNull(),
-  startedAt: integer().notNull(),
+  visitedOn: text().notNull(),
+  timeZone: text().notNull(),
+  reflection: text(),
+  startedAt: integer(),
   endedAt: integer(),
   remoteVisitId: text().$type<Id<'visits'>>(),
-  endSyncedAt: integer(),
-});
+  syncedAt: integer(),
+  syncedBy: text().$type<Id<'devices'>>(),
+  revision: integer().notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.owner, table.localId] }), index('visits_owner_history').on(table.owner, table.visitedOn, table.localId)]);
 
 /** An immutable snapshot of what the user saw: only notes, deletion and sync state change. */
 export const savedWorks = sqliteTable(
   'savedWorks',
   {
-    localId: text().primaryKey(),
-    visitLocalId: text().references(() => visits.localId),
+    owner: text().notNull(),
+    localId: text().notNull(),
+    visitLocalId: text(),
     venueId: text().$type<Id<'museums'>>(),
     venueName: text(),
     gallery: text(),
@@ -52,14 +59,19 @@ export const savedWorks = sqliteTable(
     syncedBy: text().$type<Id<'devices'>>(),
     deletedAt: integer(),
   },
-  (table) => [index('savedWorks_savedAt').on(table.savedAt)],
+  (table) => [primaryKey({ columns: [table.owner, table.localId] }),
+    foreignKey({ columns: [table.owner, table.visitLocalId], foreignColumns: [visits.owner, visits.localId] }).onUpdate('cascade'),
+    index('savedWorks_owner_savedAt').on(table.owner, table.savedAt)],
 );
 
 export const notes = sqliteTable('notes', {
-  savedLocalId: text().primaryKey().references(() => savedWorks.localId),
+  owner: text().notNull(),
+  savedLocalId: text().notNull(),
   text: text().notNull(),
   updatedAt: integer().notNull(),
-});
+}, (table) => [primaryKey({ columns: [table.owner, table.savedLocalId] }),
+  foreignKey({ columns: [table.owner, table.savedLocalId], foreignColumns: [savedWorks.owner, savedWorks.localId] }).onUpdate('cascade'),
+]);
 
 export const pendingScanStatuses = ['queued', 'identifying', 'identified', 'failed'] as const;
 export type PendingScanStatus = (typeof pendingScanStatuses)[number];
@@ -68,7 +80,8 @@ export type PendingScanStatus = (typeof pendingScanStatuses)[number];
 export const pendingScans = sqliteTable(
   'pendingScans',
   {
-    localId: text().primaryKey(),
+    owner: text().notNull(),
+    localId: text().notNull(),
     photoPath: text().notNull(),
     cropPath: text().notNull(),
     vector: text({ mode: 'json' }).$type<number[]>().notNull(),
@@ -77,7 +90,7 @@ export const pendingScans = sqliteTable(
     modelVersion: text().notNull(),
     venueId: text().$type<Id<'museums'>>(),
     visitId: text().$type<Id<'visits'>>(),
-    visitLocalId: text().references(() => visits.localId),
+    visitLocalId: text(),
     capturedAt: integer().notNull(),
     labelPhotoPath: text(),
     qrUrl: text(),
@@ -90,7 +103,9 @@ export const pendingScans = sqliteTable(
     createdAt: integer().notNull(),
     reviewedAt: integer(),
   },
-  (table) => [index('pendingScans_status_capturedAt').on(table.status, table.capturedAt)],
+  (table) => [primaryKey({ columns: [table.owner, table.localId] }),
+    foreignKey({ columns: [table.owner, table.visitLocalId], foreignColumns: [visits.owner, visits.localId] }).onUpdate('cascade'),
+    index('pendingScans_owner_status_capturedAt').on(table.owner, table.status, table.capturedAt)],
 );
 
 export const settings = sqliteTable('settings', {
@@ -99,9 +114,9 @@ export const settings = sqliteTable('settings', {
 });
 
 export type Visit = typeof visits.$inferSelect;
-export type NewVisit = typeof visits.$inferInsert;
+export type NewVisit = Omit<typeof visits.$inferInsert, 'owner'> & { owner?: string };
 export type SavedWork = typeof savedWorks.$inferSelect;
-export type NewSavedWork = typeof savedWorks.$inferInsert;
+export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, 'owner'> & { owner?: string };
 export type Note = typeof notes.$inferSelect;
 export type PendingScan = typeof pendingScans.$inferSelect;
-export type NewPendingScan = typeof pendingScans.$inferInsert;
+export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, 'owner'> & { owner?: string };

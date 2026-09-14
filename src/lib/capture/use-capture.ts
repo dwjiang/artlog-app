@@ -5,6 +5,7 @@ import { useNetworkState } from 'expo-network';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
+import { captureOwner } from '@/lib/account/owner-store';
 import { api } from '../../../convex/_generated/api';
 import { venueIdAt } from '@/lib/venue/venue-db';
 import { captureOptions, defaultStages } from './default-stages';
@@ -30,19 +31,23 @@ export function useCapture() {
 
   async function capture(getInput: () => Promise<CaptureInput | null>) {
     if (inFlight.current) return;
+    const owner = captureOwner();
     inFlight.current = true;
     setBusy(true);
     setMessage(undefined);
     setTimings(undefined);
     try {
       const input = await getInput();
-      if (!input) return;
+      if (!input || !owner.isOwnerCurrent()) return;
       const result = await runCapture(input, {
         ...defaultStages,
-        identify: ({ cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, ...payload }) => identify(payload),
+        identify: ({ cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, owner: _owner, scope, ...payload }) => {
+          if (!scope || !owner.isCurrent()) throw new Error('Journal owner changed');
+          return identify({ ...payload, scope });
+        },
         isOnline: () => online.current !== false,
       }, captureOptions);
-      if (!mounted.current) return;
+      if (!mounted.current || !owner.isOwnerCurrent()) return;
       setTimings(result.timings);
       if (result.kind === 'retake') {
         setMessage(result.message);

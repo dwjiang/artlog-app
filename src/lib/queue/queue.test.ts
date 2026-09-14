@@ -1,3 +1,4 @@
+import { switchOwner } from '@/lib/account/owner-store';
 import { ConvexError } from 'convex/values';
 import { AppState } from 'react-native';
 
@@ -28,6 +29,12 @@ const mockStart = jest.fn();
 const mockStop = jest.fn();
 let mockDocumentsUri = 'file:///documents';
 let flushDeps: FlushDependencies;
+let stopWorker: (() => void) | undefined;
+async function startWorker() {
+  stopWorker = startQueueFlusher();
+  await Promise.resolve(); await Promise.resolve();
+  jest.clearAllMocks();
+}
 
 jest.mock('@/db/repos/pending-scans', () => mockRepo);
 jest.mock('@/lib/venue/visit-sync', () => ({ resolveScanVisit: (...args: unknown[]) => mockResolveVisit(...args) }));
@@ -61,6 +68,7 @@ const { runCapture } = jest.requireActual<typeof import('../capture/pipeline')>(
 
 const scanId = 'scan-1' as Id<'scans'>;
 const payload: CapturePayload = {
+  owner: 'device:test-installation', scope: 'test-scope',
   localId: 'cap-1', vector: [0.5], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: model.modelVersion,
   venueId: 'museum-1' as Id<'museums'>, visitLocalId: 'local-visit', capturedAt: 123, photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg',
 };
@@ -75,7 +83,7 @@ beforeEach(() => {
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
-afterEach(() => { jest.restoreAllMocks(); });
+afterEach(() => { stopWorker?.(); stopWorker = undefined; jest.restoreAllMocks(); });
 
 it('persists both files before inserting the row with the requested status', async () => {
   await captureStore.enqueue(payload, 'identifying');
@@ -85,23 +93,24 @@ it('persists both files before inserting the row with the requested status', asy
     vector: [0.5], descriptors: payload.descriptors, keypoints: payload.keypoints, modelVersion: model.modelVersion,
     attemptModelVersion: model.modelVersion,
     venueId: 'museum-1', visitId: undefined, visitLocalId: 'local-visit', capturedAt: 123, status: 'identifying', createdAt: expect.any(Number),
-  });
+  }, payload.owner);
   expect(mockPersist.mock.invocationCallOrder[0]).toBeLessThan(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]);
   expect(mockFlush).not.toHaveBeenCalled();
 });
 
 it('records identified scans, keeps unsupported versions as failed, and requeues without counting', async () => {
   await captureStore.recordResult('cap-1', { scanId, status: 'identified' } as IdentifyResponse);
-  expect(mockRepo.markIdentified).toHaveBeenCalledWith('cap-1', scanId);
+  expect(mockRepo.markIdentified).toHaveBeenCalledWith('cap-1', scanId, payload.owner);
   await captureStore.recordResult('cap-1', { scanId, status: 'unsupported_version', error: 'Update the app to identify.' } as IdentifyResponse);
-  expect(mockRepo.markFailed).toHaveBeenCalledWith('cap-1', 'Update the app to identify.', scanId);
+  expect(mockRepo.markFailed).toHaveBeenCalledWith('cap-1', 'Update the app to identify.', scanId, payload.owner);
   await captureStore.recordResult('cap-1', { scanId, status: 'unsupported_version' } as IdentifyResponse);
-  expect(mockRepo.markFailed).toHaveBeenLastCalledWith('cap-1', 'Update the app to identify.', scanId);
+  expect(mockRepo.markFailed).toHaveBeenLastCalledWith('cap-1', 'Update the app to identify.', scanId, payload.owner);
   await captureStore.requeue('cap-1', 'Network request failed');
-  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', 'Network request failed', { countAttempt: false });
+  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', 'Network request failed', { countAttempt: false }, payload.owner);
 });
 
 it.each(['device_not_registered', 'rate_limited'])('wakes the worker after requeueing an inline %s failure', async (error) => {
+  await startWorker();
   const failure = new ConvexError({ code: error });
   await expect(runCapture({ photoUri: payload.photoUri, capturedAt: 1, quad: null, source: 'camera' }, {
     warper: { warpAndLetterbox: async () => ({ cropUri: payload.cropUri }) },
@@ -112,12 +121,13 @@ it.each(['device_not_registered', 'rate_limited'])('wakes the worker after reque
     identify: async () => { throw failure; },
     isOnline: () => true,
   }, { modelVersion: 'v1', inputSize: 512 })).rejects.toBe(failure);
-  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', error, { countAttempt: false });
+  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', error === 'rate_limited' ? 'Please wait a moment and try again.' : error, { countAttempt: false }, payload.owner);
   expect(mockFlush).toHaveBeenCalledTimes(1);
   expect(mockRepo.recordAttemptFailure.mock.invocationCallOrder[0]).toBeLessThan(mockFlush.mock.invocationCallOrder[0]);
 });
 
 it('wakes the worker once an offline capture is stored, without relying on a mounted screen', async () => {
+  await startWorker();
   await captureStore.enqueue(payload, 'queued');
   expect(mockFlush).toHaveBeenCalledTimes(1);
   expect(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]).toBeLessThan(mockFlush.mock.invocationCallOrder[0]);
@@ -132,7 +142,7 @@ it('flushes at start, on reconnect and on foreground, and stops cleanly', async 
   });
   const stop = startQueueFlusher();
   await Promise.resolve();
-  await Promise.resolve();
+  await Promise.resolve(); await Promise.resolve();
   expect(mockRepo.requeueInterrupted).toHaveBeenCalledTimes(1);
   expect(mockFlush).toHaveBeenCalledTimes(1);
   const networkListener = mockNetworkListener.mock.calls[0][0] as (state: { isInternetReachable?: boolean; isConnected?: boolean }) => void;
@@ -150,8 +160,8 @@ it('flushes at start, on reconnect and on foreground, and stops cleanly', async 
   expect(removeAppState).toHaveBeenCalled();
   expect(mockStop).toHaveBeenCalled();
   const stopAgain = startQueueFlusher();
-  await Promise.resolve();
-  expect(mockRepo.requeueInterrupted).toHaveBeenCalledTimes(1);
+  await Promise.resolve(); await Promise.resolve();
+  expect(mockRepo.requeueInterrupted).toHaveBeenCalledTimes(2);
   expect(mockStart).toHaveBeenCalledTimes(2);
   stopAgain();
 });
@@ -166,20 +176,23 @@ it('does not start from a pending initialization callback after cleanup', async 
 });
 
 it('resets a failed row and flushes on manual retry', async () => {
+  await startWorker();
   await retryPendingScan('cap-1');
   expect(mockRepo.retryPendingScan).toHaveBeenCalledWith('cap-1');
   expect(mockFlush).toHaveBeenCalledTimes(1);
-  expect(flushQueue).toBe(mockFlush);
+  await flushQueue();
+  expect(mockFlush).toHaveBeenCalledTimes(2);
 });
 
 it('wires identify, reachability and re-embedding into the flusher', async () => {
+  await startWorker();
   mockResolveVisit.mockResolvedValue('remote-visit');
   expect(await flushDeps.resolveVisitId('local-visit', 'museum-1' as Id<'museums'>)).toBe('remote-visit');
   expect(mockResolveVisit).toHaveBeenCalledWith('local-visit', 'museum-1');
   mockAction.mockResolvedValue('response');
   const args = { localId: 'cap-1', vector: [1], descriptors: new ArrayBuffer(1), keypoints: new ArrayBuffer(1), modelVersion: 'v', capturedAt: 1 };
   expect(await flushDeps.identify(args)).toBe('response');
-  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, args);
+  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, { ...args, scope: 'test-scope' });
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: false });
   expect(await flushDeps.isOnline()).toBe(false);
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: undefined });
@@ -189,7 +202,8 @@ it('wires identify, reachability and re-embedding into the flusher', async () =>
   expect(await flushDeps.reembed('crops/a.jpg')).toBe('features');
   expect(mockExtract).toHaveBeenCalledWith('file:///new-container/documents/crops/a.jpg', { embedder: { name: 'embedder' }, orb: { name: 'orb' } });
   expect(flushDeps.modelVersion).toBe(model.modelVersion);
-  expect(flushDeps.recordFailure).toBe(mockRepo.recordAttemptFailure);
+  await flushDeps.recordFailure('cap-1', 'failed', { countAttempt: false });
+  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', 'failed', { countAttempt: false }, payload.owner);
   mockRunLabelFlow.mockResolvedValue({ stage: 'verified' });
   await expect(flushDeps.runLabelFlow(scanId, { labelPhotoPath: 'labels/a.jpg', qrUrl: 'https://museum.example/qr' })).resolves.toBeUndefined();
   expect(mockRunLabelFlow).toHaveBeenCalledWith(scanId, {
@@ -200,6 +214,7 @@ it('wires identify, reachability and re-embedding into the flusher', async () =>
 });
 
 it('preserves transport errors from the label reader for queue backoff', async () => {
+  await startWorker();
   const cause = new Error('Network request failed');
   mockRunLabelFlow.mockRejectedValue(new LabelFlowError('network', { cause }));
   await expect(flushDeps.runLabelFlow(scanId, { qrUrl: 'https://museum.example/qr' })).rejects.toBe(cause);
@@ -208,10 +223,21 @@ it('preserves transport errors from the label reader for queue backoff', async (
 it('discards only the pending label and its file when the user chooses a retake', async () => {
   mockRepo.getPendingScan.mockResolvedValue({ labelPhotoPath: 'labels/failed.jpg', qrUrl: null });
   await discardPendingLabel('cap-1');
-  expect(mockRepo.clearPendingLabel).toHaveBeenCalledWith('cap-1', { labelPhotoPath: 'labels/failed.jpg', qrUrl: undefined });
+  expect(mockRepo.clearPendingLabel).toHaveBeenCalledWith('cap-1', { labelPhotoPath: 'labels/failed.jpg', qrUrl: undefined }, payload.owner);
   const { removeFile } = jest.requireMock('@/lib/label/crop');
   expect(removeFile).toHaveBeenCalledWith('file:///documents/labels/failed.jpg');
   expect(mockRepo.markIdentified).not.toHaveBeenCalled();
   expect(mockRepo.retryPendingScan).not.toHaveBeenCalled();
   expect(mockFlush).not.toHaveBeenCalled();
+});
+
+it('does not enqueue into the old owner after file persistence crosses an account switch', async () => {
+  mockPersist.mockImplementationOnce(async () => {
+    switchOwner('account:other', 'other-scope');
+    return { photoPath: 'photos/new.jpg', cropPath: 'crops/new.jpg' };
+  });
+  try {
+    await expect(captureStore.enqueue(payload, 'queued')).rejects.toThrow('Journal owner changed');
+    expect(mockRepo.enqueuePendingScan).not.toHaveBeenCalled();
+  } finally { switchOwner(payload.owner, payload.scope); }
 });

@@ -2,14 +2,14 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 import { api } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from './lib/testFactories';
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, seedJournalVisit } from './lib/testFactories';
 import { harness } from './test.helpers';
 
 afterEach(() => { vi.restoreAllMocks(); });
 
 const snapshot = { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Test Museum' };
 const suggested = { title: 'Water Lilies', artist: 'Claude Monet' };
-const page = { paginationOpts: { numItems: 10, cursor: null } };
+const page = { limit: 10, cursor: null };
 
 async function fixture() {
   const t = harness();
@@ -17,16 +17,16 @@ async function fixture() {
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
   const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
-  const visitId = await t.run((ctx) => ctx.db.insert('visits', { deviceId: user.deviceId, venueId, startedAt: Date.now() }));
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
   const args: {
     localId: string; scanId?: Id<'scans'>; objectId?: Id<'objects'>; artworkId?: Id<'artworks'>; venueId?: Id<'museums'>;
-    visitId?: Id<'visits'>; gallery?: string; savedAt: number; snapshot: typeof snapshot; suggested: typeof suggested | null;
+    scope: string; visitLocalId?: string; gallery?: string; savedAt: number; snapshot: typeof snapshot; suggested: typeof suggested | null;
   } = {
-    localId: 'saved-1', savedAt: Date.now(), scanId, objectId: work.objectId, artworkId: work.artworkId, venueId, visitId, gallery: '4', snapshot, suggested,
+    scope: user.scope, localId: crypto.randomUUID(), savedAt: Date.now(), scanId, objectId: work.objectId, artworkId: work.artworkId, venueId, visitLocalId: (await t.run((ctx) => ctx.db.get(visitId)))!.localId, gallery: '4', snapshot, suggested,
   };
   const save = (overrides: Partial<typeof args> = {}, as = user.as) => as.mutation(api.collections.saveToCollection, { ...args, ...overrides });
   const object = () => t.run((ctx) => ctx.db.get(work.objectId));
-  const list = (as = user.as) => as.query(api.collections.listMine, page);
+  const list = (as = user.as) => as.query(api.accounts.me, {}).then(({ scope }) => as.query(api.collections.listMine, { ...page, scope }));
   const rows = () => t.run((ctx) => ctx.db.query('collections').collect());
   return { t, user, venueId, work, args, save, object, list, rows };
 }
@@ -38,8 +38,8 @@ it('saves a snapshot once per local id and confirms an untouched suggestion exac
   const saved = await rows();
   expect(saved).toHaveLength(1);
   expect(saved[0]).toMatchObject({
-    _id: collectionId, deviceId: user.deviceId, localId: 'saved-1', scanId: args.scanId, objectId: args.objectId,
-    artworkId: args.artworkId, venueId: args.venueId, visitId: args.visitId, gallery: '4',
+    _id: collectionId, owner: { kind: 'device', deviceId: user.deviceId }, localId: args.localId, scanId: args.scanId, objectId: args.objectId,
+    artworkId: args.artworkId, venueId: args.venueId, visitLocalId: args.visitLocalId, gallery: '4',
     snapshot: { ...snapshot, title: ' Water Lilies ' }, savedAt: expect.any(Number),
   });
   expect(saved[0]).not.toHaveProperty('suggested');
@@ -64,20 +64,20 @@ it('lists the caller’s saved works newest first and hides removed ones', async
   const now = vi.spyOn(Date, 'now');
   const { t, user, save, list } = await fixture();
   now.mockReturnValue(1_800_000_000_000);
-  await save({ localId: 'first' });
+  await save({ scope: user.scope, localId: '10000000-0000-4000-8000-000000000001' });
   now.mockReturnValue(1_800_000_001_000);
-  await save({ localId: 'second', savedAt: Date.now() });
-  expect((await list()).page.map((row) => row.localId)).toEqual(['second', 'first']);
+  await save({ scope: user.scope, localId: '10000000-0000-4000-8000-000000000002', savedAt: Date.now() });
+  expect((await list()).page.map((row) => row.localId)).toEqual(['10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001']);
   const other = await seedDevice(t);
   expect((await list(other.as)).page).toEqual([]);
-  await user.as.mutation(api.collections.remove, { localId: 'first' });
-  await user.as.mutation(api.collections.remove, { localId: 'first' });
-  expect((await list()).page.map((row) => row.localId)).toEqual(['second']);
+  await user.as.mutation(api.collections.remove, { scope: user.scope, localId: '10000000-0000-4000-8000-000000000001' });
+  await user.as.mutation(api.collections.remove, { scope: user.scope, localId: '10000000-0000-4000-8000-000000000001' });
+  expect((await list()).page.map((row) => row.localId)).toEqual(['10000000-0000-4000-8000-000000000002']);
   const removed = await t.run((ctx) => ctx.db.query('collections')
-    .withIndex('by_device_localId', (q) => q.eq('deviceId', user.deviceId).eq('localId', 'first')).unique());
+    .withIndex('by_owner_localId', (q) => q.eq('owner', { kind: 'device', deviceId: user.deviceId }).eq('localId', '10000000-0000-4000-8000-000000000001')).unique());
   expect(removed).toMatchObject({ deletedAt: 1_800_000_001_000 });
-  await expect(other.as.mutation(api.collections.remove, { localId: 'second' })).rejects.toMatchObject({ data: { code: 'not_found' } });
-  await expect(t.query(api.collections.listMine, page)).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
+  await expect(other.as.mutation(api.collections.remove, { scope: other.scope, localId: '10000000-0000-4000-8000-000000000002' })).rejects.toMatchObject({ data: { code: 'not_found' } });
+  await expect(t.query(api.collections.listMine, { ...page, scope: user.scope })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
 });
 
 it('refuses another device’s scan or visit, a missing object and a blank title or id', async () => {
@@ -85,8 +85,8 @@ it('refuses another device’s scan or visit, a missing object and a blank title
   const other = await seedDevice(t);
   const foreignScan = await t.run((ctx) => seedScan(ctx, { deviceId: other.deviceId }));
   await expect(save({ scanId: foreignScan })).rejects.toMatchObject({ data: { code: 'invalid_scan' } });
-  const foreignVisit = await t.run((ctx) => ctx.db.insert('visits', { deviceId: other.deviceId, venueId, startedAt: 0 }));
-  await expect(save({ visitId: foreignVisit })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
+  const foreignVisit = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
+  await expect(save({ visitLocalId: (await t.run((ctx) => ctx.db.get(foreignVisit)))!.localId })).rejects.toMatchObject({ data: { code: 'not_found' } });
   const missing = await t.run(async (ctx) => {
     const work = await seedArtworkWithObject(ctx);
     await ctx.db.delete(work.objectId);
@@ -101,15 +101,15 @@ it('refuses another device’s scan or visit, a missing object and a blank title
 it('rate-limits a burst of saves', async () => {
   vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
   const { save } = await fixture();
-  for (let i = 0; i < 10; i++) await save({ localId: `burst-${i}` });
-  await expect(save({ localId: 'burst-10' })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'sync' } });
+  for (let i = 0; i < 10; i++) await save({ localId: crypto.randomUUID() });
+  await expect(save({ localId: crypto.randomUUID() })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'sync' } });
 });
 
 it('records the save confirmation once when background sync inserted the snapshot first', async () => {
   const { user, args, save, object } = await fixture();
   const { scope } = await user.as.query(api.accounts.me, {});
-  await user.as.mutation(api.sync.syncCollection, {
-    scope, since: 0, push: [{ localId: args.localId, snapshot, objectId: args.objectId, savedAt: args.savedAt }],
+  await user.as.mutation(api.sync.syncJournal, {
+    scope, since: 0, visits: [], saves: [{ localId: args.localId, snapshot, objectId: args.objectId, savedAt: args.savedAt, venueId: args.venueId, visitLocalId: args.visitLocalId }],
   });
   await save(); await save();
   expect(await object()).toMatchObject({ confirmCount: 1 });

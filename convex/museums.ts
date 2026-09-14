@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 
+import { validateGeography } from '../shared/social/contracts';
 import { stableStringify } from '../shared/attestation/stable-stringify';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
@@ -40,10 +41,10 @@ async function nearby(ctx: QueryCtx, lat: number, lng: number, radius: number) {
 function normalizeName(name: string) { return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase(); }
 
 export const confirmPoiVenue = mutation({
-  args: { name: v.string(), website: v.optional(v.string()), lat: v.number(), lng: v.number(), ...signedPayload },
+  args: { city: v.optional(v.string()), country: v.optional(v.string()), name: v.string(), website: v.optional(v.string()), lat: v.number(), lng: v.number(), ...signedPayload },
   returns: v.object({ venueId: v.id('museums') }),
   handler: async (ctx, args) => {
-    const fields = { name: args.name, website: args.website, lat: args.lat, lng: args.lng };
+    const fields = { city: args.city, country: args.country, name: args.name, website: args.website, lat: args.lat, lng: args.lng };
     checkPayload(args.payloadJson, { action: 'museums.confirmPoiVenue', ...fields });
     const device = await requireAttestedWrite(ctx, { ...args, payload: args.payloadJson });
     await limitDevice(ctx, 'venueConfirm', device._id);
@@ -51,6 +52,7 @@ export const confirmPoiVenue = mutation({
       !normalizeName(args.name) || args.name.length > 300 || (args.website !== undefined && !websiteUrl(args.website))) {
       throw new ConvexError({ code: 'invalid_venue' });
     }
+    validateGeography(args);
     const duplicate = (await nearby(ctx, args.lat, args.lng, 100))
       .find(({ venue }) => normalizeName(venue.name) === normalizeName(args.name));
     if (duplicate) return { venueId: duplicate.venue._id };

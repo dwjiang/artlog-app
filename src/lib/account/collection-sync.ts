@@ -5,11 +5,14 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
+import * as visits from '@/db/repos/visits';
+import { claimLocalJournal } from '@/db/repos/journal-claim';
+import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import * as savedWorks from '@/db/repos/saved-works';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
 import { useDeviceReady } from '@/lib/use-device-ready';
-import { syncCollection, type SyncContext } from './sync';
+import { syncJournal, type SyncContext } from './sync';
 import { onCollectionChange } from './sync-events';
 import { syncCollectionPhotos } from './photo-sync';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
@@ -49,25 +52,49 @@ async function flush(queue: Queue): Promise<void> {
 // Photo transfers run in their own queue so a large backlog never delays note, deletion or import sync.
 const transfers: Queue = {
   label: 'Photo transfer', running: null, requested: false,
-  run: (_context, token, isCurrent) => syncCollectionPhotos({
+  run: (context, token, isCurrent) => syncCollectionPhotos({
     ...savedWorks,
-    upload: (localId, kind, path) => uploadCollectionPhoto(token, localId, kind, path, isCurrent),
-    download: (localId, kind, storageId) => downloadCollectionPhoto(token, localId, kind, storageId),
+    listPhotoTransfers: () => savedWorks.listPhotoTransfers(context.owner),
+    getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
+    updatePhotoTransfer: (id, fields) => savedWorks.updatePhotoTransfer(id, fields, context.owner),
+    listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
+    clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
+    upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+    download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
     removeFile: removePhotoFile,
   }, isCurrent),
 };
 const sync: Queue = {
   label: 'Collection sync', running: null, requested: false,
   run: async (context, _token, isCurrent) => {
-    await syncCollection({
-      ...savedWorks,
-      getCheckpoint: () => getSetting('collectionSync'),
-      setCheckpoint: (value) => setSetting('collectionSync', value),
-      sync: (args) => convex.mutation(api.sync.syncCollection, args),
+    if (context.accountId) await completeJournalClaim(context, isCurrent);
+    if (!isCurrent()) return;
+    await syncJournal({
+      ...savedWorks, ...visits,
+      getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
+      setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
+      sync: (args) => convex.mutation(api.sync.syncJournal, args),
     }, context, isCurrent);
     if (isCurrent()) schedule(transfers, 0);
   },
 };
+
+export async function completeJournalClaim(
+  account: Pick<SyncContext, 'accountId' | 'scope'>,
+  isCurrent = captureOwner().isCurrent,
+): Promise<void> {
+  if (!account.accountId) return;
+  let claim;
+  do {
+    claim = await convex.mutation(api.journalClaims.resume, { scope: account.scope });
+    if (!isCurrent()) return;
+  } while (!claim.complete);
+  const owner = `account:${account.accountId}`;
+  if (claim.claimId) await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  if (!isCurrent()) return;
+  switchOwner(owner, account.scope);
+  await setSetting('activeJournalOwner', owner);
+}
 
 function scheduleSync(delay = 500): void {
   schedule(sync, delay);
@@ -80,11 +107,18 @@ function stop(): void {
 
 export function pauseCollectionSync(): void {
   paused = true;
+  switchOwner(getLocalOwner());
   stop();
+}
+
+export async function flushJournal(): Promise<void> {
+  if (sync.running) await sync.running;
+  await flush(sync);
 }
 
 export function resumeCollectionSync(): void {
   paused = false;
+  if (context && !context.accountId && context.owner === getLocalOwner()) switchOwner(context.owner, context.scope);
   scheduleSync();
 }
 
@@ -99,8 +133,16 @@ export function CollectionSync(): null {
   useEffect(() => {
     generation++;
     authToken = token;
-    context = deviceId && scope && accountId !== undefined && token ? { deviceId, scope, accountId } : null;
-    if (context) scheduleSync();
+    context = deviceId && scope && accountId !== undefined && token
+      ? { deviceId, scope, accountId, owner: accountId ? `account:${accountId}` : anonymousOwner() } : null;
+    if (context) {
+      if (context.accountId) switchOwner(getLocalOwner());
+      else {
+        switchOwner(context.owner, paused ? undefined : scope);
+        void setSetting('activeJournalOwner', context.owner);
+      }
+      scheduleSync();
+    } else switchOwner(getLocalOwner());
     return () => { stop(); context = null; authToken = null; };
   }, [deviceId, scope, accountId, token]);
   useEffect(() => {

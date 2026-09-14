@@ -65,10 +65,10 @@ function loadModules() {
 
 function table(file: string, version: number) {
   const db = new Database(file);
-  db.exec(`CREATE TABLE venues (id TEXT PRIMARY KEY, key TEXT UNIQUE, name TEXT, lat REAL, lng REAL, website TEXT, region TEXT);
+  db.exec(`CREATE TABLE venues (id TEXT PRIMARY KEY, key TEXT UNIQUE, name TEXT, lat REAL, lng REAL, website TEXT, region TEXT, city TEXT, country TEXT);
     CREATE TABLE meta (version INTEGER, generatedAt TEXT, rowCount INTEGER);
     INSERT INTO meta VALUES (${version}, 'today', 1);
-    INSERT INTO venues VALUES ('museum-${version}', 'key-${version}', 'Museum', 40, -73, NULL, 'seeded');`);
+    INSERT INTO venues (id, key, name, lat, lng, website, region) VALUES ('museum-${version}', 'key-${version}', 'Museum', 40, -73, NULL, 'seeded');`);
   db.close();
 }
 

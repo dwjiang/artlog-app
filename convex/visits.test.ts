@@ -1,110 +1,42 @@
-import { afterEach, expect, it, vi } from 'vitest';
-
+import { expect, it } from 'vitest';
 import { api } from './_generated/api';
 import { seedDevice, seedMuseum } from './lib/testFactories';
 import { harness } from './test.helpers';
 
-afterEach(() => vi.useRealTimers());
-
 async function fixture() {
-  vi.useFakeTimers();
-  const t = harness();
-  const user = await seedDevice(t);
-  const venueId = await t.run((ctx) => seedMuseum(ctx));
-  return { t, user, venueId };
+  const t = harness(), user = await seedDevice(t);
+  const venueId = await t.run(seedMuseum);
+  const visit = { localId: crypto.randomUUID(), venueId, visitedOn: '2026-09-01', timeZone: 'America/Los_Angeles', startedAt: Date.parse('2026-09-01T20:00:00Z') };
+  const upsert = (overrides = {}) => user.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit: { ...visit, ...overrides } });
+  return { t, user, visit, upsert };
 }
-
-it('starts a visit and makes it the current one', async () => {
-  const { user, venueId } = await fixture();
-  expect(await user.as.query(api.visits.current, {})).toBeNull();
-  const result = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  expect(await user.as.query(api.visits.current, {})).toMatchObject({ _id: result.visitId, venueId });
+it('preserves capture dates, real times, empty visits, and UUID idempotence', async () => {
+  const { t, visit, upsert } = await fixture();
+  const first = await upsert();
+  expect(await upsert()).toEqual(first);
+  const endedAt = visit.startedAt + 60_000;
+  expect(await upsert({ endedAt })).toMatchObject({ _id: first._id, visitedOn: visit.visitedOn, startedAt: visit.startedAt, endedAt });
+  const second = await upsert({ localId: crypto.randomUUID() });
+  expect(second._id).not.toBe(first._id);
+  expect(await t.run((ctx) => ctx.db.query('visits').collect())).toHaveLength(2);
+  expect(await t.run((ctx) => ctx.db.query('collections').collect())).toEqual([]);
 });
-
-it('resumes the most recent open visit at the same venue within four hours', async () => {
-  const { user, venueId } = await fixture();
-  const first = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  vi.advanceTimersByTime(4 * 60 * 60 * 1000 - 1);
-  expect(await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'two' })).toEqual(first);
+it('supports a manual visit without inventing timestamps', async () => {
+  const { upsert } = await fixture();
+  const row = await upsert({ startedAt: undefined });
+  expect(row).not.toHaveProperty('startedAt');
 });
-
-it('starts a new visit after four hours and closes the previous visit', async () => {
-  const { t, user, venueId } = await fixture();
-  const first = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  vi.advanceTimersByTime(4 * 60 * 60 * 1000);
-  const second = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'two' });
-  expect(second.visitId).not.toBe(first.visitId);
-  expect((await t.run((ctx) => ctx.db.get(first.visitId)))?.endedAt).toBe(Date.now());
+it.each([{ localId: '' }, { visitedOn: '2026-02-30' }, { visitedOn: '2999-01-01' }, { timeZone: 'Invented/Zone' }, { endedAt: 1 }, { reflection: 'x'.repeat(20_001) }, { startedAt: NaN }])('validates visit input %j', async (invalid) => {
+  const { upsert } = await fixture();
+  await expect(upsert(invalid)).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
 });
-
-it('switching venues starts a new visit, and ending it leaves no current visit', async () => {
-  const { t, user, venueId } = await fixture();
-  const first = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  const otherVenue = await t.run((ctx) => seedMuseum(ctx));
-  const second = await user.as.mutation(api.visits.startVisit, { venueId: otherVenue, localVisitId: 'two' });
-  expect(second.visitId).not.toBe(first.visitId);
-  await user.as.mutation(api.visits.endVisit, { visitId: second.visitId });
-  expect(await user.as.query(api.visits.current, {})).toBeNull();
-});
-
-it('retries of a local visit id are idempotent even after the visit ended', async () => {
-  const { user, venueId } = await fixture();
-  const args = { venueId, localVisitId: 'one' };
-  const first = await user.as.mutation(api.visits.startVisit, args);
-  await user.as.mutation(api.visits.endVisit, { visitId: first.visitId });
-  expect(await user.as.mutation(api.visits.startVisit, args)).toEqual(first);
-  expect(await user.as.query(api.visits.current, {})).toBeNull();
-  expect((await user.as.mutation(api.visits.startVisit, { ...args, localVisitId: 'two' })).visitId).not.toBe(first.visitId);
-});
-
-it.each(['ended', 'expired', 'switched'] as const)('keeps every resumed local id idempotent after the visit is %s', async (transition) => {
-  const { t, user, venueId } = await fixture();
-  const first = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  for (const localVisitId of ['two', 'three']) {
-    expect(await user.as.mutation(api.visits.startVisit, { venueId, localVisitId })).toEqual(first);
-  }
-  if (transition === 'ended') await user.as.mutation(api.visits.endVisit, { visitId: first.visitId });
-  if (transition === 'expired') vi.advanceTimersByTime(4 * 60 * 60 * 1000);
-  if (transition === 'switched') {
-    const otherVenueId = await t.run((ctx) => seedMuseum(ctx));
-    vi.advanceTimersByTime(1);
-    await user.as.mutation(api.visits.startVisit, { venueId: otherVenueId, localVisitId: 'other' });
-  }
-  const current = await user.as.query(api.visits.current, {});
-  for (const localVisitId of ['one', 'two', 'three']) {
-    expect(await user.as.mutation(api.visits.startVisit, { venueId, localVisitId })).toEqual(first);
-  }
-  expect(await user.as.query(api.visits.current, {})).toEqual(current);
-});
-
-it('scopes resumed local ids to their device and original venue', async () => {
-  const { t, user, venueId } = await fixture();
-  const first = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'two' });
-  const otherVenueId = await t.run((ctx) => seedMuseum(ctx));
-  await expect(user.as.mutation(api.visits.startVisit, { venueId: otherVenueId, localVisitId: 'two' }))
-    .rejects.toMatchObject({ data: { code: 'invalid_visit' } });
+it('isolates owners and prevents changing the venue of an existing visit', async () => {
+  const { t, user, visit, upsert } = await fixture();
+  const first = await upsert();
   const other = await seedDevice(t);
-  const separate = await other.as.mutation(api.visits.startVisit, { venueId: otherVenueId, localVisitId: 'two' });
-  expect(separate.visitId).not.toBe(first.visitId);
-});
-
-it('scopes visits to the authenticated device and refuses another device ending them', async () => {
-  const { t, user, venueId } = await fixture();
-  const { visitId } = await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  const other = await seedDevice(t);
-  expect(await other.as.query(api.visits.current, {})).toBeNull();
-  await expect(other.as.mutation(api.visits.endVisit, { visitId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
-  await expect(t.query(api.visits.current, {})).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
-  await expect(t.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
-});
-
-it('rejects missing venues, empty local ids, and reusing an id for a different venue', async () => {
-  const { t, user, venueId } = await fixture();
-  await expect(user.as.mutation(api.visits.startVisit, { venueId, localVisitId: '' })).rejects.toThrow();
-  await user.as.mutation(api.visits.startVisit, { venueId, localVisitId: 'one' });
-  const otherVenue = await t.run((ctx) => seedMuseum(ctx));
-  await expect(user.as.mutation(api.visits.startVisit, { venueId: otherVenue, localVisitId: 'one' })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
-  await t.run((ctx) => ctx.db.delete(otherVenue));
-  await expect(user.as.mutation(api.visits.startVisit, { venueId: otherVenue, localVisitId: 'two' })).rejects.toMatchObject({ data: { code: 'invalid_venue' } });
+  const second = await other.as.mutation(api.visits.upsertJournal, { scope: other.scope, visit });
+  expect(second._id).not.toBe(first._id);
+  await expect(other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit })).rejects.toMatchObject({ data: { code: 'sync_scope_changed' } });
+  const venueId = await t.run(seedMuseum);
+  await expect(upsert({ venueId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
 });

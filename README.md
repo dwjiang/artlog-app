@@ -161,6 +161,79 @@ cp out/venues.db ../../assets/venues.db      # the app must ship the venue table
 Continue with the rebuild steps below. The model export and corpus metadata are required for
 both a 1,000-object pilot and the full index; the commands include every stage through import.
 
+## Journal and social foundation
+
+Journal data has one canonical Convex owner: `{ kind: "device", deviceId }` before Apple
+linking, or `{ kind: "account", accountId }` after linking. The authenticated device resolves
+that owner; a client `scope` from `accounts.me` only rejects requests from a stale session.
+SQLite uses the installation ID for anonymous ownership before registration, and account IDs
+for linked ownership. Composite owner/UUID keys and foreign keys isolate visits, saves, notes,
+and pending captures. Label drafts, checkpoints, current visits and photo work use the same local owner.
+
+Apple sign-in creates neither a profile nor a publication. Linking records a claim target;
+`journalClaims.resume` transfers at most 50 records / 512 KiB per call, visits before saves.
+Call it until complete before journal sync. Local claiming then atomically moves only anonymous
+rows, preserves photos/notes/tombstones, and rejects UUID collisions. Sign-out hides account
+rows and suspends their queued work; signing into the same account restores them. The client
+finishes its claim before disconnecting. Unlink and account deletion reject incomplete claims
+with `claim_required`; account deletion waits for all linked-device claims, then immediately
+revokes profile/publication access. Account-owned data is never claimed into a different account.
+
+Implemented APIs (derive wire types from `convex/_generated/api` or the shared validators):
+
+| API | Arguments | Return / behavior |
+|---|---|---|
+| `accounts.me` | `{}` | `{ linked, deviceCount, accountId, email, scope }` |
+| `journalClaims.resume` | `{ scope }` | `{ claimId, complete, moved }`; server chooses the target account |
+| `sync.syncJournal` | `{ scope, since, visits, saves }` | `{ visits, saves, acceptedVisits, acceptedSaves, checkpoint, hasMore }`; at most 50 records / 512 KiB each direction |
+| `visits.upsertJournal` | `{ scope, visit }` | Canonical private visit document; UUID idempotent, no server time-window merging |
+| `collections.saveToCollection` | `{ scope, localId, savedAt, snapshot, visitLocalId?, venueId?, venueName?, gallery?, objectId?, artworkId?, scanId?, suggested }` | `{ collectionId, updatedAt, updatedBy, deletedAt? }`; preserves the immutable snapshot and records eligible scan confirmation once |
+| `collections.listMine` / `remove` | `{ scope, cursor?, limit? }` / `{ scope, localId }` | `{ page, cursor, isDone }` / `null`; terminal deletion invalidates publication references |
+| `profiles.create` | `{ username, name, bio? }` | Public profile; repeated creation returns the original profile and username |
+| `profiles.update` | `{ name, bio? }` | Public profile; username is immutable; omitted bio clears it |
+| `profiles.getPublic` | `{ profileId }` | Public profile or `null` for unavailable accounts |
+| `profiles.search` | `{ query, cursor?, limit? }` | `{ page, cursor, isDone }`, normalized case/accent/whitespace full-text search |
+
+`JournalVisit` is `{ localId, venueId, visitedOn, timeZone, startedAt?, endedAt?, reflection? }`.
+`visitedOn` is a valid `YYYY-MM-DD` calendar day in an IANA time zone; actual capture/start/end
+timestamps are retained. `JournalSave` contains `localId`, `savedAt`, `snapshot`, optional
+`visitLocalId`/venue/catalog references, `note` and `deletedAt`. Parents arrive before saves.
+Checkpoints are owner-scoped monotonic change versions, independent of wall clocks. Private
+edits use server last-write stamps (`updatedAt`, `updatedBy`); photo arrivals advance the change
+version without changing those edit stamps. Clients discard responses from previous scopes.
+Private JPEG transfer uses authenticated `/collection-photo?scope=…&localId=…&kind=photo|crop`
+GET/POST, with a 10 MiB limit; the client cannot attach arbitrary storage IDs.
+
+Public profiles allow only `profileId`, username, name, optional bio and `publishedWallCount`.
+Artwork projections allow title, artist, date, medium and eligible media. Shared-visit cards
+never include artwork notes; wall notes require explicit visibility consent. Public media is
+an eligible catalog URL or a contextual derivative reference (`wallItem` or `sharedVisit`)
+with dimensions, source and rights metadata. Private storage IDs and owner-photo URLs are
+excluded. Missing, revoked or ineligible imagery renders a square placeholder.
+
+Foundation owns both schemas, claims, ownership/access helpers, profile APIs, journal sync,
+photo ownership, shared limits/errors/projections, and city/ISO alpha-2 country plumbing.
+The venue pipeline and bundled SQLite schema preserve absent geography as absent values.
+Journal owns future history/detail screens and APIs; wall owns layout/publication workflows;
+social owns accepted friendships, blocks and shared-visit workflows; media/reporting own
+image delivery and submission. Their tables, indexes, independent revisions and reusable
+validators exist, but **no callable wall, friendship, feed, shared-publication, public-media or
+reporting endpoints are registered**. Publication requires a linked account and explicit
+profile; shared visits require accepted friendship with neither direction blocked. Registered
+anonymous devices can be report owners; reporting must check target accessibility.
+
+Shared bounds are in `shared/journal/limits.ts`: pages default 20/max 50, cursor 8 KiB,
+search 2–100 characters, profile name 1–60/bio 160/username 3–30, private notes and reflections
+20,000, snapshot fields 10,000, wall selections 100, post selections 50, accepted friends 200,
+shared reflection 1,200, city 120, report reason 1–120/details 2,000. Validators also check
+UUIDs, dates, zones, timestamps, revisions, dimensions and layout numbers. Future mutations
+must enforce capacity and revision checks transactionally and call the shared access helpers.
+
+This is a pre-release schema break: use a fresh local app database. The initialization SQL is
+regenerated directly; there is no legacy migration path. Refresh the migration entry module
+when regenerating SQL so Metro invalidates the inline SQL transform cache. The foundation targets development
+`usable-owl-256`; it has not been released to the production backend described above.
+
 ## Rebuild the index from scratch
 
 After the backend and jobs setup above, start in `scripts/data/` on an Apple silicon Mac with `uv`

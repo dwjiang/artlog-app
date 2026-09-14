@@ -5,9 +5,11 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection/collection-limits';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useLocalOwner } from '@/lib/account/owner-store';
 import { getNote, setNote } from '@/db/repos/notes';
 
 type NoteDraft = {
+  owner: string;
   savedLocalId: string;
   text: string;
   saved: string;
@@ -22,7 +24,7 @@ function persist(note: NoteDraft | undefined): void {
   note.writes = note.writes.then(async () => {
     try {
       if (text !== note.saved) {
-        await setNote(note.savedLocalId, text);
+        await setNote(note.savedLocalId, text, Date.now(), note.owner);
         note.saved = text;
       }
       note.onSaveResult(false);
@@ -35,10 +37,11 @@ function persist(note: NoteDraft | undefined): void {
 
 /** The only editable part of a saved work; saves on blur and when the screen closes mid-edit. */
 export function NoteEditor({ savedLocalId }: { savedLocalId: string }) {
-  return <WorkNoteEditor key={savedLocalId} savedLocalId={savedLocalId} />;
+  const owner = useLocalOwner();
+  return <WorkNoteEditor key={`${owner}:${savedLocalId}`} savedLocalId={savedLocalId} owner={owner} />;
 }
 
-function WorkNoteEditor({ savedLocalId }: { savedLocalId: string }) {
+function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: string }) {
   const [draft, setDraft] = useState<string>();
   const [saveFailed, setSaveFailed] = useState(false);
   const latest = useRef<NoteDraft>(undefined);
@@ -46,10 +49,10 @@ function WorkNoteEditor({ savedLocalId }: { savedLocalId: string }) {
   useEffect(() => {
     let active = true;
     const note: NoteDraft = {
-      savedLocalId, text: '', saved: '', writes: Promise.resolve(),
+      owner, savedLocalId, text: '', saved: '', writes: Promise.resolve(),
       onSaveResult: (failed) => { if (active) setSaveFailed(failed); },
     };
-    getNote(savedLocalId).then((row) => {
+    getNote(savedLocalId, owner).then((row) => {
       if (!active) return;
       note.text = note.saved = row?.text ?? '';
       latest.current = note;
@@ -60,7 +63,7 @@ function WorkNoteEditor({ savedLocalId }: { savedLocalId: string }) {
       persist(note);
       latest.current = undefined;
     };
-  }, [savedLocalId]);
+  }, [savedLocalId, owner]);
 
   return (
     <View style={styles.section}>

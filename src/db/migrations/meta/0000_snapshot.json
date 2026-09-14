@@ -1,16 +1,23 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "efb45c54-8ca8-4eb2-83c0-7972fdf70d7c",
+  "id": "80d1c2c1-e825-4e62-93a1-a9f1d343a8d6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "notes": {
       "name": "notes",
       "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "savedLocalId": {
           "name": "savedLocalId",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -31,31 +38,48 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "notes_savedLocalId_savedWorks_localId_fk": {
-          "name": "notes_savedLocalId_savedWorks_localId_fk",
+        "notes_owner_savedLocalId_savedWorks_owner_localId_fk": {
+          "name": "notes_owner_savedLocalId_savedWorks_owner_localId_fk",
           "tableFrom": "notes",
           "tableTo": "savedWorks",
           "columnsFrom": [
+            "owner",
             "savedLocalId"
           ],
           "columnsTo": [
+            "owner",
             "localId"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "notes_owner_savedLocalId_pk": {
+          "columns": [
+            "owner",
+            "savedLocalId"
+          ],
+          "name": "notes_owner_savedLocalId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "pendingScans": {
       "name": "pendingScans",
       "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "localId": {
           "name": "localId",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -196,9 +220,10 @@
         }
       },
       "indexes": {
-        "pendingScans_status_capturedAt": {
-          "name": "pendingScans_status_capturedAt",
+        "pendingScans_owner_status_capturedAt": {
+          "name": "pendingScans_owner_status_capturedAt",
           "columns": [
+            "owner",
             "status",
             "capturedAt"
           ],
@@ -206,31 +231,48 @@
         }
       },
       "foreignKeys": {
-        "pendingScans_visitLocalId_visits_localId_fk": {
-          "name": "pendingScans_visitLocalId_visits_localId_fk",
+        "pendingScans_owner_visitLocalId_visits_owner_localId_fk": {
+          "name": "pendingScans_owner_visitLocalId_visits_owner_localId_fk",
           "tableFrom": "pendingScans",
           "tableTo": "visits",
           "columnsFrom": [
+            "owner",
             "visitLocalId"
           ],
           "columnsTo": [
+            "owner",
             "localId"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "pendingScans_owner_localId_pk": {
+          "columns": [
+            "owner",
+            "localId"
+          ],
+          "name": "pendingScans_owner_localId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "savedWorks": {
       "name": "savedWorks",
       "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "localId": {
           "name": "localId",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -339,6 +381,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "photoStorageId": {
+          "name": "photoStorageId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cropStorageId": {
+          "name": "cropStorageId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "syncedAt": {
           "name": "syncedAt",
           "type": "integer",
@@ -367,47 +423,44 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "photoStorageId": {
-          "name": "photoStorageId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "cropStorageId": {
-          "name": "cropStorageId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
-        "savedWorks_savedAt": {
-          "name": "savedWorks_savedAt",
+        "savedWorks_owner_savedAt": {
+          "name": "savedWorks_owner_savedAt",
           "columns": [
+            "owner",
             "savedAt"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "savedWorks_visitLocalId_visits_localId_fk": {
-          "name": "savedWorks_visitLocalId_visits_localId_fk",
+        "savedWorks_owner_visitLocalId_visits_owner_localId_fk": {
+          "name": "savedWorks_owner_visitLocalId_visits_owner_localId_fk",
           "tableFrom": "savedWorks",
           "tableTo": "visits",
           "columnsFrom": [
+            "owner",
             "visitLocalId"
           ],
           "columnsTo": [
+            "owner",
             "localId"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "savedWorks_owner_localId_pk": {
+          "columns": [
+            "owner",
+            "localId"
+          ],
+          "name": "savedWorks_owner_localId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -438,10 +491,17 @@
     "visits": {
       "name": "visits",
       "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "localId": {
           "name": "localId",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -459,11 +519,32 @@
           "notNull": true,
           "autoincrement": false
         },
+        "visitedOn": {
+          "name": "visitedOn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timeZone": {
+          "name": "timeZone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reflection": {
+          "name": "reflection",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "startedAt": {
           "name": "startedAt",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "endedAt": {
@@ -480,17 +561,50 @@
           "notNull": false,
           "autoincrement": false
         },
-        "endSyncedAt": {
-          "name": "endSyncedAt",
+        "syncedAt": {
+          "name": "syncedAt",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "syncedBy": {
+          "name": "syncedBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
-      "indexes": {},
+      "indexes": {
+        "visits_owner_history": {
+          "name": "visits_owner_history",
+          "columns": [
+            "owner",
+            "visitedOn",
+            "localId"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "visits_owner_localId_pk": {
+          "columns": [
+            "owner",
+            "localId"
+          ],
+          "name": "visits_owner_localId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

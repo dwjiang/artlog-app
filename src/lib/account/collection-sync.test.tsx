@@ -1,3 +1,4 @@
+import { captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import { act, render } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -6,6 +7,7 @@ import { requestCollectionSync } from './sync-events';
 
 const mockSync = jest.fn();
 const mockPhotos = jest.fn();
+const mockClaim = jest.fn();
 jest.mock('@convex-dev/auth/react', () => ({ useAuthToken: () => 'token' }));
 jest.mock('./photo-sync', () => ({ syncCollectionPhotos: (...args: unknown[]) => mockPhotos(...args) }));
 let mockAccount: { scope: string; accountId: string | null };
@@ -18,13 +20,16 @@ jest.mock('convex/react', () => ({ useQuery: (fn: unknown) =>
 jest.mock('expo-network', () => ({ addNetworkStateListener: (callback: typeof mockNetwork) => {
   mockNetwork = callback; return { remove: jest.fn() };
 } }));
-jest.mock('@/lib/convex-client', () => ({ convex: {} }));
+jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (...args: unknown[]) => mockClaim(...args) } }));
 jest.mock('@/db/repos/saved-works', () => ({}));
-jest.mock('@/db/repos/settings', () => ({}));
-jest.mock('./sync', () => ({ syncCollection: (...args: unknown[]) => mockSync(...args) }));
+jest.mock('@/db/repos/settings', () => ({ setSetting: async () => {} }));
+jest.mock('@/db/repos/visits', () => ({}));
+jest.mock('@/db/repos/journal-claim', () => ({ claimLocalJournal: async () => {} }));
+jest.mock('./sync', () => ({ syncJournal: (...args: unknown[]) => mockSync(...args) }));
 
 beforeEach(() => {
   jest.useFakeTimers(); mockSync.mockReset().mockResolvedValue(undefined); mockPhotos.mockReset().mockResolvedValue(undefined);
+  mockClaim.mockReset().mockResolvedValue({ claimId: null, complete: true });
   mockAccount = { scope: 'account:a,b', accountId: 'account' };
   Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' });
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
@@ -83,4 +88,22 @@ it('invalidates an outstanding response immediately without waiting for an offli
   expect(pauseCollectionSync()).toBeUndefined();
   expect(isCurrent()).toBe(false);
   await act(async () => finish());
+});
+
+it('suspends capture scope until the account claim finishes and invalidates it on sign-out', async () => {
+  switchOwner('device:test-installation', 'anonymous-scope');
+  const before = captureOwner();
+  let finish!: (value: { claimId: null; complete: boolean }) => void;
+  mockClaim.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  const screen = await render(<CollectionSync />); await tick();
+  expect(before.isCurrent()).toBe(false);
+  expect(captureOwner().scope).toBeUndefined();
+  expect(getLocalOwner()).toBe('device:test-installation');
+  await act(async () => finish({ claimId: null, complete: true }));
+  expect(getLocalOwner()).toBe('account:account');
+  const linked = captureOwner();
+  mockAccount = { scope: 'anonymous-next', accountId: null };
+  await screen.rerender(<CollectionSync />);
+  expect(linked.isCurrent()).toBe(false);
+  expect(getLocalOwner()).toBe('device:test-installation');
 });

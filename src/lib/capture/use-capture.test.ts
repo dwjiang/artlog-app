@@ -45,9 +45,9 @@ it.each([
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId } });
   expect(hook.result.current.timings).toEqual({ total: 12 });
   const deps = mockPipeline.mock.calls[0][1] as CaptureDependencies;
-  const payload = { cropUri: 'file:///private.jpg', photoUri: 'file:///private-full.jpg', localId: 'capture-uuid', visitLocalId: 'local-visit' } as CapturePayload;
+  const payload = { owner: 'device:test-installation', scope: 'test-scope', cropUri: 'file:///private.jpg', photoUri: 'file:///private-full.jpg', localId: 'capture-uuid', visitLocalId: 'local-visit' } as CapturePayload;
   await deps.identify(payload);
-  expect(mockIdentify).toHaveBeenCalledWith({ localId: 'capture-uuid' });
+  expect(mockIdentify).toHaveBeenCalledWith({ localId: 'capture-uuid', scope: 'test-scope' });
 });
 
 it('shows retake guidance and a warning without navigating', async () => {

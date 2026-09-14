@@ -42,11 +42,11 @@ beforeEach(() => {
 });
 
 it('uploads a bounded JPEG copy with authentication while leaving the original file intact', async () => {
-  expect(await uploadCollectionPhoto('private-token', 'save-1', 'photo', 'original.heic')).toBe('photo-id');
+  expect(await uploadCollectionPhoto('private-token', 'scope', 'save-1', 'photo', 'original.heic')).toBe('photo-id');
   expect(mockResize).toHaveBeenCalledWith({ width: 2560 });
   expect(mockSave).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.85 });
   expect(mockUpload).toHaveBeenCalledWith('file:///cache/encoded.jpg',
-    'https://test.convex.site/collection-photo?localId=save-1&kind=photo', expect.objectContaining({
+    'https://test.convex.site/collection-photo?scope=scope&localId=save-1&kind=photo', expect.objectContaining({
       httpMethod: 'POST', headers: { Authorization: 'Bearer private-token', 'Content-Type': 'image/jpeg' },
     }));
   expect(mockDelete.mock.calls).toEqual([['file:///cache/encoded.jpg']]);
@@ -54,28 +54,28 @@ it('uploads a bounded JPEG copy with authentication while leaving the original f
 
 it('limits portrait crops by height and never upscales a small image', async () => {
   mockWidth = 1000; mockHeight = 2000;
-  await uploadCollectionPhoto('token', 'a', 'crop', 'crop.jpg');
+  await uploadCollectionPhoto('token', 'scope', 'a', 'crop', 'crop.jpg');
   expect(mockResize).toHaveBeenCalledWith({ height: 512 });
   mockResize.mockClear(); mockWidth = 200; mockHeight = 300;
-  await uploadCollectionPhoto('token', 'b', 'photo', 'small.jpg');
+  await uploadCollectionPhoto('token', 'scope', 'b', 'photo', 'small.jpg');
   expect(mockResize).not.toHaveBeenCalled();
 });
 
 it('cleans up a failed upload and reports the HTTP failure for retry', async () => {
   mockUpload.mockResolvedValue({ status: 503, body: '{}' });
-  await expect(uploadCollectionPhoto('token', 'a', 'photo', 'original.jpg')).rejects.toThrow('503');
+  await expect(uploadCollectionPhoto('token', 'scope', 'a', 'photo', 'original.jpg')).rejects.toThrow('503');
   expect(mockDelete).toHaveBeenCalledWith('file:///cache/encoded.jpg');
 });
 
 it('does not upload after the account changes during encoding', async () => {
-  await expect(uploadCollectionPhoto('token', 'a', 'photo', 'original.jpg', () => false)).rejects.toThrow('cancelled');
+  await expect(uploadCollectionPhoto('token', 'scope', 'a', 'photo', 'original.jpg', () => false)).rejects.toThrow('cancelled');
   expect(mockUpload).not.toHaveBeenCalled();
   expect(mockDelete).toHaveBeenCalledWith('file:///cache/encoded.jpg');
 });
 
 it('downloads through the authenticated endpoint into the document directory', async () => {
-  expect(await downloadCollectionPhoto('token', 'save-1', 'photo', 'photo-id' as Id<'_storage'>))
-    .toBe('collection-photos/save-1-photo-photo-id.jpg');
-  expect(mockDownload).toHaveBeenCalledWith('https://test.convex.site/collection-photo?localId=save-1&kind=photo',
-    'file:///documents/collection-photos/save-1-photo-photo-id.jpg', { headers: { Authorization: 'Bearer token' }, idempotent: true });
+  expect(await downloadCollectionPhoto('token', 'scope', 'save-1', 'photo', 'photo-id' as Id<'_storage'>))
+    .toBe('collection-photos/scope-save-1-photo-photo-id.jpg');
+  expect(mockDownload).toHaveBeenCalledWith('https://test.convex.site/collection-photo?scope=scope&localId=save-1&kind=photo',
+    'file:///documents/collection-photos/scope-save-1-photo-photo-id.jpg', { headers: { Authorization: 'Bearer token' }, idempotent: true });
 });

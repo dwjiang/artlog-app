@@ -4,6 +4,7 @@ import { stableStringify } from '../shared/attestation/stable-stringify';
 import { mutation, query } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { requireDevice } from './lib/auth';
+import { deviceScope, ownerForDevice, requireClaimComplete } from './lib/ownership';
 
 const MAX_DEVICES = 20;
 
@@ -33,7 +34,14 @@ export const linkAccount = mutation({
     for (const member of members) {
       if (member) await ctx.db.patch(member._id, { trustWeight });
     }
-    await ctx.db.patch(device._id, { accountId, appleLinkProof: undefined });
+    const claim = await ctx.db.query('journalClaims').withIndex('by_deviceId', (q) => q.eq('deviceId', device._id)).unique();
+    if (claim && claim.phase !== 'complete' && claim.accountId !== accountId) throw new ConvexError({ code: 'claim_required' });
+    if (!claim || claim.phase === 'complete') {
+      const fields = { deviceId: device._id, accountId, phase: 'visits' as const, createdAt: Date.now() };
+      if (claim) await ctx.db.delete(claim._id);
+      await ctx.db.insert('journalClaims', fields);
+    }
+    await ctx.db.patch(device._id, { accountId, appleLinkProof: undefined, scopeRevision: (device.scopeRevision ?? 0) + 1 });
     return accountId;
   },
 });
@@ -42,9 +50,10 @@ export const unlink = mutation({
   args: {}, returns: v.null(),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
+    await requireClaimComplete(ctx, device._id);
     const account = device.accountId ? await ctx.db.get(device.accountId) : null;
     if (account) await ctx.db.patch(account._id, { deviceIds: account.deviceIds.filter((id) => id !== device._id) });
-    await ctx.db.patch(device._id, { accountId: undefined, appleLinkProof: undefined });
+    await ctx.db.patch(device._id, { accountId: undefined, appleLinkProof: undefined, scopeRevision: (device.scopeRevision ?? 0) + 1 });
     return null;
   },
 });
@@ -55,13 +64,18 @@ export const deleteAccount = mutation({
     const device = await requireDevice(ctx);
     const account = device.accountId ? await ctx.db.get(device.accountId) : null;
     if (!account) return null;
+    const claims = await ctx.db.query('journalClaims').withIndex('by_accountId', (q) => q.eq('accountId', account._id)).take(MAX_DEVICES);
+    if (claims.some((claim) => claim.phase !== 'complete')) throw new ConvexError({ code: 'claim_required' });
     for (const id of account.deviceIds) {
       const member = await ctx.db.get(id);
-      if (member?.accountId === account._id) await ctx.db.patch(id, { accountId: undefined, appleLinkProof: undefined });
+      if (member?.accountId === account._id) await ctx.db.patch(id, { accountId: undefined, appleLinkProof: undefined, scopeRevision: (member.scopeRevision ?? 0) + 1 });
     }
     const authAccount = await ctx.db.query('authAccounts')
       .withIndex('providerAndAccountId', (q) => q.eq('provider', 'apple-native').eq('providerAccountId', account.appleUserId)).unique();
     if (authAccount) await ctx.db.delete(authAccount._id);
+    const profile = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', account._id)).unique();
+    if (profile) await ctx.db.patch(profile._id, { active: false, publishedWallCount: 0 });
+    for (const claim of claims) await ctx.db.delete(claim._id);
     await ctx.db.delete(account._id);
     return null;
   },
@@ -76,7 +90,7 @@ export const me = query({
     return {
       linked: !!account, deviceCount: account?.deviceIds.length ?? 0,
       accountId: account?._id ?? null, email: account?.email ?? null,
-      scope: account ? `${account._id}:${account.deviceIds.slice().sort().join(',')}` : device._id,
+      scope: deviceScope(device, await ownerForDevice(ctx, device)),
     };
   },
 });

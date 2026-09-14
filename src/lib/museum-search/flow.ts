@@ -5,7 +5,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay, MuseumSearchDisplay } from '../../../convex/lib/validators';
 import type { ScanFeatures } from '@/lib/capture/features';
 import type { ImageCheckDeps } from '@/lib/label/image-check';
-import { errorMessage } from '@/lib/network-error';
+import { convexErrorCode, errorMessage } from '@/lib/network-error';
 import { getMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { checkCandidates } from './candidate-check';
 
@@ -101,6 +101,6 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     onStage?.('done');
     return { stage: 'done', flow, confirmedAt: flow.updatedAt };
   } catch (error) {
-    return none(errorMessage(error));
+    return none(convexErrorCode(error) ?? errorMessage(error));
   }
 }

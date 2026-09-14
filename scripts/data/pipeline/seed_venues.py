@@ -94,6 +94,8 @@ def seed_countries(
                     "lat": venue.lat,
                     "lng": venue.lng,
                     **({"website": venue.website} if venue.website is not None else {}),
+                    **({"city": venue.city} if venue.city else {}),
+                    **({"country": venue.country_iso} if len(venue.country_iso) == 2 else {}),
                     "seedSource": "wikidata",
                     "region": region_for(venue, regions),
                 }
@@ -125,7 +127,7 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
         with closing(sqlite3.connect(temporary)) as db:
             db.execute("""CREATE TABLE venues (
               id TEXT PRIMARY KEY, key TEXT, name TEXT NOT NULL,
-              lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL
+              lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT
             )""")
             db.execute("CREATE TABLE meta (version INTEGER, generatedAt TEXT, rowCount INTEGER)")
             cursor = None
@@ -134,7 +136,7 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
                 result = writer.query("ingest:exportVenues", {"cursor": cursor} if cursor else {})
                 for row in result["page"]:
                     db.execute(
-                        "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             row["_id"],
                             row["key"],
@@ -143,6 +145,8 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
                             row["lng"],
                             row.get("website"),
                             row["region"],
+                            row.get("city"),
+                            row.get("country"),
                         ),
                     )
                     row_count += 1

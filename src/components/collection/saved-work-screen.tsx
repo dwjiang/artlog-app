@@ -8,6 +8,7 @@ import { NoteEditor } from './note-editor';
 import { SnapshotFields } from './snapshot-fields';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
+import { useLocalOwner } from '@/lib/account/owner-store';
 import { selectSavedWork, softDeleteSavedWork } from '@/db/repos/saved-works';
 import { SavedWorkImage } from './saved-work-image';
 
@@ -16,15 +17,16 @@ export type SavedWorkScreenProps = {
 };
 
 export function SavedWorkScreen({ savedId }: SavedWorkScreenProps) {
+  const owner = useLocalOwner();
   const router = useRouter();
-  const { data } = useLiveQuery(selectSavedWork(savedId), [savedId]);
-  const work = data[0];
+  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  const work = data.find((row) => row.owner === owner && row.deletedAt === null);
   if (!work) return <ThemedView style={styles.container} />;
 
   function confirmDelete() {
     Alert.alert('Delete this work?', 'It leaves your collection. Your photo and note go with it.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { void softDeleteSavedWork(savedId).then(() => router.back()); } },
+      { text: 'Delete', style: 'destructive', onPress: () => { void softDeleteSavedWork(savedId, Date.now(), owner).then(() => router.back()); } },
     ]);
   }
 

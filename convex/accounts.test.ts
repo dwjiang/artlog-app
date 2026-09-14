@@ -32,6 +32,10 @@ async function pair(t: Harness) {
   const a = await seedDevice(t), b = await seedDevice(t);
   await appleSignIn(a); await appleSignIn(b);
   await link(a); await link(b);
+  for (const device of [a, b]) {
+    const { scope } = await device.as.query(api.accounts.me, {});
+    while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+  }
   return { a, b };
 }
 
@@ -106,4 +110,12 @@ it('deleting an account unlinks every device and removes its Apple auth associat
   for (const device of [a, b]) expect(await device.as.query(api.accounts.me, {})).toMatchObject({ linked: false });
   expect(await t.run((ctx) => ctx.db.query('accounts').collect())).toHaveLength(0);
   expect(await t.run((ctx) => ctx.db.query('authAccounts').collect())).toHaveLength(0);
+});
+
+it('keeps interrupted claims linked until they can finish without stranding parents', async () => {
+  const t = harness(); const device = await seedDevice(t);
+  await appleSignIn(device); await link(device);
+  await expect(device.as.mutation(api.accounts.unlink, {})).rejects.toThrow('claim_required');
+  await expect(device.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow('claim_required');
+  expect((await device.as.query(api.accounts.me, {})).linked).toBe(true);
 });

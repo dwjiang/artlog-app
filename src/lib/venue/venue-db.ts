@@ -90,7 +90,7 @@ export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTable
 export async function nearest(db: SQLiteDatabase, origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
   const box = boundingBox(origin, radiusM);
   const rows = await db.getAllAsync<VenueRow>(
-    'SELECT id, key, name, lat, lng, website, region FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?',
+    'SELECT id, key, name, lat, lng, website, region, city, country FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?',
     box.minLat, box.maxLat, box.minLng, box.maxLng,
   );
   return rankCandidates(rows, origin, radiusM);
@@ -109,11 +109,11 @@ export async function venueIdAt(origin: Coordinate): Promise<Id<'museums'> | und
 /** A venue the user confirmed from MapKit joins the local table so the next fix resolves to it directly. */
 export async function insertConfirmedVenue(
   db: SQLiteDatabase,
-  venue: { id: Id<'museums'>; name: string; lat: number; lng: number; website?: string },
+  venue: { id: Id<'museums'>; name: string; lat: number; lng: number; website?: string; city?: string; country?: string },
 ): Promise<void> {
   await db.runAsync(
-    'INSERT OR REPLACE INTO venues (id, key, name, lat, lng, website, region) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    venue.id, `poi:${venue.id}`, venue.name, venue.lat, venue.lng, venue.website ?? null, 'poi',
+    'INSERT OR REPLACE INTO venues (id, key, name, lat, lng, website, region, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    venue.id, `poi:${venue.id}`, venue.name, venue.lat, venue.lng, venue.website ?? null, 'poi', venue.city ?? null, venue.country ?? null,
   );
 }
 
@@ -121,4 +121,8 @@ export async function insertConfirmedVenue(
 export async function venueNameById(id: Id<'museums'>): Promise<string | undefined> {
   const row = await (await openVenueDb()).getFirstAsync<{ name: string }>('SELECT name FROM venues WHERE id = ?', id);
   return row?.name;
+}
+
+export async function venueCoordinates(id: Id<'museums'>): Promise<Coordinate | undefined> {
+  return (await (await openVenueDb()).getFirstAsync<Coordinate>('SELECT lat, lng FROM venues WHERE id = ?', id)) ?? undefined;
 }

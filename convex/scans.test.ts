@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
 import { labelField } from './lib/labelVerify';
-import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from './lib/testFactories';
 import { harness } from './test.helpers';
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
@@ -76,9 +76,7 @@ it.each(['confident', 'soft'] as const)('joins docent sentences and source chips
 
 it('updates gallery history only for a confident result and never rolls it backwards', async () => {
   const { t, user, venueId, args, best } = await fixture();
-  const visitId = await t.run((ctx) => ctx.db.insert('visits', {
-    deviceId: user.deviceId, venueId, startedAt: 0, lastConfidentGallery: '1', lastConfidentAt: 100,
-  }));
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: 0, lastConfidentGallery: '1', lastConfidentAt: 100 }));
   const result = { generation: 0, status: 'identified' as const, best, calibratorVersion: 'lr-v1' };
   const soft = await t.mutation(internal.scans.create, { ...args, localId: 'soft', visitId, capturedAt: 150 });
   await t.mutation(internal.scans.setResult, { ...result, scanId: soft.scan._id, outcome: 'soft' });
@@ -95,11 +93,11 @@ it('updates gallery history only for a confident result and never rolls it backw
 it('refuses another device’s visit or a visit at another venue', async () => {
   const { t, user, venueId, args } = await fixture();
   const other = await seedDevice(t);
-  const visitId = await t.run((ctx) => ctx.db.insert('visits', { deviceId: other.deviceId, venueId, startedAt: 0 }));
-  await expect(t.mutation(internal.scans.create, { ...args, localId: 'foreign', visitId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
+  await expect(t.mutation(internal.scans.create, { ...args, localId: 'foreign', visitId })).rejects.toMatchObject({ data: { code: 'not_found' } });
   const otherVenue = await t.run((ctx) => seedMuseum(ctx));
-  await t.run((ctx) => ctx.db.patch(visitId, { deviceId: user.deviceId, venueId: otherVenue }));
-  await expect(t.mutation(internal.scans.create, { ...args, localId: 'wrong-venue', visitId })).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
+  await t.run((ctx) => ctx.db.patch(visitId, { owner: { kind: 'device', deviceId: user.deviceId }, venueId: otherVenue }));
+  await expect(t.mutation(internal.scans.create, { ...args, localId: 'wrong-venue', visitId })).rejects.toMatchObject({ data: { code: 'not_found' } });
 });
 
 it('ignores results from an older payload after an unsupported capture is restarted', async () => {

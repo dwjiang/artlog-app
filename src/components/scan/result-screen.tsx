@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -40,20 +41,22 @@ export type ResultScreenProps = {
 const LOCAL_PREFIX = 'local-';
 
 export function ResultScreen({ scanId }: ResultScreenProps) {
+  const owner = useLocalOwner();
   // The router reuses this screen for a new scan id; the key drops the previous card's draft, save and feedback state.
-  if (scanId.startsWith(LOCAL_PREFIX)) return <LocalScanScreen key={scanId} localId={scanId.slice(LOCAL_PREFIX.length)} />;
-  return <ScanResultScreen key={scanId} scanId={scanId as Id<'scans'>} />;
+  if (scanId.startsWith(LOCAL_PREFIX)) return <LocalScanScreen key={`${owner}:${scanId}`} localId={scanId.slice(LOCAL_PREFIX.length)} />;
+  return <ScanResultScreen key={`${owner}:${scanId}`} scanId={scanId as Id<'scans'>} />;
 }
 
 type Sheet = { open: boolean; notice?: string };
 
 function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
+  const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
   const client = useConvex();
   const scan = useScan(scanId);
-  const { data: captures } = useLiveQuery(selectCaptureForScan(scanId), [scanId]);
-  const capture = captures[0];
+  const { data: captures } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
+  const capture = captures.find((row) => row.owner === owner);
   const captureStatus = capture?.status;
   const [selection, setSelection] = useState<ResultSelection>({});
   const [hasEdits, setHasEdits] = useState(false);
@@ -67,9 +70,9 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
 
   useEffect(() => {
     if (isActive && view.editable && captureStatus === 'identified') {
-      void markScanReviewed(scanId).catch((error: unknown) => console.warn('Could not mark the scan reviewed', error));
+      void markScanReviewed(scanId, owner).catch((error: unknown) => console.warn('Could not mark the scan reviewed', error));
     }
-  }, [isActive, scanId, view.editable, captureStatus]);
+  }, [isActive, scanId, view.editable, captureStatus, owner]);
 
   function openLabel() {
     setSheet({ open: false });

@@ -205,9 +205,9 @@ describe('promoted works on the card', () => {
     await seed({ deviceId: alice.deviceId, venueId, cropStorageId, ...features, keypointCount: pair.ref.count, ...strong('accession') });
     await run();
     const [object] = await all('objects');
-    const result = await alice.as.action(api.identify.identify, {
+    const result = await alice.as.action(api.identify.identify, { ...{
       localId: 'capture', venueId, vector: testVector(), ...encodeOrbFeatures(pair.query), modelVersion: model.modelVersion, capturedAt: Date.now(),
-    });
+    }, scope: (await alice.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ outcome: 'confident', best: {
       objectId: object._id, title: 'Water Lilies', artist: 'Claude Monet', institution: 'Test Museum', rightsStatus: 'unknown',
       thumbnailUrl: expect.stringMatching(/\/api\/storage\//),

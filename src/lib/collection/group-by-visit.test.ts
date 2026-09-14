@@ -6,12 +6,12 @@ import type { SavedWork, Visit } from '@/db/schema';
 const venueId = 'museum-1' as Id<'museums'>;
 
 function visit(localId: string, venueName: string, startedAt: number): Visit {
-  return { localId, venueId, venueName, startedAt, endedAt: null, remoteVisitId: null, endSyncedAt: null };
+  return { localId, venueId, venueName, startedAt, endedAt: null, remoteVisitId: null, owner: 'device:test-installation', visitedOn: `${new Date(startedAt).getFullYear()}-${String(new Date(startedAt).getMonth()+1).padStart(2,'0')}-${String(new Date(startedAt).getDate()).padStart(2,'0')}`, timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 };
 }
 
 function work(localId: string, visitLocalId: string | null, savedAt: number): SavedWork {
   return {
-    localId, visitLocalId, venueId: null, venueName: null, gallery: null, savedAt, title: localId, artist: 'Unknown',
+    owner: 'device:test-installation', localId, visitLocalId, venueId: null, venueName: null, gallery: null, savedAt, title: localId, artist: 'Unknown',
     date: null, medium: null, institution: null, objectId: null, artworkId: null, scanId: null, photoPath: null,
     photoStorageId: null, cropStorageId: null, cropPath: `crops/${localId}.jpg`, syncedAt: null, deletedAt: null, revision: 0, syncedBy: null,
   };

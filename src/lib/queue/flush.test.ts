@@ -7,7 +7,7 @@ import { createFlusher, type FlushDependencies } from './flush';
 
 function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): PendingScan {
   return {
-    localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`,
+    owner: 'device:test-installation', localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`,
     vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: 'v1',
     venueId: null, visitId: null, visitLocalId: null, capturedAt: 100, labelPhotoPath: null, qrUrl: null, status: 'queued',
     attempts: 0, lastError: null, scanId: null, reviewedAt: null, createdAt: 100,
@@ -313,7 +313,7 @@ it('ignores triggers before start and after stop, then resumes without overlappi
   finish();
   await resumed;
   expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(['a', 'b']);
-  expect([...store.values()].map((row) => row.status)).toEqual(['identified', 'identified']);
+  expect([...store.values()].map((row) => row.status)).toEqual(['identifying', 'identified']);
 });
 
 it('leaves a crop queued if cleanup happens while it is being re-embedded', async () => {
@@ -379,7 +379,18 @@ it.each(['success', 'failure'] as const)('stops during an identify %s without se
   await running;
   await jest.advanceTimersByTimeAsync(60_000);
   expect(deps.identify).toHaveBeenCalledTimes(1);
-  expect(store.get('a')!.status).toBe(outcome === 'success' ? 'identified' : 'queued');
+  expect(store.get('a')!.status).toBe('identifying');
   expect(store.get('b')!.status).toBe('queued');
   expect(jest.getTimerCount()).toBe(0);
+});
+
+it('discards an account response immediately even before effect cleanup stops its worker', async () => {
+  const { deps, store } = fakeDependencies([pendingScan('old-owner')]);
+  let current = true;
+  deps.identify.mockImplementation(async ({ localId }) => { current = false; return identified(localId); });
+  const worker = createFlusher({ ...deps, isCurrent: () => current });
+  await worker.start();
+  expect(deps.recordResult).not.toHaveBeenCalled();
+  expect(store.get('old-owner')?.status).toBe('identifying');
+  worker.stop();
 });

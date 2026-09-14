@@ -15,16 +15,18 @@ jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').cre
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
 }));
+jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {} }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: (id: string) => mockVenueName(id) }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 
 const capture = {
+  owner: 'device:test-installation', capturedAt: 1234,
   photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
   venueId: 'museum-met' as never, visitId: null, visitLocalId: 'visit-local-1',
 };
 
 beforeAll(async () => {
-  await upsertVisit({ localId: 'visit-local-1', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as never });
+  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'visit-local-1', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as never });
 });
 
 beforeEach(() => {
@@ -45,7 +47,7 @@ it('saves an untouched confident card locally and passes the suggestion to the s
   await synced;
   expect(getFunctionName).toBeDefined();
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', {
-    localId, scanId: SCAN_ID, objectId: lilies.objectId, artworkId: lilies.artworkId, venueId: 'museum-met', visitId: 'visit-remote-1',
+    localId, scanId: SCAN_ID, objectId: lilies.objectId, artworkId: lilies.artworkId, venueId: 'museum-met', visitLocalId: 'visit-local-1', scope: 'test-scope',
     gallery: 'Gallery 819', savedAt: expect.any(Number), venueName: 'The Met',
     snapshot: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art' },
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
@@ -69,7 +71,7 @@ it('saves a chosen runner-up on a soft card without a suggestion and names the v
   await synced;
   expect(await getSavedWork(localId)).toMatchObject({ title: 'The Japanese Footbridge', venueName: 'Legion of Honor', visitLocalId: null, gallery: null });
   expect(mockVenueName).toHaveBeenCalledWith('museum-met');
-  expect(mockMutation.mock.calls[0][1]).toMatchObject({ objectId: bridge.objectId, visitId: undefined, suggested: null });
+  expect(mockMutation.mock.calls[0][1]).toMatchObject({ objectId: bridge.objectId, visitLocalId: undefined, suggested: null });
 });
 
 it('saves a typed title on an unidentified card with no object', async () => {

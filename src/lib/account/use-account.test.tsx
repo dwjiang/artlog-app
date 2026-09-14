@@ -10,22 +10,26 @@ const mockApple = jest.fn();
 const mockSignPayload = jest.fn();
 const mockPause = jest.fn();
 const mockResume = jest.fn();
+const mockClaim = jest.fn();
+let mockAccount: { linked: boolean; deviceCount: number; accountId?: string; scope?: string };
 
 jest.mock('@convex-dev/auth/react', () => ({ useAuthActions: () => ({ signIn: mockSignIn, signOut: mockEndSession }) }));
-jest.mock('convex/react', () => ({ useQuery: () => ({ linked: false, deviceCount: 0 }) }));
+jest.mock('convex/react', () => ({ useQuery: () => mockAccount }));
 jest.mock('expo-apple-authentication', () => ({
   isAvailableAsync: async () => true,
   signInAsync: (args: unknown) => mockApple(args),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
 }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => true }));
+jest.mock('@/db/repos/settings', () => ({ setSetting: async () => {} }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (fn: unknown, args: unknown) => mockMutation(jest.requireActual('convex/server').getFunctionName(fn), args) } }));
 jest.mock('@/lib/attested-write', () => ({ signPayload: (args: unknown) => mockSignPayload(args) }));
 jest.mock('@/lib/device-identity', () => ({ signInAnonymously: (signIn: unknown) => mockAnonymous(signIn) }));
-jest.mock('./collection-sync', () => ({ pauseCollectionSync: () => mockPause(), resumeCollectionSync: () => mockResume() }));
+jest.mock('./collection-sync', () => ({ completeJournalClaim: (account: unknown) => mockClaim(account), pauseCollectionSync: () => mockPause(), resumeCollectionSync: () => mockResume() }));
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockAccount = { linked: false, deviceCount: 0 };
   mockMutation.mockResolvedValue({ nonce: 'apple-nonce' });
   mockApple.mockResolvedValue({ identityToken: 'apple-token', user: 'apple-user' });
   mockSignPayload.mockResolvedValue({ nonce: 'assertion-nonce', assertionBase64: 'assertion' });
@@ -81,4 +85,12 @@ it('deletes the account before restoring the anonymous device identity', async (
   await act(() => result.current.deleteAccount());
   expect(mockMutation).toHaveBeenCalledWith('accounts:deleteAccount', {});
   expect(mockAnonymous).toHaveBeenCalledWith(mockSignIn);
+});
+
+it('finishes an interrupted claim before disconnecting the account', async () => {
+  mockAccount = { linked: true, deviceCount: 1, accountId: 'account', scope: 'account-scope' };
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signOut());
+  expect(mockClaim).toHaveBeenCalledWith(mockAccount);
+  expect(mockClaim.mock.invocationCallOrder[0]).toBeLessThan(mockMutation.mock.invocationCallOrder[0]);
 });
