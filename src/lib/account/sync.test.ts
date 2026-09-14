@@ -43,7 +43,7 @@ it('leaves local data pending and the checkpoint unchanged on network failure', 
 });
 
 it('stores an unfinished page cursor and resumes it after a failure without skipping older rows', async () => {
-  const cursor = { deviceIndex: 1, page: 'page-two', until: 20 };
+  const cursor = { deviceIndex: 1, page: 'page-two', until: 20, photos: false };
   api.mockResolvedValueOnce({ accepted: [], pulled: [remote], serverTime: 20, cursor }).mockRejectedValueOnce(new Error('offline'));
   await expect(syncCollection(deps, context)).rejects.toThrow('offline');
   expect(JSON.parse(checkpoint!)).toMatchObject({ since: 0, cursor });
@@ -82,4 +82,13 @@ it('uploads more than one batch and leaves no saved works unsynced', async () =>
   await syncCollection(deps, context);
   expect(api.mock.calls.map(([args]) => args.push.length)).toEqual([500, 1]);
   expect(await repo.listUnsynced()).toEqual([]);
+});
+
+it('queues cached photos for their new owner when the authenticated device changes', async () => {
+  checkpoint = JSON.stringify({ ...context, deviceId: 'old-device', since: 20 });
+  await repo.insertSavedWork({ localId: 'local', title: 'Painting', artist: '', savedAt: 1,
+    photoPath: 'photo.jpg', photoStorageId: 'previous-owner-file' as Id<'_storage'>, syncedAt: 10 });
+  await syncCollection(deps, context);
+  expect(await repo.getSavedWork('local')).toMatchObject({ photoPath: 'photo.jpg', photoStorageId: null });
+  expect(api.mock.calls[0][0].push).toHaveLength(1);
 });

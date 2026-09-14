@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireDevice } from './lib/auth';
+import { deleteUnreferencedCollectionPhotos } from './lib/collectionPhotos';
 import { limitDevice } from './lib/rateLimits';
 import { snapshotFields } from './lib/validators';
 
@@ -78,7 +79,10 @@ export const remove = mutation({
     const row = await ctx.db.query('collections')
       .withIndex('by_device_localId', (q) => q.eq('deviceId', device._id).eq('localId', localId)).unique();
     if (!row) throw new ConvexError({ code: 'not_found' });
-    if (row.deletedAt === undefined) await ctx.db.patch(row._id, { deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id });
+    if (row.deletedAt === undefined) await ctx.db.patch(row._id, {
+      deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id,
+    });
+    await deleteUnreferencedCollectionPhotos(ctx, row);
     return null;
   },
 });

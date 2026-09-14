@@ -13,7 +13,7 @@ export function AccountSection() {
       {account?.linked ? <>
         <ThemedText>Signed in · {account.deviceCount} {account.deviceCount === 1 ? 'device' : 'devices'}</ThemedText>
         {account.email && <ThemedText>{account.email}</ThemedText>}
-        <ThemedText themeColor="textSecondary">Photos stay on the phone that took them.</ThemedText>
+        <ThemedText themeColor="textSecondary">Saved works and photos sync privately across your devices. Downloaded photos are available offline.</ThemedText>
         {!busy && <Host matchContents colorScheme="light">
           <VStack alignment="leading" spacing={Spacing.two}>
             <Button label="Sign out" onPress={() => { void signOut(); }} />

@@ -22,6 +22,7 @@ const limits = {
   rightNow: { kind: 'fixed window', rate: 60, period: HOUR },
   correctFact: { kind: 'fixed window', rate: 5, period: DAY },
   sync: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
+  photoUpload: { kind: 'token bucket', rate: 60, period: MINUTE, capacity: 20 },
 } satisfies Record<string, RateLimitConfig>;
 
 export type RateLimitName = keyof typeof limits;

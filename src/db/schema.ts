@@ -45,6 +45,8 @@ export const savedWorks = sqliteTable(
     scanId: text().$type<Id<'scans'>>(),
     photoPath: text(),
     cropPath: text(),
+    photoStorageId: text().$type<Id<'_storage'>>(),
+    cropStorageId: text().$type<Id<'_storage'>>(),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
     syncedBy: text().$type<Id<'devices'>>(),

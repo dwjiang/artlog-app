@@ -34,7 +34,7 @@ export function ExportSection() {
     <Host matchContents colorScheme="light">
       <Button label={busy ? 'Exporting…' : 'Export collection as JSON'} disabled={busy} onPress={() => { void exportCollection(); }} />
     </Host>
-    <ThemedText type="small" themeColor="textSecondary">Includes saved works, visits and notes. Photos stay on this phone.</ThemedText>
+    <ThemedText type="small" themeColor="textSecondary">Includes saved works, visits and notes. Photo files aren’t included in this export.</ThemedText>
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
   </View>;
 }

@@ -12,7 +12,7 @@ export function SavedWorkImage({ path, title, style, contain = false }: {
     <View style={[styles.container, style]}>
       {path ? <Image source={captureFileUri(path)} contentFit={contain ? 'contain' : 'cover'}
         accessibilityLabel={`Your photo of ${title}`} style={StyleSheet.absoluteFill} />
-        : <ThemedText type="small" themeColor="textSecondary" style={styles.placeholder}>Photo on another device</ThemedText>}
+        : <ThemedText type="small" themeColor="textSecondary" style={styles.placeholder}>Photo syncing…</ThemedText>}
     </View>
   );
 }

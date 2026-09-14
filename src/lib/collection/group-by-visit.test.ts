@@ -13,7 +13,7 @@ function work(localId: string, visitLocalId: string | null, savedAt: number): Sa
   return {
     localId, visitLocalId, venueId: null, venueName: null, gallery: null, savedAt, title: localId, artist: 'Unknown',
     date: null, medium: null, institution: null, objectId: null, artworkId: null, scanId: null, photoPath: null,
-    cropPath: `crops/${localId}.jpg`, syncedAt: null, deletedAt: null, revision: 0, syncedBy: null,
+    photoStorageId: null, cropStorageId: null, cropPath: `crops/${localId}.jpg`, syncedAt: null, deletedAt: null, revision: 0, syncedBy: null,
   };
 }
 

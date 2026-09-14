@@ -419,6 +419,10 @@ export default defineSchema({
   collections: defineTable({
     deviceId: v.id('devices'),
     localId: v.string(),
+    photoStorageId: v.optional(v.id('_storage')),
+    cropStorageId: v.optional(v.id('_storage')),
+    // Photo arrivals advance sync without making an older note win an edit conflict.
+    photoUpdatedAt: v.optional(v.number()),
     visitId: v.optional(v.id('visits')),
     venueId: v.optional(v.id('museums')),
     venueName: v.optional(v.string()),
@@ -436,7 +440,10 @@ export default defineSchema({
   })
     .index('by_device_localId', ['deviceId', 'localId'])
     .index('by_device_savedAt', ['deviceId', 'savedAt'])
-    .index('by_device_updatedAt', ['deviceId', 'updatedAt']),
+    .index('by_photoStorageId_deletedAt', ['photoStorageId', 'deletedAt'])
+    .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt'])
+    .index('by_device_updatedAt', ['deviceId', 'updatedAt'])
+    .index('by_device_photoUpdatedAt', ['deviceId', 'photoUpdatedAt']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 
