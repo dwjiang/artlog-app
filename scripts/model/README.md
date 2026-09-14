@@ -11,7 +11,7 @@ Requires Apple silicon macOS, Xcode 26, `uv`, and about 3 GB of disk (a 546 MB c
 `cache/`, ~1 GB under `out/`; both ignored). The app and module require iOS 17.0, matching the
 exported model; Expo applies `ios.deploymentTarget` from `app.json` during prebuild.
 
-## Export, package, fetch
+## Export, compile, track
 
 For physical-iPhone latency, memory and compute-device measurements, use the
 [benchmark harness](benchmark/README.md) with the exported package.
@@ -32,49 +32,49 @@ the index build loads it so index vectors carry the same int8 rounding as the ph
 
 For an index-only rebuild, exporting is sufficient: jobs load
 `scripts/model/out/fakequant_state.pt` at the repository root by default. Use
-`--fakequant` to select a different export path. Leave the published
-`model-asset.json` pin unchanged.
+`--fakequant` to select a different export path. Leave the tracked iOS model unchanged.
 
-For a new release or a local compiled-asset test, run `./package-model.sh` from `scripts/model`.
-It compiles the model and creates `out/CRadioV3B-<version>.zip`. The ZIP includes a manifest with
-the export time and duration, so it has a new checksum even when the weight file matches.
-The model is **not committed**. `package-model.sh` writes `model-asset.json` with the release
-asset URL and its sha256; `npm run model:fetch` (also the `eas-build-pre-install` hook) downloads
-that zip, checks the hash and the `modelVersion` against `shared/model/model-version.json`, and unzips
-it into `modules/coreml-embed/ios/Models/` (ignored). Re-running is a no-op while the folder's
-`.asset-sha256` matches.
+The compiled model is **committed through Git LFS** under `modules/coreml-embed/ios/Models/`.
+`.gitattributes` tracks every file inside `*.mlmodelc` with LFS; `model-manifest.json` stays in
+ordinary Git so reviewers can inspect the recipe and weights checksum.
 
-The fetch uses the GitHub release-asset API. Public assets can be downloaded without credentials;
-when available, it uses `GH_TOKEN` (or `GITHUB_TOKEN`) from the shell/build environment or the
-existing `gh auth login` session. While this repository is private, authentication is required.
-For EAS builds of the private repository, set `GH_TOKEN` as a **secret** in
-each build environment you use, with a fine-grained GitHub token granting this repository
-**Contents: read**. EAS's GitHub integration does not supply this token to build scripts. The
-downloader needs only Node 22.13+ (already required by SDK 57) before dependency installation;
-`gh` is optional when a token is supplied. Run `npm run test:model-fetch` from the repository
-root for the public/private download, symlinked CLI and asset-install regression tests.
+Install LFS before cloning (`brew install git-lfs && git lfs install`). For an existing checkout,
+run `git lfs install` and `git lfs pull` from the repository root. Normal checkouts materialize
+the model from the LFS cache; Conductor worktrees on the same Mac share that cache. A new model
+version, separate clone, or uncached CI checkout needs a download. Private repositories use your
+GitHub repository credentials.
 
-The [pinned model release](https://github.com/dwjiang/artlog-app/releases/tag/model-c-radiov3-b-int8-512-dinov2-v1)
-is published. Its archive matches `model-asset.json`; the pre-install hook was verified from an
-empty model directory with token authentication and no `gh` CLI or installed dependencies.
+`npm run model:check` rejects missing files, unresolved LFS pointers, a manifest that differs
+from `shared/model/model-version.json`, and weights that do not match the manifest's SHA-256.
+It runs before `npm run ios` and as `eas-build-pre-install`, using only Node 22.13+ before
+dependency installation. Run `npm run test:model` for its regression tests.
 
-For future model versions, publish the asset once (from the repository root):
+EAS CLI uploads include the materialized model files through `.easignore`; the pre-install
+hook validates them without Git or a separate model-download token. Run `git lfs pull` before
+uploading from a checkout that skipped LFS. CI must materialize LFS before invoking EAS
+(for GitHub Actions, enable `lfs: true` on `actions/checkout`). For builds sourced from GitHub
+ZIP/tar archives, enable repository Settings → Archives → **Include Git LFS objects in archives**;
+the pre-install check rejects pointer-only archives.
+
+To replace the compiled model after exporting, run these commands from the repository root:
 
 ```sh
-gh release create "model-$(node -p "require('./scripts/model/model-asset.json').modelVersion")" \
-  scripts/model/out/CRadioV3B-*.zip --title "CoreML model $(node -p "require('./shared/model/model-version.json').modelVersion")" \
-  --notes "Compiled C-RADIOv3-B int8 package for the coreml-embed module"
+scripts/model/compile-model.sh
+npm run model:check
+git add modules/coreml-embed/ios/Models
+git lfs status
 ```
 
-To test a locally packaged asset, override the download URL:
-`MODEL_ASSET_URL=file://$PWD/scripts/model/out/CRadioV3B-<version>.zip npm run model:fetch`.
-Rebuild the dev client after fetching (`npx expo prebuild --platform ios --clean && npx expo run:ios`);
-the podspec ships `Models/*.mlmodelc` as a CocoaPods resource.
+The compiler validates a temporary package before replacing the tracked model directory.
+Commit the model, manifest, and any recipe/version changes together; a normal `git push`
+uploads the LFS objects. Rebuild the dev client after changing the model
+(`npx expo prebuild --platform ios --clean && npm run ios`); the podspec ships `Models/*.mlmodelc`
+as a CocoaPods resource.
 
 ## Checking the phone path without a phone
 
 `modules/coreml-embed/ios/Embedder.swift` has no Expo dependency, so the Mac harness runs the
-exact decode → BGRA pixel buffer → prediction → normalize path against the fetched model:
+exact decode → BGRA pixel buffer → prediction → normalize path against the tracked model:
 
 ```sh
 swiftc -O -framework CoreML -framework ImageIO \

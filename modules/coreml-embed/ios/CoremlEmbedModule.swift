@@ -10,11 +10,11 @@ enum ModelBundle {
 
   static func embedder() throws -> Embedder {
     guard let manifestURL = url("model-manifest", "json") else {
-      throw EmbedError.modelMissing("model-manifest.json is not bundled; run `npm run model:fetch` and rebuild")
+      throw EmbedError.modelMissing("model-manifest.json is not bundled; run `git lfs pull` and rebuild")
     }
     let manifest = try ModelManifest.load(from: manifestURL)
     guard let modelURL = url(manifest.modelName, "mlmodelc") else {
-      throw EmbedError.modelMissing("\(manifest.modelName).mlmodelc is not bundled; run `npm run model:fetch` and rebuild")
+      throw EmbedError.modelMissing("\(manifest.modelName).mlmodelc is not bundled; run `git lfs pull` and rebuild")
     }
     return Embedder(modelURL: modelURL, manifest: manifest)
   }

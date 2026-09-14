@@ -24,13 +24,12 @@ example
 /ios
 /android
 
-# Local model exports; the compiled model is fetched by eas-build-pre-install.
+# Local model exports; the tracked compiled model is included in the build archive.
 scripts/model/.venv/
 scripts/model/cache/
 scripts/model/out/
 scripts/model/__pycache__/
 scripts/model/.pytest_cache/
-modules/coreml-embed/ios/Models/
 
 # Not needed inside a build archive.
 scripts/evals/

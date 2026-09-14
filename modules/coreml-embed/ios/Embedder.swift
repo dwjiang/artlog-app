@@ -61,7 +61,7 @@ final class Embedder {
     self.manifest = manifest
   }
 
-  /// A directory laid out as `npm run model:fetch` leaves it: `model-manifest.json` plus the `.mlmodelc`.
+  /// The tracked model directory contains `model-manifest.json` plus the `.mlmodelc`.
   convenience init(modelsDirectory: URL) throws {
     let manifestURL = modelsDirectory.appendingPathComponent("model-manifest.json")
     guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -95,7 +95,7 @@ final class Embedder {
     defer { lock.unlock() }
     if let model { return (model, true) }
     guard FileManager.default.fileExists(atPath: modelURL.path) else {
-      throw EmbedError.modelMissing("\(modelURL.lastPathComponent) is not bundled; run `npm run model:fetch` and rebuild")
+      throw EmbedError.modelMissing("\(modelURL.lastPathComponent) is not bundled; run `git lfs pull` and rebuild")
     }
     let configuration = MLModelConfiguration()
     configuration.computeUnits = Self.computeUnits

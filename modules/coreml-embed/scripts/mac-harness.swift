@@ -1,4 +1,4 @@
-// macOS harness for the coreml-embed Swift core: loads the fetched .mlmodelc exactly as the phone
+// macOS harness for the coreml-embed Swift core: loads the tracked .mlmodelc exactly as the phone
 // does and embeds letterboxed crops, so the pixel path and numerics can be checked without a device.
 //
 //   swiftc -O -framework CoreML -framework ImageIO \

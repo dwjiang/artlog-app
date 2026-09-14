@@ -2,7 +2,7 @@ Pod::Spec.new do |s|
   s.name           = 'CoremlEmbed'
   s.version        = '0.1.0'
   s.summary        = 'On-device C-RADIOv3-B embedding for artlog (CoreML, Expo module)'
-  s.description    = 'Loads the compiled C-RADIOv3-B package fetched by `npm run model:fetch` and embeds letterboxed crops on the Neural Engine.'
+  s.description    = 'Loads the compiled C-RADIOv3-B package fetched by `git lfs pull` and embeds letterboxed crops on the Neural Engine.'
   s.author         = 'artlog'
   s.homepage       = 'https://github.com/dwjiang/artlog-app'
   s.license        = 'UNLICENSED'
