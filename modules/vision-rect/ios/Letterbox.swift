@@ -115,7 +115,7 @@ extension CGImagePropertyOrientation {
 }
 
 enum Letterbox {
-  /// Mirrors `jobs/artlog_jobs/letterbox.py`: resize so the long side equals `size`, center on a
+  /// Mirrors `scripts/data/pipeline/letterbox.py`: resize so the long side equals `size`, center on a
   /// `size`×`size` canvas filled with the resized image's per-channel mean.
   static func letterbox(
     _ image: CGImage,

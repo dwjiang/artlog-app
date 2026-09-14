@@ -18,7 +18,7 @@ uv run pytest -q
 ```
 
 Tests make no provider calls. Fact-sheet and docent schemas reuse the retained
-contracts in `jobs/fixtures/`; label and moderation schemas are under `schemas/`.
+contracts in `scripts/data/fixtures/`; label and moderation schemas are under `schemas/`.
 The pinned OpenAI SDK talks to Token Factory's OpenAI-compatible endpoint.
 
 ## Run a comparison

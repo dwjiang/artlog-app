@@ -6,9 +6,10 @@
 > Follow the steps and their verification gates in order. Do not mark this plan
 > done when an upload is merely running. Record completion in this todo.
 >
-> **Drift check:** run `git diff --stat 1fe0c14..HEAD -- jobs/artlog_jobs
-> jobs/scripts convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md` and
-> `git diff --stat -- jobs/artlog_jobs convex shared/model/model-version.json`.
+> **Drift check:** run `git diff -M --stat 1fe0c14..HEAD -- jobs/artlog_jobs jobs/scripts scripts/data/pipeline
+> scripts/data/letterbox-parity.py convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md`
+> (1fe0c14 predates the move of `jobs/` to `scripts/data/`; `-M` with both paths pairs the renames) and
+> `git diff --stat -- scripts/data/pipeline convex shared/model/model-version.json`.
 > This plan was written against an already dirty working tree. HEAD alone does
 > not identify its importer: compare the
 > [recorded fingerprints](../../operations/corpus.md#file-fingerprints) and review
@@ -43,7 +44,7 @@ records the completed relocation, artifact locations, counts, payload
 estimates, implementation observations, and file fingerprints.
 
 Run repository commands from the active checkout's root; commands explicitly
-labeled `jobs/` run from that subdirectory. Use the absolute corpus path in Step 1
+labeled `scripts/data/` run from that subdirectory. Use the absolute corpus path in Step 1
 so execution does not depend on a particular workspace or symlink.
 
 ## Scope and conventions
@@ -54,20 +55,20 @@ counter reset, schema migration, model retraining, hub scoring, enrichment,
 paid plan upgrade, usage-limit change, EAS build, or submission is included.
 Do not rerun the old empty-database setup helper or reuse its 10k checkpoint.
 
-Future implementation may add `jobs/scripts/audit-production-corpus.py` and
-`jobs/scripts/audit-production-corpus_test.py` for the bounded verification
+Future implementation may add `scripts/data/audit-production-corpus.py` and
+`scripts/data/audit-production-corpus_test.py` for the bounded verification
 described below. Operational outputs belong in the durable run directory.
-Update [the deployment state](../../operations/production.md), [the jobs guide](../../../jobs/README.md),
+Update [the deployment state](../../operations/production.md), [the jobs guide](../../../scripts/data/README.md),
 and this todo after verification. Backend/app changes are not expected; investigate and
 revise this plan if they become necessary.
 
 The project uses Python 3.12+ with uv/pytest/Ruff, and TypeScript with Convex
 1.45, Expo SDK 57, Vitest, and Jest. Match the fake-writer patterns in
-`jobs/artlog_jobs/push_test.py` and script tests in
-`jobs/scripts/letterbox-parity_test.py`. New script filenames use kebab case.
+`scripts/data/pipeline/push_test.py` and script tests in
+`scripts/data/letterbox-parity_test.py`. New script filenames use kebab case.
 Read the current applicable guides and exact Expo v57 docs before code edits.
-No installs are needed if the existing `jobs/.venv` is intact; a new checkout
-uses `uv sync` from `jobs/` and the repository's locked Node dependencies.
+No installs are needed if the existing `scripts/data/.venv` is intact; a new checkout
+uses `uv sync` from `scripts/data/` and the repository's locked Node dependencies.
 
 Keep the existing branch name. No commits, pushes, or PRs are required by this
 plan; if separately requested, use `origin/main` / PR base `main` and include
@@ -83,11 +84,11 @@ export ARTLOG_DATA="$HOME/Documents/Artlog Data"
 export ARTLOG_CORPUS="$ARTLOG_DATA/jobs/scratch/merged"
 export ARTLOG_RUN="$ARTLOG_DATA/jobs/out/production-full-$(date +%Y-%m-%d)"
 mkdir -p "$ARTLOG_RUN"
-cd jobs
-uv run python -m artlog_jobs.push --in "$ARTLOG_CORPUS" --full --dry-run > "$ARTLOG_RUN/dry-run.json"
+cd scripts/data
+uv run python -m pipeline.push --in "$ARTLOG_CORPUS" --full --dry-run > "$ARTLOG_RUN/dry-run.json"
 ```
 
-**Verify** from `jobs/`:
+**Verify** from `scripts/data/`:
 
 ```sh
 uv run python - <<'PY'
@@ -217,12 +218,12 @@ and preservation of unrelated baseline rows. Assert preflight/readback make no
 mutations and a wrong target is rejected before any request. This is meaningful
 auditor coverage; the existing importer does not need to be rewritten.
 
-**Verify** from `jobs/`:
+**Verify** from `scripts/data/`:
 
 ```sh
-uv run pytest -q scripts/audit-production-corpus_test.py artlog_jobs/push_test.py artlog_jobs/convex_writer_test.py
-uv run ruff check scripts/audit-production-corpus.py scripts/audit-production-corpus_test.py
-uv run python scripts/audit-production-corpus.py --mode preflight --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
+uv run pytest -q audit-production-corpus_test.py pipeline/push_test.py pipeline/convex_writer_test.py
+uv run ruff check audit-production-corpus.py audit-production-corpus_test.py
+uv run python audit-production-corpus.py --mode preflight --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
 ```
 
 Expected: tests/checks exit 0; preflight targets production and reports
@@ -236,7 +237,7 @@ views → selected ORB references/files → neutral penalties. It accounts for t
 existing 10k sample before writing, so final expected counts come from
 `baseline + input - existing`, not blind addition or a counter reset.
 
-From `jobs/`, run under `caffeinate`. Redirect logs to the durable run directory
+From `scripts/data/`, run under `caffeinate`. Redirect logs to the durable run directory
 and monitor progress regularly; lower noisy HTTP client log levels so signed
 URLs cannot appear. This command intentionally writes production:
 
@@ -245,9 +246,9 @@ caffeinate -i uv run python - > "$ARTLOG_RUN/import.log" 2>&1 <<'PY'
 import json, logging, os
 from pathlib import Path
 from dotenv import dotenv_values
-from artlog_jobs.config import Settings, setup_logging
-from artlog_jobs.convex_writer import ConvexWriter
-from artlog_jobs.push import Corpus, run
+from pipeline.config import Settings, setup_logging
+from pipeline.convex_writer import ConvexWriter
+from pipeline.push import Corpus, run
 
 prod = 'https://admired-goldfinch-660.convex.cloud'
 out = Path(os.environ['ARTLOG_RUN'])
@@ -277,7 +278,7 @@ checkpoint, start a second importer, or claim the partial index is complete.
 If paused between vector and ORB stages, recognition may be soft/incomplete for
 new objects; record the active stage and finish before production acceptance.
 
-**Verify** from `jobs/`:
+**Verify** from `scripts/data/`:
 
 ```sh
 uv run python - <<'PY'
@@ -303,8 +304,8 @@ Do not repeat an entire multi-GB readback without a changed input, failure, or
 specific unresolved concern.
 
 ```sh
-# From jobs/:
-uv run python scripts/audit-production-corpus.py --mode readback --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
+# From scripts/data/:
+uv run python audit-production-corpus.py --mode readback --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
 ```
 
 Expected: exit 0, `complete: true`, 402,139 embedding views and 397,047 ORB files
@@ -333,7 +334,7 @@ query without ORB should be soft; an unsupported model should return
 development attestations; do not weaken settings to make validation pass.
 
 ```sh
-uv run python scripts/audit-production-corpus.py --mode smoke --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
+uv run python audit-production-corpus.py --mode smoke --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
 ```
 
 Expected: `recognition-audit.json` has the intended production URL, passing

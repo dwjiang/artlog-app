@@ -203,8 +203,9 @@ and soft thresholds are equal after the ordering cap; soft winners are blocked
 from confidence by hard rules. Keep the actual configuration in
 [weights.ts](../../convex/lib/calibrator/weights.ts), not duplicated JSON.
 
-Training commands and context priors are in the
-[jobs guide](../../jobs/README.md). Artifacts live under
+Training commands are in the [jobs guide](../../scripts/data/README.md#calibrator-training);
+simulated context priors are in [features.py](../../scripts/data/pipeline/calibrator/features.py).
+Artifacts live under
 `/Users/dwjiang/Documents/Artlog Data/jobs/out/02-09-2026-09-12-calibrator/`:
 trained JSON, metrics, source manifest, feature rows, import/readback audits,
 TypeScript evaluation, and demo results. Feature SHA-256:

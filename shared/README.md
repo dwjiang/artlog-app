@@ -1,7 +1,7 @@
 # Shared domains
 
 Code and data consumed across the iOS app (`src/`), Convex backend (`convex/`),
-and Python tooling (`jobs/`, `scripts/model/`). Each domain owns its fixtures.
+and Python tooling (`scripts/data/`, `scripts/model/`). Each domain owns its fixtures.
 
 | Domain | Contents | Consumers |
 | --- | --- | --- |

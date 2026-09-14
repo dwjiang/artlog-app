@@ -16,7 +16,7 @@ export type OrbDetection = {
 
 export type OrbFeatureBuffers = { descriptors: ArrayBuffer; keypoints: ArrayBuffer; count: number };
 
-/** ORB features of a letterboxed square crop in the wire format, capped like `jobs/artlog_jobs/orb.py`. */
+/** ORB features of a letterboxed square crop in the wire format, capped like `scripts/data/pipeline/orb.py`. */
 export function extractOrb(
   cropUri: string,
   maxKeypoints: number = model.orbMaxKeypoints,

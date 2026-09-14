@@ -28,7 +28,7 @@ export type CalibrationReport = {
 /**
  * Dev-only. Embeds the calibration paintings through the production letterbox and model, writes
  * `iphone-embeddings.json` and a report to the cache, and opens the share sheet so the file can be
- * committed as `jobs/calibration/iphone-embeddings.json` for the index build's drift check.
+ * committed as `scripts/data/calibration/iphone-embeddings.json` for the index build's drift check.
  */
 export async function runCalibrationExport(
   onProgress?: (done: number, total: number) => void,

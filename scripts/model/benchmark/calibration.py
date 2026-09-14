@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 ARTIFACTS = ROOT / "artifacts"
 REPO_ROOT = ROOT.parents[2]
 URLS = REPO_ROOT / "shared/model/calibration/urls.txt"
-HASHES = REPO_ROOT / "jobs/calibration/image-hashes.json"
+HASHES = REPO_ROOT / "scripts/data/calibration/image-hashes.json"
 
 
 class Downloader:

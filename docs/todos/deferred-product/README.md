@@ -8,7 +8,7 @@ for the current release. [Hub scoring](../hub-scoring/README.md) and the
    venues, including difficult captures and unknown works. Replay it against new
    indexes, embedding models, and calibrators; report precision, recall, false
    confident matches, and latency. Add shadow comparisons for calibrator changes.
-   The existing [calibrator tooling](../../../jobs/artlog_jobs/calibrator/) covers
+   The existing [calibrator tooling](../../../scripts/data/pipeline/calibrator/) covers
    augmented corpus evaluation; it does not replace a real-photo evaluation set.
    Keep retrains manual and reviewed until the evaluation can support a release
    gate. Preserve resolved wrong/right matches as possible hard negatives.

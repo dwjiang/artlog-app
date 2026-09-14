@@ -32,7 +32,7 @@ seconds.
 | Component | Model / service | Code | Runs |
 |---|---|---|---|
 | Image embedding, every scan | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, 1,536-d output, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-v1`) | `modules/coreml-embed/`, export recipe in `scripts/model/` | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. Normal identification sends features without uploading the crop |
-| Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build | `jobs/artlog_jobs/model.py`, `embed.py`, `drift_check.py` | On the operator's Mac (see below) |
+| Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build | `scripts/data/pipeline/model.py`, `embed.py`, `drift_check.py` | On the operator's Mac (see below) |
 | Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
 | Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
 | Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
@@ -43,7 +43,7 @@ seconds.
 **Where the index was actually built.** The corpus build ran on the operator's Mac (Apple M5 Pro, PyTorch on the
 MPS backend, fp16), shard by shard with the same fake-quantized weights the phone runs, because
 the Wikimedia Commons download sets the wall clock, not GPU time, and the Commons robot policy
-applies wherever the job runs ([jobs/README.md](jobs/README.md), "Index build"). No Nebius job
+applies wherever the job runs ([scripts/data/README.md](scripts/data/README.md), "Index build"). No Nebius job
 has embedded, enriched or migrated the index; the only Nebius compute spent was three
 probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
 Convex, and what runs on Nebius is Token Factory, live, on every label read, every consented
@@ -77,7 +77,7 @@ does not depend on Tavily.
                                                         Nebius Token Factory       Tavily      one page on the
                                                         (Kimi, Nemotron)                       venue's own hosts
 
- Mac, batch, runs to completion (jobs/):
+ Mac, batch, runs to completion (scripts/data/):
    seed venues → corpus metadata → download / drift check / embed → dedupe / hubs → push ──▶ Convex
 ```
 
@@ -145,17 +145,17 @@ Convex environment variables, set with `npx convex env set NAME value`
 | `CRAWLER_CONTACT`, `MODERATION_BLOCKLIST` | Contact address in the page fetcher's User-Agent; optional additions to the moderation blocklist |
 
 An empty deployment has no venues and no index. The Python jobs fill it
-([jobs/README.md](jobs/README.md)):
+([scripts/data/README.md](scripts/data/README.md)):
 
 Before running the jobs, add `CONVEX_URL` to `.env.local` with the same literal URL as
 `EXPO_PUBLIC_CONVEX_URL` written by the CLI. The token command below writes only the deploy key.
 
 ```sh
 npx convex deployment token create artlog-jobs-local --deployment dev --save-env   # CONVEX_DEPLOY_KEY into .env.local
-cd jobs && uv sync
-uv run python -m artlog_jobs.smoke                                       # prints the torch device and live table counts
-uv run python -m artlog_jobs.seed_venues --countries US --out out/ --publish   # or --all for the full 42k-venue census
-cp out/venues.db ../assets/venues.db      # the app must ship the venue table exported from the deployment it talks to
+cd scripts/data && uv sync
+uv run python -m pipeline.smoke                                       # prints the torch device and live table counts
+uv run python -m pipeline.seed_venues --countries US --out out/ --publish   # or --all for the full 42k-venue census
+cp out/venues.db ../../assets/venues.db      # the app must ship the venue table exported from the deployment it talks to
 ```
 
 Continue with the rebuild steps below. The model export and corpus metadata are required for
@@ -163,35 +163,35 @@ both a 1,000-object pilot and the full index; the commands include every stage t
 
 ## Rebuild the index from scratch
 
-After the backend and jobs setup above, start in `jobs/` on an Apple silicon Mac with `uv`
+After the backend and jobs setup above, start in `scripts/data/` on an Apple silicon Mac with `uv`
 installed. The commands below build and import a 1,000-object pilot. For the full corpus, omit
 `--limit 1000` in steps 4 and 5. If a pilot already exists, use a new `SCRATCH_DIR` and repeat
 step 3 before starting the full build: checkpoints cannot mix pilot and full runs.
-`jobs/README.md` has every flag, resume rule and the measured runs.
+`scripts/data/README.md` covers setup and common workflows; each job's `--help` lists its flags.
 
 1. **Export the model** ([scripts/model/README.md](scripts/model/README.md)). Recreates the
    int8 weights and writes `fakequant_state.pt`, which gives the index the phone's rounding.
-   Exporting takes about 20 s after the 546 MB checkpoint download. From `jobs/`:
+   Exporting takes about 20 s after the 546 MB checkpoint download. From `scripts/data/`:
 
    ```sh
-   cd ../scripts/model
+   cd ../model
    uv sync
    uv run python export_coreml.py --out out/
-   cd ../../jobs
+   cd ../data
    ```
 
    This leaves the tracked iOS model unchanged. Run `scripts/model/compile-model.sh` from the
    repository root only when replacing the app's compiled model, then commit its LFS files and manifest.
 2. **Seed venues**, if not done above:
-   `uv run python -m artlog_jobs.seed_venues --all --out out/ --publish`, then
-   `cp out/venues.db ../assets/venues.db`. The full seed contains 42,452 museums and galleries
+   `uv run python -m pipeline.seed_venues --all --out out/ --publish`, then
+   `cp out/venues.db ../../assets/venues.db`. The full seed contains 42,452 museums and galleries
    with coordinates and a website from Wikidata; an 8.6 MB SQLite the app bundles.
-3. **Corpus metadata**, from `jobs/`:
+3. **Corpus metadata**, from `scripts/data/`:
 
    ```sh
-   uv run python -m artlog_jobs.sources.fetch --met --aic --aic-live
-   uv run python -m artlog_jobs.sources.fetch --wikidata
-   uv run python -m artlog_jobs.build_metadata --sources met,aic,wikidata
+   uv run python -m pipeline.sources.fetch --met --aic --aic-live
+   uv run python -m pipeline.sources.fetch --wikidata
+   uv run python -m pipeline.build_metadata --sources met,aic,wikidata
    ```
 
    About 405k artworks, 410k objects and 296k
@@ -200,7 +200,7 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
 4. **Download, drift-check, embed**:
 
    ```sh
-   uv run python -m artlog_jobs.build_index --stage download,drift,embed --limit 1000
+   uv run python -m pipeline.build_index --stage download,drift,embed --limit 1000
    ```
 
    Every build checks the job model against the committed iPhone reference (mean cosine 0.997,
@@ -211,15 +211,15 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
 5. **Dedupe and import preparation**:
 
    ```sh
-   uv run python -m artlog_jobs.build_index --stage dedupe
+   uv run python -m pipeline.build_index --stage dedupe
    ```
 
    [Hub scoring is deferred](docs/todos/hub-scoring/README.md) as of 2026-09-12.
    Sample exports and imports require no penalty artifacts; the importer assigns zero
    hub penalties. A development/preview sample can contain 1,000 surviving paintings
    across sources, retaining alternate views and related metadata.
-   See [the import workflow](jobs/README.md#small-corpus-for-development-and-previews).
-6. **Enrichment:** run the [batch fact-sheet and docent worker](jobs/README.md#enrichment)
+   See [the import workflow](scripts/data/README.md#small-corpus-for-development-and-previews).
+6. **Enrichment:** run the [batch fact-sheet and docent worker](scripts/data/README.md#enrichment)
    to populate the cache. The app also generates and caches missing fact sheets and prose
    on the first identification of each artwork (`docent.ensure`).
 
@@ -239,7 +239,7 @@ moderation call about $0.00001. Tavily: one credit per search. Nebius compute fo
 | Tavily, Convex, Nebius Token Factory | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local` |
 
 Museum images are retained only in temporary build scratch and deleted after embedding.
-Rights classification is implemented in `jobs/artlog_jobs/rights.py`;
+Rights classification is implemented in `scripts/data/pipeline/rights.py`;
 [data-source findings](docs/experiments/README.md#data-sources) record the evidence and limits.
 
 ## Privacy
@@ -272,7 +272,7 @@ Run these commands from the repository root:
 npm run typecheck                                    # tsc --noEmit
 npm run lint                                         # expo lint (ESLint)
 npm test                                             # Jest (src/, modules/, shared/), Vitest + convex-test (convex/), model validation tests
-(cd jobs && uv run pytest -q && uv run ruff check .)   # Python jobs
+(cd scripts/data && uv run pytest -q && uv run ruff check .)   # Python jobs
 npx convex dev --once                                # push backend functions to your deployment
 npx convex codegen                                   # after a schema or function-signature change; commit convex/_generated/
 npm run ios                                          # reopen the installed dev client on a Simulator or device
@@ -280,8 +280,8 @@ npm run ios                                          # reopen the installed dev 
 
 Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
 `src/db/`), `modules/` (native modules `vision-rect`, `coreml-embed`, `poi-search`), `convex/`
-(backend, pure libraries under `convex/lib/`), `jobs/` (Python index jobs), `shared/` (contracts
-shared by phone, backend and jobs), `scripts/model/` (CoreML export),
+(backend, pure libraries under `convex/lib/`), [`scripts/data/`](scripts/data/README.md) (Python data
+pipeline), `shared/` (contracts shared by phone, backend and jobs), `scripts/model/` (CoreML export),
 [`scripts/model/benchmark/`](scripts/model/benchmark/README.md) (iPhone model measurements),
 [`scripts/evals/token-factory/`](scripts/evals/token-factory/README.md) (model quality comparisons),
 [`docs/`](docs/README.md) (experiment findings, operations, hackathon materials, and open work).
