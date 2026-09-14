@@ -17,11 +17,9 @@ against actual retrieval results.
 - [hubs_test.py](../../../jobs/artlog_jobs/hubs_test.py) covers a synthetic hub,
   equivalence to pairwise mean cosine, repeatable sampling, and empty/constant
   distributions.
-- Full deduplication is complete: 41 shards, 402,139 embedding views, and
-  397,047 objects with embeddings. Under `/Users/dwjiang/Documents/Artlog Data/`,
-  its output is `jobs/scratch/merged/` and its audit is
-  `jobs/out/02-05-2026-09-12-dedupe/`, both local artifacts.
-  Revalidate or rebuild those artifacts if unavailable when this task resumes.
+- Use the deduplicated input and audits listed in the dated
+  [corpus inventory](../../operations/corpus.md). Revalidate or rebuild those
+  artifacts if unavailable when this task resumes.
 - Hub scoring has not run on this completed corpus. The earlier partial-corpus
   experiment recorded in [the jobs runbook](../../../jobs/README.md) is historical.
 
@@ -62,7 +60,7 @@ The `0.5` penalty and detection threshold are existing heuristics. Their effect
 on false matches and valid matches needs evaluation during recognition testing
 and [calibrator training](../../../jobs/README.md). The current v2 penalty
 coefficient is zero: neither hub nor rejection penalties change its scores.
-See the [training limitations](../experiment-findings/README.md#calibrator-v2).
+See the [training limitations](../../experiments/README.md#calibrator-v2).
 This task does not change user-feedback rejection penalties or adopt new
 calibrator weights.
 

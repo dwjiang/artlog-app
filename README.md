@@ -14,14 +14,14 @@ sources. A scan taken with no signal waits on the phone and is identified when t
 returns.
 
 Built for the Nebius × NVIDIA Global AI Hackathon. iOS only.
-[Open work](docs/todos/) and [experiment findings](docs/todos/experiment-findings/README.md).
+[Open work](docs/todos/) and [experiment findings](docs/experiments/README.md).
 
 ## Demo
 
 - **TestFlight public link:** _PLACEHOLDER — available once Beta App Review clears._
 - **Video (under 3 minutes, YouTube):** _PLACEHOLDER — outline in
-  [docs/todos/hackathon/video-outline.md](docs/todos/hackathon/video-outline.md)._
-- Hackathon deliverables: [feedback notes](docs/todos/hackathon/feedback-notes.md),
+  [video outline](docs/hackathon/video-outline.md)._
+- Hackathon deliverables: [feedback notes](docs/hackathon/feedback-notes.md),
   [submission checklist](docs/todos/hackathon/README.md).
 
 The app opens to the camera with no account; anyone with the TestFlight build can scan within
@@ -36,9 +36,9 @@ seconds.
 | Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
 | Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
 | Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
-| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([model evaluation](docs/todos/experiment-findings/README.md#token-factory-models)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
+| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([model evaluation](docs/experiments/README.md#token-factory-models)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
 | Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output and thinking disabled; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
-| Nebius Serverless AI Jobs | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/todos/experiment-findings/README.md#batch-infrastructure)) | `spikes/nebius-jobs/` | **Not on any production path.** See the next paragraph |
+| Nebius Serverless AI Jobs | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/experiments/README.md#batch-infrastructure)) | [archived probes](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/nebius-jobs) | **Not on any production path.** See the next paragraph |
 
 **Where the index was actually built.** The corpus build ran on the operator's Mac (Apple M5 Pro, PyTorch on the
 MPS backend, fp16), shard by shard with the same fake-quantized weights the phone runs, because
@@ -62,7 +62,7 @@ does not depend on Tavily.
 | Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: first search the venue's current exhibitions with source-linked images. The phone checks up to six images on each of three pages by embedding and homography. A match is identified only from artwork metadata or a caption attached to that image; otherwise the visitor is asked for the label. If no image matches, a second search uses the vision model's painting description and checks individual object pages. One credit per search, at most two per attempt. `FLAG_MUSEUM_SEARCH`, on by default |
 | Label verification | `convex/label.ts` | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default |
 | Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | On the first identification of an uncached artwork, results filtered by per-domain source scores (`shared/sources/source-scores.json`) become sources Nemotron 3 Super must cite |
-| "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/todos/experiment-findings/README.md#tavily-and-right-now) |
+| "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/experiments/README.md#tavily-and-right-now) |
 
 ## Architecture
 
@@ -107,8 +107,10 @@ model files, so resolve LFS pointers before starting a build. CI checkouts must 
 installs on the chosen iPhone and starts Metro; `npm run ios` also builds and launches the iOS
 app through Expo. Expo Go cannot load the native modules.
 
-The hosted production backend is `admired-goldfinch-660`; its corpus and release checks are
-recorded in the [release checklist](docs/todos/release/README.md). Scanning, saving, the label flow and museum-site search work from any build.
+The hosted production backend is `admired-goldfinch-660`; its corpus and configuration
+are recorded in the [deployment reference](docs/operations/production.md). Remaining release
+checks are in the [release checklist](docs/todos/release/README.md). Scanning, saving, the
+label flow and museum-site search work from any build.
 Writes to the shared index (contributions, rejections, venue confirmations) are signed with App
 Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
 use the TestFlight build, or run your own backend.
@@ -175,8 +177,6 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    cd ../scripts/model
    uv sync
    uv run python export_coreml.py --out out/
-   mkdir -p ../../spikes/coreml-export/artifacts
-   cp out/fakequant_state.pt ../../spikes/coreml-export/artifacts/fakequant_state.pt
    cd ../../jobs
    ```
 
@@ -240,7 +240,7 @@ moderation call about $0.00001. Tavily: one credit per search. Nebius compute fo
 
 Museum images are retained only in temporary build scratch and deleted after embedding.
 Rights classification is implemented in `jobs/artlog_jobs/rights.py`;
-[data-source findings](docs/todos/experiment-findings/README.md#data-sources) record the evidence and limits.
+[data-source findings](docs/experiments/README.md#data-sources) record the evidence and limits.
 
 ## Privacy
 
@@ -281,9 +281,11 @@ npm run ios                                          # reopen the installed dev 
 Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
 `src/db/`), `modules/` (native modules `vision-rect`, `coreml-embed`, `poi-search`), `convex/`
 (backend, pure libraries under `convex/lib/`), `jobs/` (Python index jobs), `shared/` (contracts
-shared by phone, backend and jobs), `scripts/model/` (CoreML export), `spikes/` (isolated
-experiments and raw evidence), `docs/todos/` (open work, experiment findings and hackathon
-deliverables). Agent guide: [AGENTS.md](AGENTS.md).
+shared by phone, backend and jobs), `scripts/model/` (CoreML export),
+[`scripts/model/benchmark/`](scripts/model/benchmark/README.md) (iPhone model measurements),
+[`scripts/evals/token-factory/`](scripts/evals/token-factory/README.md) (model quality comparisons),
+[`docs/`](docs/README.md) (experiment findings, operations, hackathon materials, and open work).
+Agent guide: [AGENTS.md](AGENTS.md).
 
 ## License
 

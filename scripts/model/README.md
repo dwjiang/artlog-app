@@ -1,7 +1,7 @@
 # Embedding model export
 
 Produces the CoreML package the app ships and the index build's weights. The
-[accepted recipe](../../docs/todos/experiment-findings/README.md#embedding-model) is C-RADIOv3-B, DINOv2 adaptor
+[accepted recipe](../../docs/experiments/README.md#embedding-model) is C-RADIOv3-B, DINOv2 adaptor
 summary, 512×512 RGB input scaled by 1/255 inside CoreML, fp16 compute, symmetric per-channel
 int8 on the 53 two-dimensional Linear weights, unnormalized 1536-float output. `export_coreml.py`
 asserts that its recipe constants match `shared/model/model-version.json`; any change to either is a
@@ -12,6 +12,9 @@ Requires Apple silicon macOS, Xcode 26, `uv`, and about 3 GB of disk (a 546 MB c
 exported model; Expo applies `ios.deploymentTarget` from `app.json` during prebuild.
 
 ## Export, compile, track
+
+For physical-iPhone latency, memory and compute-device measurements, use the
+[benchmark harness](benchmark/README.md) with the exported package.
 
 ```sh
 cd scripts/model
@@ -27,9 +30,9 @@ int8 weight file byte for byte (verified 2026-09-10 with torch 2.7.0 / coremltoo
 `fakequant_state.pt` next to it is the PyTorch checkpoint with the phone's dequantized weights;
 the index build loads it so index vectors carry the same int8 rounding as the phone.
 
-For an index-only rebuild, copy `out/fakequant_state.pt` to
-`spikes/coreml-export/artifacts/fakequant_state.pt` at the repository root. Exporting is sufficient;
-leave the tracked iOS model unchanged.
+For an index-only rebuild, exporting is sufficient: jobs load
+`scripts/model/out/fakequant_state.pt` at the repository root by default. Use
+`--fakequant` to select a different export path. Leave the tracked iOS model unchanged.
 
 The compiled model is **committed through Git LFS** under `modules/coreml-embed/ios/Models/`.
 `.gitattributes` tracks every file inside `*.mlmodelc` with LFS; `model-manifest.json` stays in

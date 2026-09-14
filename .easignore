@@ -23,10 +23,6 @@ yarn-error.*
 example
 /ios
 /android
-spikes/**/artifacts/
-spikes/**/.venv/
-spikes/**/__pycache__/
-spikes/**/.pytest_cache/
 
 # Local model exports; the tracked compiled model is included in the build archive.
 scripts/model/.venv/
@@ -36,8 +32,9 @@ scripts/model/__pycache__/
 scripts/model/.pytest_cache/
 
 # Not needed inside a build archive.
+scripts/evals/
+scripts/model/benchmark/
 docs/
-spikes/
 jobs/
 .context/
 *.test.*
