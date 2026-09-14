@@ -34,7 +34,7 @@ packages = ["pipeline"]
 
 [tool.pytest.ini_options]
 python_files = ["*_test.py"]
-testpaths = ["pipeline", "letterbox-parity_test.py"]
+testpaths = ["pipeline", "*_test.py"]
 
 [tool.ruff]
 line-length = 100

@@ -48,7 +48,7 @@ export const imageCheckDeps: ImageCheckDeps = {
     }
   },
   async letterbox(uri) {
-    // No quad: the museum's reproduction is letterboxed whole, as the index build does (jobs letterbox.py).
+    // No quad: the museum's reproduction is letterboxed whole, as the index build does (scripts/data/pipeline/letterbox.py).
     const result = await getVisionRect().warpAndLetterbox(filePath(uri), undefined, model.inputSize);
     return `file://${result.cropPath}`;
   },
