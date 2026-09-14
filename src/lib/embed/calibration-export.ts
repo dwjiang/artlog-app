@@ -9,7 +9,7 @@ export type CalibrationSteps = {
 };
 
 export type CalibrationEmbeddings = {
-  /** Keyed by source URL: the shape of `jobs/calibration/iphone-embeddings.json` the drift check reads. */
+  /** Keyed by source URL: the shape of `scripts/data/calibration/iphone-embeddings.json` the drift check reads. */
   embeddings: Record<string, number[]>;
   embedMedianMs: number;
 };

@@ -18,7 +18,7 @@ from openai import APIError, OpenAI
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parents[2]
 SCHEMAS = {
-    suite: REPO_ROOT / "jobs" / "fixtures" / f"{suite}-schema.json"
+    suite: REPO_ROOT / "scripts" / "data" / "fixtures" / f"{suite}-schema.json"
     for suite in ("factsheet", "docent")
 }
 FIELDS = [

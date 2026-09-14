@@ -38,7 +38,7 @@ Local evidence lives under `/Users/dwjiang/Documents/Artlog Data/`:
 `jobs/scratch/calibrator-corpus-10000/` holds the package;
 `jobs/out/06-01-2026-09-13-production/` holds configuration/auth audits, venue
 asset and mapping, import checkpoint, readback, and recognition reports.
-See the [import instructions](../../jobs/README.md) for the existing importer.
+See the [import instructions](../../scripts/data/README.md) for the existing importer.
 The [full corpus upload](../todos/production-upload/README.md) and
 [hub scoring](../todos/hub-scoring/README.md) remain deferred.
 

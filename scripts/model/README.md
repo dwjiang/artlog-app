@@ -79,7 +79,7 @@ exact decode → BGRA pixel buffer → prediction → normalize path against the
 ```sh
 swiftc -O -framework CoreML -framework ImageIO \
   modules/coreml-embed/ios/Embedder.swift modules/coreml-embed/scripts/mac-harness.swift -o /tmp/coreml-embed-harness
-/tmp/vision-rect-harness letterbox jobs/fixtures/test-painting.jpg 512 /tmp/crop.png   # see modules/vision-rect/scripts
+/tmp/vision-rect-harness letterbox scripts/data/fixtures/test-painting.jpg 512 /tmp/crop.png   # see modules/vision-rect/scripts
 /tmp/coreml-embed-harness modules/coreml-embed/ios/Models /tmp/crop.png > /tmp/harness.json
 cd scripts/model && uv run python verify_export.py --embeddings /tmp/harness.json
 ```
@@ -94,7 +94,7 @@ The on-device reference for the drift check comes from the app itself: Settings 
 **Export calibration embeddings** (dev builds only) downloads `shared/model/calibration/urls.txt`,
 letterboxes each image with the production vision-rect module, embeds it, and shares
 `iphone-embeddings.json` (`{ url: number[] }`, normalized) plus `iphone-report.json`. Commit
-the embeddings as `jobs/calibration/iphone-embeddings.json` whenever the export changes.
+the embeddings as `scripts/data/calibration/iphone-embeddings.json` whenever the export changes.
 
 ## Results, 2026-09-10 (Apple M5 Pro, macOS 26.5, Xcode 26.6)
 

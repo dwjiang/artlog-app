@@ -3,7 +3,7 @@
 // prints the candidates. The credit count comes from `npx convex run spend:status` before and after.
 //   set -a; source .env.local; set +a
 //   MUSEUM_SEARCH_LIVE=1 MUSEUM_SEARCH_LIVE_VENUE_ID=<museums id> npx vitest run convex/museumSearch.live.test.ts
-// MUSEUM_SEARCH_LIVE_PHOTO overrides the crop (default: jobs/fixtures/test-painting.jpg, Met 436535, CC0).
+// MUSEUM_SEARCH_LIVE_PHOTO overrides the crop (default: scripts/data/fixtures/test-painting.jpg, Met 436535, CC0).
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { stdout } from 'node:process';
@@ -29,7 +29,7 @@ function tavilySpent(): number {
 it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== '1')('describes a crop and searches the venue site on the dev deployment', async () => {
   const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
   const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as Id<'museums'> | undefined;
-  const photo = process.env.MUSEUM_SEARCH_LIVE_PHOTO ?? 'jobs/fixtures/test-painting.jpg';
+  const photo = process.env.MUSEUM_SEARCH_LIVE_PHOTO ?? 'scripts/data/fixtures/test-painting.jpg';
   if (!url || !venueId) throw new Error('CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required');
   const client = new ConvexHttpClient(url);
   const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');

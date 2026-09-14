@@ -60,13 +60,13 @@ search-index, or file-storage measurements**, and exclude metadata and indexes.
 
 Relevant implementation, verified during planning:
 
-- `jobs/artlog_jobs/push.py:61`, `Corpus`: checks complete features, stored
+- `scripts/data/pipeline/push.py:61`, `Corpus`: checks complete features, stored
   file hashes, model/shard shape, metadata counts, merge targets, identities,
   and thumbnail rights. `--full --dry-run` returns before creating a writer.
-- `jobs/artlog_jobs/push.py:186`, `run`: computes overlap through
+- `scripts/data/pipeline/push.py:186`, `run`: computes overlap through
   `ingest:countExisting`, saves the baseline/expected counts, and checkpoints
   each stage. The input fingerprint and deployment URL must match on resume.
-- `jobs/artlog_jobs/convex_writer.py:73`, `ConvexWriter`: uses
+- `scripts/data/pipeline/convex_writer.py:73`, `ConvexWriter`: uses
   `ConvexHttpClient.set_admin_auth`; descriptors use an action, not a mutation.
 - `convex/ingest.ts:317`: vector identity is
   `(modelVersion, source, viewKey)`, preserving alternate views.
@@ -74,7 +74,7 @@ Relevant implementation, verified during planning:
   reused by SHA-256 when unchanged, and referenced by the `descriptors` table.
 - `convex/ingest.ts:488`: paginated venue export supplies production IDs.
   `exportVectors` and `exportDescriptors` provide bounded feature readback.
-- `jobs/artlog_jobs/seed_venues.py:118`: `export_asset` constructs the venue
+- `scripts/data/pipeline/seed_venues.py:118`: `export_asset` constructs the venue
   SQLite from the selected deployment; `publish_asset` publishes it.
 - [Vector search measurements](../experiments/README.md#vector-search-scale): only 30k synthetic vectors were
   measured on Starter. Full-scale storage/latency and Pro remain unverified.
@@ -85,10 +85,10 @@ Relevant implementation, verified during planning:
 Code excerpts recorded at planning time for drift detection:
 
 ```python
-# jobs/artlog_jobs/push.py:32
+# scripts/data/pipeline/push.py:32
 BATCH_SIZES = dict.fromkeys(STAGES, 500) | {"vectors": 250, "descriptors": 200}
 
-# jobs/artlog_jobs/push.py:186 (inside run)
+# scripts/data/pipeline/push.py:186 (inside run)
 if state["fingerprint"] != corpus.fingerprint or state["deployment"] != deployment_url:
     raise ValueError(
         "Push checkpoint belongs to different inputs or deployment; use a new checkpoint"
@@ -107,9 +107,9 @@ if state["fingerprint"] != corpus.fingerprint or state["deployment"] != deployme
 SHA-256 fingerprints of the dirty working files at planning time:
 
 ```text
-a8e946d783564d383bba9118ec142a1f08b905d0660ca4be01b3e2ff662b14fb  jobs/artlog_jobs/push.py
-7e367ed0fde745f3ef8292bc6b4d601b9fea6d116861503c513ea284628edb4c  jobs/artlog_jobs/features.py
-1c4f4941b63a7c1ba7ee1142d62c0ea069385177c2af5cfef5ff6d8fdba0351c  jobs/artlog_jobs/convex_writer.py
+a8e946d783564d383bba9118ec142a1f08b905d0660ca4be01b3e2ff662b14fb  scripts/data/pipeline/push.py
+7e367ed0fde745f3ef8292bc6b4d601b9fea6d116861503c513ea284628edb4c  scripts/data/pipeline/features.py
+1c4f4941b63a7c1ba7ee1142d62c0ea069385177c2af5cfef5ff6d8fdba0351c  scripts/data/pipeline/convex_writer.py
 dff9f6bf6ad300c94657d1236ed1bb5d4a5fb28dd18ccb556f0ab11eff76519a  convex/ingest.ts
 066f586e7065d23a120590d606b07db4b1ee8f91bf641d3c03c094668b365856  convex/schema.ts
 16e247eb57c13e09ef109fb59591649775130e1865256110312e2faedd651a0f  shared/model/model-version.json

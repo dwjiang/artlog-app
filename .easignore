@@ -32,9 +32,9 @@ scripts/model/__pycache__/
 scripts/model/.pytest_cache/
 
 # Not needed inside a build archive.
+scripts/data/
 scripts/evals/
 scripts/model/benchmark/
 docs/
-jobs/
 .context/
 *.test.*

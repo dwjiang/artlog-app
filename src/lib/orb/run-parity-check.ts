@@ -12,7 +12,7 @@ export type OrbParityReport = OrbParity & TriageMetrics & { extractMs: number; t
 /**
  * Dev-only tripwire for the phone ↔ Python ORB contract: extracts from the Python letterbox fixture
  * PNG and compares descriptor rows with `shared/orb/fixtures/orb-features-v1.json`, which
- * `jobs/artlog_jobs/orb.py` wrote from the same pixels. Triage metrics on the same crop calibrate
+ * `scripts/data/pipeline/orb.py` wrote from the same pixels. Triage metrics on the same crop calibrate
  * the thresholds against Python's numbers.
  */
 export async function runOrbParityCheck(): Promise<OrbParityReport> {

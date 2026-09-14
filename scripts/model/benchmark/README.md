@@ -22,7 +22,7 @@ uv run python calibration.py --size 512
 ```
 
 Preparation reads the shared URLs in `shared/model/calibration/urls.txt` and
-source-byte hashes in `jobs/calibration/image-hashes.json`. It downloads missing
+source-byte hashes in `scripts/data/calibration/image-hashes.json`. It downloads missing
 images into `artifacts/images/`, verifies cached bytes, and writes hashed raw RGB
 buffers to `artifacts/calibration-512/`. Requests are spaced at least one second
 apart; temporary failures have bounded retries and respect `Retry-After`.
@@ -32,7 +32,7 @@ retrieval index or change the shared calibration references.
 Pixels use the historical reference's EXIF handling, bicubic resize and centered
 black padding. They isolate model numerics; they do not test the production
 camera's mean-color, bilinear preprocessing. The existing reference embeddings
-and report remain together under `jobs/calibration/`.
+and report remain together under `scripts/data/calibration/`.
 
 ## Build and run on an iPhone
 

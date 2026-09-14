@@ -1,5 +1,5 @@
 // Cross-language guard for the ORB wire format: the bytes in
-// shared/orb/fixtures/orb-features-v1.json were produced by jobs/artlog_jobs/orb.py.
+// shared/orb/fixtures/orb-features-v1.json were produced by scripts/data/pipeline/orb.py.
 
 import fixture from './fixtures/orb-features-v1.json';
 import model from '../model/model-version.json';
