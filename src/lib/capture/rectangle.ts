@@ -2,7 +2,6 @@ import type { RectDetection, RectObservation, RectPoint, StillDetection, Subject
 
 import type { Quad } from './stages';
 
-// Product tuning (plan 03.02; gate and smoothing re-tuned on the iPhone 16 Pro in plan 03.04).
 export const STABLE_WINDOW_MS = 400;
 /**
  * Fraction of the frame diagonal a smoothed corner may move within the window and still count as
@@ -210,8 +209,8 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
  * Subjects cut off by the edge are doors and walls, or a painting
  * whose mask ran off the photo and fits a tilted quad; those fall through. Without a subject the
  * rectangle candidates stand in: the one matching the preview quad, else the preview quad, else the
- * largest. Library imports thereby keep the outer candidate: decision 006 rejected inner-rectangle
- * selection by area, and no framed-painting fixture shows a nested candidate that is the canvas boundary.
+ * largest. Library imports keep the outer candidate because a smaller nested rectangle can be
+ * painted detail rather than the canvas boundary.
  */
 export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
   const rectangles = still.rectangles.filter((observation) => observation.corners.length === 4);

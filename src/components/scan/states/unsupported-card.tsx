@@ -6,7 +6,7 @@ import { SaveAnywayForm, type SaveAnywayFormProps } from './save-anyway-form';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-// Product voice (design §5.4): an older client's scans wait for the update, which re-embeds the kept crop locally.
+// Product voice: an older client's scans wait for the update, which re-embeds the kept crop locally.
 export const UPDATE_TITLE = 'Update the app to identify this painting';
 export const UPDATE_LINE = 'This version can’t identify paintings anymore. Your scan stays on this phone and the updated app will identify it.';
 export const UPDATE_BUTTON = 'Update the app';

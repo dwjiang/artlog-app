@@ -26,7 +26,7 @@ export type SaveResultOutcome = {
   synced: Promise<void>;
 };
 
-/** Saves locally first (design §5.1), then mirrors the row to the collection on the server. */
+/** Saves locally first, then mirrors the row to the collection on the server. */
 export async function saveResult({ scanId, capture, view, draft }: SaveResultInput): Promise<SaveResultOutcome> {
   const { snapshot, suggested } = buildSnapshot(draft, view);
   if (!snapshot.title) throw new Error('A title is required to save');

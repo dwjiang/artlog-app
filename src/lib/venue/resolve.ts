@@ -1,6 +1,6 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 
-/** A single seeded row this close is the venue (design §4.2). */
+/** A single seeded row this close is the venue. */
 export const AUTO_RADIUS_M = 150;
 /** Rows within this distance compete for the "Looks like you're at…" sheet. */
 export const CHOOSE_RADIUS_M = 400;

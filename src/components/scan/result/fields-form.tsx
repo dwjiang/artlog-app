@@ -15,7 +15,7 @@ export type FieldsFormProps = {
   onChange: (field: SnapshotField, value: string) => void;
 };
 
-/** Every suggested field is editable before saving (design §3); the parent owns the draft. */
+/** Every suggested field is editable before saving; the parent owns the draft. */
 export function FieldsForm({ draft, editable, onChange }: FieldsFormProps) {
   return (
     <View style={styles.form}>

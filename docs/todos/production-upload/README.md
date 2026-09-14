@@ -1,15 +1,13 @@
 # Full corpus upload to production
 
 > **Deferred by the user on 2026-09-13. Do not execute production operations
-> until the user explicitly resumes this upload.** The present request authorized
-> moving the local data and writing this plan only.
+> until the user explicitly resumes this upload.** The data relocation is complete.
 >
 > Follow the steps and their verification gates in order. Do not mark this plan
-> done when an upload is merely running. Record completion in this todo and
-> `docs/plans/README.md`.
+> done when an upload is merely running. Record completion in this todo.
 >
 > **Drift check:** run `git diff --stat 1fe0c14..HEAD -- jobs/artlog_jobs
-> jobs/scripts convex shared/model/model-version.json docs/runbooks/release.md` and
+> jobs/scripts convex shared/model/model-version.json docs/todos/release/README.md` and
 > `git diff --stat -- jobs/artlog_jobs convex shared/model/model-version.json`.
 > This plan was written against an already dirty working tree. HEAD alone does
 > not identify its importer: compare the fingerprints below and review changes
@@ -26,10 +24,8 @@
 - **Planned at:** commit `1fe0c14`, dirty working tree, 2026-09-13
 - **Target:** project `daniel-jiang/artlog`, production `admired-goldfinch-660`
 
-Prepared with the improve skill as a focused production-upload handoff, not a
-general codebase audit. This deferral supersedes the full-push step in
-[plan 02.05](../../plans/02-index-build/05-dedupe-hubs-push.md). The broader
-release roadmap remains in [the plan index](../../plans/README.md).
+The [release todo](../release/README.md) owns TestFlight distribution. This
+upload remains separately deferred to reduce costs during development.
 
 The data relocation is complete: all 7,290 files retained their original
 inodes, sizes, and timestamps, and the full corpus passed a local dry-run from
@@ -45,10 +41,9 @@ associated production usage and storage costs while developing.
 
 ## Current state
 
-The workspace at planning time is
-`/Users/dwjiang/conductor/workspaces/artlog-app/paris`. Run repository commands
-from its root; commands explicitly labeled `jobs/` run from that subdirectory.
-A future checkout can use the same absolute corpus path without a symlink.
+Run repository commands from the active checkout's root; commands explicitly
+labeled `jobs/` run from that subdirectory. Use the absolute corpus path below
+so execution does not depend on a particular workspace or symlink.
 
 | Local asset | Durable path under `/Users/dwjiang/Documents/Artlog Data/` |
 | --- | --- |
@@ -60,11 +55,10 @@ A future checkout can use the same absolute corpus path without a symlink.
 | Full local import plan after relocation | `full-corpus-dry-run-2026-09-13.json` |
 | SHA-256 file inventory and relocation result | `relocation-manifest-2026-09-13.json`, `relocation-report-2026-09-13.json` |
 
-`jobs/scratch` and `jobs/out` in this workspace link to these durable directories.
-They are excluded through the repository's local Git exclude file because the
-existing directory-only ignore patterns do not cover symlinks. Do not commit the
-links or the data. New checkouts may pass the absolute `--in` and `--checkpoint`
-paths directly; they do not need to recreate the links.
+The original workspace linked `jobs/scratch` and `jobs/out` to these durable
+directories, with links excluded through its local Git exclude file. Existing
+directory-only ignore patterns do not cover symlinks. Do not commit links or
+data; other checkouts can pass absolute `--in` and `--checkpoint` paths directly.
 
 | Table/stage | Full corpus input | Last verified production count |
 | --- | ---: | ---: |
@@ -112,9 +106,9 @@ Relevant implementation, verified during planning:
   `exportVectors` and `exportDescriptors` provide bounded feature readback.
 - `jobs/artlog_jobs/seed_venues.py:118`: `export_asset` constructs the venue
   SQLite from the selected deployment; `publish_asset` publishes it.
-- `docs/decisions/002-vector-search-scale.md`: only 30k synthetic vectors were
+- [Vector search measurements](../experiment-findings/README.md#vector-search-scale): only 30k synthetic vectors were
   measured on Starter. Full-scale storage/latency and Pro remain unverified.
-- `docs/decisions/009-calibrator-v2.md`: `lr-v2` was fitted against the 10k
+- [Calibrator evaluation](../experiment-findings/README.md#calibrator-v2): `lr-v2` was fitted against the 10k
   index. Its object-penalty coefficient is zero; penalties do not affect its
   scores. Training results do not establish full-index or camera accuracy.
 
@@ -160,10 +154,8 @@ Do not rerun the old empty-database setup helper or reuse its 10k checkpoint.
 Future implementation may add `jobs/scripts/audit-production-corpus.py` and
 `jobs/scripts/audit-production-corpus_test.py` for the bounded verification
 described below. Operational outputs belong in the durable run directory.
-Update `docs/runbooks/release.md`, `jobs/README.md`, and relevant status entries
-in `docs/plans/README.md`, `docs/plans/02-index-build/05-dedupe-hubs-push.md`,
-`docs/plans/06-release/01-testflight-and-app-size.md`, and this todo
-after verification. Backend/app changes are not expected; investigate and
+Update [the release state](../release/README.md), [the jobs guide](../../../jobs/README.md),
+and this todo after verification. Backend/app changes are not expected; investigate and
 revise this plan if they become necessary.
 
 The project uses Python 3.12+ with uv/pytest/Ruff, and TypeScript with Convex
@@ -457,7 +449,7 @@ Update the scoped runbooks/status files with the actual counts, fingerprint,
 timings, measured usage/storage, and paths to completed audits. Mark the full
 production import complete only after steps 1–5 pass. Keep production iPhone
 camera/App Attest/Apple sign-in/save/contribution testing and TestFlight visibly
-pending until independently performed under the release plan. Do not trigger
+pending until independently performed under the [release todo](../release/README.md). Do not trigger
 an EAS build or submission as part of this DB import.
 
 Remove the temporary credentials file after the job and readback have exited,

@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-// The legal surface (design §4.5/§5.5): wording changes need the operator's review.
+// The legal surface: wording changes need the operator's review.
 export const CONSENT_TITLE = 'Share this work with other visitors?';
 export const CONSENT_BODY =
   'What leaves your phone: a numeric fingerprint of your photo (not the photo), the details read from the label, ' +

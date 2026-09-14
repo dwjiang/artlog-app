@@ -1,13 +1,13 @@
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat, type ImageRef, type ImageResult } from 'expo-image-manipulator';
 
-/** The reader's input (design §4.4); the fallback keeps the base64 under the server's decoded-size limit. */
+/** The reader's input; the fallback keeps the base64 under the server's decoded-size limit. */
 export const LABEL_PHOTO_LONG_SIDE = 1600;
 export const LABEL_PHOTO_FALLBACK_LONG_SIDE = 1280;
 export const LABEL_PHOTO_QUALITY = 0.8;
 /** convex/label.ts rejects larger decoded images. */
 export const MAX_LABEL_PHOTO_BYTES = 1_500_000;
-/** The consented crop becomes the next visitor's thumbnail (design §4.7); contributions.ts caps it at 200 KB. */
+/** The consented crop becomes the next visitor's thumbnail; contributions.ts caps it at 200 KB. */
 export const CONTRIBUTION_CROP_SIZE = 256;
 export const CONTRIBUTION_CROP_QUALITY = 0.85;
 

@@ -11,7 +11,7 @@ import { findOrCreateArtwork } from './lib/promotionArtwork';
 import { contributionField, contributionStatus, embedding, evidenceKind } from './lib/validators';
 import { isVenueOptedOut } from './lib/venueOptOut';
 
-// Design §4.7 / §8. A `private` contribution has not been evaluated; `pending` has, and waits for an
+// A `private` contribution has not been evaluated; `pending` has, and waits for an
 // independent partner. Both strong and weak candidates include eligible pending partners.
 export const RUN_PAGE_SIZE = 200;
 export const MULTI_VIEW_PAGE_SIZE = 100;
@@ -23,7 +23,7 @@ const PARTNER_BATCH_SIZE = 8;
 const PENDING_BATCH_SIZE = 8;
 export const CONTRIBUTION_PLACEMENT_CONFIDENCE = 0.7;
 export const CONFIRMED_TRUST_WEIGHT = 1.0;
-// Design §4.6: a second vector for a work needs the same agreement as a contribution — two devices
+// A second vector for a work needs the same agreement as a contribution — two devices
 // resolving to it at one venue — and near-identical views add nothing to the index.
 export const MULTI_VIEW_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 export const MULTI_VIEW_DUPLICATE_COSINE = 0.995;

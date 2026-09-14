@@ -153,7 +153,7 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
     calibratorVersion: decision.calibratorVersion,
   });
   if (decision.outcome === 'confident' && top && best) {
-    // Design §9: nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
+    // Nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
     await ctx.scheduler.runAfter(0, internal.docent.ensure, { artworkId: best.artworkId, deviceId: scan.deviceId });
     await ctx.scheduler.runAfter(0, internal.rightNow.fetch, {
       scanId: scan._id, generation: scan.generation, artistId: top.candidate.artwork.artistId,

@@ -86,7 +86,7 @@ export function parseDocent(value: unknown): RawSentence[] | null {
   return sentences;
 }
 
-// The spike sent `{ input, schema }` as the user message; the schema repeats the response_format.
+// Include the schema in the user message as well as response_format to reinforce the output contract.
 export function factSheetUser(sources: SourceDoc[], artwork: { title: string; artist: string; date?: string; wikidataId?: string }): string {
   const { title, artist, date, wikidataId } = artwork;
   return JSON.stringify({ input: { target: { title, artist, date, wikidataId }, sources }, schema: FACT_SHEET_SCHEMA });

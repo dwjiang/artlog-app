@@ -13,7 +13,6 @@ export type CalibratorConfig = {
   lowTexture: { minSimilarity: number; minMargin: number; requireVenueAgreement: boolean };
 };
 
-// Fitted configuration and evaluation limits: docs/decisions/009-calibrator-v2.md.
 export const CALIBRATOR_V2: CalibratorConfig = {
   version: 'lr-v2',
   featureNames: FEATURE_NAMES,

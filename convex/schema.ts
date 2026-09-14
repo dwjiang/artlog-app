@@ -1,4 +1,3 @@
-// Schema per docs/design/art-identifier.md §5.3. Pre-release: change shapes directly; do not add migrations.
 import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
@@ -83,7 +82,7 @@ export default defineSchema({
     imageRef: v.optional(v.string()),
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
-    // The contributor's consented crop: the card thumbnail for `source: user` works (design §4.7).
+    // The contributor's consented crop: the card thumbnail for `source: user` works.
     thumbnailStorageId: v.optional(v.id('_storage')),
     confirmCount: v.number(),
     rejectCount: v.number(),

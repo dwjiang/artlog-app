@@ -20,7 +20,7 @@ import schema from './schema';
 const CLAIM_MS = 10 * 60 * 1000;
 // Two chatJson calls, each retried at most once (tokenFactory.chatJson); chatJson sends temperature 0.
 const MAX_MODEL_CALLS = 4;
-// Decision 004 measured p95 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
+// Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
 const MODEL_TIMEOUT_MS = 20_000;
 
 export async function clearDocent(ctx: MutationCtx, artwork: Doc<'artworks'>): Promise<void> {
@@ -66,7 +66,7 @@ export const claim = internalMutation({
   },
 });
 
-// Shared with the Python enrichment job (plan 02.07). Omit `factSheet` to rewrite only the sentences.
+// Shared with the Python enrichment job. Omit `factSheet` to rewrite only the sentences.
 export const writeEnrichment = internalMutation({
   args: {
     artworkId: v.id('artworks'), generation: v.number(),

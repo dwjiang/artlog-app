@@ -81,7 +81,7 @@ describe('rightNow.fetch', () => {
     expect(await rows()).toEqual([]);
   });
 
-  it('sends the decision 007 request, writes the supported answer with its actual source, and caches it', async () => {
+  it('sends the scoped search request, writes the supported answer with its actual source, and caches it', async () => {
     const { run, scan, rows, spend } = await fixture();
     tavily(supportedNews);
     await run();

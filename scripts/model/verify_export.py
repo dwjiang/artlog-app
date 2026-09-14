@@ -1,11 +1,11 @@
 """Compare vectors produced by the phone module (or its Mac harness) with the PyTorch fake-quant
-reference computed on the same crop files (plan 03.03).
+reference computed on the same crop files.
 
     uv run python verify_export.py --embeddings /tmp/harness.json [--fakequant out/fakequant_state.pt] [--device mps]
 
 `--embeddings` is the Mac harness output (`{"embeddings": {"<crop path>": [floats]}, ...}`) or a
 plain `{"<crop path>": [floats]}` object; every crop path must exist locally. Prints the mean and
-minimum cosine and exits non-zero below plan 02.04's thresholds (mean 0.99, minimum 0.97).
+minimum cosine and exits non-zero below the drift thresholds (mean 0.99, minimum 0.97).
 """
 
 import argparse

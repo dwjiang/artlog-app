@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-// Product voice (design §5.1): the card says "waiting for signal" and asks for the label now.
+// Product voice: the card says "waiting for signal" and asks for the label now.
 export const WAITING_TITLE = 'Waiting for signal';
 export const WAITING_LINE = 'Capture the label now so we can finish this when you’re back online.';
 export const IDENTIFYING_TITLE = 'Identifying…';

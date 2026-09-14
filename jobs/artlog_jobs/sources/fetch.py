@@ -155,7 +155,7 @@ def fetch_met(client: PoliteClient, out: Path) -> dict:
     write_json(out / "stats.json", result)
     log.info("Met census: %s", counts)
     if abs(counts["rows"] - 484956) / 484956 > 0.1:
-        raise RuntimeError("Met CSV row count differs from decision 005 by more than 10%")
+        raise RuntimeError("Met CSV row count differs from the 484,956-row baseline by more than 10%")
     return result
 
 

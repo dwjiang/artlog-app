@@ -1,5 +1,5 @@
 """Prove the job environment end to end: interpreter, compute device, scratch path and a
-Convex round trip. Plan 02.10 runs this same module inside a container."""
+Convex round trip. The same module runs locally and inside a container."""
 
 import json
 import sys

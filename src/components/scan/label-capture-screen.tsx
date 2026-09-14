@@ -41,7 +41,6 @@ import { saveResult } from '@/lib/result/save';
 import type { ResultViewState } from '@/lib/result/state';
 import { useScan } from '@/lib/result/use-scan';
 
-// Product voice (design §4.4).
 export const LABEL_PROMPT = 'Not in our index yet — point at the label';
 export const QR_FOUND = 'Found a QR code';
 export const QUEUED_MESSAGE = 'Saved — we’ll finish this when you’re back online';
@@ -91,7 +90,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const mounted = useRef(true);
   const inFlight = useRef(false);
 
-  // Queued captures carry a local id until identified: their label waits on the row for the queue (design §5.1).
+  // Queued captures carry a local id until identified: their label waits on the row for the queue.
   const localId = scanId.startsWith('local-') ? scanId.slice('local-'.length) : undefined;
   const remoteScanId = localId ? capture?.scanId ?? undefined : scanId as Id<'scans'>;
   const scan = useScan(remoteScanId);

@@ -1,10 +1,9 @@
 [project]
 name = "artlog-model-export"
 version = "0.1.0"
-description = "Exports the C-RADIOv3-B embedding model to CoreML for the artlog app (plan 03.03)"
+description = "Exports the C-RADIOv3-B embedding model to CoreML for the artlog app"
 requires-python = ">=3.11,<3.12"
-# Pinned to the versions spike 00.01 measured (docs/decisions/001-embedding-model-export.md);
-# a different coremltools or torch can change the exported numerics and therefore the model version.
+# Changing coremltools or torch can change the exported numerics and therefore the model version.
 dependencies = [
     "torch==2.7.0",
     "torchvision==0.22.0",

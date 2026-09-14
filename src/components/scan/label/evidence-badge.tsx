@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { badgeFor, EDITED_LABEL, type FieldState } from '@/lib/label/fields';
 
-/** Where a field's value came from (design §4.4): a locked source, or "Edited by you" once the user touched it. */
+/** Where a field's value came from: a locked source, or "Edited by you" once the user touched it. */
 export function EvidenceBadge({ field }: { field: FieldState }) {
   const label = badgeFor(field);
   if (!label) return null;

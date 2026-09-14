@@ -4,7 +4,6 @@ import Foundation
 import ImageIO
 import Vision
 
-/// Decision 006's strict parameter set. Product tuning, not accepted production values.
 enum RectangleDetectorTuning {
   static let minimumConfidence: Float = 0.6
   static let minimumAspectRatio: Float = 0.3

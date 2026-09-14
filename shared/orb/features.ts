@@ -1,6 +1,6 @@
 /**
- * ORB feature set v1 — the cross-language wire format shared by the phone (plan 03.04) and the
- * index build (plan 02.04). Two standalone buffers per image:
+ * ORB feature set v1 — the cross-language wire format shared by the phone and the
+ * index build. Two standalone buffers per image:
  *
  * - `descriptors`: `count × 32` bytes, OpenCV `ORB.detectAndCompute` rows in output order.
  * - `keypoints`: `count × 16` bytes, little-endian float32 `[x, y, size, angle]` per keypoint in

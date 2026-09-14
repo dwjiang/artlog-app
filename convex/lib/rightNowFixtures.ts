@@ -1,4 +1,4 @@
-// Recorded Tavily "Right now" responses from spikes/tavily/results (decision 007), trimmed to the
+// Recorded Tavily "Right now" responses, trimmed to the
 // fields the acceptance boundary reads. Answers and snippets are verbatim; dates are service metadata.
 import type { TavilySearchResponse } from './tavily';
 

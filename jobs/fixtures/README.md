@@ -1,7 +1,7 @@
 # Test fixtures
 
 - `met-sample.csv`, `met-images-sample.json`, `aic-sample.json`, and
-  `wikidata-paintings-sample.json` — synthetic metadata for plan 02.03, using
+  `wikidata-paintings-sample.json` — synthetic corpus metadata using
   the published source field names. Names, accession values, and object/image
   IDs in these four fixtures are invented, not institutional assertions.
   They cover painting filters, missing images, rights revocation and ambiguity,

@@ -197,7 +197,7 @@ export const attestDevice = action({
 export type AttestedWriteArgs = { nonce: string; assertionBase64: string; payload: string };
 
 /**
- * Shared-state mutations call this first. The phone signs `nonce + "." + payload` (plan 03.07); a
+ * Shared-state mutations call this first. The phone signs `nonce + "." + payload`; a
  * verified assertion consumes the challenge and advances the device counter. Simulator builds skip
  * the signature check while APP_ATTEST_REQUIRED is not "true".
  */
@@ -223,7 +223,7 @@ export async function requireAttestedWrite(
   return { ...device, attestCounter: result.counter };
 }
 
-// Verification-only endpoint for the phone smoke check; removed in plan 06.01.
+// Verification-only endpoint for the phone smoke check; remove before release.
 export const assertSmoke = mutation({
   args: { nonce: v.string(), assertionBase64: v.string(), payloadJson: v.string() },
   returns: v.object({ ok: v.boolean() }),

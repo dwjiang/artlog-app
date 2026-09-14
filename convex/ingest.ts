@@ -1,4 +1,4 @@
-// The Python ↔ Convex ingest contract (plan 02.01). Every function is admin-key only and every
+// The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // jobs/artlog_jobs in the same PR.
 import { ConvexError, type Infer, v } from 'convex/values';

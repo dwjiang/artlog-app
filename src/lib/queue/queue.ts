@@ -16,7 +16,7 @@ import { removeFile } from '@/lib/label/crop';
 import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { createFlusher } from './flush';
 
-/** `unsupported_version` stays with its crop so the updated app can re-embed it locally (design §5.4). */
+/** `unsupported_version` stays with its crop so the updated app can re-embed it locally. */
 export async function recordResult(localId: string, response: IdentifyResponse): Promise<void> {
   if (response.status === 'unsupported_version') {
     await pending.markFailed(localId, response.error ?? 'Update the app to identify.', response.scanId);

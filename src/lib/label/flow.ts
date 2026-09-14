@@ -69,7 +69,7 @@ export function toLabelInput(fields: LabelFields): LabelInput {
 }
 
 /**
- * The label flow on the phone (design §4.4): a QR code fetches the museum's page, otherwise the photo is read;
+ * The label flow on the phone: a QR code fetches the museum's page, otherwise the photo is read;
  * the fields are verified, and a museum image the phone confirms upgrades the verification.
  */
 export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisplay> {

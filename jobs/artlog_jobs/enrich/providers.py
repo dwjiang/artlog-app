@@ -169,7 +169,7 @@ class Providers:
             completion_tokens = int(usage.get("completion_tokens", 0))
             self.usage.prompt_tokens += prompt_tokens
             self.usage.completion_tokens += completion_tokens
-            # Decision 004's measured models; an estimate, excluding Tavily and unreported usage.
+            # Estimated model cost, excluding Tavily and unreported usage.
             input_rate, output_rate = (0.30, 0.90) if stage == "factSheet" else (0.06, 0.24)
             self.usage.estimated_model_usd += (
                 prompt_tokens * input_rate + completion_tokens * output_rate

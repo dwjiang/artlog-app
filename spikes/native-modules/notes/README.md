@@ -1,7 +1,7 @@
-# Native spike evidence (2026-09-09)
+# Native module evidence (2026-09-09)
 
-See [decision 006](../../../docs/decisions/006-native-modules.md) for conclusions
-and downstream acceptance gates. Native code was disposable; no native implementation is included here.
+See the [native module findings](../../../docs/todos/experiment-findings/README.md#native-modules)
+for the measured behavior and limits. Native code was disposable; no native implementation is included here.
 
 - `device-run.log`: recovered iPhone 16 Pro run; attestation/assertion/key-ID logs
   omitted and app-container paths replaced. The ORB/camera failures are retained.
@@ -14,7 +14,7 @@ and downstream acceptance gates. Native code was disposable; no native implement
 - `app-attest-results.json`: decoded metadata and actual signature-check results.
 - `app-attest-assertion.json`: public-key assertion fixture. `clientData` is the
   exact UTF-8 string passed to Expo; the DER and P1363 signatures encode the
-  same signature. It is useful for a real-device regression test in plan 04.04.
+  same signature. It supports a real-device signature regression test.
 
 Verify the signature independently with Node's built-in crypto (from repo root):
 
@@ -57,5 +57,4 @@ The two 512×512 JPEGs were produced on the iPhone by the disposable Swift
 Other tested source photos:
 [Alte Pinakothek – Saal IX](https://commons.wikimedia.org/wiki/File:Alte_Pinakothek-Saal_IX.JPG),
 [Abraham ontvangt de drie engelen](https://commons.wikimedia.org/wiki/File:Abraham_ontvangt_de_drie_engelen_Rijksmuseum_SK-A-1577.jpeg).
-The strict and loose detector parameters and individual timings are in the
-record. Live-camera throughput is established separately by the rerun; these crops do not prove full-resolution capture latency or correct live artwork boundaries.
+Detector timings and measurement limits are in `device-retry-results.json`. Live-camera throughput is established separately by the rerun; these crops do not prove full-resolution capture latency or correct live artwork boundaries.

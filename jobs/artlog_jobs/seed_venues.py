@@ -256,7 +256,7 @@ def main() -> None:
     total = seed_countries(writer, countries, regions, checkpoint, user_agent=settings.user_agent)
     if args.all and abs(total - BASELINE_VENUES) / BASELINE_VENUES > 0.05:
         raise RuntimeError(
-            f"Full census {total:,} differs from spike baseline {BASELINE_VENUES:,} by >5%; investigate before publication"
+            f"Full census {total:,} differs from baseline {BASELINE_VENUES:,} by >5%; investigate before publication"
         )
     asset = export_asset(writer, args.out, version=int(time.time()))
     print(json.dumps({**asdict(asset), "path": str(asset.path), "seeded_venues": total}))

@@ -5,7 +5,7 @@ import NitroModules
 import VisionCamera
 
 final class HybridVisionRect: HybridVisionRectSpec {
-  /// Counts every `detect` call so the stride is independent of any reporting window (decision 006).
+  /// Counts every `detect` call so the stride is independent of any reporting window.
   private var frameCounter: UInt64 = 0
   private let stillQueue = DispatchQueue(label: "app.artlog.vision-rect.still", qos: .userInitiated)
 

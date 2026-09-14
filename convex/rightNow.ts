@@ -11,7 +11,7 @@ import { searchWithCredit } from './lib/tavilySpend';
 import { normalizeText } from './lib/textMatch';
 import { rightNowCard, type RightNowCard } from './lib/validators';
 
-// Decision 007: cache accepted cards and empty outcomes for seven days per (artist, region) and
+// Cache accepted cards and empty outcomes for seven days per (artist, region) and
 // coalesce simultaneous misses. A pending row older than this is treated as abandoned.
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const PENDING_MS = 60 * 1000;
@@ -127,7 +127,7 @@ export const fetch = internalAction({
       });
       if (!response) return null;
       const card = acceptRightNow(response, { artist: args.artist, domains, now: Date.now() });
-      // Review trail for the acceptance boundary (decision 007): what was offered and whether it passed.
+      // Review trail for the acceptance boundary: what was offered and whether it passed.
       const top = response.results[0];
       console.log('Right now', {
         artist: args.artist, region, accepted: card !== null, claim: firstSentence(response.answer ?? ''),

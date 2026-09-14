@@ -1,4 +1,4 @@
-"""Compare a phone-produced letterbox PNG with the Python reference (plan 03.02).
+"""Compare a phone-produced letterbox PNG with the Python reference.
 
     cd jobs && uv run python scripts/letterbox-parity.py --phone crop.png --source image.jpg --size 512
 

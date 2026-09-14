@@ -76,7 +76,7 @@ def main():
                 params,
                 {
                     "museum": "Cleveland Museum of Art",
-                    "reason": "Replacement admitted by spike 00.05; native object paths replace the eMuseum example",
+                    "reason": "Native object paths replace the eMuseum example",
                 },
             )
             if record["metrics"]["external_urls"] or record["metrics"]["unexpected_paths"]:

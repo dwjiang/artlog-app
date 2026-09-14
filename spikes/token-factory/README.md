@@ -1,6 +1,6 @@
-# Token Factory model evaluation — plan 00.04
+# Token Factory model evaluation
 
-The [decision record](../../docs/decisions/004-token-factory-models.md) interprets the
+The [model findings](../../docs/todos/experiment-findings/README.md#token-factory-models) interpret the
 measurements. This directory contains the exact prompts, JSON Schemas, fixtures,
 licensed label photographs, model catalog, raw responses, and scores.
 
@@ -25,8 +25,7 @@ uv run --env-file ../../.env.local python moderation-eval.py
 ```
 
 The evaluation scripts print one row per request and a JSON summary, and write
-`results/*.json` after each call. Source filenames use kebab case per the root
-agent guide; these correspond to the underscore names proposed by the plan.
+`results/*.json` after each call.
 
 Each script supports `--limit 1` for a pilot, `--model <alias>` for one candidate,
 `--mode json_schema|json_object`, and `--tag <name>` for a separate experiment.
@@ -68,13 +67,13 @@ browser through the URLs advertised by the Token Factory pricing page:
 `https://tokenfactory.nebius.com/model-catalog.md`.
 The ledger is a conservative local estimate, not the provider's invoice or a
 cap on other clients using the same account. Do not delete it to resume this
-spike. The $0.50 margin and per-call reservation protect the plan's $5 budget
+spike. The $0.50 margin and per-call reservation protect the $5 evaluation budget
 at the recorded rates and bounded fixture sizes.
 
 ## Evaluation contracts
 
 - **Labels:** 25 distinct photos, one request per model per photo. The system
-  prompt is verbatim from the plan. Input is a JPEG data URL and the schema.
+  prompt is fixed in `prompts/label.txt`. Input is a JPEG data URL and the schema.
   `labels/manifest.json` records every accepted field value, attribution,
   license link, source URL, download URL and SHA-256. Ground truth was manually
   transcribed by the executing agent before the candidate runs; it has not

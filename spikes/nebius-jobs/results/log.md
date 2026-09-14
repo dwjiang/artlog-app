@@ -1,4 +1,4 @@
-# Plan 00.08 execution log
+# Nebius infrastructure measurement log
 
 Date: 2026-09-08. Workspace baseline: `deaeaa2`. All cloud checks were read-only;
 no job, bucket, service account, key, EAS project, or build was created.
@@ -11,7 +11,6 @@ omitted. No token or key values are stored in this log.
 | Command / inspection | Result |
 | --- | --- |
 | `git status --short` at start | Clean |
-| `test ! -e docs/decisions/008-jobs-and-release-logistics.md` | Passed drift check |
 | `git worktree list` | Primary checkout located; no environment files there or here |
 | Relevant process environment variable names | No Nebius, Convex, EAS, Expo, Apple, or GitHub credential/configuration variables |
 | `nebius version` | `0.12.272` |
@@ -67,8 +66,7 @@ no answer was available during this execution.
 Read Expo's exact SDK 57 reference at
 `https://docs.expo.dev/versions/v57.0.0/`. Rechecked Nebius's published job
 quickstart, job configuration, platforms, Compute pricing/quotas, storage
-lifecycle, REST authentication, and Convex/EAS/Apple/GitHub references linked
-from [decision 008](../../../docs/decisions/008-jobs-and-release-logistics.md).
+lifecycle, REST authentication, and Convex/EAS/Apple/GitHub documentation.
 Primary documentation was downloaded/read; it is not account evidence.
 
 `https://api.nebius.cloud/openapi.json` returned HTTP 403 to an unauthenticated
@@ -171,7 +169,7 @@ the preceding script tests remain applicable without rerunning app tests.
 
 ## Retry 2 — 2026-09-09
 
-The user reported billing fixed and asked to run the plan again. All times UTC.
+The user reported billing fixed and asked to rerun the probes. All times UTC.
 No secret value was printed, copied, or written to disk; credentials were
 generated or read inside single processes and discarded. Nebius CLI 0.12.272
 (`~/.nebius/bin/nebius`, not on the non-interactive shell's PATH — call it by
@@ -262,14 +260,13 @@ GET https://api.nebius.cloud/openapi.json (Bearer, user token from `iam get-acce
 
 ### Not run this retry
 
-- Convex write benchmark: no Convex deployment (plan 01.03 pending), no Docker
-  for the image, CPU preset quota-blocked; re-scoped to plan 02.05 (local) and
-  02.10 (cloud) on 2026-09-08.
+- Convex write benchmark: no configured Convex deployment or Docker image at
+  the time of the measurement; CPU preset quota-blocked.
 - Chaining (a job launching a job): untested; a job has no identity of its own
   and would need the service-account key via `--env-secret` plus the exchange
   above. Keep launches central.
 - Apple/EAS: `eas whoami` → `dwjiang`; `project:info` still fails (no EAS
-  link); no `eas.json`, bundle ID or dev client (plan 01.04 pending); Docker
+  link); no `eas.json`, bundle ID or dev client at that time; Docker
   absent; Apple enrollment and App Store Connect status unknown.
 
 ### Spend

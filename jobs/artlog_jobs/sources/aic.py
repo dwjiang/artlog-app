@@ -33,7 +33,7 @@ def iter_records(
             yearEnd=year(row.get("date_end")),
             rightsStatus=rights,
         )
-        # Decision 005 keeps AIC image ingestion disabled while its identified requests are blocked.
+        # AIC image ingestion stays disabled while identified requests are blocked.
         image_ref = iiif_url(row["image_id"], image_width) if image_width else None
         thumbnail = (
             iiif_url(row["image_id"], 843) if image_width and rights == "public_domain" else None

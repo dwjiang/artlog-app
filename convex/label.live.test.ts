@@ -1,7 +1,7 @@
-// Manual live check for plan 04.06 against the dev deployment; skipped unless LABEL_LIVE=1.
+// Manual live label check against the dev deployment; skipped unless LABEL_LIVE=1.
 // Reads a label photo, then verifies the fields with real Wikidata and Tavily calls (one credit).
 //   set -a; source .env.local; set +a
-//   LABEL_LIVE=1 LABEL_LIVE_VENUE_ID=<museums id> LABEL_LIVE_PHOTO=spikes/token-factory/labels/14827649.jpg \
+//   LABEL_LIVE=1 LABEL_LIVE_VENUE_ID=<museums id> LABEL_LIVE_PHOTO=/path/to/label.jpg \
 //     npx vitest run convex/label.live.test.ts
 import { readFileSync } from 'node:fs';
 import { stdout } from 'node:process';

@@ -61,7 +61,7 @@ export function imageCheckFor(scan: ScanFeatures): (urls: string[]) => ReturnTyp
   return (urls) => checkImages(urls, scan, imageCheckDeps, { inputSize: model.inputSize });
 }
 
-/** The label flow for a scan captured on this phone: the queue's path (03.06) and the label screen's. */
+/** The label flow for a scan captured on this phone, shared by the queue and label screen. */
 export async function runLabelFlowForScan(
   scanId: Id<'scans'>,
   source: LabelSource,

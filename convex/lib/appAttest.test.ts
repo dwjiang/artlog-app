@@ -81,7 +81,7 @@ describe('decodeAssertion', () => {
 describe('verifyAssertion', () => {
   const appId = 'TEAMID.app.artlog.ios';
 
-  it('verifies the real Expo iPhone assertion from decision 006 and rejects payload changes', async () => {
+  it('verifies the real Expo iPhone assertion and rejects payload changes', async () => {
     const check = {
       publicKeySpkiBase64: phoneFixture.publicKeySpkiBase64,
       clientData: phoneFixture.clientData,

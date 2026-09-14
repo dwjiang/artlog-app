@@ -1,4 +1,4 @@
-// Prompts and schemas are the ones decision 004 measured; bump PROMPT_VERSION when either changes.
+// Bump PROMPT_VERSION when prompts or schemas change.
 export const PROMPT_VERSION = 'label-v1';
 export const LABEL_MAX_TOKENS = 2048;
 export const MODERATION_MAX_TOKENS = 256;

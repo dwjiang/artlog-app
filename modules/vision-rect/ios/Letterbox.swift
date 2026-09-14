@@ -3,7 +3,7 @@ import CoreImage
 import Foundation
 import ImageIO
 
-/// The resize filter and output encoding accepted by plan 03.02's parity check.
+/// Keep resize interpolation and output encoding in sync with the Python letterbox.
 enum LetterboxTuning {
   static let interpolation: CGInterpolationQuality = .medium
   static let jpegQuality: CGFloat = 0.95

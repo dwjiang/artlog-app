@@ -30,7 +30,7 @@ export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): nu
 }
 
 /**
- * "Text proposes, pixels decide" (design §4.4): embeds up to three museum images against the scan and runs the
+ * "Text proposes, pixels decide": embeds up to three museum images against the scan and runs the
  * ORB homography on the closest one. `null` when no image reaches the cosine threshold.
  */
 export async function checkImages(

@@ -10,7 +10,7 @@ export const LABEL_FIELD_LABELS: Record<LabelFieldName, string> = {
   title: 'Title', artist: 'Artist', date: 'Date', accession: 'Accession number', medium: 'Medium', creditLine: 'Credit line',
 };
 
-// Badge text per evidence kind (design §4.4); unverified kinds show none. Adding a kind means adding a label.
+// Badge text per evidence kind; unverified kinds show none. Adding a kind means adding a label.
 export const EVIDENCE_LABELS: Record<LabelEvidence, string | null> = {
   accession: 'From the museum’s records', qr: 'From the museum’s records', wikidata: 'Wikidata',
   tavily: 'From the web', 'tavily+image': 'From the museum’s site', weak: null, ocr: null,
@@ -48,7 +48,7 @@ export function formStateFromFlow(flow: LabelFlowDisplay): LabelFormState {
   return state;
 }
 
-/** Opening the lock downgrades the field's evidence even before a keystroke (design §8 made visible). */
+/** Opening the lock downgrades the field's evidence even before a keystroke. */
 export function unlockField(state: LabelFormState, name: LabelFieldName): LabelFormState {
   return { ...state, [name]: { ...state[name], locked: false, unlocked: true } };
 }

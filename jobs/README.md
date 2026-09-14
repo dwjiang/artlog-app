@@ -1,7 +1,7 @@
 # artlog jobs
 
 Python batch jobs that build and maintain the index and write it to Convex
-through `convex/ingest.ts` (plan 02.01). Every job runs locally with
+through `convex/ingest.ts`. Every job runs locally with
 
 ```sh
 cd jobs
@@ -10,8 +10,8 @@ uv run python -m artlog_jobs.<job> [args]
 caffeinate -i uv run python -m artlog_jobs.<job> [args]   # long runs: no idle sleep
 ```
 
-The same package runs unchanged inside the Nebius containers of plan 02.10;
-only environment variables differ.
+The jobs run locally; cloud execution can use the same Python package with
+deployment-specific environment variables.
 
 ## Environment
 
@@ -41,8 +41,8 @@ features, metadata and checkpoints.
 | --- | --- |
 | `config.py` | `Settings` (above), `get_settings()`, `setup_logging()` |
 | `model_version.py` | `MODEL_VERSION`, `EMBEDDING_DIM`, `INPUT_SIZE`, `ORB_MAX_KEYPOINTS` from `../shared/model/model-version.json` |
-| `letterbox.py` | `letterbox(img, size)`: RGB, bilinear resize so the long side equals `size`, centered on a `size×size` canvas filled with the resized image's per-channel mean (half-up rounded). The phone's Swift version (plan 03.02) must match it |
-| `orb.py` | `extract_orb(gray, nfeatures)` → `OrbFeatures(descriptors, keypoints, count)` in plan 04.01's wire format; `extract_from_image(img)` letterboxes first; `python -m artlog_jobs.orb <image> <fixture.json>` writes `shared/orb/fixtures/orb-features-v1.json` |
+| `letterbox.py` | `letterbox(img, size)`: RGB, bilinear resize so the long side equals `size`, centered on a `size×size` canvas filled with the resized image's per-channel mean (half-up rounded). The phone's Swift version must match it |
+| `orb.py` | `extract_orb(gray, nfeatures)` → `OrbFeatures(descriptors, keypoints, count)` as packed descriptor bytes and float32 keypoints; `extract_from_image(img)` letterboxes first; `python -m artlog_jobs.orb <image> <fixture.json>` writes `shared/orb/fixtures/orb-features-v1.json` |
 | `convex_writer.py` | `ConvexWriter(settings)`: `upsert(fn, rows, batch_size≤500, on_batch)` splits (descriptor batches capped at 200 rows), retries transient errors (never `ConvexError`), merges returned `ids`; `query`, `mutation` |
 | `checkpoint.py` | `Checkpoint.for_job(settings, job)`: per-stage `done` key sets and cursors, written atomically after every change |
 | `polite_http.py` | `PoliteClient(user_agent, per_host_rps)`: per-host spacing and robots checks on each page redirect, robots.txt cache (daily refresh; 5xx, 401/403/429 or HTML ⇒ disallow all; 404 ⇒ allow), `Crawl-delay`, `Retry-After`, ETag / Last-Modified conditional GETs |
@@ -103,11 +103,11 @@ same counts and also exits 0.
 ## Layout
 
 - `artlog_jobs/` — the package; tests co-located as `*_test.py`
-- `../shared/sources/source-scores.json` — Tavily domain scores from spike 00.05, shared with `convex/lib/sourceScores.ts`
+- `../shared/sources/source-scores.json` — Tavily domain scores, shared with `convex/lib/sourceScores.ts`
 - `fixtures/` — test inputs (attribution in `fixtures/README.md`)
 - `scratch/`, `out/`, `checkpoints/` — gitignored run outputs
 
-## Venue seed and bundled database (02.02)
+## Venue seed and bundled database
 
 ```sh
 # From the repo root, push this workspace's functions to the configured dev deployment:
@@ -139,7 +139,7 @@ Wikidata requests are sequential POSTs with the configured User-Agent, JSON
 responses, a 65-second client timeout for the service's 60-second deadline, and
 three attempts for transport failures, 429, and 5xx (honoring `Retry-After`).
 Country slices include museum (`Q33506`) and art gallery (`Q1007870`) subclasses
-with **both `P625` and `P856` claims**, matching decision 005's query. Wikidata
+with **both `P625` and `P856` claims**. Wikidata
 unknown-value nodes are not coordinates or URLs: unknown coordinates are excluded;
 an unknown website is represented as a missing optional website. At the 20,000-row
 cap or after a country timeout, direct `P131` administrative slices plus a slice
@@ -157,14 +157,13 @@ SELECT DISTINCT ?country ?iso WHERE {
 It retains all Q-IDs per code (including historical codes/territories) so `P17`
 claims are not lost. `--all` also queries venues with no mapped country and
 assigns `country:unknown`. It enumerates museum/gallery IDs in the constant class
-slices measured in spike 00.05, subtracts the country census locally, then fetches
+slices measured during the venue census, subtracts the country census locally, then fetches
 metadata for the remaining IDs. Global country anti-joins timed out in the live
 run. Rows are deduplicated by Q-ID, keeping the first
 website/coordinates; multiple country claims use the first selected ISO code
 in sorted order. Labels prefer English, then any available label, then Q-ID.
 
-`shared/sources/regions.json` is the sole region config, copied from the Tavily spike
-with its proposed centers. The metro administrative IDs were verified against
+`shared/sources/regions.json` is the sole region config and defines the region centers. The metro administrative IDs were verified against
 Wikidata: San Francisco `Q62`, New York City `Q60`, London `Q84`, Paris `Q90`.
 The importer resolves `P131` ancestry to those IDs. Within the venue's country,
 an administrative match takes precedence; otherwise the nearest metro within
@@ -180,16 +179,15 @@ For a quarterly census, add `--refresh` **once** to discard the selected
 countries' caches/checkpoints, then omit it if resuming. Keep one seed process
 per scratch directory. Natural keys preserve the Convex IDs used by the phone.
 
-A full run must stay within 5% of the spike's 42,444 venues before export.
+A full run must stay within 5% of the measured baseline of 42,444 venues before export.
 Over 150,000 venues stops the job. SQLite is vacuumed; if it exceeds 10,000,000
 bytes, the export clears `website` to NULL (retaining the schema) and vacuums
 again. A still-oversized asset stops without replacing the previous database.
 The console reports row count, version, bytes, and whether websites were omitted.
 
 Metro recognizes `.db` and the root layout imports `src/lib/venue-asset.ts` so
-the file is actually included in iOS exports. Plan 03.05 can pass its
-`bundledVenueAsset` to `SQLiteProvider`'s `assetSource.assetId` and implement
-resolution/background refresh. This seed does not open SQLite on the phone.
+the file is included in iOS exports. The app opens that asset through
+`src/lib/venue/venue-db.ts`; resolution and background refresh live alongside it.
 
 ```sh
 cd jobs
@@ -203,7 +201,7 @@ npx vitest run convex/venueTable
 ### Initial full build — 2026-09-09
 
 - Deployment: dev `usable-owl-256`; all 260 country/unmapped slices completed.
-- SQLite and Convex `museums`: **42,452 venues**, eight more than decision 005
+- SQLite and Convex `museums`: **42,452 venues**, eight more than the initial census
   (0.019% difference); **8,568,832 bytes**, with known websites retained.
 - Version: **1788955449**. SHA-256:
   `a8288169b38c4d337e38c2c771547a135c75051d6451aeb5b5c2eaa366da5299`.
@@ -215,10 +213,10 @@ npx vitest run convex/venueTable
   in light mode. The 98 Python, 149 Convex, and 22 app tests, TypeScript, ESLint,
   and Ruff checks passed.
 
-## Index build (02.04)
+## Index build
 
 The initial index is built on the operator's Mac (Apple M5 Pro, 64 GB, PyTorch on
-`mps`); compute cost is $0 where design §10 budgeted L40S hours. From `jobs/`:
+`mps`); compute cost is $0. From `jobs/`:
 
 ```sh
 uv run python -m artlog_jobs.drift_check                      # gate: iPhone reference vs the job model
@@ -233,7 +231,7 @@ uv run python -m artlog_jobs.embed --images scratch/images/shard-0
 `build_index` runs the drift check before every invocation that includes `embed`
 (even when `drift` is omitted from `--stage`), then every shard in order: download
 shard *n* → embed shard *n* → delete `images/shard-<n>/`. At most one shard of
-JPEGs exists at a time and none outlives the build (design §5.5). Images are
+JPEGs exists at a time and none outlives the build. Images are
 never copied out of scratch and no job other than `download.py`/`embed.py`
 reads them. `--keep-images` is refused without `--limit`. A run is resumable at
 shard granularity through `checkpoints/build_index.json`; interrupt it and
@@ -263,12 +261,12 @@ Under `SCRATCH_DIR` (default `jobs/scratch`, gitignored):
 
 | Path | Content |
 | --- | --- |
-| `metadata/objects.jsonl` | 02.03 output; only objects with an `imageRef` are downloadable |
+| `metadata/objects.jsonl` | Corpus metadata; only objects with an `imageRef` are downloadable |
 | `images/shard-<n>/<quoted key>.jpg` | transient, ≤ 1024 px long side, JPEG q90, never the original |
-| `downloads/shard-<n>.json`, `shard-<n>-failed.jsonl` | per-shard, per-source progress; dead links with a reason (02.05 skips them) |
+| `downloads/shard-<n>.json`, `shard-<n>-failed.jsonl` | per-shard, per-source progress; dead links with a reason (import skips them) |
 | `features/vectors-<n>.npy` | float32 `[N, 1536]`, L2-normalized, one row per embedded image |
 | `features/keys-<n>.json` | object keys in row order |
-| `features/descriptors-<n>.bin` + `.json` | per image: `count×32` descriptor bytes then `count×4` float32 keypoints (plan 04.01 wire format); the index lists `{key, offset, keypointCount}`; `embed.read_features()` reads a shard |
+| `features/descriptors-<n>.bin` + `.json` | per image: `count×32` descriptor bytes then `count×4` float32 keypoints (the shared ORB wire format); the index lists `{key, offset, keypointCount}`; `embed.read_features()` reads a shard |
 | `features/manifest.json` | `limit`, `shardSize`, `downloadInputsSha256`, `modelVersion`, `inputSize`, `embeddingDim`, `orbMaxKeypoints`, `device`, `dtype`, `fakequantSha256`, `driftCheck`, per-shard reports, `counts`, timestamps |
 | `features/drift-check.json` | the last drift result |
 | `calibration/` | the 200 calibration images, hash-checked against `jobs/calibration/image-hashes.json` |
@@ -278,7 +276,7 @@ so shards are deterministic for a given `objects.jsonl`, every shard mixes the
 sources, and `--limit N` is a representative sample. Sources download
 concurrently, each with its own polite client: Met CDN 8 req/s (documented
 ceiling 20), AIC 1 req/s with `AIC-User-Agent` (no AIC object currently carries
-an image reference, decision 005), and Wikimedia media within the Wikitech robot
+an image reference because its host blocks requests), and Wikimedia media within the Wikitech robot
 policy's media rules: at most two concurrent connections and at most 25 Mbps
 measured over 10-second windows (`BandwidthLimiter`, shared by both streams),
 standard thumbnail sizes only. Each raw HTTP response read reserves up to
@@ -315,10 +313,9 @@ the sources' designated media endpoints, requested on the same footing as
 
 `model.py` loads RADIO at the pinned revision (`c0f3701…`, checkpoint SHA-256
 verified) and overlays `spikes/coreml-export/artifacts/fakequant_state.pt`, the
-state recovered from the CoreML int8 export (decision 001), then runs on
+state recovered from the CoreML int8 export, then runs on
 `settings.device` in fp16, the phone's compute dtype. The artifact is not
-committed; reproduce it with the spike's `export.py --size 512 --precision fp16`
-then `--weights int8` (README in `spikes/coreml-export/`). Reproduced
+committed; reproduce it with the [model export instructions](../scripts/model/README.md#export-package-fetch). Reproduced
 2026-09-10: package weight hash
 `f6f6d2d8c75ed755718114cdbff2dcbf262527b5974c2eefa2916d8533c7b6a7`, identical to
 the committed iPhone report, and `fakequant_state.pt` SHA-256
@@ -330,7 +327,7 @@ the manifest of every build). RADIO needs `einops`, now a job dependency.
 reference embeddings and hashes. It letterboxes them exactly as the iPhone reference
 was produced (bicubic, black pad), so the comparison isolates the Mac build path
 from the phone's Neural Engine on identical pixels; the index letterbox
-(`letterbox.py`, mean pad) is the capture contract that plan 03.02 mirrors. It
+(`letterbox.py`, mean pad) is the shared phone capture contract. It
 exits non-zero below `--min-mean 0.99 --min-min 0.97`; `build_index` aborts on
 failure. When fp16 is non-finite or misses the thresholds, fp32 with the same
 weights is tried and the passing dtype is recorded and used for the embed stage.
@@ -339,14 +336,14 @@ weights is tried and the passing dtype is recorded and used for the embed stage.
 | --- | --- | ---: | ---: | ---: |
 | Job model vs iPhone 16 Pro int8 CPU + NE reference | `mps` / float16 | **0.99702** | **0.99295** | 200 |
 
-The spike measured 0.997011 / 0.992918 for the same pair; fp32 was not needed.
+The original model evaluation measured 0.997011 / 0.992918 for the same pair; fp32 was not needed.
 
 `embed --benchmark` (forward pass only, letterboxed fixture pixels, `mps` fp16):
 56.5 images/s at batch 64, 64.4 images/s at batch 128 (the default).
 
 ### Pilot 2026-09-10 (`--limit 1000`)
 
-Inputs were rebuilt first: the 02.03 scratch output no longer existed, so the
+Inputs were rebuilt first: the corpus metadata scratch output no longer existed, so the
 Met/AIC/Wikidata fetch and `build_metadata` ran again (409,973 objects; Met
 image metadata complete, 8 not found, 0 denied) with venue keys exported from
 `assets/venues.db`. `caffeinate -i /usr/bin/time -l … build_index --stage
@@ -357,7 +354,7 @@ set **1.92 GB**, and left no `images/` directory.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | met | 10 | 5,565 | 2.92 req/s (bandwidth-bound originals; 7.6 req/s on warm CDN edges) | 0 | 0.5 h |
 | wikidata (Commons) | 990 | 396,582 | 1.10 images/s (one media request at a time) | 0 | 100 h |
-| aic | 0 | 0 (images blocked, decision 005) | — | — | — |
+| aic | 0 | 0 (images blocked by the host) | — | — | — |
 
 Drift check (rerun inside the pilot): mean 0.99702 / min 0.99295, `mps`/float16.
 Embed: 1,000 images → 1,000 vectors, keypoint count median 500, min 75, none
@@ -371,11 +368,11 @@ and the shard report.
 **Projection for the full corpus at the pilot's one-stream rate** (sources
 download concurrently, so Commons sets the wall clock): ≈ 100 h of downloads
 plus ≈ 2 h of embedding, about **4.3 days** of continuous, awake, online laptop
-time, under the plan's ~5-day STOP line but not by much. That run was started
+time. That run was started
 and then cancelled at shard 0 on 2026-09-10 as infeasible; the fetcher was then
 brought up to the media rules' actual ceiling (two streams, 25 Mbps, 960 px
-thumbnails) instead of one request per second, which decision 005 had taken
-from the rules for other Wikimedia services (correction recorded there).
+thumbnails). The initial one-request-per-second limit had been taken from
+the rules for other Wikimedia services.
 
 **Two-stream run, started 2026-09-10 02:47 PDT:** Commons sustains
 **4.5 images/s** (first 500 files, 0 failed, ≈ 8 Mbps), so the corpus projects
@@ -386,10 +383,8 @@ at 960 px and 1280 px alike, so with the policy's two connections latency, not
 bandwidth, sets the rate. It logs to `scratch/logs/full-run-2.log`; the
 cancelled one-stream attempt's state is under `scratch/cancelled-2026-09-10/`. Any 429/403 streak
 stops a source (`SourceBlocked`) and the run resumes from its checkpoint. The
-operator decides between this local run, a reduced corpus (for example only
-paintings with a current placement or a mapped owner), or pulling plan 02.10
-forward; Commons' one-request-at-a-time policy applies wherever the job runs,
-so cloud hardware does not shorten the download.
+Commons media policy applies wherever the job runs, so cloud hardware does
+not remove the download limit.
 
 **Throttle finding and the running build (2026-09-10 04:43–04:50 PDT):** the
 two-stream run drew HTTP 429 (`Retry-After: 11`) from `upload.wikimedia.org`
@@ -418,7 +413,7 @@ Features for 410k objects need ≈ 10 GB under `scratch/features/` (6 KB vector 
 ≤ 16 KB descriptors + ≤ 8 KB keypoints each); a shard of images is ≤ 3 GB and
 is deleted once embedded.
 
-## Corpus metadata (02.03)
+## Corpus metadata
 
 From `jobs/`, using the configured `SCRATCH_DIR` (default `jobs/scratch`):
 
@@ -482,8 +477,7 @@ placement 0.5; Wikidata does not assert that a painting is currently on view.
 
 Artwork merges use Wikidata IDs, preferring Wikidata metadata and retaining all
 source objects. The most restrictive rights result wins; thumbnails are removed
-on a downgrade. The policy and 70/100-year boundaries are specified in design
-§5.5. Multiplicity uses normalized artist/title pairs across the Wikidata
+on a downgrade. The policy and 70/100-year boundaries are implemented in `artlog_jobs/rights.py`. Multiplicity uses normalized artist/title pairs across the Wikidata
 snapshot. Series, versions, unknown artists (including Wikidata's anonymous
 creator entity `Q4233718`), and incomplete coverage do not establish uniqueness.
 Original CSV/JSON/archive responses remain in scratch as
@@ -529,7 +523,7 @@ every natural key and Convex document ID matches `assets/venues.db`, including
 the Met and AIC. The cause of the earlier empty export remains unknown. Recovery
 uses the normal live export/cache path, with no reseeding or asset replacement.
 
-Before 02.05 pushes objects, its target deployment must contain the corresponding
+Before importing objects, the target deployment must contain the corresponding
 museum rows. `--venues` takes an explicit JSON array of previously exported keys;
 it does not create museums or synthesize missing owners.
 
@@ -551,7 +545,7 @@ newlines inside quoted fields, so the census uses `csv.DictReader`, not
 `wc -l`. AIC's complete live census has 3,912 paintings, of which 3,664 have
 `image_id`; 768 normalized objects are currently on view. Wikidata returned all
 396,545 census items in 883 files with zero failed slices; ten unknown-value
-`P18` claims were excluded. Compared with decision 005, the Met's painting
+`P18` claims were excluded. Compared with the initial data-source evaluation, the Met's painting
 count differs by 8.02% because of the contains filter; AIC's image-bearing
 count differs by 0.03%, and the Wikidata census by 0.02%.
 
@@ -561,7 +555,7 @@ eligible records: **5,565 image URLs, eight HTTP 404s, four live public-domain
 revocations, zero remaining denials, and zero unchecked records**. The four
 revoked source objects remain metadata with `unknown` rights and no image URLs;
 conservative merging also removes affected Wikidata thumbnails. API image
-metadata is complete; image-body download/decoding remains part of 02.04.
+metadata is complete; image-body download/decoding happens during the index build.
 
 The recovery command's request counts are in
 `scratch/metadata-met-recovery/stats.json`. The combined rebuild reuses these
@@ -579,7 +573,7 @@ path and match the committed asset.
 The review-fix rebuild used cached sources and corrected three anonymous works
 from `unique` to `unknown`; object and placement files are byte-identical.
 
-Verification: **197 Python tests (99 new across 02.03)**, TypeScript, ESLint,
+Verification: **197 Python tests (99 covering corpus metadata)**, TypeScript, ESLint,
 Ruff lint and formatting pass. The independent full-output audit verified
 unique keys, all artwork/object/placement/venue references, current AIC
 placements against the live records, the thumbnail rights gate, and raw rights
@@ -598,7 +592,7 @@ No Convex schema/function signatures changed, so no codegen or deployment ran.
 
 Venue key-set SHA-256: `861b0149809145ac74a00be7a901df74045a671e78f29e843fa452522ac58087`.
 
-## Dedupe, hubs and Convex import (02.05)
+## Dedupe, hubs and Convex import
 
 **Hub scoring is deferred by the user as of 2026-09-12.** Remaining work is in
 [the hub-scoring todo](../docs/todos/hub-scoring/README.md). Exports, dry runs,
@@ -672,7 +666,7 @@ Full imports also retain metadata for objects with no features.
 
 ### Import format and behavior
 
-`dedupe` reads the actual 02.04 shard format (`keys-N.json`, float32
+`dedupe` reads the feature shard format (`keys-N.json`, float32
 `vectors-N.npy`, `descriptors-N.json` with `key/offset/keypointCount`, and the
 packed descriptor/keypoint bytes). It validates dimensions, normalization,
 model version, the passing drift check and binary bounds. It also checks that
@@ -704,7 +698,7 @@ generates the zero-penalty rows for the selected objects.
 
 Import order is artworks → objects (survivors first) → placements → vectors
 → descriptors → penalties. Batch ceilings are 500 metadata/penalty rows,
-**250 vectors** (decision 002's measured HTTP size), and **200 descriptor sets**
+**250 vectors** (the measured HTTP size limit), and **200 descriptor sets**
 (the writer's existing ceiling for 1,000-keypoint records). The Python writer
 uses the official client's HTTP transport, with its `requests` dependency
 explicitly installed; transport failures retry, application errors do not.
@@ -854,9 +848,9 @@ and decision functions reproduced the Python outcome counts exactly. These are
 tuning estimates from augmented collection images and simulated context; they
 do not establish independent museum-camera accuracy.
 
-The trained JSON, report, and metrics are saved in the run directory. The complete
-configuration and evaluation limits are recorded in
-[decision 009](../docs/decisions/009-calibrator-v2.md). On 2026-09-13, the operator
+The trained JSON, report, and metrics are saved in the run directory. The adopted
+configuration is in `convex/lib/calibrator/weights.ts`; evaluation limits are in
+[calibrator findings](../docs/todos/experiment-findings/README.md#calibrator-v2). On 2026-09-13, the operator
 authorized adoption: `CALIBRATOR_V2` replaced the hand-set priors on dev and
 production. The adopted default exactly matches the artifact and reproduces the
 held-out evaluation; a subsequent physical-iPhone scan on dev confidently
@@ -876,12 +870,11 @@ API checks matched Roses, Wheat Field with Cypresses, and The Bedroom confidentl
 missing geometry stayed soft and an unsupported model was refused. This did not
 test a production iPhone build. The checkpoint, input, audits and logs are under
 `jobs/out/06-01-2026-09-13-production/`. Configuration and release status are in
-[the release runbook](../docs/runbooks/release.md).
+[the release checklist](../docs/todos/release/README.md).
 
 ### Partial build verification, 2026-09-11
 
-The committed 02.04 branch was integrated before implementation. Its `paris`
-workspace has **24 of 41** feature shards, with **239,995 vectors**; the full
+At this measurement, the `paris` workspace had **24 of 41** feature shards, with **239,995 vectors**; the full
 build is unfinished. A copied snapshot in this workspace's
 `jobs/scratch/merged/` contains **404,653 artworks, 409,973 objects,
 289,806 merged placements, 239,995 vectors and 232,291 descriptor sets**.
@@ -893,8 +886,8 @@ The deterministic hub pass found no outliers (mean 0.422502, σ 0.113360,
 threshold 0.762582, maximum observed mean cosine 0.596512).
 
 The full corpus import and its database/search storage measurements remain
-pending the other 17 shards. Decision 002 did not establish a billed search
-storage projection, so its >50% comparison cannot yet be evaluated. Raw
+unmeasured at this stage, with 17 shards still outstanding. The vector-search
+evaluation did not establish a billed search storage projection. Raw
 float payload estimates are not dashboard storage measurements.
 
 
@@ -994,7 +987,7 @@ The audit, merge records, manifest, and statistics are in
 TypeScript, and ESLint pass. Hub scoring was subsequently deferred by the user;
 import remains pending. iOS recognition verification requires the subsequent import.
 
-## Exhibition checklists (04.10)
+## Exhibition checklists
 
 Supply a permissioned checklist as JSON using
 [`shared/sources/fixtures/checklist-example.json`](../shared/sources/fixtures/checklist-example.json)
@@ -1059,13 +1052,13 @@ Opt-out cleanup finishes the move rollbacks before marking the request applied.
 The original review decision remains recorded, with `revertedAt` marking a
 revoked move.
 
-## Enrichment (02.07)
+## Enrichment
 
 `enrich.run` builds source-linked fact sheets with Super and validates Lightning
 sentences against the sheet before writing `docent.en`. Set `NEBIUS_API_KEY`,
 `TAVILY_API_KEY`, `FACT_SHEET_MODEL`, and `DOCENT_MODEL` in the root `.env.local`
 or process environment, alongside the existing Convex jobs credentials. Model
-IDs are required; decision 004 selects `nvidia/nemotron-3-super-120b-a12b` and
+IDs are required; use `nvidia/nemotron-3-super-120b-a12b` and
 `nvidia/Nemotron-3_5-Lightning`. The same model settings must be configured on
 Convex for the cache-miss action.
 
@@ -1089,8 +1082,8 @@ sentence-only regeneration. Review-blocked artworks are never overwritten.
 
 `--dry-run` leaves artworks and claims untouched and prints the complete sources,
 fact sheet, sentences, and usage as JSON Lines. **It still spends provider usage
-and reserves that usage in Convex.** This is the exception to the draft plan's
-“writes nothing”: paid previews must obey the same shared cap as normal runs.
+and reserves that usage in Convex.** Paid previews obey the same shared cap as
+normal runs.
 Redirect stdout to a local file for review; stderr contains progress and the
 final summary. The summary includes failures, superseded writes, claim-release
 failures, validator counts, schema fallbacks, and parse failures.
@@ -1118,7 +1111,7 @@ and checked against the owner's site hosts before every redirect. HTML boilerpla
 is stripped and each source is capped at 6,000 characters. Wikidata entity
 documents supply labels, dates, material, dimensions, collection/location,
 accession, qualified copyright statements, and the lead of the English Wikipedia
-sitelink's article when one exists (the plan's REST summary endpoint sits under
+sitelink's article when one exists (the REST summary endpoint sits under
 Wikipedia's robots-disallowed `/api/` prefix, which `PoliteClient` honours).
 Failed label lookups do not discard other entity facts. Search uses eight basic
 results. When an owner page or Wikidata entity identifies
@@ -1138,7 +1131,7 @@ schema, and source labels/scores always come from the input sources. Python and
 TypeScript share `shared/docent/fixtures/docent-validator.json`, including ECMAScript
 whitespace and UTF-16 character-limit cases.
 
-Cost logs estimate model tokens at decision 004's prices: Super $0.30/$0.90 and
+Cost logs estimate model tokens at the evaluated 2026-09-08 prices: Super $0.30/$0.90 and
 Lightning $0.06/$0.24 per million input/output tokens. They exclude Tavily charges
 and unreported token usage; review these rates when changing model settings.
 
@@ -1150,7 +1143,7 @@ feed placements (four each by Van Gogh, Monet, Degas, Cézanne, and Renoir). The
 final worker reached **15/20 enriched artworks** before `spend.status` reported
 Tavily **20/20**. All 15 final sheets and sentences were read back and matched
 the generated output; all five unfinished claims were released. The cap was not
-raised. Completing the remaining five is still required for the plan's live gate.
+raised.
 
 The final generations produced 117 facts, with 53 of
 63 sentences retained (15.9% dropped).
@@ -1175,15 +1168,15 @@ launched in light mode; Metro was restarted with an IPv4 address because localho
 bound only to IPv6. The app's capture model is absent in this workspace, so its
 warm-up warns; this worker has no new iOS interaction to exercise.
 
-## Calibrator training (02.09)
+## Calibrator training
 
 The job fits the eleven features in `convex/lib/calibrator/features.ts` and emits
 the [training-output contract](../shared/calibrator/README.md). It never installs
 weights or changes the default calibrator.
 
-Prerequisites: finish the 02.04/02.05 index build and import, configure the existing
+Prerequisites: finish the index build and import, configure the existing
 `CONVEX_URL` and admin deploy key, and have the fake-quantized RADIO state from
-decision 001. Run against a stable index: the export pages are separate queries,
+the [model export](../scripts/model/README.md#export-package-fetch). Run against a stable index: the export pages are separate queries,
 not a database snapshot. The default sample is 5,000 distinct canonical
 public-domain corpus objects with images, vectors and descriptors. The sampler
 fails if fewer are eligible; objects whose image cannot be fetched are skipped
@@ -1237,7 +1230,7 @@ blocked source (consecutive 403/429s) still stops the run. Images are deleted
 after their four augmented queries are written; the temporary directory is
 removed even after a failure, and nothing is published if every image failed.
 
-Runtime parity accounts for changes since planning: top 32 vector hits collapse
+Runtime parity follows the production candidate limits: top 32 vector hits collapse
 by canonical object, then retain at most 20 objects, and only the first 10
 available references are verified. Other candidates keep their known keypoint
 count with zero inliers and an invalid homography; a missing reference has a
@@ -1275,6 +1268,5 @@ Outputs are `calibrator-lr-v2.json`, `calibrator-report.md` and
 ten calibration bins, folded weights and the 60/80/100 × 10/15/20 rule sweep.
 The v1 rules stay unchanged. AUC < 0.90 or unreachable precision/recall targets
 exit nonzero, write diagnostics, and remove any stale v2 artifact at that output
-path. After a successful real run, copy its summary and JSON into
-[decision 009](../docs/decisions/009-calibrator-v2.md); adoption into
-`weights.ts` remains a separate human-reviewed change.
+path. Keep the JSON, metrics, report, and training manifest together for each
+run; adoption into `weights.ts` remains a separate human-reviewed change.

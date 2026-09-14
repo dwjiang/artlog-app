@@ -1,6 +1,6 @@
-# Tavily behavior spike (00.07)
+# Tavily behavior evaluation
 
-Decision and all six findings: [007-tavily.md](../../docs/decisions/007-tavily.md).
+Summary and limits: [Tavily findings](../../docs/todos/experiment-findings/README.md#tavily-and-right-now).
 The checked-in run contains 71 requests and **65 response-reported credits**.
 The usage endpoint did not reflect that spend; preserve both forms of evidence.
 

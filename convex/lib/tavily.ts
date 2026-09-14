@@ -67,7 +67,7 @@ export function parseSearchResponse(json: unknown): TavilySearchResponse {
   };
 }
 
-// Request shape follows decision 007: explicit basic depth, auto parameters off, domain filter mode.
+// Keep search cost and source scope predictable: basic depth, auto parameters off, domain filtering.
 export async function search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) throw new ConvexError({ code: 'search_unconfigured' });

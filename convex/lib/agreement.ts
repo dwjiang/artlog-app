@@ -4,11 +4,11 @@ import { normalizeAccession } from './museumWorkIdentity';
 import { normalizeText } from './textMatch';
 import type { ContributionField, EvidenceKind } from './validators';
 
-// Design §4.7: the museum's page, not the visitor, named the work. `tavily+image` qualifies because
-// the phone confirmed the page's own image against the scan by embedding and homography (04.12).
+// The museum's page, not the visitor, named the work. `tavily+image` qualifies because
+// the phone confirmed the page's own image against the scan by embedding and homography.
 export const STRONG_EVIDENCE: ReadonlySet<EvidenceKind> = new Set(['accession', 'qr', 'tavily+image']);
 export const AGREEMENT_MIN_COSINE = 0.9;
-// Design §8: an exact-duplicate embedding is a replay, not an independent scan.
+// An exact-duplicate embedding is a replay, not an independent scan.
 export const REPLAY_COSINE = 0.999;
 export const AGREEMENT_MIN_TRUST = 1.0;
 const DAY_MS = 24 * 60 * 60 * 1000;

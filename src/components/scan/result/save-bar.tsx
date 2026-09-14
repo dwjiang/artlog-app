@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
-// Product voice (design §4.4): the label is the fastest route to an exact answer.
+// Product voice: the label is the fastest route to an exact answer.
 export const LABEL_BUTTON = 'Get the exact answer — point at the label';
 
 export type SaveBarProps = {

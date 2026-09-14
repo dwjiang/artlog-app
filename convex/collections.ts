@@ -47,7 +47,7 @@ export const saveToCollection = mutation({
       ...row, deviceId: device._id, updatedAt, updatedBy, confirmationRecorded: true,
     });
     if (existing) await ctx.db.patch(existing._id, { confirmationRecorded: true });
-    // Design §4.6: an untouched suggestion is a confirm; an edited title or artist counts as nothing.
+    // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
     const artwork = object && suggested ? await ctx.db.get(object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
     if (object && suggested && artwork &&

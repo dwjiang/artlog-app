@@ -1,8 +1,18 @@
 {
   "sourceCommit": "f650ab81c425903959d07bb5bc6f8e12ea4f972f",
   "sourceDirectory": "convex/lib/orb",
-  "sha256": {
+  "snapshotNote": "The current snapshot normalizes documentation comments in features.ts; executable code is unchanged from the measured source commit.",
+  "measuredSourceSha256": {
     "features.ts": "fa466c803ada494741a73abdd0e45e83eb3ac29a9a78562e9681844f1f451a02",
+    "hamming.ts": "1983d651e78cc2f8edabb44e187084fe104097d283ebbafd7a3047976dced208",
+    "homography.ts": "eafb155abfcdb4db3a65e8dcb395be5fc1d6d52b6b58a71300fd7758d2344125",
+    "index.ts": "30ea0e181d5773dbdf629b96a29105de3be281a5dafa02219bceaf93d4b96c51",
+    "match.ts": "4d46789fd70cddcd350e52827f21ea5b47e40553878b528eca48a138619dd405",
+    "testFixtures.ts": "5a9be79327d1b2101f4a70691c999646bff7f4f5731e79bf107e2b512143799c",
+    "verify.ts": "032571b82540734252750b8016de2223a22707c4ca72374dc71f5464c3cfbd24"
+  },
+  "sha256": {
+    "features.ts": "e766249899b2e8a4c7e5b78fddb8eb66889cf11fe68e25bc0c0feb13c2b23a8f",
     "hamming.ts": "1983d651e78cc2f8edabb44e187084fe104097d283ebbafd7a3047976dced208",
     "homography.ts": "eafb155abfcdb4db3a65e8dcb395be5fc1d6d52b6b58a71300fd7758d2344125",
     "index.ts": "30ea0e181d5773dbdf629b96a29105de3be281a5dafa02219bceaf93d4b96c51",

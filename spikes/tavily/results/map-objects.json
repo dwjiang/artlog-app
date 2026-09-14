@@ -14,7 +14,7 @@
   },
   "context": {
     "museum": "Cleveland Museum of Art",
-    "reason": "Replacement admitted by spike 00.05; native object paths replace the eMuseum example"
+    "reason": "Native object paths replace the eMuseum example"
   },
   "started_at": "2026-09-08T11:16:07.429351+00:00",
   "status": "complete",

@@ -100,7 +100,7 @@ def load_index(writer: ConvexWriter, *, model_version: str = MODEL_VERSION) -> I
             object_ids.append(object_id)
         log.info("exported %d vectors", len(object_ids))
     if not chunks:
-        raise ValueError(f"no indexed vectors for {model_version}; finish plan 02.05 first")
+        raise ValueError(f"no indexed vectors for {model_version}; import the embedding index first")
     descriptors = {}
     for page in _pages(writer.action, "ingest:exportDescriptors", {}):
         for row in page:

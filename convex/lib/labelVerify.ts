@@ -19,9 +19,9 @@ import {
 export const FIELD_NAMES = ['title', 'artist', 'date', 'accession', 'medium', 'creditLine'] as const satisfies readonly LabelFieldName[];
 export type LabelInput = Partial<Record<LabelFieldName, string>>;
 
-// Design §4.4 step 5: fields verified against an authority are locked; `weak` and `ocr` stay editable.
+// Fields verified against an authority are locked; `weak` and `ocr` stay editable.
 export const LOCKING_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession', 'qr', 'wikidata', 'tavily', 'tavily+image']);
-// The museum is the authority (§8), so plausibility checks never downgrade its own statements.
+// The museum is the authority, so plausibility checks never downgrade its own statements.
 export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession', 'qr']);
 export const IMAGE_MATCH_COSINE = 0.85;
 const MAX_IMAGE_URLS = 3;
@@ -32,7 +32,7 @@ export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {
   return display;
 }
 
-// Design §4.4: similarity alone never selects a work; the homography must hold as well.
+// Similarity alone never selects a work; the homography must hold as well.
 export function imageCheckPasses(check: ImageCheck): boolean {
   return Number.isFinite(check.cosine) && check.cosine >= IMAGE_MATCH_COSINE && check.cosine <= 1 && check.homographyValid;
 }
@@ -177,7 +177,7 @@ function objectPageUrl(value: string, hosts: string[]): URL | null {
   return OBJECT_PATH.test(url.pathname) && !NON_OBJECT.test(url.host + url.pathname) ? url : null;
 }
 
-// Design §4.4: a description retrieves look-alikes, so every object page on the venue's hosts is a
+// A description retrieves look-alikes, so every object page on the venue's hosts is a
 // candidate and the phone's pixels decide. A page must name a title and carry an image to be checked.
 export async function selectSearchCandidates(response: TavilySearchResponse, hosts: string[]): Promise<SearchCandidate[]> {
   const ranked = response.results
@@ -206,7 +206,7 @@ export async function selectSearchCandidates(response: TavilySearchResponse, hos
   return candidates;
 }
 
-// Decision 007: find the pair in substantive museum content, prefer the canonical object page over
+// Find the pair in substantive museum content, prefer the canonical object page over
 // shops, audio and essays, and never treat global image results as evidence for the object.
 export async function selectTavilyEvidence(response: TavilySearchResponse, pair: TavilyPair, hosts: string[]): Promise<TavilyEvidence | null> {
   const ranked = response.results.flatMap((result) => {

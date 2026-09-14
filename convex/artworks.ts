@@ -4,7 +4,7 @@ import { query } from './_generated/server';
 import { requireDevice } from './lib/auth';
 import { docentSentence, factChip, rightsStatus } from './lib/validators';
 
-// Artwork-level enrichment for a saved work (design §3): the snapshot never changes, this can.
+// Artwork-level enrichment for a saved work: the snapshot never changes, this can.
 export const enrichment = query({
   args: { artworkId: v.id('artworks') },
   returns: v.union(v.null(), v.object({

@@ -48,7 +48,7 @@ struct WarmUpResult {
 /// Loads the compiled model once and turns upright `inputSize`×`inputSize` crop files into
 /// L2-normalized vectors. Safe to call from several threads; loading holds the lock.
 final class Embedder {
-  /// Decision 001's reference configuration: same latency as `.all` with ~80 MB less resident memory.
+  /// Measured at the same latency as `.all` with ~80 MB less resident memory.
   static let computeUnits: MLComputeUnits = .cpuAndNeuralEngine
 
   let manifest: ModelManifest

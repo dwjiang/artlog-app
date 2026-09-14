@@ -25,7 +25,7 @@ export const visits = sqliteTable('visits', {
   endSyncedAt: integer(),
 });
 
-/** An immutable snapshot of what the user saw (design §4.2 *Moves*): only notes, deletion and sync state change. */
+/** An immutable snapshot of what the user saw: only notes, deletion and sync state change. */
 export const savedWorks = sqliteTable(
   'savedWorks',
   {

@@ -3,7 +3,7 @@ import { artistMentioned } from './textMatch';
 import type { RightNowCard } from './validators';
 import { hostAllowed } from './venueFetch';
 
-// Acceptance boundary from decision 007 §1: retrieval cutoff, publication window, eligible article
+// Acceptance requires a retrieval cutoff, publication window, eligible article
 // pages, and a complete source sentence with an explicit recent event date. Paraphrases are
 // refused: matching names and numbers cannot establish what happened or preserve negation.
 export const MIN_SCORE = 0.6;

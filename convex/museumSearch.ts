@@ -46,7 +46,7 @@ import { venueHosts } from './lib/venueFetch';
 import { isVenueOptedOut } from './lib/venueOptOut';
 import schema from './schema';
 
-// One description and its single retry (tokenFactory.chatJson) plus one search credit (decision 007).
+// One description and its single retry (tokenFactory.chatJson) plus one search credit.
 const MAX_DESCRIBE_CALLS = 2;
 const SEARCH_CREDITS = 1;
 const MAX_RESULTS = 5;

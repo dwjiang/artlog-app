@@ -1,5 +1,5 @@
 {
-  "description": "Shared docent validator cases (plans 02.07 Step 3 and 04.09 Step 1). Rules, applied in order to each sentence: collapse whitespace and trim; drop when factIds is empty after removing duplicate ids, when any id is not on the sheet, when the sentence has fewer than 4 words or more than 240 characters, or when an earlier kept sentence has the same text; keep at most 4 sentences in their original order. The Python and TypeScript validators must both pass every case.",
+  "description": "Shared docent validator cases. Rules, applied in order to each sentence: collapse whitespace and trim; drop when factIds is empty after removing duplicate ids, when any id is not on the sheet, when the sentence has fewer than 4 words or more than 240 characters, or when an earlier kept sentence has the same text; keep at most 4 sentences in their original order. The Python and TypeScript validators must both pass every case.",
   "cases": [
     {
       "name": "all valid",

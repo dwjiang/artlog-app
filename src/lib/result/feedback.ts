@@ -24,7 +24,7 @@ export function resolveWithLabel(
   })).catch((error: unknown) => console.warn('Could not resolve the rejection with this contribution', error));
 }
 
-/** Records "Not right?" as an attested rejection; `null` when this device cannot attest (design §4.6). */
+/** Records "Not right?" as an attested rejection; `null` when this device cannot attest. */
 export async function rejectMatch(
   client: Pick<ConvexReactClient, 'mutation'>,
   scanId: Id<'scans'>,

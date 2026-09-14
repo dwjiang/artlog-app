@@ -11,7 +11,7 @@ export function roundVector(embedding: Float32Array): number[] {
   return Array.from(embedding, (value) => Number(value.toFixed(5)));
 }
 
-/** Recomputes a stored crop's features, the queue's path after a model update (design §5.4). */
+/** Recomputes a stored crop's features, the queue's path after a model update. */
 export async function extractFeatures(
   cropUri: string,
   stages: { embedder: Embedder; orb: OrbExtractor },

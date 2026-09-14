@@ -8,7 +8,7 @@ import { limitDevice } from './lib/rateLimits';
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_CONTACT_CHARS = 200;
 
-// Design §4.8: museums and estates can flag a fact from the card; the sheet is held for review and
+// Museums and estates can flag a fact from the card; the sheet is held for review and
 // the cached sentences are dropped so a disputed fact never stays on screen.
 export const correctFact = mutation({
   args: { artworkId: v.id('artworks'), factId: v.string(), message: v.string(), contact: v.optional(v.string()) },

@@ -30,7 +30,7 @@ export async function persistCapture(
   return { photoPath: await moveInto('photos', photoUri, localId), cropPath: await moveInto('crops', cropUri, localId) };
 }
 
-/** Keeps a label photo captured offline beside the scan until the queue reads it (design §5.1). */
+/** Keeps a label photo captured offline beside the scan until the queue reads it. */
 export async function persistLabelPhoto({ photoUri, localId }: { photoUri: string; localId: string }): Promise<string> {
   return moveInto('labels', photoUri, `${localId}-${randomUUID()}`);
 }

@@ -1,5 +1,5 @@
 """Download corpus images into scratch one shard at a time, each source at its polite
-rate, resized so no original is ever kept (design §5.5, §5.7 step 3)."""
+rate, resized so no original is ever kept."""
 
 import argparse
 import hashlib
@@ -167,8 +167,8 @@ def thumbnail_step(width: int | None) -> int:
 
 
 def resolve_commons(client: PoliteClient, tasks: list[ImageTask]) -> dict[str, str | None]:
-    """Map object keys to `upload.wikimedia.org` thumbnail URLs through `imageinfo`
-    (decision 005): one API call per batch instead of two redirect hops per file, a
+    """Map object keys to `upload.wikimedia.org` thumbnail URLs through `imageinfo`:
+    one API call per batch instead of two redirect hops per file, a
     server-rendered standard width for TIFF/PDF/SVG originals, and a narrower step for
     files the default width would return as originals. Missing files map to None."""
     resolved: dict[str, str | None] = {}
@@ -352,7 +352,7 @@ ClientFactory = Callable[[str], PoliteClient]
 
 def default_client_factory(settings: Settings, rates: dict[str, float]) -> ClientFactory:
     def make(source: str) -> PoliteClient:
-        # Designated media endpoints of admitted sources (decision 005), not site crawling;
+        # Designated media endpoints of admitted sources, not site crawling;
         # the same footing as sources/fetch.py's dump downloads.
         return PoliteClient(
             user_agent=settings.user_agent,

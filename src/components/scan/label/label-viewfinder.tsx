@@ -8,7 +8,7 @@ export const LABEL_HINT = 'Fill the frame with the label, flat and in focus';
 const CORNER_SIZE = 20;
 const STROKE = 3;
 
-/** A 3:2 guide for the wall label (design §4.4): corner marks over the preview and the framing hint. */
+/** A 3:2 guide for the wall label: corner marks over the preview and the framing hint. */
 export function LabelViewfinder({ hint = LABEL_HINT }: { hint?: string }) {
   return (
     <View pointerEvents="none" style={styles.fill} accessibilityLabel="Label guide">

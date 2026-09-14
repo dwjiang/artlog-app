@@ -1,5 +1,5 @@
 """C-RADIOv3-B with the phone's numerics: the pinned RADIO checkpoint with the CoreML
-export's dequantized int8 Linear weights loaded over it (decision 001), run in the
+export's dequantized int8 Linear weights loaded over it, run in the
 compute dtype the drift check accepted. Every module takes its device from settings."""
 
 import hashlib
@@ -112,8 +112,8 @@ def load_embedder(
     fakequant_path = Path(fakequant_path)
     if not fakequant_path.exists():
         raise FileNotFoundError(
-            f"{fakequant_path} is missing; reproduce it with the spike export "
-            "(spikes/coreml-export/README.md) before building an index"
+            f"{fakequant_path} is missing; export the model with scripts/model/export_coreml.py "
+            "and pass the resulting fakequant_state.pt before building an index"
         )
     device = device or get_settings().device
     model = build_radio()

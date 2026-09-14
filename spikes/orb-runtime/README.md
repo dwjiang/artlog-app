@@ -1,7 +1,7 @@
-# ORB in the Convex runtime (00.03)
+# ORB in the Convex runtime
 
 Disposable cloud benchmark for the unchanged TypeScript ORB verifier. The
-[decision record](../../docs/decisions/003-orb-verification-runtime.md) contains
+[ORB findings](../../docs/todos/experiment-findings/README.md#orb-verification) contain
 the findings and downstream caps. Raw action samples are in `results/2026-09-09/`.
 
 ## Reproduce
@@ -14,9 +14,11 @@ npm run typecheck
 npm test
 ```
 
-`convex/lib/orb/` is a byte-for-byte snapshot of the production library, including
-`testFixtures.ts` and excluding its tests. `source-manifest.json` pins its source
-commit and SHA-256 hashes. The runner checks those hashes before calling Convex.
+`convex/lib/orb/` preserves the measured production library, including
+`testFixtures.ts` and excluding its tests. Documentation comments were cleaned
+without changing compiled code. `source-manifest.json` retains the original
+commit and `measuredSourceSha256`; its `sha256` map identifies the current
+snapshot bytes. The runner checks the current hashes before calling Convex.
 To measure a changed verifier, replace the snapshot and update the manifest;
 write the new measurements to a separate directory.
 
@@ -75,7 +77,7 @@ npx convex run orbBench:benchRead '{"n":20,"keypoints":500,"runs":100,"permute":
 
 The runner requires matching `dev:` deployment, cloud URL, and deploy-key prefix.
 It stops on a failed measurement; the memory mode stops at the first memory
-error. Its first matrix call checks ten pairs for OOM, the plan's stop condition.
+error. Its first matrix call checks ten pairs and stops on an out-of-memory error.
 
 ## Measurement contract
 

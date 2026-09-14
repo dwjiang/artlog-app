@@ -1,5 +1,5 @@
 """Gate every build: embed the 200 calibration paintings with the job model and require
-cosine ≥ 0.99 mean / ≥ 0.97 min against the iPhone's Neural Engine vectors (decision 001)."""
+cosine ≥ 0.99 mean / ≥ 0.97 min against the iPhone's Neural Engine vectors."""
 
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ WORST = 5
 
 
 def reference_letterbox(image: Image.Image, size: int = INPUT_SIZE) -> Image.Image:
-    """The exact pixels the iPhone reference was embedded from (spike 00.01: bicubic,
+    """The exact pixels the iPhone reference was embedded from (bicubic,
     `round` dimensions, black pad) — this isolates model numerics from preprocessing. The
     index letterbox (`letterbox.py`, mean pad) is the phone's capture contract instead."""
     image = ImageOps.exif_transpose(image).convert("RGB")

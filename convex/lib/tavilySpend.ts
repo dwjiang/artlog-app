@@ -4,7 +4,7 @@ import { internal } from '../_generated/api';
 import type { ActionCtx } from '../_generated/server';
 import { search, type TavilySearchRequest, type TavilySearchResponse } from './tavily';
 
-// One credit is reserved atomically before dispatch (decision 007) and reconciled from the reported
+// One credit is reserved atomically before dispatch and reconciled from the reported
 // usage. Returns null when the cap is reached, the key is missing, or the search fails; the caller
 // continues without web evidence.
 export async function searchWithCredit(ctx: ActionCtx, request: TavilySearchRequest): Promise<TavilySearchResponse | null> {
