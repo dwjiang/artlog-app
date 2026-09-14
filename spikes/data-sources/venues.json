@@ -1,9 +1,0 @@
-[
-  {"key":"sfmoma","origin":"https://www.sfmoma.org","collectionPath":"/artworks/","termsVerdict":"no_index","termsUrl":"https://www.sfmoma.org/terms-of-use/"},
-  {"key":"famsf-legacy","origin":"https://art.famsf.org","collectionPath":"/","termsVerdict":"unknown","termsUrl":null},
-  {"key":"famsf","origin":"https://www.famsf.org","collectionPath":"/collections","termsVerdict":"unknown","termsUrl":null},
-  {"key":"asian-art","origin":"https://searchcollection.asianart.org","collectionPath":"/collections","termsVerdict":"no_index","termsUrl":"https://asianart.org/terms-and-conditions/"},
-  {"key":"cantor","origin":"https://cantorcollection.stanford.edu","collectionPath":"/index-tree/tree/-1?records=12","termsVerdict":"no_index","termsUrl":"https://cantorcollection.stanford.edu/index-tree/tree/-1?records=12"},
-  {"key":"omca","origin":"https://portal.museumca.org","collectionPath":"/","termsVerdict":"public_domain_only_pending_access","termsUrl":"https://museumca.org/terms-of-use/"},
-  {"key":"cleveland-replacement","origin":"https://www.clevelandart.org","collectionPath":"/art/collection/search","termsVerdict":"open_access_api_preferred","termsUrl":"https://www.clevelandart.org/open-access"}
-]

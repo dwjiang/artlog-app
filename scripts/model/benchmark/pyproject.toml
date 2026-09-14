@@ -1,0 +1,13 @@
+[project]
+name = "artlog-coreml-benchmark"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["pillow==11.3.0", "requests==2.34.2"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10"]
+
+[tool.pytest.ini_options]
+python_files = ["*.test.py"]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]

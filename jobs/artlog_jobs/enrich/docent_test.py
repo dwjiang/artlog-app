@@ -177,5 +177,5 @@ def test_versioned_system_prompts_match_convex():
     "name,filename", [("FACT_SHEET_SCHEMA", "factsheet"), ("DOCENT_SCHEMA", "docent")]
 )
 def test_schemas_match_the_evaluated_model_contract(name, filename):
-    schema = json.loads((REPO_ROOT / f"spikes/token-factory/schemas/{filename}.json").read_text())
+    schema = json.loads((REPO_ROOT / f"jobs/fixtures/{filename}-schema.json").read_text())
     assert getattr(prompts, name) == schema

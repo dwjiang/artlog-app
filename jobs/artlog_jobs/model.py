@@ -18,7 +18,7 @@ RADIO_REVISION = "c0f37017930e9dda53f93424cf4bf39fc51f287e"
 RADIO_VERSION = "c-radio_v3-b"
 CHECKPOINT_NAME = "c-radio_v3-b_half.pth.tar"
 CHECKPOINT_SHA256 = "530b0e827b1d409ca3b175466e11062885baedd823ec5dae3a88348e76d4c398"
-DEFAULT_FAKEQUANT = REPO_ROOT / "spikes" / "coreml-export" / "artifacts" / "fakequant_state.pt"
+DEFAULT_FAKEQUANT = REPO_ROOT / "scripts" / "model" / "out" / "fakequant_state.pt"
 DTYPES = {"float16": torch.float16, "float32": torch.float32}
 
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import phoneFixture from '../../spikes/native-modules/notes/app-attest-assertion.json';
+import phoneFixture from './fixtures/app-attest-assertion.json';
 
 import {
   base64ToBytes,

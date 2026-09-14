@@ -1,5 +1,9 @@
 # Test fixtures
 
+- `factsheet-schema.json` and `docent-schema.json` — the response contracts used
+  in the September 8 Token Factory evaluation. Enrichment tests compare the
+  current Python schemas with these retained contracts.
+
 - `met-sample.csv`, `met-images-sample.json`, `aic-sample.json`, and
   `wikidata-paintings-sample.json` — synthetic corpus metadata using
   the published source field names. Names, accession values, and object/image
