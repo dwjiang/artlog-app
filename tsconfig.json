@@ -20,5 +20,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],
-  "exclude": ["spikes/**", "node_modules"]
+  "exclude": ["node_modules"]
 }

@@ -1,9 +1,0 @@
-{
-  "at": 1788865719.255392,
-  "httpStatus": 200,
-  "anonymousStatsRejected": true,
-  "response": {
-    "status": "error",
-    "errorMessage": "[Request ID: a94b3b47084737b9] Server Error\nCould not find public function for 'bench:stats'.\n"
-  }
-}

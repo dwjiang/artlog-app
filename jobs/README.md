@@ -312,7 +312,7 @@ the sources' designated media endpoints, requested on the same footing as
 ### Model, numerics and drift
 
 `model.py` loads RADIO at the pinned revision (`c0f3701…`, checkpoint SHA-256
-verified) and overlays `spikes/coreml-export/artifacts/fakequant_state.pt`, the
+verified) and overlays `scripts/model/out/fakequant_state.pt`, the
 state recovered from the CoreML int8 export, then runs on
 `settings.device` in fp16, the phone's compute dtype. The artifact is not
 committed; reproduce it with the [model export instructions](../scripts/model/README.md#export-package-fetch). Reproduced
@@ -850,7 +850,7 @@ do not establish independent museum-camera accuracy.
 
 The trained JSON, report, and metrics are saved in the run directory. The adopted
 configuration is in `convex/lib/calibrator/weights.ts`; evaluation limits are in
-[calibrator findings](../docs/todos/experiment-findings/README.md#calibrator-v2). On 2026-09-13, the operator
+[calibrator findings](../docs/experiments/README.md#calibrator-v2). On 2026-09-13, the operator
 authorized adoption: `CALIBRATOR_V2` replaced the hand-set priors on dev and
 production. The adopted default exactly matches the artifact and reproduces the
 held-out evaluation; a subsequent physical-iPhone scan on dev confidently
@@ -869,7 +869,8 @@ The backend uses the exact trained `lr-v2` configuration. Authenticated producti
 API checks matched Roses, Wheat Field with Cypresses, and The Bedroom confidently;
 missing geometry stayed soft and an unsupported model was refused. This did not
 test a production iPhone build. The checkpoint, input, audits and logs are under
-`jobs/out/06-01-2026-09-13-production/`. Configuration and release status are in
+`jobs/out/06-01-2026-09-13-production/`. Configuration is in the
+[deployment reference](../docs/operations/production.md); remaining release work is in
 [the release checklist](../docs/todos/release/README.md).
 
 ### Partial build verification, 2026-09-11

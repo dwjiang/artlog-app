@@ -23,10 +23,6 @@ yarn-error.*
 example
 /ios
 /android
-spikes/**/artifacts/
-spikes/**/.venv/
-spikes/**/__pycache__/
-spikes/**/.pytest_cache/
 
 # Local model exports; the compiled model is fetched by eas-build-pre-install.
 scripts/model/.venv/
@@ -37,8 +33,9 @@ scripts/model/.pytest_cache/
 modules/coreml-embed/ios/Models/
 
 # Not needed inside a build archive.
+scripts/evals/
+scripts/model/benchmark/
 docs/
-spikes/
 jobs/
 .context/
 *.test.*
