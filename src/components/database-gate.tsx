@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useDatabaseMigrations } from '@/db/migrations';
+import { useDatabaseMigrations } from '@/db/use-database-migrations';
 
 /** Holds the app until the local store is migrated; nothing below it touches the database earlier. */
 export function DatabaseGate({ children }: PropsWithChildren) {
