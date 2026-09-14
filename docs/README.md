@@ -7,6 +7,7 @@
 
 ## Open work
 
+- [Social and journal](todos/social-and-journal/README.md) — agreed contracts and planned API boundaries
 - [Production release](todos/release/README.md)
 - [Hackathon submission](todos/hackathon/README.md)
 - [Full corpus upload](todos/production-upload/README.md) — deferred
