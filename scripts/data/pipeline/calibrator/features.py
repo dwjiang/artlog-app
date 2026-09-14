@@ -104,7 +104,9 @@ def candidate_rows(
             verified += 1
         positive = object_id == source_object_id
         at_venue = bool(rng.random() < (0.85 if positive else 0.1))
-        # Gallery is unknown off venue, as in identifyPipeline. See scripts/data/README.md for priors.
+        # Simulated context priors, not observed visits: atVenue 0.85/0.10 (positive/negative),
+        # gallery same/unknown/different 0.5/0.4/0.1 vs 0.1/0.8/0.1, onView true/false/unknown
+        # 0.8/0.1/0.1. Gallery is unknown off venue, as in identifyPipeline.
         gallery = str(
             rng.choice(
                 ["same", "unknown", "different"], p=[0.5, 0.4, 0.1] if positive else [0.1, 0.8, 0.1]

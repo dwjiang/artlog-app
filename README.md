@@ -280,8 +280,8 @@ npm run ios                                          # reopen the installed dev 
 
 Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
 `src/db/`), `modules/` (native modules `vision-rect`, `coreml-embed`, `poi-search`), `convex/`
-(backend, pure libraries under `convex/lib/`), `scripts/` (data pipeline, model tooling, and evaluations),
-`shared/` (contracts shared by phone, backend and jobs). Model tools include `scripts/model/` (CoreML export),
+(backend, pure libraries under `convex/lib/`), [`scripts/data/`](scripts/data/README.md) (Python data
+pipeline), `shared/` (contracts shared by phone, backend and jobs), `scripts/model/` (CoreML export),
 [`scripts/model/benchmark/`](scripts/model/benchmark/README.md) (iPhone model measurements),
 [`scripts/evals/token-factory/`](scripts/evals/token-factory/README.md) (model quality comparisons),
 [`docs/`](docs/README.md) (experiment findings, operations, hackathon materials, and open work).

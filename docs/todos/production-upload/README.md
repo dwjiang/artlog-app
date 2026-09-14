@@ -6,8 +6,9 @@
 > Follow the steps and their verification gates in order. Do not mark this plan
 > done when an upload is merely running. Record completion in this todo.
 >
-> **Drift check:** run `git diff --stat 1fe0c14..HEAD -- scripts/data
-> convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md` and
+> **Drift check:** run `git diff -M --stat 1fe0c14..HEAD -- jobs/artlog_jobs jobs/scripts scripts/data/pipeline
+> scripts/data/letterbox-parity.py convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md`
+> (1fe0c14 predates the move of `jobs/` to `scripts/data/`; `-M` with both paths pairs the renames) and
 > `git diff --stat -- scripts/data/pipeline convex shared/model/model-version.json`.
 > This plan was written against an already dirty working tree. HEAD alone does
 > not identify its importer: compare the
