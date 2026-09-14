@@ -87,18 +87,23 @@ You need macOS with Xcode 26, Node 22.13 or newer, and a physical iPhone on iOS 
 (scanning, the label flow and museum-site search need the camera).
 
 ```sh
+brew install git-lfs
+git lfs install
 git clone https://github.com/dwjiang/artlog-app.git && cd artlog-app
 npm ci
 cp .env.example .env.local
 # edit .env.local: EXPO_PUBLIC_CONVEX_URL=https://admired-goldfinch-660.convex.cloud
-npm run model:fetch                # the 112 MB CoreML model from the pinned GitHub release
+npm run model:check
 npx expo prebuild --platform ios --clean && npx expo run:ios --device
 ```
 
-`npm run model:fetch` checks the archive's SHA-256 against `scripts/model/model-asset.json` and
-unpacks it into the ignored `modules/coreml-embed/ios/Models/`. While the repository is private
-the download needs GitHub authentication (`gh auth login`, or `GH_TOKEN` with Contents: read);
-once the repository is public it needs none. `npx expo run:ios --device` builds with Xcode,
+The compiled CoreML model is tracked with Git LFS under `modules/coreml-embed/ios/Models/`.
+Cloning downloads it using your GitHub repository access; for an existing checkout, run
+`git lfs install` and `git lfs pull`. Local Conductor workspaces reuse the repository's LFS cache.
+`npm run model:check` verifies the version, dimensions, compiled files and weights checksum;
+it also runs before `npm run ios` and during EAS pre-install. EAS uploads include the local
+model files, so resolve LFS pointers before starting a build. CI checkouts must fetch LFS files.
+`npx expo run:ios --device` builds with Xcode,
 installs on the chosen iPhone and starts Metro; `npm run ios` also builds and launches the iOS
 app through Expo. Expo Go cannot load the native modules.
 
@@ -175,9 +180,8 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    cd ../../jobs
    ```
 
-   This leaves the published asset pin unchanged. `package-model.sh` is for preparing a release
-   or testing a local compiled asset: it rewrites `model-asset.json`, and its ZIP includes a new
-   timestamped manifest even when the model weights match.
+   This leaves the tracked iOS model unchanged. Run `scripts/model/compile-model.sh` from the
+   repository root only when replacing the app's compiled model, then commit its LFS files and manifest.
 2. **Seed venues**, if not done above:
    `uv run python -m artlog_jobs.seed_venues --all --out out/ --publish`, then
    `cp out/venues.db ../assets/venues.db`. The full seed contains 42,452 museums and galleries
@@ -267,7 +271,7 @@ Run these commands from the repository root:
 ```sh
 npm run typecheck                                    # tsc --noEmit
 npm run lint                                         # expo lint (ESLint)
-npm test                                             # Jest (src/, modules/, shared/), Vitest + convex-test (convex/), model-fetch tests
+npm test                                             # Jest (src/, modules/, shared/), Vitest + convex-test (convex/), model validation tests
 (cd jobs && uv run pytest -q && uv run ruff check .)   # Python jobs
 npx convex dev --once                                # push backend functions to your deployment
 npx convex codegen                                   # after a schema or function-signature change; commit convex/_generated/

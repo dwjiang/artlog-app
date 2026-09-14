@@ -20,7 +20,7 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
     if (checked) return checked;
     const candidate = native();
     if (candidate.modelVersion === null) {
-      throw new Error('The CoreML model asset is missing from this build; run `npm run model:fetch` and rebuild');
+      throw new Error('The CoreML model asset is missing from this build; run `git lfs pull` and rebuild');
     }
     if (candidate.modelVersion !== model.modelVersion) {
       throw new Error(

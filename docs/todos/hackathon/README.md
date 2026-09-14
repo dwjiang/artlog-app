@@ -26,8 +26,8 @@ shown through museum-site search or label verification.
    build expiry. The production URL is already documented.
 2. **Prepare the public repository — operator.** Visibility was recorded as
    private on 2026-09-11; check it before submission. When publication is
-   requested, make the repository and pinned model asset accessible and verify
-   `npm run model:fetch` from a fresh clone without a GitHub token. Review license
+   requested, make the repository and Git LFS model accessible and verify
+   `git lfs pull` and `npm run model:check` from a fresh clone without a GitHub token. Review license
    attribution, setup instructions, data-source statements, and links against
    what is actually shipped.
 3. **Record and publish the demo — operator.** Use the

@@ -60,10 +60,9 @@ jobs/**/__pycache__/
 jobs/.pytest_cache/
 jobs/.ruff_cache/
 
-# CoreML export and the fetched model asset
+# Local CoreML export intermediates
 scripts/model/.venv/
 scripts/model/cache/
 scripts/model/out/
 scripts/model/__pycache__/
 scripts/model/.pytest_cache/
-modules/coreml-embed/ios/Models/

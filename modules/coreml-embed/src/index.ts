@@ -3,7 +3,7 @@ import { requireOptionalNativeModule } from 'expo';
 export type WarmUpResult = { loadMs: number; predictMs: number; alreadyLoaded: boolean };
 
 export interface CoremlEmbed {
-  /** `null` when the model asset was not bundled: run `npm run model:fetch` before building. */
+  /** `null` when the model asset was not bundled: run `git lfs pull` before building. */
   readonly modelVersion: string | null;
   readonly inputSize: number | null;
   readonly embeddingDim: number | null;

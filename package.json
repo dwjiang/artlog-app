@@ -81,16 +81,17 @@
   "scripts": {
     "start": "expo start",
     "ios": "expo run:ios",
+    "preios": "npm run model:check",
     "lint": "expo lint",
-    "test": "npm run test:app && npm run test:convex && npm run test:model-fetch",
+    "test": "npm run test:app && npm run test:convex && npm run test:model",
     "test:app": "jest",
     "test:convex": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "convex:codegen": "convex codegen",
     "nitrogen": "cd modules/vision-rect && nitrogen",
-    "model:fetch": "bash scripts/model/fetch-model.sh",
-    "test:model-fetch": "node --experimental-strip-types --test scripts/model/*.test.ts",
-    "eas-build-pre-install": "npm run model:fetch"
+    "model:check": "node --experimental-strip-types scripts/model/check-model.mts",
+    "test:model": "node --experimental-strip-types --test scripts/model/*.test.mts",
+    "eas-build-pre-install": "npm run model:check"
   },
   "jest": {
     "preset": "jest-expo",

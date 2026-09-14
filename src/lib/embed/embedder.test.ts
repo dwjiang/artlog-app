@@ -36,12 +36,12 @@ it('rejects a bundled model whose version differs from shared/model/model-versio
 
 it('explains a build without the model asset', async () => {
   const embedder = createEmbedder(() => fakeNative({ modelVersion: null }));
-  await expect(embedder.embed('file:///tmp/crop.jpg')).rejects.toThrow('npm run model:fetch');
+  await expect(embedder.embed('file:///tmp/crop.jpg')).rejects.toThrow('git lfs pull');
 });
 
 it('rejects warm-up without throwing synchronously when the model asset is missing', async () => {
   const embedder = createEmbedder(() => fakeNative({ modelVersion: null }));
-  await expect(embedder.warmUp()).rejects.toThrow('npm run model:fetch');
+  await expect(embedder.warmUp()).rejects.toThrow('git lfs pull');
 });
 
 it('rejects warm-up when the native module is missing and allows a later retry', async () => {
