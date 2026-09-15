@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { SavedWork } from '@/db/schema';
-import { formatDay } from '@/lib/collection/group-by-visit';
+import { formatDay } from '@/lib/collection/format-day';
 
 // Read-only by design: a saved work is what the user saw, where and when.
 export function SnapshotFields({ work }: { work: SavedWork }) {

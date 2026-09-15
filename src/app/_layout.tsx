@@ -41,6 +41,10 @@ export default function RootLayout() {
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
             <Stack.Screen name="artwork" options={{ title: 'Artwork', presentation: 'formSheet',
               sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true }} />
+            <Stack.Screen name="visit-create" options={{ ...visitSheet, title: 'Add visit' }} />
+            <Stack.Screen name="visit-reflection" options={{ ...visitSheet, title: 'Private reflection' }} />
+            <Stack.Screen name="visit-share/[visitId]" options={{ ...visitSheet, headerShown: false }} />
+            <Stack.Screen name="visit-globe" options={{ presentation: 'modal', title: 'Your world', headerTintColor: Gallery.accent }} />
             <Stack.Screen
               name="venue-picker"
               dangerouslySingular
@@ -67,3 +71,5 @@ export default function RootLayout() {
     </DatabaseGate>
   );
 }
+
+const visitSheet = { presentation: 'formSheet' as const, sheetAllowedDetents: [1], sheetGrabberVisible: true, headerTintColor: Gallery.accent };

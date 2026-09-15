@@ -9,18 +9,22 @@ import { insertSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
 
 const mockHrefs: unknown[] = [];
+jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
+jest.mock('../visits/globe-canvas', () => ({ GlobeCanvas: () => null }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('expo-router', () => {
-  const { Pressable, TextInput } = jest.requireActual('react-native');
+  const { Pressable, TextInput, View, Text } = jest.requireActual('react-native');
   return {
+    router: { push: jest.fn() },
     Link: ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
       mockHrefs.push(href);
       return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
     },
     Stack: {
+      Toolbar: Object.assign(View, { Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => <Pressable accessibilityRole="button" onPress={onPress}><Text>{children}</Text></Pressable> }),
       SearchBar: ({ placeholder, onChangeText }: { placeholder: string; onChangeText: (event: { nativeEvent: { text: string } }) => void }) => (
         <TextInput placeholder={placeholder} onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} />
       ),
@@ -62,7 +66,7 @@ it('starts on the wall and opens the full collection separately', async () => {
 });
 
 const venueId = 'museum-1' as Id<'museums'>;
-const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Museum, place or visit date/);
+const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Search your visits/);
 
 beforeEach(() => { mockHrefs.length = 0; });
 
@@ -110,16 +114,18 @@ describe('with saved works', () => {
     expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(3);
   });
 
-  it('groups works by visit, newest first, with imports last', async () => {
+  it('opens a visit timeline with whole visits and keeps imports in All artworks', async () => {
     await renderArchive();
     await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' });
     await fireEvent.press(screen.getByRole('button', { name: 'visits' }));
-    const headers = ['Metropolitan Museum of Art · 8 Sep 2026', 'de Young · 1 Sep 2026', 'Imported'];
-    for (const title of headers) expect(screen.getByText(title)).toBeOnTheScreen();
-    expect(screen.getAllByText('1 work')).toHaveLength(3);
+    await fireEvent.press(screen.getByRole('button', { name: 'List' }));
+    expect(screen.getByText('Metropolitan Museum of Art')).toBeOnTheScreen();
+    expect(screen.getByText('de Young')).toBeOnTheScreen();
+    expect(screen.queryByText('Imported')).toBeNull();
+    expect(mockHrefs).toContainEqual({ pathname: '/journal/[visitId]', params: { visitId: '7e5de765-90f8-5015-b60d-2652d64b650f' } });
     await fireEvent.changeText(search(), 'cotton');
-    expect(screen.queryByText(headers[0])).toBeNull();
-    expect(screen.getByText(headers[1])).toBeOnTheScreen();
+    expect(screen.queryByText('Metropolitan Museum of Art')).toBeNull();
+    expect(screen.getByText('de Young')).toBeOnTheScreen();
   });
 
 
@@ -142,11 +148,12 @@ it('shows empty visits and calendar month groups, and searches them by country o
   await renderArchive();
   await screen.findByText('Scan a painting to start your collection.');
   await fireEvent.press(screen.getByRole('button', { name: 'visits' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'List' }));
   expect(screen.getByText('February 2024')).toBeOnTheScreen();
-  expect(screen.getByText('Empty Museum · 29 Feb 2024')).toBeOnTheScreen();
-  expect(screen.getByText('No artworks saved on this visit.')).toBeOnTheScreen();
+  expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
+  expect(screen.getByText('Location unavailable · 0 artworks')).toBeOnTheScreen();
   await fireEvent.changeText(search(), '2024-02-29');
-  expect(screen.getByText('Empty Museum · 29 Feb 2024')).toBeOnTheScreen();
+  expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
   await fireEvent.changeText(search(), 'missing');
   expect(screen.getByText('No visits match “missing”.')).toBeOnTheScreen();
 });

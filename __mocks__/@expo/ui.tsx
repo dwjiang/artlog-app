@@ -14,8 +14,10 @@ export const Row = View;
 export const Column = View;
 export { Text };
 export function Icon() { return null; }
-export function Button({ label, children, onPress, disabled }: ComponentProps<typeof import('@expo/ui').Button>) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}>{children ?? <Text>{label}</Text>}</Pressable>;
+export function Button({ label, children, onPress, disabled, modifiers }: ComponentProps<typeof import('@expo/ui').Button>) {
+  const traits = modifiers?.find((modifier) => modifier.$type === 'accessibilityAddTraits')?.traits as string[] | undefined;
+  return <Pressable accessibilityRole="button" accessibilityLabel={modifiers?.find((modifier) => modifier.$type === 'accessibilityLabel')?.label as string | undefined}
+    accessibilityState={{ disabled: !!disabled, selected: traits?.includes('isSelected') }} disabled={disabled} onPress={onPress}>{children ?? <Text>{label}</Text>}</Pressable>;
 }
 export function BottomSheet({ isPresented, children }: { isPresented: boolean; children: ReactNode }) {
   return isPresented ? <View>{children}</View> : null;

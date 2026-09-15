@@ -1,0 +1,126 @@
+import { ConvexError } from 'convex/values';
+import { LIMITS } from '@/shared/journal/limits';
+import { socialErrorMessage } from '@/shared/social/errors';
+import { convexErrorCode } from '../network-error';
+import type { RequestContext } from '../wall/wall-transport';
+import type { SharePreview, ShareSelection, ShareState, SharedVisit, VisitSharingTransport } from './visit-sharing-transport';
+
+type Session = { owner: string; scope?: string; token: string | null; isCurrent: () => boolean };
+type State = {
+  acknowledged: ShareState | null; draft: ShareSelection | null; preview: SharePreview | null; shared: SharedVisit | null;
+  busy: boolean; error?: string; profileRequired: boolean; conflict: boolean; success?: 'published' | 'unshared';
+};
+const empty = (): State => ({ acknowledged: null, draft: null, preview: null, shared: null, busy: false, profileRequired: false, conflict: false });
+
+export function createVisitSharingController({ visitLocalId, saveLocalIds, transport, capture, subscribeOwner, flush }: {
+  visitLocalId: string; saveLocalIds: () => string[]; transport: VisitSharingTransport; capture: () => Session;
+  subscribeOwner: (listener: () => void) => () => void; flush: () => Promise<void>;
+}) {
+  let state = empty();
+  let abort: AbortController | undefined;
+  let unsubscribe: (() => void) | undefined;
+  let disposed = false;
+  const listeners = new Set<() => void>();
+  const emit = (patch: Partial<State>) => { state = { ...state, ...patch }; listeners.forEach((listener) => listener()); };
+  function reset() { abort?.abort(); abort = undefined; state = empty(); listeners.forEach((listener) => listener()); }
+  async function run(work: (context: RequestContext, current: () => boolean) => Promise<void>): Promise<boolean> {
+    if (state.busy || disposed) return false;
+    const session = capture();
+    if (!session.owner.startsWith('account:') || !session.token || !session.scope) {
+      emit({ error: 'Sign in and wait for your journal to sync before sharing.' }); return false;
+    }
+    const request = new AbortController(); abort = request;
+    const current = () => !disposed && abort === request && !request.signal.aborted && session.isCurrent();
+    const context = { token: session.token, signal: request.signal };
+    const cancelled = new Promise<never>((_, reject) => {
+      request.signal.addEventListener('abort', () => reject(new Error('Sharing request cancelled or timed out')), { once: true });
+    });
+    const timeout = setTimeout(() => request.abort(), 30_000);
+    emit({ busy: true, error: undefined, success: undefined });
+    try {
+      await Promise.race([flush(), cancelled]);
+      if (!current()) return false;
+      await Promise.race([work(context, current), cancelled]);
+      return current();
+    } catch (cause) {
+      if (!disposed && abort === request && session.isCurrent()) {
+        const conflict = convexErrorCode(cause) === 'conflict';
+        emit({ profileRequired: convexErrorCode(cause) === 'profile_required',
+          error: conflict ? 'This share changed on another device. Your draft is kept. Refresh the preview before sharing again.'
+            : socialErrorMessage(cause) ?? 'The request did not finish. Your draft is kept. Check your connection and try again.',
+          ...(conflict ? { conflict: true, preview: null, shared: null } : {}) });
+      }
+      return false;
+    } finally {
+      clearTimeout(timeout);
+      if (!disposed && abort === request && session.isCurrent()) emit({ busy: false });
+    }
+  }
+  function accept(acknowledged: ShareState, preserveDraft = true) {
+    const available = new Set(saveLocalIds());
+    const previous = preserveDraft ? state.draft : null;
+    const draft = previous ? { ...previous, saveLocalIds: previous.saveLocalIds.filter((id) => available.has(id)), revision: acknowledged.revision }
+      : { visitLocalId, revision: acknowledged.revision,
+        saveLocalIds: (acknowledged.postId ? acknowledged.saveLocalIds.filter((id) => available.has(id)) : [...available]).slice(0, LIMITS.selectedSaves),
+        reflection: acknowledged.postId ? acknowledged.reflection : '' };
+    emit({ acknowledged, draft, profileRequired: false });
+  }
+  return {
+    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    getSnapshot: () => state,
+    connect() { disposed = false; unsubscribe ??= subscribeOwner(reset); },
+    dispose() { disposed = true; abort?.abort(); unsubscribe?.(); unsubscribe = undefined; state = empty(); },
+    load: () => run(async (context, current) => {
+      const result = await transport.getState({ visitLocalId }, context);
+      if (current()) { if (state.acknowledged?.revision !== result.revision) emit({ preview: null }); accept(result); }
+    }),
+    edit(patch: Partial<Pick<ShareSelection, 'reflection' | 'saveLocalIds'>>) {
+      if (!state.draft || state.busy || disposed) return;
+      const available = new Set(saveLocalIds());
+      const selected = patch.saveLocalIds;
+      if (selected && (selected.length > LIMITS.selectedSaves || new Set(selected).size !== selected.length || selected.some((id) => !available.has(id)))) return;
+      if (patch.reflection !== undefined && patch.reflection.length > LIMITS.sharedReflection) return;
+      emit({ draft: { ...state.draft, ...patch }, preview: null, success: undefined });
+    },
+    preview: () => run(async (context, current) => {
+      const fresh = await transport.getState({ visitLocalId }, context);
+      if (!current()) return;
+      accept(fresh); emit({ preview: null });
+      if (fresh.removed) throw new ConvexError({ code: 'not_found' });
+      const result = await transport.preview(state.draft!, context);
+      if (current()) emit({ preview: result, conflict: false });
+    }),
+    publish: () => {
+      if (!state.preview || !state.draft || state.conflict || state.acknowledged?.removed) return Promise.resolve(false);
+      const draft = state.draft;
+      return run(async (context, current) => {
+        const result = await transport.publish(draft, context);
+        if (current()) { accept(result, false); emit({ preview: null, success: 'published' }); }
+      });
+    },
+    unshare: () => {
+      if (!state.acknowledged) return Promise.resolve(false);
+      const revision = state.acknowledged.revision;
+      return run(async (context, current) => {
+        const result = await transport.unshare({ visitLocalId, revision }, context);
+        if (current()) { accept(result); emit({ preview: null, shared: null, success: 'unshared', conflict: false }); }
+      });
+    },
+    view: () => run(async (context, current) => {
+      const fresh = await transport.getState({ visitLocalId }, context);
+      if (!current()) return;
+      accept(fresh);
+      if (!fresh.postId || fresh.status !== 'active' || fresh.removed) { emit({ shared: null, error: 'This visit is not currently shared.' }); return; }
+      let result = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage }, context);
+      const pages = new Set<string>();
+      while (current() && !result.artworks.isDone && result.artworks.cursor) {
+        const cursor = result.artworks.cursor;
+        if (pages.has(cursor)) throw new Error('The artwork page did not advance');
+        pages.add(cursor);
+        const next = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage, cursor }, context);
+        result = { ...next, artworks: { ...next.artworks, page: [...result.artworks.page, ...next.artworks.page] } };
+      }
+      if (current()) emit({ shared: result });
+    }),
+  };
+}
