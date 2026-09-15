@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import rateLimiter from '@convex-dev/rate-limiter/test';
+import { register } from '@convex-dev/rate-limiter/test';
 import { convexTest, type TestConvex } from 'convex-test';
 
 import type { Id } from './_generated/dataModel';
@@ -13,7 +13,7 @@ export type SignedIn = { userId: Id<'users'>; as: ReturnType<Harness['withIdenti
 
 export function harness(options: { transactionLimits?: boolean } = {}): Harness {
   const t = convexTest({ schema, modules, ...options });
-  rateLimiter.register(t);
+  register(t);
   return t;
 }
 

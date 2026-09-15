@@ -27,18 +27,15 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: (...args: unknown[]) => mockDeleteItem(...args),
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
 }));
-jest.mock('convex/react', () => ({ ConvexReactClient: jest.fn() }));
 
 function launch() {
   let modules!: {
     storage: typeof import('./installation-storage').installationStorage;
-    authStorage: typeof import('./convex-client').secureStorage;
     getSecret: typeof import('./device-credentials').getDeviceAuthSecret;
   };
   jest.isolateModules(() => {
     modules = {
       storage: jest.requireActual('./installation-storage').installationStorage,
-      authStorage: jest.requireActual('./convex-client').secureStorage,
       getSecret: jest.requireActual('./device-credentials').getDeviceAuthSecret,
     };
   });
@@ -61,14 +58,14 @@ beforeEach(() => {
 it('keeps auth tokens, the installation credential, and the attestation key across relaunches', async () => {
   const first = launch();
   const secret = await first.getSecret();
-  await first.authStorage.setItem('token', 'session');
-  await first.authStorage.setItem('refreshToken', 'refresh');
+  await first.storage.setItem('token', 'session');
+  await first.storage.setItem('refreshToken', 'refresh');
   await first.storage.setItem('appAttestKeyId', 'native-key');
 
   const next = launch();
   expect(await next.getSecret()).toBe(secret);
-  expect(await next.authStorage.getItem('token')).toBe('session');
-  expect(await next.authStorage.getItem('refreshToken')).toBe('refresh');
+  expect(await next.storage.getItem('token')).toBe('session');
+  expect(await next.storage.getItem('refreshToken')).toBe('refresh');
   expect(await next.storage.getItem('appAttestKeyId')).toBe('native-key');
   expect(mockRandomUUID).toHaveBeenCalledTimes(1);
   expect(mockRandomBytes).toHaveBeenCalledTimes(1);
@@ -78,15 +75,15 @@ it('keeps auth tokens, the installation credential, and the attestation key acro
 it('starts a new identity after reinstall even when the old Keychain entries survive', async () => {
   const first = launch();
   const oldSecret = await first.getSecret();
-  await first.authStorage.setItem('token', 'old-session');
-  await first.authStorage.setItem('refreshToken', 'old-refresh');
+  await first.storage.setItem('token', 'old-session');
+  await first.storage.setItem('refreshToken', 'old-refresh');
   await first.storage.setItem('appAttestKeyId', 'deleted-native-key');
   const oldEntries = [...mockKeychain.entries()];
 
   mockFiles.clear();
   const reinstalled = launch();
-  expect(await reinstalled.authStorage.getItem('token')).toBeNull();
-  expect(await reinstalled.authStorage.getItem('refreshToken')).toBeNull();
+  expect(await reinstalled.storage.getItem('token')).toBeNull();
+  expect(await reinstalled.storage.getItem('refreshToken')).toBeNull();
   expect(await reinstalled.storage.getItem('appAttestKeyId')).toBeNull();
   expect(await reinstalled.getSecret()).not.toBe(oldSecret);
   for (const [key, value] of oldEntries) expect(mockKeychain.get(key)).toBe(value);
@@ -99,8 +96,8 @@ it('starts a new identity after reinstall even when the old Keychain entries sur
 it('does not access credentials until the installation ID is persisted, and can retry a failed write', async () => {
   mockWrite.mockImplementationOnce(() => { throw new Error('disk full'); });
   const app = launch();
-  await expect(app.authStorage.getItem('token')).rejects.toThrow('disk full');
+  await expect(app.storage.getItem('token')).rejects.toThrow('disk full');
   expect(mockGetItem).not.toHaveBeenCalled();
-  await app.authStorage.setItem('token', 'session');
-  expect(await launch().authStorage.getItem('token')).toBe('session');
+  await app.storage.setItem('token', 'session');
+  expect(await launch().storage.getItem('token')).toBe('session');
 });

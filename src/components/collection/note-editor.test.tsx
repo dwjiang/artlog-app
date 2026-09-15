@@ -5,7 +5,6 @@ import * as notes from '@/db/repos/notes';
 import { insertSavedWork } from '@/db/repos/saved-works';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui/swift-ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

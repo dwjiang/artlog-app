@@ -21,7 +21,6 @@ jest.mock('@expo/ui', () => {
   };
 });
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => mockView }));
 
 const seeded: VenueOption = { kind: 'seeded', venueId: 'id-met' as never, name: 'Metropolitan Museum of Art', distanceM: 42, website: 'https://www.metmuseum.org/' };

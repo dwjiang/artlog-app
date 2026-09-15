@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { LABEL_BUTTON, SaveBar } from './save-bar';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

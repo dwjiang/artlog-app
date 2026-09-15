@@ -7,7 +7,6 @@ import { SettingsScreen } from './settings-screen';
 import { getMuseumSearchConsent, setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('./dev-tools', () => ({ DevTools: () => null }));
 jest.mock('@/lib/account/use-account', () => ({

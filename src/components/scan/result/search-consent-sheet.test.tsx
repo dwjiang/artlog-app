@@ -5,7 +5,6 @@ import { SearchConsentSheet } from './search-consent-sheet';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 jest.mock('@/lib/settings/museum-search', () => ({ setMuseumSearchConsent: jest.fn() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

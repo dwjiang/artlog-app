@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 
 import model from '../shared/model/model-version.json';
 import { api } from './_generated/api';
-import { encodeOrbFeatures } from '../shared/orb';
+import { encodeOrbFeatures } from '../shared/orb/features';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
 import { harness } from './test.helpers';

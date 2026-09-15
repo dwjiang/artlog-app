@@ -8,7 +8,7 @@ import type { ActionCtx } from './_generated/server';
 import { contribute as contributeAction } from './contributions';
 import { labelField } from './lib/labelVerify';
 import { loadOrb, storeOrb } from './lib/orbStorage';
-import { encodeOrbFeatures } from '../shared/orb';
+import { encodeOrbFeatures } from '../shared/orb/features';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan, testVector } from './lib/testFactories';
 import type { LabelFlow } from './lib/validators';

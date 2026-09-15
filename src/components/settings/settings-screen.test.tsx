@@ -22,7 +22,6 @@ const contribution = {
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => mockReady }));
 jest.mock('./dev-tools', () => ({ DevTools: () => null }));

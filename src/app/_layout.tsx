@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 
 import { DatabaseGate } from '@/components/database-gate';
 import { CollectionSync } from '@/lib/account/collection-sync';
-import { convex, secureStorage } from '@/lib/convex-client';
+import { convex } from '@/lib/convex-client';
+import { installationStorage } from '@/lib/installation-storage';
 import { DeviceIdentity } from '@/lib/device-identity';
 import { warmUpEmbedder } from '@/lib/embed/embedder';
 import { QueueFlusher } from '@/lib/queue/use-queue';
@@ -19,7 +20,7 @@ export default function RootLayout() {
   useEffect(warmUpEmbedder, []);
   return (
     <DatabaseGate>
-      <ConvexAuthProvider client={convex} storage={secureStorage}>
+      <ConvexAuthProvider client={convex} storage={installationStorage}>
         <DeviceIdentity />
         <CollectionSync />
         <QueueFlusher />

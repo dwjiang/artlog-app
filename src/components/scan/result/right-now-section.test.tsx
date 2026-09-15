@@ -4,7 +4,6 @@ import { RightNowSection } from './right-now-section';
 import { rightNow } from './__fixtures__/scan';
 
 const mockOpenBrowser = jest.fn();
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 
 beforeEach(() => mockOpenBrowser.mockReset().mockResolvedValue(undefined));

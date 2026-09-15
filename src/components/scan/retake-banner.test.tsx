@@ -2,8 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { RETAKE_DISMISS_MS, RetakeBanner } from './retake-banner';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
-
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 

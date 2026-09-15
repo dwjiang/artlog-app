@@ -2,8 +2,6 @@ import { render, screen } from '@testing-library/react-native';
 
 import { ProgressSteps, STEP_LABELS } from './progress-steps';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
-
 function status(label: string) {
   const { checked, busy } = screen.getByLabelText(label).props.accessibilityState as { checked: boolean; busy: boolean };
   return checked ? 'done' : busy ? 'active' : 'pending';

@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import { contributionPayload } from '../shared/attestation/attested-payloads';
-import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from '../shared/orb';
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from '../shared/orb/features';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server';

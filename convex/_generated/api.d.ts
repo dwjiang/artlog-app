@@ -38,7 +38,6 @@ import type * as lib_appleToken from "../lib/appleToken.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
 import type * as lib_calibrator_features from "../lib/calibrator/features.js";
-import type * as lib_calibrator_index from "../lib/calibrator/index.js";
 import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
 import type * as lib_collectionPhotos from "../lib/collectionPhotos.js";
 import type * as lib_collectionSiteProbe from "../lib/collectionSiteProbe.js";
@@ -146,7 +145,6 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;
   "lib/calibrator/features": typeof lib_calibrator_features;
-  "lib/calibrator/index": typeof lib_calibrator_index;
   "lib/calibrator/weights": typeof lib_calibrator_weights;
   "lib/collectionPhotos": typeof lib_collectionPhotos;
   "lib/collectionSiteProbe": typeof lib_collectionSiteProbe;

@@ -5,7 +5,6 @@ import { DatabaseGate } from './database-gate';
 
 const mockState: { success: boolean; error?: Error } = { success: false };
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/db/use-database-migrations', () => ({ useDatabaseMigrations: () => mockState }));
 
 function renderGate() {

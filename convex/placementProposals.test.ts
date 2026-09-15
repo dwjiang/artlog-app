@@ -6,7 +6,7 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { sha256 } from './lib/appAttest';
 import { authenticatorData, makeSigner, signAssertion } from './lib/appAttest.fixtures';
-import { encodeOrbFeatures } from '../shared/orb';
+import { encodeOrbFeatures } from '../shared/orb/features';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { seedArtworkWithObject, seedMuseum, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';

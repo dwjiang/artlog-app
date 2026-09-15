@@ -4,7 +4,8 @@ import { getVisionRect } from '../../../modules/vision-rect/src';
 import { embedder } from '@/lib/embed/embedder';
 import { filePath } from '@/lib/file-uri';
 import { captureStore } from '@/lib/queue/queue';
-import { orb, triage } from './features';
+import { orb } from './features';
+import { triage } from './triage';
 import { selectCaptureQuad, toCorners } from './rectangle';
 import type { CaptureDependencies, CaptureOptions, Warper } from './stages';
 

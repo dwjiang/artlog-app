@@ -12,7 +12,8 @@ jest.mock('@convex-dev/auth/react', () => ({
 jest.mock('@/components/database-gate', () => ({
   DatabaseGate: ({ children }: PropsWithChildren) => children,
 }));
-jest.mock('@/lib/convex-client', () => ({ convex: {}, secureStorage: {} }));
+jest.mock('@/lib/convex-client', () => ({ convex: {} }));
+jest.mock('@/lib/installation-storage', () => ({ installationStorage: {} }));
 jest.mock('@/lib/device-identity', () => ({ DeviceIdentity: () => null }));
 jest.mock('@/lib/account/collection-sync', () => ({ CollectionSync: () => null }));
 jest.mock('@/lib/embed/embedder', () => ({ warmUpEmbedder: () => {} }));

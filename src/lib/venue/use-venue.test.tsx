@@ -65,7 +65,7 @@ jest.mock('./venue-db', () => ({
   applyVenueMetadata: (...args: unknown[]) => mockInsertConfirmed(...args),
 }));
 let mockSyncRunning: Promise<void> | undefined;
-jest.mock('./visit-sync', () => ({ syncVisits: async () => {
+jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {
   if (mockSyncRunning) await mockSyncRunning;
   mockSyncRunning = (async () => {
     for (const visit of mockVisits.values()) {

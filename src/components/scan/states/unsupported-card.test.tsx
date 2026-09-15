@@ -3,7 +3,6 @@ import { Linking } from 'react-native';
 
 import { APP_STORE_URL, UPDATE_BUTTON, UPDATE_LINE, UPDATE_TITLE, UnsupportedCard } from './unsupported-card';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
