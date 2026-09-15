@@ -26,15 +26,16 @@ export const saveToCollection = mutation({
     await limitDevice(ctx, 'sync', device._id);
     validateSave(args);
     const existing = await findOwnedSave(ctx, owner, args.localId);
-    if (existing && (existing.confirmationRecorded || existing.deletedAt !== undefined)) return {
-      collectionId: existing._id, updatedAt: existing.updatedAt, updatedBy: existing.updatedBy, deletedAt: existing.deletedAt,
-    };
+    const { suggested, scope: _scope, scanId, ...row } = args;
+    const saved = await upsertJournalSave(ctx, owner, device._id, { ...row, note: existing?.note });
     if (args.scanId) {
       const scan = await ctx.db.get(args.scanId);
       if (!scan || scan.deviceId !== device._id) throw new ConvexError({ code: 'invalid_scan' });
+      if (scan.venueId !== saved.venueId || scan.visitId !== saved.visitId) throw new ConvexError({ code: 'not_found' });
     }
-    const { suggested, scope: _scope, scanId, ...row } = args;
-    const saved = existing ?? await upsertJournalSave(ctx, owner, device._id, row);
+    if (existing && (existing.confirmationRecorded || existing.deletedAt !== undefined)) return {
+      collectionId: existing._id, updatedAt: existing.updatedAt, updatedBy: existing.updatedBy, deletedAt: existing.deletedAt,
+    };
     const objectId = saved.objectId;
     const object = objectId ? await ctx.db.get(objectId) : null;
     const { updatedAt, updatedBy, _id: collectionId } = saved;

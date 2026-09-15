@@ -8,7 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { SavedWorkImage } from './saved-work-image';
 import type { VisitSection } from '@/lib/collection/group-by-visit';
 
-export function VisitsView({ sections, header }: { sections: VisitSection[]; header: ReactElement }) {
+export function VisitsView({ sections, header }: { sections: VisitSection[]; header?: ReactElement }) {
   return (
     <SectionList
       sections={sections}
@@ -17,7 +17,13 @@ export function VisitsView({ sections, header }: { sections: VisitSection[]; hea
       ListHeaderComponent={header}
       contentContainerStyle={styles.content}
       stickySectionHeadersEnabled={false}
-      renderSectionHeader={({ section }) => <VisitSectionHeader title={section.title} count={section.data.length} />}
+      renderSectionHeader={({ section }) => <>
+        {section.monthTitle ? <View style={styles.row}><ThemedText>{section.monthTitle}</ThemedText></View> : null}
+        <VisitSectionHeader title={section.title} count={section.data.length} />
+      </>}
+      renderSectionFooter={({ section }) => section.data.length === 0 ? (
+        <View style={styles.row}><ThemedText type="small" themeColor="textSecondary">No artworks saved on this visit.</ThemedText></View>
+      ) : null}
       renderItem={({ item }) => (
         <WorkLink work={item} style={styles.row}>
           <SavedWorkImage path={item.cropPath} title={item.title} style={styles.thumbnail} />

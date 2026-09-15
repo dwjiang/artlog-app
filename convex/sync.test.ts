@@ -133,3 +133,10 @@ it('enforces record, byte, note, timestamp and authentication bounds', async () 
     await expect(sync(user, { saves: [{ ...save(), ...input }] })).rejects.toMatchObject({ data: { code: 'invalid_save' } });
   }
 });
+it('carries canonical venue geography to another device through the combined journal sync', async () => {
+  const { t, user, other, visit, sync, link, claim } = await fixture();
+  await t.run((ctx) => ctx.db.patch(visit.venueId, { city: 'Paris', country: 'FR', cityKey: 'wikidata:Q90' }));
+  await sync(user, { visits: [visit] });
+  await link(); await claim(); await link(other); await claim(other);
+  expect((await sync(other)).venues).toEqual([expect.objectContaining({ id: visit.venueId, city: 'Paris', country: 'FR', cityKey: 'wikidata:Q90' })]);
+});

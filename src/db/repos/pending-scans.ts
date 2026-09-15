@@ -4,6 +4,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { getLocalOwner } from '../../lib/account/owner-store';
 import { db } from '../client';
 import { pendingScans, type NewPendingScan, type PendingScan, type PendingScanStatus } from '../schema';
+import { requireVisitMembership } from './visit-membership';
 
 export const MAX_IDENTIFY_ATTEMPTS = 5;
 export const MAX_LABEL_ATTEMPTS = 5;
@@ -12,6 +13,7 @@ export type PendingLabel = { labelPhotoPath?: string; qrUrl?: string };
 export type ScanFeatureUpdate = Pick<PendingScan, 'vector' | 'descriptors' | 'keypoints' | 'modelVersion'>;
 
 export async function enqueuePendingScan(row: NewPendingScan, owner = getLocalOwner()): Promise<void> {
+  requireVisitMembership(owner, row);
   db.insert(pendingScans).values({ ...row, owner }).run();
 }
 

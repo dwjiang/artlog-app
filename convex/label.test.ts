@@ -119,7 +119,7 @@ describe('scan restarts during label requests', () => {
     await started;
     const restarted = await t.mutation(internal.scans.create, {
       deviceId: user.deviceId, localId: original.localId, modelVersion: model.modelVersion,
-      vector: testVector(), capturedAt: original.capturedAt,
+      vector: testVector(), capturedAt: original.capturedAt, venueId: original.venueId, visitId: original.visitId,
     });
     expect(restarted.scan).toMatchObject({ _id: scanId, generation: 1 });
     resumeFetch();

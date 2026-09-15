@@ -22,16 +22,6 @@ it('lists saved works newest first without deleted rows', async () => {
   expect(await repo.getSavedWork('gone')).toMatchObject({ deletedAt: 10 });
 });
 
-it.each([
-  ['monet', ['lilies']],
-  ['ORSAY', ['lilies']],
-  ['100%', ['cotton']],
-  ['%', ['cotton']],
-  ['  ', ['lilies', 'cotton']],
-])('searches title, artist and institution for %p', async (search, expected) => {
-  expect((await repo.listSavedWorks({ search })).map((entry) => entry.localId)).toEqual(expected);
-});
-
 it('records sync without touching the snapshot', async () => {
   await repo.markSynced([]);
   await repo.markSynced([{ localId: 'lilies', revision: 0, updatedAt: 5, updatedBy: 'device' as never }]);

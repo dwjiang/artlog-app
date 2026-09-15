@@ -23,7 +23,7 @@ export function ExportSection() {
     inFlight.current = true; setBusy(true); setError(undefined);
     try {
       if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable');
-      const [works, visits, notes] = await Promise.all([listSavedWorks({}, current.owner), listVisits(current.owner), listNotes(current.owner)]);
+      const [works, visits, notes] = await Promise.all([listSavedWorks(current.owner), listVisits(current.owner), listNotes(current.owner)]);
       if (!current.isCurrent()) return;
       const data = buildExport({ works, visits, notes });
       const file = new File(Paths.cache, `artlog-export-${data.exportedAt.replace(/[:.]/g, '-')}.json`);

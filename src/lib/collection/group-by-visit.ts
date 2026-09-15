@@ -1,6 +1,8 @@
 import type { SavedWork, Visit } from '@/db/schema';
+import { formatVisitDate } from '../journal/history';
+import { compareText } from '../journal/query';
 
-export type VisitSection = { key: string; title: string; data: SavedWork[] };
+export type VisitSection = { key: string; title: string; monthTitle?: string; data: SavedWork[] };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -11,7 +13,7 @@ export function formatDay(ms: number): string {
 }
 
 /** Sections for a `SectionList`: newest visit first, keeping the works' order; works without a visit end under "Imported". */
-export function groupByVisit(works: SavedWork[], visits: Visit[]): VisitSection[] {
+export function groupByVisit(works: SavedWork[], visits: Visit[], includeEmpty = true): VisitSection[] {
   const byVisit = new Map<string, SavedWork[]>();
   const imported: SavedWork[] = [];
   const known = new Map(visits.map((visit) => [visit.localId, visit]));
@@ -26,10 +28,10 @@ export function groupByVisit(works: SavedWork[], visits: Visit[]): VisitSection[
     byVisit.set(visit.localId, bucket);
   }
   const sections = [...visits]
-    .sort((a, b) => b.visitedOn.localeCompare(a.visitedOn) || (b.startedAt ?? 0) - (a.startedAt ?? 0) || b.localId.localeCompare(a.localId))
+    .sort((a, b) => compareText(b.visitedOn, a.visitedOn) || compareText(b.localId, a.localId))
     .flatMap((visit) => {
       const data = byVisit.get(visit.localId);
-      return data ? [{ key: visit.localId, title: `${visit.venueName} · ${formatDay(Date.parse(`${visit.visitedOn}T12:00:00`))}`, data }] : [];
+      return data || includeEmpty ? [{ key: visit.localId, title: `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}`, data: data ?? [] }] : [];
     });
   if (imported.length) sections.push({ key: 'imported', title: 'Imported', data: imported });
   return sections;

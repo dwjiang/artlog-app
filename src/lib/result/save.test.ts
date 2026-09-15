@@ -23,11 +23,11 @@ jest.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 const capture = {
   owner: 'device:test-installation', capturedAt: 1234,
   photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
-  venueId: 'museum-met' as never, visitId: null, visitLocalId: 'visit-local-1',
+  venueId: 'museum-met' as never, visitId: null, visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76',
 };
 
 beforeAll(async () => {
-  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'visit-local-1', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as never });
+  await upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1 });
 });
 
 beforeEach(() => {
@@ -43,13 +43,13 @@ it('saves an untouched confident card locally and passes the suggestion to the s
   const row = await getSavedWork(localId);
   expect(row).toMatchObject({
     title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art',
-    venueId: 'museum-met', venueName: 'The Met', visitLocalId: 'visit-local-1', gallery: 'Gallery 819',
+    venueId: 'museum-met', venueName: 'The Met', visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', gallery: 'Gallery 819',
     objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
   });
   await synced;
   expect(getFunctionName).toBeDefined();
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', {
-    localId, scanId: SCAN_ID, objectId: lilies.objectId, artworkId: lilies.artworkId, venueId: 'museum-met', visitLocalId: 'visit-local-1', scope: 'test-scope',
+    localId, scanId: SCAN_ID, objectId: lilies.objectId, artworkId: lilies.artworkId, venueId: 'museum-met', visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', scope: 'test-scope',
     gallery: 'Gallery 819', savedAt: expect.any(Number), venueName: 'The Met',
     snapshot: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art' },
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
@@ -106,4 +106,9 @@ it('still records the confirmation when the journal flush fails and the visit is
   await synced;
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ localId }));
   expect((await getSavedWork(localId))?.syncedAt).toEqual(expect.any(Number));
+});
+
+it.each([{ visitLocalId: 'missing' }, { visitLocalId: '' }, { venueId: 'wrong-museum' as never }])('rejects an invalid requested visit without silently dropping its link: %j', async (fields) => {
+  await expect(saveResult({ capture: { ...capture, ...fields }, draft: draftFromCandidate(lilies) })).rejects.toThrow('invalid visit');
+  expect(mockMutation).not.toHaveBeenCalled();
 });

@@ -48,7 +48,6 @@ export const create = internalMutation({
       .unique();
     const restart = existing && existing.status !== 'identified' && isSupported(args.modelVersion) &&
       (existing.status === 'unsupported_version' || existing.status === 'failed' || existing.modelVersion !== args.modelVersion);
-    if (existing && !restart) return { scan: existing, existing: true };
     if (args.visitId) {
       const visit = await ctx.db.get(args.visitId);
       if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
@@ -58,6 +57,10 @@ export const create = internalMutation({
     if (args.venueId && !await ctx.db.get(args.venueId)) {
       throw new ConvexError({ code: 'invalid_venue' });
     }
+    if (existing && (existing.visitId !== args.visitId || existing.venueId !== args.venueId || existing.capturedAt !== args.capturedAt)) {
+      throw new ConvexError({ code: 'not_found' });
+    }
+    if (existing && !restart) return { scan: existing, existing: true };
     const now = Date.now();
     const { scope: _scope, ...scanArgs } = args;
     const fields = {

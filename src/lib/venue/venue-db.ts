@@ -3,6 +3,8 @@ import { File, Paths } from 'expo-file-system';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 import type { Id } from '../../../convex/_generated/dataModel';
+import type { FunctionReturnType } from 'convex/server';
+import type { api } from '../../../convex/_generated/api';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { bundledVenueAsset } from '@/lib/venue-asset';
 import { filePath } from '@/lib/file-uri';
@@ -19,19 +21,36 @@ export function venueDbFile(): File {
   return new File(Paths.document, 'SQLite', VENUE_DB_NAME);
 }
 
+const VENUE_COLUMNS = 'id, key, name, lat, lng, website, region, city, cityKey, country';
+
 /**
  * Copies the bundled table into place on first launch and again after an app update ships a new
  * asset; a downloaded refresh is kept until then because it is newer than the asset it replaced.
+ * Journal venues are read out first so the caller can carry them into the new copy: the sync
+ * checkpoint has already passed them, so nothing would send them again.
  */
-async function installBundledTable(target: File): Promise<void> {
+async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
   const assetKey = asset.hash ?? asset.uri;
-  if (target.exists && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) return;
+  if (target.exists && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) return undefined;
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('The bundled venue table could not be loaded');
+  const carried = target.exists ? await journalVenueRows() : [];
   target.parentDirectory.create({ intermediates: true, idempotent: true });
   new File(asset.localUri).copy(target, { overwrite: true });
-  await setSetting(INSTALLED_ASSET_SETTING, assetKey);
+  return { assetKey, carried };
+}
+
+async function journalVenueRows(): Promise<VenueRow[]> {
+  const db = await openDatabaseAsync(VENUE_DB_NAME, { useNewConnection: true });
+  try {
+    return await db.getAllAsync<VenueRow>(`SELECT ${VENUE_COLUMNS} FROM venues WHERE id IN (SELECT id FROM journalVenues)`);
+  } catch (error) {
+    console.warn('Could not carry journal venues across the bundled table update', error);
+    return [];
+  } finally {
+    await db.closeAsync();
+  }
 }
 
 let opening: Promise<SQLiteDatabase> | undefined;
@@ -41,6 +60,7 @@ async function installStagedTable(db: SQLiteDatabase): Promise<void> {
   if (!staged.exists) return;
   await db.execAsync(`ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`);
   try {
+    await validateVenueTable(db, 'downloaded');
     const current = await readVenueTableMeta(db);
     const next = await db.getFirstAsync<VenueTableMeta>('SELECT version, generatedAt, rowCount FROM downloaded.meta LIMIT 1');
     if (!next) throw new Error('The staged venue table has no meta row');
@@ -48,8 +68,8 @@ async function installStagedTable(db: SQLiteDatabase): Promise<void> {
       await db.execAsync('BEGIN IMMEDIATE');
       try {
         // Keep confirmations made since the download, allowing published rows to supersede them.
-        await db.execAsync(`DELETE FROM venues WHERE region != 'poi';
-          INSERT OR REPLACE INTO venues SELECT * FROM downloaded.venues;
+        await db.execAsync(`DELETE FROM venues WHERE id NOT IN (SELECT id FROM journalVenues);
+          INSERT OR REPLACE INTO venues (${VENUE_COLUMNS}) SELECT ${VENUE_COLUMNS} FROM downloaded.venues;
           DELETE FROM meta;
           INSERT INTO meta SELECT * FROM downloaded.meta;`);
         await db.execAsync('COMMIT');
@@ -60,16 +80,25 @@ async function installStagedTable(db: SQLiteDatabase): Promise<void> {
     }
   } finally {
     await db.execAsync('DETACH DATABASE downloaded');
+    staged.delete();
   }
-  staged.delete();
+}
+
+export async function validateVenueTable(db: SQLiteDatabase, schema: 'main' | 'downloaded' = 'main'): Promise<void> {
+  await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM ${schema}.venues LIMIT 0`);
 }
 
 /** The writable venue table for this launch; downloads wait until the next launch to replace it. */
 export function openVenueDb(): Promise<SQLiteDatabase> {
   opening ??= (async () => {
     const target = venueDbFile();
-    await installBundledTable(target);
+    const installed = await installBundledTable(target);
     const db = await openDatabaseAsync(VENUE_DB_NAME);
+    await db.execAsync('CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)');
+    if (installed) {
+      for (const venue of installed.carried) await writeVenue(db, venue, 'IGNORE');
+      await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
+    }
     await installStagedTable(db).catch((error: unknown) => console.warn('Could not install the refreshed venue table', error));
     if (__DEV__) console.debug('Venue table', await readVenueTableMeta(db));
     return db;
@@ -90,7 +119,7 @@ export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTable
 export async function nearest(db: SQLiteDatabase, origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
   const box = boundingBox(origin, radiusM);
   const rows = await db.getAllAsync<VenueRow>(
-    'SELECT id, key, name, lat, lng, website, region, city, country FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?',
+    `SELECT ${VENUE_COLUMNS} FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
     box.minLat, box.maxLat, box.minLng, box.maxLng,
   );
   return rankCandidates(rows, origin, radiusM);
@@ -106,15 +135,31 @@ export async function venueIdAt(origin: Coordinate): Promise<Id<'museums'> | und
   return resolution.kind === 'auto' ? resolution.venue.id : undefined;
 }
 
-/** A venue the user confirmed from MapKit joins the local table so the next fix resolves to it directly. */
-export async function insertConfirmedVenue(
-  db: SQLiteDatabase,
-  venue: { id: Id<'museums'>; name: string; lat: number; lng: number; website?: string; city?: string; country?: string },
-): Promise<void> {
-  await db.runAsync(
-    'INSERT OR REPLACE INTO venues (id, key, name, lat, lng, website, region, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    venue.id, `poi:${venue.id}`, venue.name, venue.lat, venue.lng, venue.website ?? null, 'poi', venue.city ?? null, venue.country ?? null,
-  );
+export type VenueMetadata = FunctionReturnType<typeof api.sync.syncJournal>['venues'][number];
+const metadataListeners = new Set<() => void>();
+export function onVenueMetadataChange(listener: () => void): () => void {
+  metadataListeners.add(listener);
+  return () => { metadataListeners.delete(listener); };
+}
+/** A journal venue row; `IGNORE` lets a row already published in the table win over the incoming one. */
+async function writeVenue(db: SQLiteDatabase, venue: VenueMetadata | VenueRow, conflict: 'REPLACE' | 'IGNORE'): Promise<void> {
+  await db.runAsync(`INSERT OR ${conflict} INTO venues (${VENUE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    venue.id, venue.key, venue.name, venue.lat, venue.lng, venue.website ?? null, venue.region, venue.city ?? null, venue.cityKey ?? null, venue.country ?? null);
+  await db.runAsync('INSERT OR IGNORE INTO journalVenues (id) VALUES (?)', venue.id);
+}
+export async function applyVenueMetadata(db: SQLiteDatabase, rows: VenueMetadata[]): Promise<void> {
+  for (const venue of rows) await writeVenue(db, venue, 'REPLACE');
+  if (rows.length) for (const listener of metadataListeners) listener();
+}
+export async function venueMetadataForIds(ids: string[]): Promise<VenueRow[]> {
+  if (!ids.length) return [];
+  const db = await openVenueDb();
+  const unique = [...new Set(ids)], rows: VenueRow[] = [];
+  for (let start = 0; start < unique.length; start += 50) {
+    const batch = unique.slice(start, start + 50);
+    rows.push(...await db.getAllAsync<VenueRow>(`SELECT ${VENUE_COLUMNS} FROM venues WHERE id IN (${batch.map(() => '?').join(',')})`, ...batch));
+  }
+  return rows;
 }
 
 /** The display name of a venue from the local table; a saved work keeps it as text. */

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm';
 
 import type { Doc } from '../../../convex/_generated/dataModel';
 import { getLocalOwner } from '../../lib/account/owner-store';
@@ -6,10 +6,12 @@ import { requestCollectionSync } from '../../lib/account/sync-events';
 
 import { db } from '../client';
 import { notes, pendingScans, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
+import { requireVisitMembership } from './visit-membership';
 
 // Snapshot fields are immutable by construction: this module exposes no update to them.
 
 export async function insertSavedWork(work: NewSavedWork, owner = getLocalOwner()): Promise<void> {
+  requireVisitMembership(owner, work);
   db.insert(savedWorks).values({ ...work, owner }).run();
 }
 
@@ -22,26 +24,11 @@ export async function getSavedWork(localId: string, owner = getLocalOwner()): Pr
   return selectSavedWork(localId, owner).get();
 }
 
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-function contains(column: SQLWrapper, pattern: string): SQL {
-  return sql`${column} LIKE ${pattern} ESCAPE '\\'`;
-}
-
-/** Saved works newest first, without deleted rows; `search` matches title, artist or institution. */
-export function listSavedWorks({ search }: { search?: string } = {}, owner = getLocalOwner()) {
-  const term = search?.trim();
-  const pattern = term ? `%${escapeLike(term)}%` : undefined;
+/** Saved works newest first, without deleted rows. */
+export function listSavedWorks(owner = getLocalOwner()) {
   return db.select().from(savedWorks)
-    .where(and(
-      eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt),
-      pattern === undefined ? undefined : or(
-        contains(savedWorks.title, pattern), contains(savedWorks.artist, pattern), contains(savedWorks.institution, pattern),
-      ),
-    ))
-    .orderBy(desc(savedWorks.savedAt));
+    .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt)))
+    .orderBy(desc(savedWorks.savedAt), desc(savedWorks.localId));
 }
 
 export async function softDeleteSavedWork(localId: string, deletedAt = Date.now(), owner = getLocalOwner()): Promise<void> {
@@ -81,6 +68,7 @@ export async function listUnsynced(owner = getLocalOwner()) {
 export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLocalOwner()): Promise<void> {
   db.transaction((tx) => {
     for (const row of rows) {
+      requireVisitMembership(owner, { ...row, visitId: undefined });
       const existing = tx.select().from(savedWorks).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).get();
       const newlyDeleted = existing?.deletedAt === null && row.deletedAt !== undefined;
       if (existing) {

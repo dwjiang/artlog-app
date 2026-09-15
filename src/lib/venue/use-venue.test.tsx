@@ -13,6 +13,7 @@ const mockMutation = jest.fn();
 const mockSearchNearby = jest.fn();
 const mockNearest = jest.fn();
 const mockInsertConfirmed = jest.fn();
+const mockCoordinates = jest.fn();
 const mockSignPayload = jest.fn();
 const mockRefresh = jest.fn();
 const mockAuth = { isAuthenticated: true };
@@ -58,10 +59,10 @@ jest.mock('@/db/repos/visits', () => ({
 jest.mock('@/lib/attested-write', () => ({ signPayload: (...args: unknown[]) => mockSignPayload(...args) }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (...args: unknown[]) => mockMutation(...args) } }));
 jest.mock('./venue-db', () => ({
-  venueCoordinates: async () => ({ lat: 40.779, lng: -73.963 }),
+  venueCoordinates: (...args: unknown[]) => mockCoordinates(...args),
   openVenueDb: async () => 'venue-db',
   nearest: (...args: unknown[]) => mockNearest(...args),
-  insertConfirmedVenue: (...args: unknown[]) => mockInsertConfirmed(...args),
+  applyVenueMetadata: (...args: unknown[]) => mockInsertConfirmed(...args),
 }));
 let mockSyncRunning: Promise<void> | undefined;
 jest.mock('./visit-sync', () => ({ syncVisits: async () => {
@@ -104,9 +105,10 @@ beforeEach(() => {
   mockGetPosition.mockResolvedValue({ coords: { latitude: met.lat, longitude: met.lng }, timestamp: mockNow });
   mockNearest.mockResolvedValue([]);
   mockSearchNearby.mockResolvedValue([]);
-  mockMutation.mockImplementation(async (ref: string) => ref === 'syncVisit' ? { visitId: 'remote-1' } : { venueId: 'id-corner' });
+  mockMutation.mockImplementation(async (ref: string) => ref === 'syncVisit' ? { visitId: 'remote-1' } : { venueId: 'id-corner', venue: { id: 'id-corner', key: 'poi:corner', region: 'US', name: 'Corner Gallery', lat: 40.8, lng: -73.9 } });
   mockSignPayload.mockResolvedValue({ nonce: 'nonce', assertionBase64: 'assertion', payloadJson: '{}' });
   mockInsertConfirmed.mockResolvedValue(undefined);
+  mockCoordinates.mockResolvedValue({ lat: 40.779, lng: -73.963 });
   controller = createVenueController();
 });
 afterEach(() => jest.restoreAllMocks());
@@ -166,7 +168,7 @@ it('searches MapKit when nothing seeded is near and confirms a place through the
   const fields = { name: 'Corner Gallery', lat: 40.78, lng: -73.96, website: 'https://corner.example' };
   expect(mockSignPayload).toHaveBeenCalledWith({ action: 'museums.confirmPoiVenue', ...fields });
   expect(mockMutation).toHaveBeenCalledWith('confirmPoiVenue', { ...fields, nonce: 'nonce', assertionBase64: 'assertion', payloadJson: '{}' });
-  expect(mockInsertConfirmed).toHaveBeenCalledWith('venue-db', { id: 'id-corner', ...fields });
+  expect(mockInsertConfirmed).toHaveBeenCalledWith('venue-db', [expect.objectContaining({ id: 'id-corner', name: 'Corner Gallery' })]);
   expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ venueId: 'id-corner', localId: 'uuid-1' }));
   expect(controller.getContext()).toEqual({ visitLocalId: 'uuid-1', venueId: 'id-corner', visitId: 'remote-1' });
 });
@@ -247,13 +249,50 @@ it('lets a scan go out with the last context when the fix takes longer than thre
   jest.useFakeTimers();
   try {
     mockGetPosition.mockReturnValue(new Promise(() => {}));
-    const pending = controller.resolveForScan();
+    const pending = controller.resolveForScan(mockNow);
     jest.advanceTimersByTime(3000);
     await expect(pending).resolves.toEqual({});
     expect(controller.getState().status).toBe('locating');
   } finally {
     jest.useRealTimers();
   }
+});
+
+it('joins the visit of a fix that lands just before the scan timeout instead of starting a second one', async () => {
+  jest.useFakeTimers();
+  try {
+    mockNearest.mockResolvedValue([metRow]);
+    const coordinates = deferred<{ lat: number; lng: number }>();
+    mockCoordinates.mockReturnValueOnce(coordinates.promise);
+    const pending = controller.resolveForScan(mockNow - 500);
+    await jest.advanceTimersByTimeAsync(3000);
+    expect(controller.getContext()).toEqual({ venueId: 'id-met' });
+    coordinates.resolve(met);
+    await expect(pending).resolves.toMatchObject({ venueId: 'id-met', visitLocalId: 'uuid-1' });
+    expect([...mockVisits.keys()]).toEqual(['uuid-1']);
+    expect(mockVisits.get('uuid-1')).toMatchObject({ startedAt: mockNow - 500, endedAt: null });
+    expect(mockSettings.get('currentVisit:device:test-installation')).toBe('uuid-1');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it('starts a tracked visit for a scan when the resolved venue has none', async () => {
+  mockNearest.mockResolvedValue([metRow]);
+  mockCoordinates.mockRejectedValueOnce(new Error('table busy'));
+  await controller.resolve();
+  expect(controller.getState()).toMatchObject({ status: 'resolved', error: 'table busy' });
+  expect(controller.getContext()).toEqual({ venueId: 'id-met' });
+  mockCoordinates.mockRejectedValueOnce(new Error('still busy'));
+  await expect(controller.resolveForScan(mockNow)).resolves.toEqual({ venueId: 'id-met' });
+  expect(mockVisits.size).toBe(0);
+  expect(console.warn).toHaveBeenCalledWith('Could not start the visit for the scan', expect.any(Error));
+  await expect(controller.resolveForScan(mockNow)).resolves.toMatchObject({ venueId: 'id-met', visitLocalId: 'uuid-3' });
+  await controller.syncRemoteVisit();
+  expect(controller.getContext()).toEqual({ venueId: 'id-met', visitLocalId: 'uuid-3', visitId: 'remote-1' });
+  expect([...mockVisits.keys()]).toEqual(['uuid-3']);
+  await expect(controller.resolveForScan(mockNow)).resolves.toEqual({ venueId: 'id-met', visitLocalId: 'uuid-3', visitId: 'remote-1' });
+  expect(mockVisits.size).toBe(1);
 });
 
 it('starts the server visit later when the session was not ready at resolution', async () => {
@@ -349,13 +388,13 @@ it('ignores a POI confirmation dismissed while signing', async () => {
 it('does not start a visit if the sheet unmounts while the server confirms a POI', async () => {
   mockSearchNearby.mockResolvedValue([place]);
   await controller.resolve();
-  const remote = deferred<{ venueId: string }>();
+  const remote = deferred<{ venueId: string; venue: { id: string; key: string; region: string; name: string; lat: number; lng: number } }>();
   mockMutation.mockReturnValueOnce(remote.promise);
   const abort = new AbortController();
   const confirming = controller.confirm(controller.getState().options[0], abort.signal);
   await Promise.resolve();
   abort.abort();
-  remote.resolve({ venueId: 'id-corner' });
+  remote.resolve({ venueId: 'id-corner', venue: { id: 'id-corner', key: 'poi:corner', region: 'US', name: 'Corner Gallery', lat: 40.8, lng: -73.9 } });
   await confirming;
   expect(controller.getContext()).toEqual({});
   expect(mockVisits.size).toBe(0);

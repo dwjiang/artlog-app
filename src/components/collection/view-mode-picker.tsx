@@ -4,10 +4,10 @@ import { StyleSheet } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 
-export const viewModes = ['grid', 'canvas', 'visits'] as const;
+export const viewModes = ['grid', 'canvas', 'az', 'visits'] as const;
 export type ViewMode = (typeof viewModes)[number];
 
-const labels: Record<ViewMode, string> = { grid: 'Grid', canvas: 'Canvas', visits: 'Visits' };
+const labels: Record<ViewMode, string> = { grid: 'Grid', canvas: 'Canvas', az: 'A–Z', visits: 'Visits' };
 
 export function ViewModePicker({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   return (

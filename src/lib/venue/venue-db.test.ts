@@ -65,7 +65,7 @@ function loadModules() {
 
 function table(file: string, version: number) {
   const db = new Database(file);
-  db.exec(`CREATE TABLE venues (id TEXT PRIMARY KEY, key TEXT UNIQUE, name TEXT, lat REAL, lng REAL, website TEXT, region TEXT, city TEXT, country TEXT);
+  db.exec(`CREATE TABLE venues (id TEXT PRIMARY KEY, key TEXT UNIQUE, name TEXT, lat REAL, lng REAL, website TEXT, region TEXT, city TEXT, country TEXT, cityKey TEXT);
     CREATE TABLE meta (version INTEGER, generatedAt TEXT, rowCount INTEGER);
     INSERT INTO meta VALUES (${version}, 'today', 1);
     INSERT INTO venues (id, key, name, lat, lng, website, region) VALUES ('museum-${version}', 'key-${version}', 'Museum', 40, -73, NULL, 'seeded');`);
@@ -91,7 +91,7 @@ afterEach(() => {
 it('keeps the live table writable after a refresh and carries later confirmations into the next launch', async () => {
   const live = await venueDb.openVenueDb();
   await refresh.refreshVenueTable(refresh.refreshDependencies);
-  await venueDb.insertConfirmedVenue(live, { id: 'new-gallery' as never, name: 'Gallery', lat: 40, lng: -73 });
+  await venueDb.applyVenueMetadata(live, [{ id: 'new-gallery' as never, key: 'poi:new-gallery', region: 'US', name: 'Gallery', lat: 40, lng: -73 }]);
   expect(await venueDb.readVenueTableMeta(live)).toMatchObject({ version: 1 });
   expect((await venueDb.nearest(live, { lat: 40, lng: -73 }, 400)).map((row) => row.id)).toContain('new-gallery');
   await live.closeAsync();
@@ -129,4 +129,37 @@ it('rolls back a failed staged installation without losing the live table', asyn
   expect(await venueDb.readVenueTableMeta(reopened)).toMatchObject({ version: 1 });
   expect((await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).map((row) => row.id)).toEqual(['museum-1']);
   warn.mockRestore();
+});
+
+it('round-trips canonical geography and clears missing metadata', async () => {
+  const db = await venueDb.openVenueDb();
+  const venue = { id: 'museum-1' as never, key: 'wikidata:Q1', name: 'Museum', lat: 40, lng: -73, region: 'US', city: 'New York', cityKey: 'wikidata:Q60', country: 'US' };
+  await venueDb.applyVenueMetadata(db, [venue]);
+  expect((await venueDb.venueMetadataForIds([venue.id]))[0]).toMatchObject({ name: 'Museum', cityKey: 'wikidata:Q60', city: 'New York', country: 'US' });
+  await venueDb.applyVenueMetadata(db, [{ ...venue, city: undefined, country: undefined, cityKey: undefined }]);
+  expect((await venueDb.venueMetadataForIds([venue.id]))[0]).toMatchObject({ city: null, country: null, cityKey: null });
+});
+it('rejects downloaded assets without the journal geography columns before staging them', async () => {
+  await venueDb.openVenueDb();
+  const outdated = new Database(mockLatest);
+  outdated.exec('ALTER TABLE venues DROP COLUMN cityKey');
+  outdated.close();
+  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow('cityKey');
+  expect(fs.existsSync(path.join(mockRoot, 'SQLite', venueDb.STAGED_VENUE_DB_NAME))).toBe(false);
+});
+it('carries journal venues across a new bundled asset and lets published rows supersede them', async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [
+    { id: 'poi-1' as never, key: 'poi:1', region: 'US', name: 'Gallery', lat: 40, lng: -73, city: 'New York', cityKey: 'wikidata:Q60', country: 'US' },
+    { id: 'museum-1' as never, key: 'key-1', region: 'seeded', name: 'Renamed', lat: 40, lng: -73, city: 'Paris', cityKey: 'wikidata:Q90', country: 'FR' },
+  ]);
+  await live.closeAsync();
+  mockSettings.set('venueTableAssetHash', 'previous-bundle');
+  loadModules();
+  await venueDb.openVenueDb();
+  expect(await venueDb.venueMetadataForIds(['poi-1', 'museum-1'])).toEqual([
+    expect.objectContaining({ id: 'museum-1', name: 'Museum', city: null, cityKey: null }),
+    expect.objectContaining({ id: 'poi-1', name: 'Gallery', city: 'New York', cityKey: 'wikidata:Q60', country: 'US' }),
+  ]);
+  expect(mockSettings.get('venueTableAssetHash')).toBe('bundle');
 });

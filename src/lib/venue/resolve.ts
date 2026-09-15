@@ -18,6 +18,7 @@ export type VenueRow = {
   website: string | null;
   region: string;
   city?: string | null;
+  cityKey?: string | null;
   country?: string | null;
 };
 

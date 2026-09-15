@@ -189,3 +189,17 @@ def test_city_is_optional_and_comes_only_from_city_labels():
     rows = wikidata.parse_venues([binding(cityLabel="Reykjavík")], "IS")
     assert rows[0].city == "Reykjavík"
     assert wikidata.parse_venues([binding()], "IS")[0].city is None
+
+
+def test_city_identity_requires_one_unambiguous_qid():
+    one = wikidata.parse_venues([
+        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
+        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
+    ], "FR")
+    assert one[0].city_key == "wikidata:Q90"
+    ambiguous = wikidata.parse_venues([
+        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
+        binding(city="http://www.wikidata.org/entity/Q123", cityLabel="Another city"),
+    ], "FR")
+    assert ambiguous[0].city_key is None
+    assert wikidata.parse_venues([binding(cityLabel="Paris")], "FR")[0].city_key is None
