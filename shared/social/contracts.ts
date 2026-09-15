@@ -16,15 +16,16 @@ export const mediaContext = v.union(
   v.object({ kind: v.literal('owner'), saveLocalId: v.string() }), publicMediaContext,
 );
 const mediaMetadata = {
-  sourceUrl: v.string(), rights: v.union(v.literal('public_domain'), v.literal('licensed'), v.literal('contributor_consent')),
   credit: v.optional(v.string()), width: v.number(), height: v.number(),
 };
-export const catalogMedia = v.object({ kind: v.literal('catalog'), url: v.string(), ...mediaMetadata });
-export const mediaSource = v.union(catalogMedia, v.object({ kind: v.literal('derivative'), ...mediaMetadata }));
+export const catalogMedia = v.object({ kind: v.literal('catalog'), url: v.string(), sourceUrl: v.string(),
+  rights: v.union(v.literal('public_domain'), v.literal('licensed')), ...mediaMetadata });
+export const derivativeMedia = v.object({ kind: v.literal('derivative'), rights: v.literal('contributor_consent'), ...mediaMetadata });
+export const mediaSource = v.union(catalogMedia, derivativeMedia);
 export const displayMedia = v.union(
   v.object({ kind: v.literal('placeholder'), width: v.literal(1), height: v.literal(1) }),
   catalogMedia,
-  v.object({ kind: v.literal('derivative'), reference: publicMediaContext, ...mediaMetadata }),
+  v.object({ ...derivativeMedia.fields, reference: publicMediaContext }),
 );
 export const publicArtwork = v.object({
   title: v.string(), artist: v.string(), date: v.optional(v.string()), medium: v.optional(v.string()), media: displayMedia,
@@ -71,8 +72,9 @@ export function isPublicMediaUrl(value: string): boolean {
 }
 export function validateMedia(input: Infer<typeof mediaSource>): void {
   if (![input.width, input.height].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535) ||
-    (input.credit?.length ?? 0) > LIMITS.snapshot || !isPublicMediaUrl(input.sourceUrl) ||
-    (input.kind === 'catalog' && (!isPublicMediaUrl(input.url) || input.rights === 'contributor_consent'))) {
+    (input.credit?.length ?? 0) > LIMITS.snapshot ||
+    (input.kind === 'catalog' && (!isPublicMediaUrl(input.url) || !isPublicMediaUrl(input.sourceUrl) || !['public_domain', 'licensed'].includes(input.rights))) ||
+    (input.kind === 'derivative' && (input.rights !== 'contributor_consent' || Math.max(input.width, input.height) > 256))) {
     throw new ConvexError({ code: 'invalid_media' });
   }
 }
@@ -92,12 +94,13 @@ export function validateRelationship(input: { firstProfileId: string; secondProf
     throw new ConvexError({ code: 'invalid_relationship' });
   }
 }
-export function validateWallItems(items: { saveLocalId: string; layout: Infer<typeof wallLayout>; noteRevision: number }[], revision: number): void {
-  if (items.length > LIMITS.wallItems || new Set(items.map((item) => item.saveLocalId)).size !== items.length || !isRevision(revision)) {
+export function validateWallItems(items: { saveLocalId: string; layout: Infer<typeof wallLayout> }[], revision: number): void {
+  if (items.length > LIMITS.wallItems || new Set(items.map((item) => item.saveLocalId)).size !== items.length ||
+    new Set(items.map((item) => item.layout.layer)).size !== items.length || !isRevision(revision)) {
     throw new ConvexError({ code: 'invalid_wall' });
   }
   for (const item of items) {
-    if (!isUuid(item.saveLocalId) || !isRevision(item.noteRevision)) throw new ConvexError({ code: 'invalid_wall' });
+    if (!isUuid(item.saveLocalId)) throw new ConvexError({ code: 'invalid_wall' });
     validateLayout(item.layout);
   }
 }

@@ -11,10 +11,11 @@ export function projectArtwork(save: Pick<Doc<'collections'>, '_id' | 'snapshot'
   if (asset && asset.saveId === save._id && asset.revokedAt === undefined) {
     try {
       validateMedia(asset.source);
-      const { width, height, sourceUrl, rights, credit } = asset.source;
-      const metadata = { width, height, sourceUrl, rights, ...(credit ? { credit } : {}) };
-      if (asset.source.kind === 'catalog') media = { kind: 'catalog', url: asset.source.url, ...metadata };
-      else if (reference && asset.storageId) media = { kind: 'derivative', reference, ...metadata };
+      const { width, height, credit } = asset.source;
+      const metadata = { width, height, ...(credit ? { credit } : {}) };
+      if (asset.source.kind === 'catalog') media = { kind: 'catalog', url: asset.source.url,
+        sourceUrl: asset.source.sourceUrl, rights: asset.source.rights, ...metadata };
+      else if (reference && asset.storageId) media = { kind: 'derivative', rights: 'contributor_consent', reference, ...metadata };
     } catch { /* Ineligible media renders the same placeholder as missing media. */ }
   }
   const { title, artist, date, medium } = save.snapshot;

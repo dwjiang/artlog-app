@@ -20,6 +20,8 @@ import type * as contributions from "../contributions.js";
 import type * as corrections from "../corrections.js";
 import type * as crons from "../crons.js";
 import type * as devices from "../devices.js";
+import type * as displayMedia from "../displayMedia.js";
+import type * as displayMediaPrepare from "../displayMediaPrepare.js";
 import type * as docent from "../docent.js";
 import type * as enrich from "../enrich.js";
 import type * as feedback from "../feedback.js";
@@ -41,6 +43,7 @@ import type * as lib_collectionPhotos from "../lib/collectionPhotos.js";
 import type * as lib_collectionSiteProbe from "../lib/collectionSiteProbe.js";
 import type * as lib_cosine from "../lib/cosine.js";
 import type * as lib_describePrompt from "../lib/describePrompt.js";
+import type * as lib_displayMedia from "../lib/displayMedia.js";
 import type * as lib_docentPrompts from "../lib/docentPrompts.js";
 import type * as lib_docentSources from "../lib/docentSources.js";
 import type * as lib_docentValidator from "../lib/docentValidator.js";
@@ -79,6 +82,7 @@ import type * as lib_tokenFactory from "../lib/tokenFactory.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_venueFetch from "../lib/venueFetch.js";
 import type * as lib_venueOptOut from "../lib/venueOptOut.js";
+import type * as lib_wallFixtures from "../lib/wallFixtures.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as museumSearch from "../museumSearch.js";
 import type * as museums from "../museums.js";
@@ -94,6 +98,7 @@ import type * as spend from "../spend.js";
 import type * as sync from "../sync.js";
 import type * as venueTable from "../venueTable.js";
 import type * as visits from "../visits.js";
+import type * as walls from "../walls.js";
 
 import type {
   ApiFromModules,
@@ -114,6 +119,8 @@ declare const fullApi: ApiFromModules<{
   corrections: typeof corrections;
   crons: typeof crons;
   devices: typeof devices;
+  displayMedia: typeof displayMedia;
+  displayMediaPrepare: typeof displayMediaPrepare;
   docent: typeof docent;
   enrich: typeof enrich;
   feedback: typeof feedback;
@@ -135,6 +142,7 @@ declare const fullApi: ApiFromModules<{
   "lib/collectionSiteProbe": typeof lib_collectionSiteProbe;
   "lib/cosine": typeof lib_cosine;
   "lib/describePrompt": typeof lib_describePrompt;
+  "lib/displayMedia": typeof lib_displayMedia;
   "lib/docentPrompts": typeof lib_docentPrompts;
   "lib/docentSources": typeof lib_docentSources;
   "lib/docentValidator": typeof lib_docentValidator;
@@ -173,6 +181,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "lib/venueFetch": typeof lib_venueFetch;
   "lib/venueOptOut": typeof lib_venueOptOut;
+  "lib/wallFixtures": typeof lib_wallFixtures;
   "lib/wikidata": typeof lib_wikidata;
   museumSearch: typeof museumSearch;
   museums: typeof museums;
@@ -188,6 +197,7 @@ declare const fullApi: ApiFromModules<{
   sync: typeof sync;
   venueTable: typeof venueTable;
   visits: typeof visits;
+  walls: typeof walls;
 }>;
 
 /**

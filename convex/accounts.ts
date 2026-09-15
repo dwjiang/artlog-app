@@ -5,8 +5,8 @@ import { internal } from './_generated/api';
 import { internalMutation, mutation, query } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { requireDevice } from './lib/auth';
-import { deleteUnreferencedCollectionPhotos } from './lib/collectionPhotos';
 import { deviceScope, ownerForDevice, requireClaimComplete } from './lib/ownership';
+import { invalidateDeletedSave } from './lib/publicationAccess';
 
 const MAX_DEVICES = 20;
 const PURGE_BATCH = 50;
@@ -95,7 +95,7 @@ export const purgeJournal = internalMutation({
     const saves = await ctx.db.query('collections').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).take(PURGE_BATCH);
     for (const save of saves) {
       await ctx.db.delete(save._id);
-      await deleteUnreferencedCollectionPhotos(ctx, save);
+      await invalidateDeletedSave(ctx, save);
     }
     const visits = saves.length < PURGE_BATCH
       ? await ctx.db.query('visits').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).take(PURGE_BATCH - saves.length) : [];

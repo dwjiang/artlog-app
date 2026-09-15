@@ -115,7 +115,8 @@ it('publishes eligible media with an allowlist and binds derivatives to a public
   for (const url of ['https://dev.convex.cloud/api/storage/private', 'https://app.example/collection-photos?localId=private']) {
     expect(projectArtwork(save, { ...asset, source: { ...source, url } } as never).media.kind).toBe('placeholder');
   }
-  const derivative = { ...asset, source: { ...source, kind: 'derivative', url: 'https://private.example/raw' } } as never;
+  const derivative = { ...asset, source: { kind: 'derivative', rights: 'contributor_consent', width: 256, height: 192,
+    sourceUrl: 'https://private.example/raw' } } as never;
   expect(projectArtwork(save, derivative).media.kind).toBe('placeholder');
   const projected = projectWallArtwork({ _id: 'wall-item', layout: {}, noteVisible: false } as never, save, derivative);
   expect(projected.artwork.media).toMatchObject({ kind: 'derivative', reference: { kind: 'wallItem', itemId: 'wall-item' } });

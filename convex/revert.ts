@@ -3,6 +3,7 @@ import { ConvexError, type Infer, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { revokeContributionMedia } from './lib/displayMedia';
 import { deleteOrbIfUnreferenced } from './lib/orbStorage';
 import { clearDocent } from './docent';
 import { bumpCounter } from './ingest';
@@ -71,6 +72,7 @@ export const cleanupObjectPage = internalMutation({
             ...(row.status === 'rejected' ? {} : { status: 'rejected', rejectedReason: 'object_reverted' }),
             ...(missingCrop ? { cropStorageId: undefined } : {}),
           });
+          if (row.status !== 'rejected') await revokeContributionMedia(ctx, row._id);
         }
         return page.isDone ? null : page.continueCursor;
       }
@@ -148,7 +150,9 @@ async function revertDevicePhase(ctx: MutationCtx, deviceId: Id<'devices'>, at: 
     case 'contributions': {
       const page = await ctx.db.query('contributions').withIndex('by_deviceId', (q) => q.eq('deviceId', deviceId)).paginate(paging(at.cursor));
       for (const row of page.page) {
-        if (row.status !== 'rejected') await ctx.db.patch(row._id, { status: 'rejected', rejectedReason: 'device_reverted' });
+        if (row.status === 'rejected') continue;
+        await ctx.db.patch(row._id, { status: 'rejected', rejectedReason: 'device_reverted' });
+        await revokeContributionMedia(ctx, row._id);
       }
       return { cursor: page.isDone ? null : page.continueCursor, objectIds: [] };
     }

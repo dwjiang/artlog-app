@@ -1,0 +1,45 @@
+import type { FunctionReturnType } from 'convex/server';
+import { Image } from 'expo-image';
+import { useState } from 'react';
+import { View } from 'react-native';
+import type { api } from '../../../convex/_generated/api';
+import { ThemedText } from '../themed-text';
+import { useTheme } from '@/hooks/use-theme';
+
+type Media = NonNullable<FunctionReturnType<typeof api.walls.getArtwork>>['artwork']['media'];
+type Props = { media: Media; label: string; width: number; token?: string | null };
+
+export function DisplayMedia(props: Props) {
+  const { media, token } = props;
+  let uri: string | undefined;
+  if (media.kind === 'catalog') uri = media.url;
+  else if (media.kind === 'derivative' && (media.reference.kind === 'wallItem' || token)) {
+    const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
+    if (site) {
+      const url = new URL('/display-media', site);
+      url.searchParams.set('kind', media.reference.kind);
+      url.searchParams.set('itemId', media.reference.itemId);
+      if (media.reference.kind === 'sharedVisit') url.searchParams.set('postId', media.reference.postId);
+      uri = url.href;
+    }
+  }
+  return <MediaImage key={`${uri ?? 'missing'}:${token ?? ''}`} {...props} uri={uri} />;
+}
+
+function MediaImage({ media, label, width, token, uri }: Props & { uri?: string }) {
+  const theme = useTheme();
+  const [failed, setFailed] = useState(false);
+  const validDimensions = Number.isFinite(media.width) && Number.isFinite(media.height) && media.width > 0 && media.height > 0;
+  const missing = !uri || failed || !validDimensions;
+  const size = { width, height: missing ? width : width * media.height / media.width };
+  if (missing) return (
+    <View accessible accessibilityRole="image" accessibilityLabel={`${label}: image unavailable`}
+      style={{ ...size, backgroundColor: theme.backgroundElement, alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+      <ThemedText type="small" themeColor="textSecondary">Image unavailable</ThemedText>
+    </View>
+  );
+  return <Image accessible accessibilityLabel={label} source={{ uri,
+    ...(media.kind === 'derivative' && media.reference.kind === 'sharedVisit' && token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
+    style={size} contentFit="contain" cachePolicy={media.kind === 'derivative' ? 'none' : 'memory-disk'}
+    recyclingKey={uri} onError={() => setFailed(true)} />;
+}

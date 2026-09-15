@@ -248,6 +248,7 @@ export default defineSchema({
     orbSha256: v.optional(v.string()),
     keypointCount: v.number(),
     cropStorageId: v.optional(v.id('_storage')),
+    displayMediaRevokedAt: v.optional(v.number()),
     rawOcr: v.optional(v.any()),
     sourceUrl: v.optional(v.string()),
     identityImageUrl: v.optional(v.string()),
@@ -442,7 +443,7 @@ export default defineSchema({
     .index('by_profileId', ['profileId']),
   wallItems: defineTable({
     wallId: v.id('walls'), profileId: v.id('profiles'), saveId: v.id('collections'), saveLocalId: v.string(),
-    active: v.boolean(), layout: wallLayout, noteVisible: v.boolean(), noteRevision: v.number(),
+    active: v.boolean(), layout: wallLayout, noteVisible: v.boolean(), noteRevision: v.number(), noteResetVersion: v.optional(v.number()),
   }).index('by_wall_active', ['wallId', 'active']).index('by_wall_saveId', ['wallId', 'saveId'])
     .index('by_saveId', ['saveId']),
   friendships: defineTable({
@@ -464,8 +465,13 @@ export default defineSchema({
     .index('by_saveId', ['saveId']),
   mediaAssets: defineTable({
     saveId: v.id('collections'), source: mediaSource, storageId: v.optional(v.id('_storage')),
+    provenance: v.union(
+      v.object({ kind: v.literal('catalog'), objectId: v.id('objects'), imageRightsEvidence: v.string() }),
+      v.object({ kind: v.literal('contribution'), contributionId: v.id('contributions'), sourceStorageId: v.id('_storage') }),
+    ),
     createdAt: v.number(), revokedAt: v.optional(v.number()),
-  }).index('by_saveId', ['saveId']).index('by_storageId', ['storageId']),
+  }).index('by_saveId', ['saveId']).index('by_save_kind', ['saveId', 'source.kind']).index('by_storageId', ['storageId'])
+    .index('by_contribution_revoked', ['provenance.contributionId', 'revokedAt']),
   reports: defineTable({
     reporter: journalOwner, target: reportTarget, reason: v.string(), details: v.optional(v.string()),
     createdAt: v.number(), status: v.union(v.literal('open'), v.literal('resolved')),
