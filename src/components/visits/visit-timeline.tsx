@@ -11,7 +11,7 @@ export function VisitRow({ visit }: { visit: VisitSummary }) {
   const largeText = fontScale > 1.5;
   const place = visit.city || visit.regionName || countryName(visit.country) || 'Location unavailable';
   const artworks = `${visit.works.length} ${visit.works.length === 1 ? 'artwork' : 'artworks'}`;
-  return <Link href={{ pathname: '/visit/[visitId]', params: { visitId: visit.localId } }} asChild>
+  return <Link href={{ pathname: '/journal/[visitId]', params: { visitId: visit.localId } }} asChild>
     <Pressable accessibilityRole="button" accessibilityLabel={`${visit.venueName}, ${formatVisitDate(visit.visitedOn)}, ${artworks}`}
       style={styles.visit}>
       <View style={[styles.row, largeText && { flexDirection: 'column' }]}>

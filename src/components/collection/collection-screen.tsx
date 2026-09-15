@@ -64,7 +64,7 @@ function OwnedCollection({ mode, setMode }: { mode: ViewMode; setMode: (mode: Vi
       ) : !updatedAt ? null : works.length === 0 ? (
         <Message header={header}>
           <ThemedText>Scan a painting to start your collection.</ThemedText>
-          <Link href="/"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
+          <Link href="/scan"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
         </Message>
       ) : searchTerm(search) === null ? (
         <Message header={header}><ThemedText themeColor="textSecondary">Enter between 2 and 100 characters to search.</ThemedText></Message>

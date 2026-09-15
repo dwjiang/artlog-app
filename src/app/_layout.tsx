@@ -3,8 +3,8 @@ import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { useEffect } from 'react';
 
-import { Gallery } from '@/constants/theme';
 import { DatabaseGate } from '@/components/database-gate';
+import { Gallery } from '@/constants/theme';
 import { CollectionSync } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { installationStorage } from '@/lib/installation-storage';
@@ -27,13 +27,24 @@ export default function RootLayout() {
         <QueueFlusher />
         <VenueResolver />
         <ThemeProvider value={DefaultTheme}>
-          <Stack>
+          <Stack screenOptions={{ headerTintColor: Gallery.ink, headerStyle: { backgroundColor: Gallery.paper },
+            headerTitleStyle: { color: Gallery.ink }, headerLargeTitleStyle: { color: Gallery.ink }, headerBackButtonDisplayMode: 'minimal',
+            headerShadowVisible: false, contentStyle: { backgroundColor: Gallery.paper } }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
+              headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="people" options={{ title: 'Find people', headerLargeTitleEnabled: true, headerTransparent: true,
+              headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="profile/[profileId]" options={{ title: 'Profile' }} />
+            <Stack.Screen name="visit/[postId]" options={{ title: 'Visit' }} />
+            <Stack.Screen name="create-profile" options={{ title: 'Your profile', presentation: 'formSheet',
+              sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
+            <Stack.Screen name="artwork" options={{ title: 'Artwork', presentation: 'formSheet',
+              sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true }} />
             <Stack.Screen name="visit-create" options={{ ...visitSheet, title: 'Add visit' }} />
             <Stack.Screen name="visit-reflection" options={{ ...visitSheet, title: 'Private reflection' }} />
             <Stack.Screen name="visit-share/[visitId]" options={{ ...visitSheet, headerShown: false }} />
-            <Stack.Screen name="visit-globe" options={{ presentation: 'modal', title: 'Your world', headerTintColor: Gallery.accent,
-              headerStyle: { backgroundColor: Gallery.paper } }} />
+            <Stack.Screen name="visit-globe" options={{ presentation: 'modal', title: 'Your world', headerTintColor: Gallery.accent }} />
             <Stack.Screen
               name="venue-picker"
               dangerouslySingular
@@ -61,8 +72,4 @@ export default function RootLayout() {
   );
 }
 
-const visitSheet = {
-  presentation: 'formSheet' as const, sheetAllowedDetents: [1], sheetGrabberVisible: true,
-  headerShown: true, headerTintColor: Gallery.accent, headerStyle: { backgroundColor: Gallery.paper },
-  contentStyle: { backgroundColor: Gallery.paper }, headerShadowVisible: false,
-};
+const visitSheet = { presentation: 'formSheet' as const, sheetAllowedDetents: [1], sheetGrabberVisible: true, headerTintColor: Gallery.accent };

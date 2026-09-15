@@ -17,12 +17,31 @@ Title the pull request as a Conventional Commit: `type(scope): summary`. Keep th
 setup = "npm ci --no-audit --no-fund"
 # No workspace-specific resources exist outside the checkout.
 archive = ":"
-# iOS launches share the default Simulator and development client instance.
+# Switching workspaces should replace the server used by the shared development client.
 run_mode = "nonconcurrent"
 
-[scripts.run.ios]
+[scripts.run.iOS]
 available_in = ["local"]
-# Suppress Expo prompts without CI mode, which disables live reload.
-command = 'set -o pipefail; npm run ios -- --port "$CONDUCTOR_PORT" | cat'
+command = '''
+printf 'Artlog workspace: %s\n' "$CONDUCTOR_WORKSPACE_NAME"
+exec npx expo start --dev-client --ios --port "${CONDUCTOR_PORT:?Run this from a Conductor workspace}"
+'''
 default = true
+icon = "monitor"
+
+[scripts.run.iPhone]
+available_in = ["local"]
+command = '''
+printf 'Artlog workspace: %s\n' "$CONDUCTOR_WORKSPACE_NAME"
+exec npx expo start --dev-client --lan --port "${CONDUCTOR_PORT:?Run this from a Conductor workspace}"
+'''
 icon = "smartphone"
+
+[scripts.run."Rebuild iOS"]
+available_in = ["local"]
+command = '''
+: "${CONDUCTOR_PORT:?Run this from a Conductor workspace}"
+printf 'Artlog workspace: %s\n' "$CONDUCTOR_WORKSPACE_NAME"
+npx expo prebuild --platform ios --clean && exec npm run ios -- --device --port "$CONDUCTOR_PORT"
+'''
+icon = "wrench"

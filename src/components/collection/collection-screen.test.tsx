@@ -74,7 +74,7 @@ it('invites the first scan while the collection is empty', async () => {
   await renderArchive();
   expect(await screen.findByText('Scan a painting to start your collection.')).toBeOnTheScreen();
   expect(screen.getByRole('link', { name: 'Go to Scan' })).toBeOnTheScreen();
-  expect(mockHrefs).toEqual(['/']);
+  expect(mockHrefs).toEqual(['/scan']);
 });
 
 describe('with saved works', () => {
@@ -122,7 +122,7 @@ describe('with saved works', () => {
     expect(screen.getByText('Metropolitan Museum of Art')).toBeOnTheScreen();
     expect(screen.getByText('de Young')).toBeOnTheScreen();
     expect(screen.queryByText('Imported')).toBeNull();
-    expect(mockHrefs).toContainEqual({ pathname: '/visit/[visitId]', params: { visitId: '7e5de765-90f8-5015-b60d-2652d64b650f' } });
+    expect(mockHrefs).toContainEqual({ pathname: '/journal/[visitId]', params: { visitId: '7e5de765-90f8-5015-b60d-2652d64b650f' } });
     await fireEvent.changeText(search(), 'cotton');
     expect(screen.queryByText('Metropolitan Museum of Art')).toBeNull();
     expect(screen.getByText('de Young')).toBeOnTheScreen();

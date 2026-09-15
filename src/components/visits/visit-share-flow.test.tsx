@@ -10,7 +10,7 @@ const mockVisit = { localId: 'visit', owner: 'account:a', venueName: 'Museum', v
   works: [{ localId: 'save', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }] } as VisitSummary;
 jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }) }));
 jest.mock('@/lib/visits/use-visit-sharing', () => ({ useVisitSharing: () => mockSharing }));
-jest.mock('../collection/wall-profile-sheet', () => ({ ProfileForm: () => null }));
+jest.mock('../social/profile-form', () => ({ ProfileForm: () => null }));
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../settings/account-section', () => ({ AccountSection: () => null }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: () => null }));

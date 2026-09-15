@@ -24,15 +24,15 @@ afterEach(() => jest.useRealTimers());
 it('opens saved artwork from a visit and returns to its private reflection', async () => {
   const navigation = renderRouter({
     _layout: () => <Stack />,
-    'visit/[visitId]': VisitDetailScreen,
+    'journal/[visitId]': VisitDetailScreen,
     '[savedId]': () => <Text>Saved painting</Text>,
-  }, { initialUrl: '/visit/visit' });
+  }, { initialUrl: '/journal/visit' });
   await navigation;
   expect(screen.getByText('The afternoon light')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/painting'));
   expect(screen.getByText('Saved painting')).toBeOnTheScreen();
   await act(() => router.back());
-  expect(navigation.getPathname()).toBe('/visit/visit');
+  expect(navigation.getPathname()).toBe('/journal/visit');
   expect(screen.getByText('The afternoon light')).toBeOnTheScreen();
 });

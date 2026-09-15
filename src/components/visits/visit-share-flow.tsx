@@ -14,7 +14,7 @@ import { LIMITS } from '@/shared/journal/limits';
 import { DisplayMedia } from '../artwork/display-media';
 import { GalleryButton } from '../collection/gallery-button';
 import { SavedWorkImage } from '../collection/saved-work-image';
-import { ProfileForm } from '../collection/wall-profile-sheet';
+import { ProfileForm } from '../social/profile-form';
 import { AccountSection } from '../settings/account-section';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
@@ -59,7 +59,7 @@ export function VisitShareScreen() {
   const tileWidth = (width - 40 - (columns - 1) * 8) / columns;
   const { controller, draft } = sharing;
   if (!visit.owner.startsWith('account:')) return <VisitPage><Text style={styles.body}>Sign in to share visits with friends.</Text><AccountSection /></VisitPage>;
-  if (sharing.profileRequired) return creatingProfile ? <ProfileForm forVisits onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
+  if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so friends can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to share visits with friends.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
   if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
   const selected = new Set(draft.saveLocalIds);
