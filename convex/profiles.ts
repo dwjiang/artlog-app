@@ -12,7 +12,10 @@ export const create = mutation({
     const { accountId } = await requireAccount(ctx);
     const fields = validateProfile(input);
     const existing = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', accountId)).unique();
-    if (existing) return projectProfile(existing);
+    if (existing) {
+      if (!existing.active || existing.removal) throw new ConvexError({ code: 'profile_required' });
+      return projectProfile(existing);
+    }
     if (await ctx.db.query('profiles').withIndex('by_username', (q) => q.eq('username', input.username)).unique()) {
       throw new ConvexError({ code: 'username_taken' });
     }
@@ -43,7 +46,7 @@ export const search = query({
     const result = await ctx.db.query('profiles').withSearchIndex('search_text', (q) => q.search('searchText', search).eq('active', true))
       .paginate(pagination(input));
     const page = [];
-    for (const profile of result.page) if (await ctx.db.get(profile.accountId)) page.push(projectProfile(profile));
+    for (const profile of result.page) if (!profile.removal && await ctx.db.get(profile.accountId)) page.push(projectProfile(profile));
     return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
   },
 });

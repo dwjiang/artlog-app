@@ -5,6 +5,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { deleteUnreferencedCollectionPhotos } from './collectionPhotos';
 import { activeProfile, requireMembership } from './ownership';
+import { relationshipSnapshot } from './friendships';
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<'collections'>): Promise<void> {
@@ -35,34 +36,36 @@ export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<'wallItems'
   const profile = item ? await activeProfile(ctx, item.profileId) : null;
   const save = item ? await ctx.db.get(item.saveId) : null;
   const wall = item ? await ctx.db.get(item.wallId) : null;
-  if (!wall || wall.profileId !== item?.profileId || item?.saveLocalId !== save?.localId || !item?.active || !profile || !save || save.deletedAt !== undefined ||
+  if (!wall || wall.profileId !== item?.profileId || item?.saveLocalId !== save?.localId || !item?.active || item.removal || !profile || !save || save.deletedAt !== undefined ||
     !sameOwner(save.owner, { kind: 'account', accountId: profile.accountId })) throw new ConvexError({ code: 'not_found' });
   return { item, profile, save };
 }
-export const canonicalPair = (a: Id<'profiles'>, b: Id<'profiles'>) => a < b ? [a, b] as const : [b, a] as const;
+export async function canReadProfilePosts(ctx: ReadCtx, authorId: Id<'profiles'>, viewerId: Id<'profiles'>) {
+  const author = await activeProfile(ctx, authorId);
+  if (!author || !await activeProfile(ctx, viewerId)) return false;
+  if (authorId === viewerId) return true;
+  const { edge, block, reverseBlock } = await relationshipSnapshot(ctx, authorId, viewerId);
+  return edge?.state === 'accepted' && !block?.active && !reverseBlock?.active;
+}
+export async function readablePublication(ctx: ReadCtx, publication: Doc<'sharedVisits'>, viewerId: Id<'profiles'>) {
+  if (publication.status !== 'active' || publication.removal || !await canReadProfilePosts(ctx, publication.profileId, viewerId)) return null;
+  const profile = await activeProfile(ctx, publication.profileId);
+  const visit = await ctx.db.get(publication.visitId);
+  if (!profile || !visit || visit.localId !== publication.visitLocalId ||
+    !sameOwner(visit.owner, { kind: 'account', accountId: profile.accountId })) return null;
+  return { publication, profile, visit };
+}
 export async function requireSharedVisit(ctx: ReadCtx, postId: string, viewerId: Id<'profiles'>) {
   const publication = await ctx.db.query('sharedVisits').withIndex('by_postId', (q) => q.eq('postId', postId)).unique();
-  const profile = publication ? await activeProfile(ctx, publication.profileId) : null;
-  const visit = publication ? await ctx.db.get(publication.visitId) : null;
-  if (!publication || publication.status !== 'active' || !profile || !visit || visit.localId !== publication.visitLocalId ||
-    !sameOwner(visit.owner, { kind: 'account', accountId: profile.accountId }) || !await activeProfile(ctx, viewerId)) {
-    throw new ConvexError({ code: 'not_found' });
-  }
-  if (publication.profileId !== viewerId) {
-    const [first, second] = canonicalPair(publication.profileId, viewerId);
-    const edge = await ctx.db.query('friendships').withIndex('by_pair', (q) => q.eq('firstProfileId', first).eq('secondProfileId', second)).unique();
-    const blocks = await Promise.all([[first, second], [second, first]].map(([blockerId, blockedId]) => ctx.db.query('blocks')
-      .withIndex('by_pair', (q) => q.eq('blockerId', blockerId).eq('blockedId', blockedId)).unique()));
-    if (edge?.state !== 'accepted' || blocks.some((block) => block?.active)) throw new ConvexError({ code: 'not_found' });
-  }
-  return publication;
+  const access = publication && await readablePublication(ctx, publication, viewerId);
+  if (!access) throw new ConvexError({ code: 'not_found' });
+  return access;
 }
 export async function requireSharedVisitItem(ctx: ReadCtx, postId: string, itemId: Id<'sharedVisitItems'>, viewerId: Id<'profiles'>) {
-  const publication = await requireSharedVisit(ctx, postId, viewerId);
+  const { publication, visit } = await requireSharedVisit(ctx, postId, viewerId);
   const item = await ctx.db.get(itemId);
   const save = item ? await ctx.db.get(item.saveId) : null;
-  const visit = await ctx.db.get(publication.visitId);
-  if (!item || item.publicationId !== publication._id || item.saveLocalId !== save?.localId || !save || save.deletedAt !== undefined || !visit) throw new ConvexError({ code: 'not_found' });
+  if (!item || item.publicationId !== publication._id || item.saveLocalId !== save?.localId || !save || save.deletedAt !== undefined) throw new ConvexError({ code: 'not_found' });
   requireMembership(save, visit);
   return { publication, item, save };
 }

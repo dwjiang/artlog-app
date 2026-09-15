@@ -7,6 +7,10 @@ import type { ActionCtx, MutationCtx } from '../_generated/server';
 
 // Centralize rate-limit tuning here so callers share the same limits.
 const limits = {
+  friendRequest: { kind: 'fixed window', rate: 20, period: HOUR },
+  relationshipChange: { kind: 'fixed window', rate: 60, period: MINUTE },
+  publishVisit: { kind: 'fixed window', rate: 30, period: MINUTE },
+  report: { kind: 'fixed window', rate: 10, period: DAY },
   registerDevice: { kind: 'fixed window', rate: 10, period: HOUR },
   attestChallenge: { kind: 'fixed window', rate: 30, period: HOUR },
   identify: { kind: 'token bucket', rate: 60, period: MINUTE, capacity: 20 },
