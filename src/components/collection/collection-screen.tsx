@@ -3,14 +3,15 @@ import { Link, Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { CanvasView } from './canvas-view';
+import { CollectionWall } from './collection-wall';
+import { GalleryButton } from './gallery-button';
 import { GridView } from './grid-view';
 import { ViewModePicker, type ViewMode } from './view-mode-picker';
 import { VisitsView } from './visits-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useLocalOwner } from '@/lib/account/owner-store';
+import { Gallery, Spacing } from '@/constants/theme';
+import { useLocalOwner, useOwnerGeneration } from '@/lib/account/owner-store';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
 import { groupByVisit } from '@/lib/collection/group-by-visit';
@@ -21,8 +22,9 @@ import { searchTerm } from '@/lib/journal/query';
 
 export function CollectionScreen() {
   const owner = useLocalOwner();
+  const ownerGeneration = useOwnerGeneration();
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<ViewMode>('grid');
+  const [mode, setMode] = useState<ViewMode>('wall');
   const { data: rows, updatedAt } = useLiveQuery(listSavedWorks(owner), [owner]);
   const { data: visits } = useLiveQuery(listVisits(owner), [owner]);
   const ownedVisits = visits.filter((visit) => visit.owner === owner);
@@ -38,10 +40,17 @@ export function CollectionScreen() {
   const monthTitles = new Map(groupHistoryByMonth(shownVisits).map((group) => [group.data[0].localId, group.title]));
   const sections = groupByVisit(works.filter((work) => shown.includes(work) || work.visitLocalId && visitIds.has(work.visitLocalId)), shownVisits)
     .map((section) => ({ ...section, monthTitle: monthTitles.get(section.key) }));
-  const header = <ViewModePicker mode={mode} onChange={setMode} />;
+  // The header search bar unmounts with the wall, so its text only needs clearing on that switch.
+  function changeMode(value: ViewMode) { if (value === 'wall') setSearch(''); setMode(value); }
+  const header = <View style={{ padding: Spacing.three, gap: Spacing.two }}>
+    {mode !== 'visits' && <GalleryButton label="Back to wall" icon="chevron.left" onPress={() => changeMode('wall')} />}
+    <ViewModePicker mode={mode} onChange={changeMode} />
+  </View>;
+
+  if (mode === 'wall') return <CollectionWall key={ownerGeneration} works={works} onModeChange={changeMode} />;
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: Gallery.paper }]}>
       <Stack.SearchBar
         placeholder={mode === 'visits' ? 'Museum, place or visit date' : 'Title, artist, date or place'}
         autoCapitalize="none"
@@ -63,8 +72,6 @@ export function CollectionScreen() {
         <Message header={header}><ThemedText themeColor="textSecondary">No {mode === 'visits' ? 'visits' : 'works'} match “{search.trim()}”.</ThemedText></Message>
       ) : mode === 'grid' ? (
         <GridView works={shown} header={header} />
-      ) : mode === 'canvas' ? (
-        <CanvasView works={shown} header={header} />
       ) : (
         <VisitsView sections={[{ key: 'az', title: 'A–Z by artist', data: sortWorksByArtist(shown) }]} header={header} />
       )}

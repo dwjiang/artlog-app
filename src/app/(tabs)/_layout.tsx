@@ -1,4 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Gallery } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: '(scan)',
@@ -6,7 +7,7 @@ export const unstable_settings = {
 
 export default function TabsLayout() {
   return (
-    <NativeTabs>
+    <NativeTabs tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
       <NativeTabs.Trigger name="(scan)">
         <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
