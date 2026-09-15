@@ -70,7 +70,7 @@ it('invites the first scan while the collection is empty', async () => {
   await renderArchive();
   expect(await screen.findByText('Scan a painting to start your collection.')).toBeOnTheScreen();
   expect(screen.getByRole('link', { name: 'Go to Scan' })).toBeOnTheScreen();
-  expect(mockHrefs).toEqual(['/']);
+  expect(mockHrefs).toEqual(['/scan']);
 });
 
 describe('with saved works', () => {

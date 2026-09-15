@@ -62,7 +62,7 @@ export function CollectionScreen() {
       ) : works.length === 0 && mode !== 'visits' ? (
         <Message header={header}>
           <ThemedText>Scan a painting to start your collection.</ThemedText>
-          <Link href="/"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
+          <Link href="/scan"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
         </Message>
       ) : mode === 'visits' && ownedVisits.length === 0 ? (
         <Message header={header}><ThemedText>Your museum visits will appear here, even when you save no artworks.</ThemedText></Message>
