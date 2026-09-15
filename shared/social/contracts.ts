@@ -9,7 +9,8 @@ export const wallLayout = v.object({ x: v.number(), y: v.number(), width: v.numb
 export const relationshipState = v.union(v.literal('none'), v.literal('pending'), v.literal('accepted'));
 export const publicationStatus = v.union(v.literal('private'), v.literal('active'));
 export const sharedVisitMediaContext = v.object({ kind: v.literal('sharedVisit'), postId: v.string(), itemId: v.id('sharedVisitItems') });
-export const publicMediaContext = v.union(v.object({ kind: v.literal('wallItem'), itemId: v.id('wallItems') }), sharedVisitMediaContext);
+export const wallItemMediaContext = v.object({ kind: v.literal('wallItem'), itemId: v.id('wallItems') });
+export const publicMediaContext = v.union(wallItemMediaContext, sharedVisitMediaContext);
 export const previewMediaContext = v.object({ kind: v.literal('sharedVisitPreview'), visitLocalId: v.string(), saveLocalId: v.string() });
 export const displayMediaContext = v.union(publicMediaContext, previewMediaContext);
 export const mediaContext = v.union(
@@ -104,12 +105,13 @@ export function validateRelationship(input: { firstProfileId: string; secondProf
     throw new ConvexError({ code: 'invalid_relationship' });
   }
 }
-export function validateWallItems(items: { saveLocalId: string; layout: Infer<typeof wallLayout>; noteRevision: number }[], revision: number): void {
-  if (items.length > LIMITS.wallItems || new Set(items.map((item) => item.saveLocalId)).size !== items.length || !isRevision(revision)) {
+export function validateWallItems(items: { saveLocalId: string; layout: Infer<typeof wallLayout> }[], revision: number): void {
+  if (items.length > LIMITS.wallItems || new Set(items.map((item) => item.saveLocalId)).size !== items.length ||
+    new Set(items.map((item) => item.layout.layer)).size !== items.length || !isRevision(revision)) {
     throw new ConvexError({ code: 'invalid_wall' });
   }
   for (const item of items) {
-    if (!isUuid(item.saveLocalId) || !isRevision(item.noteRevision)) throw new ConvexError({ code: 'invalid_wall' });
+    if (!isUuid(item.saveLocalId)) throw new ConvexError({ code: 'invalid_wall' });
     validateLayout(item.layout);
   }
 }

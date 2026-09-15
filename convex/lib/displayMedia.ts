@@ -1,18 +1,17 @@
-import { sameOwner } from '../../shared/journal/contracts';
 import { validateMedia } from '../../shared/social/contracts';
-import type { Doc } from '../_generated/dataModel';
-import type { QueryCtx } from '../_generated/server';
+import type { Doc, Id } from '../_generated/dataModel';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
+import { internal } from '../_generated/api';
 
 export async function contributionSource(ctx: QueryCtx, save: Doc<'collections'>) {
   if (save.deletedAt !== undefined || !save.scanId || (save.owner.kind === 'account' && !await ctx.db.get(save.owner.accountId))) return null;
+  // The contribution submission is the consent boundary; journal/owner photos are never sources. saveToCollection
+  // only links scans made by the saving device, so the device's current account link is not rechecked here:
+  // signing out must not unpublish media.
   const scan = await ctx.db.get(save.scanId);
-  const device = scan ? await ctx.db.get(scan.deviceId) : null;
-  if (!scan || !device || !sameOwner(save.owner, device.accountId
-    ? { kind: 'account', accountId: device.accountId } : { kind: 'device', deviceId: device._id })) return null;
-  const contribution = await ctx.db.query('contributions').withIndex('by_scanId', (q) => q.eq('scanId', scan._id)).unique();
-  // The contribution submission is the consent boundary; journal/owner photos are never sources.
-  if (!contribution || contribution.deviceId !== scan.deviceId || contribution.status === 'rejected' || contribution.displayMediaRevokedAt !== undefined || !contribution.cropStorageId ||
-    !await ctx.db.system.get(contribution.cropStorageId)) return null;
+  const contribution = scan ? await ctx.db.query('contributions').withIndex('by_scanId', (q) => q.eq('scanId', scan._id)).unique() : null;
+  if (!scan || !contribution || contribution.deviceId !== scan.deviceId || contribution.status === 'rejected' || contribution.displayMediaRevokedAt !== undefined ||
+    !contribution.cropStorageId || !await ctx.db.system.get(contribution.cropStorageId)) return null;
   return { contributionId: contribution._id, sourceStorageId: contribution.cropStorageId };
 }
 
@@ -39,4 +38,22 @@ export async function resolveDisplayAsset(ctx: QueryCtx, save: Doc<'collections'
     if (asset && await isCurrentAsset(ctx, save, asset)) return asset;
   }
   return null;
+}
+
+export async function revokeAsset(ctx: MutationCtx, asset: Doc<'mediaAssets'>) {
+  await ctx.db.patch(asset._id, { revokedAt: asset.revokedAt ?? Date.now(), storageId: undefined });
+  if (asset.storageId && await ctx.db.system.get(asset.storageId)) await ctx.storage.delete(asset.storageId);
+}
+export async function revokeSaveMedia(ctx: MutationCtx, saveId: Id<'collections'>) {
+  const assets = await ctx.db.query('mediaAssets').withIndex('by_saveId', (q) => q.eq('saveId', saveId)).take(2);
+  for (const asset of assets) await revokeAsset(ctx, asset);
+}
+
+export async function revokeContributionMedia(ctx: MutationCtx, contributionId: Id<'contributions'>): Promise<void> {
+  const contribution = await ctx.db.get(contributionId);
+  if (contribution && contribution.displayMediaRevokedAt === undefined) await ctx.db.patch(contributionId, { displayMediaRevokedAt: Date.now() });
+  const assets = await ctx.db.query('mediaAssets').withIndex('by_contribution_revoked', (q) =>
+    q.eq('provenance.contributionId', contributionId).eq('revokedAt', undefined)).take(50);
+  for (const asset of assets) await revokeAsset(ctx, asset);
+  if (assets.length === 50) await ctx.scheduler.runAfter(0, internal.displayMedia.revokeContribution, { contributionId });
 }

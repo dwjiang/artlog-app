@@ -11,6 +11,7 @@ import { bumpCounter } from './ingest';
 import { REPLAY_COSINE } from './lib/agreement';
 import { requireDevice, requireDeviceFromAction } from './lib/auth';
 import { cosine } from './lib/cosine';
+import { revokeContributionMedia } from './lib/displayMedia';
 import { FIELD_NAMES } from './lib/labelVerify';
 import { deleteOrbIfUnreferenced, storeOrb } from './lib/orbStorage';
 import { limitDevice } from './lib/rateLimits';
@@ -324,6 +325,7 @@ export const withdraw = mutation({
       }
     }
     if (row.cropStorageId && await ctx.db.system.get('_storage', row.cropStorageId)) await ctx.storage.delete(row.cropStorageId);
+    await revokeContributionMedia(ctx, row._id);
     await ctx.db.patch(row._id, {
       status: 'rejected', rejectedReason: 'withdrawn', cropStorageId: undefined,
       orbStorageId: undefined, orbSha256: undefined,

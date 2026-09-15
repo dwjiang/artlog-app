@@ -6,14 +6,19 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { deleteUnreferencedCollectionPhotos } from './collectionPhotos';
 import { activeProfile, requireMembership } from './ownership';
 import { relationshipSnapshot } from './friendships';
+import { revokeSaveMedia } from './displayMedia';
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<'collections'>): Promise<void> {
+  const save = await ctx.db.get(saveId);
+  if (!save || save.note?.trim()) return;
   const items = await ctx.db.query('wallItems').withIndex('by_saveId', (q) => q.eq('saveId', saveId)).take(LIMITS.wallItems + 1);
-  for (const item of items) if (item.noteVisible) await ctx.db.patch(item._id, { noteVisible: false, noteRevision: item.noteRevision + 1 });
+  for (const item of items) if (item.noteResetVersion !== save.changeVersion) {
+    await ctx.db.patch(item._id, { noteVisible: false, noteRevision: item.noteRevision + 1, noteResetVersion: save.changeVersion });
+  }
 }
-export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<'collections'>): Promise<void> {
-  const items = await ctx.db.query('wallItems').withIndex('by_saveId', (q) => q.eq('saveId', save._id)).take(LIMITS.wallItems + 1);
+export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<'collections'>): Promise<void> {
+  const items = await ctx.db.query('wallItems').withIndex('by_saveId', (q) => q.eq('saveId', saveId)).take(LIMITS.wallItems + 1);
   for (const item of items) {
     if (!item.active && !item.noteVisible) continue;
     await ctx.db.patch(item._id, { active: false, noteVisible: false, noteRevision: item.noteRevision + 1 });
@@ -22,6 +27,9 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<'collect
     const profile = await ctx.db.get(item.profileId);
     if (profile && item.active) await ctx.db.patch(profile._id, { publishedWallCount: Math.max(0, profile.publishedWallCount - 1) });
   }
+}
+export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<'collections'>): Promise<void> {
+  await invalidateWallSave(ctx, save._id);
   // A save belongs to one visit and one profile, so it can have at most one publication selection.
   const selections = await ctx.db.query('sharedVisitItems').withIndex('by_saveId', (q) => q.eq('saveId', save._id)).take(LIMITS.selectedSaves + 1);
   for (const item of selections) {
@@ -29,6 +37,7 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<'collect
     const publication = await ctx.db.get(item.publicationId);
     if (publication) await ctx.db.patch(publication._id, { publicationRevision: publication.publicationRevision + 1, updatedAt: Date.now() });
   }
+  await revokeSaveMedia(ctx, save._id);
   await deleteUnreferencedCollectionPhotos(ctx, save);
 }
 export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<'wallItems'>) {
