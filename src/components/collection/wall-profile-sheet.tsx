@@ -11,6 +11,10 @@ import { GalleryButton } from './gallery-button';
 import { WallSheet, wallSheetStyles as styles } from './wall-sheets';
 
 export function WallProfileSheet({ onDismiss, onCreated }: { onDismiss: () => void; onCreated: () => void }) {
+  return <WallSheet title="Your public wall" onDismiss={onDismiss} tall><ProfileForm onCreated={onCreated} /></WallSheet>;
+}
+
+export function ProfileForm({ onCreated, forVisits = false }: { onCreated: () => void; forVisits?: boolean }) {
   const create = useMutation(api.profiles.create);
   const [name, setName] = useState(''), [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState<string>();
@@ -27,9 +31,8 @@ export function WallProfileSheet({ onDismiss, onCreated }: { onDismiss: () => vo
     } finally { if (session.isCurrent()) setBusy(false); }
   }
 
-  return <WallSheet title="Your public wall" onDismiss={onDismiss} tall>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.section, { gap: 20 }]}>
-      <Text style={styles.body}>Give your wall a name. Choose which artworks to hang after creating your profile.</Text>
+  return <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.section, { gap: 20 }]}>
+      <Text style={styles.body}>{forVisits ? 'Create a profile so friends can recognize you. You will review this visit before sharing it.' : 'Give your wall a name. Choose which artworks to hang after creating your profile.'}</Text>
       <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
         <Column spacing={20}>
           <Column spacing={8} alignment="start">
@@ -48,8 +51,7 @@ export function WallProfileSheet({ onDismiss, onCreated }: { onDismiss: () => vo
       {error && <Text accessibilityRole="alert" selectable style={styles.body}>{error}</Text>}
       <GalleryButton label={busy ? 'Creating…' : 'Create public profile'} variant="filled" fullWidth disabled={busy || !name.trim() || !username.trim()}
         onPress={() => { void submit(); }} />
-    </ScrollView>
-  </WallSheet>;
+    </ScrollView>;
 }
 
 const formStyles = StyleSheet.create({

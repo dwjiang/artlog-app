@@ -1,6 +1,8 @@
 import { getStateFromPath } from 'expo-router/build/fork/getStateFromPath';
 import { getMockConfig } from 'expo-router/testing-library';
 
+jest.mock('./visits/visit-share-flow', () => ({ VisitShareLayout: () => null }));
+
 const config = getMockConfig('src/app');
 
 // Use the real route files and URL parser without mounting native navigators.
@@ -29,10 +31,27 @@ describe('App navigation', () => {
     });
   });
 
-  it.each(['venue-picker', 'queue'])('keeps the tabs underneath a directly opened %s sheet', (sheet) => {
+  it.each(['venue-picker', 'queue', 'visit-create', 'visit-reflection', 'visit-globe'])('keeps the tabs underneath a directly opened %s sheet', (sheet) => {
     const root = getRootState(`/${sheet}`);
     expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', sheet]);
     expect(root?.index).toBe(1);
+  });
+
+  it('opens sharing as a sheet with its nested preview route', () => {
+    const root = getRootState('/visit-share/demo/preview');
+    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', 'visit-share/[visitId]']);
+    expect(root?.routes[1]).toMatchObject({
+      params: { visitId: 'demo' },
+      state: { routes: [{ name: 'preview' }] },
+    });
+  });
+
+  it('keeps Collection behind a directly opened visit', () => {
+    const collection = getTabsState('/visit/demo')?.routes.find(
+      (route) => route.name === '(collection)'
+    )?.state;
+    expect(collection?.routes.map((route) => route.name)).toEqual(['collection', 'visit/[visitId]']);
+    expect(collection?.routes[1].params).toMatchObject({ visitId: 'demo' });
   });
 
   it('keeps the Collection list behind a directly opened saved work', () => {

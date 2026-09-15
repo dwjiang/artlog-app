@@ -1,0 +1,21 @@
+import tzLookup from '@photostructure/tz-lookup';
+import { calendarDate, isCalendarDate } from '@/shared/journal/limits';
+import type { VenueRow } from '../venue/resolve';
+
+export function venueTimeZone(venue: VenueRow): string {
+  return tzLookup(venue.lat, venue.lng);
+}
+
+// DatePicker uses the device timezone. Only its calendar fields belong in the journal.
+export function pickerDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day); date.setHours(12, 0, 0, 0);
+  return date;
+}
+export function dateFromPicker(value: Date): string {
+  return `${String(value.getFullYear()).padStart(4, '0')}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+export function validVisitDate(value: string, timeZone: string, now = Date.now()): boolean {
+  return isCalendarDate(value) && value <= calendarDate(now, timeZone);
+}

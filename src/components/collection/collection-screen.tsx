@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { Link, Stack } from 'expo-router';
+import { Link, router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -14,35 +14,32 @@ import { Gallery, Spacing } from '@/constants/theme';
 import { useLocalOwner, useOwnerGeneration } from '@/lib/account/owner-store';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
-import { groupByVisit } from '@/lib/collection/group-by-visit';
 import { filterWorks, sortWorksByArtist } from '@/lib/collection/search';
-import { filterVisits, groupHistoryByMonth } from '@/lib/journal/history';
+import { visitSummaries } from '@/lib/journal/visit-summaries';
+import { CollectionVisits } from '../visits/collection-visits';
 import { useVenueMetadata } from '@/lib/journal/use-venue-metadata';
 import { searchTerm } from '@/lib/journal/query';
 
 export function CollectionScreen() {
   const owner = useLocalOwner();
+  const [mode, setMode] = useState<ViewMode>('wall');
+  return <OwnedCollection key={owner} mode={mode} setMode={setMode} />;
+}
+
+function OwnedCollection({ mode, setMode }: { mode: ViewMode; setMode: (mode: ViewMode) => void }) {
+  const owner = useLocalOwner();
   const ownerGeneration = useOwnerGeneration();
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<ViewMode>('wall');
   const { data: rows, updatedAt } = useLiveQuery(listSavedWorks(owner), [owner]);
-  const { data: visits } = useLiveQuery(listVisits(owner), [owner]);
+  const { data: visits, updatedAt: visitsUpdatedAt, error: visitsError } = useLiveQuery(listVisits(owner), [owner]);
   const ownedVisits = visits.filter((visit) => visit.owner === owner);
-  const metadata = useVenueMetadata([...ownedVisits.map((row) => row.venueId), ...rows.filter((row) => row.owner === owner).flatMap((row) => row.venueId ? [row.venueId] : [])], owner);
+  const { metadata, ready: metadataReady } = useVenueMetadata([...ownedVisits.map((row) => row.venueId), ...rows.filter((row) => row.owner === owner).flatMap((row) => row.venueId ? [row.venueId] : [])], owner);
   const works = rows.filter((row) => row.owner === owner).map((row) => ({ ...row, city: row.venueId ? metadata.get(row.venueId)?.city : undefined }));
   const shown = filterWorks(works, search);
-  const matchingVisits = filterVisits(ownedVisits.map((visit) => ({ ...visit,
-    city: metadata.get(visit.venueId)?.city, country: metadata.get(visit.venueId)?.country,
-  })), search);
-  const visitIds = new Set(matchingVisits.map((visit) => visit.localId));
-  const matchingWorks = new Set(shown.flatMap((work) => work.visitLocalId ? [work.visitLocalId] : []));
-  const shownVisits = ownedVisits.filter((visit) => visitIds.has(visit.localId) || matchingWorks.has(visit.localId));
-  const monthTitles = new Map(groupHistoryByMonth(shownVisits).map((group) => [group.data[0].localId, group.title]));
-  const sections = groupByVisit(works.filter((work) => shown.includes(work) || work.visitLocalId && visitIds.has(work.visitLocalId)), shownVisits)
-    .map((section) => ({ ...section, monthTitle: monthTitles.get(section.key) }));
+  const summaries = visitSummaries(ownedVisits, works, metadata, owner);
   // The header search bar unmounts with the wall, so its text only needs clearing on that switch.
   function changeMode(value: ViewMode) { if (value === 'wall') setSearch(''); setMode(value); }
-  const header = <View style={{ padding: Spacing.three, gap: Spacing.two }}>
+  const header = <View style={{ padding: mode === 'visits' ? 0 : Spacing.three, gap: Spacing.two }}>
     {mode !== 'visits' && <GalleryButton label="Back to wall" icon="chevron.left" onPress={() => changeMode('wall')} />}
     <ViewModePicker mode={mode} onChange={changeMode} />
   </View>;
@@ -51,25 +48,28 @@ export function CollectionScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: Gallery.paper }]}>
-      <Stack.SearchBar
-        placeholder={mode === 'visits' ? 'Museum, place or visit date' : 'Title, artist, date or place'}
+      {mode === 'visits' && <Stack.Toolbar placement="left"><Stack.Toolbar.Button icon="person.crop.circle" hidesSharedBackground accessibilityLabel="Your account"
+        onPress={() => router.push('/settings')}>Your account</Stack.Toolbar.Button></Stack.Toolbar>}
+      <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground={mode === 'visits'} icon={mode === 'visits' ? undefined : 'plus'} accessibilityLabel="Add visit"
+        style={{ fontSize: 15 }} onPress={() => router.push('/visit-create')}>Add visit</Stack.Toolbar.Button></Stack.Toolbar>
+      {mode !== 'visits' && <Stack.SearchBar
+        placeholder="Title, artist, date or place"
         autoCapitalize="none"
         onChangeText={(event) => setSearch(event.nativeEvent.text)}
         onCancelButtonPress={() => setSearch('')}
-      />
-      {!updatedAt ? null : mode === 'visits' && sections.length ? (
-        <VisitsView sections={sections} header={header} />
-      ) : works.length === 0 && mode !== 'visits' ? (
+      />}
+      {mode === 'visits' ? (
+        <CollectionVisits key={owner} owner={owner} visits={summaries} search={search} header={header}
+          loading={!updatedAt || !visitsUpdatedAt || !metadataReady} error={visitsError} clearSearch={() => setSearch('')} onSearchChange={setSearch} />
+      ) : !updatedAt ? null : works.length === 0 ? (
         <Message header={header}>
           <ThemedText>Scan a painting to start your collection.</ThemedText>
           <Link href="/"><ThemedText type="linkPrimary">Go to Scan</ThemedText></Link>
         </Message>
-      ) : mode === 'visits' && ownedVisits.length === 0 ? (
-        <Message header={header}><ThemedText>Your museum visits will appear here, even when you save no artworks.</ThemedText></Message>
       ) : searchTerm(search) === null ? (
         <Message header={header}><ThemedText themeColor="textSecondary">Enter between 2 and 100 characters to search.</ThemedText></Message>
-      ) : mode === 'visits' || shown.length === 0 ? (
-        <Message header={header}><ThemedText themeColor="textSecondary">No {mode === 'visits' ? 'visits' : 'works'} match “{search.trim()}”.</ThemedText></Message>
+      ) : shown.length === 0 ? (
+        <Message header={header}><ThemedText themeColor="textSecondary">No works match “{search.trim()}”.</ThemedText></Message>
       ) : mode === 'grid' ? (
         <GridView works={shown} header={header} />
       ) : (

@@ -2,7 +2,7 @@ import type { Visit } from '../../db/schema';
 import { compareText, matchesSearch, searchTerm } from './query';
 import countryNames from '../../../shared/journal/country-names.json';
 
-export type JournalVisit = Visit & { city?: string | null; cityKey?: string | null; country?: string | null };
+export type JournalVisit = Visit & { city?: string | null; cityKey?: string | null; country?: string | null; regionKey?: string; regionName?: string };
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export function countryName(code?: string | null): string {
@@ -18,7 +18,7 @@ export function filterVisits<T extends JournalVisit>(visits: T[], query = ''): T
   if (term === null) return [];
   if (!term) return visits;
   return visits.filter((visit) => matchesSearch([visit.venueName, visit.city, visit.country, countryName(visit.country),
-    visit.visitedOn, formatVisitDate(visit.visitedOn), MONTHS[Number(visit.visitedOn.slice(5, 7)) - 1]], term));
+    visit.regionName, visit.visitedOn, formatVisitDate(visit.visitedOn), MONTHS[Number(visit.visitedOn.slice(5, 7)) - 1]], term));
 }
 export function groupHistoryByMonth<T extends JournalVisit>(visits: T[]): { key: string; title: string; data: T[] }[] {
   const groups = new Map<string, T[]>();
@@ -36,6 +36,7 @@ export type JournalSummary = { key: string; name: string; city?: string | null; 
 export function placeIdentity(visit: JournalVisit): { key: string; name: string } {
   if (visit.cityKey) return { key: visit.cityKey, name: visit.city || visit.venueName };
   if (visit.city) return { key: `venue:${visit.venueId}`, name: visit.city };
+  if (visit.regionKey && visit.regionName) return { key: visit.regionKey, name: visit.regionName };
   if (visit.country) return { key: `country:${visit.country}`, name: countryName(visit.country) };
   return { key: `venue:${visit.venueId}`, name: visit.venueName };
 }

@@ -131,6 +131,7 @@ export function CollectionWallContent({ works, onModeChange, wall }: {
       </Stack.Toolbar.Button>
     </Stack.Toolbar>
     <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button hidden={editing} icon="plus" accessibilityLabel="Add visit" onPress={() => router.push('/visit-create')}>Add visit</Stack.Toolbar.Button>
       <Stack.Toolbar.Button hidden={!wall.draft} disabled={wall.pending} onPress={editing ? () => { void publish(); } : edit}
         variant={editing ? 'done' : 'plain'} tintColor={Gallery.ink}>
         {wall.pending ? 'Publishing…' : editing ? 'Publish' : 'Edit'}
