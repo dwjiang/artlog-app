@@ -33,12 +33,12 @@ export async function requireAccount(ctx: ReadCtx) {
 export async function requireProfile(ctx: ReadCtx) {
   const account = await requireAccount(ctx);
   const profile = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', account.accountId)).unique();
-  if (!profile?.active) throw new ConvexError({ code: 'profile_required' });
+  if (!profile?.active || profile.removal) throw new ConvexError({ code: 'profile_required' });
   return { ...account, profile };
 }
 export async function activeProfile(ctx: ReadCtx, profileId: Id<'profiles'>) {
   const profile = await ctx.db.get(profileId);
-  return profile?.active && await ctx.db.get(profile.accountId) ? profile : null;
+  return profile?.active && !profile.removal && await ctx.db.get(profile.accountId) ? profile : null;
 }
 export function findOwnedVisit(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   return ctx.db.query('visits').withIndex('by_owner_localId', (q) => q.eq('owner', owner).eq('localId', localId)).unique();

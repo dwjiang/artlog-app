@@ -26,14 +26,15 @@ export async function isCurrentAsset(ctx: QueryCtx, save: Doc<'collections'>, as
     return !!object && !object.reverted && !object.mergedInto && !!artwork && (!object.ownerId || (!!venue && !venue.optOut)) &&
       (!save.artworkId || save.artworkId === artwork._id);
   }
-  if (asset.provenance.kind !== 'contribution' || !asset.storageId || !await ctx.db.system.get(asset.storageId)) return false;
+  if (asset.provenance.kind !== 'contribution' || !asset.storageId || asset.storageId === asset.provenance.sourceStorageId ||
+    !await ctx.db.system.get(asset.storageId)) return false;
   const source = await contributionSource(ctx, save);
   return source?.contributionId === asset.provenance.contributionId && source?.sourceStorageId === asset.provenance.sourceStorageId;
 }
 
 export async function resolveDisplayAsset(ctx: QueryCtx, save: Doc<'collections'>) {
   for (const kind of ['catalog', 'derivative'] as const) {
-    const asset = await ctx.db.query('mediaAssets').withIndex('by_save_kind', (q) => q.eq('saveId', save._id).eq('source.kind', kind)).unique();
+    const asset = await ctx.db.query('mediaAssets').withIndex('by_save_kind', (q) => q.eq('saveId', save._id).eq('source.kind', kind)).order('desc').first();
     if (asset && await isCurrentAsset(ctx, save, asset)) return asset;
   }
   return null;

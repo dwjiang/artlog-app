@@ -1,12 +1,12 @@
 import type { Infer } from 'convex/values';
-import { displayMedia, publicArtwork, publicProfile, publicMediaContext, validateMedia } from '../../shared/social/contracts';
+import { displayMedia, publicArtwork, publicProfile, displayMediaContext, validateMedia } from '../../shared/social/contracts';
 import type { Doc } from '../_generated/dataModel';
 
 export function projectProfile(profile: Doc<'profiles'>): Infer<typeof publicProfile> {
   return { profileId: profile._id, username: profile.username, name: profile.name,
     ...(profile.bio ? { bio: profile.bio } : {}), publishedWallCount: profile.publishedWallCount };
 }
-export function projectArtwork(save: Pick<Doc<'collections'>, '_id' | 'snapshot'>, asset?: Doc<'mediaAssets'> | null, reference?: Infer<typeof publicMediaContext>): Infer<typeof publicArtwork> {
+export function projectArtwork(save: Pick<Doc<'collections'>, '_id' | 'snapshot'>, asset?: Doc<'mediaAssets'> | null, reference?: Infer<typeof displayMediaContext>): Infer<typeof publicArtwork> {
   let media: Infer<typeof displayMedia> = { kind: 'placeholder', width: 1, height: 1 };
   if (asset && asset.saveId === save._id && asset.revokedAt === undefined) {
     try {

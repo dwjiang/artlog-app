@@ -6,6 +6,7 @@ export const ERROR_MESSAGES = {
   invalid_save: 'Check the artwork details and note.', invalid_venue: 'Choose a valid museum.',
   invalid_wall: 'Check the wall layout.', invalid_post: 'Check the selected artworks and reflection.',
   invalid_relationship: 'This connection is not valid.', invalid_report: 'Check the report reason and details.',
+  friend_limit: 'One of these profiles has reached the friend limit.',
   invalid_media: 'This image is not available.', invalid_pagination: 'Refresh and try again.',
   invalid_sync: 'The journal could not sync. Try again.', sync_scope_changed: 'Your account changed. Try again.',
   claim_required: 'Your journal is still linking. Try again shortly.', ownership_collision: 'These journal records conflict. Your originals have been kept.',

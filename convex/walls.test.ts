@@ -139,14 +139,16 @@ it('invalidates deleted selections atomically and removal retries do not advance
   expect(await t.query(api.profiles.getPublic, { profileId: a.profile.profileId })).toMatchObject({ publishedWallCount: 0 });
 });
 
-it('deactivates selections whose save is purged with its account', async () => {
+it('removes the wall and its selections when the account is purged', async () => {
   vi.useFakeTimers();
   const t = harness(), a = await wallFixture(t, 'a');
   const { items: [item] } = await a.as.mutation(api.walls.setLayout, a.input);
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   expect(await t.run((ctx) => ctx.db.get(a.saveId))).toBeNull();
-  expect(await t.run((ctx) => ctx.db.get(item.itemId))).toMatchObject({ active: false, noteVisible: false, noteRevision: 1 });
+  expect(await t.run((ctx) => ctx.db.get(item.itemId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.query('walls').collect())).toEqual([]);
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toBeNull();
   vi.useRealTimers();
 });
 

@@ -41,4 +41,8 @@ it('requires shared-context credentials and drops the image when credentials dis
   expect(screen.getByRole('image').props.source.uri).toContain('kind=sharedVisit&itemId=shared-item&postId=post-a');
   await view.rerender(<DisplayMedia media={media} label="Saved title" width={100} token={null} />);
   expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
+  const preview = { ...derivative, reference: { kind: 'sharedVisitPreview' as const, visitLocalId: 'visit-a', saveLocalId: 'save-a' } };
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token="token-a" />);
+  expect(screen.getByRole('image').props.source.uri).toContain('kind=sharedVisitPreview&visitLocalId=visit-a&saveLocalId=save-a');
+  expect(screen.getByRole('image').props.source.headers).toEqual({ Authorization: 'Bearer token-a' });
 });

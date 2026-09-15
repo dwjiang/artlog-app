@@ -17,9 +17,15 @@ export function DisplayMedia(props: Props) {
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
     if (site) {
       const url = new URL('/display-media', site);
-      url.searchParams.set('kind', media.reference.kind);
-      url.searchParams.set('itemId', media.reference.itemId);
-      if (media.reference.kind === 'sharedVisit') url.searchParams.set('postId', media.reference.postId);
+      const { reference } = media;
+      url.searchParams.set('kind', reference.kind);
+      if (reference.kind === 'sharedVisitPreview') {
+        url.searchParams.set('visitLocalId', reference.visitLocalId);
+        url.searchParams.set('saveLocalId', reference.saveLocalId);
+      } else {
+        url.searchParams.set('itemId', reference.itemId);
+        if (reference.kind === 'sharedVisit') url.searchParams.set('postId', reference.postId);
+      }
       uri = url.href;
     }
   }
@@ -39,7 +45,7 @@ function MediaImage({ media, label, width, token, uri }: Props & { uri?: string 
     </View>
   );
   return <Image accessible accessibilityLabel={label} source={{ uri,
-    ...(media.kind === 'derivative' && media.reference.kind === 'sharedVisit' && token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
+    ...(media.kind === 'derivative' && media.reference.kind !== 'wallItem' && token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
     style={size} contentFit="contain" cachePolicy={media.kind === 'derivative' ? 'none' : 'memory-disk'}
     recyclingKey={uri} onError={() => setFailed(true)} />;
 }

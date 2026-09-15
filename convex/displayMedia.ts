@@ -1,11 +1,11 @@
 import { ConvexError, v } from 'convex/values';
-import { catalogMedia, publicMediaContext, validateMedia, validateMediaContext } from '../shared/social/contracts';
+import { catalogMedia, validateMedia, wallItemMediaContext } from '../shared/social/contracts';
 import { internal } from './_generated/api';
 import { httpAction, internalMutation, internalQuery } from './_generated/server';
 import { contributionSource, isCurrentAsset, resolveDisplayAsset, revokeContributionMedia, revokeSaveMedia } from './lib/displayMedia';
-import { requireProfile } from './lib/ownership';
-import { requirePublicWallItem, requireSharedVisitItem } from './lib/publicationAccess';
+import { requirePublicWallItem } from './lib/publicationAccess';
 import schema from './schema';
+import { serveSharedMedia } from './sharedMedia';
 
 export const registerCatalog = internalMutation({
   args: { saveId: v.id('collections'), objectId: v.id('objects'), source: catalogMedia, imageRightsEvidence: v.string() },
@@ -79,29 +79,28 @@ export const revokeContribution = internalMutation({
     return null;
   },
 });
-export const findForContext = internalQuery({
-  args: { context: publicMediaContext }, returns: v.union(v.id('_storage'), v.null()),
+export const findForWallItem = internalQuery({
+  args: { context: wallItemMediaContext }, returns: v.union(v.id('_storage'), v.null()),
   handler: async (ctx, { context }) => {
-    validateMediaContext(context);
-    const { save } = context.kind === 'wallItem' ? await requirePublicWallItem(ctx, context.itemId)
-      : await requireSharedVisitItem(ctx, context.postId, context.itemId, (await requireProfile(ctx)).profile._id);
+    const { save } = await requirePublicWallItem(ctx, context.itemId);
     const asset = await resolveDisplayAsset(ctx, save);
     return asset?.source.kind === 'derivative' && await isCurrentAsset(ctx, save, asset) ? asset.storageId ?? null : null;
   },
 });
+const PARAMS = { wallItem: ['itemId'], sharedVisit: ['itemId', 'postId'], sharedVisitPreview: ['visitLocalId', 'saveLocalId'] } as const;
 const headers = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' };
 export const download = httpAction(async (ctx, request) => {
   try {
     const params = new URL(request.url).searchParams;
     const kind = params.get('kind');
-    if ((kind !== 'wallItem' && kind !== 'sharedVisit') || !params.get('itemId') ||
-      [...params.keys()].some((key) => !['kind', 'itemId', 'postId'].includes(key)) ||
-      (kind === 'wallItem' && params.has('postId'))) throw new Error('Invalid context');
-    // The internal query validates table-specific IDs before any lookup.
-    const context = kind === 'wallItem' ? { kind, itemId: params.get('itemId')! } : { kind, itemId: params.get('itemId')!, postId: params.get('postId') ?? '' };
-    const storageId = await ctx.runQuery(internal.displayMedia.findForContext, { context: context as never });
+    const keys: readonly string[] | null = kind && Object.hasOwn(PARAMS, kind) ? PARAMS[kind as keyof typeof PARAMS] : null;
+    if (!keys || [...params.keys()].some((key) => key !== 'kind' && !keys.includes(key)) || keys.some((key) => !params.get(key))) throw new Error('Invalid context');
+    // The internal queries validate table-specific IDs before any lookup.
+    const context = { kind, ...Object.fromEntries(keys.map((key) => [key, params.get(key)!])) } as never;
+    if (kind !== 'wallItem') return await serveSharedMedia(ctx, context);
+    const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await ctx.storage.get(storageId) : null;
-    if (!blob || await ctx.runQuery(internal.displayMedia.findForContext, { context: context as never }) !== storageId) throw new Error('Unavailable');
+    if (!blob || await ctx.runQuery(internal.displayMedia.findForWallItem, { context }) !== storageId) throw new Error('Unavailable');
     return new Response(blob, { headers: { ...headers, 'Content-Type': 'image/jpeg' } });
   } catch { return new Response('Image unavailable', { status: 404, headers }); }
 });

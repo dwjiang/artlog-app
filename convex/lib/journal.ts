@@ -18,6 +18,11 @@ export async function upsertJournalVisit(ctx: MutationCtx, owner: JournalOwner, 
     owner, venueName: venue.name, updatedAt: Math.max(Date.now(), (existing?.updatedAt ?? 0) + 1), updatedBy: deviceId, changeVersion: await nextChangeVersion(ctx, owner) };
   const id = existing?._id ?? await ctx.db.insert('visits', fields);
   if (existing) await ctx.db.patch(id, fields);
+  if (existing && existing.visitedOn !== input.visitedOn) {
+    const publication = await ctx.db.query('sharedVisits').withIndex('by_visitId', (q) => q.eq('visitId', id)).unique();
+    if (publication) await ctx.db.patch(publication._id, { visitedOn: input.visitedOn,
+      publicationRevision: publication.publicationRevision + 1, updatedAt: Date.now() });
+  }
   return (await ctx.db.get(id))!;
 }
 export async function upsertJournalSave(ctx: MutationCtx, owner: JournalOwner, deviceId: Id<'devices'>, input: JournalSave): Promise<Doc<'collections'>> {

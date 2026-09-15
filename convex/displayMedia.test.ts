@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import { harness } from './test.helpers';
 import { wallFixture } from './lib/wallFixtures';
 import { seedArtworkWithObject, seedContribution, seedMuseum, seedScan } from './lib/testFactories';
-import { canonicalPair } from './lib/publicationAccess';
+import { canonicalPair } from './lib/friendships';
 import { projectSharedVisitCard } from './lib/projections';
 import { resolveDisplayAsset } from './lib/displayMedia';
 
@@ -144,13 +144,13 @@ it('reverting the scanning device revokes its derivatives and deletes the file',
   expect((await f.t.fetch(f.path)).status).toBe(404);
 });
 
-it('purging a deleted account revokes its derivatives', async () => {
+it('purging a deleted account deletes its derivatives and their files', async () => {
   vi.useFakeTimers();
   const f = await fixture(); await f.t.action(internal.displayMediaPrepare.prepare, { saveId: f.a.saveId });
   const asset = (await f.t.run((ctx) => ctx.db.query('mediaAssets').collect()))[0];
   await f.a.as.mutation(api.accounts.deleteAccount, {});
   await f.t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await f.t.run((ctx) => ctx.db.get(asset._id))).toMatchObject({ revokedAt: expect.any(Number) });
+  expect(await f.t.run((ctx) => ctx.db.get(asset._id))).toBeNull();
   expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();
   expect((await f.t.fetch(f.path)).status).toBe(404);
   vi.useRealTimers();
