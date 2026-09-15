@@ -26,9 +26,17 @@ export async function runCapture(
   }
 
   try {
-    const { cropUri } = await timed('warp', () => deps.warper.warpAndLetterbox(input.photoUri, input.quad, opts.inputSize));
+    const prepared = await timed('warp', () => deps.warper.warpAndLetterbox(input.photoUri, input.quad, opts.inputSize));
+    if (!prepared) return {
+      kind: 'retake', reason: 'boundary', timings,
+      message: input.source === 'library'
+        ? 'Choose a photo that shows the whole painting, including all four corners.'
+        : 'Fit the whole painting in view, including all four corners, and hold steady.',
+    };
+    const { cropUri } = prepared;
     const triage = await timed('triage', () => deps.triage.check(cropUri));
     if (!triage.ok) return { kind: 'retake', reason: triage.reason, message: triage.message, timings };
+    const presentationReady = Promise.resolve().then(() => deps.onPrepared?.(prepared)).catch(() => {});
     const embedding = await timed('embed', () => deps.embedder.embed(cropUri));
     const features = await timed('orb', () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
@@ -47,6 +55,8 @@ export async function runCapture(
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
+    await presentationReady;
+    if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     await timed('enqueue', () => deps.store.enqueue(payload, identifyNow ? 'identifying' : 'queued'));
     if (identifyNow) {
       try {

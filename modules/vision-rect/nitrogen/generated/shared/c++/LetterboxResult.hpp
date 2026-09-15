@@ -28,10 +28,13 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
+// Forward declaration of `CropContentBounds` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct CropContentBounds; }
 // Forward declaration of `RectPoint` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct RectPoint; }
 
 #include <string>
+#include "CropContentBounds.hpp"
 #include "RectPoint.hpp"
 #include <vector>
 
@@ -43,12 +46,13 @@ namespace margelo::nitro::visionrect {
   struct LetterboxResult final {
   public:
     std::string cropPath     SWIFT_PRIVATE;
+    CropContentBounds contentBounds     SWIFT_PRIVATE;
     std::vector<RectPoint> usedQuad     SWIFT_PRIVATE;
     std::vector<double> meanColor     SWIFT_PRIVATE;
 
   public:
     LetterboxResult() = default;
-    explicit LetterboxResult(std::string cropPath, std::vector<RectPoint> usedQuad, std::vector<double> meanColor): cropPath(cropPath), usedQuad(usedQuad), meanColor(meanColor) {}
+    explicit LetterboxResult(std::string cropPath, CropContentBounds contentBounds, std::vector<RectPoint> usedQuad, std::vector<double> meanColor): cropPath(cropPath), contentBounds(contentBounds), usedQuad(usedQuad), meanColor(meanColor) {}
 
   public:
     friend bool operator==(const LetterboxResult& lhs, const LetterboxResult& rhs) = default;
@@ -65,6 +69,7 @@ namespace margelo::nitro {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::visionrect::LetterboxResult(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cropPath"))),
+        JSIConverter<margelo::nitro::visionrect::CropContentBounds>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "contentBounds"))),
         JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "usedQuad"))),
         JSIConverter<std::vector<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "meanColor")))
       );
@@ -72,6 +77,7 @@ namespace margelo::nitro {
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::visionrect::LetterboxResult& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "cropPath"), JSIConverter<std::string>::toJSI(runtime, arg.cropPath));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "contentBounds"), JSIConverter<margelo::nitro::visionrect::CropContentBounds>::toJSI(runtime, arg.contentBounds));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "usedQuad"), JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::toJSI(runtime, arg.usedQuad));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "meanColor"), JSIConverter<std::vector<double>>::toJSI(runtime, arg.meanColor));
       return obj;
@@ -85,6 +91,7 @@ namespace margelo::nitro {
         return false;
       }
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cropPath")))) return false;
+      if (!JSIConverter<margelo::nitro::visionrect::CropContentBounds>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "contentBounds")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "usedQuad")))) return false;
       if (!JSIConverter<std::vector<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "meanColor")))) return false;
       return true;

@@ -8,6 +8,8 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `CropContentBounds` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct CropContentBounds; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 // Forward declaration of `HybridVisionRectSpec` to properly resolve imports.
@@ -32,6 +34,7 @@ namespace VisionCamera { class HybridFrameSpec_cxx; }
 namespace VisionRect { class HybridVisionRectSpec_cxx; }
 
 // Include C++ defined types
+#include "CropContentBounds.hpp"
 #include "HybridVisionRectSpec.hpp"
 #include "LetterboxResult.hpp"
 #include "RectDetection.hpp"

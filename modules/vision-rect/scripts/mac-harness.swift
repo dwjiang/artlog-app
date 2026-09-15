@@ -10,6 +10,7 @@
 //   /tmp/vision-rect-harness letterbox <image> <size> <out.png> [--interp medium|low|high|none] [--quad x,y,x,y,x,y,x,y]
 import CoreGraphics
 import Foundation
+import ImageIO
 
 @main
 struct Harness {
@@ -31,8 +32,43 @@ struct Harness {
     switch arguments[1] {
     case "analyze": try analyze(Array(arguments.dropFirst(2)))
     case "letterbox": try letterbox(arguments)
+    case "self-test": try testContentBounds()
     default: fail("unknown command \(arguments[1])")
     }
+  }
+
+  static func testContentBounds() throws {
+    var bitmap = RGBXBitmap(width: 4, height: 2, data: [UInt8](repeating: 255, count: 32))
+    for index in 0..<8 {
+      bitmap.data[index * 4] = UInt8(index * 30)
+      bitmap.data[index * 4 + 1] = UInt8(255 - index * 20)
+      bitmap.data[index * 4 + 2] = UInt8(index * 10)
+    }
+    let image = try bitmap.makeImage()
+    for orientation in [CGImagePropertyOrientation.up, .upMirrored, .down, .downMirrored, .left, .leftMirrored, .right, .rightMirrored] {
+      let crop = try Letterbox.letterbox(image, orientation: orientation, size: 4, interpolation: .none)
+      let expected = orientation.swapsDimensions ? CGRect(x: 1, y: 0, width: 2, height: 4) : CGRect(x: 0, y: 1, width: 4, height: 2)
+      guard crop.contentBounds == expected else { fail("Incorrect rotated content bounds: \(orientation)") }
+      let output = try RGBXBitmap.render(crop.image, orientation: .up, width: 4, height: 4, interpolation: .none)
+      let upright = try RGBXBitmap.render(image, orientation: orientation, width: Int(expected.width), height: Int(expected.height), interpolation: .none)
+      for y in 0..<4 {
+        for x in 0..<4 {
+          let offset = (y * 4 + x) * 4
+          if expected.contains(CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)) {
+            let source = ((y - Int(expected.minY)) * upright.width + x - Int(expected.minX)) * 4
+            guard output.data[offset..<offset + 3] == upright.data[source..<source + 3] else { fail("Content pixels changed") }
+          } else {
+            guard Array(output.data[offset..<offset + 3]) == [UInt8(crop.meanColor.r), UInt8(crop.meanColor.g), UInt8(crop.meanColor.b)] else { fail("Padding pixels changed") }
+          }
+        }
+      }
+    }
+    let odd = try RGBXBitmap(width: 3, height: 2, data: [UInt8](repeating: 100, count: 24)).makeImage()
+    let oddCrop = try Letterbox.letterbox(odd, size: 4)
+    guard oddCrop.contentBounds == CGRect(x: 0, y: 0, width: 4, height: 3) else { fail("Odd padding must be asymmetric") }
+    let portrait = try Letterbox.letterbox(odd, orientation: .right, size: 4)
+    guard portrait.contentBounds == CGRect(x: 0, y: 0, width: 3, height: 4) else { fail("Incorrect portrait bounds") }
+    print("PASS: content pixels, mean-color padding, odd bounds, and all eight orientations")
   }
 
   static func analyze(_ arguments: [String]) throws {
@@ -137,6 +173,10 @@ struct Harness {
     print(json([
       "out": arguments[4], "ms": (elapsed * 10).rounded() / 10,
       "meanColor": [crop.output.meanColor.r, crop.output.meanColor.g, crop.output.meanColor.b],
+      "contentBounds": [
+        "x": crop.output.contentBounds.minX, "y": crop.output.contentBounds.minY,
+        "width": crop.output.contentBounds.width, "height": crop.output.contentBounds.height,
+      ],
       "usedQuad": crop.usedQuad.map { [round4($0.x), round4($0.y)] },
     ]))
   }

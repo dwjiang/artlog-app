@@ -50,6 +50,10 @@ final class HybridVisionRect: HybridVisionRectSpec {
       try CropEncoding.writeJPEG(crop.output.image, to: cropURL)
       return LetterboxResult(
         cropPath: cropURL.path,
+        contentBounds: CropContentBounds(
+          x: Double(crop.output.contentBounds.minX), y: Double(crop.output.contentBounds.minY),
+          width: Double(crop.output.contentBounds.width), height: Double(crop.output.contentBounds.height)
+        ),
         usedQuad: crop.usedQuad.map { RectPoint(x: $0.x, y: $0.y) },
         meanColor: [Double(crop.output.meanColor.r), Double(crop.output.meanColor.g), Double(crop.output.meanColor.b)]
       )

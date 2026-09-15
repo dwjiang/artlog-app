@@ -1,8 +1,8 @@
-import type { RectDetection, RectObservation, RectPoint, StillDetection, SubjectObservation } from '../../../modules/vision-rect/src';
+import type { RectObservation, RectPoint, StillDetection, SubjectObservation } from '../../../modules/vision-rect/src';
 
 import type { Quad } from './stages';
 
-export const STABLE_WINDOW_MS = 400;
+export const STABLE_WINDOW_MS = 800;
 /**
  * Fraction of the frame diagonal a smoothed corner may move within the window and still count as
  * steady. Hand-held aiming at a painting measured 3–6.5% raw corner movement per window on the phone.
@@ -90,7 +90,7 @@ function distance(a: [number, number], b: [number, number], size: FrameSize): nu
   return Math.hypot((a[0] - b[0]) * size.width, (a[1] - b[1]) * size.height);
 }
 
-function maxCornerDistance(a: Quad, b: Quad, size: FrameSize): number {
+export function maxCornerDistance(a: Quad, b: Quad, size: FrameSize): number {
   return Math.max(...a.map((corner, index) => distance(corner, b[index], size)));
 }
 
@@ -115,6 +115,30 @@ function blend(tracked: Quad, raw: Quad): Quad {
 
 function isCutOff(quad: Quad): boolean {
   return quad.some(([x, y]) => x < EDGE_MARGIN || x > 1 - EDGE_MARGIN || y < EDGE_MARGIN || y > 1 - EDGE_MARGIN);
+}
+
+export function isUsableQuad(quad: Quad): boolean {
+  if (quad.some((point) => point.some((v) => !Number.isFinite(v) || v < 0 || v > 1))) return false;
+  if (quadArea(quad) < 0.01) return false;
+  return quad.every(([x, y], i) => {
+    const b = quad[(i + 1) % 4], c = quad[(i + 2) % 4];
+    return (b[0] - x) * (c[1] - b[1]) - (b[1] - y) * (c[0] - b[0]) > 0;
+  });
+}
+
+export function containsPoint(quad: Quad, [x, y]: [number, number]): boolean {
+  return quad.every(([ax, ay], i) => {
+    const [bx, by] = quad[(i + 1) % 4];
+    return (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= 0;
+  });
+}
+
+export function previewQuad(quad: Quad, frame: FrameSize, preview: FrameSize): Quad {
+  const scale = Math.max(preview.width / frame.width, preview.height / frame.height);
+  return quad.map(([x, y]) => [
+    (x * frame.width * scale + (preview.width - frame.width * scale) / 2) / preview.width,
+    (y * frame.height * scale + (preview.height - frame.height * scale) / 2) / preview.height,
+  ]) as Quad;
 }
 
 export function framingGuidance(quad: Quad, size: FrameSize): 'move-closer' | 'fit-whole-painting' | 'straighten' | null {
@@ -208,55 +232,24 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
  * Small subjects need a preview target or a matching rectangle to avoid cropping to painted details.
  * Subjects cut off by the edge are doors and walls, or a painting
  * whose mask ran off the photo and fits a tilted quad; those fall through. Without a subject the
- * rectangle candidates stand in: the one matching the preview quad, else the preview quad, else the
- * largest. Library imports keep the outer candidate because a smaller nested rectangle can be
+ * rectangle candidates stand in: the one matching the preview quad, else the largest.
+ * Preview corners alone are never evidence of a still boundary. Imports keep the outer candidate because a smaller nested rectangle can be
  * painted detail rather than the canvas boundary.
  */
 export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
-  const rectangles = still.rectangles.filter((observation) => observation.corners.length === 4);
+  const rectangles = still.rectangles.filter((observation) => observation.corners.length === 4 && isUsableQuad(toQuad(observation.corners)));
   const subjects = still.subjects.filter(isQuadrilateralSubject).map((subject) => toQuad(subject.quad))
-    .filter((quad) => !isCutOff(quad) && (
+    .filter((quad) => isUsableQuad(quad) && !isCutOff(quad) && (
       quadArea(quad) >= MIN_UNGUIDED_SUBJECT_AREA_FRACTION
-      || (previewQuad !== null && enclosesCentroid(previewQuad, quad))
+      || (previewQuad !== null && enclosesCentroid(previewQuad, quad) && quadArea(quad) >= 0.5 * quadArea(previewQuad))
       || closestRectangle(rectangles, quad) !== null
     )).sort((a, b) => quadArea(b) - quadArea(a));
   const subject = (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad))) ?? subjects[0];
   if (subject) return subject;
-  if (previewQuad) return closestRectangle(rectangles, previewQuad) ?? previewQuad;
+  if (previewQuad) {
+    const match = closestRectangle(rectangles, previewQuad);
+    if (match) return match;
+  }
   const largest = largestObservation(rectangles);
   return largest ? toQuad(largest.corners) : null;
-}
-
-/** Feeds detections into a tracker and lets React subscribe to guidance changes without re-rendering per frame. */
-export class RectTrackerStore {
-  private readonly tracker = new RectTracker();
-  private readonly listeners = new Set<() => void>();
-  private result: TrackerResult = searching;
-
-  readonly subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
-  };
-
-  readonly getGuidance = (): Guidance => this.result.guidance;
-
-  get captureQuad(): Quad | null {
-    return this.result.captureQuad;
-  }
-
-  push(detection: RectDetection, now: number): TrackerResult {
-    return this.update(this.tracker.push(detection.observations, detection, now));
-  }
-
-  reset(): void {
-    this.tracker.reset();
-    this.update(searching);
-  }
-
-  private update(next: TrackerResult): TrackerResult {
-    const changed = next.guidance !== this.result.guidance;
-    this.result = next;
-    if (changed) this.listeners.forEach((listener) => listener());
-    return next;
-  }
 }

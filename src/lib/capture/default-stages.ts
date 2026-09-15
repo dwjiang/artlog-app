@@ -6,7 +6,7 @@ import { filePath } from '@/lib/file-uri';
 import { captureStore } from '@/lib/queue/queue';
 import { orb } from './features';
 import { triage } from './triage';
-import { selectCaptureQuad, toCorners } from './rectangle';
+import { selectCaptureQuad, toCorners, toQuad } from './rectangle';
 import type { CaptureDependencies, CaptureOptions, Warper } from './stages';
 
 export const warper: Warper = {
@@ -21,11 +21,16 @@ export const warper: Warper = {
         subjects: still.subjects.map((subject) => `${(subject.area * 100).toFixed(1)}% fill ${subject.quadFill.toFixed(3)}`),
         rectangles: still.rectangles.length,
         subjectNote: still.subjectNote,
-        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ') ?? 'whole image',
+        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ') ?? 'no boundary',
       });
     }
-    const result = await visionRect.warpAndLetterbox(path, selected ? toCorners(selected) : undefined, size);
-    return { cropUri: `file://${result.cropPath}` };
+    if (!selected) return null;
+    const result = await visionRect.warpAndLetterbox(path, toCorners(selected), size);
+    return {
+      cropUri: `file://${result.cropPath}`, corners: toQuad(result.usedQuad),
+      photoSize: { width: still.width, height: still.height },
+      contentBounds: result.contentBounds, cropSize: size,
+    };
   },
 };
 
