@@ -32,7 +32,7 @@ jest.mock('./view-mode-picker', () => {
   return {
     ViewModePicker: ({ mode, onChange }: { mode: string; onChange: (mode: string) => void }) => (
       <View>
-        {['grid', 'canvas', 'az', 'visits'].map((value) => (
+        {['wall', 'grid', 'az', 'visits'].map((value) => (
           <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: mode === value }} onPress={() => onChange(value)}>
             <Text>{value}</Text>
           </Pressable>
@@ -42,13 +42,32 @@ jest.mock('./view-mode-picker', () => {
   };
 });
 
+
+jest.mock('./collection-wall', () => {
+  const { Pressable, Text } = jest.requireActual('react-native');
+  return { CollectionWall: ({ onModeChange }: { onModeChange: (mode: string) => void }) => (
+    <Pressable accessibilityRole="button" onPress={() => onModeChange('grid')}><Text>All artworks</Text></Pressable>
+  ) };
+});
+
+async function renderArchive() {
+  await render(<CollectionScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'All artworks' }));
+}
+
+it('starts on the wall and opens the full collection separately', async () => {
+  await render(<CollectionScreen />);
+  expect(screen.getByRole('button', { name: 'All artworks' })).toBeOnTheScreen();
+  expect(screen.queryByPlaceholderText('Title, artist, date or place')).toBeNull();
+});
+
 const venueId = 'museum-1' as Id<'museums'>;
 const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Museum, place or visit date/);
 
 beforeEach(() => { mockHrefs.length = 0; });
 
 it('invites the first scan while the collection is empty', async () => {
-  await render(<CollectionScreen />);
+  await renderArchive();
   expect(await screen.findByText('Scan a painting to start your collection.')).toBeOnTheScreen();
   expect(screen.getByRole('link', { name: 'Go to Scan' })).toBeOnTheScreen();
   expect(mockHrefs).toEqual(['/']);
@@ -64,7 +83,7 @@ describe('with saved works', () => {
   });
 
   it('shows every work in the grid, newest first, each linking to its detail', async () => {
-    await render(<CollectionScreen />);
+    await renderArchive();
     expect(await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
     expect(screen.getAllByRole('button', { name: /, / }).map((cell) => cell.props.accessibilityLabel)).toEqual([
       'Water Lilies, Claude Monet', '100% Cotton, Anon', 'Untitled, Unknown',
@@ -75,10 +94,14 @@ describe('with saved works', () => {
   });
 
   it('narrows the grid with the header search and explains an empty match', async () => {
-    await render(<CollectionScreen />);
+    await renderArchive();
     await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' });
     await fireEvent.changeText(search(), 'MONET');
     expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(1);
+    // The header search bar keeps its text across the archive views, so the filter must too.
+    await fireEvent.press(screen.getByRole('button', { name: 'az' }));
+    expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(1);
+    await fireEvent.press(screen.getByRole('button', { name: 'grid' }));
     await fireEvent.changeText(search(), 'orsay');
     expect(screen.getByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
     await fireEvent.changeText(search(), 'vermeer ');
@@ -88,7 +111,7 @@ describe('with saved works', () => {
   });
 
   it('groups works by visit, newest first, with imports last', async () => {
-    await render(<CollectionScreen />);
+    await renderArchive();
     await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' });
     await fireEvent.press(screen.getByRole('button', { name: 'visits' }));
     const headers = ['Metropolitan Museum of Art · 8 Sep 2026', 'de Young · 1 Sep 2026', 'Imported'];
@@ -99,20 +122,13 @@ describe('with saved works', () => {
     expect(screen.getByText(headers[1])).toBeOnTheScreen();
   });
 
-  it('hangs the works on the canvas wall', async () => {
-    await render(<CollectionScreen />);
-    await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' });
-    await fireEvent.press(screen.getByRole('button', { name: 'canvas' }));
-    expect(screen.getByRole('button', { name: 'canvas' })).toBeSelected();
-    expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(3);
-    expect(screen.getByText('100% Cotton')).toBeOnTheScreen();
-  });
+
 });
 
 it('immediately hides account works on sign-out and restores them on sign-in', async () => {
   await insertSavedWork({ localId: 'account-work', savedAt: 10, title: 'Private account work', artist: 'Reader' }, 'account:a');
   switchOwner('account:a', 'scope-a');
-  await render(<CollectionScreen />);
+  await renderArchive();
   expect(await screen.findByText('Private account work')).toBeOnTheScreen();
   await act(() => switchOwner(anonymousOwner(), 'scope-anonymous'));
   expect(screen.queryByText('Private account work')).toBeNull();
@@ -123,7 +139,7 @@ it('immediately hides account works on sign-out and restores them on sign-in', a
 it('shows empty visits and calendar month groups, and searches them by country or date', async () => {
   switchOwner('account:empty', 'scope-empty');
   await upsertVisit({ localId: '00000000-0000-4000-8000-000000000001', venueId, venueName: 'Empty Museum', visitedOn: '2024-02-29', timeZone: 'UTC' });
-  await render(<CollectionScreen />);
+  await renderArchive();
   await screen.findByText('Scan a painting to start your collection.');
   await fireEvent.press(screen.getByRole('button', { name: 'visits' }));
   expect(screen.getByText('February 2024')).toBeOnTheScreen();
@@ -136,7 +152,7 @@ it('shows empty visits and calendar month groups, and searches them by country o
 });
 it('shows the A–Z collection in artist order', async () => {
   switchOwner(anonymousOwner(), 'scope-anonymous');
-  await render(<CollectionScreen />);
+  await renderArchive();
   await screen.findByText('Water Lilies');
   await fireEvent.press(screen.getByRole('button', { name: 'az' }));
   expect(screen.getAllByRole('button', { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
