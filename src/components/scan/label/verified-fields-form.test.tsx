@@ -6,7 +6,6 @@ import type { LabelFlowDisplay } from '../../../../convex/lib/validators';
 import { UNLOCK_TITLE, unlockMessage, VerifiedFieldsForm } from './verified-fields-form';
 import { EDITED_LABEL, formStateFromFlow, unlockField } from '@/lib/label/fields';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { TextInput, View } = jest.requireActual('react-native');
   return {

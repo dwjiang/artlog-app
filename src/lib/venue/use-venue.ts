@@ -17,10 +17,10 @@ import { getSetting, removeSetting, setSetting } from '@/db/repos/settings';
 import { getVisit, patchVisit, upsertVisit } from '@/db/repos/visits';
 import type { NewVisit } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
+import { flushJournal } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
 import { refreshVenueTableInBackground } from './refresh';
-import { syncVisits } from './visit-sync';
 import { CHOOSE_RADIUS_M, pickVenue } from './resolve';
 import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates } from './venue-db';
 import {
@@ -77,7 +77,7 @@ export function createVenueController(): VenueController {
   async function syncRemoteVisit(): Promise<void> {
     const current = captureOwner();
     try {
-      await syncVisits();
+      await flushJournal();
       if (!current.isCurrent()) return;
       const localId = state.visit?.localId;
       const row = localId ? await getVisit(localId) : undefined;

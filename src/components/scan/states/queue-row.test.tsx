@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { QueueRow, RETRY_ROW, queueStatusText } from './queue-row';
 import type { PendingScan } from '@/db/schema';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 
 const now = new Date(2026, 8, 11, 12, 0, 0).getTime();

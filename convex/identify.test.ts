@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
-import { encodeOrbFeatures } from '../shared/orb';
+import { encodeOrbFeatures } from '../shared/orb/features';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { completion, jsonResponse } from './lib/labelFixtures';
 import { storeOrb } from './lib/orbStorage';

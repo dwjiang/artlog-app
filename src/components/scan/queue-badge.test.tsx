@@ -7,7 +7,6 @@ const mockPush = jest.fn();
 let mockStatuses: PendingScanStatus[] = [];
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({
   pending: mockStatuses.filter((status) => status === 'queued' || status === 'identifying').length,
   items: mockStatuses.map((status) => ({ status })),

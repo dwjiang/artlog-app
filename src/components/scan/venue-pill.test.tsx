@@ -7,7 +7,6 @@ const mockPush = jest.fn();
 let mockView: VenueView;
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => mockView }));
 
 const legion = { kind: 'seeded', venueId: 'id-legion' as never, name: 'Legion of Honor', distanceM: 40 } as const;

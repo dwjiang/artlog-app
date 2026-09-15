@@ -10,7 +10,6 @@ const mockRetry = jest.fn();
 let mockItems: PendingScan[] = [];
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ dismiss: mockDismiss, push: mockPush }) }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: (localId: string) => mockRetry(localId) }));
 jest.mock('@/lib/queue/use-queue', () => ({

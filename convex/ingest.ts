@@ -5,7 +5,7 @@ import { validateGeography } from '../shared/social/contracts';
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
-import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../shared/orb';
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../shared/orb/features';
 import { internal } from './_generated/api';
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from './lib/orbStorage';
 import { registerMuseumObject } from './lib/museumWorkIdentity';

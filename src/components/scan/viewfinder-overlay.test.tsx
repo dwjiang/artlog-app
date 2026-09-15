@@ -17,7 +17,6 @@ jest.mock('react-native-reanimated', () => {
     withTiming: <T,>(value: T) => value,
   };
 });
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 
 const live: LiveQuad = { quad: [[0.2, 0.3], [0.8, 0.3], [0.8, 0.7], [0.2, 0.7]], frameWidth: 768, frameHeight: 1024 };
 const liveQuad = { value: live, get: () => live, set: jest.fn() } as unknown as SharedValue<LiveQuad>;

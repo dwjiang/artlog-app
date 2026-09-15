@@ -1,9 +1,9 @@
 # Calibrator training output
 
 The match calibrator (`convex/lib/calibrator/`) is a logistic regression over the fixed
-feature vector produced by `featurize()`. Its weights ship as versioned constants in
-`convex/lib/calibrator/weights.ts`; `CALIBRATOR_V2` is the default trained on 5,500
-paintings. Its evaluation limits are recorded in
+feature vector produced by `featurize()`. Its weights ship as `DEFAULT_CALIBRATOR` in
+`convex/lib/calibrator/weights.ts`, currently `lr-v2`, trained on 5,500 paintings. Its
+evaluation limits are recorded in
 [calibrator findings](../../docs/experiments/README.md#calibrator-v2).
 
 ## What the training job must emit
@@ -34,8 +34,8 @@ One JSON document shaped exactly like `CalibratorConfig`:
 
 ## How it gets adopted
 
-A human pastes the document into `weights.ts` as `CALIBRATOR_VN` and points
-`DEFAULT_CALIBRATOR` at it. `weights.test.ts` fails if `featureNames` drifts from
-`FEATURE_NAMES` or the weight count changes. Adding a feature means appending to
+A human replaces the `DEFAULT_CALIBRATOR` literal in `weights.ts` with the document.
+`weights.test.ts` fails if `featureNames` drifts from `FEATURE_NAMES` or the weight count
+changes. Adding a feature means appending to
 `FEATURE_NAMES`, retraining, and bumping the version; stored feedback rows record the
 version they were scored with.

@@ -1,8 +1,6 @@
 import { extractOrb } from '@/lib/orb/extract';
 import type { Embedder, OrbExtractor } from './stages';
 
-export { triage } from './triage';
-
 export const orb: OrbExtractor = { extract: (cropUri) => extractOrb(cropUri) };
 
 export type ScanFeatures = { vector: number[]; descriptors: ArrayBuffer; keypoints: ArrayBuffer };

@@ -83,7 +83,7 @@
     "start": "expo start",
     "ios": "expo run:ios",
     "preios": "npm run model:check",
-    "lint": "expo lint",
+    "lint": "expo lint .",
     "test": "npm run test:app && npm run test:convex && npm run test:model",
     "test:app": "jest",
     "test:convex": "vitest run --passWithNoTests",

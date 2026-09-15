@@ -4,7 +4,6 @@ import { FieldsForm } from './fields-form';
 import { draftFromCandidate } from '@/lib/result/snapshot';
 import { lilies } from './__fixtures__/scan';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { TextInput, View } = jest.requireActual('react-native');
   return {

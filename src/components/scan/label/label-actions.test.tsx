@@ -5,7 +5,6 @@ import type { Id } from '../../../../convex/_generated/dataModel';
 import { CONTRIBUTION_MESSAGES, contributionMessage } from './contribute-result';
 import { LabelActions, SHARE_BUTTON } from './label-actions';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

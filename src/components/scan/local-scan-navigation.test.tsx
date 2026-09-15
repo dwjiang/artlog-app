@@ -22,7 +22,6 @@ jest.mock('drizzle-orm/expo-sqlite', () => ({
   },
 }));
 jest.mock('@/db/repos/pending-scans', () => ({ selectPendingScan: jest.fn(), pendingScansQuery: jest.fn() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
 jest.mock('@/lib/result/use-save-result', () => ({ useSaveResult: () => ({ saving: false, save: jest.fn() }) }));

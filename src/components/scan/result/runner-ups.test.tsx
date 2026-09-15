@@ -3,8 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { RunnerUps } from './runner-ups';
 import { bridge, haystacks } from './__fixtures__/scan';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
-
 it('lists title, artist and institution per row and reports the tapped candidate', async () => {
   const onPick = jest.fn();
   await render(<RunnerUps candidates={[bridge, haystacks]} onPick={onPick} />);

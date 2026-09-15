@@ -1,7 +1,8 @@
+import { randomUUID } from 'expo-crypto';
+
 import { captureOwner } from '@/lib/account/owner-store';
 import { errorMessage, isNetworkError } from '@/lib/network-error';
 import { roundVector } from './features';
-import { createCaptureId } from './ids';
 import type { CaptureDependencies, CaptureInput, CaptureOptions, CapturePayload, CaptureResult, CaptureTimings } from './stages';
 
 export async function runCapture(
@@ -31,7 +32,7 @@ export async function runCapture(
     const embedding = await timed('embed', () => deps.embedder.embed(cropUri));
     const features = await timed('orb', () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
-      owner: current.owner, scope: current.scope, localId: createCaptureId(),
+      owner: current.owner, scope: current.scope, localId: randomUUID(),
       vector: roundVector(embedding),
       descriptors: features.descriptors,
       keypoints: features.keypoints,

@@ -1,6 +1,6 @@
 import { ConvexError } from 'convex/values';
 
-import { decodeOrbFeatures, DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../../shared/orb';
+import { decodeOrbFeatures, DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../../shared/orb/features';
 import type { Id } from '../_generated/dataModel';
 import type { ActionCtx, MutationCtx } from '../_generated/server';
 

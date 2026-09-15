@@ -15,7 +15,6 @@ jest.mock('@expo/ui');
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('convex/react', () => ({ useMutation: () => mockAssertSmoke }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/app-attest', () => ({ getAppAttest: () => mockGetAppAttest() }));
 jest.mock('@/lib/attested-write', () => ({ signPayload: (...args: unknown[]) => mockSignPayload(...args) }));
 jest.mock('@/lib/embed/embedder', () => ({ embedder: { warmUp: () => mockWarmUp() } }));

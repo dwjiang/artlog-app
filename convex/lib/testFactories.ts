@@ -2,7 +2,7 @@ import model from '../../shared/model/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { ActionCtx, MutationCtx } from '../_generated/server';
 import type { Harness, SignedIn } from '../test.helpers';
-import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
+import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb/features';
 import { registerMuseumObject } from './museumWorkIdentity';
 import { storeOrb } from './orbStorage';
 
@@ -32,7 +32,6 @@ export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<
   return { ...user, deviceId, scope: `device:${deviceId}:0` };
 }
 
-export const asDevice = seedDevice;
 
 export async function seedMuseum(
   ctx: MutationCtx,

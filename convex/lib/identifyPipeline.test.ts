@@ -3,9 +3,10 @@ import { expect, it } from 'vitest';
 import model from '../../shared/model/model-version.json';
 import type { Id } from '../_generated/dataModel';
 import type { LoadedCandidate } from '../identify';
-import { DEFAULT_CALIBRATOR, featureIndex } from './calibrator';
+import { featureIndex } from './calibrator/features';
+import { DEFAULT_CALIBRATOR } from './calibrator/weights';
 import { runPipeline } from './identifyPipeline';
-import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb';
+import { encodeOrbFeatures, type OrbFeatures } from '../../shared/orb/features';
 import { makeSyntheticPair } from '../../shared/orb/test-fixtures';
 
 const pair = makeSyntheticPair({ count: 120 });

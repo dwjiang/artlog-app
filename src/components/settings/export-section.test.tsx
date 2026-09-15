@@ -9,7 +9,6 @@ import { setNote } from '@/db/repos/notes';
 const mockWrite = jest.fn();
 jest.mock('@expo/ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('expo-sharing', () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
 jest.mock('expo-file-system', () => ({
   Paths: { cache: 'file:///cache' },

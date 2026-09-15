@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE, WaitingForSignalCard } from './waiting-for-signal-card';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {

@@ -42,7 +42,6 @@ jest.mock('@expo/ui', () => {
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('expo-haptics', () => ({
   selectionAsync: () => mockSelectionHaptic(),
   impactAsync: (style: string) => mockImpactHaptic(style),

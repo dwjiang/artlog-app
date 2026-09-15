@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 
 import { CONSENT_BODY, CONSENT_TITLE, ConsentSheet } from './consent-sheet';
 
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

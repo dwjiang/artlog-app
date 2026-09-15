@@ -13,7 +13,7 @@ export type CalibratorConfig = {
   lowTexture: { minSimilarity: number; minMargin: number; requireVenueAgreement: boolean };
 };
 
-export const CALIBRATOR_V2: CalibratorConfig = {
+export const DEFAULT_CALIBRATOR: CalibratorConfig = {
   version: 'lr-v2',
   featureNames: FEATURE_NAMES,
   weights: [
@@ -35,5 +35,3 @@ export const CALIBRATOR_V2: CalibratorConfig = {
   textured: { minInliers: 15 },
   lowTexture: { minSimilarity: 0.93, minMargin: 0.04, requireVenueAgreement: true },
 };
-
-export const DEFAULT_CALIBRATOR: CalibratorConfig = CALIBRATOR_V2;

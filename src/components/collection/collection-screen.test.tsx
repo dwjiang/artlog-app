@@ -12,7 +12,6 @@ const mockHrefs: unknown[] = [];
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('expo-router', () => {
   const { Pressable, TextInput } = jest.requireActual('react-native');

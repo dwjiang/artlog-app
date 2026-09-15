@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { encodeOrbFeatures } from '../../shared/orb';
+import { encodeOrbFeatures } from '../../shared/orb/features';
 import { makeRandomFeatures } from '../../shared/orb/test-fixtures';
 import { harness } from '../test.helpers';
 import { loadOrb, packOrb, storeOrb } from './orbStorage';
