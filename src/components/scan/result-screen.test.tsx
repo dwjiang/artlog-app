@@ -78,10 +78,10 @@ jest.mock('@expo/ui', () => {
 });
 
 beforeAll(async () => {
-  await visits.upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'visit-local-1', venueId: 'museum-met' as Id<'museums'>, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as Id<'visits'> });
+  await visits.upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', venueId: 'museum-met' as Id<'museums'>, venueName: 'The Met', startedAt: 1 });
   await enqueuePendingScan({
     localId: 'capture-1', photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg', vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
-    modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-met' as Id<'museums'>, visitLocalId: 'visit-local-1', capturedAt: 1,
+    modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-met' as Id<'museums'>, visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', capturedAt: 1,
     status: 'identified', scanId: SCAN_ID, createdAt: 1,
   });
   await enqueuePendingScan({
@@ -304,7 +304,7 @@ it('saves an untouched confident card locally, tells the server the suggestion w
     title: 'Water Lilies', artist: 'Claude Monet', scanId: SCAN_ID, objectId: lilies.objectId, cropPath: 'crops/c1.jpg', venueName: 'The Met',
   });
   await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({
-    localId: savedId, scanId: SCAN_ID, objectId: lilies.objectId, visitLocalId: 'visit-local-1',
+    localId: savedId, scanId: SCAN_ID, objectId: lilies.objectId, visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76',
     snapshot: expect.objectContaining({ title: 'Water Lilies', artist: 'Claude Monet' }),
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
   })));
@@ -330,7 +330,7 @@ it.each([softScan, missScan])('removes match choices after saving a $outcome car
 
 it.each([confidentScan, softScan])('locks the draft and match choices while saving a $outcome card', async (scan) => {
   results.set('scans:get', scan);
-  const visit = await visits.getVisit('visit-local-1');
+  const visit = await visits.getVisit('aea0b816-f46f-5312-a657-f92d1af2cb76');
   let finishVisit!: (value: typeof visit) => void;
   jest.spyOn(visits, 'getVisit').mockReturnValueOnce(new Promise((resolve) => { finishVisit = resolve; }));
   await render(result());
@@ -643,7 +643,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
   results.set('scans:get', softScan);
   let finishSearch!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
   jest.mocked(runMuseumSearchForScan).mockReturnValue(new Promise((resolve) => { finishSearch = resolve; }));
-  const visit = await visits.getVisit('visit-local-1');
+  const visit = await visits.getVisit('aea0b816-f46f-5312-a657-f92d1af2cb76');
   let finishSave!: () => void;
   jest.spyOn(console, 'warn').mockImplementation(() => {});
   jest.spyOn(visits, 'getVisit').mockImplementationOnce(() => new Promise((resolve, reject) => {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { FunctionArgs } from 'convex/server';
 
 import { stableStringify } from '../shared/attestation/stable-stringify';
 import { api, internal } from './_generated/api';
@@ -24,7 +25,7 @@ async function fixture(overrides: Partial<Doc<'museums'>> = {}) {
 }
 
 const poi = { name: 'New Museum', website: 'https://new.example', lat: 10, lng: 20 };
-async function confirm(user: SignedIn, fields: Omit<typeof poi, 'website'> & { website?: string } = poi) {
+async function confirm(user: SignedIn, fields: Omit<FunctionArgs<typeof api.museums.confirmPoiVenue>, 'nonce' | 'assertionBase64' | 'payloadJson'> = poi) {
   return user.as.mutation(api.museums.confirmPoiVenue, {
     ...fields, ...await proof(user, { action: 'museums.confirmPoiVenue', ...fields }),
   });
@@ -46,7 +47,7 @@ it('confirms a POI, inherits the nearest seeded region, and records its collecti
 
 it('deduplicates names within 100 m without replacing the existing website or probing again', async () => {
   const { t, user, venueId } = await fixture({ name: 'New Museum', lat: 10, lng: 20, website: undefined });
-  expect(await confirm(user, { ...poi, name: '  NEW   MUSEUM ', lat: 10.0005 })).toEqual({ venueId });
+  expect(await confirm(user, { ...poi, name: '  NEW   MUSEUM ', lat: 10.0005 })).toMatchObject({ venueId });
   expect(await t.run((ctx) => ctx.db.system.query('_scheduled_functions').collect())).toHaveLength(0);
   expect((await t.run((ctx) => ctx.db.get(venueId)))?.website).toBeUndefined();
 });
@@ -62,7 +63,7 @@ it('does not deduplicate distant names and uses unknown region beyond 60 km', as
 
 it('deduplicates across the date line', async () => {
   const { user, venueId } = await fixture({ name: poi.name, lat: 0, lng: 179.9998 });
-  expect(await confirm(user, { ...poi, lat: 0, lng: -179.9998 })).toEqual({ venueId });
+  expect(await confirm(user, { ...poi, lat: 0, lng: -179.9998 })).toMatchObject({ venueId });
 });
 
 it('rate limits the sixth POI confirmation and validates coordinates and website', async () => {
@@ -141,4 +142,10 @@ it.each([429, 503, 'network'] as const)('leaves the collection site unset after 
   await t.action(internal.museums.probeCollectionSite, { venueId });
   expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
   expect(fetchMock).toHaveBeenCalledTimes(6);
+});
+it('returns the canonical geography when MapKit confirms an existing museum', async () => {
+  const { t, user, venueId } = await fixture({ name: poi.name, lat: poi.lat, lng: poi.lng });
+  await t.run((ctx) => ctx.db.patch(venueId, { city: 'Paris', country: 'FR', cityKey: 'wikidata:Q90' }));
+  expect(await confirm(user, { ...poi, city: 'Unverified city', country: 'US' })).toMatchObject({ venueId,
+    venue: { id: venueId, city: 'Paris', country: 'FR', cityKey: 'wikidata:Q90' } });
 });

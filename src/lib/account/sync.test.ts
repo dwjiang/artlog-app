@@ -9,7 +9,7 @@ import { syncJournal, type SyncContext, type SyncDependencies } from './sync';
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 const context: SyncContext = { scope: 'scope', owner: getLocalOwner(), deviceId: 'a' as Id<'devices'>, accountId: null };
 const remoteVisit: Doc<'visits'> = { _id: 'visit' as never, _creationTime: 1, owner: { kind: 'device', deviceId: context.deviceId },
-  localId: 'remote-visit', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
+  localId: 'bece7508-7d6f-56b8-82ea-f78d7ddf19de', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
   updatedAt: 2, updatedBy: context.deviceId, changeVersion: 1 };
 const remote: Doc<'collections'> = {
   _id: 'remote-1' as Id<'collections'>, _creationTime: 1, owner: remoteVisit.owner, changeVersion: 2,
@@ -19,11 +19,11 @@ const remote: Doc<'collections'> = {
 let checkpoint: string | undefined;
 let deps: SyncDependencies;
 const api = jest.fn<ReturnType<SyncDependencies['sync']>, Parameters<SyncDependencies['sync']>>();
-const empty = { acceptedVisits: [], acceptedSaves: [], visits: [], saves: [], checkpoint: 20, hasMore: false };
+const empty = { venues: [], acceptedVisits: [], acceptedSaves: [], visits: [], saves: [], checkpoint: 20, hasMore: false };
 beforeEach(async () => {
   await db.delete(notes); await db.delete(savedWorks); await db.delete(pendingScans); await db.delete(visitTable);
   checkpoint = undefined; api.mockReset();
-  deps = { ...saves, ...visits, getCheckpoint: async () => checkpoint, setCheckpoint: async (value) => { checkpoint = value; }, sync: api };
+  deps = { ...saves, ...visits, applyVenues: jest.fn().mockResolvedValue(undefined), getCheckpoint: async () => checkpoint, setCheckpoint: async (value) => { checkpoint = value; }, sync: api };
   api.mockImplementation(async (args) => ({ ...empty,
     acceptedVisits: args.visits.map(({ localId }) => ({ localId, visitId: 'visit' as never, updatedAt: 20, updatedBy: context.deviceId })),
     acceptedSaves: args.saves.map(({ localId }) => ({ localId, updatedAt: 20, updatedBy: context.deviceId })),
@@ -60,11 +60,30 @@ it('discards in-flight responses after account changes', async () => {
   expect(await saves.listSavedWorks()).toEqual([]); expect(await visits.listVisits()).toEqual([]); expect(checkpoint).toBeUndefined();
 });
 it('sends empty visits before save batches and leaves hidden account work suspended', async () => {
-  await visits.upsertVisit({ localId: 'empty', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
+  await visits.upsertVisit({ localId: '82c19918-521d-5d4c-a310-5c5a6b02f7d1', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
   await db.insert(savedWorks).values(Array.from({ length: 70 }, (_, i) => ({ owner: context.owner, localId: `local-${i}`, title: 'Painting', artist: '', savedAt: i })));
   await saves.insertSavedWork({ localId: 'hidden', title: 'Hidden', artist: '', savedAt: 0 }, 'account:hidden');
   await syncJournal(deps, context);
   expect(api.mock.calls.map(([args]) => args.visits.length + args.saves.length)).toEqual([50, 21]);
   expect(api.mock.calls[0][0].visits).toHaveLength(1);
   expect(await saves.listUnsynced()).toEqual([]); expect(await saves.listUnsynced('account:hidden')).toHaveLength(1);
+});
+
+it('applies canonical venue metadata before advancing the checkpoint', async () => {
+  const venues = [{ id: remoteVisit.venueId, key: 'poi:canonical', region: 'US', name: 'Museum', lat: 1, lng: 2, city: 'New York', country: 'US', cityKey: 'wikidata:Q60' }];
+  api.mockResolvedValueOnce({ ...empty, visits: [remoteVisit], venues });
+  await syncJournal(deps, context);
+  expect(deps.applyVenues).toHaveBeenCalledWith(venues);
+  expect(checkpoint).toBe('20');
+  checkpoint = undefined;
+  api.mockResolvedValueOnce({ ...empty, venues });
+  deps.applyVenues = async () => { throw new Error('SQLITE_BUSY'); };
+  await expect(syncJournal(deps, context)).rejects.toThrow('SQLITE_BUSY');
+  expect(checkpoint).toBeUndefined();
+});
+it('rejects remote rows belonging to a different owner before applying data', async () => {
+  api.mockResolvedValueOnce({ ...empty, visits: [{ ...remoteVisit, owner: { kind: 'account', accountId: 'foreign' as never } }] });
+  await expect(syncJournal(deps, context)).rejects.toThrow('not_found');
+  expect(await visits.listVisits()).toEqual([]);
+  expect(checkpoint).toBeUndefined();
 });

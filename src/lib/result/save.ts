@@ -35,6 +35,10 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   const { snapshot, suggested } = buildSnapshot(draft, view);
   if (!snapshot.title) throw new Error('A title is required to save');
   const visit = capture.visitLocalId ? await getVisit(capture.visitLocalId, current.owner) : undefined;
+  if (capture.visitLocalId != null && (!visit || visit.venueId !== capture.venueId) ||
+    capture.visitId != null && (!visit || visit.remoteVisitId !== capture.visitId)) {
+    throw new Error('The capture is linked to an invalid visit');
+  }
   const venueId = capture.venueId ?? visit?.venueId;
   const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId).catch(() => undefined) : undefined);
   const primary = view?.primary;

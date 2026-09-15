@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
-import * as visits from '@/db/repos/visits';
+import { createJournalRepository } from '@/db/repos/journal';
 import { claimLocalJournal } from '@/db/repos/journal-claim';
 import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import * as savedWorks from '@/db/repos/saved-works';
@@ -80,7 +80,7 @@ const sync: Queue = {
     if (context.accountId) await completeJournalClaim(context, isCurrent);
     if (!isCurrent()) return;
     await syncJournal({
-      ...savedWorks, ...visits,
+      ...savedWorks, ...createJournalRepository(context.owner, isCurrent),
       getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
       setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
       sync: (args) => convex.mutation(api.sync.syncJournal, args),

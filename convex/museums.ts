@@ -11,6 +11,8 @@ import { probeCollectionSite as probe, websiteUrl } from './lib/collectionSitePr
 import { limitDevice } from './lib/rateLimits';
 import { isVenueOptedOut } from './lib/venueOptOut';
 import schema from './schema';
+import { journalVenue } from '../shared/journal/venue';
+import { projectJournalVenue } from './lib/journalVenue';
 
 const signedPayload = { nonce: v.string(), assertionBase64: v.string(), payloadJson: v.string() };
 const collectionSite = v.object({
@@ -42,7 +44,7 @@ function normalizeName(name: string) { return name.normalize('NFKC').trim().repl
 
 export const confirmPoiVenue = mutation({
   args: { city: v.optional(v.string()), country: v.optional(v.string()), name: v.string(), website: v.optional(v.string()), lat: v.number(), lng: v.number(), ...signedPayload },
-  returns: v.object({ venueId: v.id('museums') }),
+  returns: v.object({ venueId: v.id('museums'), venue: journalVenue }),
   handler: async (ctx, args) => {
     const fields = { city: args.city, country: args.country, name: args.name, website: args.website, lat: args.lat, lng: args.lng };
     checkPayload(args.payloadJson, { action: 'museums.confirmPoiVenue', ...fields });
@@ -55,7 +57,7 @@ export const confirmPoiVenue = mutation({
     validateGeography(args);
     const duplicate = (await nearby(ctx, args.lat, args.lng, 100))
       .find(({ venue }) => normalizeName(venue.name) === normalizeName(args.name));
-    if (duplicate) return { venueId: duplicate.venue._id };
+    if (duplicate) return { venueId: duplicate.venue._id, venue: projectJournalVenue(duplicate.venue) };
     const seeded = (await nearby(ctx, args.lat, args.lng, 60000)).find(({ venue }) => venue.seedSource !== 'poi');
     const venueId = await ctx.db.insert('museums', {
       ...fields, name: args.name.trim().replace(/\s+/g, ' '), key: `poi:${crypto.randomUUID()}`,
@@ -63,7 +65,7 @@ export const confirmPoiVenue = mutation({
     });
     await bumpCounter(ctx, 'museums', 1);
     await ctx.scheduler.runAfter(0, internal.museums.probeCollectionSite, { venueId });
-    return { venueId };
+    return { venueId, venue: projectJournalVenue((await ctx.db.get(venueId))!) };
   },
 });
 

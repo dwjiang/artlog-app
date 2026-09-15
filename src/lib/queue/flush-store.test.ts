@@ -122,25 +122,25 @@ it('gives an exhausted crop a fresh retry budget on each model update', async ()
 
 it('retains the captured visit across an offline restart and a subsequent visit to the same museum', async () => {
   const venueId = 'museum-1' as Id<'museums'>;
-  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'original', venueId, venueName: 'Museum', startedAt: 10 });
-  await pending.enqueuePendingScan({ ...capture('visit-capture'), venueId, visitLocalId: 'original' });
+  await upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: '9d3fe99c-67ec-59c6-b837-043ec16326fd', venueId, venueName: 'Museum', startedAt: 10 });
+  await pending.enqueuePendingScan({ ...capture('visit-capture'), venueId, visitLocalId: '9d3fe99c-67ec-59c6-b837-043ec16326fd' });
   const offline = dependencies();
   offline.isOnline = async () => false;
   const first = createFlusher(offline);
   await first.start();
   first.stop();
   expect(offline.identify).not.toHaveBeenCalled();
-  await patchVisit('original', { endedAt: 20 });
-  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'subsequent', venueId, venueName: 'Museum', startedAt: 30 });
+  await patchVisit('9d3fe99c-67ec-59c6-b837-043ec16326fd', { endedAt: 20 });
+  await upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: '496f105e-6e44-5988-a91f-0f2e236897cd', venueId, venueName: 'Museum', startedAt: 30 });
 
   const reconnected = dependencies();
   const restarted = createFlusher(reconnected);
   await restarted.start();
   restarted.stop();
-  expect(reconnected.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId, visitId: 'remote-original' }));
-  expect(await getVisit('original')).toMatchObject({ startedAt: 10, endedAt: 20, remoteVisitId: 'remote-original' });
-  expect(await getVisit('subsequent')).toMatchObject({ startedAt: 30, endedAt: null });
-  expect(await pending.getPendingScan('visit-capture')).toMatchObject({ status: 'identified', visitLocalId: 'original', attempts: 0 });
+  expect(reconnected.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId, visitId: 'remote-9d3fe99c-67ec-59c6-b837-043ec16326fd' }));
+  expect(await getVisit('9d3fe99c-67ec-59c6-b837-043ec16326fd')).toMatchObject({ startedAt: 10, endedAt: 20, remoteVisitId: 'remote-9d3fe99c-67ec-59c6-b837-043ec16326fd' });
+  expect(await getVisit('496f105e-6e44-5988-a91f-0f2e236897cd')).toMatchObject({ startedAt: 30, endedAt: null });
+  expect(await pending.getPendingScan('visit-capture')).toMatchObject({ status: 'identified', visitLocalId: '9d3fe99c-67ec-59c6-b837-043ec16326fd', attempts: 0 });
   await pending.deletePendingScan('visit-capture');
 });
 

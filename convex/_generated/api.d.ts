@@ -54,6 +54,7 @@ import type * as lib_flags from "../lib/flags.js";
 import type * as lib_friendships from "../lib/friendships.js";
 import type * as lib_identifyPipeline from "../lib/identifyPipeline.js";
 import type * as lib_journal from "../lib/journal.js";
+import type * as lib_journalVenue from "../lib/journalVenue.js";
 import type * as lib_labelFixtures from "../lib/labelFixtures.js";
 import type * as lib_labelPrompt from "../lib/labelPrompt.js";
 import type * as lib_labelVerify from "../lib/labelVerify.js";
@@ -161,6 +162,7 @@ declare const fullApi: ApiFromModules<{
   "lib/friendships": typeof lib_friendships;
   "lib/identifyPipeline": typeof lib_identifyPipeline;
   "lib/journal": typeof lib_journal;
+  "lib/journalVenue": typeof lib_journalVenue;
   "lib/labelFixtures": typeof lib_labelFixtures;
   "lib/labelPrompt": typeof lib_labelPrompt;
   "lib/labelVerify": typeof lib_labelVerify;

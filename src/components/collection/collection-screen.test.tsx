@@ -9,6 +9,7 @@ import { insertSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
 
 const mockHrefs: unknown[] = [];
+jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
@@ -32,7 +33,7 @@ jest.mock('./view-mode-picker', () => {
   return {
     ViewModePicker: ({ mode, onChange }: { mode: string; onChange: (mode: string) => void }) => (
       <View>
-        {['grid', 'canvas', 'visits'].map((value) => (
+        {['grid', 'canvas', 'az', 'visits'].map((value) => (
           <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: mode === value }} onPress={() => onChange(value)}>
             <Text>{value}</Text>
           </Pressable>
@@ -43,7 +44,7 @@ jest.mock('./view-mode-picker', () => {
 });
 
 const venueId = 'museum-1' as Id<'museums'>;
-const search = () => screen.getByPlaceholderText('Title, artist or museum');
+const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Museum, place or visit date/);
 
 beforeEach(() => { mockHrefs.length = 0; });
 
@@ -56,10 +57,10 @@ it('invites the first scan while the collection is empty', async () => {
 
 describe('with saved works', () => {
   beforeAll(async () => {
-    await upsertVisit({ visitedOn: '2026-09-08', timeZone: 'UTC', localId: 'met', venueId, venueName: 'Metropolitan Museum of Art', startedAt: new Date(2026, 8, 8, 14).getTime() });
-    await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'dy', venueId, venueName: 'de Young', startedAt: new Date(2026, 8, 1, 11).getTime() });
-    await insertSavedWork({ localId: 'lilies', visitLocalId: 'met', savedAt: 3, title: 'Water Lilies', artist: 'Claude Monet', institution: "Musée d'Orsay", cropPath: 'crops/lilies.jpg' });
-    await insertSavedWork({ localId: 'cotton', visitLocalId: 'dy', savedAt: 2, title: '100% Cotton', artist: 'Anon', institution: 'de Young', cropPath: 'crops/cotton.jpg' });
+    await upsertVisit({ visitedOn: '2026-09-08', timeZone: 'UTC', localId: '7e5de765-90f8-5015-b60d-2652d64b650f', venueId, venueName: 'Metropolitan Museum of Art', startedAt: new Date(2026, 8, 8, 14).getTime() });
+    await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'b00e1cd6-0fef-559f-88cc-0b73a2c7ae58', venueId, venueName: 'de Young', startedAt: new Date(2026, 8, 1, 11).getTime() });
+    await insertSavedWork({ localId: 'lilies', visitLocalId: '7e5de765-90f8-5015-b60d-2652d64b650f', venueId, savedAt: 3, title: 'Water Lilies', artist: 'Claude Monet', institution: "Musée d'Orsay", cropPath: 'crops/lilies.jpg' });
+    await insertSavedWork({ localId: 'cotton', visitLocalId: 'b00e1cd6-0fef-559f-88cc-0b73a2c7ae58', venueId, savedAt: 2, title: '100% Cotton', artist: 'Anon', institution: 'de Young', cropPath: 'crops/cotton.jpg' });
     await insertSavedWork({ localId: 'import', savedAt: 1, title: 'Untitled', artist: 'Unknown', cropPath: 'crops/import.jpg' });
   });
 
@@ -118,4 +119,28 @@ it('immediately hides account works on sign-out and restores them on sign-in', a
   expect(screen.queryByText('Private account work')).toBeNull();
   await act(() => switchOwner('account:a', 'scope-a2'));
   expect(await screen.findByText('Private account work')).toBeOnTheScreen();
+});
+
+it('shows empty visits and calendar month groups, and searches them by country or date', async () => {
+  switchOwner('account:empty', 'scope-empty');
+  await upsertVisit({ localId: '00000000-0000-4000-8000-000000000001', venueId, venueName: 'Empty Museum', visitedOn: '2024-02-29', timeZone: 'UTC' });
+  await render(<CollectionScreen />);
+  await screen.findByText('Scan a painting to start your collection.');
+  await fireEvent.press(screen.getByRole('button', { name: 'visits' }));
+  expect(screen.getByText('February 2024')).toBeOnTheScreen();
+  expect(screen.getByText('Empty Museum · 29 Feb 2024')).toBeOnTheScreen();
+  expect(screen.getByText('No artworks saved on this visit.')).toBeOnTheScreen();
+  await fireEvent.changeText(search(), '2024-02-29');
+  expect(screen.getByText('Empty Museum · 29 Feb 2024')).toBeOnTheScreen();
+  await fireEvent.changeText(search(), 'missing');
+  expect(screen.getByText('No visits match “missing”.')).toBeOnTheScreen();
+});
+it('shows the A–Z collection in artist order', async () => {
+  switchOwner(anonymousOwner(), 'scope-anonymous');
+  await render(<CollectionScreen />);
+  await screen.findByText('Water Lilies');
+  await fireEvent.press(screen.getByRole('button', { name: 'az' }));
+  expect(screen.getAllByRole('button', { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
+    '100% Cotton, Anon', 'Water Lilies, Claude Monet', 'Untitled, Unknown',
+  ]);
 });

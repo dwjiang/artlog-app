@@ -181,6 +181,7 @@ export default defineSchema({
     lng: v.number(),
     website: v.optional(v.string()),
     city: v.optional(v.string()),
+    cityKey: v.optional(v.string()),
     country: v.optional(v.string()),
     collectionSiteUrl: v.optional(v.string()),
     platform: v.optional(v.string()),
@@ -412,6 +413,7 @@ export default defineSchema({
     updatedAt: v.number(), updatedBy: v.id('devices'), changeVersion: v.number(),
   }).index('by_owner_localId', ['owner', 'localId'])
     .index('by_owner_history', ['owner', 'visitedOn', 'localId'])
+    .index('by_owner_venue_history', ['owner', 'venueId', 'visitedOn', 'localId'])
     .index('by_owner_changeVersion', ['owner', 'changeVersion']),
 
   collections: defineTable({
@@ -424,6 +426,7 @@ export default defineSchema({
     .index('by_owner_savedAt', ['owner', 'deletedAt', 'savedAt', 'localId'])
     .index('by_owner_changeVersion', ['owner', 'changeVersion'])
     .index('by_visitId', ['visitId'])
+    .index('by_owner_visit_live', ['owner', 'visitLocalId', 'deletedAt', 'savedAt', 'localId'])
     .index('by_photoStorageId_deletedAt', ['photoStorageId', 'deletedAt'])
     .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt']),
 

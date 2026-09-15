@@ -13,15 +13,15 @@ beforeEach(async () => {
 });
 it('claims associations, notes, photos and tombstones atomically and safely repeats', async () => {
   const source = anonymousOwner();
-  await visitRepo.upsertVisit({ localId: 'visit', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
-  await saves.insertSavedWork({ localId: 'save', visitLocalId: 'visit', venueId: 'museum' as never, title: 'Work', artist: '', savedAt: 1, photoPath: 'photo.jpg', deletedAt: 2 });
+  await visitRepo.upsertVisit({ localId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
+  await saves.insertSavedWork({ localId: 'save', visitLocalId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, title: 'Work', artist: '', savedAt: 1, photoPath: 'photo.jpg', deletedAt: 2 });
   await setNote('save', 'My note');
   await claimLocalJournal(source, 'account:a', 'claim'); await claimLocalJournal(source, 'account:a', 'claim');
   expect(await saves.getSavedWork('save')).toBeUndefined();
   switchOwner('account:a');
-  expect(await saves.getSavedWork('save')).toMatchObject({ owner: 'account:a', visitLocalId: 'visit', photoPath: 'photo.jpg', deletedAt: 2 });
+  expect(await saves.getSavedWork('save')).toMatchObject({ owner: 'account:a', visitLocalId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, photoPath: 'photo.jpg', deletedAt: 2 });
   expect(await getNote('save')).toMatchObject({ text: 'My note', owner: 'account:a' });
-  expect(await visitRepo.getVisit('visit')).toMatchObject({ owner: 'account:a' });
+  expect(await visitRepo.getVisit('e7257140-7164-58eb-88ac-f010276ded02')).toMatchObject({ owner: 'account:a' });
 });
 it('hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them', async () => {
   await saves.insertSavedWork({ localId: 'save', title: 'A', artist: '', savedAt: 1 }, 'account:a');
@@ -37,6 +37,6 @@ it('rejects collisions before moving any rows and enforces owner foreign keys', 
   await saves.insertSavedWork({ localId: 'same', title: 'Anonymous', artist: '', savedAt: 1 });
   await expect(claimLocalJournal(anonymousOwner(), 'account:a', 'a')).rejects.toThrow('collision');
   expect((await saves.getSavedWork('same'))?.title).toBe('Anonymous');
-  await visitRepo.upsertVisit({ localId: 'private', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' }, 'account:a');
-  await expect(saves.insertSavedWork({ localId: 'wrong', visitLocalId: 'private', title: 'Wrong', artist: '', savedAt: 1 })).rejects.toThrow();
+  await visitRepo.upsertVisit({ localId: '41ab4ed1-5dcf-560c-bf4c-741d73a7f9d5', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' }, 'account:a');
+  await expect(saves.insertSavedWork({ localId: 'wrong', visitLocalId: '41ab4ed1-5dcf-560c-bf4c-741d73a7f9d5', title: 'Wrong', artist: '', savedAt: 1 })).rejects.toThrow();
 });

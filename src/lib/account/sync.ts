@@ -3,23 +3,22 @@ import type { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { LIMITS, utf8Bytes } from '../../../shared/journal/limits';
 import type { JournalSave, JournalVisit } from '../../../shared/journal/contracts';
+import { sameOwner } from '../../../shared/journal/contracts';
+import { ConvexError } from 'convex/values';
+import type { JournalRepository } from '../../db/repos/journal';
 import type * as saves from '../../db/repos/saved-works';
 import type * as visits from '../../db/repos/visits';
-import type { Visit } from '../../db/schema';
+import { visitInput } from '../journal/visit-payload';
 
 type SyncArgs = FunctionArgs<typeof api.sync.syncJournal>;
 type SyncResult = FunctionReturnType<typeof api.sync.syncJournal>;
 export type SyncContext = { scope: string; deviceId: Id<'devices'>; accountId: Id<'accounts'> | null; owner: string };
 export type SyncDependencies = Pick<typeof saves, 'listUnsynced' | 'markSynced' | 'upsertFromRemote'> &
-  Pick<typeof visits, 'listUnsyncedVisits' | 'markVisitsSynced' | 'upsertVisitsFromRemote'> & {
+  Pick<typeof visits, 'listUnsyncedVisits' | 'markVisitsSynced' | 'upsertVisitsFromRemote'> & Pick<JournalRepository, 'applyVenues'> & {
   getCheckpoint: () => Promise<string | undefined>;
   setCheckpoint: (value: string) => Promise<void>;
   sync: (args: SyncArgs) => Promise<SyncResult>;
 };
-export function visitInput(visit: Visit): JournalVisit {
-  return { localId: visit.localId, venueId: visit.venueId, visitedOn: visit.visitedOn, timeZone: visit.timeZone,
-    reflection: visit.reflection ?? undefined, startedAt: visit.startedAt ?? undefined, endedAt: visit.endedAt ?? undefined };
-}
 export async function syncJournal(deps: SyncDependencies, context: SyncContext, isCurrent = () => true): Promise<void> {
   const stored = await deps.getCheckpoint();
   let checkpoint = stored ? Number(stored) : 0;
@@ -51,6 +50,10 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
       pushSaves.push(input);
     }
     const result = await deps.sync({ visits: pushVisits, saves: pushSaves, since: checkpoint, scope: context.scope });
+    if (!isCurrent()) return;
+    const expectedOwner = context.accountId ? { kind: 'account' as const, accountId: context.accountId } : { kind: 'device' as const, deviceId: context.deviceId };
+    if ([...result.visits, ...result.saves].some((row) => !sameOwner(row.owner, expectedOwner))) throw new ConvexError({ code: 'not_found' });
+    await deps.applyVenues(result.venues);
     if (!isCurrent()) return;
     await deps.markVisitsSynced(result.acceptedVisits.map((ack) => ({ ...ack,
       revision: pendingVisits.find((v) => v.localId === ack.localId)!.revision })), context.owner);

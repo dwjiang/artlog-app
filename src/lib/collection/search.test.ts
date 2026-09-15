@@ -18,3 +18,10 @@ it.each([
 ])('filters by title, artist or institution for %p', (query, expected) => {
   expect(filterWorks(works, query).map((work) => work.localId)).toEqual(expected);
 });
+
+it('normalizes accents and whitespace and searches dates, venue names and cities', () => {
+  const works = [{ title: 'Nymphéas', artist: 'Claude Monet', institution: null, date: '1916', venueName: 'Musée   d’Orsay', city: 'París' }];
+  for (const query of ['nympheas', '  MUSEE  ', '1916', 'paris', 'Claude   Monet']) expect(filterWorks(works, query)).toEqual(works);
+  expect(filterWorks(works, 'm')).toEqual([]);
+  expect(filterWorks(works, 'x'.repeat(101))).toEqual([]);
+});

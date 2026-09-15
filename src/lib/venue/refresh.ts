@@ -4,7 +4,7 @@ import { openDatabaseAsync } from 'expo-sqlite';
 import { api } from '../../../convex/_generated/api';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
-import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, venueDbFile } from './venue-db';
+import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from './venue-db';
 
 export const VENUE_TABLE_CHECKED_AT = 'venueTableCheckedAt';
 export const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -43,6 +43,7 @@ async function installTable(latest: LatestVenueTable): Promise<void> {
   await File.downloadFileAsync(latest.url, temp);
   const downloaded = await openDatabaseAsync(TEMP_DB_NAME, { useNewConnection: true });
   try {
+    await validateVenueTable(downloaded);
     const meta = await readVenueTableMeta(downloaded);
     if (meta.version !== latest.version || meta.rowCount !== latest.rowCount) {
       throw new Error(`Downloaded venue table is version ${meta.version} with ${meta.rowCount} rows, expected ${latest.version} with ${latest.rowCount}`);

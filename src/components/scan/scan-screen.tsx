@@ -54,7 +54,7 @@ export function ScanScreen() {
       const quad = detector.getCaptureQuad();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       if (__DEV__) console.debug('Captured photo', filePath);
-      const context = await resolveVenueForScan();
+      const context = await resolveVenueForScan(capturedAt);
       return { photoUri: `file://${filePath}`, quad, source: 'camera', capturedAt, ...context };
     });
   }

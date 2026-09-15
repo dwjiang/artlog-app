@@ -40,7 +40,7 @@ const museumRow = v.object({
   lat: v.number(),
   lng: v.number(),
   website: v.optional(v.string()),
-  city: v.optional(v.string()), country: v.optional(v.string()),
+  city: v.optional(v.string()), cityKey: v.optional(v.string()), country: v.optional(v.string()),
   region: v.string(),
   seedSource,
 });
@@ -163,8 +163,9 @@ export const upsertMuseums = internalMutation({
     let inserted = 0;
     for (const row of rows) {
       validateGeography(row);
+      if (row.cityKey !== undefined && !/^wikidata:Q[1-9][0-9]*$/.test(row.cityKey)) throw new ConvexError({ code: 'invalid_venue' });
       const fields = {
-        city: row.city, country: row.country,
+        city: row.city, cityKey: row.cityKey, country: row.country,
         key: row.key,
         wikidataId: row.wikidataId,
         name: row.name,
@@ -501,7 +502,7 @@ export const exportVenues = internalQuery({
         lat: v.number(),
         lng: v.number(),
         website: v.optional(v.string()),
-        city: v.optional(v.string()), country: v.optional(v.string()),
+        city: v.optional(v.string()), cityKey: v.optional(v.string()), country: v.optional(v.string()),
         region: v.string(),
       })
     ),
@@ -521,7 +522,7 @@ export const exportVenues = internalQuery({
         lat: m.lat,
         lng: m.lng,
         website: m.website,
-        region: m.region, city: m.city, country: m.country,
+        region: m.region, city: m.city, cityKey: m.cityKey, country: m.country,
       })),
       continueCursor: result.continueCursor,
       isDone: result.isDone,

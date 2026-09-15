@@ -30,14 +30,15 @@ it('groups works under their visit, newest visit first, keeping each section in 
   const works = [work('c', 'met', 5), work('b', 'dy', 4), work('a', 'met', 3)];
   expect(groupByVisit(works, [deYoung, empty, met])).toEqual([
     { key: 'met', title: 'Metropolitan Museum of Art · 8 Sep 2026', data: [works[0], works[2]] },
+    { key: 'empty', title: 'Legion of Honor · 5 Sep 2026', data: [] },
     { key: 'dy', title: 'de Young · 1 Sep 2026', data: [works[1]] },
   ]);
 });
 
-it('orders same-day visits by start time so the morning museum follows the afternoon one', () => {
+it('orders same-day visits by UUID regardless of capture time', () => {
   const morning = visit('z-morning', 'SFMOMA', new Date(2026, 8, 8, 10).getTime());
   const works = [work('a', 'met', 3), work('b', 'z-morning', 2)];
-  expect(groupByVisit(works, [morning, met]).map((section) => section.key)).toEqual(['met', 'z-morning']);
+  expect(groupByVisit(works, [morning, met]).map((section) => section.key)).toEqual(['z-morning', 'met']);
 });
 
 it('puts works without a known visit under "Imported" after every visit', () => {
@@ -45,5 +46,5 @@ it('puts works without a known visit under "Imported" after every visit', () => 
   const sections = groupByVisit(works, [met]);
   expect(sections.map((section) => section.title)).toEqual(['Metropolitan Museum of Art · 8 Sep 2026', 'Imported']);
   expect(sections[1]).toEqual({ key: 'imported', title: 'Imported', data: [works[0], works[2]] });
-  expect(groupByVisit([], [met])).toEqual([]);
+  expect(groupByVisit([], [met])).toEqual([{ key: 'met', title: 'Metropolitan Museum of Art · 8 Sep 2026', data: [] }]);
 });

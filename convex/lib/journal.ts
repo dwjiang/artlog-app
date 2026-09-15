@@ -28,12 +28,12 @@ export async function upsertJournalVisit(ctx: MutationCtx, owner: JournalOwner, 
 export async function upsertJournalSave(ctx: MutationCtx, owner: JournalOwner, deviceId: Id<'devices'>, input: JournalSave): Promise<Doc<'collections'>> {
   validateSave(input);
   const existing = await findOwnedSave(ctx, owner, input.localId);
-  if (existing?.deletedAt !== undefined) return existing;
   const visit = input.visitLocalId ? await findOwnedVisit(ctx, owner, input.visitLocalId) : null;
   if (input.visitLocalId && (!visit || visit.venueId !== input.venueId)) throw new ConvexError({ code: 'not_found' });
   if (existing && (existing.visitLocalId !== input.visitLocalId || existing.venueId !== input.venueId)) {
     throw new ConvexError({ code: 'invalid_save' });
   }
+  if (existing?.deletedAt !== undefined) return existing;
   if (input.venueId && !await ctx.db.get(input.venueId)) throw new ConvexError({ code: 'invalid_venue' });
   if (input.objectId && !await ctx.db.get(input.objectId)) throw new ConvexError({ code: 'invalid_object' });
   if (input.artworkId && !await ctx.db.get(input.artworkId)) throw new ConvexError({ code: 'invalid_artwork' });

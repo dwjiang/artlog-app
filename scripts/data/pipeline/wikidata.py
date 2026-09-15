@@ -4,7 +4,7 @@ import re
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import httpx
@@ -30,6 +30,7 @@ class VenueRow:
     country_iso: str
     admin_qids: tuple[str, ...] = ()
     city: str | None = None
+    city_key: str | None = None
 
 
 class IncompleteCountry(RuntimeError):
@@ -99,6 +100,7 @@ def _values(qids: Sequence[str]) -> str:
 
 def parse_venues(bindings: list[dict], country_iso: str) -> list[VenueRow]:
     venues: dict[str, VenueRow] = {}
+    cities: dict[str, set[str]] = {}
     for binding in bindings:
         value = {key: entry["value"] for key, entry in binding.items()}
         coord = re.fullmatch(r"Point\(([-+\d.eE]+) ([-+\d.eE]+)\)", value.get("coord", ""))
@@ -119,6 +121,9 @@ def parse_venues(bindings: list[dict], country_iso: str) -> list[VenueRow]:
         website = value["website"]
         if binding["website"].get("type") == "bnode" or "/.well-known/genid/" in website:
             website = None
+        city = value.get("city", "").rsplit("/", 1)[-1]
+        if re.fullmatch(r"Q[1-9][0-9]*", city):
+            cities.setdefault(qid, set()).add(city)
         previous = venues.get(qid)
         if previous:
             admins.update(previous.admin_qids)
@@ -133,7 +138,8 @@ def parse_venues(bindings: list[dict], country_iso: str) -> list[VenueRow]:
             city=value.get("cityLabel") or (previous.city if previous else None),
             admin_qids=tuple(sorted(admins)),
         )
-    return list(venues.values())
+    return [replace(venue, city_key=f"wikidata:{next(iter(cities[qid]))}")
+            if len(cities.get(qid, set())) == 1 else venue for qid, venue in venues.items()]
 
 
 def _museum_pattern(country_qids: Sequence[str]) -> str:
@@ -168,7 +174,7 @@ def _venue_query(
         else _museum_pattern(country_qids)
     )
     # LIMIT applies before labels/ancestry multiply rows. Detect the cap on this projection.
-    return f"""SELECT ?m ?coord ?website ?admin ?nameEn ?nameAny ?metroAdmin ?cityLabel WHERE {{
+    return f"""SELECT ?m ?coord ?website ?admin ?nameEn ?nameAny ?metroAdmin ?city ?cityLabel WHERE {{
       {{ SELECT DISTINCT ?m ?coord ?website ?admin WHERE {{
         {selection}
         {admin_filter}

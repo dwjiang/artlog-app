@@ -265,13 +265,13 @@ def test_failed_upload_does_not_publish(tmp_path, monkeypatch):
 def test_city_and_country_survive_export_without_filling_unknown_values(tmp_path):
     writer = Mock()
     writer.query.return_value = {"page": [
-        {**EXPORT_ROW, "city": "San Francisco", "country": "US"},
+        {**EXPORT_ROW, "city": "San Francisco", "country": "US", "cityKey": "wikidata:Q62"},
         {**EXPORT_ROW, "_id": "unknown", "key": "unknown"},
     ], "isDone": True}
     asset = seed_venues.export_asset(writer, tmp_path, version=123)
     with sqlite3.connect(asset.path) as db:
-        assert db.execute("SELECT city, country FROM venues ORDER BY id").fetchall() == [
-            ("San Francisco", "US"), (None, None),
+        assert db.execute("SELECT city, country, cityKey FROM venues ORDER BY id").fetchall() == [
+            ("San Francisco", "US", "wikidata:Q62"), (None, None, None),
         ]
 
 

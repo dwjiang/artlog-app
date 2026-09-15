@@ -1,6 +1,7 @@
 import tzLookup from '@photostructure/tz-lookup';
 import { calendarDate } from '../../../shared/journal/limits';
 import { socialErrorMessage } from '../../../shared/social/errors';
+import { prepareCaptureVisit } from '../journal/capture-visit';
 import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from '@/lib/account/owner-store';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { randomUUID } from 'expo-crypto';
@@ -21,7 +22,7 @@ import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
 import { refreshVenueTableInBackground } from './refresh';
 import { syncVisits } from './visit-sync';
 import { CHOOSE_RADIUS_M, pickVenue } from './resolve';
-import { insertConfirmedVenue, nearest, openVenueDb, venueCoordinates } from './venue-db';
+import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates } from './venue-db';
 import {
   initialVenueState, isVisitFresh, needsFix, venueContext, venueReducer,
   type CurrentVisit, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
@@ -41,8 +42,8 @@ export type VenueController = {
   hydrate(): Promise<void>;
   /** One-shot fix, table lookup and visit bookkeeping; reuses a fix younger than three minutes. */
   resolve(): Promise<VenueContext>;
-  /** The context a scan should carry: a fresh resolution when it is quick, else the last known one. */
-  resolveForScan(): Promise<VenueContext>;
+  /** The context a scan should carry: a fresh resolution when it is quick, else the last known one; a resolved venue always brings its visit. */
+  resolveForScan(capturedAt: number): Promise<VenueContext>;
   /** A tap in the sheet: seeded venues start a visit; MapKit places are confirmed on the server first. */
   confirm(option: VenueOption, signal?: AbortSignal): Promise<void>;
   dismiss(): void;
@@ -227,12 +228,27 @@ export function createVenueController(): VenueController {
     return inFlight;
   }
 
-  function resolveForScan(): Promise<VenueContext> {
+  async function resolveForScan(capturedAt: number): Promise<VenueContext> {
+    const ownership = captureOwner();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<VenueContext>((settle) => {
       timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
     });
-    return Promise.race([resolve(), timeout]).finally(() => clearTimeout(timer));
+    let context = await Promise.race([resolve(), timeout]).finally(() => clearTimeout(timer));
+    if (!ownership.isCurrent()) throw new Error('Journal owner changed');
+    if (context.venueId && !context.visitLocalId) {
+      // The fix resolved but its visit bookkeeping is still queued or failed: finish it here so the
+      // scan joins the controller's visit instead of starting one it never tracks.
+      await localUpdate;
+      const venue = state.venue;
+      if (ownership.isCurrent() && venue && state.visit?.venueId !== venue.venueId) {
+        await ensureVisit(venue, Date.now(), () => state.venue?.venueId === venue.venueId)
+          .catch((error: unknown) => console.warn('Could not start the visit for the scan', error));
+      }
+      if (!ownership.isCurrent()) throw new Error('Journal owner changed');
+      context = venueContext(state);
+    }
+    return prepareCaptureVisit(context, capturedAt);
   }
 
   async function confirm(option: VenueOption, signal?: AbortSignal): Promise<void> {
@@ -248,16 +264,16 @@ export function createVenueController(): VenueController {
       const signed = await signPayload({ action: 'museums.confirmPoiVenue', ...fields });
       if (!wanted()) return;
       if (!signed) throw new Error('This device cannot confirm a new venue');
-      const { venueId } = await convex.mutation(api.museums.confirmPoiVenue, { ...fields, ...signed });
+      const { venueId, venue: confirmed } = await convex.mutation(api.museums.confirmPoiVenue, { ...fields, ...signed });
       if (!wanted()) return;
       try {
         const db = await openVenueDb();
         if (!wanted()) return;
-        await insertConfirmedVenue(db, { id: venueId, ...fields });
+        await applyVenueMetadata(db, [confirmed]);
       } catch (error) {
         console.warn('Could not add the confirmed venue to the local table', error);
       }
-      venue = { kind: 'seeded', venueId, name: option.name, distanceM: option.distanceM, ...(option.website ? { website: option.website } : {}) };
+      venue = { kind: 'seeded', venueId, name: confirmed.name, distanceM: option.distanceM, ...(confirmed.website ? { website: confirmed.website } : {}) };
     }
     await ensureVisit(venue, Date.now(), wanted, option);
   }
@@ -293,8 +309,8 @@ export function createVenueController(): VenueController {
 
 export const venueController = createVenueController();
 
-export function resolveVenueForScan(): Promise<VenueContext> {
-  return venueController.resolveForScan();
+export function resolveVenueForScan(capturedAt: number): Promise<VenueContext> {
+  return venueController.resolveForScan(capturedAt);
 }
 
 export type VenueView = {

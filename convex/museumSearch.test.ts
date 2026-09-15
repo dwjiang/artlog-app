@@ -326,7 +326,7 @@ describe('searchMuseumSite', () => {
     await t.run((ctx) => ctx.db.patch(scanId, { status: 'failed' }));
     const restarted = await t.mutation(internal.scans.create, {
       deviceId: user.deviceId, localId: original.localId, modelVersion: model.modelVersion,
-      vector: testVector(), capturedAt: original.capturedAt,
+      vector: testVector(), capturedAt: original.capturedAt, venueId: original.venueId, visitId: original.visitId,
     });
     expect(restarted.scan).toMatchObject({ _id: scanId, generation: 1 });
     resumeFetch();
@@ -534,7 +534,7 @@ describe('confirmSearchCandidate', () => {
     await t.run((ctx) => ctx.db.patch(scanId, { status: 'failed' }));
     await t.mutation(internal.scans.create, {
       deviceId: user.deviceId, localId: original.localId, modelVersion: model.modelVersion,
-      vector: testVector(), capturedAt: original.capturedAt,
+      vector: testVector(), capturedAt: original.capturedAt, venueId: original.venueId, visitId: original.visitId,
     });
     resumeFetch();
     await rejected;
