@@ -42,8 +42,17 @@ export interface StillDetection {
   subjectNote?: string;
 }
 
+export interface CropContentBounds {
+  /** Pixels in the square model crop, with a top-left origin. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface LetterboxResult {
   cropPath: string;
+  contentBounds: CropContentBounds;
   /** The region that was warped, normalized to the upright still; the whole image when no quad was given. */
   usedQuad: RectPoint[];
   /** Per-channel mean of the resized crop, the pad color: [r, g, b] in 0–255. */

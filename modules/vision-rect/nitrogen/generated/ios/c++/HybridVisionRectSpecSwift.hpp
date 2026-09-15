@@ -26,6 +26,8 @@ namespace margelo::nitro::visionrect { struct StillDetection; }
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
 // Forward declaration of `LetterboxResult` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct LetterboxResult; }
+// Forward declaration of `CropContentBounds` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct CropContentBounds; }
 
 #include "RectDetection.hpp"
 #include <optional>
@@ -39,6 +41,7 @@ namespace margelo::nitro::visionrect { struct LetterboxResult; }
 #include "SubjectObservation.hpp"
 #include <string>
 #include "LetterboxResult.hpp"
+#include "CropContentBounds.hpp"
 
 #include "VisionRect-Swift-Cxx-Umbrella.hpp"
 

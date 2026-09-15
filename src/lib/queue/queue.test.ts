@@ -113,7 +113,7 @@ it.each(['device_not_registered', 'rate_limited'])('wakes the worker after reque
   await startWorker();
   const failure = new ConvexError({ code: error });
   await expect(runCapture({ photoUri: payload.photoUri, capturedAt: 1, quad: null, source: 'camera' }, {
-    warper: { warpAndLetterbox: async () => ({ cropUri: payload.cropUri }) },
+    warper: { warpAndLetterbox: async () => ({ cropUri: payload.cropUri, corners: [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]], photoSize: { width: 1200, height: 1600 }, contentBounds: { x: 0, y: 64, width: 512, height: 384 }, cropSize: 512 }) },
     triage: { check: async () => ({ ok: true }) },
     embedder: { modelVersion: 'v1', embed: async () => new Float32Array([1]) },
     orb: { extract: async () => ({ descriptors: payload.descriptors, keypoints: payload.keypoints, count: 1 }) },

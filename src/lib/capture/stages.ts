@@ -1,11 +1,20 @@
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 
 import type { api } from '../../../convex/_generated/api';
+import type { CropContentBounds } from '../../../modules/vision-rect/src';
 
 export type Quad = [[number, number], [number, number], [number, number], [number, number]];
 
+export type PreparedPainting = {
+  cropUri: string;
+  corners: Quad;
+  photoSize: { width: number; height: number };
+  contentBounds: CropContentBounds;
+  cropSize: number;
+};
+
 export interface Warper {
-  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<{ cropUri: string }>;
+  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<PreparedPainting | null>;
 }
 
 export interface Triage {
@@ -32,7 +41,7 @@ export type CaptureTimings = Partial<Record<'warp' | 'triage' | 'embed' | 'orb' 
   total: number;
 };
 export type CaptureResult = (
-  | { kind: 'retake'; reason: 'blur' | 'glare'; message: string }
+  | { kind: 'retake'; reason: 'boundary' | 'blur' | 'glare'; message: string }
   | { kind: 'sent'; scanId: IdentifyResponse['scanId']; response: IdentifyResponse }
   | { kind: 'queued'; localId: string }
 ) & { timings: CaptureTimings };
@@ -54,6 +63,8 @@ export type CaptureDependencies = {
   identify: (payload: CapturePayload) => Promise<IdentifyResponse>;
   isOnline: () => boolean;
   store: CaptureStore;
+  /** Retain presentation images before enqueue moves their files. Visual errors must not fail capture. */
+  onPrepared?: (painting: PreparedPainting) => Promise<void>;
 };
 
 export type CaptureOptions = { inputSize: number; modelVersion: string };

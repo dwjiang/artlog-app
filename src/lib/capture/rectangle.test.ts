@@ -1,5 +1,5 @@
 import type { RectObservation, RectPoint } from '../../../modules/vision-rect/src';
-import { MISS_GRACE_MS, NESTED_AREA_RATIO, RectTracker, RectTrackerStore, SMOOTHING, STABLE_WINDOW_MS, quadArea, selectCaptureQuad, toQuad } from './rectangle';
+import { MISS_GRACE_MS, NESTED_AREA_RATIO, RectTracker, SMOOTHING, STABLE_WINDOW_MS, quadArea, selectCaptureQuad, toQuad } from './rectangle';
 import type { Quad } from './stages';
 
 const frame = { width: 768, height: 1024 };
@@ -46,9 +46,9 @@ describe('RectTracker guidance', () => {
   it('tolerates hand-held jitter and drops back to hold-still on a jump', () => {
     const tracker = new RectTracker();
     holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
-    expect(tracker.push(observe(shifted(framed, 0.03)), frame, 500).guidance).toBe('ready');
-    expect(tracker.push(observe(shifted(framed, -0.03)), frame, 600).guidance).toBe('ready');
-    expect(tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, 700)).toMatchObject({ stable: false, guidance: 'hold-still' });
+    expect(tracker.push(observe(shifted(framed, 0.03)), frame, STABLE_WINDOW_MS + 100).guidance).toBe('ready');
+    expect(tracker.push(observe(shifted(framed, -0.03)), frame, STABLE_WINDOW_MS + 200).guidance).toBe('ready');
+    expect(tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, STABLE_WINDOW_MS + 300)).toMatchObject({ stable: false, guidance: 'hold-still' });
   });
 
   it('smooths the tracked corners toward each new detection', () => {
@@ -63,10 +63,10 @@ describe('RectTracker guidance', () => {
     const tracker = new RectTracker();
     const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
     const canvas = box(0.2, 0.3, 0.8, 0.7);
-    expect(tracker.push([...observe(canvas, 1), ...observe(framed, 0.6)], frame, 500)).toMatchObject({ stable: true, guidance: 'ready' });
-    expect(tracker.push(observe(framed), frame, 600).quad).toEqual(toQuad(framed));
-    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, 700)).toBe(tracker.push([], frame, 700));
-    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, 600 + MISS_GRACE_MS + 1).guidance).toBe('searching');
+    expect(tracker.push([...observe(canvas, 1), ...observe(framed, 0.6)], frame, STABLE_WINDOW_MS + 100)).toMatchObject({ stable: true, guidance: 'ready' });
+    expect(tracker.push(observe(framed), frame, STABLE_WINDOW_MS + 200).quad).toEqual(toQuad(framed));
+    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, STABLE_WINDOW_MS + 300)).toBe(tracker.push([], frame, STABLE_WINDOW_MS + 300));
+    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, STABLE_WINDOW_MS + 200 + MISS_GRACE_MS + 1).guidance).toBe('searching');
     expect(ready.guidance).toBe('ready');
   });
 
@@ -85,10 +85,10 @@ describe('RectTracker guidance', () => {
     const tracker = new RectTracker();
     const canvas = box(0.35, 0.4, 0.65, 0.6);
     expect(holdSteady(tracker, canvas, 0, STABLE_WINDOW_MS).guidance).toBe('move-closer');
-    const upgraded = tracker.push([...observe(canvas), ...observe(framed)], frame, 500);
+    const upgraded = tracker.push([...observe(canvas), ...observe(framed)], frame, STABLE_WINDOW_MS + 100);
     expect(upgraded.quad).toEqual(toQuad(framed));
     expect(upgraded).toMatchObject({ stable: false, guidance: 'hold-still' });
-    expect(holdSteady(tracker, framed, 600, 500 + STABLE_WINDOW_MS).guidance).toBe('ready');
+    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS + 200, 2 * STABLE_WINDOW_MS + 100).guidance).toBe('ready');
   });
 
   it('keeps the last result through a short detection gap and resets after the grace period', () => {
@@ -96,7 +96,7 @@ describe('RectTracker guidance', () => {
     const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
     expect(tracker.push([], frame, STABLE_WINDOW_MS + MISS_GRACE_MS)).toBe(ready);
     expect(tracker.push([], frame, STABLE_WINDOW_MS + MISS_GRACE_MS + 1).guidance).toBe('searching');
-    expect(holdSteady(tracker, framed, 1000, 1000).guidance).toBe('hold-still');
+    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS + MISS_GRACE_MS + 100, STABLE_WINDOW_MS + MISS_GRACE_MS + 100).guidance).toBe('hold-still');
   });
 
   it('tracks the largest observation', () => {
@@ -130,7 +130,7 @@ describe('selectCaptureQuad', () => {
   it('ignores lifted subjects that are not quadrilaterals: visitors, figures inside a canvas, visitors merged with a painting', () => {
     // Orsay (Jean-François Gornet, CC BY-SA 2.0): the visitors are lifted, not the painting; the sky rectangle is inside the painting.
     expect(selectCaptureQuad(null, still([orsaySky, orsayOuter], [{ quad: orsayVisitors, quadFill: 1.164 }]))).toEqual(orsayOuter);
-    // Georges de La Tour photographed edge to edge: the figure is lifted; nothing else means the whole image.
+    // Georges de La Tour photographed edge to edge: the figure is lifted; nothing else means a boundary retake.
     expect(selectCaptureQuad(null, still([], [{ quad: [[0.2115, 0.0532], [0.516, 0.0884], [0.5665, 0.9858], [0.03, 0.9918]], quadFill: 1.187 }]))).toBeNull();
     expect(selectCaptureQuad(null, still([], [{ quad: petitPalaisPainting, quadFill: 0.962 }]))).toBeNull();
     expect(selectCaptureQuad(null, still([], [{ quad: petitPalaisPainting, quadFill: 1.03 }]))).toBeNull();
@@ -139,7 +139,7 @@ describe('selectCaptureQuad', () => {
   it.each([
     { title: 'The Bedroom', quad: [[0.478, 0.268], [0.919, 0.339], [0.935, 0.774], [0.598, 0.846]] as Quad, quadFill: 1.004 },
     { title: 'La Grande Jatte', quad: [[0.764, 0.115], [0.903, 0.165], [0.951, 0.849], [0.784, 0.883]] as Quad, quadFill: 0.981 },
-  ])('keeps the whole $title image when a small interior subject lifts without a painting boundary', ({ quad, quadFill }) => {
+  ])('requests a boundary retake for $title when a small interior subject lifts without a painting boundary', ({ quad, quadFill }) => {
     // iPhone 16 Pro detections on the original collection images: the bed and a figure, respectively.
     expect(selectCaptureQuad(null, still([], [{ quad, quadFill }]))).toBeNull();
   });
@@ -160,7 +160,7 @@ describe('selectCaptureQuad', () => {
     const door: Quad = [[0.7082, 0.1692], [0.998, 0.2411], [0.998, 0.9985], [0.7087, 0.9985]];
     const painting: Quad = [[0.2348, 0.2239], [0.6638, 0.2903], [0.6518, 0.7293], [0.2262, 0.8094]];
     expect(selectCaptureQuad(null, still([painting], [{ quad: door, quadFill: 1.016 }, { quad: painting, quadFill: 1.016 }]))).toEqual(painting);
-    // Paul Klee photographed edge to edge: the mask misses a corner and its quad tilts across the image; the whole photo is the crop.
+    // Paul Klee photographed edge to edge: the mask misses a corner and its quad tilts across the image; a retake is required.
     const tilted: Quad = [[0, 0], [0.9428, 0.1038], [0.9963, 0.8607], [0.103, 1]];
     expect(selectCaptureQuad(null, still([], [{ quad: tilted, quadFill: 1.013 }]))).toBeNull();
   });
@@ -170,62 +170,26 @@ describe('selectCaptureQuad', () => {
     expect(selectCaptureQuad(previewQuad, detection)).toEqual(toQuad(shifted(framed, 0.02)));
   });
 
-  it('keeps the preview quad when no still rectangle is within tolerance', () => {
-    expect(selectCaptureQuad(previewQuad, still([toQuad(shifted(framed, 0.1))]))).toBe(previewQuad);
+  it('uses still evidence when no rectangle matches the preview', () => {
+    expect(selectCaptureQuad(previewQuad, still([toQuad(shifted(framed, 0.1))]))).toEqual(toQuad(shifted(framed, 0.1)));
+    expect(selectCaptureQuad(previewQuad, still())).toBeNull();
   });
 
   it.each([true, false])('uses the latest detected corners for a moving capture (still rectangle present: %s)', (hasStillRectangle) => {
-    const store = new RectTrackerStore();
+    const tracker = new RectTracker();
     const initial = box(0.1, 0.2, 0.7, 0.8);
     for (let now = 0; now <= STABLE_WINDOW_MS; now += 100) {
-      store.push({ ...frame, observations: observe(initial) }, now);
+      tracker.push(observe(initial), frame, now);
     }
     const moved = box(0.24, 0.2, 0.84, 0.8);
-    const preview = store.push({ ...frame, observations: observe(moved) }, STABLE_WINDOW_MS + 100);
+    const preview = tracker.push(observe(moved), frame, STABLE_WINDOW_MS + 100);
     expect(preview.quad).not.toEqual(toQuad(moved));
     const detection = still(hasStillRectangle ? [toQuad(moved)] : []);
-    expect(selectCaptureQuad(store.captureQuad, detection)).toEqual(toQuad(moved));
+    expect(selectCaptureQuad(preview.captureQuad, detection)).toEqual(hasStillRectangle ? toQuad(moved) : null);
   });
 
   it('takes the outer rectangle for library imports and never the nested one', () => {
     expect(selectCaptureQuad(null, still([orsaySky, orsayOuter]))).toEqual(orsayOuter);
     expect(selectCaptureQuad(null, still())).toBeNull();
-  });
-});
-
-describe('RectTrackerStore', () => {
-  it('keeps accepted capture corners through ignored inner detections and clears them after a detection gap', () => {
-    const store = new RectTrackerStore();
-    store.push({ ...frame, observations: observe(box(0.1, 0.2, 0.7, 0.8)) }, 0);
-    const moved = box(0.24, 0.2, 0.84, 0.8);
-    store.push({ ...frame, observations: observe(moved) }, 100);
-    store.push({ ...frame, observations: observe(box(0.3, 0.3, 0.75, 0.7)) }, 200);
-    expect(store.captureQuad).toEqual(toQuad(moved));
-    store.push({ ...frame, observations: [] }, 100 + MISS_GRACE_MS);
-    expect(store.captureQuad).toEqual(toQuad(moved));
-    store.push({ ...frame, observations: [] }, 100 + MISS_GRACE_MS + 1);
-    expect(store.captureQuad).toBeNull();
-  });
-
-  it('notifies subscribers only when the guidance changes and on reset', () => {
-    const store = new RectTrackerStore();
-    const listener = jest.fn();
-    const unsubscribe = store.subscribe(listener);
-    const detection = (corners: RectPoint[]) => ({ ...frame, observations: observe(corners) });
-    store.push(detection(framed), 0);
-    expect(store.getGuidance()).toBe('hold-still');
-    expect(store.captureQuad).toEqual(toQuad(framed));
-    store.push(detection(framed), 100);
-    expect(listener).toHaveBeenCalledTimes(1);
-    store.push(detection(box(0.3, 0.3, 0.7, 0.6)), 100 + MISS_GRACE_MS + 1);
-    expect(store.getGuidance()).toBe('move-closer');
-    expect(listener).toHaveBeenCalledTimes(2);
-    store.reset();
-    expect(store.getGuidance()).toBe('searching');
-    expect(store.captureQuad).toBeNull();
-    expect(listener).toHaveBeenCalledTimes(3);
-    unsubscribe();
-    store.push(detection(framed), 800);
-    expect(listener).toHaveBeenCalledTimes(3);
   });
 });

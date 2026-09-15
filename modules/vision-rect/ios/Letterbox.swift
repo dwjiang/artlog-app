@@ -11,6 +11,7 @@ enum LetterboxTuning {
 
 struct LetterboxOutput {
   let image: CGImage
+  let contentBounds: CGRect
   /// Per-channel mean of the resized image, the pad color.
   let meanColor: (r: Int, g: Int, b: Int)
 }
@@ -148,7 +149,11 @@ enum Letterbox {
       let target = (top + row) * canvas.bytesPerRow + left * 4
       canvas.data.replaceSubrange(target..<target + resized.bytesPerRow, with: resized.data[source..<source + resized.bytesPerRow])
     }
-    return LetterboxOutput(image: try canvas.makeImage(), meanColor: mean)
+    return LetterboxOutput(
+      image: try canvas.makeImage(),
+      contentBounds: CGRect(x: left, y: top, width: resizedWidth, height: resizedHeight),
+      meanColor: mean
+    )
   }
 }
 

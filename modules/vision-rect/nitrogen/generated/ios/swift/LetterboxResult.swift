@@ -18,8 +18,8 @@ public extension LetterboxResult {
   /**
    * Create a new instance of `LetterboxResult`.
    */
-  init(cropPath: String, usedQuad: [RectPoint], meanColor: [Double]) {
-    self.init(std.string(cropPath), { () -> bridge.std__vector_RectPoint_ in
+  init(cropPath: String, contentBounds: CropContentBounds, usedQuad: [RectPoint], meanColor: [Double]) {
+    self.init(std.string(cropPath), contentBounds, { () -> bridge.std__vector_RectPoint_ in
       var __vector = bridge.create_std__vector_RectPoint_(usedQuad.count)
       for __item in usedQuad {
         __vector.push_back(__item)
@@ -37,6 +37,11 @@ public extension LetterboxResult {
   @inline(__always)
   var cropPath: String {
     return String(self.__cropPath)
+  }
+  
+  @inline(__always)
+  var contentBounds: CropContentBounds {
+    return self.__contentBounds
   }
   
   @inline(__always)

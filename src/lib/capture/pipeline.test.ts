@@ -2,13 +2,14 @@ import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { ConvexError } from 'convex/values';
 
 import { runCapture } from './pipeline';
-import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse } from './stages';
+import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from './stages';
 
 jest.mock('expo-crypto', () => ({ randomUUID: jest.fn(() => 'capture-uuid') }));
 
 const input: CaptureInput = {
   photoUri: 'file:///photo.jpg', quad: null, source: 'camera', capturedAt: 1234,
 };
+const painting: PreparedPainting = { cropUri: 'file:///crop.jpg', corners: [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]], photoSize: { width: 1200, height: 1600 }, contentBounds: { x: 0, y: 64, width: 512, height: 384 }, cropSize: 512 };
 const options = { inputSize: 512, modelVersion: 'test-model' };
 const response = {
   scanId: 'scan-id', localId: 'capture-uuid', capturedAt: 1234, status: 'identified',
@@ -16,7 +17,7 @@ const response = {
 
 function dependencies() {
   return {
-    warper: { warpAndLetterbox: jest.fn(async () => ({ cropUri: 'file:///crop.jpg' })) },
+    warper: { warpAndLetterbox: jest.fn(async (): Promise<PreparedPainting | null> => painting) },
     triage: { check: jest.fn(async () => ({ ok: true as const })) },
     embedder: { modelVersion: 'test-model', embed: jest.fn(async () => new Float32Array([0.1234567, -0.9876543])) },
     orb: { extract: jest.fn(async () => ({ descriptors: new ArrayBuffer(32), keypoints: new ArrayBuffer(16), count: 1 })) },
@@ -145,4 +146,38 @@ it('keeps a capture made before registration when the same installation becomes 
   expect(await runCapture(input, deps, options)).toMatchObject({ kind: 'queued' });
   expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({ owner: anonymousOwner() }), 'queued');
   expect(deps.identify).not.toHaveBeenCalled();
+});
+
+
+it.each([
+  ['camera', /hold steady/],
+  ['library', /Choose a photo/],
+] as const)('requires a still boundary before quality checks, recognition, or persistence: %s', async (source, message) => {
+  const deps = dependencies();
+  deps.warper.warpAndLetterbox.mockResolvedValue(null);
+  expect(await runCapture({ ...input, source }, deps, options)).toMatchObject({ kind: 'retake', reason: 'boundary', message: expect.stringMatching(message) });
+  expect(deps.triage.check).not.toHaveBeenCalled();
+  expect(deps.embedder.embed).not.toHaveBeenCalled();
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+});
+
+it('starts preparation presentation concurrently but retains images before persistence moves them', async () => {
+  const deps = dependencies();
+  let retained!: () => void;
+  const onPrepared = jest.fn(() => new Promise<void>((resolve) => { retained = resolve; }));
+  const pending = runCapture(input, { ...deps, onPrepared }, options);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(onPrepared).toHaveBeenCalledWith(painting);
+  expect(deps.embedder.embed).toHaveBeenCalledTimes(1);
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+  retained();
+  expect(await pending).toMatchObject({ kind: 'sent' });
+  expect(deps.identify).toHaveBeenCalledTimes(1);
+  expect(deps.store.enqueue.mock.calls[0][0]).not.toHaveProperty('contentBounds');
+});
+
+it('preserves recognition when presentation decoding fails', async () => {
+  const deps = dependencies();
+  expect(await runCapture(input, { ...deps, onPrepared: async () => { throw new Error('Image failed'); } }, options)).toMatchObject({ kind: 'sent' });
+  expect(deps.identify).toHaveBeenCalledTimes(1);
 });
