@@ -115,6 +115,27 @@ Writes to the shared index (contributions, rejections, venue confirmations) are 
 Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
 use the TestFlight build, or run your own backend.
 
+### Test a Conductor workspace
+
+Select the workspace to test, then choose an action from Conductor's **Run** menu:
+
+| Action | What it does |
+| --- | --- |
+| **iOS** (default) | Starts this workspace's Expo server and opens the installed development build in the iOS Simulator. |
+| **iPhone** | Starts this workspace's Expo server and displays a QR code. Scan it with your iPhone's Camera while the phone and Mac are on the same Wi-Fi. |
+| **Rebuild iOS** | Regenerates the iOS project, then builds and installs a development client. Choose a simulator or connected iPhone in the terminal's device picker. |
+
+Use **Rebuild iOS** once for each target, and again after changing native modules,
+native dependencies, or native app configuration. Use **iOS** or **iPhone** for
+JavaScript/TypeScript changes. In the Expo terminal, **Shift+i** selects a simulator.
+If iOS asks, allow Artlog access to the local network.
+
+Each server uses its workspace's `CONDUCTOR_PORT` and prints the workspace name.
+Starting a Run action stops the previous Run action; to switch workspaces, start
+**iOS** in the new workspace or start **iPhone** and scan its new QR code.
+The installed app's local data is shared when switching workspaces, and the backend
+still comes from each workspace's `.env.local`.
+
 ## Run your own backend
 
 For the first setup, start at the repository root and remove `CONVEX_DEPLOYMENT`,
