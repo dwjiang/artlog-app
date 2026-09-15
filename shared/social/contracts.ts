@@ -8,23 +8,24 @@ export const frame = v.union(...(['gilt', 'baroque', 'walnut', 'oak', 'black', '
 export const wallLayout = v.object({ x: v.number(), y: v.number(), width: v.number(), layer: v.number(), frame });
 export const relationshipState = v.union(v.literal('none'), v.literal('pending'), v.literal('accepted'));
 export const publicationStatus = v.union(v.literal('private'), v.literal('active'));
-export const publicMediaContext = v.union(
-  v.object({ kind: v.literal('wallItem'), itemId: v.id('wallItems') }),
-  v.object({ kind: v.literal('sharedVisit'), postId: v.string(), itemId: v.id('sharedVisitItems') }),
-);
+export const sharedVisitMediaContext = v.object({ kind: v.literal('sharedVisit'), postId: v.string(), itemId: v.id('sharedVisitItems') });
+export const publicMediaContext = v.union(v.object({ kind: v.literal('wallItem'), itemId: v.id('wallItems') }), sharedVisitMediaContext);
+export const previewMediaContext = v.object({ kind: v.literal('sharedVisitPreview'), visitLocalId: v.string(), saveLocalId: v.string() });
+export const displayMediaContext = v.union(publicMediaContext, previewMediaContext);
 export const mediaContext = v.union(
-  v.object({ kind: v.literal('owner'), saveLocalId: v.string() }), publicMediaContext,
+  v.object({ kind: v.literal('owner'), saveLocalId: v.string() }), displayMediaContext,
 );
 const mediaMetadata = {
-  sourceUrl: v.string(), rights: v.union(v.literal('public_domain'), v.literal('licensed'), v.literal('contributor_consent')),
   credit: v.optional(v.string()), width: v.number(), height: v.number(),
 };
-export const catalogMedia = v.object({ kind: v.literal('catalog'), url: v.string(), ...mediaMetadata });
-export const mediaSource = v.union(catalogMedia, v.object({ kind: v.literal('derivative'), ...mediaMetadata }));
+export const catalogMedia = v.object({ kind: v.literal('catalog'), url: v.string(), sourceUrl: v.string(),
+  rights: v.union(v.literal('public_domain'), v.literal('licensed')), ...mediaMetadata });
+export const derivativeMedia = v.object({ kind: v.literal('derivative'), rights: v.literal('contributor_consent'), ...mediaMetadata });
+export const mediaSource = v.union(catalogMedia, derivativeMedia);
 export const displayMedia = v.union(
   v.object({ kind: v.literal('placeholder'), width: v.literal(1), height: v.literal(1) }),
   catalogMedia,
-  v.object({ kind: v.literal('derivative'), reference: publicMediaContext, ...mediaMetadata }),
+  v.object({ ...derivativeMedia.fields, reference: displayMediaContext }),
 );
 export const publicArtwork = v.object({
   title: v.string(), artist: v.string(), date: v.optional(v.string()), medium: v.optional(v.string()), media: displayMedia,
@@ -37,6 +38,15 @@ export const reportTarget = v.union(
   v.object({ kind: v.literal('sharedVisit'), postId: v.string() }),
 );
 export const reportInput = v.object({ target: reportTarget, reason: v.string(), details: v.optional(v.string()) });
+export const removal = v.object({ reportId: v.id('reports'), removedAt: v.number() });
+export const reportEvidence = v.union(
+  v.object({ kind: v.literal('profile'), profileId: v.id('profiles'), username: v.string(), name: v.string(), bio: v.optional(v.string()) }),
+  v.object({ kind: v.literal('wallItem'), profileId: v.id('profiles'), itemId: v.id('wallItems'),
+    title: v.string(), artist: v.string(), date: v.optional(v.string()), medium: v.optional(v.string()), note: v.optional(v.string()) }),
+  v.object({ kind: v.literal('sharedVisit'), profileId: v.id('profiles'), postId: v.string(), reflection: v.string() }),
+);
+export const reportDecision = v.union(v.literal('dismiss'), v.literal('remove'));
+export const reportReview = v.object({ operator: v.string(), decision: reportDecision, reason: v.string(), reviewedAt: v.number() });
 export const sharedSelection = v.object({ saveLocalIds: v.array(v.string()), reflection: v.string(), revision: v.number() });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
@@ -71,13 +81,15 @@ export function isPublicMediaUrl(value: string): boolean {
 }
 export function validateMedia(input: Infer<typeof mediaSource>): void {
   if (![input.width, input.height].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535) ||
-    (input.credit?.length ?? 0) > LIMITS.snapshot || !isPublicMediaUrl(input.sourceUrl) ||
-    (input.kind === 'catalog' && (!isPublicMediaUrl(input.url) || input.rights === 'contributor_consent'))) {
+    (input.credit?.length ?? 0) > LIMITS.snapshot ||
+    (input.kind === 'catalog' && (!isPublicMediaUrl(input.url) || !isPublicMediaUrl(input.sourceUrl) || !['public_domain', 'licensed'].includes(input.rights))) ||
+    (input.kind === 'derivative' && (input.rights !== 'contributor_consent' || Math.max(input.width, input.height) > 256))) {
     throw new ConvexError({ code: 'invalid_media' });
   }
 }
 export function validateMediaContext(input: Infer<typeof mediaContext>): void {
-  if ((input.kind === 'owner' && !isUuid(input.saveLocalId)) || (input.kind === 'sharedVisit' && !isUuid(input.postId))) {
+  if ((input.kind === 'owner' && !isUuid(input.saveLocalId)) || (input.kind === 'sharedVisit' && !isUuid(input.postId)) ||
+    (input.kind === 'sharedVisitPreview' && (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))) {
     throw new ConvexError({ code: 'invalid_media' });
   }
 }

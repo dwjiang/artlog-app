@@ -4,7 +4,7 @@ import { v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
 import { journalOwner, journalVisit, journalSave } from '../shared/journal/contracts';
-import { wallLayout, relationshipState, publicationStatus, mediaSource, reportTarget } from '../shared/social/contracts';
+import { wallLayout, relationshipState, publicationStatus, mediaSource, reportTarget, reportEvidence, reportReview, removal } from '../shared/social/contracts';
 import {
   candidateSignal,
   challengePurpose,
@@ -248,6 +248,7 @@ export default defineSchema({
     orbSha256: v.optional(v.string()),
     keypointCount: v.number(),
     cropStorageId: v.optional(v.id('_storage')),
+    displayMediaRevokedAt: v.optional(v.number()),
     rawOcr: v.optional(v.any()),
     sourceUrl: v.optional(v.string()),
     identityImageUrl: v.optional(v.string()),
@@ -434,6 +435,7 @@ export default defineSchema({
   }).index('by_deviceId', ['deviceId']).index('by_accountId', ['accountId']),
 
   profiles: defineTable({
+    removal: v.optional(removal),
     accountId: v.id('accounts'), username: v.string(), name: v.string(), bio: v.optional(v.string()),
     searchText: v.string(), active: v.boolean(), publishedWallCount: v.number(), createdAt: v.number(), updatedAt: v.number(),
   }).index('by_accountId', ['accountId']).index('by_username', ['username'])
@@ -441,6 +443,7 @@ export default defineSchema({
   walls: defineTable({ profileId: v.id('profiles'), color: v.string(), layoutRevision: v.number() })
     .index('by_profileId', ['profileId']),
   wallItems: defineTable({
+    removal: v.optional(removal),
     wallId: v.id('walls'), profileId: v.id('profiles'), saveId: v.id('collections'), saveLocalId: v.string(),
     active: v.boolean(), layout: wallLayout, noteVisible: v.boolean(), noteRevision: v.number(),
   }).index('by_wall_active', ['wallId', 'active']).index('by_wall_saveId', ['wallId', 'saveId'])
@@ -453,6 +456,7 @@ export default defineSchema({
   blocks: defineTable({ blockerId: v.id('profiles'), blockedId: v.id('profiles'), revision: v.number(), active: v.boolean() })
     .index('by_pair', ['blockerId', 'blockedId']).index('by_blockedId', ['blockedId']),
   sharedVisits: defineTable({
+    removal: v.optional(removal),
     postId: v.string(), profileId: v.id('profiles'), visitId: v.id('visits'), visitLocalId: v.string(),
     visitedOn: v.string(), status: publicationStatus, reflection: v.string(),
     publishedAt: v.number(), updatedAt: v.number(), publicationRevision: v.number(),
@@ -464,13 +468,18 @@ export default defineSchema({
     .index('by_saveId', ['saveId']),
   mediaAssets: defineTable({
     saveId: v.id('collections'), source: mediaSource, storageId: v.optional(v.id('_storage')),
+    provenance: v.union(
+      v.object({ kind: v.literal('catalog'), objectId: v.id('objects'), imageRightsEvidence: v.string() }),
+      v.object({ kind: v.literal('contribution'), contributionId: v.id('contributions'), sourceStorageId: v.id('_storage') }),
+    ),
     createdAt: v.number(), revokedAt: v.optional(v.number()),
-  }).index('by_saveId', ['saveId']).index('by_storageId', ['storageId']),
+  }).index('by_saveId', ['saveId']).index('by_save_kind', ['saveId', 'source.kind']).index('by_storageId', ['storageId']),
   reports: defineTable({
-    reporter: journalOwner, target: reportTarget, reason: v.string(), details: v.optional(v.string()),
+    reporter: v.optional(journalOwner), target: reportTarget, reason: v.string(), details: v.optional(v.string()),
+    evidence: reportEvidence, review: v.optional(reportReview),
     createdAt: v.number(), status: v.union(v.literal('open'), v.literal('resolved')),
   }).index('by_reporter_createdAt', ['reporter', 'createdAt']).index('by_status_createdAt', ['status', 'createdAt'])
-    .index('by_target', ['target']),
+    .index('by_target', ['target']).index('by_reporter_target_status', ['reporter', 'target', 'status']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 

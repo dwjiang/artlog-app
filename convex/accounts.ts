@@ -7,6 +7,7 @@ import { requireAttestedWrite } from './devices';
 import { requireDevice } from './lib/auth';
 import { deleteUnreferencedCollectionPhotos } from './lib/collectionPhotos';
 import { deviceScope, ownerForDevice, requireClaimComplete } from './lib/ownership';
+import { purgeSaveMediaBatch, purgeSocialBatch } from './lib/socialCleanup';
 
 const MAX_DEVICES = 20;
 const PURGE_BATCH = 50;
@@ -91,9 +92,18 @@ export const deleteAccount = mutation({
 export const purgeJournal = internalMutation({
   args: { accountId: v.id('accounts') }, returns: v.null(),
   handler: async (ctx, { accountId }) => {
+    if (await ctx.db.get(accountId)) return null;
+    if (await purgeSocialBatch(ctx, accountId)) {
+      await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId });
+      return null;
+    }
     const owner = { kind: 'account' as const, accountId };
     const saves = await ctx.db.query('collections').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).take(PURGE_BATCH);
     for (const save of saves) {
+      if (await purgeSaveMediaBatch(ctx, save._id)) {
+        await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId });
+        return null;
+      }
       await ctx.db.delete(save._id);
       await deleteUnreferencedCollectionPhotos(ctx, save);
     }

@@ -62,7 +62,7 @@ it('deletion revokes profile and publication access immediately', async () => {
     const visitId = await ctx.db.insert('visits', { owner: { kind: 'account', accountId: user.accountId }, localId, venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: user.deviceId, changeVersion: 1 });
     await ctx.db.insert('sharedVisits', { postId, profileId: profile.profileId, visitId, visitLocalId: localId, visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
   });
-  expect(await t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId))).toMatchObject({ postId });
+  expect(await t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId))).toMatchObject({ publication: { postId } });
   await user.as.mutation(api.accounts.deleteAccount, {});
   expect(await t.query(api.profiles.getPublic, { profileId: profile.profileId })).toBeNull();
   expect((await t.query(api.profiles.search, { query: 'reader' })).page).toEqual([]);
@@ -115,7 +115,7 @@ it('publishes eligible media with an allowlist and binds derivatives to a public
   for (const url of ['https://dev.convex.cloud/api/storage/private', 'https://app.example/collection-photos?localId=private']) {
     expect(projectArtwork(save, { ...asset, source: { ...source, url } } as never).media.kind).toBe('placeholder');
   }
-  const derivative = { ...asset, source: { ...source, kind: 'derivative', url: 'https://private.example/raw' } } as never;
+  const derivative = { ...asset, source: { kind: 'derivative', rights: 'contributor_consent', width: 128, height: 256, url: 'https://private.example/raw' } } as never;
   expect(projectArtwork(save, derivative).media.kind).toBe('placeholder');
   const projected = projectWallArtwork({ _id: 'wall-item', layout: {}, noteVisible: false } as never, save, derivative);
   expect(projected.artwork.media).toMatchObject({ kind: 'derivative', reference: { kind: 'wallItem', itemId: 'wall-item' } });
