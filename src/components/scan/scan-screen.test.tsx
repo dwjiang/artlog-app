@@ -102,6 +102,15 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+it('waits until Scan is active before asking for camera access', async () => {
+  mockFocused = false; mockGranted = false; mockCanRequest = true;
+  const view = await render(<ScanScreen />);
+  expect(mockRequest).not.toHaveBeenCalled();
+  mockFocused = true;
+  await view.rerender(<ScanScreen />);
+  expect(mockRequest).toHaveBeenCalledTimes(1);
+});
+
 it('enables the shutter once the camera runs, whatever the live outline says, with a haptic when it locks', async () => {
   const view = await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);

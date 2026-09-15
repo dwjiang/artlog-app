@@ -5,18 +5,20 @@ import { useCameraPermission } from 'react-native-vision-camera';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useScreenActive } from '@/hooks/use-screen-active';
 
 export function CameraPermission({ children }: { children: ReactNode }) {
+  const active = useScreenActive();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    if (canRequestPermission) {
+    if (active && canRequestPermission) {
       void requestPermission().catch((cause: unknown) => {
         setError(cause instanceof Error ? cause.message : 'Could not request camera access.');
       });
     }
-  }, [canRequestPermission, requestPermission]);
+  }, [active, canRequestPermission, requestPermission]);
 
   if (hasPermission) return children;
   return (
