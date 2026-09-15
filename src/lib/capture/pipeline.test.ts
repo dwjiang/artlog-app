@@ -110,7 +110,7 @@ it.each([
 });
 
 it.each([
-  [new ConvexError({ code: 'rate_limited' }), 'Please wait a moment and try again.'],
+  [new ConvexError({ code: 'rate_limited' }), 'rate_limited'],
   [new Error('Invalid vector'), 'Invalid vector'],
   [new TypeError('Bad implementation'), 'Bad implementation'],
 ])('surfaces non-network failures but keeps the capture queued: %s', async (error, message) => {

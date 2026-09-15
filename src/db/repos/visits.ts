@@ -24,7 +24,7 @@ export function listUnsyncedVisits(owner = getLocalOwner()) {
     .orderBy(visits.visitedOn, visits.localId).limit(50);
 }
 export function listVisits(owner = getLocalOwner()) {
-  return db.select().from(visits).where(eq(visits.owner, owner)).orderBy(desc(visits.visitedOn), desc(visits.localId));
+  return db.select().from(visits).where(eq(visits.owner, owner)).orderBy(desc(visits.visitedOn), desc(visits.startedAt), desc(visits.localId));
 }
 export async function markVisitsSynced(rows: { localId: string; visitId: Doc<'visits'>['_id']; revision: number; updatedAt: number; updatedBy: Doc<'visits'>['updatedBy'] }[], owner = getLocalOwner()) {
   db.transaction((tx) => {

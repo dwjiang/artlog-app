@@ -1,4 +1,3 @@
-import { socialErrorMessage } from '../../shared/social/errors';
 import { ConvexError } from 'convex/values';
 
 /** Transport failures: the request never reached the server or its reply never arrived. */
@@ -14,10 +13,18 @@ export function convexErrorCode(error: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
+/** The phone could not attempt the request yet (sync paused, app in the background); nothing on the phone has to change first. */
+export class SyncUnavailableError extends Error {
+  constructor() {
+    super('Journal sync is not available right now');
+    this.name = 'SyncUnavailableError';
+  }
+}
+
 /** Failures a later retry can fix with no change on the phone. */
 export function isTransientError(error: unknown): boolean {
   const code = convexErrorCode(error);
-  return isNetworkError(error) || code === 'unauthenticated' || code === 'device_not_registered' || code === 'rate_limited' || code === 'claim_required' || code === 'sync_scope_changed';
+  return error instanceof SyncUnavailableError || isNetworkError(error) || code === 'unauthenticated' || code === 'device_not_registered' || code === 'rate_limited' || code === 'claim_required' || code === 'sync_scope_changed';
 }
 
 export function rateLimitRetryAfterMs(error: unknown): number | undefined {
@@ -27,5 +34,5 @@ export function rateLimitRetryAfterMs(error: unknown): number | undefined {
 }
 
 export function errorMessage(error: unknown): string {
-  return socialErrorMessage(error) ?? convexErrorCode(error) ?? (error instanceof Error ? error.message : String(error));
+  return convexErrorCode(error) ?? (error instanceof Error ? error.message : String(error));
 }

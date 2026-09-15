@@ -30,12 +30,12 @@ function captureTime(value: unknown, offset: unknown): number | undefined {
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day ||
     date.getUTCHours() !== hour || date.getUTCMinutes() !== minute || date.getUTCSeconds() !== second) return;
-  if (typeof offset === 'string' && /^[+-]\d{2}:\d{2}$/.test(offset)) {
-    const timestamp = Date.parse(`${value.slice(0, 10).replaceAll(':', '-')}T${value.slice(11)}${offset}`);
-    if (Number.isFinite(timestamp)) return timestamp;
-  }
+  const withOffset = typeof offset === 'string' && /^[+-]\d{2}:\d{2}$/.test(offset)
+    ? Date.parse(`${value.slice(0, 10).replaceAll(':', '-')}T${value.slice(11)}${offset}`) : NaN;
   // EXIF without an offset is a local wall-clock time, not UTC.
-  return new Date(year, month - 1, day, hour, minute, second).getTime();
+  const timestamp = Number.isFinite(withOffset) ? withOffset : new Date(year, month - 1, day, hour, minute, second).getTime();
+  // Pre-1970 dates come from reset camera clocks or scans; the journal only accepts non-negative timestamps.
+  return timestamp >= 0 ? timestamp : undefined;
 }
 
 export function extractCaptureMeta(exif: Dictionary | null | undefined): { lat?: number; lng?: number; capturedAt: number } {

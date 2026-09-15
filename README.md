@@ -176,8 +176,8 @@ Call it until complete before journal sync. Local claiming then atomically moves
 rows, preserves photos/notes/tombstones, and rejects UUID collisions. Sign-out hides account
 rows and suspends their queued work; signing into the same account restores them. The client
 finishes its claim before disconnecting. Unlink and account deletion reject incomplete claims
-with `claim_required`; account deletion waits for all linked-device claims, then immediately
-revokes profile/publication access. Account-owned data is never claimed into a different account.
+with `claim_required`; unlink drops the device's finished claim, and account deletion waits for
+every claim on the account, then immediately revokes profile/publication access. Account-owned data is never claimed into a different account.
 
 Implemented APIs (derive wire types from `convex/_generated/api` or the shared validators):
 

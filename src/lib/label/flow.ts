@@ -3,7 +3,7 @@ import type { FunctionArgs } from 'convex/server';
 import type { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { ImageCheck, LabelFields, LabelFlowDisplay } from '../../../convex/lib/validators';
-import { convexErrorCode, errorMessage, isNetworkError } from '@/lib/network-error';
+import { errorMessage, isNetworkError } from '@/lib/network-error';
 
 export type LabelStage = 'qr' | 'read' | 'verify' | 'image-check' | 'done';
 export type LabelInput = FunctionArgs<typeof api.label.verifyLabel>['fields'];
@@ -56,7 +56,7 @@ export class LabelFlowError extends Error {
 
 export function toLabelFlowError(error: unknown): LabelFlowError {
   if (error instanceof LabelFlowError) return error;
-  return new LabelFlowError(isNetworkError(error) ? 'network' : convexErrorCode(error) ?? errorMessage(error), { cause: error });
+  return new LabelFlowError(isNetworkError(error) ? 'network' : errorMessage(error), { cause: error });
 }
 
 export function toLabelInput(fields: LabelFields): LabelInput {

@@ -121,7 +121,7 @@ it.each(['device_not_registered', 'rate_limited'])('wakes the worker after reque
     identify: async () => { throw failure; },
     isOnline: () => true,
   }, { modelVersion: 'v1', inputSize: 512 })).rejects.toBe(failure);
-  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', error === 'rate_limited' ? 'Please wait a moment and try again.' : error, { countAttempt: false }, payload.owner);
+  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith('cap-1', error, { countAttempt: false }, payload.owner);
   expect(mockFlush).toHaveBeenCalledTimes(1);
   expect(mockRepo.recordAttemptFailure.mock.invocationCallOrder[0]).toBeLessThan(mockFlush.mock.invocationCallOrder[0]);
 });

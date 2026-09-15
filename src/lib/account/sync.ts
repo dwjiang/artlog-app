@@ -37,9 +37,8 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
       pushVisits.push(input);
     }
     for (const { work, note } of pendingSaves) {
+      // Parents go first: saves wait for a batch that carries every pending visit.
       if (pendingVisits.length > pushVisits.length) break;
-      // A pending parent omitted from this batch must be sent before its save.
-      if (work.visitLocalId && pendingVisits.some((v) => v.localId === work.visitLocalId) && !pushVisits.some((v) => v.localId === work.visitLocalId)) continue;
       const input: JournalSave = {
         localId: work.localId, visitLocalId: work.visitLocalId ?? undefined,
         snapshot: { title: work.title, artist: work.artist, date: work.date ?? undefined,

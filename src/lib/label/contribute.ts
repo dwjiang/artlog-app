@@ -8,7 +8,7 @@ import type { PendingScan } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';
 import { captureFileUri } from '@/lib/files/photos';
-import { convexErrorCode, errorMessage, isNetworkError } from '@/lib/network-error';
+import { errorMessage, isNetworkError } from '@/lib/network-error';
 import { resolveWithLabel } from '@/lib/result/feedback';
 import { removeFile, resizeCropForContribution } from './crop';
 import { saveLabelDraft } from './draft';
@@ -62,7 +62,7 @@ export async function contributeLabel({ scanId, capture, state, museumSearchUpda
 
 export function contributionErrorMessage(error: unknown): string {
   if (isNetworkError(error)) return 'No connection — try sharing when you’re back online';
-  switch (convexErrorCode(error) ?? errorMessage(error)) {
+  switch (errorMessage(error)) {
     case 'rate_limited': return 'Try again in a minute';
     case 'label_unverified':
     case 'field_mismatch': return 'Verify the label again before sharing';

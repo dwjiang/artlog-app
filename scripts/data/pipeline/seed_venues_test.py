@@ -273,3 +273,13 @@ def test_city_and_country_survive_export_without_filling_unknown_values(tmp_path
         assert db.execute("SELECT city, country FROM venues ORDER BY id").fetchall() == [
             ("San Francisco", "US"), (None, None),
         ]
+
+
+def test_seeds_only_country_codes_the_server_accepts(tmp_path):
+    kosovo, yugoslavia = replace(VENUE, qid="Q2", country_iso="XK"), replace(VENUE, qid="Q3", country_iso="YU")
+    writer = Mock()
+    fetch = Mock(side_effect=lambda selection, **_: iter([kosovo] if "XK" in selection else [yugoslavia]))
+    checkpoint = Checkpoint(tmp_path / "checkpoint.json")
+    seed_venues.seed_countries(writer, {"XK": ["Q1246"], "YU": ["Q36704"]}, load_regions(), checkpoint, user_agent="test", fetch_venues=fetch)
+    rows = [row for call in writer.upsert.call_args_list for row in call.args[1]]
+    assert [row.get("country") for row in rows] == ["XK", None]

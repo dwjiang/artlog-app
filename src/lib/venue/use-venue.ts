@@ -1,5 +1,6 @@
 import tzLookup from '@photostructure/tz-lookup';
 import { calendarDate } from '../../../shared/journal/limits';
+import { socialErrorMessage } from '../../../shared/social/errors';
 import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from '@/lib/account/owner-store';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { randomUUID } from 'expo-crypto';
@@ -16,7 +17,7 @@ import { getVisit, patchVisit, upsertVisit } from '@/db/repos/visits';
 import type { NewVisit } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';
-import { errorMessage } from '@/lib/network-error';
+import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
 import { refreshVenueTableInBackground } from './refresh';
 import { syncVisits } from './visit-sync';
 import { CHOOSE_RADIUS_M, pickVenue } from './resolve';
@@ -81,7 +82,7 @@ export function createVenueController(): VenueController {
       const row = localId ? await getVisit(localId) : undefined;
       if (row?.remoteVisitId) dispatch({ type: 'remoteVisit', localId: row.localId, remoteVisitId: row.remoteVisitId });
     } catch (error) {
-      console.warn('Could not sync visits with the server', error);
+      if (!(error instanceof SyncUnavailableError)) console.warn('Could not sync visits with the server', error);
     }
   }
 
@@ -216,7 +217,7 @@ export function createVenueController(): VenueController {
     } catch (error) {
       if (!wanted()) return venueContext(state);
       console.warn('Venue resolution failed', error);
-      dispatch({ type: 'failed', error: errorMessage(error) });
+      dispatch({ type: 'failed', error: socialErrorMessage(error) ?? errorMessage(error) });
       return venueContext(state);
     }
   }

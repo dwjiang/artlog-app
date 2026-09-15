@@ -43,7 +43,8 @@ export const syncJournal = mutation({
       const alreadyAdded = change.kind === 'visit' && visits.some((v) => v._id === change.row._id);
       const records = (alreadyAdded ? 0 : 1) + (parent ? 1 : 0);
       const size = (alreadyAdded ? 0 : utf8Bytes(change.row)) + (parent ? utf8Bytes(parent) : 0);
-      if (visits.length + saves.length + records > LIMITS.batchRecords || bytes + size > LIMITS.batchBytes - 1024) break;
+      // The first change always ships, even oversized: an empty page would return the same checkpoint forever.
+      if (processed && (visits.length + saves.length + records > LIMITS.batchRecords || bytes + size > LIMITS.batchBytes - 1024)) break;
       if (parent) visits.push(parent);
       if (change.kind === 'visit') { if (!alreadyAdded) visits.push(change.row); }
       else saves.push(change.row);

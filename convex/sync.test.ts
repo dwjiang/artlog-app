@@ -115,6 +115,14 @@ it('pages by monotonic versions even when all timestamps are equal, with parents
   expect(new Set(seen).size).toBe(70);
   expect((await sync(user, { since: checkpoint })).saves).toEqual([]);
 });
+it('always delivers the first pending change so an oversized row cannot stall the pull', async () => {
+  const { t, user, sync } = await fixture();
+  const pushed = await sync(user, { saves: [save()] });
+  await t.run((ctx) => ctx.db.patch(pushed.saves[0]._id, { note: 'x'.repeat(LIMITS.batchBytes) }));
+  const page = await sync(user);
+  expect(page.saves.map((row) => row._id)).toEqual([pushed.saves[0]._id]);
+  expect(page).toMatchObject({ checkpoint: pushed.checkpoint, hasMore: false });
+});
 it('enforces record, byte, note, timestamp and authentication bounds', async () => {
   const { t, user, sync } = await fixture();
   await expect(t.mutation(api.sync.syncJournal, { visits: [], saves: [], since: 0, scope: user.scope })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });

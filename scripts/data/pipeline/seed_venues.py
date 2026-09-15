@@ -17,12 +17,15 @@ import httpx
 from .checkpoint import Checkpoint
 from .config import DATA_DIR, get_settings, setup_logging
 from .convex_writer import ConvexWriter
+from .model_version import REPO_ROOT
 from .regions import Region, load_regions, region_for
 from .wikidata import MAX_VENUES, IncompleteCountry, VenueRow, iter_museums
 
 log = logging.getLogger(__name__)
 MAX_ASSET_BYTES = 10_000_000
 BASELINE_VENUES = 42_444
+# The server validator reads the same file; config keys outside it (YU, DD, AC, ...) are seeded without a country.
+COUNTRY_CODES = frozenset(json.loads((REPO_ROOT / "shared" / "journal" / "countries.json").read_text()))
 
 
 @dataclass(frozen=True)
@@ -95,7 +98,7 @@ def seed_countries(
                     "lng": venue.lng,
                     **({"website": venue.website} if venue.website is not None else {}),
                     **({"city": venue.city} if venue.city else {}),
-                    **({"country": venue.country_iso} if len(venue.country_iso) == 2 else {}),
+                    **({"country": venue.country_iso} if venue.country_iso in COUNTRY_CODES else {}),
                     "seedSource": "wikidata",
                     "region": region_for(venue, regions),
                 }

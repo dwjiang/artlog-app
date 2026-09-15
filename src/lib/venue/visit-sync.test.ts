@@ -3,6 +3,8 @@ import { db } from '@/db/client';
 import { visits } from '@/db/schema';
 import { resolveScanVisit } from './visit-sync';
 import { initializeOwner, switchOwner } from '@/lib/account/owner-store';
+import { isTransientError, SyncUnavailableError } from '@/lib/network-error';
+import { ConvexError } from 'convex/values';
 
 const mockFlush = jest.fn();
 jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: () => mockFlush() }));
@@ -22,4 +24,10 @@ it('discards an in-flight result after an account switch', async () => {
   await upsertVisit({ localId: 'old', venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
   mockFlush.mockImplementation(async () => { switchOwner('account:other'); });
   await expect(resolveScanVisit('old', venueId)).rejects.toThrow('owner changed');
+});
+it.each([new ConvexError({ code: 'rate_limited' }), new SyncUnavailableError()])('propagates the sync failure %s so the flusher does not count an attempt', async (failure) => {
+  await upsertVisit({ localId: 'old', venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
+  mockFlush.mockRejectedValue(failure);
+  const error = await resolveScanVisit('old', venueId).catch((cause: unknown) => cause);
+  expect(error).toBe(failure); expect(isTransientError(error)).toBe(true);
 });

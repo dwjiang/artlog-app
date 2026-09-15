@@ -119,3 +119,48 @@ it('keeps interrupted claims linked until they can finish without stranding pare
   await expect(device.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow('claim_required');
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(true);
 });
+
+it('checks every claim on deletion and forgets a device’s claim once it unlinks', async () => {
+  const t = harness(); const { a, b } = await pair(t);
+  const accountId = (await a.as.query(api.accounts.me, {})).accountId!;
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 25; i++) {
+      const deviceId = await ctx.db.insert('devices', { firstSeenAt: 1, trustWeight: 0, banned: false, platform: 'simulator', attestCounter: 0 });
+      await ctx.db.insert('journalClaims', { deviceId, accountId, phase: 'complete', createdAt: 1, completedAt: 1 });
+    }
+  });
+  await b.as.mutation(api.accounts.unlink, {}); await appleSignIn(b); await link(b);
+  await expect(a.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow('claim_required');
+  const { scope } = await b.as.query(api.accounts.me, {});
+  while (!(await b.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+  await b.as.mutation(api.accounts.unlink, {});
+  expect(await t.run((ctx) => ctx.db.query('journalClaims').withIndex('by_deviceId', (q) => q.eq('deviceId', b.deviceId)).collect())).toEqual([]);
+  await a.as.mutation(api.accounts.deleteAccount, {});
+  expect(await t.run((ctx) => ctx.db.query('journalClaims').collect())).toEqual([]);
+});
+
+it('purges the deleted account’s journal, photos and sync state in batches', async () => {
+  vi.useFakeTimers();
+  const t = harness(); const { a } = await pair(t);
+  const accountId = (await a.as.query(api.accounts.me, {})).accountId!;
+  const owner = { kind: 'account' as const, accountId };
+  await t.run(async (ctx) => {
+    const venueId = await ctx.db.insert('museums', { key: 'v', name: 'Museum', lat: 0, lng: 0, seedSource: 'manual', region: 'US', optOut: false });
+    const stored = await ctx.storage.store(new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
+    await ctx.db.insert('journalSyncState', { owner, version: 70 });
+    for (let i = 0; i < 5; i++) {
+      await ctx.db.insert('visits', { owner, localId: crypto.randomUUID(), venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 1 });
+    }
+    for (let i = 0; i < 60; i++) {
+      await ctx.db.insert('collections', { owner, localId: crypto.randomUUID(), snapshot: { title: 'Work', artist: '' }, savedAt: 1,
+        updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 6, ...(i === 0 ? { photoStorageId: stored } : {}) });
+    }
+  });
+  await a.as.mutation(api.accounts.deleteAccount, {});
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.run((ctx) => ctx.db.query('collections').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query('visits').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query('journalSyncState').collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toEqual([]);
+  vi.useRealTimers();
+});

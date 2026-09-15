@@ -8,6 +8,7 @@ it.each([
   ['device_not_registered', 'This phone isn’t set up to identify yet. Try again in a moment.'],
   ['device_banned', 'This phone can’t identify paintings.'],
   ['invalid_visit', 'The museum for this scan couldn’t be confirmed.'],
+  ['not_found', 'The museum for this scan couldn’t be confirmed.'],
   ['scan_not_found', 'The server no longer has this scan.'],
   ['Identification interrupted', 'Identification was interrupted before the server answered.'],
   ['Network request failed', 'The connection dropped before the server answered.'],

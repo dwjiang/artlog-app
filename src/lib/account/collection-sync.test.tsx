@@ -2,13 +2,15 @@ import { captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import { act, render } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { CollectionSync, pauseCollectionSync, resumeCollectionSync } from './collection-sync';
+import { CollectionSync, flushJournal, pauseCollectionSync, resumeCollectionSync } from './collection-sync';
+import { SyncUnavailableError } from '@/lib/network-error';
 import { requestCollectionSync } from './sync-events';
 
 const mockSync = jest.fn();
 const mockPhotos = jest.fn();
 const mockClaim = jest.fn();
-jest.mock('@convex-dev/auth/react', () => ({ useAuthToken: () => 'token' }));
+let mockToken = 'token';
+jest.mock('@convex-dev/auth/react', () => ({ useAuthToken: () => mockToken }));
 jest.mock('./photo-sync', () => ({ syncCollectionPhotos: (...args: unknown[]) => mockPhotos(...args) }));
 let mockAccount: { scope: string; accountId: string | null };
 let mockNetwork: (state: { isConnected: boolean }) => void;
@@ -30,7 +32,7 @@ jest.mock('./sync', () => ({ syncJournal: (...args: unknown[]) => mockSync(...ar
 beforeEach(() => {
   jest.useFakeTimers(); mockSync.mockReset().mockResolvedValue(undefined); mockPhotos.mockReset().mockResolvedValue(undefined);
   mockClaim.mockReset().mockResolvedValue({ claimId: null, complete: true });
-  mockAccount = { scope: 'account:a,b', accountId: 'account' };
+  mockAccount = { scope: 'account:a,b', accountId: 'account' }; mockToken = 'token';
   Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' });
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     mockForeground = listener; return { remove: jest.fn() };
@@ -106,4 +108,36 @@ it('suspends capture scope until the account claim finishes and invalidates it o
   await screen.rerender(<CollectionSync />);
   expect(linked.isCurrent()).toBe(false);
   expect(getLocalOwner()).toBe('device:test-installation');
+});
+
+it('rejects flushJournal with the sync failure, keeps the scheduled retry, and reports a paused or backgrounded queue', async () => {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  await render(<CollectionSync />); await tick();
+  const failure = new Error('Network request failed');
+  mockSync.mockRejectedValueOnce(failure);
+  await expect(flushJournal()).rejects.toBe(failure);
+  expect(mockSync).toHaveBeenCalledTimes(2);
+  await act(() => jest.advanceTimersByTimeAsync(30_000));
+  expect(mockSync).toHaveBeenCalledTimes(3);
+  await expect(flushJournal()).resolves.toBeUndefined();
+  Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'background' });
+  await expect(flushJournal()).rejects.toBeInstanceOf(SyncUnavailableError);
+  Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' });
+  pauseCollectionSync();
+  await expect(flushJournal()).rejects.toBeInstanceOf(SyncUnavailableError);
+});
+
+it('keeps a linked scope across a token refresh but suspends it again when the account scope changes', async () => {
+  const screen = await render(<CollectionSync />); await tick();
+  expect(captureOwner()).toMatchObject({ owner: 'account:account', scope: 'account:a,b' });
+  const linked = captureOwner();
+  mockToken = 'rotated';
+  await screen.rerender(<CollectionSync />);
+  expect(linked.isCurrent()).toBe(true);
+  expect(captureOwner().scope).toBe('account:a,b');
+  mockClaim.mockImplementationOnce(() => new Promise(() => {}));
+  mockAccount = { scope: 'account:a,b:2', accountId: 'account' };
+  await screen.rerender(<CollectionSync />); await tick();
+  expect(linked.isCurrent()).toBe(false);
+  expect(captureOwner()).toMatchObject({ owner: 'account:account', scope: undefined });
 });

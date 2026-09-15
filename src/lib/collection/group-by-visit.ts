@@ -26,7 +26,7 @@ export function groupByVisit(works: SavedWork[], visits: Visit[]): VisitSection[
     byVisit.set(visit.localId, bucket);
   }
   const sections = [...visits]
-    .sort((a, b) => b.visitedOn.localeCompare(a.visitedOn) || b.localId.localeCompare(a.localId))
+    .sort((a, b) => b.visitedOn.localeCompare(a.visitedOn) || (b.startedAt ?? 0) - (a.startedAt ?? 0) || b.localId.localeCompare(a.localId))
     .flatMap((visit) => {
       const data = byVisit.get(visit.localId);
       return data ? [{ key: visit.localId, title: `${visit.venueName} · ${formatDay(Date.parse(`${visit.visitedOn}T12:00:00`))}`, data }] : [];

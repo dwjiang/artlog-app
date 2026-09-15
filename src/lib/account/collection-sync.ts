@@ -11,6 +11,7 @@ import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from './owne
 import * as savedWorks from '@/db/repos/saved-works';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
+import { SyncUnavailableError } from '@/lib/network-error';
 import { useDeviceReady } from '@/lib/use-device-ready';
 import { syncJournal, type SyncContext } from './sync';
 import { onCollectionChange } from './sync-events';
@@ -34,12 +35,20 @@ function schedule(queue: Queue, delay: number): void {
   queue.timer = setTimeout(() => { queue.timer = undefined; void flush(queue); }, delay);
 }
 
-async function flush(queue: Queue): Promise<void> {
-  if (queue.running || paused || !context || !authToken || AppState.currentState !== 'active') return;
+function ready(): { context: SyncContext; token: string } | null {
+  return !paused && context && authToken && AppState.currentState === 'active' ? { context, token: authToken } : null;
+}
+
+/** Scheduled runs retry on their own; the resolved failure lets a direct caller rethrow it instead. */
+async function flush(queue: Queue): Promise<unknown> {
+  const session = ready();
+  if (queue.running || !session) return;
   const current = generation;
   const isCurrent = () => generation === current && !paused;
   queue.requested = false;
-  queue.running = queue.run(context, authToken, isCurrent).catch((error: unknown) => {
+  let failure: unknown;
+  queue.running = queue.run(session.context, session.token, isCurrent).catch((error: unknown) => {
+    failure = error;
     console.warn(`${queue.label} will retry`, error);
     schedule(queue, 30_000);
   }).finally(() => {
@@ -47,6 +56,7 @@ async function flush(queue: Queue): Promise<void> {
     if (queue.requested && !queue.timer) schedule(queue, 500);
   });
   await queue.running;
+  return failure;
 }
 
 // Photo transfers run in their own queue so a large backlog never delays note, deletion or import sync.
@@ -111,9 +121,12 @@ export function pauseCollectionSync(): void {
   stop();
 }
 
+/** Runs one journal sync now and rejects the way the sync did, so callers keep the server's error classification. */
 export async function flushJournal(): Promise<void> {
-  if (sync.running) await sync.running;
-  await flush(sync);
+  while (sync.running) await sync.running;
+  if (!ready()) throw new SyncUnavailableError();
+  const failure = await flush(sync);
+  if (failure !== undefined) throw failure;
 }
 
 export function resumeCollectionSync(): void {
@@ -136,8 +149,11 @@ export function CollectionSync(): null {
     context = deviceId && scope && accountId !== undefined && token
       ? { deviceId, scope, accountId, owner: accountId ? `account:${accountId}` : anonymousOwner() } : null;
     if (context) {
-      if (context.accountId) switchOwner(getLocalOwner());
-      else {
+      if (context.accountId) {
+        // The account scope is usable only once its claim finished; a token refresh alone leaves it valid.
+        const current = captureOwner();
+        if (current.owner !== context.owner || current.scope !== scope) switchOwner(getLocalOwner());
+      } else {
         switchOwner(context.owner, paused ? undefined : scope);
         void setSetting('activeJournalOwner', context.owner);
       }

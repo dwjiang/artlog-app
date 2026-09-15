@@ -15,7 +15,8 @@ jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').cre
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
 }));
-jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {} }));
+const mockFlush = jest.fn();
+jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: () => mockFlush() }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: (id: string) => mockVenueName(id) }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 
@@ -31,6 +32,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockFlush.mockResolvedValue(undefined);
   mockMutation.mockResolvedValue({ collectionId: 'col-1', updatedAt: 20, updatedBy: 'device' });
   mockVenueName.mockResolvedValue('Legion of Honor');
 });
@@ -96,4 +98,12 @@ it('keeps the local row when the server call fails', async () => {
   expect((await getSavedWork(localId))?.syncedAt).toBeNull();
   expect(warn).toHaveBeenCalled();
   warn.mockRestore();
+});
+
+it('still records the confirmation when the journal flush fails and the visit is already on the server', async () => {
+  mockFlush.mockRejectedValue(new Error('Network request failed'));
+  const { localId, synced } = await saveResult({ scanId: SCAN_ID, capture, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies) });
+  await synced;
+  expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ localId }));
+  expect((await getSavedWork(localId))?.syncedAt).toEqual(expect.any(Number));
 });

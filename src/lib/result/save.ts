@@ -49,7 +49,8 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   }, current.owner);
   const synced = (async () => {
     if (!current.scope || !current.isCurrent()) return;
-    await flushJournal();
+    // A failed flush only matters while the visit is still local; saveToCollection reports that itself.
+    await flushJournal().catch(() => {});
     if (!current.isCurrent()) return;
     const acknowledgement = await convex.mutation(api.collections.saveToCollection, {
     localId, scanId, objectId: primary?.objectId, artworkId: primary?.artworkId, venueId, visitLocalId: visit?.localId, scope: current.scope,

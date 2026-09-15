@@ -34,6 +34,12 @@ it('groups works under their visit, newest visit first, keeping each section in 
   ]);
 });
 
+it('orders same-day visits by start time so the morning museum follows the afternoon one', () => {
+  const morning = visit('z-morning', 'SFMOMA', new Date(2026, 8, 8, 10).getTime());
+  const works = [work('a', 'met', 3), work('b', 'z-morning', 2)];
+  expect(groupByVisit(works, [morning, met]).map((section) => section.key)).toEqual(['met', 'z-morning']);
+});
+
 it('puts works without a known visit under "Imported" after every visit', () => {
   const works = [work('orphan', 'unknown-visit', 6), work('a', 'met', 3), work('none', null, 1)];
   const sections = groupByVisit(works, [met]);
