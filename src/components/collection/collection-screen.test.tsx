@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
 import { CollectionScreen } from './collection-screen';
+import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
 
@@ -55,8 +56,8 @@ it('invites the first scan while the collection is empty', async () => {
 
 describe('with saved works', () => {
   beforeAll(async () => {
-    await upsertVisit({ localId: 'met', venueId, venueName: 'Metropolitan Museum of Art', startedAt: new Date(2026, 8, 8, 14).getTime() });
-    await upsertVisit({ localId: 'dy', venueId, venueName: 'de Young', startedAt: new Date(2026, 8, 1, 11).getTime() });
+    await upsertVisit({ visitedOn: '2026-09-08', timeZone: 'UTC', localId: 'met', venueId, venueName: 'Metropolitan Museum of Art', startedAt: new Date(2026, 8, 8, 14).getTime() });
+    await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'dy', venueId, venueName: 'de Young', startedAt: new Date(2026, 8, 1, 11).getTime() });
     await insertSavedWork({ localId: 'lilies', visitLocalId: 'met', savedAt: 3, title: 'Water Lilies', artist: 'Claude Monet', institution: "Musée d'Orsay", cropPath: 'crops/lilies.jpg' });
     await insertSavedWork({ localId: 'cotton', visitLocalId: 'dy', savedAt: 2, title: '100% Cotton', artist: 'Anon', institution: 'de Young', cropPath: 'crops/cotton.jpg' });
     await insertSavedWork({ localId: 'import', savedAt: 1, title: 'Untitled', artist: 'Unknown', cropPath: 'crops/import.jpg' });
@@ -106,4 +107,15 @@ describe('with saved works', () => {
     expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(3);
     expect(screen.getByText('100% Cotton')).toBeOnTheScreen();
   });
+});
+
+it('immediately hides account works on sign-out and restores them on sign-in', async () => {
+  await insertSavedWork({ localId: 'account-work', savedAt: 10, title: 'Private account work', artist: 'Reader' }, 'account:a');
+  switchOwner('account:a', 'scope-a');
+  await render(<CollectionScreen />);
+  expect(await screen.findByText('Private account work')).toBeOnTheScreen();
+  await act(() => switchOwner(anonymousOwner(), 'scope-anonymous'));
+  expect(screen.queryByText('Private account work')).toBeNull();
+  await act(() => switchOwner('account:a', 'scope-a2'));
+  expect(await screen.findByText('Private account work')).toBeOnTheScreen();
 });

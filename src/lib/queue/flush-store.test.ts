@@ -2,15 +2,14 @@ import { ConvexError } from 'convex/values';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import * as pending from '@/db/repos/pending-scans';
-import { patchVisit, upsertVisit } from '@/db/repos/visits';
+import { getVisit, listUnsyncedVisits, markVisitsSynced, patchVisit, upsertVisit } from '@/db/repos/visits';
 import type { NewPendingScan } from '@/db/schema';
 import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { createFlusher, type FlushDependencies } from './flush';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('@/db/test-db').createTestDatabase() }));
-const mockMutation = jest.fn();
-jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (...args: unknown[]) => mockMutation(...args) } }));
-jest.mock('../../../convex/_generated/api', () => ({ api: { visits: { startVisit: 'start', endVisit: 'end' } } }));
+const mockFlushJournal = jest.fn();
+jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: () => mockFlushJournal() }));
 
 function capture(localId: string, modelVersion = 'v1'): NewPendingScan {
   return {
@@ -45,8 +44,9 @@ function dependencies(modelVersion = 'v1') {
 
 beforeEach(() => {
   jest.useFakeTimers();
-  mockMutation.mockReset();
-  mockMutation.mockImplementation(async (ref, args) => ref === 'start' ? { visitId: `remote-${args.localVisitId}` } : null);
+  mockFlushJournal.mockImplementation(async () => {
+    for (const visit of await listUnsyncedVisits()) await markVisitsSynced([{ localId: visit.localId, revision: visit.revision, visitId: `remote-${visit.localId}` as Id<'visits'>, updatedAt: Date.now(), updatedBy: 'device' as Id<'devices'> }]);
+  });
 });
 afterEach(async () => {
   for (const row of await pending.pendingScansQuery()) await pending.deletePendingScan(row.localId);
@@ -122,7 +122,7 @@ it('gives an exhausted crop a fresh retry budget on each model update', async ()
 
 it('retains the captured visit across an offline restart and a subsequent visit to the same museum', async () => {
   const venueId = 'museum-1' as Id<'museums'>;
-  await upsertVisit({ localId: 'original', venueId, venueName: 'Museum', startedAt: 10 });
+  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'original', venueId, venueName: 'Museum', startedAt: 10 });
   await pending.enqueuePendingScan({ ...capture('visit-capture'), venueId, visitLocalId: 'original' });
   const offline = dependencies();
   offline.isOnline = async () => false;
@@ -131,17 +131,15 @@ it('retains the captured visit across an offline restart and a subsequent visit 
   first.stop();
   expect(offline.identify).not.toHaveBeenCalled();
   await patchVisit('original', { endedAt: 20 });
-  await upsertVisit({ localId: 'subsequent', venueId, venueName: 'Museum', startedAt: 30 });
+  await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'subsequent', venueId, venueName: 'Museum', startedAt: 30 });
 
   const reconnected = dependencies();
   const restarted = createFlusher(reconnected);
   await restarted.start();
   restarted.stop();
   expect(reconnected.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId, visitId: 'remote-original' }));
-  expect(mockMutation.mock.calls).toEqual([
-    ['start', { venueId, localVisitId: 'original' }], ['end', { visitId: 'remote-original' }],
-    ['start', { venueId, localVisitId: 'subsequent' }],
-  ]);
+  expect(await getVisit('original')).toMatchObject({ startedAt: 10, endedAt: 20, remoteVisitId: 'remote-original' });
+  expect(await getVisit('subsequent')).toMatchObject({ startedAt: 30, endedAt: null });
   expect(await pending.getPendingScan('visit-capture')).toMatchObject({ status: 'identified', visitLocalId: 'original', attempts: 0 });
   await pending.deletePendingScan('visit-capture');
 });

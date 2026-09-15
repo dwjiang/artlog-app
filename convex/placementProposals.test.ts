@@ -36,7 +36,7 @@ async function fixture(attested = true) {
     localId: 'capture', venueId, vector: testVector(), ...encodeOrbFeatures(pair.query),
     modelVersion: model.modelVersion, capturedAt: Date.now(),
   };
-  const scan = await user.as.action(api.identify.identify, capture);
+  const scan = await user.as.action(api.identify.identify, { ...capture, scope: (await user.as.query(api.accounts.me, {})).scope });
   const sign = async (scanId: Id<'scans'>, counter = 1) => {
     const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
     const assertionBase64 = await signAssertion(signer, authenticatorData(await sha256(APP_ID), counter),
@@ -70,7 +70,7 @@ it('verifies scan-bound signatures, rejects nonce replays, and deduplicates fres
 
 it('rejects substituting another scan into a signed request', async () => {
   const { t, user, scan, capture, sign } = await fixture();
-  const other = await user.as.action(api.identify.identify, { ...capture, localId: 'other' });
+  const other = await user.as.action(api.identify.identify, { ...capture, localId: 'other', scope: (await user.as.query(api.accounts.me, {})).scope });
   await expect(user.as.mutation(api.identify.proposeFromScan, {
     ...await sign(scan.scanId), scanId: other.scanId,
   })).rejects.toMatchObject({ data: { code: 'invalid_assertion', reason: 'invalid_signature' } });
@@ -81,7 +81,7 @@ it('rejects another device’s scan even when the assertion is valid', async () 
   const { t, user, capture, sign } = await fixture();
   const other = await signIn(t);
   await other.as.mutation(api.devices.registerDevice, { platform: 'ios' });
-  const scan = await other.as.action(api.identify.identify, capture);
+  const scan = await other.as.action(api.identify.identify, { ...capture, scope: (await other.as.query(api.accounts.me, {})).scope });
   await expect(user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId)))
     .rejects.toMatchObject({ data: { code: 'invalid_scan' } });
   expect(await t.run((ctx) => ctx.db.query('placementProposals').collect())).toEqual([]);
@@ -89,9 +89,9 @@ it('rejects another device’s scan even when the assertion is valid', async () 
 
 it('rejects a soft scan as placement evidence', async () => {
   const { t, user, capture, sign } = await fixture();
-  const scan = await user.as.action(api.identify.identify, {
+  const scan = await user.as.action(api.identify.identify, { ...{
     ...capture, localId: 'soft', descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
-  });
+  }, scope: (await user.as.query(api.accounts.me, {})).scope });
   expect(scan.outcome).toBe('soft');
   await expect(user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId)))
     .rejects.toMatchObject({ data: { code: 'invalid_scan' } });

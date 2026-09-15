@@ -28,10 +28,10 @@ it.skipIf(process.env.LABEL_LIVE !== '1')('reads and verifies a real label photo
   client.setAuth(token);
   await client.mutation(api.devices.registerDevice, { platform: 'simulator' });
   const pair = makeSyntheticPair({ count: 120 });
-  const scan = await client.action(api.identify.identify, {
+  const scan = await client.action(api.identify.identify, { ...{
     localId: crypto.randomUUID(), vector: testVector(), ...encodeOrbFeatures(pair.query),
     modelVersion: model.modelVersion, venueId, capturedAt: Date.now(),
-  });
+  }, scope: (await client.query(api.accounts.me, {})).scope });
   stdout.write(`scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`);
 
   const imageBase64 = readFileSync(photo).toString('base64');

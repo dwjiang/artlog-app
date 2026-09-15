@@ -6,7 +6,9 @@ import * as schema from './schema';
 
 /** An in-memory database with the committed migrations applied; Jest runs from the repository root. */
 export function createTestDatabase() {
-  const db = drizzle(new Database(':memory:'), { schema });
+  const sqlite = new Database(':memory:');
+  sqlite.pragma('foreign_keys = ON');
+  const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: 'src/db/migrations' });
   return db;
 }

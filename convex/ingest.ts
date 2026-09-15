@@ -1,6 +1,7 @@
 // The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // scripts/data/pipeline in the same PR.
+import { validateGeography } from '../shared/social/contracts';
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
@@ -39,6 +40,7 @@ const museumRow = v.object({
   lat: v.number(),
   lng: v.number(),
   website: v.optional(v.string()),
+  city: v.optional(v.string()), country: v.optional(v.string()),
   region: v.string(),
   seedSource,
 });
@@ -160,7 +162,9 @@ export const upsertMuseums = internalMutation({
     const ids: Record<string, Id<'museums'>> = {};
     let inserted = 0;
     for (const row of rows) {
+      validateGeography(row);
       const fields = {
+        city: row.city, country: row.country,
         key: row.key,
         wikidataId: row.wikidataId,
         name: row.name,
@@ -497,6 +501,7 @@ export const exportVenues = internalQuery({
         lat: v.number(),
         lng: v.number(),
         website: v.optional(v.string()),
+        city: v.optional(v.string()), country: v.optional(v.string()),
         region: v.string(),
       })
     ),
@@ -516,7 +521,7 @@ export const exportVenues = internalQuery({
         lat: m.lat,
         lng: m.lng,
         website: m.website,
-        region: m.region,
+        region: m.region, city: m.city, country: m.country,
       })),
       continueCursor: result.continueCursor,
       isDone: result.isDone,

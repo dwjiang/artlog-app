@@ -7,10 +7,11 @@ import type { ScanFeatures } from '@/lib/capture/features';
 import type { IdentifyResponse } from '@/lib/capture/stages';
 import { errorMessage, isTransientError, rateLimitRetryAfterMs } from '@/lib/network-error';
 
-export type IdentifyArgs = FunctionArgs<typeof api.identify.identify>;
+export type IdentifyArgs = Omit<FunctionArgs<typeof api.identify.identify>, 'scope'>;
 export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 
 export type FlushDependencies = {
+  isCurrent?(): boolean;
   listFlushable(modelVersion: string): Promise<PendingScan[]>;
   listPendingLabels(): Promise<PendingScan[]>;
   clearPendingLabel(localId: string, label: LabelInput): Promise<void>;
@@ -90,19 +91,19 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       localId: row.localId, ...features,
       venueId: row.venueId ?? undefined, visitId, capturedAt: row.capturedAt,
     });
-    // Convex actions cannot be cancelled; retain an already-sent request's result after cleanup.
+    if (!isCurrent()) return;
     await deps.recordResult(row.localId, response);
     const label: LabelInput = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
-    if (response.status === 'identified' && response.outcome === 'confident' && (label.labelPhotoPath || label.qrUrl)) {
+    if (response.status === 'identified' && response.outcome === 'confident' && isCurrent() && (label.labelPhotoPath || label.qrUrl)) {
       await deps.clearPendingLabel(row.localId, label);
     }
   }
 
-  async function processLabel(row: PendingScan): Promise<void> {
+  async function processLabel(row: PendingScan, isCurrent: () => boolean): Promise<void> {
     if (!row.scanId) return;
     const label = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
     await deps.runLabelFlow(row.scanId, label);
-    await deps.clearPendingLabel(row.localId, label);
+    if (isCurrent()) await deps.clearPendingLabel(row.localId, label);
   }
 
   async function run(isCurrent: () => boolean): Promise<void> {
@@ -127,13 +128,14 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           continue;
         }
         try {
-          if (labelTask) await processLabel(row);
+          if (labelTask) await processLabel(row, isCurrent);
           else await processRow(row, isCurrent);
           if (!isCurrent()) return;
           retryAt.delete(key);
           taskBackoff.transientFailures = 0;
           taskBackoff.pauseUntil = 0;
         } catch (error) {
+          if (!isCurrent()) return;
           const transient = isTransientError(error);
           const recordFailure = labelTask ? deps.recordLabelFailure : deps.recordFailure;
           const { status, attempts } = await recordFailure(row.localId, errorMessage(error), { countAttempt: !transient });
@@ -174,7 +176,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           clearTimeout(retryTimer);
           retryTimer = undefined;
           const runGeneration = generation;
-          await run(() => active && generation === runGeneration);
+          await run(() => active && generation === runGeneration && (deps.isCurrent?.() ?? true));
         } while (active && rerun);
       } catch (error) {
         console.warn('Queue flush failed', error);

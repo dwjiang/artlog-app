@@ -1,3 +1,5 @@
+import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
+import { claimLocalJournal } from '@/db/repos/journal-claim';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { clearLabelDraft, loadLabelDraft, saveLabelDraft } from './draft';
 import { formStateFromFlow, toSubmittedFields, unlockField } from './fields';
@@ -39,4 +41,16 @@ it('restores a sharing draft only for the label or museum confirmation it belong
   expect(await loadLabelDraft(scanId, 3)).toBeUndefined();
   await clearLabelDraft(scanId);
   expect(await loadLabelDraft(scanId, 2)).toBeUndefined();
+});
+
+it('claims anonymous label edits and hides account drafts after sign-out', async () => {
+  const scanId = 'scoped-draft' as Id<'scans'>;
+  const state = formStateFromFlow({ stage: 'verified', moderation: 'clear', evidence: [], warnings: [], updatedAt: 1, fields: { title: { value: 'Private title', evidence: 'ocr', locked: false } } });
+  await saveLabelDraft(scanId, state);
+  await claimLocalJournal(anonymousOwner(), 'account:a', 'claim-draft');
+  expect(await loadLabelDraft(scanId)).toBeUndefined();
+  switchOwner('account:a');
+  expect(await loadLabelDraft(scanId)).toEqual(state);
+  switchOwner(anonymousOwner());
+  expect(await loadLabelDraft(scanId)).toBeUndefined();
 });

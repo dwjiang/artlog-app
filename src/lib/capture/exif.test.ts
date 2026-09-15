@@ -34,7 +34,8 @@ it('preserves signed coordinates and accepts zero', () => {
 
 it.each([null, undefined, {}, { GPSLatitude: 'no', GPSLongitude: Infinity, DateTimeOriginal: 'not a date' },
   { GPSLatitude: 91, GPSLongitude: -181, DateTimeOriginal: '2026:02:30 10:00:00' },
-  { DateTimeOriginal: '2026:02:30 10:00:00', OffsetTimeOriginal: '+01:00' }])(
+  { DateTimeOriginal: '2026:02:30 10:00:00', OffsetTimeOriginal: '+01:00' },
+  { DateTimeOriginal: '1904:01:01 00:00:00' }, { DateTimeOriginal: '1969:12:31 23:59:59', OffsetTimeOriginal: '+00:00' }])(
   'omits missing/invalid values and defaults the time: %s', (exif) => {
     jest.spyOn(Date, 'now').mockReturnValue(1234);
     expect(extractCaptureMeta(exif)).toEqual({ capturedAt: 1234 });

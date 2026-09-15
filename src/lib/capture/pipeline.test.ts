@@ -1,3 +1,4 @@
+import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { ConvexError } from 'convex/values';
 
 import { runCapture } from './pipeline';
@@ -46,7 +47,7 @@ it('warps, checks, embeds, extracts and stores the capture before sending rounde
   });
   expect(deps.store.enqueue).toHaveBeenCalledWith(payload, 'identifying');
   expect(deps.identify).toHaveBeenCalledWith(payload);
-  expect(deps.store.recordResult).toHaveBeenCalledWith('capture-uuid', response);
+  expect(deps.store.recordResult).toHaveBeenCalledWith('capture-uuid', response, 'device:test-installation');
   const calls = [
     deps.warper.warpAndLetterbox, deps.triage.check, deps.embedder.embed, deps.orb.extract,
     deps.store.enqueue, deps.identify, deps.store.recordResult,
@@ -104,7 +105,7 @@ it.each([
   expect(await runCapture(input, deps, options)).toMatchObject({ kind: 'queued', localId: 'capture-uuid' });
   expect(deps.store.enqueue).toHaveBeenCalledTimes(1);
   expect(deps.store.enqueue.mock.calls[0][0]).toBe(deps.identify.mock.calls[0][0]);
-  expect(deps.store.requeue).toHaveBeenCalledWith('capture-uuid', error.message);
+  expect(deps.store.requeue).toHaveBeenCalledWith('capture-uuid', error.message, 'device:test-installation');
   expect(deps.embedder.embed).toHaveBeenCalledTimes(1);
 });
 
@@ -116,7 +117,7 @@ it.each([
   const deps = dependencies();
   deps.identify.mockRejectedValue(error);
   await expect(runCapture(input, deps, options)).rejects.toBe(error);
-  expect(deps.store.requeue).toHaveBeenCalledWith('capture-uuid', message);
+  expect(deps.store.requeue).toHaveBeenCalledWith('capture-uuid', message, 'device:test-installation');
   expect(deps.store.recordResult).not.toHaveBeenCalled();
 });
 
@@ -132,4 +133,16 @@ it('rejects a model mismatch before processing the photo', async () => {
   deps.embedder.modelVersion = 'other-model';
   await expect(runCapture(input, deps, options)).rejects.toThrow('model version');
   expect(deps.warper.warpAndLetterbox).not.toHaveBeenCalled();
+});
+
+it('keeps a capture made before registration when the same installation becomes ready', async () => {
+  switchOwner(anonymousOwner());
+  const deps = dependencies();
+  deps.embedder.embed.mockImplementation(async () => {
+    switchOwner(anonymousOwner(), 'test-scope');
+    return new Float32Array([1]);
+  });
+  expect(await runCapture(input, deps, options)).toMatchObject({ kind: 'queued' });
+  expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({ owner: anonymousOwner() }), 'queued');
+  expect(deps.identify).not.toHaveBeenCalled();
 });

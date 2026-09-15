@@ -43,6 +43,7 @@ def test_resume_does_not_repeat_completed_writes_or_downloads(tmp_path):
                 "website": "https://museum.example",
                 "seedSource": "wikidata",
                 "region": "sf-bay-area",
+                "country": "US",
             }
         ],
         batch_size=500,
@@ -259,3 +260,26 @@ def test_failed_upload_does_not_publish(tmp_path, monkeypatch):
     with pytest.raises(httpx.HTTPStatusError):
         seed_venues.publish_asset(writer, asset)
     writer.mutation.assert_called_once_with("venueTable:requestUpload")
+
+
+def test_city_and_country_survive_export_without_filling_unknown_values(tmp_path):
+    writer = Mock()
+    writer.query.return_value = {"page": [
+        {**EXPORT_ROW, "city": "San Francisco", "country": "US"},
+        {**EXPORT_ROW, "_id": "unknown", "key": "unknown"},
+    ], "isDone": True}
+    asset = seed_venues.export_asset(writer, tmp_path, version=123)
+    with sqlite3.connect(asset.path) as db:
+        assert db.execute("SELECT city, country FROM venues ORDER BY id").fetchall() == [
+            ("San Francisco", "US"), (None, None),
+        ]
+
+
+def test_seeds_only_country_codes_the_server_accepts(tmp_path):
+    kosovo, yugoslavia = replace(VENUE, qid="Q2", country_iso="XK"), replace(VENUE, qid="Q3", country_iso="YU")
+    writer = Mock()
+    fetch = Mock(side_effect=lambda selection, **_: iter([kosovo] if "XK" in selection else [yugoslavia]))
+    checkpoint = Checkpoint(tmp_path / "checkpoint.json")
+    seed_venues.seed_countries(writer, {"XK": ["Q1246"], "YU": ["Q36704"]}, load_regions(), checkpoint, user_agent="test", fetch_venues=fetch)
+    rows = [row for call in writer.upsert.call_args_list for row in call.args[1]]
+    assert [row.get("country") for row in rows] == ["XK", None]

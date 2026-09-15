@@ -7,7 +7,7 @@ import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { completion, jsonResponse } from './lib/labelFixtures';
 import { storeOrb } from './lib/orbStorage';
 import { FIXTURE_NOW } from './lib/rightNowFixtures';
-import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from './lib/testFactories';
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from './lib/testFactories';
 import { harness, signIn } from './test.helpers';
 
 beforeEach(() => { vi.useFakeTimers(); });
@@ -23,9 +23,7 @@ async function fixture(withWork = true) {
   const t = harness();
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const visitId = await t.run((ctx) => ctx.db.insert('visits', {
-    deviceId: user.deviceId, venueId, startedAt: Date.now(),
-  }));
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: Date.now() }));
   const work = withWork ? await t.run((ctx) => seedArtworkWithObject(ctx, {
     descriptors: pair.ref,
     placement: { venueId, gallery: '4', onView: true, source: 'feed', confidence: 1 },
@@ -48,7 +46,7 @@ describe('identify action', () => {
         }
       }
     });
-    const result = await user.as.action(api.identify.identify, args);
+    const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.status).toBe('identified');
     expect(result.best?.corners).toHaveLength(4);
   });
@@ -56,12 +54,12 @@ describe('identify action', () => {
   it('reports a missing file among verified candidates as an error', async () => {
     const { t, user, args } = await fixture();
     await t.run(async (ctx) => ctx.storage.delete((await ctx.db.query('descriptors').unique())!.storageId));
-    await expect(user.as.action(api.identify.identify, args)).rejects.toMatchObject({ data: { code: 'orb_file_missing' } });
+    await expect(user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'orb_file_missing' } });
   });
 
   it('returns verified corners and display data, persists the embedding, and updates the visit gallery', async () => {
     const { t, user, visitId, args, work } = await fixture();
-    const result = await user.as.action(api.identify.identify, args);
+    const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'identified', outcome: 'confident', calibratorVersion: 'lr-v2', best: {
       objectId: work!.objectId, title: 'Water Lilies', artist: 'Claude Monet', rightsStatus: 'public_domain',
     } });
@@ -80,17 +78,17 @@ describe('identify action', () => {
 
   it('returns an update status for unsupported models before decoding old feature formats', async () => {
     const { user, args } = await fixture();
-    const result = await user.as.action(api.identify.identify, {
+    const result = await user.as.action(api.identify.identify, { ...{
       ...args, modelVersion: 'obsolete', vector: [1], descriptors: new ArrayBuffer(1),
-    });
+    }, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'unsupported_version', error: 'Update the app to identify.' });
     expect(result.best).toBeUndefined();
   });
 
   it('identifies a previously unsupported capture after its model and features are updated', async () => {
     const { t, user, args } = await fixture();
-    const old = await user.as.action(api.identify.identify, { ...args, modelVersion: 'retired', vector: [1] });
-    const updated = await user.as.action(api.identify.identify, args);
+    const old = await user.as.action(api.identify.identify, { ...args, modelVersion: 'retired', vector: [1], scope: (await user.as.query(api.accounts.me, {})).scope });
+    const updated = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(updated).toMatchObject({ scanId: old.scanId, status: 'identified', outcome: 'confident' });
     expect(updated.error).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.get(old.scanId))).toMatchObject({ modelVersion: model.modelVersion, vector: args.vector });
@@ -100,19 +98,19 @@ describe('identify action', () => {
   it('preserves a supported pending generation when a retired-model retry arrives', async () => {
     const { t, user, venueId, args } = await fixture(false);
     const obsoleteArgs = { ...args, modelVersion: 'retired', vector: [1] };
-    const obsolete = await user.as.action(api.identify.identify, obsoleteArgs);
+    const obsolete = await user.as.action(api.identify.identify, { ...obsoleteArgs, scope: (await user.as.query(api.accounts.me, {})).scope });
     await t.mutation(internal.scans.create, {
       deviceId: user.deviceId, localId: args.localId, venueId, visitId: args.visitId,
       modelVersion: args.modelVersion, vector: args.vector, capturedAt: args.capturedAt,
     });
     const before = await t.run((ctx) => ctx.db.get(obsolete.scanId));
     expect(before).toMatchObject({ status: 'pending', generation: 1, modelVersion: model.modelVersion });
-    expect(await user.as.action(api.identify.identify, obsoleteArgs)).toMatchObject({ scanId: obsolete.scanId, status: 'pending' });
+    expect(await user.as.action(api.identify.identify, { ...obsoleteArgs, scope: (await user.as.query(api.accounts.me, {})).scope })).toMatchObject({ scanId: obsolete.scanId, status: 'pending' });
     expect(await t.run((ctx) => ctx.db.get(obsolete.scanId))).toEqual(before);
 
     await t.run((ctx) => seedArtworkWithObject(ctx, { descriptors: pair.ref,
       placement: { venueId, onView: true, source: 'feed', confidence: 1 } }));
-    await user.as.action(api.identify.identify, args);
+    await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(await user.as.query(api.scans.get, { scanId: obsolete.scanId }))
       .toMatchObject({ status: 'identified', outcome: 'confident' });
   });
@@ -124,7 +122,7 @@ describe('identify action', () => {
     for (let i = 0; i < 2; i++) {
       const user = await signIn(t);
       await user.as.mutation(api.devices.registerDevice, { platform: 'ios' });
-      expect(await user.as.action(api.identify.identify, { ...args, venueId, visitId: undefined }))
+      expect(await user.as.action(api.identify.identify, { ...args, venueId, visitId: undefined, scope: (await user.as.query(api.accounts.me, {})).scope }))
         .toMatchObject({ outcome: 'confident' });
     }
     expect(await t.run((ctx) => ctx.db.query('placementProposals').collect())).toEqual([]);
@@ -135,7 +133,7 @@ describe('identify action', () => {
     { vector: [NaN, ...Array(model.embeddingDim - 1).fill(1)] },
   ])('rejects invalid vectors before creating a scan', async (invalid) => {
     const { t, user, args } = await fixture();
-    await expect(user.as.action(api.identify.identify, { ...args, ...invalid })).rejects.toMatchObject({ data: { code: 'bad_vector' } });
+    await expect(user.as.action(api.identify.identify, { ...args, ...invalid, scope: (await user.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'bad_vector' } });
     expect(await t.run((ctx) => ctx.db.query('scans').collect())).toEqual([]);
   });
 
@@ -143,24 +141,24 @@ describe('identify action', () => {
     { descriptors: new ArrayBuffer(1) }, { keypoints: new ArrayBuffer(1) },
   ])('maps malformed ORB buffers to bad_features before creating a scan', async (invalid) => {
     const { t, user, args } = await fixture();
-    await expect(user.as.action(api.identify.identify, { ...args, ...invalid })).rejects.toMatchObject({ data: { code: 'bad_features' } });
+    await expect(user.as.action(api.identify.identify, { ...args, ...invalid, scope: (await user.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'bad_features' } });
     expect(await t.run((ctx) => ctx.db.query('scans').collect())).toEqual([]);
   });
 
   it('requires an authenticated, registered, unbanned device', async () => {
     const t = harness();
-    await expect(t.action(api.identify.identify, capture())).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
+    await expect(t.action(api.identify.identify, { ...capture(), scope: 'unused' })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
     const unregistered = await signIn(t);
-    await expect(unregistered.as.action(api.identify.identify, capture())).rejects.toMatchObject({ data: { code: 'device_not_registered' } });
+    await expect(unregistered.as.action(api.identify.identify, { ...capture(), scope: 'unused' })).rejects.toMatchObject({ data: { code: 'device_not_registered' } });
     const user = await seedDevice(t);
     await t.run((ctx) => ctx.db.patch(user.deviceId, { banned: true }));
-    await expect(user.as.action(api.identify.identify, capture())).rejects.toMatchObject({ data: { code: 'device_banned' } });
+    await expect(user.as.action(api.identify.identify, { ...capture(), scope: user.scope })).rejects.toMatchObject({ data: { code: 'device_banned' } });
   });
 
   it('refuses a foreign visit before search or writes', async () => {
     const { t, args } = await fixture();
     const other = await seedDevice(t);
-    await expect(other.as.action(api.identify.identify, args)).rejects.toMatchObject({ data: { code: 'invalid_visit' } });
+    await expect(other.as.action(api.identify.identify, { ...args, scope: (await other.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'not_found' } });
     expect(await t.run((ctx) => ctx.db.query('scans').collect())).toEqual([]);
   });
 
@@ -169,14 +167,14 @@ describe('identify action', () => {
     await t.run(async (ctx) => {
       for (let i = 0; i < 33; i++) await seedArtworkWithObject(ctx, { modelVersion: 'other-model', descriptors: pair.ref });
     });
-    const result = await user.as.action(api.identify.identify, args);
+    const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'identified', outcome: 'miss', runnerUps: [] });
     expect(result.best).toBeUndefined();
   });
 
   it('keeps a textured candidate soft when the query cannot verify it', async () => {
     const { user, args } = await fixture();
-    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) });
+    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.outcome).toBe('soft');
     expect(result.best?.corners).toBeUndefined();
   });
@@ -192,7 +190,7 @@ describe('identify action', () => {
       });
       return work;
     });
-    const result = await user.as.action(api.identify.identify, args);
+    const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'identified', outcome: 'confident', best: { objectId: work.objectId } });
     if (count === 0) expect(result.best?.corners).toBeUndefined();
     else expect(result.best?.corners).toHaveLength(4);
@@ -200,17 +198,17 @@ describe('identify action', () => {
 
   it('returns the same stored result on retry even if the index has since changed', async () => {
     const { t, user, args, work } = await fixture();
-    const first = await user.as.action(api.identify.identify, args);
+    const first = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     await t.run((ctx) => ctx.db.delete(work!.vectorId));
-    expect(await user.as.action(api.identify.identify, args)).toEqual(first);
+    expect(await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope })).toEqual(first);
     expect(await t.run((ctx) => ctx.db.query('scans').collect())).toHaveLength(1);
   });
 
   it('rejects the 21st identify call in a burst', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
     const { user, args } = await fixture(false);
-    for (let i = 0; i < 20; i++) await user.as.action(api.identify.identify, args);
-    await expect(user.as.action(api.identify.identify, args)).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'identify' } });
+    for (let i = 0; i < 20; i++) await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
+    await expect(user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'identify' } });
   });
 
   it.each(['unique', 'multiple', 'unknown'] as const)('proposes a venue mismatch according to multiplicity (%s), deduplicating retries and devices', async (multiplicity) => {
@@ -218,24 +216,24 @@ describe('identify action', () => {
     const otherVenue = await t.run((ctx) => seedMuseum(ctx));
     await t.run((ctx) => ctx.db.patch(work!.artworkId, { multiplicity }));
     const firstArgs = { ...args, venueId: otherVenue, visitId: undefined };
-    const result = await user.as.action(api.identify.identify, firstArgs);
+    const result = await user.as.action(api.identify.identify, { ...firstArgs, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.outcome).toBe('confident');
     const propose = async (as: typeof user.as, scanId: typeof result.scanId) => {
       const { nonce } = await as.mutation(api.devices.createChallenge, { purpose: 'assert' });
       await as.mutation(api.identify.proposeFromScan, { scanId, nonce, assertionBase64: 'AAAA' });
     };
     await propose(user.as, result.scanId);
-    await user.as.action(api.identify.identify, firstArgs);
+    await user.as.action(api.identify.identify, { ...firstArgs, scope: (await user.as.query(api.accounts.me, {})).scope });
     await propose(user.as, result.scanId);
     vi.setSystemTime(Date.now() + 1000);
-    const another = await user.as.action(api.identify.identify, { ...firstArgs, localId: 'another-capture' });
+    const another = await user.as.action(api.identify.identify, { ...firstArgs, localId: 'another-capture', scope: (await user.as.query(api.accounts.me, {})).scope });
     await propose(user.as, another.scanId);
     const before = await t.run((ctx) => ctx.db.query('placementProposals').collect());
     expect(before).toHaveLength(1);
     expect(before[0]).toMatchObject({ kind: multiplicity === 'unique' ? 'move' : 'new_object', readyForReview: false, deviceIds: [user.deviceId] });
     expect(before[0].scanIds).toHaveLength(2);
     const other = await seedDevice(t);
-    const otherScan = await other.as.action(api.identify.identify, firstArgs);
+    const otherScan = await other.as.action(api.identify.identify, { ...firstArgs, scope: (await other.as.query(api.accounts.me, {})).scope });
     await propose(other.as, otherScan.scanId);
     const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
     expect(proposal).toMatchObject({ readyForReview: false, deviceIds: [user.deviceId, other.deviceId] });
@@ -291,7 +289,7 @@ describe('enrichment after identification', () => {
     const fetchMock = stubProviders();
     const { t, user, venueId, args, work } = await fixture();
     await t.run((ctx) => ctx.db.patch(venueId, { region: 'sf-bay-area' }));
-    const result = await user.as.action(api.identify.identify, args);
+    const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.outcome).toBe('confident');
     expect(result.docent).toBeUndefined();
     expect(result.rightNow).toBeUndefined();
@@ -314,7 +312,7 @@ describe('enrichment after identification', () => {
     vi.useFakeTimers({ now: FIXTURE_NOW });
     const fetchMock = stubProviders();
     const { t, user, args, work } = await fixture();
-    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) });
+    const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.outcome).toBe('soft');
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(fetchMock).not.toHaveBeenCalled();

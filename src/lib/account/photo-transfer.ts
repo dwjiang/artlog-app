@@ -5,17 +5,18 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { COLLECTION_PHOTO_LONG_SIDE, MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from '../../../shared/collection/photo-limits';
 import { captureFileUri } from '../files/photos';
 
-function endpoint(localId: string, kind: CollectionPhotoKind): string {
+function endpoint(scope: string, localId: string, kind: CollectionPhotoKind): string {
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
   if (!site) throw new Error('EXPO_PUBLIC_CONVEX_SITE_URL is not configured');
   const url = new URL('/collection-photo', site);
+  url.searchParams.set('scope', scope);
   url.searchParams.set('localId', localId);
   url.searchParams.set('kind', kind);
   return url.href;
 }
 
 export async function uploadCollectionPhoto(
-  token: string, localId: string, kind: CollectionPhotoKind, path: string, isCurrent = () => true,
+  token: string, scope: string, localId: string, kind: CollectionPhotoKind, path: string, isCurrent = () => true,
 ): Promise<Id<'_storage'>> {
   const context = ImageManipulator.manipulate(captureFileUri(path));
   const source = await context.renderAsync();
@@ -32,7 +33,7 @@ export async function uploadCollectionPhoto(
     file = new File(encoded.uri);
     if (file.size > MAX_COLLECTION_PHOTO_BYTES) throw new Error('Photo exceeds the upload limit');
     if (!isCurrent()) throw new Error('Photo upload cancelled');
-    const response = await file.upload(endpoint(localId, kind), {
+    const response = await file.upload(endpoint(scope, localId, kind), {
       httpMethod: 'POST', uploadType: UploadType.BINARY_CONTENT,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
     });
@@ -47,11 +48,11 @@ export async function uploadCollectionPhoto(
   }
 }
 
-export async function downloadCollectionPhoto(token: string, localId: string, kind: CollectionPhotoKind, storageId: Id<'_storage'>): Promise<string> {
+export async function downloadCollectionPhoto(token: string, scope: string, localId: string, kind: CollectionPhotoKind, storageId: Id<'_storage'>): Promise<string> {
   const directory = new Directory(Paths.document, 'collection-photos');
   directory.create({ intermediates: true, idempotent: true });
-  const path = `collection-photos/${encodeURIComponent(localId)}-${kind}-${storageId}.jpg`;
-  await File.downloadFileAsync(endpoint(localId, kind), new File(captureFileUri(path)), {
+  const path = `collection-photos/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${kind}-${storageId}.jpg`;
+  await File.downloadFileAsync(endpoint(scope, localId, kind), new File(captureFileUri(path)), {
     headers: { Authorization: `Bearer ${token}` }, idempotent: true,
   });
   return path;

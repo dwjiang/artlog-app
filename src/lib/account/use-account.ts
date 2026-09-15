@@ -3,12 +3,15 @@ import { useQuery } from 'convex/react';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useRef, useState } from 'react';
 
+import { anonymousOwner, switchOwner } from './owner-store';
+import { setSetting } from '@/db/repos/settings';
+import { socialErrorMessage } from '../../../shared/social/errors';
 import { api } from '../../../convex/_generated/api';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';
 import { signInAnonymously } from '@/lib/device-identity';
 import { useDeviceReady } from '@/lib/use-device-ready';
-import { pauseCollectionSync, resumeCollectionSync } from './collection-sync';
+import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from './collection-sync';
 
 export function useAccount() {
   const ready = useDeviceReady();
@@ -33,7 +36,7 @@ export function useAccount() {
       await operation();
     } catch (cause) {
       if (!(cause && typeof cause === 'object' && 'code' in cause && cause.code === 'ERR_REQUEST_CANCELED')) {
-        setError('Couldn’t update your account. Check your connection and try again.');
+        setError(socialErrorMessage(cause) ?? 'Couldn’t update your account. Check your connection and try again.');
       }
     } finally {
       inFlight.current = false; setBusy(false); resumeCollectionSync();
@@ -55,7 +58,10 @@ export function useAccount() {
   });
 
   const disconnect = (remove: boolean) => perform(async () => {
+    if (account?.accountId) await completeJournalClaim(account);
     await convex.mutation(remove ? api.accounts.deleteAccount : api.accounts.unlink, {});
+    switchOwner(anonymousOwner());
+    await setSetting('activeJournalOwner', anonymousOwner());
     await endSession();
     await signInAnonymously(signIn);
   });

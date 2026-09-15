@@ -29,6 +29,7 @@ class VenueRow:
     website: str | None
     country_iso: str
     admin_qids: tuple[str, ...] = ()
+    city: str | None = None
 
 
 class IncompleteCountry(RuntimeError):
@@ -129,6 +130,7 @@ def parse_venues(bindings: list[dict], country_iso: str) -> list[VenueRow]:
             lng=previous.lng if previous else lng,
             website=(previous.website or website) if previous else website,
             country_iso=country_iso,
+            city=value.get("cityLabel") or (previous.city if previous else None),
             admin_qids=tuple(sorted(admins)),
         )
     return list(venues.values())
@@ -166,7 +168,7 @@ def _venue_query(
         else _museum_pattern(country_qids)
     )
     # LIMIT applies before labels/ancestry multiply rows. Detect the cap on this projection.
-    return f"""SELECT ?m ?coord ?website ?admin ?nameEn ?nameAny ?metroAdmin WHERE {{
+    return f"""SELECT ?m ?coord ?website ?admin ?nameEn ?nameAny ?metroAdmin ?cityLabel WHERE {{
       {{ SELECT DISTINCT ?m ?coord ?website ?admin WHERE {{
         {selection}
         {admin_filter}
@@ -176,6 +178,10 @@ def _venue_query(
       OPTIONAL {{
         ?m rdfs:label ?nameAny .
         FILTER NOT EXISTS {{ ?m rdfs:label ?english . FILTER(LANG(?english) = "en") }}
+      }}
+      OPTIONAL {{
+        ?m wdt:P131* ?city . ?city wdt:P31/wdt:P279* wd:Q515 .
+        ?city rdfs:label ?cityLabel . FILTER(LANG(?cityLabel) = "en")
       }}
       {ancestry}
     }}"""

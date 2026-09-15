@@ -10,6 +10,7 @@ import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
+import { useLocalOwner } from '@/lib/account/owner-store';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFieldName, LabelFlowDisplay } from '../../../convex/lib/validators';
 
@@ -65,8 +66,9 @@ type Phase =
   | { kind: 'error'; message: string };
 
 export function LabelCaptureScreen({ scanId, intent = 'review' }: LabelCaptureScreenProps) {
+  const owner = useLocalOwner();
   // The router reuses this screen for a new scan id; the key drops the previous label's phase and form.
-  return <LabelCapture key={`${scanId}:${intent}`} scanId={scanId} intent={intent} />;
+  return <LabelCapture key={`${owner}:${scanId}:${intent}`} scanId={scanId} intent={intent} />;
 }
 
 function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
@@ -124,8 +126,8 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       if (mounted.current) setPhase({ kind: 'error', message: MISSING_CAPTURE });
       return;
     }
-    if (label.photoUri) await setLabelPhoto(capture.localId, await persistLabelPhoto({ localId: capture.localId, photoUri: label.photoUri }));
-    if (label.qrUrl) await setQrUrl(capture.localId, label.qrUrl);
+    if (label.photoUri) await setLabelPhoto(capture.localId, await persistLabelPhoto({ localId: capture.localId, photoUri: label.photoUri }), capture.owner);
+    if (label.qrUrl) await setQrUrl(capture.localId, label.qrUrl, capture.owner);
     if (mounted.current) setPhase({ kind: 'queued' });
     void flushQueue();
   }

@@ -1,3 +1,4 @@
+import { captureOwner } from '@/lib/account/owner-store';
 import { errorMessage, isNetworkError } from '@/lib/network-error';
 import { roundVector } from './features';
 import { createCaptureId } from './ids';
@@ -11,6 +12,7 @@ export async function runCapture(
   if (deps.embedder.modelVersion !== opts.modelVersion) {
     throw new Error(`Capture model version mismatch: ${deps.embedder.modelVersion} != ${opts.modelVersion}`);
   }
+  const current = captureOwner();
   const started = performance.now();
   const timings: CaptureTimings = { total: 0 };
   async function timed<T>(stage: Exclude<keyof CaptureTimings, 'total'>, task: () => Promise<T>): Promise<T> {
@@ -29,7 +31,7 @@ export async function runCapture(
     const embedding = await timed('embed', () => deps.embedder.embed(cropUri));
     const features = await timed('orb', () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
-      localId: createCaptureId(),
+      owner: current.owner, scope: current.scope, localId: createCaptureId(),
       vector: roundVector(embedding),
       descriptors: features.descriptors,
       keypoints: features.keypoints,
@@ -41,16 +43,18 @@ export async function runCapture(
       photoUri: input.photoUri,
       cropUri,
     };
-    const online = deps.isOnline();
+    if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
+    const online = deps.isOnline() && !!current.scope && current.isCurrent();
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
     await timed('enqueue', () => deps.store.enqueue(payload, identifyNow ? 'identifying' : 'queued'));
     if (identifyNow) {
       try {
         const response = await timed('identify', () => deps.identify(payload));
-        await deps.store.recordResult(payload.localId, response);
+        if (!current.isCurrent()) return { kind: 'queued', localId: payload.localId, timings };
+        await deps.store.recordResult(payload.localId, response, current.owner);
         return { kind: 'sent', scanId: response.scanId, response, timings };
       } catch (error) {
-        await deps.store.requeue(payload.localId, errorMessage(error));
+        await deps.store.requeue(payload.localId, errorMessage(error), current.owner);
         if (!isNetworkError(error)) throw error;
       }
     }

@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { listNotes } from '@/db/repos/notes';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
+import { captureOwner } from '@/lib/account/owner-store';
 import { buildExport } from '@/lib/export/build-export';
 
 export function ExportSection() {
@@ -18,10 +19,12 @@ export function ExportSection() {
 
   async function exportCollection() {
     if (inFlight.current) return;
+    const current = captureOwner();
     inFlight.current = true; setBusy(true); setError(undefined);
     try {
       if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable');
-      const [works, visits, notes] = await Promise.all([listSavedWorks(), listVisits(), listNotes()]);
+      const [works, visits, notes] = await Promise.all([listSavedWorks({}, current.owner), listVisits(current.owner), listNotes(current.owner)]);
+      if (!current.isCurrent()) return;
       const data = buildExport({ works, visits, notes });
       const file = new File(Paths.cache, `artlog-export-${data.exportedAt.replace(/[:.]/g, '-')}.json`);
       file.write(JSON.stringify(data, null, 2));

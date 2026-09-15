@@ -183,3 +183,9 @@ def test_sparql_posts_json_accept_and_retries_retry_after(monkeypatch):
 def test_rejects_invalid_country_ids_before_network():
     with pytest.raises(ValueError, match="Invalid Wikidata"):
         list(wikidata.iter_museums({"IS": ["Q189 } UNION { ?x ?y ?z"]}, user_agent="test"))
+
+
+def test_city_is_optional_and_comes_only_from_city_labels():
+    rows = wikidata.parse_venues([binding(cityLabel="Reykjavík")], "IS")
+    assert rows[0].city == "Reykjavík"
+    assert wikidata.parse_venues([binding()], "IS")[0].city is None

@@ -28,7 +28,7 @@ async function fixture(multiplicity: Doc<'artworks'>['multiplicity'] = 'unique')
       artwork: { multiplicity }, placement: { venueId: home, source: 'feed', onView: true, confidence: 1 },
     });
     const savedId = await ctx.db.insert('collections', {
-      deviceId: users[0].deviceId, localId: 'saved', savedAt: NOW, venueId: home,
+      owner: { kind: 'device', deviceId: users[0].deviceId }, changeVersion: 1, localId: 'saved', savedAt: NOW, venueId: home,
       updatedAt: NOW, updatedBy: users[0].deviceId,
       objectId: work.objectId, artworkId: work.artworkId,
       snapshot: { title: 'My saved title', artist: 'My saved artist', institution: 'Original venue' },

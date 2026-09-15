@@ -78,7 +78,7 @@ jest.mock('@expo/ui', () => {
 });
 
 beforeAll(async () => {
-  await visits.upsertVisit({ localId: 'visit-local-1', venueId: 'museum-met' as Id<'museums'>, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as Id<'visits'> });
+  await visits.upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'visit-local-1', venueId: 'museum-met' as Id<'museums'>, venueName: 'The Met', startedAt: 1, remoteVisitId: 'visit-remote-1' as Id<'visits'> });
   await enqueuePendingScan({
     localId: 'capture-1', photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg', vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
     modelVersion: 'm', attemptModelVersion: 'm', venueId: 'museum-met' as Id<'museums'>, visitLocalId: 'visit-local-1', capturedAt: 1,
@@ -304,7 +304,7 @@ it('saves an untouched confident card locally, tells the server the suggestion w
     title: 'Water Lilies', artist: 'Claude Monet', scanId: SCAN_ID, objectId: lilies.objectId, cropPath: 'crops/c1.jpg', venueName: 'The Met',
   });
   await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({
-    localId: savedId, scanId: SCAN_ID, objectId: lilies.objectId, visitId: 'visit-remote-1',
+    localId: savedId, scanId: SCAN_ID, objectId: lilies.objectId, visitLocalId: 'visit-local-1',
     snapshot: expect.objectContaining({ title: 'Water Lilies', artist: 'Claude Monet' }),
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
   })));

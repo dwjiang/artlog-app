@@ -5,6 +5,8 @@ export type PoiRecord = {
   lat: number;
   lng: number;
   website?: string;
+  city?: string;
+  country?: string;
   /** MapKit's category without its prefix (`museum`, `landmark`, …) or `unknown`. */
   category: string;
   distanceMeters: number;

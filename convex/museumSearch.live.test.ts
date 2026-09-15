@@ -39,10 +39,10 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== '1')('describes a crop and searches
   client.setAuth(token);
   await client.mutation(api.devices.registerDevice, { platform: 'simulator' });
   const pair = makeSyntheticPair({ count: 120 });
-  const scan = await client.action(api.identify.identify, {
+  const scan = await client.action(api.identify.identify, { ...{
     localId: crypto.randomUUID(), vector: testVector(), ...encodeOrbFeatures(pair.query),
     modelVersion: model.modelVersion, venueId, capturedAt: Date.now(),
-  });
+  }, scope: (await client.query(api.accounts.me, {})).scope });
   stdout.write(`scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`);
   expect(scan.outcome).not.toBe('confident');
 

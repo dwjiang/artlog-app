@@ -28,10 +28,10 @@ it.skipIf(process.env.BENCH !== '1')('times identification over 2,000 vectors an
     }
   });
   const started = performance.now();
-  const result = await user.as.action(api.identify.identify, {
+  const result = await user.as.action(api.identify.identify, { ...{
     localId: 'benchmark', venueId, vector: testVector(), ...encodeOrbFeatures(pair.query),
     modelVersion: model.modelVersion, capturedAt: Date.now(),
-  });
+  }, scope: (await user.as.query(api.accounts.me, {})).scope });
   const elapsed = performance.now() - started;
   stdout.write(`identify convex-test: ${elapsed.toFixed(1)} ms (2,000 vectors, 20 descriptor rows, top 10 ORB)\n`);
   expect(result.status).toBe('identified');

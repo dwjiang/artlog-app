@@ -2,6 +2,8 @@ import { ConvexError, type Infer, v } from 'convex/values';
 
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
+import { sameOwner } from '../shared/journal/contracts';
+import { ownerForDevice, requireJournalOwner } from './lib/ownership';
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
 import { displayLabelFlow } from './lib/labelVerify';
@@ -31,12 +33,16 @@ export type ScanDisplay = Infer<typeof scanDisplay>;
 
 export const create = internalMutation({
   args: {
-    deviceId: v.id('devices'), localId: v.string(), venueId: scanFields.venueId,
+    scope: v.optional(v.string()), deviceId: v.id('devices'), localId: v.string(), venueId: scanFields.venueId,
     visitId: scanFields.visitId, gallery: scanFields.gallery, modelVersion: v.string(),
     vector: scanFields.vector, capturedAt: v.number(),
   },
   returns: v.object({ scan: schema.doc('scans'), existing: v.boolean() }),
   handler: async (ctx, args) => {
+    const device = await ctx.db.get(args.deviceId);
+    if (!device) throw new ConvexError({ code: 'not_found' });
+    if (args.scope !== undefined) await requireJournalOwner(ctx, args.scope);
+    const owner = await ownerForDevice(ctx, device);
     const existing = await ctx.db.query('scans')
       .withIndex('by_device_localId', (q) => q.eq('deviceId', args.deviceId).eq('localId', args.localId))
       .unique();
@@ -45,16 +51,17 @@ export const create = internalMutation({
     if (existing && !restart) return { scan: existing, existing: true };
     if (args.visitId) {
       const visit = await ctx.db.get(args.visitId);
-      if (!visit || visit.deviceId !== args.deviceId || visit.venueId !== args.venueId) {
-        throw new ConvexError({ code: 'invalid_visit' });
+      if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
+        throw new ConvexError({ code: 'not_found' });
       }
     }
     if (args.venueId && !await ctx.db.get(args.venueId)) {
       throw new ConvexError({ code: 'invalid_venue' });
     }
     const now = Date.now();
+    const { scope: _scope, ...scanArgs } = args;
     const fields = {
-      ...args, generation: existing ? existing.generation + 1 : 0, status: 'pending' as const,
+      ...scanArgs, generation: existing ? existing.generation + 1 : 0, status: 'pending' as const,
       createdAt: existing?.createdAt ?? now, updatedAt: now,
     };
     const scanId = existing?._id ?? await ctx.db.insert('scans', fields);
@@ -83,7 +90,8 @@ export const setResult = internalMutation({
     });
     if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
-      if (visit?.deviceId === scan.deviceId && visit.venueId === scan.venueId &&
+      const device = await ctx.db.get(scan.deviceId);
+      if (visit && device && sameOwner(visit.owner, await ownerForDevice(ctx, device)) && visit.venueId === scan.venueId &&
         (visit.lastConfidentAt === undefined || scan.capturedAt >= visit.lastConfidentAt)) {
         await ctx.db.patch(visit._id, { lastConfidentGallery: args.best.gallery, lastConfidentAt: scan.capturedAt });
       }

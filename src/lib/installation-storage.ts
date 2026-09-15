@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 
 let installationId: string | undefined;
 
-function storageKey(key: string): string {
+export function getInstallationId(): string {
   if (installationId === undefined) {
     // Documents survive updates but are removed on uninstall; Keychain entries are not.
     const file = new File(Paths.document, 'installation-id');
@@ -13,7 +13,11 @@ function storageKey(key: string): string {
     if (!stored) file.write(id);
     installationId = id;
   }
-  return `${installationId}.${key}`;
+  return installationId;
+}
+
+function storageKey(key: string): string {
+  return `${getInstallationId()}.${key}`;
 }
 
 export const installationStorage = {

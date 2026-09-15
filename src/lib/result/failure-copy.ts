@@ -12,7 +12,8 @@ export function failureCopy(error?: string | null): string {
   if (SESSION_CODES.has(error)) return 'This phone isn’t set up to identify yet. Try again in a moment.';
   if (error === 'rate_limited' || error === 'ratelimited') return 'Too many scans right now. Try again in a minute.';
   if (error === 'device_banned') return 'This phone can’t identify paintings.';
-  if (error === 'invalid_visit' || error === 'invalid_venue') return 'The museum for this scan couldn’t be confirmed.';
+  // `not_found` is the server's answer for a visit this journal does not own.
+  if (error === 'invalid_visit' || error === 'invalid_venue' || error === 'not_found') return 'The museum for this scan couldn’t be confirmed.';
   if (error === 'scan_not_found' || error === 'invalid_scan') return 'The server no longer has this scan.';
   if (error === 'Identification interrupted') return 'Identification was interrupted before the server answered.';
   if (isNetworkError(new Error(error))) return 'The connection dropped before the server answered.';

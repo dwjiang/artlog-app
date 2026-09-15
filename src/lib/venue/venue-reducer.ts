@@ -3,11 +3,11 @@ import { CHOOSE_RADIUS_M, haversineMeters, type Coordinate, type VenueCandidate,
 
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
-/** Mirrors `convex/visits.ts`: a visit at the same venue resumes within this window. */
+/** A still-active local scan session may reuse its existing UUID within this window. */
 export const VISIT_RESUME_MS = 4 * 60 * 60 * 1000;
 
 export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string };
-export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM: number; website?: string; category: string };
+export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM: number; website?: string; city?: string; country?: string; category: string };
 export type VenueOption = SeededOption | PoiOption;
 
 export function venueOptionKey(option: VenueOption): string {

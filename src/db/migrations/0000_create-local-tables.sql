@@ -1,12 +1,15 @@
 CREATE TABLE `notes` (
-	`savedLocalId` text PRIMARY KEY NOT NULL,
+	`owner` text NOT NULL,
+	`savedLocalId` text NOT NULL,
 	`text` text NOT NULL,
 	`updatedAt` integer NOT NULL,
-	FOREIGN KEY (`savedLocalId`) REFERENCES `savedWorks`(`localId`) ON UPDATE no action ON DELETE no action
+	PRIMARY KEY(`owner`, `savedLocalId`),
+	FOREIGN KEY (`owner`,`savedLocalId`) REFERENCES `savedWorks`(`owner`,`localId`) ON UPDATE cascade ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `pendingScans` (
-	`localId` text PRIMARY KEY NOT NULL,
+	`owner` text NOT NULL,
+	`localId` text NOT NULL,
 	`photoPath` text NOT NULL,
 	`cropPath` text NOT NULL,
 	`vector` text NOT NULL,
@@ -26,12 +29,14 @@ CREATE TABLE `pendingScans` (
 	`scanId` text,
 	`createdAt` integer NOT NULL,
 	`reviewedAt` integer,
-	FOREIGN KEY (`visitLocalId`) REFERENCES `visits`(`localId`) ON UPDATE no action ON DELETE no action
+	PRIMARY KEY(`owner`, `localId`),
+	FOREIGN KEY (`owner`,`visitLocalId`) REFERENCES `visits`(`owner`,`localId`) ON UPDATE cascade ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `pendingScans_status_capturedAt` ON `pendingScans` (`status`,`capturedAt`);--> statement-breakpoint
+CREATE INDEX `pendingScans_owner_status_capturedAt` ON `pendingScans` (`owner`,`status`,`capturedAt`);--> statement-breakpoint
 CREATE TABLE `savedWorks` (
-	`localId` text PRIMARY KEY NOT NULL,
+	`owner` text NOT NULL,
+	`localId` text NOT NULL,
 	`visitLocalId` text,
 	`venueId` text,
 	`venueName` text,
@@ -53,21 +58,31 @@ CREATE TABLE `savedWorks` (
 	`revision` integer DEFAULT 0 NOT NULL,
 	`syncedBy` text,
 	`deletedAt` integer,
-	FOREIGN KEY (`visitLocalId`) REFERENCES `visits`(`localId`) ON UPDATE no action ON DELETE no action
+	PRIMARY KEY(`owner`, `localId`),
+	FOREIGN KEY (`owner`,`visitLocalId`) REFERENCES `visits`(`owner`,`localId`) ON UPDATE cascade ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `savedWorks_savedAt` ON `savedWorks` (`savedAt`);--> statement-breakpoint
+CREATE INDEX `savedWorks_owner_savedAt` ON `savedWorks` (`owner`,`savedAt`);--> statement-breakpoint
 CREATE TABLE `settings` (
 	`key` text PRIMARY KEY NOT NULL,
 	`value` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `visits` (
-	`localId` text PRIMARY KEY NOT NULL,
+	`owner` text NOT NULL,
+	`localId` text NOT NULL,
 	`venueId` text NOT NULL,
 	`venueName` text NOT NULL,
-	`startedAt` integer NOT NULL,
+	`visitedOn` text NOT NULL,
+	`timeZone` text NOT NULL,
+	`reflection` text,
+	`startedAt` integer,
 	`endedAt` integer,
 	`remoteVisitId` text,
-	`endSyncedAt` integer
+	`syncedAt` integer,
+	`syncedBy` text,
+	`revision` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`owner`, `localId`)
 );
+--> statement-breakpoint
+CREATE INDEX `visits_owner_history` ON `visits` (`owner`,`visitedOn`,`localId`);

@@ -7,16 +7,24 @@ export function isNetworkError(error: unknown): boolean {
     /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(error.message);
 }
 
-function convexErrorCode(error: unknown): string | undefined {
+export function convexErrorCode(error: unknown): string | undefined {
   if (!(error instanceof ConvexError) || typeof error.data !== 'object' || error.data === null) return;
   const code = (error.data as { code?: unknown }).code;
   return typeof code === 'string' ? code : undefined;
 }
 
+/** The phone could not attempt the request yet (sync paused, app in the background); nothing on the phone has to change first. */
+export class SyncUnavailableError extends Error {
+  constructor() {
+    super('Journal sync is not available right now');
+    this.name = 'SyncUnavailableError';
+  }
+}
+
 /** Failures a later retry can fix with no change on the phone. */
 export function isTransientError(error: unknown): boolean {
   const code = convexErrorCode(error);
-  return isNetworkError(error) || code === 'unauthenticated' || code === 'device_not_registered' || code === 'rate_limited';
+  return error instanceof SyncUnavailableError || isNetworkError(error) || code === 'unauthenticated' || code === 'device_not_registered' || code === 'rate_limited' || code === 'claim_required' || code === 'sync_scope_changed';
 }
 
 export function rateLimitRetryAfterMs(error: unknown): number | undefined {

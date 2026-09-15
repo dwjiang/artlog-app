@@ -2,6 +2,7 @@ import type { FunctionArgs } from 'convex/server';
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { captureOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
@@ -67,10 +68,19 @@ export async function runLabelFlowForScan(
   source: LabelSource,
   onStage?: (stage: LabelStage) => void,
 ): Promise<LabelFlowDisplay> {
-  await clearLabelDraft(scanId);
-  const capture = await getCaptureForScan(scanId);
+  const current = captureOwner();
+  await clearLabelDraft(scanId, current.owner);
+  const capture = await getCaptureForScan(scanId, current.owner);
+  const guard = <T,>(run: () => Promise<T>) => {
+    if (!current.isCurrent()) throw new Error('Journal owner changed');
+    return run();
+  };
   return runLabelFlow({
-    scanId, ...source, api: labelApi, onStage,
+    scanId, ...source, api: {
+      fetchQr: (args) => guard(() => labelApi.fetchQr(args)),
+      readLabel: (args) => guard(() => labelApi.readLabel(args)),
+      verifyLabel: (args) => guard(() => labelApi.verifyLabel(args)),
+    }, onStage,
     encodePhoto: async (uri) => (await prepareLabelPhoto(uri)).base64,
     checkImages: capture ? imageCheckFor(capture) : undefined,
   });

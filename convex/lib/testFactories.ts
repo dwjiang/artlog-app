@@ -15,7 +15,7 @@ export function testVector(similarity = 1): number[] {
   return vector;
 }
 
-export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<'devices'> }> {
+export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<'devices'>; scope: string }> {
   const userId = await t.run((ctx) => ctx.db.insert('users', { isAnonymous: true }));
   const sessionId = await t.run((ctx) => ctx.db.insert('authSessions', {
     userId, expirationTime: Date.now() + 60 * 60 * 1000,
@@ -29,7 +29,7 @@ export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<
     platform: 'simulator',
     attestCounter: 0,
   }));
-  return { ...user, deviceId };
+  return { ...user, deviceId, scope: `device:${deviceId}:0` };
 }
 
 export const asDevice = seedDevice;
@@ -110,4 +110,10 @@ export async function seedContribution(
     },
     ...fields,
   });
+}
+
+export async function seedJournalVisit(ctx: MutationCtx, deviceId: Id<'devices'>, venueId: Id<'museums'>, overrides: Partial<Omit<Doc<'visits'>, '_id' | '_creationTime'>> = {}) {
+  return ctx.db.insert('visits', { owner: { kind: 'device', deviceId }, localId: crypto.randomUUID(),
+    venueId, venueName: 'Test Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
+    updatedAt: 1, updatedBy: deviceId, changeVersion: 1, ...overrides });
 }

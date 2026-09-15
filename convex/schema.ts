@@ -3,6 +3,8 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
+import { journalOwner, journalVisit, journalSave } from '../shared/journal/contracts';
+import { wallLayout, relationshipState, publicationStatus, mediaSource, reportTarget } from '../shared/social/contracts';
 import {
   candidateSignal,
   challengePurpose,
@@ -28,7 +30,6 @@ import {
   rightsStatus,
   scanStatus,
   seedSource,
-  snapshotFields,
   vectorSource,
 } from './lib/validators';
 
@@ -179,6 +180,8 @@ export default defineSchema({
     lat: v.number(),
     lng: v.number(),
     website: v.optional(v.string()),
+    city: v.optional(v.string()),
+    country: v.optional(v.string()),
     collectionSiteUrl: v.optional(v.string()),
     platform: v.optional(v.string()),
     accessionUrlPattern: v.optional(v.string()),
@@ -365,6 +368,7 @@ export default defineSchema({
     banned: v.boolean(),
     bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id('accounts')),
+    scopeRevision: v.optional(v.number()),
     appleLinkProof: v.optional(v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() })),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
@@ -402,48 +406,71 @@ export default defineSchema({
   }).index('by_appleUserId', ['appleUserId']),
 
   visits: defineTable({
-    deviceId: v.id('devices'),
-    venueId: v.id('museums'),
-    startedAt: v.number(),
-    endedAt: v.optional(v.number()),
-    lastConfidentGallery: v.optional(v.string()),
-    lastConfidentAt: v.optional(v.number()),
-  }).index('by_device_started', ['deviceId', 'startedAt']),
-
-  visitStarts: defineTable({
-    deviceId: v.id('devices'),
-    localVisitId: v.string(),
-    visitId: v.id('visits'),
-  }).index('by_device_localVisitId', ['deviceId', 'localVisitId']),
+    ...journalVisit.fields, owner: journalOwner, venueName: v.string(),
+    lastConfidentGallery: v.optional(v.string()), lastConfidentAt: v.optional(v.number()),
+    updatedAt: v.number(), updatedBy: v.id('devices'), changeVersion: v.number(),
+  }).index('by_owner_localId', ['owner', 'localId'])
+    .index('by_owner_history', ['owner', 'visitedOn', 'localId'])
+    .index('by_owner_changeVersion', ['owner', 'changeVersion']),
 
   collections: defineTable({
-    deviceId: v.id('devices'),
-    localId: v.string(),
-    photoStorageId: v.optional(v.id('_storage')),
-    cropStorageId: v.optional(v.id('_storage')),
-    // Photo arrivals advance sync without making an older note win an edit conflict.
-    photoUpdatedAt: v.optional(v.number()),
-    visitId: v.optional(v.id('visits')),
-    venueId: v.optional(v.id('museums')),
-    venueName: v.optional(v.string()),
-    gallery: v.optional(v.string()),
-    savedAt: v.number(),
-    snapshot: snapshotFields,
-    objectId: v.optional(v.id('objects')),
-    artworkId: v.optional(v.id('artworks')),
-    scanId: v.optional(v.id('scans')),
-    deletedAt: v.optional(v.number()),
-    note: v.optional(v.string()),
-    confirmationRecorded: v.optional(v.boolean()),
-    updatedAt: v.number(),
-    updatedBy: v.id('devices'),
-  })
-    .index('by_device_localId', ['deviceId', 'localId'])
-    .index('by_device_savedAt', ['deviceId', 'savedAt'])
+    ...journalSave.fields, owner: journalOwner,
+    photoStorageId: v.optional(v.id('_storage')), cropStorageId: v.optional(v.id('_storage')),
+    photoUpdatedAt: v.optional(v.number()), visitId: v.optional(v.id('visits')),
+    scanId: v.optional(v.id('scans')), confirmationRecorded: v.optional(v.boolean()),
+    updatedAt: v.number(), updatedBy: v.id('devices'), changeVersion: v.number(),
+  }).index('by_owner_localId', ['owner', 'localId'])
+    .index('by_owner_savedAt', ['owner', 'deletedAt', 'savedAt', 'localId'])
+    .index('by_owner_changeVersion', ['owner', 'changeVersion'])
+    .index('by_visitId', ['visitId'])
     .index('by_photoStorageId_deletedAt', ['photoStorageId', 'deletedAt'])
-    .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt'])
-    .index('by_device_updatedAt', ['deviceId', 'updatedAt'])
-    .index('by_device_photoUpdatedAt', ['deviceId', 'photoUpdatedAt']),
+    .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt']),
+
+  journalSyncState: defineTable({ owner: journalOwner, version: v.number() }).index('by_owner', ['owner']),
+  journalClaims: defineTable({
+    deviceId: v.id('devices'), accountId: v.id('accounts'),
+    phase: v.union(v.literal('visits'), v.literal('saves'), v.literal('complete')),
+    createdAt: v.number(), completedAt: v.optional(v.number()),
+  }).index('by_deviceId', ['deviceId']).index('by_accountId', ['accountId']),
+
+  profiles: defineTable({
+    accountId: v.id('accounts'), username: v.string(), name: v.string(), bio: v.optional(v.string()),
+    searchText: v.string(), active: v.boolean(), publishedWallCount: v.number(), createdAt: v.number(), updatedAt: v.number(),
+  }).index('by_accountId', ['accountId']).index('by_username', ['username'])
+    .searchIndex('search_text', { searchField: 'searchText', filterFields: ['active'] }),
+  walls: defineTable({ profileId: v.id('profiles'), color: v.string(), layoutRevision: v.number() })
+    .index('by_profileId', ['profileId']),
+  wallItems: defineTable({
+    wallId: v.id('walls'), profileId: v.id('profiles'), saveId: v.id('collections'), saveLocalId: v.string(),
+    active: v.boolean(), layout: wallLayout, noteVisible: v.boolean(), noteRevision: v.number(),
+  }).index('by_wall_active', ['wallId', 'active']).index('by_wall_saveId', ['wallId', 'saveId'])
+    .index('by_saveId', ['saveId']),
+  friendships: defineTable({
+    firstProfileId: v.id('profiles'), secondProfileId: v.id('profiles'), requesterId: v.id('profiles'),
+    state: relationshipState, revision: v.number(), updatedAt: v.number(),
+  }).index('by_pair', ['firstProfileId', 'secondProfileId'])
+    .index('by_first_state', ['firstProfileId', 'state']).index('by_second_state', ['secondProfileId', 'state']),
+  blocks: defineTable({ blockerId: v.id('profiles'), blockedId: v.id('profiles'), revision: v.number(), active: v.boolean() })
+    .index('by_pair', ['blockerId', 'blockedId']).index('by_blockedId', ['blockedId']),
+  sharedVisits: defineTable({
+    postId: v.string(), profileId: v.id('profiles'), visitId: v.id('visits'), visitLocalId: v.string(),
+    visitedOn: v.string(), status: publicationStatus, reflection: v.string(),
+    publishedAt: v.number(), updatedAt: v.number(), publicationRevision: v.number(),
+  }).index('by_postId', ['postId']).index('by_profile_visit', ['profileId', 'visitLocalId'])
+    .index('by_profile_status_history', ['profileId', 'status', 'visitedOn', 'postId']).index('by_visitId', ['visitId']),
+  sharedVisitItems: defineTable({
+    publicationId: v.id('sharedVisits'), saveId: v.id('collections'), saveLocalId: v.string(), position: v.number(),
+  }).index('by_publication_position', ['publicationId', 'position']).index('by_publication_save', ['publicationId', 'saveId'])
+    .index('by_saveId', ['saveId']),
+  mediaAssets: defineTable({
+    saveId: v.id('collections'), source: mediaSource, storageId: v.optional(v.id('_storage')),
+    createdAt: v.number(), revokedAt: v.optional(v.number()),
+  }).index('by_saveId', ['saveId']).index('by_storageId', ['storageId']),
+  reports: defineTable({
+    reporter: journalOwner, target: reportTarget, reason: v.string(), details: v.optional(v.string()),
+    createdAt: v.number(), status: v.union(v.literal('open'), v.literal('resolved')),
+  }).index('by_reporter_createdAt', ['reporter', 'createdAt']).index('by_status_createdAt', ['status', 'createdAt'])
+    .index('by_target', ['target']),
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 

@@ -1,9 +1,11 @@
-import { paginationOptsValidator } from 'convex/server';
+import { pageArgs, pagination, validateSave } from '../shared/journal/contracts';
 import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
-import { requireDevice } from './lib/auth';
-import { deleteUnreferencedCollectionPhotos } from './lib/collectionPhotos';
+import { requireJournalOwner, findOwnedSave, nextChangeVersion } from './lib/ownership';
+import { upsertJournalSave } from './lib/journal';
+import { invalidateDeletedSave } from './lib/publicationAccess';
+import schema from './schema';
 import { limitDevice } from './lib/rateLimits';
 import { snapshotFields } from './lib/validators';
 
@@ -13,41 +15,30 @@ const same = (a: string, b: string) => a.trim() === b.trim();
 
 export const saveToCollection = mutation({
   args: {
-    localId: v.string(), scanId: v.optional(v.id('scans')), objectId: v.optional(v.id('objects')),
-    artworkId: v.optional(v.id('artworks')), venueId: v.optional(v.id('museums')), visitId: v.optional(v.id('visits')),
+    scope: v.string(), visitLocalId: v.optional(v.string()), localId: v.string(), scanId: v.optional(v.id('scans')), objectId: v.optional(v.id('objects')),
+    artworkId: v.optional(v.id('artworks')), venueId: v.optional(v.id('museums')),
     gallery: v.optional(v.string()), snapshot: snapshotFields, suggested: v.union(suggestion, v.null()),
     savedAt: v.number(), venueName: v.optional(v.string()),
   },
   returns: v.object({ collectionId: v.id('collections'), updatedAt: v.number(), updatedBy: v.id('devices'), deletedAt: v.optional(v.number()) }),
   handler: async (ctx, args) => {
-    const device = await requireDevice(ctx);
+    const { device, owner } = await requireJournalOwner(ctx, args.scope);
     await limitDevice(ctx, 'sync', device._id);
-    if (!args.localId.trim() || args.localId.length > 200 || !args.snapshot.title.trim()) {
-      throw new ConvexError({ code: 'invalid_save' });
-    }
-    const existing = await ctx.db.query('collections')
-      .withIndex('by_device_localId', (q) => q.eq('deviceId', device._id).eq('localId', args.localId)).unique();
-    if (existing?.confirmationRecorded) return {
+    validateSave(args);
+    const existing = await findOwnedSave(ctx, owner, args.localId);
+    if (existing && (existing.confirmationRecorded || existing.deletedAt !== undefined)) return {
       collectionId: existing._id, updatedAt: existing.updatedAt, updatedBy: existing.updatedBy, deletedAt: existing.deletedAt,
     };
     if (args.scanId) {
       const scan = await ctx.db.get(args.scanId);
       if (!scan || scan.deviceId !== device._id) throw new ConvexError({ code: 'invalid_scan' });
     }
-    if (args.visitId) {
-      const visit = await ctx.db.get(args.visitId);
-      if (!visit || visit.deviceId !== device._id) throw new ConvexError({ code: 'invalid_visit' });
-    }
-    const objectId = existing ? existing.objectId : args.objectId;
+    const { suggested, scope: _scope, scanId, ...row } = args;
+    const saved = existing ?? await upsertJournalSave(ctx, owner, device._id, row);
+    const objectId = saved.objectId;
     const object = objectId ? await ctx.db.get(objectId) : null;
-    if (objectId && !object) throw new ConvexError({ code: 'invalid_object' });
-    const { suggested, ...row } = args;
-    const updatedAt = existing?.updatedAt ?? Date.now();
-    const updatedBy = existing?.updatedBy ?? device._id;
-    const collectionId = existing?._id ?? await ctx.db.insert('collections', {
-      ...row, deviceId: device._id, updatedAt, updatedBy, confirmationRecorded: true,
-    });
-    if (existing) await ctx.db.patch(existing._id, { confirmationRecorded: true });
+    const { updatedAt, updatedBy, _id: collectionId } = saved;
+    await ctx.db.patch(collectionId, { confirmationRecorded: true, ...(scanId ? { scanId } : {}) });
     // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
     const artwork = object && suggested ? await ctx.db.get(object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
@@ -61,28 +52,27 @@ export const saveToCollection = mutation({
 });
 
 export const listMine = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    const device = await requireDevice(ctx);
-    return ctx.db.query('collections')
-      .withIndex('by_device_savedAt', (q) => q.eq('deviceId', device._id)).order('desc')
-      .filter((q) => q.eq(q.field('deletedAt'), undefined))
-      .paginate(paginationOpts);
+  args: { scope: v.string(), ...pageArgs },
+  returns: v.object({ page: v.array(schema.doc('collections')), cursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
+  handler: async (ctx, args) => {
+    const { owner } = await requireJournalOwner(ctx, args.scope);
+    const result = await ctx.db.query('collections')
+      .withIndex('by_owner_savedAt', (q) => q.eq('owner', owner).eq('deletedAt', undefined)).order('desc').paginate(pagination(args));
+    return { page: result.page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
   },
 });
 
 export const remove = mutation({
-  args: { localId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { localId }) => {
-    const device = await requireDevice(ctx);
-    const row = await ctx.db.query('collections')
-      .withIndex('by_device_localId', (q) => q.eq('deviceId', device._id).eq('localId', localId)).unique();
+  args: { scope: v.string(), localId: v.string() }, returns: v.null(),
+  handler: async (ctx, { scope, localId }) => {
+    const { device, owner } = await requireJournalOwner(ctx, scope);
+    const row = await findOwnedSave(ctx, owner, localId);
     if (!row) throw new ConvexError({ code: 'not_found' });
-    if (row.deletedAt === undefined) await ctx.db.patch(row._id, {
-      deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id,
-    });
-    await deleteUnreferencedCollectionPhotos(ctx, row);
+    if (row.deletedAt === undefined) {
+      await ctx.db.patch(row._id, { deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id,
+        changeVersion: await nextChangeVersion(ctx, owner) });
+      await invalidateDeletedSave(ctx, (await ctx.db.get(row._id))!);
+    }
     return null;
   },
 });

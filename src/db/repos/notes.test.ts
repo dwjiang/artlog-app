@@ -11,7 +11,7 @@ it('replaces a note per saved work', async () => {
   await repo.setNote('saved-1', 'Seen with Sam', 10);
   await repo.setNote('saved-1', 'Seen with Sam and Ana', 20);
   await repo.setNote('saved-2', 'Other', 30);
-  expect(await repo.getNote('saved-1')).toEqual({ savedLocalId: 'saved-1', text: 'Seen with Sam and Ana', updatedAt: 20 });
+  expect(await repo.getNote('saved-1')).toMatchObject({ savedLocalId: 'saved-1', text: 'Seen with Sam and Ana', updatedAt: 20 });
   expect(await repo.getNote('saved-2')).toMatchObject({ text: 'Other' });
   await expect(repo.setNote('missing', 'orphan')).rejects.toThrow('FOREIGN KEY');
 });

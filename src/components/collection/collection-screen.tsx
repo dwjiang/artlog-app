@@ -10,16 +10,19 @@ import { VisitsView } from './visits-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useLocalOwner } from '@/lib/account/owner-store';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
 import { groupByVisit } from '@/lib/collection/group-by-visit';
 import { filterWorks } from '@/lib/collection/search';
 
 export function CollectionScreen() {
+  const owner = useLocalOwner();
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<ViewMode>('grid');
-  const { data: works, updatedAt } = useLiveQuery(listSavedWorks());
-  const { data: visits } = useLiveQuery(listVisits());
+  const { data: rows, updatedAt } = useLiveQuery(listSavedWorks({}, owner), [owner]);
+  const { data: visits } = useLiveQuery(listVisits(owner), [owner]);
+  const works = rows.filter((row) => row.owner === owner);
   const shown = filterWorks(works, search);
   const header = <ViewModePicker mode={mode} onChange={setMode} />;
 
@@ -43,7 +46,7 @@ export function CollectionScreen() {
       ) : mode === 'canvas' ? (
         <CanvasView works={shown} header={header} />
       ) : (
-        <VisitsView sections={groupByVisit(shown, visits)} header={header} />
+        <VisitsView sections={groupByVisit(shown, visits.filter((visit) => visit.owner === owner))} header={header} />
       )}
     </ThemedView>
   );

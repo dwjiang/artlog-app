@@ -78,7 +78,7 @@ it('does not acknowledge an upload across an account change', async () => {
 });
 
 it('drains more than one batch of queued photos', async () => {
-  await db.insert(savedWorks).values(Array.from({ length: 21 }, (_, i) => ({ localId: String(i), title: 'Painting', artist: '', savedAt: i, photoPath: `${i}.jpg` })));
+  await db.insert(savedWorks).values(Array.from({ length: 21 }, (_, i) => ({ owner: 'device:test-installation', localId: String(i), title: 'Painting', artist: '', savedAt: i, photoPath: `${i}.jpg` })));
   await syncCollectionPhotos(deps);
   expect(upload).toHaveBeenCalledTimes(21);
   expect(await repo.listPhotoTransfers()).toEqual([]);

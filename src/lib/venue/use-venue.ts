@@ -1,3 +1,7 @@
+import tzLookup from '@photostructure/tz-lookup';
+import { calendarDate } from '../../../shared/journal/limits';
+import { socialErrorMessage } from '../../../shared/social/errors';
+import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from '@/lib/account/owner-store';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { randomUUID } from 'expo-crypto';
 import * as Location from 'expo-location';
@@ -13,11 +17,11 @@ import { getVisit, patchVisit, upsertVisit } from '@/db/repos/visits';
 import type { NewVisit } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';
-import { errorMessage } from '@/lib/network-error';
+import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
 import { refreshVenueTableInBackground } from './refresh';
 import { syncVisits } from './visit-sync';
 import { CHOOSE_RADIUS_M, pickVenue } from './resolve';
-import { insertConfirmedVenue, nearest, openVenueDb } from './venue-db';
+import { insertConfirmedVenue, nearest, openVenueDb, venueCoordinates } from './venue-db';
 import {
   initialVenueState, isVisitFresh, needsFix, venueContext, venueReducer,
   type CurrentVisit, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
@@ -47,8 +51,12 @@ export type VenueController = {
   appStateChanged(status: AppStateStatus): void;
 };
 
-function visitRow(visit: CurrentVisit): NewVisit {
-  return { localId: visit.localId, venueId: visit.venueId, venueName: visit.venueName, startedAt: visit.startedAt, remoteVisitId: visit.remoteVisitId };
+async function visitRow(visit: CurrentVisit): Promise<NewVisit> {
+  const coordinates = await venueCoordinates(visit.venueId);
+  if (!coordinates) throw new Error('The museum coordinates are not available');
+  const timeZone = tzLookup(coordinates.lat, coordinates.lng);
+  return { localId: visit.localId, venueId: visit.venueId, venueName: visit.venueName,
+    startedAt: visit.startedAt, remoteVisitId: visit.remoteVisitId, timeZone, visitedOn: calendarDate(visit.startedAt, timeZone) };
 }
 
 export function createVenueController(): VenueController {
@@ -58,15 +66,23 @@ export function createVenueController(): VenueController {
   let localUpdate = Promise.resolve();
   let confirmationId = 0;
   let selectionRevision = 0;
+  subscribeOwnerChange(() => {
+    confirmationId++; selectionRevision++;
+    state = initialVenueState;
+    for (const listener of listeners) listener();
+  });
+  const currentVisitKey = (owner = getLocalOwner()) => `${CURRENT_VISIT_SETTING}:${owner}`;
 
   async function syncRemoteVisit(): Promise<void> {
+    const current = captureOwner();
     try {
       await syncVisits();
+      if (!current.isCurrent()) return;
       const localId = state.visit?.localId;
       const row = localId ? await getVisit(localId) : undefined;
       if (row?.remoteVisitId) dispatch({ type: 'remoteVisit', localId: row.localId, remoteVisitId: row.remoteVisitId });
     } catch (error) {
-      console.warn('Could not sync visits with the server', error);
+      if (!(error instanceof SyncUnavailableError)) console.warn('Could not sync visits with the server', error);
     }
   }
 
@@ -83,33 +99,39 @@ export function createVenueController(): VenueController {
     for (const listener of listeners) listener();
   }
 
-  async function closeVisit(visit: CurrentVisit, now: number): Promise<void> {
-    await patchVisit(visit.localId, { endedAt: now });
-    if ((await getSetting(CURRENT_VISIT_SETTING)) === visit.localId) await removeSetting(CURRENT_VISIT_SETTING);
+  async function closeVisit(visit: CurrentVisit, now: number, owner = getLocalOwner()): Promise<void> {
+    await patchVisit(visit.localId, { endedAt: now }, owner);
+    if ((await getSetting(currentVisitKey(owner))) === visit.localId) await removeSetting(currentVisitKey(owner));
+    if (owner !== getLocalOwner()) return;
     dispatch({ type: 'visitEnded', localId: visit.localId });
     void syncRemoteVisit();
   }
 
   function endVisit(visit: CurrentVisit, now: number): Promise<void> {
-    return updateLocally(() => closeVisit(visit, now));
+    const owner = getLocalOwner();
+    return updateLocally(() => closeVisit(visit, now, owner));
   }
 
   function ensureVisit(venue: SeededOption, now: number, wanted: () => boolean, chosen?: VenueOption): Promise<void> {
+    const ownership = captureOwner();
+    const stillWanted = () => ownership.isCurrent() && wanted();
     return updateLocally(async () => {
-      if (!wanted()) return;
+      if (!stillWanted()) return;
       const current = state.visit;
       if (!current || current.venueId !== venue.venueId || !isVisitFresh(current, now)) {
-        if (current) await closeVisit(current, now);
-        if (!wanted()) return;
+        if (current) await closeVisit(current, now, ownership.owner);
+        if (!stillWanted()) return;
         const visit: CurrentVisit = { localId: randomUUID(), venueId: venue.venueId, venueName: venue.name, startedAt: now };
-        await upsertVisit(visitRow(visit));
-        if (!wanted()) {
-          await closeVisit(visit, now);
+        const row = await visitRow(visit);
+        if (!stillWanted()) return;
+        await upsertVisit(row, ownership.owner);
+        if (!stillWanted()) {
+          await closeVisit(visit, now, ownership.owner);
           return;
         }
-        await setSetting(CURRENT_VISIT_SETTING, visit.localId);
-        if (!wanted()) {
-          await closeVisit(visit, now);
+        await setSetting(currentVisitKey(ownership.owner), visit.localId);
+        if (!stillWanted()) {
+          await closeVisit(visit, now, ownership.owner);
           return;
         }
         if (chosen) {
@@ -126,13 +148,15 @@ export function createVenueController(): VenueController {
   }
 
   async function searchNearbyPlaces(fix: { lat: number; lng: number }): Promise<void> {
+    const ownership = captureOwner();
     try {
       const places = await getPoiSearch().searchNearby(fix.lat, fix.lng, POI_RADIUS_M);
+      if (!ownership.isCurrent()) return;
       dispatch({
         type: 'poiOptions',
         options: places.map((place) => ({
           kind: 'poi', name: place.name, lat: place.lat, lng: place.lng, distanceM: place.distanceMeters,
-          category: place.category, ...(place.website ? { website: place.website } : {}),
+          category: place.category, city: place.city, country: place.country, ...(place.website ? { website: place.website } : {}),
         })),
       });
     } catch (error) {
@@ -141,18 +165,21 @@ export function createVenueController(): VenueController {
   }
 
   async function hydrate(): Promise<void> {
-    const localId = await getSetting(CURRENT_VISIT_SETTING);
-    const row = localId ? await getVisit(localId) : undefined;
+    const ownership = captureOwner();
+    const owner = ownership.owner;
+    const localId = await getSetting(currentVisitKey(owner));
+    const row = localId ? await getVisit(localId, owner) : undefined;
+    if (!ownership.isCurrent()) return;
     const now = Date.now();
-    if (row && row.endedAt === null && isVisitFresh(row, now)) {
+    if (row && row.startedAt !== null && row.endedAt === null && isVisitFresh({ startedAt: row.startedAt }, now)) {
       dispatch({
         type: 'hydrated',
         visit: { localId: row.localId, venueId: row.venueId, venueName: row.venueName, startedAt: row.startedAt, remoteVisitId: row.remoteVisitId ?? undefined },
       });
       return;
     }
-    if (row && row.endedAt === null) await endVisit({ ...row, remoteVisitId: row.remoteVisitId ?? undefined }, now);
-    if (localId) await removeSetting(CURRENT_VISIT_SETTING);
+    if (row && row.startedAt !== null && row.endedAt === null) await endVisit({ ...row, startedAt: row.startedAt, remoteVisitId: row.remoteVisitId ?? undefined }, now);
+    if (localId) await removeSetting(currentVisitKey(owner));
     dispatch({ type: 'hydrated' });
   }
 
@@ -190,7 +217,7 @@ export function createVenueController(): VenueController {
     } catch (error) {
       if (!wanted()) return venueContext(state);
       console.warn('Venue resolution failed', error);
-      dispatch({ type: 'failed', error: errorMessage(error) });
+      dispatch({ type: 'failed', error: socialErrorMessage(error) ?? errorMessage(error) });
       return venueContext(state);
     }
   }
@@ -209,14 +236,15 @@ export function createVenueController(): VenueController {
   }
 
   async function confirm(option: VenueOption, signal?: AbortSignal): Promise<void> {
+    const ownership = captureOwner();
     const requestId = ++confirmationId;
-    const wanted = () => requestId === confirmationId && !signal?.aborted;
+    const wanted = () => ownership.isCurrent() && requestId === confirmationId && !signal?.aborted;
     if (!wanted()) return;
     let venue: SeededOption;
     if (option.kind === 'seeded') {
       venue = option;
     } else {
-      const fields = { name: option.name, lat: option.lat, lng: option.lng, ...(option.website ? { website: option.website } : {}) };
+      const fields = { city: option.city, country: option.country, name: option.name, lat: option.lat, lng: option.lng, ...(option.website ? { website: option.website } : {}) };
       const signed = await signPayload({ action: 'museums.confirmPoiVenue', ...fields });
       if (!wanted()) return;
       if (!signed) throw new Error('This device cannot confirm a new venue');
@@ -290,6 +318,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
 
 /** Mounted once under the database gate: resolves on launch and foreground, opens the sheet, syncs the visit. */
 export function VenueResolver({ controller = venueController }: { controller?: VenueController }): null {
+  const owner = useLocalOwner();
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const device = useQuery(api.devices.me, isAuthenticated ? {} : 'skip');
@@ -302,7 +331,7 @@ export function VenueResolver({ controller = venueController }: { controller?: V
     refreshVenueTableInBackground();
     const subscription = AppState.addEventListener('change', controller.appStateChanged);
     return () => subscription.remove();
-  }, [controller]);
+  }, [controller, owner]);
 
   useEffect(() => {
     if (device && isInternetReachable !== false) void controller.syncRemoteVisit();

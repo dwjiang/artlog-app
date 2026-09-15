@@ -20,7 +20,7 @@ jest.mock('@/lib/queue/use-queue', () => ({
 const now = Date.now();
 function row(localId: string, status: PendingScan['status'], minutesAgo: number): PendingScan {
   return {
-    localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`, vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
+    owner: 'device:test-installation', localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`, vector: [0.1], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0),
     modelVersion: 'm', venueId: null, visitId: null, visitLocalId: null, capturedAt: now - minutesAgo * 60_000, labelPhotoPath: null, qrUrl: null,
     status, attemptModelVersion: 'm', attempts: 0, lastError: status === 'failed' ? 'bad_features' : null, scanId: null, reviewedAt: null, createdAt: now,
   };

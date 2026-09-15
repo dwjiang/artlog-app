@@ -5,11 +5,15 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
+import * as visits from '@/db/repos/visits';
+import { claimLocalJournal } from '@/db/repos/journal-claim';
+import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import * as savedWorks from '@/db/repos/saved-works';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
+import { SyncUnavailableError } from '@/lib/network-error';
 import { useDeviceReady } from '@/lib/use-device-ready';
-import { syncCollection, type SyncContext } from './sync';
+import { syncJournal, type SyncContext } from './sync';
 import { onCollectionChange } from './sync-events';
 import { syncCollectionPhotos } from './photo-sync';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
@@ -31,12 +35,20 @@ function schedule(queue: Queue, delay: number): void {
   queue.timer = setTimeout(() => { queue.timer = undefined; void flush(queue); }, delay);
 }
 
-async function flush(queue: Queue): Promise<void> {
-  if (queue.running || paused || !context || !authToken || AppState.currentState !== 'active') return;
+function ready(): { context: SyncContext; token: string } | null {
+  return !paused && context && authToken && AppState.currentState === 'active' ? { context, token: authToken } : null;
+}
+
+/** Scheduled runs retry on their own; the resolved failure lets a direct caller rethrow it instead. */
+async function flush(queue: Queue): Promise<unknown> {
+  const session = ready();
+  if (queue.running || !session) return;
   const current = generation;
   const isCurrent = () => generation === current && !paused;
   queue.requested = false;
-  queue.running = queue.run(context, authToken, isCurrent).catch((error: unknown) => {
+  let failure: unknown;
+  queue.running = queue.run(session.context, session.token, isCurrent).catch((error: unknown) => {
+    failure = error;
     console.warn(`${queue.label} will retry`, error);
     schedule(queue, 30_000);
   }).finally(() => {
@@ -44,30 +56,55 @@ async function flush(queue: Queue): Promise<void> {
     if (queue.requested && !queue.timer) schedule(queue, 500);
   });
   await queue.running;
+  return failure;
 }
 
 // Photo transfers run in their own queue so a large backlog never delays note, deletion or import sync.
 const transfers: Queue = {
   label: 'Photo transfer', running: null, requested: false,
-  run: (_context, token, isCurrent) => syncCollectionPhotos({
+  run: (context, token, isCurrent) => syncCollectionPhotos({
     ...savedWorks,
-    upload: (localId, kind, path) => uploadCollectionPhoto(token, localId, kind, path, isCurrent),
-    download: (localId, kind, storageId) => downloadCollectionPhoto(token, localId, kind, storageId),
+    listPhotoTransfers: () => savedWorks.listPhotoTransfers(context.owner),
+    getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
+    updatePhotoTransfer: (id, fields) => savedWorks.updatePhotoTransfer(id, fields, context.owner),
+    listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
+    clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
+    upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+    download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
     removeFile: removePhotoFile,
   }, isCurrent),
 };
 const sync: Queue = {
   label: 'Collection sync', running: null, requested: false,
   run: async (context, _token, isCurrent) => {
-    await syncCollection({
-      ...savedWorks,
-      getCheckpoint: () => getSetting('collectionSync'),
-      setCheckpoint: (value) => setSetting('collectionSync', value),
-      sync: (args) => convex.mutation(api.sync.syncCollection, args),
+    if (context.accountId) await completeJournalClaim(context, isCurrent);
+    if (!isCurrent()) return;
+    await syncJournal({
+      ...savedWorks, ...visits,
+      getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
+      setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
+      sync: (args) => convex.mutation(api.sync.syncJournal, args),
     }, context, isCurrent);
     if (isCurrent()) schedule(transfers, 0);
   },
 };
+
+export async function completeJournalClaim(
+  account: Pick<SyncContext, 'accountId' | 'scope'>,
+  isCurrent = captureOwner().isCurrent,
+): Promise<void> {
+  if (!account.accountId) return;
+  let claim;
+  do {
+    claim = await convex.mutation(api.journalClaims.resume, { scope: account.scope });
+    if (!isCurrent()) return;
+  } while (!claim.complete);
+  const owner = `account:${account.accountId}`;
+  if (claim.claimId) await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  if (!isCurrent()) return;
+  switchOwner(owner, account.scope);
+  await setSetting('activeJournalOwner', owner);
+}
 
 function scheduleSync(delay = 500): void {
   schedule(sync, delay);
@@ -80,11 +117,21 @@ function stop(): void {
 
 export function pauseCollectionSync(): void {
   paused = true;
+  switchOwner(getLocalOwner());
   stop();
+}
+
+/** Runs one journal sync now and rejects the way the sync did, so callers keep the server's error classification. */
+export async function flushJournal(): Promise<void> {
+  while (sync.running) await sync.running;
+  if (!ready()) throw new SyncUnavailableError();
+  const failure = await flush(sync);
+  if (failure !== undefined) throw failure;
 }
 
 export function resumeCollectionSync(): void {
   paused = false;
+  if (context && !context.accountId && context.owner === getLocalOwner()) switchOwner(context.owner, context.scope);
   scheduleSync();
 }
 
@@ -99,8 +146,19 @@ export function CollectionSync(): null {
   useEffect(() => {
     generation++;
     authToken = token;
-    context = deviceId && scope && accountId !== undefined && token ? { deviceId, scope, accountId } : null;
-    if (context) scheduleSync();
+    context = deviceId && scope && accountId !== undefined && token
+      ? { deviceId, scope, accountId, owner: accountId ? `account:${accountId}` : anonymousOwner() } : null;
+    if (context) {
+      if (context.accountId) {
+        // The account scope is usable only once its claim finished; a token refresh alone leaves it valid.
+        const current = captureOwner();
+        if (current.owner !== context.owner || current.scope !== scope) switchOwner(getLocalOwner());
+      } else {
+        switchOwner(context.owner, paused ? undefined : scope);
+        void setSetting('activeJournalOwner', context.owner);
+      }
+      scheduleSync();
+    } else switchOwner(getLocalOwner());
     return () => { stop(); context = null; authToken = null; };
   }, [deviceId, scope, accountId, token]);
   useEffect(() => {

@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 it('counts queued and identifying rows as pending while keeping failed and ready scans listed', async () => {
-  mockRows = [{ localId: 'a', status: 'queued' }, { localId: 'b', status: 'identifying' }, { localId: 'c', status: 'failed' }, { localId: 'd', status: 'identified' }];
+  mockRows = [{ owner: 'device:test-installation', localId: 'a', status: 'queued' }, { owner: 'device:test-installation', localId: 'b', status: 'identifying' }, { owner: 'device:test-installation', localId: 'c', status: 'failed' }, { owner: 'device:test-installation', localId: 'd', status: 'identified' }];
   const hook = await renderHook(useQueue);
   expect(hook.result.current.pending).toBe(2);
   expect(hook.result.current.items.map((row) => row.localId)).toEqual(['a', 'b', 'c', 'd']);
