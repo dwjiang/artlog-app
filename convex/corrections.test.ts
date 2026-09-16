@@ -111,7 +111,7 @@ it.each([false, true])('does not restore disputed prose after a correction durin
     deviceId: user.deviceId, localId: 'race', generation: 0, modelVersion: model.modelVersion,
     vector: testVector(), capturedAt: Date.now(), createdAt: Date.now(), updatedAt: Date.now(),
     status: 'identified', outcome: 'confident',
-    best: { artworkId: work.artworkId, objectId: work.objectId, probability: 1 },
+    best: { identityStatus: 'established' as const, artworkId: work.artworkId, objectId: work.objectId, probability: 1 },
   }));
   vi.stubEnv('NEBIUS_API_KEY', 'test');
   vi.stubEnv('FACT_SHEET_MODEL', 'super');

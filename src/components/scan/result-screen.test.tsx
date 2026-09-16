@@ -616,7 +616,7 @@ it('keeps a stored confirmation available offline after revocation and shares on
   await setMuseumSearchConsent('declined');
   mockNetwork.isInternetReachable = false;
   results.set('scans:get', { ...missScan, museumSearch: confirmed, labelFlow: verified });
-  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'private' });
+  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'tentative' });
   await render(result());
   expect(await screen.findByText("Found on the museum's site")).toBeOnTheScreen();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
@@ -627,7 +627,7 @@ it('keeps a stored confirmation available offline after revocation and shares on
   await waitFor(() => expect(contributeLabel).toHaveBeenCalledWith(expect.objectContaining({
     scanId: SCAN_ID, museumSearchUpdatedAt: confirmed.updatedAt, state: expect.objectContaining({ title: expect.objectContaining({ value: 'Blue painting', locked: true, evidence: 'tavily+image' }) }),
   })));
-  expect(await screen.findByText('Thanks — shared privately until it’s verified')).toBeOnTheScreen();
+  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
 });
 
 it('keeps the label available when a stored museum confirmation failed moderation', async () => {
@@ -682,7 +682,7 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   results.set('scans:get', { ...missScan, museumSearch: confirmed, labelFlow: verified });
   let fail!: (error: Error) => void;
   jest.mocked(contributeLabel).mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
-  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'private' });
+  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'tentative' });
   jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => { buttons?.find((button) => button.text === 'Edit')?.onPress?.(); });
   await render(result());
   await screen.findByText("Found on the museum's site");
@@ -708,7 +708,7 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   expect(screen.getByText('Edited by you')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  expect(await screen.findByText('Thanks — shared privately until it’s verified')).toBeOnTheScreen();
+  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 
@@ -766,10 +766,10 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
   expect(await screen.findByText('Edited by you')).toBeOnTheScreen();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe(submitted.title.value);
   expect(screen.getByLabelText('Date').props.defaultValue).toBe(submitted.date.value);
-  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'private' });
+  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'tentative' });
   await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByText('Thanks — shared privately until it’s verified');
+  await screen.findByText('Shared as a tentative match for other visitors at this museum.');
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 
@@ -855,4 +855,32 @@ it('reopens a completed label review from a scan without a museum result', async
   await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: LABEL_BUTTON }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
+});
+
+it('keeps a tentative visitor suggestion visible until museum search is requested', async () => {
+  await setMuseumSearchConsent('granted');
+  results.set('scans:get', { ...softScan, best: { ...softScan.best!, identityStatus: 'tentative' },
+    runnerUps: [{ ...haystacks, identityStatus: 'tentative' }] });
+  jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason: 'no_candidates' });
+  await render(result());
+  expect(await screen.findByText('Maybe')).toBeOnTheScreen();
+  expect(screen.getAllByText('Shared by a visitor. Label not independently confirmed.')).toHaveLength(2);
+  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Title').props.editable).toBe(true);
+  expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
+  expect(screen.queryByText('About this work')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
+  await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
+});
+
+it('saves edited tentative metadata without implying confirmation', async () => {
+  results.set('scans:get', { ...softScan, best: { ...softScan.best!, identityStatus: 'tentative' } });
+  await render(result());
+  await fireEvent.changeText(await screen.findByLabelText('Title'), 'My reading of the label');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
+  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My reading of the label' });
+  expect(screen.getByText('Maybe')).toBeOnTheScreen();
+  expect(screen.getByText('Shared by a visitor. Label not independently confirmed.')).toBeOnTheScreen();
 });

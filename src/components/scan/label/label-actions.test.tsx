@@ -37,12 +37,12 @@ it('offers saving and sharing, each gated on its required fields', async () => {
 
 it('replaces the buttons with the saved link and the contribution outcome', async () => {
   await render(
-    <LabelActions canSave canShare saving={false} sharing={false} savedId="saved-1" shared={{ contributionId, status: 'private' }} shareError="stale" {...handlers} />,
+    <LabelActions canSave canShare saving={false} sharing={false} savedId="saved-1" shared={{ contributionId, status: 'tentative' }} shareError="stale" {...handlers} />,
   );
   expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.queryByText('stale')).toBeNull();
-  expect(screen.getByText('Thanks — shared privately until it’s verified')).toBeOnTheScreen();
+  expect(screen.getByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Saved · View in collection' }));
   expect(handlers.onViewSaved).toHaveBeenCalledTimes(1);
 });
@@ -52,5 +52,5 @@ it('words every contribution outcome', () => {
   expect(contributionMessage({ contributionId, status: 'rejected' })).toBe(CONTRIBUTION_MESSAGES.rejected);
   expect(contributionMessage({ contributionId, status: 'rejected', reason: 'device_reverted' })).toBe(CONTRIBUTION_MESSAGES.rejected);
   expect(contributionMessage({ contributionId, status: 'rejected', reason: 'object_reverted' })).toBe(CONTRIBUTION_MESSAGES.rejected);
-  expect(contributionMessage({ contributionId, status: 'promoted' })).toBe(CONTRIBUTION_MESSAGES.promoted);
+  expect(contributionMessage({ contributionId, status: 'tentative' })).toBe(CONTRIBUTION_MESSAGES.tentative);
 });

@@ -2,6 +2,8 @@ import { ConvexError, v } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from './_generated/server';
+import { internal } from './_generated/api';
+import { recognitionPartition } from './lib/recognitionEligibility';
 import { bumpCounter } from './ingest';
 import { validateVector } from './lib/modelVersion';
 import { currentPlacement, loadCurrentPlacement } from './lib/placements';
@@ -13,7 +15,7 @@ const DAY = 86_400_000;
 const MAX_EVIDENCE_SCANS = 6;
 const MAX_CLOSED_PLACEMENTS = 100;
 
-function readyForReview(deviceIds: Id<'devices'>[], firstSeenAt: number, lastSeenAt: number): boolean {
+export function readyForReview(deviceIds: Id<'devices'>[], firstSeenAt: number, lastSeenAt: number): boolean {
   const devices = new Set(deviceIds).size;
   return devices >= 3 || (devices >= 2 && lastSeenAt - firstSeenAt >= DAY);
 }
@@ -41,6 +43,8 @@ function retainEvidence(scans: Doc<'scans'>[]): Doc<'scans'>[] {
 async function isValidEvidence(
   ctx: QueryCtx, scan: Doc<'scans'>, objectId: Id<'objects'>, venueId: Id<'museums'>,
 ): Promise<boolean> {
+  const object = await ctx.db.get(objectId);
+  if (!object || object.identityStatus !== 'established') return false;
   if (scan.venueId !== venueId || scan.status !== 'identified') return false;
   const device = await ctx.db.get(scan.deviceId);
   if (!device || device.banned) return false;
@@ -72,6 +76,7 @@ export async function proposePlacementFromScan(ctx: MutationCtx, input: {
   if (!object || object.reverted || object.mergedInto || scan.deviceId !== deviceId || scan.venueId !== proposedVenueId) {
     throw new ConvexError({ code: 'invalid_scan' });
   }
+  if (object.identityStatus !== 'established') return null;
   const artwork = await ctx.db.get(object.artworkId);
   if (!artwork) throw new ConvexError({ code: 'invalid_scan' });
   const venue = await ctx.db.get(proposedVenueId);
@@ -98,13 +103,13 @@ export async function proposePlacementFromScan(ctx: MutationCtx, input: {
   const evidence = summarizeEvidence(retained);
   await input.beforeWrite?.();
   const kind = artwork.multiplicity === 'unique' ? 'move' : 'new_object';
-  if (existing) {
-    await ctx.db.patch(existing._id, { kind, scanIds, ...evidence });
-  } else {
-    await ctx.db.insert('placementProposals', {
-      objectId, proposedVenueId, kind, scanIds, ...evidence, status: 'pending',
-    });
-  }
+  const proposalId = existing?._id ?? await ctx.db.insert('placementProposals', {
+    objectId, proposedVenueId, kind, scanIds, ...evidence, status: 'pending',
+  });
+  if (existing) await ctx.db.patch(existing._id, { kind, scanIds, ...evidence });
+  const links = await ctx.db.query('proposalEvidence').withIndex('by_proposal', q => q.eq('proposalId', proposalId)).take(MAX_EVIDENCE_SCANS);
+  for (const link of links) await ctx.db.delete(link._id);
+  for (const scan of retained) await ctx.db.insert('proposalEvidence', { proposalId, deviceId: scan.deviceId, scanId: scan._id });
   return null;
 }
 
@@ -159,22 +164,24 @@ export const reviewPlacement = internalMutation({
         }
         objectId = await ctx.db.insert('objects', {
           key: `user:proposal:${proposalId}`, artworkId: object.artworkId, ownerId: venue._id,
+          identityStatus: object.identityStatus, sourceProposalId: proposalId,
           source: 'user', sourceId: proposalId, provenance: { contributionIds: [], deviceIds },
           confirmCount: 0, rejectCount: 0, calibratorPenalty: 0, reverted: false,
         });
         for (const scan of scans) {
           validateVector(scan.vector);
-          await ctx.db.insert('vectors', { objectId, modelVersion: scan.modelVersion, source: 'user_scan', vector: scan.vector });
+          await ctx.db.insert('vectors', { objectId, modelVersion: scan.modelVersion, source: 'user_scan', vector: scan.vector,
+            partition: recognitionPartition(scan.modelVersion), scanId: scan._id, proposalId });
         }
         await ctx.db.insert('descriptors', {
           objectId, storageId: reference.storageId, sha256: reference.sha256, keypointCount: reference.keypointCount,
-          inputSize: reference.inputSize, extractedFrom: reference.extractedFrom,
+          inputSize: reference.inputSize, extractedFrom: reference.extractedFrom, proposalId,
         });
         await bumpCounter(ctx, 'objects', 1);
         await bumpCounter(ctx, 'vectors', scans.length);
         await bumpCounter(ctx, 'descriptors', 1);
       }
-      const placementId = await ctx.db.insert('placements', {
+      const placementId = await ctx.db.insert('placements', { identityStatus: object.identityStatus,
         objectId, venueId: venue._id, onView: true, from: now, source: 'proposal', confidence: 0.7, proposalId,
       });
       promotion = { placementId, closedPlacementIds };
@@ -238,3 +245,22 @@ export const listProposals = internalQuery({
     return { rows: page.page, cursor: page.isDone ? null : page.continueCursor };
   },
 });
+
+
+export async function reassessProposal(ctx: MutationCtx, proposalId: Id<'placementProposals'>): Promise<void> {
+  const proposal = await ctx.db.get(proposalId);
+  if (!proposal || proposal.status === 'rejected' || proposal.revertedAt !== undefined) return;
+  const scans = await loadValidEvidence(ctx, proposal.scanIds, proposal.objectId, proposal.proposedVenueId);
+  const summary = summarizeEvidence(scans);
+  await ctx.db.patch(proposalId, { scanIds: scans.map(scan => scan._id), ...summary,
+    readyForReview: proposal.status === 'pending' && summary.readyForReview });
+  if (proposal.status !== 'promoted' || summary.readyForReview) return;
+  if (proposal.kind === 'move') await ctx.scheduler.runAfter(0, internal.placements.revertMove, { proposalId });
+  else {
+    await ctx.db.patch(proposalId, { revertedAt: Date.now() });
+    const placement = proposal.promotion ? await ctx.db.get(proposal.promotion.placementId) : null;
+    if (placement) await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
+      objectId: placement.objectId, reason: 'proposal_evidence_removed',
+    });
+  }
+}

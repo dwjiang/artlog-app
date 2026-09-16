@@ -18,6 +18,7 @@ import { FieldsForm } from './result/fields-form';
 import { MuseumSearchSection } from './result/museum-search-section';
 import { NotRightSheet } from './result/not-right-sheet';
 import { RightNowSection } from './result/right-now-section';
+import { TentativeOriginNotice } from './result/tentative-origin-notice';
 import { RunnerUps } from './result/runner-ups';
 import { LABEL_BUTTON, SaveBar } from './result/save-bar';
 import { FailedCard } from './states/failed-card';
@@ -187,6 +188,7 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onEd
           <ThemedText type="small" themeColor="accent">Not right?</ThemedText>
         </Pressable>
       )}
+      {view.primary?.identityStatus === 'tentative' && <TentativeOriginNotice />}
       <FieldsForm draft={draft} editable={editable} onChange={(field, value) => {
         onEdit();
         setDraft((current) => ({ ...current, [field]: value }));

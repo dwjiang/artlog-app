@@ -4,6 +4,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, query, type QueryCtx } from './_generated/server';
 import { sameOwner } from '../shared/journal/contracts';
 import { ownerForDevice, requireJournalOwner } from './lib/ownership';
+import { eligibleObject } from './lib/recognitionEligibility';
 import { requireDevice } from './lib/auth';
 import { isSupported } from './lib/modelVersion';
 import { displayLabelFlow } from './lib/labelVerify';
@@ -13,7 +14,7 @@ import schema from './schema';
 const scanFields = schema.tables.scans.validator.fields;
 const displayCandidate = snapshotFields.extend({
   objectId: v.id('objects'), artworkId: v.id('artworks'), probability: v.number(),
-  rightsStatus, thumbnailUrl: v.optional(v.string()),
+  identityStatus: schema.tables.objects.validator.fields.identityStatus, rightsStatus, thumbnailUrl: v.optional(v.string()),
   gallery: v.optional(v.string()), corners: v.optional(v.array(v.array(v.number()))),
 });
 
@@ -86,12 +87,22 @@ export const setResult = internalMutation({
     const scan = await ctx.db.get(args.scanId);
     if (!scan) throw new ConvexError({ code: 'scan_not_found' });
     if (scan.generation !== args.generation || scan.status !== 'pending') return null;
+    const device = await ctx.db.get(scan.deviceId);
+    if (!device || device.banned) return null;
+    const valid = async (match: NonNullable<typeof args.best>) => {
+      const object = await ctx.db.get(match.objectId);
+      return !!object && object.identityStatus === match.identityStatus && await eligibleObject(ctx, object, scan.venueId);
+    };
+    const best = args.best && await valid(args.best) ? args.best : undefined;
+    const runnerUps = [];
+    for (const candidate of args.runnerUps ?? []) if (await valid(candidate)) runnerUps.push(candidate);
+    const outcome = !best ? 'miss' : best.identityStatus === 'tentative' && args.outcome === 'confident' ? 'soft' : args.outcome;
     await ctx.db.patch(scan._id, {
-      status: args.status, outcome: args.outcome, best: args.best, runnerUps: args.runnerUps,
+      status: args.status, outcome, best, runnerUps,
       candidateSignals: args.candidateSignals, calibratorVersion: args.calibratorVersion, error: args.error,
       updatedAt: Date.now(),
     });
-    if (args.outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
+    if (outcome === 'confident' && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
       const device = await ctx.db.get(scan.deviceId);
       if (visit && device && sameOwner(visit.owner, await ownerForDevice(ctx, device)) && visit.venueId === scan.venueId &&
@@ -105,10 +116,10 @@ export const setResult = internalMutation({
 
 async function joinCandidate(
   ctx: QueryCtx,
-  match: NonNullable<Doc<'scans'>['best']>,
+  match: NonNullable<Doc<'scans'>['best']>, venueId?: Doc<'scans'>['venueId'],
 ): Promise<{ candidate: Infer<typeof displayCandidate>; artwork: Doc<'artworks'> } | null> {
   const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
-  if (!object || object.reverted || !artwork) return null;
+  if (!object || !artwork || !await eligibleObject(ctx, object, venueId)) return null;
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
   // A hotlinked source image only for public-domain works; a contributor's consented crop always.
   const thumbnailUrl = object.thumbnailStorageId
@@ -125,10 +136,10 @@ async function joinCandidate(
 
 async function displayScan(ctx: QueryCtx, scan: Doc<'scans'>): Promise<ScanDisplay> {
   const [best, runnerUps] = await Promise.all([
-    scan.best ? joinCandidate(ctx, scan.best) : null,
-    Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match))),
+    scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null,
+    Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
   ]);
-  const prose = scan.outcome === 'confident' ? best?.artwork : undefined;
+  const prose = scan.outcome === 'confident' && best?.candidate.identityStatus === 'established' ? best?.artwork : undefined;
   return {
     scanId: scan._id, localId: scan.localId, venueId: scan.venueId, visitId: scan.visitId,
     capturedAt: scan.capturedAt, status: scan.status, outcome: scan.outcome,

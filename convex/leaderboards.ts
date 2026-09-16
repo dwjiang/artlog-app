@@ -41,8 +41,8 @@ export const claimContributions = internalMutation({
   handler: async (ctx, args) => {
     const device = await ctx.db.get(args.deviceId);
     if (device?.accountId !== args.accountId) return null;
-    const page = await ctx.db.query('contributions').withIndex('by_device_status', (q) => q.eq('deviceId', args.deviceId).eq('status', 'promoted')).paginate({ cursor: args.cursor, numItems: 20 });
-    for (const row of page.page) if (row.promotedObjectId && row.acceptedAt) await recordContributionScore(ctx, row, row.promotedObjectId, row.acceptedAt);
+    const page = await ctx.db.query('contributions').withIndex('by_device_status', (q) => q.eq('deviceId', args.deviceId).eq('status', 'tentative')).paginate({ cursor: args.cursor, numItems: 20 });
+    for (const row of page.page) if (row.indexedObjectId && row.acceptedAt) await recordContributionScore(ctx, row, row.indexedObjectId, row.acceptedAt);
     if (!page.isDone) await ctx.scheduler.runAfter(0, internal.leaderboards.claimContributions, { ...args, cursor: page.continueCursor });
     return null;
   },

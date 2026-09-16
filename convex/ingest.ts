@@ -9,6 +9,7 @@ import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from '../shared/orb/f
 import { internal } from './_generated/api';
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from './lib/orbStorage';
 import { registerMuseumObject } from './lib/museumWorkIdentity';
+import { eligibleObject, eligibleVector, recognitionPartition } from './lib/recognitionEligibility';
 import { effectiveObjectPenalty } from './lib/rejectionPenalty';
 import type { Doc, Id } from './_generated/dataModel';
 import {
@@ -24,7 +25,6 @@ import {
   placementSource,
   rightsStatus,
   seedSource,
-  vectorSource,
 } from './lib/validators';
 
 export const MAX_BATCH_ROWS = 500;
@@ -88,7 +88,7 @@ const placementRow = v.object({
 const vectorRow = v.object({
   objectKey: v.string(),
   modelVersion: v.string(),
-  source: vectorSource,
+  source: v.literal('corpus'),
   viewKey: v.string(),
   vector: v.array(v.float64()),
 });
@@ -201,6 +201,7 @@ export const upsertArtworks = internalMutation({
     let inserted = 0;
     for (const row of rows) {
       const fields = {
+        identityStatus: 'established' as const,
         key: row.key,
         wikidataId: row.wikidataId,
         title: row.title,
@@ -247,6 +248,7 @@ export const upsertObjects = internalMutation({
         : null;
       const fields = {
         key: row.key,
+        identityStatus: artwork.identityStatus,
         artworkId: artwork._id,
         ownerId: owner?._id,
         accession: row.accession,
@@ -294,6 +296,7 @@ export const upsertPlacements = internalMutation({
       const object = await requireByKey(ctx, 'objects', row.objectKey);
       const venue = await requireByKey(ctx, 'museums', row.venueKey);
       const doc = {
+        identityStatus: object.identityStatus,
         objectId: object._id,
         venueId: venue._id,
         gallery: row.gallery,
@@ -338,6 +341,7 @@ export const upsertVectors = internalMutation({
       const object = await requireByKey(ctx, 'objects', row.objectKey);
       const doc = {
         objectId: object._id,
+        partition: recognitionPartition(row.modelVersion),
         modelVersion: row.modelVersion,
         source: row.source,
         viewKey: row.viewKey,
@@ -558,10 +562,10 @@ export const exportVectors = internalQuery({
     const page = [];
     for (const row of result.page) {
       let object = await ctx.db.get(row.objectId);
-      if (!object || object.reverted) continue;
+      if (!object || object.identityStatus !== 'established' || !await eligibleVector(ctx, row)) continue;
       if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
       // Match identify.loadCandidates: only one-hop merges are part of the active index.
-      if (!object || object.reverted || object.mergedInto) continue;
+      if (!object || object.identityStatus !== 'established' || !await eligibleObject(ctx, object)) continue;
       const artwork = await ctx.db.get(object.artworkId);
       if (!artwork) continue;
       page.push({
@@ -597,7 +601,7 @@ export const exportDescriptorReferences = internalQuery({
     const page = [];
     for (const row of result.page) {
       const object = await ctx.db.get(row.objectId);
-      if (!object || object.reverted || object.mergedInto) continue;
+      if (!object || object.identityStatus !== 'established' || !await eligibleObject(ctx, object)) continue;
       page.push({
         objectId: row.objectId, storageId: row.storageId,
         keypointCount: row.keypointCount, inputSize: row.inputSize,

@@ -38,7 +38,7 @@ it('locks verified fields behind a confirmation that names the source', async ()
   expect(screen.queryByRole('button', { name: 'Edit Date' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   expect(alert).toHaveBeenCalledWith(UNLOCK_TITLE, unlockMessage('the museum’s site'), expect.any(Array));
-  expect(unlockMessage('the museum’s site')).toBe('It was verified against the museum’s site; editing means your entry needs a second confirmation before it can be shared.');
+  expect(unlockMessage('the museum’s site')).toBe('It was verified against the museum’s site; your shared entry will remain tentative, including any edits.');
   const buttons = alert.mock.calls[0][2] as AlertButton[];
   buttons.find((button) => button.text === 'Edit')?.onPress?.();
   expect(handlers.onUnlock).toHaveBeenCalledWith('title');

@@ -11,7 +11,7 @@ import { EVIDENCE_SOURCES, LABEL_FIELD_LABELS, LABEL_FIELD_NAMES, WARNING_MESSAG
 
 export const UNLOCK_TITLE = 'Edit this field?';
 export function unlockMessage(source: string): string {
-  return `It was verified against ${source}; editing means your entry needs a second confirmation before it can be shared.`;
+  return `It was verified against ${source}; your shared entry will remain tentative, including any edits.`;
 }
 
 export type VerifiedFieldsFormProps = {

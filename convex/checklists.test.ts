@@ -84,7 +84,7 @@ it.each(['reverted', 'mergedInto'] as const)('does not place %s objects through 
 
 it('closes only overlapping checklist rows for the resolved object at the same venue', async () => {
   const { t, objectId, ownerId } = await fixture();
-  const elsewhere = await t.run((ctx) => ctx.db.insert('placements', {
+  const elsewhere = await t.run((ctx) => ctx.db.insert('placements', { identityStatus: 'established',
     objectId, venueId: ownerId, source: 'checklist', onView: true, confidence: 0.85,
   }));
   await t.mutation(internal.checklists.ingestChecklist, example);

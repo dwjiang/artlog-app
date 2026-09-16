@@ -330,7 +330,7 @@ describe('candidate loading', () => {
       const target = await seedArtworkWithObject(ctx);
       const merged = await seedArtworkWithObject(ctx, { object: { mergedInto: target.objectId } });
       const second = await seedArtworkWithObject(ctx);
-      const duplicate = await ctx.db.insert('vectors', {
+      const duplicate = await ctx.db.insert('vectors', { partition: JSON.stringify([model.modelVersion, 'established']),
         objectId: target.objectId, modelVersion: model.modelVersion, source: 'user_scan',
         vector: Array(model.embeddingDim).fill(1),
       });

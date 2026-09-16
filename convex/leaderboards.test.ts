@@ -4,6 +4,7 @@ import { harness } from './test.helpers';
 import { socialUser, befriend } from './lib/socialTestFixtures';
 import { seedMuseum, seedArtworkWithObject, seedContribution } from './lib/testFactories';
 import { recordContributionScore } from './lib/leaderboard';
+import { publishContribution } from './lib/tentativeEntries';
 import { rankScores } from '../shared/social/leaderboard';
 
 it('ranks equal totals together, skips following positions, and sorts ties by name', () => {
@@ -45,10 +46,23 @@ it('credits each accepted physical artwork once, using acceptance time', async (
   await a.as.mutation(api.leaderboards.setPreference, { visibility: 'global' });
   await t.run(async (ctx) => {
     const venueId = await seedMuseum(ctx), { objectId } = await seedArtworkWithObject(ctx);
-    const id = await seedContribution(ctx, { deviceId: a.deviceId, venueId, status: 'promoted' });
+    const id = await seedContribution(ctx, { deviceId: a.deviceId, venueId, status: 'tentative' });
     const row = (await ctx.db.get(id))!;
     await recordContributionScore(ctx, row, objectId, Date.now());
     await recordContributionScore(ctx, row, objectId, Date.now());
   });
   expect((await a.as.query(api.leaderboards.list, { audience: 'global', period: 'month', metric: 'contributions' })).rows[0].score).toBe(1);
+});
+it('credits a shared tentative entry when it is published', async () => {
+  const t = harness(), a = await socialUser(t, 'Ada');
+  await a.as.mutation(api.leaderboards.setPreference, { visibility: 'global' });
+  const acceptedAt = await t.run(async (ctx) => {
+    const venueId = await seedMuseum(ctx);
+    const cropStorageId = await ctx.storage.store(new Blob(['crop'], { type: 'image/jpeg' }));
+    const id = await seedContribution(ctx, { deviceId: a.deviceId, venueId, cropStorageId });
+    await publishContribution(ctx, (await ctx.db.get(id))!);
+    return (await ctx.db.get(id))!.acceptedAt;
+  });
+  expect(acceptedAt).toEqual(expect.any(Number));
+  expect((await a.as.query(api.leaderboards.list, { audience: 'global', period: 'all', metric: 'contributions' })).rows[0].score).toBe(1);
 });

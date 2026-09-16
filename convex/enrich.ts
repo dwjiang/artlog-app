@@ -14,7 +14,7 @@ const batchCursor = v.object({
 export type BatchCursor = Infer<typeof batchCursor>;
 
 function claimable(artwork: Doc<'artworks'>, now: number): boolean {
-  return artwork.factSheetUpdatedAt === undefined && !artwork.factSheetNeedsReview &&
+  return artwork.identityStatus === 'established' && artwork.retiredAt === undefined && artwork.factSheetUpdatedAt === undefined && !artwork.factSheetNeedsReview &&
     (artwork.enrichClaimedAt === undefined || artwork.enrichClaimedAt < now - STALE_CLAIM_MS);
 }
 
@@ -92,9 +92,9 @@ export const lookup = internalQuery({
   returns: v.union(schema.doc('artworks'), v.null()),
   handler: async (ctx, { key }) => {
     const artwork = await ctx.db.query('artworks').withIndex('by_key', (q) => q.eq('key', key)).unique();
-    if (artwork) return artwork;
+    if (artwork) return artwork.identityStatus === 'established' && artwork.retiredAt === undefined ? artwork : null;
     const object = await ctx.db.query('objects').withIndex('by_key', (q) => q.eq('key', key)).unique();
-    return object && !object.reverted && !object.mergedInto ? ctx.db.get(object.artworkId) : null;
+    return object && object.identityStatus === 'established' && !object.reverted && !object.mergedInto ? ctx.db.get(object.artworkId) : null;
   },
 });
 

@@ -40,7 +40,7 @@ async function fixture(multiplicity: Doc<'artworks'>['multiplicity'] = 'unique')
     return t.run(async (ctx) => {
       const scanId = await seedScan(ctx, {
         deviceId: users[deviceIndex].deviceId, venueId: seeded.venueId,
-        outcome: 'confident', best: { objectId: seeded.objectId, artworkId: seeded.artworkId, probability: 0.98 },
+        outcome: 'confident', best: { identityStatus: 'established' as const, objectId: seeded.objectId, artworkId: seeded.artworkId, probability: 0.98 },
         vector: testVector(1 - deviceIndex / 10),
       });
       await proposePlacementFromScan(ctx, {
@@ -100,7 +100,7 @@ it('approval requires readiness, while a human may reject weak evidence', async 
 it('approving a move closes active placements elsewhere and preserves ownership, future windows, and saved snapshots', async () => {
   const { t, ready, objectId, venueId, home, savedId } = await fixture();
   const before = await t.run((ctx) => ctx.db.get(savedId));
-  const futureId = await t.run((ctx) => ctx.db.insert('placements', {
+  const futureId = await t.run((ctx) => ctx.db.insert('placements', { identityStatus: 'established',
     objectId, venueId: home, source: 'checklist', confidence: 0.85, onView: true, from: NOW + 10 * DAY,
   }));
   const p = await ready();
@@ -167,7 +167,7 @@ it('uses recorded scan times for delayed and out-of-order proposal submissions',
   await propose(0);
   const delayed = await t.run((ctx) => seedScan(ctx, {
     deviceId: users[1].deviceId, venueId, outcome: 'confident',
-    best: { objectId, artworkId, probability: 0.98 },
+    best: { identityStatus: 'established' as const, objectId, artworkId, probability: 0.98 },
     capturedAt: NOW + 10 * DAY,
   }));
   vi.mocked(Date.now).mockReturnValue(NOW + DAY);
@@ -185,7 +185,7 @@ it('uses recorded scan times for delayed and out-of-order proposal submissions',
 it('retains both ends of the observation window when the older scan arrives last', async () => {
   const { t, propose, proposal, users, objectId, artworkId, venueId } = await fixture();
   const older = await t.run((ctx) => seedScan(ctx, {
-    deviceId: users[0].deviceId, venueId, outcome: 'confident', best: { objectId, artworkId, probability: 0.98 },
+    deviceId: users[0].deviceId, venueId, outcome: 'confident', best: { identityStatus: 'established' as const, objectId, artworkId, probability: 0.98 },
   }));
   await propose(1, NOW + DAY);
   await t.run(async (ctx) => proposePlacementFromScan(ctx, {
@@ -201,7 +201,7 @@ it('keeps approval within transaction limits after 2100 repeat scans', async () 
       for (let i = start; i < start + 25; i++) {
         const scanId = await seedScan(ctx, {
           deviceId: users[0].deviceId, venueId, outcome: 'confident', createdAt: NOW + i,
-          best: { objectId, artworkId, probability: 0.98 },
+          best: { identityStatus: 'established' as const, objectId, artworkId, probability: 0.98 },
         });
         await proposePlacementFromScan(ctx, {
           scan: (await ctx.db.get(scanId))!, deviceId: users[0].deviceId, objectId, proposedVenueId: venueId,
@@ -241,7 +241,7 @@ it.each(['device', 'venue'] as const)('reverting an earlier move via $0 preserve
   for (const device of clean) {
     await t.run(async (ctx) => {
       const scanId = await seedScan(ctx, {
-        deviceId: device.deviceId, venueId: nextVenue, outcome: 'confident', best: { objectId, artworkId, probability: 0.98 },
+        deviceId: device.deviceId, venueId: nextVenue, outcome: 'confident', best: { identityStatus: 'established' as const, objectId, artworkId, probability: 0.98 },
       });
       await proposePlacementFromScan(ctx, {
         scan: (await ctx.db.get(scanId))!, deviceId: device.deviceId, objectId, proposedVenueId: nextVenue,
@@ -324,7 +324,7 @@ it('venue opt-out rolls back every move across placement pages', async () => {
       const previous = (await ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId)).unique())!;
       const { _id, _creationTime, ...fields } = evidence;
       const proposalId = await ctx.db.insert('placementProposals', { ...fields, objectId, status: 'promoted', readyForReview: false });
-      const placementId = await ctx.db.insert('placements', {
+      const placementId = await ctx.db.insert('placements', { identityStatus: 'established',
         objectId, venueId, source: 'proposal', onView: true, confidence: 0.7, from: NOW + DAY, proposalId,
       });
       await ctx.db.patch(previous._id, { closedAt: NOW + DAY, closedByProposalId: proposalId });
@@ -457,7 +457,7 @@ it('approves valid runner-up resolutions and refuses them after the resolution i
     const ids = [];
     for (const scanId of p.scanIds) {
       const scan = (await ctx.db.get(scanId))!;
-      await ctx.db.patch(scanId, { best: { objectId: rejected.objectId, artworkId: rejected.artworkId, probability: 0.9 } });
+      await ctx.db.patch(scanId, { best: { identityStatus: 'established' as const, objectId: rejected.objectId, artworkId: rejected.artworkId, probability: 0.9 } });
       ids.push(await ctx.db.insert('feedback', {
         scanId, deviceId: scan.deviceId, venueId: scan.venueId, vector: scan.vector, modelVersion: scan.modelVersion,
         rejectedObjectId: rejected.objectId, score: 0.9, margin: 0.1, orbInliers: 10, probability: 0.9,
@@ -492,4 +492,36 @@ it('pages through a full review queue without skipping rows', async () => {
   expect(last.rows).toHaveLength(1);
   expect(last.cursor).toBeNull();
   expect(new Set([...first.rows, ...last.rows].map((row) => row._id)).size).toBe(101);
+});
+
+it.each(['unique', 'multiple'] as const)('retains a reviewed %s decision when the surviving evidence still qualifies', async multiplicity => {
+  vi.useFakeTimers();
+  const { t, users, propose, proposal, venueId } = await fixture(multiplicity);
+  await propose(0); await propose(1); await propose(2, NOW + DAY);
+  const row = (await proposal())!;
+  await t.mutation(internal.placements.reviewPlacement, { proposalId: row._id, decision: 'approve', reviewer: 'curator' });
+  const approved = (await proposal())!;
+  await t.mutation(internal.revert.revertDevice, { deviceId: users[0].deviceId, reason: 'abuse' });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const surviving = (await proposal())!;
+  expect(surviving).toMatchObject({ status: 'promoted', deviceIds: [users[1].deviceId, users[2].deviceId] });
+  expect(surviving.revertedAt).toBeUndefined();
+  const placement = (await t.run(ctx => ctx.db.get(approved.promotion!.placementId)))!;
+  expect(placement.closedAt).toBeUndefined();
+  expect(placement.identityStatus).toBe('established');
+  expect(await t.run(ctx => loadCurrentPlacement(ctx, placement.objectId, NOW + DAY))).toMatchObject({ venueId });
+});
+
+it('reverses a reviewed new object when surviving evidence no longer qualifies', async () => {
+  vi.useFakeTimers();
+  const { t, ready, users } = await fixture('multiple');
+  const row = await ready();
+  await t.mutation(internal.placements.reviewPlacement, { proposalId: row._id, decision: 'approve', reviewer: 'curator' });
+  const approved = (await t.run(ctx => ctx.db.get(row._id)))!;
+  const placement = (await t.run(ctx => ctx.db.get(approved.promotion!.placementId)))!;
+  await t.mutation(internal.revert.revertDevice, { deviceId: users[0].deviceId, reason: 'abuse' });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.run(ctx => ctx.db.get(row._id))).toHaveProperty('revertedAt');
+  expect(await t.run(ctx => ctx.db.get(placement.objectId))).toMatchObject({ reverted: true });
+  expect(await t.run(ctx => ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', q => q.eq('objectId', placement.objectId)).collect())).toEqual([]);
 });

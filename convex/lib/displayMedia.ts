@@ -1,6 +1,7 @@
 import { validateMedia } from '../../shared/social/contracts';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
+import { eligibleContribution, eligibleObject } from './recognitionEligibility';
 import { internal } from '../_generated/api';
 
 export async function contributionSource(ctx: QueryCtx, save: Doc<'collections'>) {
@@ -10,7 +11,7 @@ export async function contributionSource(ctx: QueryCtx, save: Doc<'collections'>
   // signing out must not unpublish media.
   const scan = await ctx.db.get(save.scanId);
   const contribution = scan ? await ctx.db.query('contributions').withIndex('by_scanId', (q) => q.eq('scanId', scan._id)).unique() : null;
-  if (!scan || !contribution || contribution.deviceId !== scan.deviceId || contribution.status === 'rejected' || contribution.displayMediaRevokedAt !== undefined ||
+  if (!scan || !contribution || !await eligibleContribution(ctx, contribution) || contribution.deviceId !== scan.deviceId || contribution.status === 'rejected' || contribution.displayMediaRevokedAt !== undefined ||
     !contribution.cropStorageId || !await ctx.db.system.get(contribution.cropStorageId)) return null;
   return { contributionId: contribution._id, sourceStorageId: contribution.cropStorageId };
 }
@@ -23,7 +24,7 @@ export async function isCurrentAsset(ctx: QueryCtx, save: Doc<'collections'>, as
     const object = await ctx.db.get(asset.provenance.objectId);
     const artwork = object ? await ctx.db.get(object.artworkId) : null;
     const venue = object?.ownerId ? await ctx.db.get(object.ownerId) : null;
-    return !!object && !object.reverted && !object.mergedInto && !!artwork && (!object.ownerId || (!!venue && !venue.optOut)) &&
+    return !!object && await eligibleObject(ctx, object, object.ownerId) && !object.reverted && !object.mergedInto && !!artwork && (!object.ownerId || (!!venue && !venue.optOut)) &&
       (!save.artworkId || save.artworkId === artwork._id);
   }
   if (asset.provenance.kind !== 'contribution' || !asset.storageId || asset.storageId === asset.provenance.sourceStorageId ||

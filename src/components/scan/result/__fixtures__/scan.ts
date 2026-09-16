@@ -3,21 +3,21 @@ import type { ResultCandidate, ScanResult } from '@/lib/result/state';
 
 export const SCAN_ID = 'scan-1' as Id<'scans'>;
 
-export const lilies: ResultCandidate = {
+export const lilies: ResultCandidate = { identityStatus: 'established' as const,
   objectId: 'obj-lilies' as Id<'objects'>, artworkId: 'art-lilies' as Id<'artworks'>, probability: 0.97,
   title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas',
   institution: 'Metropolitan Museum of Art', rightsStatus: 'public_domain', gallery: 'Gallery 819',
   corners: [[40, 40], [470, 50], [460, 480], [50, 470]],
 };
 
-export const bridge: ResultCandidate = {
+export const bridge: ResultCandidate = { identityStatus: 'established' as const,
   objectId: 'obj-bridge' as Id<'objects'>, artworkId: 'art-bridge' as Id<'artworks'>, probability: 0.31,
   title: 'The Japanese Footbridge', artist: 'Claude Monet', date: '1899', medium: 'Oil on canvas',
   institution: 'National Gallery of Art', rightsStatus: 'public_domain',
   thumbnailUrl: 'https://images.example/bridge.jpg',
 };
 
-export const haystacks: ResultCandidate = {
+export const haystacks: ResultCandidate = { identityStatus: 'established' as const,
   objectId: 'obj-haystacks' as Id<'objects'>, artworkId: 'art-haystacks' as Id<'artworks'>, probability: 0.12,
   title: 'Haystacks', artist: 'Claude Monet', institution: 'Art Institute of Chicago', rightsStatus: 'in_copyright',
 };

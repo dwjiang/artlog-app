@@ -14,6 +14,7 @@ import {
   contributionField,
   contributionRejectedReason,
   contributionStatus,
+  identityStatus,
   devicePlatform,
   docentSentence,
   embedding,
@@ -36,6 +37,7 @@ import {
 } from './lib/validators';
 
 const rightsRequest = {
+  identityArtworkId: v.optional(v.id('artworks')),
   venueId: v.optional(v.id('museums')),
   artworkId: v.optional(v.id('artworks')),
   objectId: v.optional(v.id('objects')),
@@ -48,6 +50,8 @@ export default defineSchema({
   ...authTables,
 
   artworks: defineTable({
+    identityStatus,
+    retiredAt: v.optional(v.number()),
     key: v.string(),
     wikidataId: v.optional(v.string()),
     title: v.string(),
@@ -74,6 +78,12 @@ export default defineSchema({
     .index('by_factSheetUpdatedAt', ['factSheetUpdatedAt']),
 
   objects: defineTable({
+    identityStatus,
+    groupKey: v.optional(v.string()),
+    sourceContributionId: v.optional(v.id('contributions')),
+    sourceProposalId: v.optional(v.id('placementProposals')),
+    supportRevision: v.optional(v.number()),
+    feedbackRevision: v.optional(v.number()),
     key: v.string(),
     artworkId: v.id('artworks'),
     ownerId: v.optional(v.id('museums')),
@@ -102,15 +112,18 @@ export default defineSchema({
     ),
     reverted: v.boolean(),
     revertedReason: v.optional(v.string()),
+    revertCompletedAt: v.optional(v.number()),
   })
     .index('by_key', ['key'])
     .index('by_artworkId', ['artworkId'])
     .index('by_artworkId_ownerId', ['artworkId', 'ownerId'])
     .index('by_owner_accession', ['ownerId', 'accession'])
     .index('by_source', ['source'])
-    .index('by_flaggedForReview', ['flaggedForReview']),
+    .index('by_flaggedForReview', ['flaggedForReview'])
+    .index('by_groupKey', ['groupKey']),
 
   placements: defineTable({
+    identityStatus,
     objectId: v.id('objects'),
     venueId: v.id('museums'),
     gallery: v.optional(v.string()),
@@ -151,6 +164,11 @@ export default defineSchema({
     .index('by_status_readyForReview', ['status', 'readyForReview']),
 
   vectors: defineTable({
+    partition: v.string(),
+    contributionId: v.optional(v.id('contributions')),
+    scanId: v.optional(v.id('scans')),
+    feedbackId: v.optional(v.id('feedback')),
+    proposalId: v.optional(v.id('placementProposals')),
     objectId: v.id('objects'),
     modelVersion: v.string(),
     source: vectorSource,
@@ -160,12 +178,16 @@ export default defineSchema({
     .vectorIndex('by_vector', {
       vectorField: 'vector',
       dimensions: model.embeddingDim,
-      filterFields: ['modelVersion'],
+      filterFields: ['partition'],
     })
     .index('by_objectId_modelVersion_source', ['objectId', 'modelVersion', 'source'])
-    .index('by_modelVersion_source_viewKey', ['modelVersion', 'source', 'viewKey']),
+    .index('by_modelVersion_source_viewKey', ['modelVersion', 'source', 'viewKey'])
+    .index('by_contributionId', ['contributionId'])
+    .index('by_scanId', ['scanId']),
 
   descriptors: defineTable({
+    contributionId: v.optional(v.id('contributions')),
+    proposalId: v.optional(v.id('placementProposals')),
     objectId: v.id('objects'),
     storageId: v.id('_storage'),
     sha256: v.string(),
@@ -192,6 +214,7 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
+    contributionRevision: v.optional(v.number()),
   })
     .index('by_key', ['key'])
     .index('by_wikidataId', ['wikidataId'])
@@ -267,8 +290,7 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     status: contributionStatus,
     rejectedReason: v.optional(contributionRejectedReason),
-    promotedObjectId: v.optional(v.id('objects')),
-    promotionNote: v.optional(v.string()),
+    indexedObjectId: v.optional(v.id('objects')),
     acceptedAt: v.optional(v.number()), creditedAccountId: v.optional(v.id('accounts')),
     createdAt: v.number(),
   })
@@ -279,8 +301,8 @@ export default defineSchema({
     .index('by_device_status', ['deviceId', 'status'])
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
-    .index('by_promotedObject_device', ['promotedObjectId', 'deviceId'])
-    .index('by_venue_status', ['venueId', 'status']),
+    .index('by_object_device', ['indexedObjectId', 'deviceId', 'status'])
+    .index('by_object_status_created', ['indexedObjectId', 'status', 'createdAt']),
 
   feedback: defineTable({
     scanId: v.id('scans'),
@@ -314,6 +336,43 @@ export default defineSchema({
     .index('by_multiViewDuplicateVectorId', ['multiViewDuplicateVectorId'])
     .index('by_multiViewSecondDevice', ['multiViewAgreement.secondDeviceId']),
 
+  entryRebuilds: defineTable({
+    objectId: v.id('objects'), revision: v.number(), cursor: v.union(v.string(), v.null()),
+    sourceId: v.optional(v.id('contributions')), accessionSourceId: v.optional(v.id('contributions')),
+  }).index('by_object', ['objectId']),
+
+  feedbackEvents: defineTable({
+    kind: v.union(v.literal('confirmation'), v.literal('rejection')),
+    deviceId: v.id('devices'), scanId: v.id('scans'), objectId: v.id('objects'),
+    saveId: v.optional(v.id('collections')), feedbackId: v.optional(v.id('feedback')),
+    createdAt: v.number(),
+  }).index('by_object_created', ['objectId', 'createdAt'])
+    .index('by_device', ['deviceId']).index('by_save', ['saveId']),
+
+  feedbackRebuilds: defineTable({
+    objectId: v.id('objects'), revision: v.number(), cursor: v.union(v.string(), v.null()),
+    confirmCount: v.number(), rejectCount: v.number(), rejectionPenalty: v.number(), flaggedForReview: v.boolean(),
+  }).index('by_object', ['objectId']),
+
+  proposalEvidence: defineTable({
+    proposalId: v.id('placementProposals'), deviceId: v.id('devices'), scanId: v.id('scans'),
+  }).index('by_device', ['deviceId']).index('by_proposal', ['proposalId']),
+
+  removalDependencies: defineTable({
+    jobId: v.id('deviceRemovals'),
+    contributionId: v.optional(v.id('contributions')), objectId: v.optional(v.id('objects')),
+    proposalId: v.optional(v.id('placementProposals')), feedbackId: v.optional(v.id('feedback')),
+    vectorId: v.optional(v.id('vectors')), scanId: v.optional(v.id('scans')), resumeRevision: v.optional(v.number()),
+  }).index('by_job', ['jobId']),
+
+  deviceRemovals: defineTable({
+    deviceId: v.id('devices'), reason: v.string(),
+    phase: v.union(v.literal('contributions'), v.literal('scans'), v.literal('proposals'), v.literal('feedback'),
+      v.literal('firstWitness'), v.literal('secondWitness'), v.literal('settling'), v.literal('stalled'), v.literal('complete')),
+    cursor: v.union(v.string(), v.null()), processed: v.number(), settled: v.number(), settleAttempts: v.number(),
+    resumeRevision: v.number(), startedAt: v.number(), completedAt: v.optional(v.number()),
+  }).index('by_device', ['deviceId']),
+
   promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),
 
   museumWorkIdentities: defineTable({
@@ -337,6 +396,7 @@ export default defineSchema({
     outcome: v.optional(matchOutcome),
     best: v.optional(
       v.object({
+        identityStatus,
         objectId: v.id('objects'),
         artworkId: v.id('artworks'),
         probability: v.number(),
@@ -347,6 +407,7 @@ export default defineSchema({
     runnerUps: v.optional(
       v.array(
         v.object({
+          identityStatus,
           objectId: v.id('objects'),
           artworkId: v.id('artworks'),
           probability: v.number(),
@@ -505,5 +566,6 @@ export default defineSchema({
 
   optOuts: defineTable(rightsRequest).index('by_venueId', ['venueId']),
 
-  takedowns: defineTable(rightsRequest).index('by_artworkId', ['artworkId']),
+  takedowns: defineTable(rightsRequest).index('by_artworkId', ['artworkId']).index('by_objectId', ['objectId'])
+    .index('by_identity_artwork_venue', ['identityArtworkId', 'venueId']),
 });

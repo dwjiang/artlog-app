@@ -78,7 +78,7 @@ describe('review.replaceFactSheet', () => {
 });
 
 describe('review queues', () => {
-  it('lists flagged objects, contributions awaiting agreement without their vectors, and proposals ready for review', async () => {
+  it('lists flagged objects, tentative contributions without their vectors, and proposals ready for review', async () => {
     const t = harness();
     const user = await seedDevice(t);
     const other = await seedDevice(t);
@@ -86,8 +86,8 @@ describe('review queues', () => {
       const venueId = await seedMuseum(ctx);
       const flagged = await seedArtworkWithObject(ctx, { object: { flaggedForReview: true, rejectCount: 20 } });
       const clean = await seedArtworkWithObject(ctx);
-      const pending = await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'pending' });
-      await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'private' });
+      const pending = await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'tentative' });
+      await seedContribution(ctx, { deviceId: user.deviceId, venueId, status: 'rejected', rejectedReason: 'duplicate' });
       const scanId = await seedScan(ctx, { deviceId: user.deviceId, venueId });
       const proposal = (deviceIds: Id<'devices'>[]) => ctx.db.insert('placementProposals', {
         objectId: clean.objectId, proposedVenueId: venueId, kind: 'move', scanIds: [scanId], deviceIds,
@@ -98,11 +98,11 @@ describe('review queues', () => {
       return { venueId, flagged, pending, ready };
     });
     expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([{ _id: seeded.flagged.objectId }]);
-    const { rows: pending } = await t.query(internal.review.listPendingContributions, {});
-    expect(pending).toMatchObject([{ _id: seeded.pending, status: 'pending', venueId: seeded.venueId, fields: { title: { value: 'Water Lilies' } } }]);
+    const { rows: pending } = await t.query(internal.review.listContributions, {});
+    expect(pending).toMatchObject([{ _id: seeded.pending, status: 'tentative', venueId: seeded.venueId, fields: { title: { value: 'Water Lilies' } } }]);
     expect(pending[0]).not.toHaveProperty('vector');
     expect(pending[0]).not.toHaveProperty('descriptors');
-    expect((await t.query(internal.review.listPendingContributions, { status: 'private' })).rows).toHaveLength(1);
+    expect((await t.query(internal.review.listContributions, { status: 'tentative' })).rows).toHaveLength(1);
     expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([{ _id: seeded.ready, readyForReview: true }]);
   });
 });
@@ -114,7 +114,7 @@ it('can list pending contributions that were accepted within document limits', a
   const venueId = await t.run(seedMuseum);
   for (let i = 0; i < 40; i++) {
     await t.run((ctx) => seedContribution(ctx, {
-      deviceId: alice.deviceId, venueId, status: 'pending',
+      deviceId: alice.deviceId, venueId, status: 'tentative',
       fields: {
         title: { value: 'Water Lilies', edited: false, evidence: 'ocr' },
         artist: { value: 'Claude Monet', edited: false, evidence: 'ocr' },
@@ -126,8 +126,8 @@ it('can list pending contributions that were accepted within document limits', a
   let cursor: string | null = null;
   let pages = 0;
   do {
-    const result: FunctionReturnType<typeof internal.review.listPendingContributions> =
-      await t.query(internal.review.listPendingContributions, { cursor });
+    const result: FunctionReturnType<typeof internal.review.listContributions> =
+      await t.query(internal.review.listContributions, { cursor });
     ids.push(...result.rows.map((row) => row._id));
     cursor = result.cursor;
     pages++;

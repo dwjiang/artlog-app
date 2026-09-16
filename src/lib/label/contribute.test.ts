@@ -70,7 +70,7 @@ beforeEach(async () => {
   });
   mockUpload.mockImplementation(async () => { calls.push('upload'); return { status: 200, headers: {}, body: JSON.stringify({ storageId: 'st-1' }) }; });
   mockSign.mockImplementation(async () => { calls.push('sign'); return { nonce: 'nonce-1', assertionBase64: 'sig', payloadJson: 'p' }; });
-  mockAction.mockImplementation(async (name: string) => { calls.push(name); return { contributionId: 'contrib-1', status: 'private' }; });
+  mockAction.mockImplementation(async (name: string) => { calls.push(name); return { contributionId: 'contrib-1', status: 'tentative' }; });
   mockVerify.mockImplementation(async () => { calls.push('verify'); return flow; });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -78,7 +78,7 @@ afterEach(() => jest.restoreAllMocks());
 it('uploads the 256 px crop, signs the exact fields and contributes the capture’s own features', async () => {
   handOffLabelRejection(scanId, Promise.resolve(feedbackId));
   const result = await contributeLabel({ scanId, capture, state: formStateFromFlow(flow) });
-  expect(result).toEqual({ contributionId: 'contrib-1', status: 'private' });
+  expect(result).toEqual({ contributionId: 'contrib-1', status: 'tentative' });
   expect(calls).toEqual(['scans:get', 'resize', 'contributions:requestCropUpload', 'upload', 'sign', 'contributions:contribute', 'feedback:resolveRejection']);
   expect(mockVerify).not.toHaveBeenCalled();
   expect(mockResize).toHaveBeenCalledWith('file:///documents/crops/c1.jpg');
@@ -122,7 +122,7 @@ it('keeps the contribution when resolving the rejection fails', async () => {
     if (name === 'contributions:requestCropUpload') return { uploadUrl: 'https://upload.example/crop' };
     throw new ConvexError({ code: 'invalid_resolution' });
   });
-  await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).resolves.toEqual({ contributionId: 'contrib-1', status: 'private' });
+  await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).resolves.toEqual({ contributionId: 'contrib-1', status: 'tentative' });
   await waitFor(() => expect(console.warn).toHaveBeenCalledWith('Could not resolve the rejection with this contribution', expect.any(ConvexError)));
 });
 
@@ -133,12 +133,12 @@ it('re-verifies reverted fields after an earlier upload failed', async () => {
   });
   mockAction.mockImplementation(async (_name, args) => {
     if (args.fields.date.value !== mockStoredFlow.fields.date?.value) throw new ConvexError({ code: 'field_mismatch', field: 'date' });
-    return { contributionId: 'contrib-1', status: 'private' };
+    return { contributionId: 'contrib-1', status: 'tentative' };
   });
   const original = formStateFromFlow(flow);
   mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: '' });
   await expect(contributeLabel({ scanId, capture, state: setFieldValue(original, 'date', '1917') })).rejects.toThrow('HTTP 503');
-  await expect(contributeLabel({ scanId, capture, state: original })).resolves.toMatchObject({ status: 'private' });
+  await expect(contributeLabel({ scanId, capture, state: original })).resolves.toMatchObject({ status: 'tentative' });
   expect(mockVerify).toHaveBeenCalledTimes(2);
   expect(mockVerify).toHaveBeenLastCalledWith({ scanId, fields: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916' } });
 });
