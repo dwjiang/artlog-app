@@ -34,8 +34,11 @@ export async function runCapture(
         : 'Fit the whole painting in view, including all four corners, and hold steady.',
     };
     const { cropUri } = prepared;
-    const triage = await timed('triage', () => deps.triage.check(cropUri));
-    if (!triage.ok) return { kind: 'retake', reason: triage.reason, message: triage.message, timings };
+    // Label OCR reports readability; pale label backgrounds would trip the artwork glare threshold.
+    if (input.subject !== 'label') {
+      const triage = await timed('triage', () => deps.triage.check(cropUri));
+      if (!triage.ok) return { kind: 'retake', reason: triage.reason, message: triage.message, timings };
+    }
     const presentationReady = Promise.resolve().then(() => deps.onPrepared?.(prepared)).catch(() => {});
     const embedding = await timed('embed', () => deps.embedder.embed(cropUri));
     const features = await timed('orb', () => deps.orb.extract(cropUri));
@@ -49,12 +52,13 @@ export async function runCapture(
       visitId: input.visitId,
       visitLocalId: input.visitLocalId,
       capturedAt: input.capturedAt,
+      ...(input.subject ? { subject: input.subject } : {}),
       photoUri: input.photoUri,
       cropUri,
     };
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
-    const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
+    const identifyNow = input.subject !== 'label' && online && (!payload.visitLocalId || !!payload.visitId);
     await presentationReady;
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     await timed('enqueue', () => deps.store.enqueue(payload, identifyNow ? 'identifying' : 'queued'));

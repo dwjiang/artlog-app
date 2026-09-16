@@ -32,7 +32,7 @@ it('disables invalid details before saving and swaps to the collection link once
   await view.rerender(<SaveBar canSave saving={false} savedId="saved-1" {...handlers} />);
   expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
   expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
-  await fireEvent.press(screen.getByRole('link', { name: 'Saved · View in collection' }));
+  await fireEvent.press(screen.getByRole('link', { name: 'View artwork' }));
   expect(handlers.onViewSaved).toHaveBeenCalledTimes(1);
 });
 

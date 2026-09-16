@@ -11,6 +11,7 @@ import { useLocalOwner } from '@/lib/account/owner-store';
 import { captureFileUri } from '@/lib/files/photos';
 import { GalleryButton } from './gallery-button';
 import { NativeSegmentedPicker } from './native-segmented-picker';
+import { PhotoVisibility } from './photo-visibility';
 
 export function PhotoEditorScreen() {
   const { savedId, photoId } = useLocalSearchParams<{ savedId: string; photoId: string }>();
@@ -29,7 +30,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   };
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 20 }}>
     {photo.path && <Image source={{ uri: captureFileUri(photo.path) }} style={{ width: '100%', height: 320, backgroundColor: Gallery.fill, borderRadius: 12 }} contentFit="contain" accessibilityLabel="Your artwork photo" />}
-    <Text style={{ color: Gallery.muted, fontSize: 11 }}>PHOTO DETAILS · ONLY YOU</Text>
+    <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
     <NativeSegmentedPicker label="Photo type" value={kind} options={[{ value: 'full', label: 'Full view' }, { value: 'detail', label: 'Detail' }, { value: 'label', label: 'Label' }]} onChange={setKind} />
     <TextInput accessibilityLabel="Photo caption" placeholder="What caught your eye?" multiline value={caption} onChangeText={setCaption} maxLength={2000}
       style={{ padding: 16, minHeight: 90, borderRadius: 12, backgroundColor: Gallery.fill, color: Gallery.ink, fontSize: 15 }} />

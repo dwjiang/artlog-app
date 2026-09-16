@@ -394,3 +394,12 @@ it('discards an account response immediately even before effect cleanup stops it
   expect(store.get('old-owner')?.status).toBe('identifying');
   worker.stop();
 });
+
+it('reads a label-first capture even when the image matcher returned a confident guess', async () => {
+  const { deps } = fakeDependencies([pendingScan('label', { labelPhotoPath: 'labels/label.jpg' })]);
+  const flusher = createFlusher({ ...deps, isLabelCapture: () => true });
+  await flusher.start();
+  expect(deps.runLabelFlow).toHaveBeenCalledWith('scan-label', { labelPhotoPath: 'labels/label.jpg', qrUrl: undefined });
+  expect(deps.runLabelFlow.mock.invocationCallOrder[0]).toBeLessThan(deps.clearPendingLabel.mock.invocationCallOrder[0]);
+  flusher.stop();
+});

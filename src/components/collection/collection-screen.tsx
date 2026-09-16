@@ -18,17 +18,16 @@ function OwnedCollection() {
   const [mode, setMode] = useState<'wall' | 'visits'>('wall');
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
-  return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
-    <CollectionHeader />
-    <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
+  const controls = <View style={{ paddingHorizontal: 18, paddingBottom: 12, backgroundColor: Gallery.paper }}>
       <NativeSegmentedPicker label="Collection view" value={mode} onChange={setMode} disabled={editing}
         options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} />
-    </View>
+    </View>;
+  return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'wall' ? 'flex' : 'none' }}>
-      <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} />
+      <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={<CollectionHeader />} controls={controls} />
     </View>
     <View style={{ flex: 1, display: mode === 'visits' ? 'flex' : 'none' }}>
-      <CollectionVisits {...data} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
+      <CollectionVisits {...data} header={<CollectionHeader />} collectionControls={controls} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
     </View>
   </SafeAreaView>;
 }

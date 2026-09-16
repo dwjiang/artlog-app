@@ -1,6 +1,8 @@
 import { WallSheet } from './wall-sheet';
-import { Host, Slider } from '@expo/ui';
-import { accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
+import { Host } from '@expo/ui';
+import { Slider } from '@expo/ui/swift-ui';
+import { accessibilityLabel, disabled as nativeDisabled } from '@expo/ui/swift-ui/modifiers';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Gallery, Spacing } from '@/constants/theme';
@@ -22,34 +24,48 @@ export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: 
   </>;
 }
 
-export function WallArtworkSheet({ piece, editing, color, onChange, onRemove, onDismiss }: {
+function WallSizeSlider({ width, disabled, onChange }: { width: number; disabled: boolean; onChange: (width: number) => void }) {
+  const [value, setValue] = useState(width);
+  const dragging = useRef(false), latest = useRef(width);
+  function commit() { if (!disabled && latest.current !== width) onChange(latest.current); }
+  return <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent} style={{ width: '100%' }}>
+    <Slider value={value} min={0.16} max={0.9} step={0.01}
+      onValueChange={(next) => {
+        if (disabled) return;
+        latest.current = next; setValue(next);
+        // VoiceOver adjustments can change the value without starting a drag.
+        if (!dragging.current) commit();
+      }}
+      onEditingChanged={(editing) => { dragging.current = editing; if (!editing) commit(); }}
+      modifiers={[accessibilityLabel('Artwork size'), nativeDisabled(disabled)]} />
+  </Host>;
+}
+
+export function WallArtworkSheet({ piece, editing, disabled = false, color, onChange, onRemove, onDismiss }: {
   piece: WallPiece; editing: boolean; color: string; onChange: (layout: WallLayout) => void;
-  onRemove: () => void; onDismiss: () => void;
+  onRemove: () => void; onDismiss: () => void; disabled?: boolean;
 }) {
-  const change = (patch: Partial<WallLayout>) => onChange(constrainLayout(piece.layout, patch));
+  const change = (patch: Partial<WallLayout>) => { if (!disabled) onChange(constrainLayout(piece.layout, patch)); };
   return <WallSheet title={editing ? 'Edit artwork' : 'On your wall'} onDismiss={onDismiss} tall>
     <ScrollView contentContainerStyle={{ paddingBottom: Spacing.five }}>
       <WallArtworkSummary piece={piece} color={color} />
       {editing && <>
         <Text style={styles.sectionHeading}>Frame</Text>
-        <WallFramePicker value={piece.layout.frame} onChange={(frame) => change({ frame })} />
+        <WallFramePicker value={piece.layout.frame} disabled={disabled} onChange={(frame) => change({ frame })} />
         <View style={[styles.section, styles.controls]}>
           <Text style={styles.heading}>Size on the wall</Text>
-          <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
-            <Slider value={piece.layout.width} onValueChange={(width) => change({ width })} min={0.16} max={0.9} step={0.01}
-              modifiers={[accessibilityLabel('Artwork size')]} />
-          </Host>
+          <WallSizeSlider key={`${piece.localId}:${piece.layout.width}`} width={piece.layout.width} disabled={disabled} onChange={(width) => change({ width })} />
           <Text style={styles.heading}>Position</Text>
           <View style={styles.directions}>
-            <GalleryButton label="Left" icon="arrow.left" onPress={() => change({ x: piece.layout.x - 0.025 })} />
-            <GalleryButton label="Right" icon="arrow.right" onPress={() => change({ x: piece.layout.x + 0.025 })} />
-            <GalleryButton label="Up" icon="arrow.up" onPress={() => change({ y: piece.layout.y - 0.025 })} />
-            <GalleryButton label="Down" icon="arrow.down" onPress={() => change({ y: piece.layout.y + 0.025 })} />
+            <GalleryButton label="Left" icon="arrow.left" disabled={disabled} onPress={() => change({ x: piece.layout.x - 0.025 })} />
+            <GalleryButton label="Right" icon="arrow.right" disabled={disabled} onPress={() => change({ x: piece.layout.x + 0.025 })} />
+            <GalleryButton label="Up" icon="arrow.up" disabled={disabled} onPress={() => change({ y: piece.layout.y - 0.025 })} />
+            <GalleryButton label="Down" icon="arrow.down" disabled={disabled} onPress={() => change({ y: piece.layout.y + 0.025 })} />
           </View>
           <Text style={styles.caption}>You can also hold and drag the artwork on your wall.</Text>
         </View>
         <View style={[styles.section, styles.removal]}>
-          <GalleryButton label="Take off wall" icon="minus.circle" onPress={onRemove} variant="outlined" fullWidth destructive />
+          <GalleryButton label="Take off wall" icon="minus.circle" disabled={disabled} onPress={onRemove} variant="outlined" fullWidth destructive />
           <Text style={[styles.caption, { textAlign: 'center' }]}>The artwork stays in your collection.</Text>
         </View>
       </>}

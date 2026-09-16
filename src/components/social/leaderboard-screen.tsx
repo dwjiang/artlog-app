@@ -1,45 +1,138 @@
-import { Image } from 'expo-image';
 import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
+import { useLeaderboardChoice, type LeaderboardChoice } from '@/lib/social/use-leaderboard-choice';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
-import { ProfileIdentity } from './visit-card';
+import { LeaderboardFilter } from './leaderboard-filter';
+import { LeaderboardParticipation, PARTICIPATION_LABELS } from './leaderboard-participation';
+import { LeaderboardRules } from './leaderboard-rules';
+import { ProfileAvatar } from './profile-avatar';
 import { SocialGate, SocialState } from './social-state';
+
+type BoardRow = FunctionReturnType<typeof api.leaderboards.list>['rows'][number];
+const viewabilityConfig = { itemVisiblePercentThreshold: 100 };
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
-  const [audience, setAudience] = useState<'friends' | 'global'>('friends');
-  const [metric, setMetric] = useState<'visits' | 'contributions'>('visits');
-  const [period, setPeriod] = useState<'month' | 'all'>('month');
-  const board = useSocialQuery(api.leaderboards.list, session.status === 'ready' ? { audience, metric, period } : 'skip', session.key);
-  const scroll = useRef<ScrollView>(null), ownY = useRef(0);
-  if (session.status !== 'ready') return <SocialGate session={session} />;
-  const mine = board.data?.rows.find((row) => row.profile.profileId === session.profileId);
-  return <View style={{ flex: 1, backgroundColor: Gallery.paper }}><Stack.Screen options={{ title: 'Leaderboards' }} />
-    <ScrollView ref={scroll} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 35 }}>
-      <View style={{ alignItems: 'center', gap: 9, paddingVertical: 14 }}><Image source="sf:trophy" tintColor="#937841" style={{ width: 34, height: 34 }} /><Text style={{ fontFamily: 'Georgia', fontSize: 29, color: Gallery.ink }}>A little more curious.</Text><Text style={{ fontSize: 12, color: Gallery.muted }}>Celebrate time with art.</Text></View>
-      <NativeSegmentedPicker label="Leaderboard audience" value={audience} onChange={setAudience} options={[{ value: 'friends', label: 'Friends' }, { value: 'global', label: 'Global' }]} />
-      <NativeSegmentedPicker label="Leaderboard metric" value={metric} onChange={setMetric} options={[{ value: 'visits', label: 'Museum visits' }, { value: 'contributions', label: 'Contributions' }]} />
-      <NativeSegmentedPicker label="Leaderboard period" value={period} onChange={setPeriod} options={[{ value: 'month', label: 'This month' }, { value: 'all', label: 'All time' }]} />
-      <Text style={{ color: Gallery.muted, fontSize: 11, lineHeight: 17 }}>{metric === 'visits' ? 'One visit per museum, per day. Backdated visits count on the day you went.' : 'Distinct artworks with accepted contributions. Pending and duplicate submissions do not count.'}</Text>
-      {board.data?.rows.map((row) => <View key={row.profile.profileId} onLayout={(event) => { if (row.profile.profileId === session.profileId) ownY.current = event.nativeEvent.layout.y; }}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator, backgroundColor: row.profile.profileId === session.profileId ? Gallery.fill : undefined }}>
-        <Text style={{ width: 26, fontSize: 18, fontFamily: 'Georgia', color: row.rank <= 3 ? '#937841' : Gallery.muted }}>{row.rank}</Text>
-        <View style={{ flex: 1 }}><ProfileIdentity profile={row.profile} /></View><Text style={{ fontSize: 22, color: Gallery.accent, fontVariant: ['tabular-nums'] }}>{row.score}</Text>
-      </View>)}
-      {board.loading && <SocialState title="Opening leaderboard…" loading />}
-      {board.error && <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />}
-      {board.data && !board.data.rows.length && <SocialState title="Room for a curious friend." detail="People who choose to participate will appear here." />}
-      <Text style={{ color: Gallery.muted, fontSize: 11, lineHeight: 17 }}>Only your profile and totals appear. Your private photos, notes, and visit locations stay private.</Text>
-    </ScrollView>
-    <View style={{ padding: 20, paddingBottom: 30, borderTopWidth: 0.5, borderTopColor: Gallery.separator }}>
-      {mine ? <GalleryButton label={`You’re #${mine.rank} · ${mine.score} ${metric} · Jump to you`} fullWidth onPress={() => scroll.current?.scrollTo({ y: ownY.current, animated: true })} />
-        : <GalleryButton label="Choose leaderboard visibility" fullWidth onPress={() => router.push('/settings')} />}
+  const { choice, changeChoice, error: preferenceError } = useLeaderboardChoice();
+  const { audience, metric, period } = choice;
+  const ready = session.status === 'ready';
+  const guest = session.status === 'signed-out' || session.status === 'profile-required';
+  const canBrowse = ready || (audience === 'global' && guest);
+  const board = useSocialQuery(api.leaderboards.list, canBrowse ? choice : 'skip', session.key);
+  const [sheet, setSheet] = useState<'rules' | 'participation'>();
+  const [ownVisible, setOwnVisible] = useState(false);
+  const list = useRef<FlatList<BoardRow>>(null);
+  const { bottom } = useSafeAreaInsets();
+  const rows = board.data?.rows ?? [];
+  const mine = rows.find((row) => row.profile.profileId === session.profileId);
+  const visibility = board.data?.visibility ?? 'off';
+  const unit = metric === 'visits' ? 'visit' : 'contribution';
+  const filter = (update: Partial<LeaderboardChoice>) => {
+    changeChoice(update); setOwnVisible(false); list.current?.scrollToOffset({ offset: 0, animated: false });
+  };
+  const date = new Date();
+  const periodLabel = period === 'month'
+    ? date.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : `Through ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
+  return <View style={styles.root}>
+    <Stack.Screen options={{ title: 'Leaderboards', headerLargeTitle: false }} />
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button icon="info.circle" accessibilityLabel="How rankings work" tintColor={Gallery.muted} hidesSharedBackground onPress={() => setSheet('rules')}>How rankings work</Stack.Toolbar.Button>
+    </Stack.Toolbar>
+    <View style={styles.filters}>
+        <NativeSegmentedPicker label="Leaderboard audience" value={audience} onChange={(value) => filter({ audience: value })}
+          options={[{ value: 'friends', label: 'Friends' }, { value: 'global', label: 'Global' }]} />
+        <View style={styles.filterRow}>
+          <LeaderboardFilter label="Ranking category" value={metric} grow={1.55} onChange={(value) => filter({ metric: value })}
+            options={[{ value: 'visits', label: 'Museum visits' }, { value: 'contributions', label: 'Helpful contributions' }]} />
+          <LeaderboardFilter label="Time period" value={period} onChange={(value) => filter({ period: value })}
+            options={[{ value: 'month', label: 'This month' }, { value: 'all', label: 'All time' }]} />
+        </View>
+        <View style={styles.subline}><Text style={styles.caption}>{periodLabel}</Text></View>
+        <View style={styles.tableHeading} accessibilityElementsHidden>
+          <Text style={[styles.columnLabel, { width: 25 }]}>#</Text>
+          <Text style={[styles.columnLabel, { flex: 1 }]}>{audience === 'friends' ? 'FRIENDS' : 'PEOPLE'}</Text>
+          <Text style={styles.columnLabel}>{metric === 'visits' ? 'LOGGED VISITS' : 'ACCEPTED'}</Text>
+        </View>
     </View>
+    <FlatList ref={list} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}
+      data={rows} keyExtractor={(row) => row.profile.profileId}
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={({ viewableItems }) => setOwnVisible(viewableItems.some(({ item }) => item.profile.profileId === session.profileId))}
+      onScrollToIndexFailed={({ index, averageItemLength }) => list.current?.scrollToOffset({ offset: index * averageItemLength, animated: true })}
+      renderItem={({ item, index }) => {
+        const own = item.profile.profileId === session.profileId;
+        const tied = rows[index - 1]?.rank === item.rank || rows[index + 1]?.rank === item.rank;
+        return <Pressable accessibilityRole="button"
+          accessibilityLabel={`${tied ? 'Tied rank' : 'Rank'} ${item.rank}, ${item.profile.name}${own ? ', you' : ''}, ${item.score} ${unit}${item.score === 1 ? '' : 's'}. Open public profile.`}
+          onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: item.profile.profileId } })}
+          style={[styles.row, own && styles.ownRow]}>
+          <Text style={styles.rank}>{item.rank}</Text>
+          <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={35} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text numberOfLines={1} style={styles.name}>{item.profile.name}{own && <Text style={styles.caption}>  You</Text>}</Text>
+            <Text numberOfLines={1} style={styles.caption}>@{item.profile.username}</Text>
+          </View>
+          <Text style={styles.score}>{item.score}</Text>
+        </Pressable>;
+      }}
+      ListEmptyComponent={!canBrowse ? guest ? <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
+        <SocialState title="Your friends, when you’re ready." detail="A profile is needed to connect with friends. You can browse Global without joining." icon="person.2"
+          action="Browse Global" onAction={() => filter({ audience: 'global' })} />
+        <GalleryButton label={session.status === 'profile-required' ? 'Create your profile' : 'Sign in to connect'}
+          onPress={() => router.push(session.status === 'profile-required' ? '/create-profile' : '/settings')} />
+      </View> : <SocialGate session={session} />
+        : board.loading ? <SocialState title="Opening leaderboard…" loading />
+          : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
+            : <SocialState title={audience === 'friends' ? 'No participating friends yet.' : 'No Global participants yet.'}
+              detail={audience === 'friends' ? 'Only friends who choose to join appear here. Everyone else stays off the board.' : 'People who choose Friends & Global will appear here.'}
+              action={audience === 'friends' ? 'Find people' : undefined} onAction={() => router.push('/people')} />}
+      ListFooterComponent={<View style={styles.explainer}>
+        {preferenceError && <Text accessibilityRole="alert" style={styles.caption}>{preferenceError}</Text>}
+        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day. Not verified attendance.' : 'Distinct identification records accepted in this period. No points for duplicate or pending submissions.'}</Text>
+        <Text style={styles.explanation}>{audience === 'friends' ? 'Only participating friends appear.' : 'Only people who opted into Global appear.'} Equal totals share a rank.</Text>
+        <GalleryButton label="How rankings work" icon="chevron.right" iconPosition="trailing" onPress={() => setSheet('rules')} />
+      </View>} />
+    <View style={[styles.footer, { paddingBottom: Math.max(14, bottom) }]}>
+      {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on the board</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
+        : <Pressable accessibilityRole="button" accessibilityLabel={`Jump to your position, rank ${mine.rank}, ${mine.score} ${unit}${mine.score === 1 ? '' : 's'}`}
+          style={{ flex: 1, flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 44 }}
+          onPress={() => list.current?.scrollToIndex({ index: rows.indexOf(mine), animated: true })}>
+          <Text style={styles.position}>#{mine.rank}</Text><View><Text style={styles.footerTitle}>Your position ↓</Text><Text style={styles.caption}>{mine.score} {unit}{mine.score === 1 ? '' : 's'}</Text></View>
+        </Pressable>
+        : <View style={{ flex: 1 }}><Text style={styles.footerTitle}>{visibility === 'friends' ? 'Friends only' : 'Not participating'}</Text>
+          <Text style={styles.caption}>{visibility === 'friends' ? 'You’re not listed on Global.' : 'Browse without sharing your totals.'}</Text></View>}
+      <GalleryButton label={visibility === 'off' ? 'Join' : 'Manage'} variant="outlined" onPress={() => setSheet('participation')} />
+    </View>
+    {sheet === 'rules' && <LeaderboardRules onDismiss={() => setSheet(undefined)} onParticipation={() => setSheet('participation')} />}
+    {sheet === 'participation' && <LeaderboardParticipation onDismiss={() => setSheet(undefined)} />}
   </View>;
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Gallery.paper },
+  filters: { paddingHorizontal: 18, paddingTop: 10, backgroundColor: Gallery.paper },
+  filterRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
+  subline: { paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
+  caption: { fontSize: 10, lineHeight: 17, color: Gallery.muted },
+  tableHeading: { flexDirection: 'row', gap: 10, paddingTop: 11, paddingBottom: 9, alignItems: 'center' },
+  columnLabel: { fontSize: 9, letterSpacing: 1, color: Gallery.muted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 75, paddingVertical: 12, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
+  ownRow: { backgroundColor: '#E1E7D9', borderRadius: 11, marginHorizontal: 9, paddingHorizontal: 9, marginVertical: 4, borderBottomWidth: 0 },
+  rank: { width: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
+  name: { fontSize: 13, fontWeight: '600', color: Gallery.ink, lineHeight: 18 },
+  score: { fontSize: 21, fontWeight: '500', color: Gallery.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  explainer: { paddingHorizontal: 18, paddingTop: 17, gap: 8 },
+  explanation: { color: Gallery.muted, fontSize: 11, lineHeight: 18 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  footerTitle: { color: Gallery.ink, fontSize: 12, fontWeight: '500', lineHeight: 19 },
+  position: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: '#E2E8DA', color: '#4B613F', borderRadius: 8, fontSize: 12, fontVariant: ['tabular-nums'] },
+});

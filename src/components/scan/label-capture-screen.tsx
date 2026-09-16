@@ -14,6 +14,10 @@ import { useLocalOwner } from '@/lib/account/owner-store';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFieldName, LabelFlowDisplay } from '../../../convex/lib/validators';
 
+import { isLabelCapture } from '@/lib/capture/photo-draft';
+import type { CaptureCompletion } from '@/lib/capture/completion';
+import { CapturePhotosButton } from './capture-photos-button';
+import { CaptureContextButton } from './capture-context-button';
 import { CameraPermission } from './camera-permission';
 import { ConsentSheet } from './label/consent-sheet';
 import { LabelActions } from './label/label-actions';
@@ -38,13 +42,14 @@ import { useLabelCapture } from '@/lib/label/use-label-capture';
 import { useLabelForm } from '@/lib/label/use-label-form';
 import { isTransientError } from '@/lib/network-error';
 import { discardPendingLabel, flushQueue, retryPendingLabel } from '@/lib/queue/queue';
-import { saveResult } from '@/lib/result/save';
+import { saveErrorMessage, saveResult } from '@/lib/result/save';
 import type { ResultViewState } from '@/lib/result/state';
 import { useScan } from '@/lib/result/use-scan';
 
 export const LABEL_PROMPT = 'Not in our index yet — point at the label';
 export const QR_FOUND = 'Found a QR code';
 export const QUEUED_MESSAGE = 'Saved — we’ll finish this when you’re back online';
+export const QUEUED_ONLINE_MESSAGE = 'Saved — we’ll finish this label shortly';
 const MISSING_CAPTURE = 'Your photo of this scan isn’t on this phone, so the label can’t be kept with it.';
 // Label saves never count as confirms of a match: the view carries no primary work, so `suggested` is null.
 const LABEL_VIEW: ResultViewState = { kind: 'unidentified', runnerUps: [], editable: true };
@@ -82,8 +87,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'capture', restore: intent !== 'capture' });
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
+  const labelOnly = !!capture && isLabelCapture(capture);
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string>();
+  const [completion, setCompletion] = useState<CaptureCompletion>();
   const [saveError, setSaveError] = useState<string>();
   const [consentOpen, setConsentOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -231,15 +238,16 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     setSaving(true);
     setSaveError(undefined);
     try {
-      const { localId: saved } = await saveResult({
+      const { localId: saved, completion } = await saveResult({
         scanId: remoteScanId, capture, view: LABEL_VIEW,
         draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' },
       });
       setSavedId(saved);
+      setCompletion(completion);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (error) {
       console.warn('Could not save the work', error);
-      setSaveError('Couldn’t save. Try again.');
+      setSaveError(saveErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -247,7 +255,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   async function share() {
     setConsentOpen(false);
-    if (!form || !remoteScanId || phase.kind !== 'review') return;
+    if (!form || !remoteScanId || phase.kind !== 'review' || labelOnly) return;
     if (!capture) {
       setShareError('Your photo of this scan isn’t on this phone, so it can’t be shared.');
       return;
@@ -317,7 +325,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       );
     }
     return (
-      <StateCard title={QUEUED_MESSAGE} detail="Your scan and this label are queued together; we’ll identify and read them in order.">
+      <StateCard title={network.isInternetReachable === false ? QUEUED_MESSAGE : QUEUED_ONLINE_MESSAGE} detail="Your scan and this label are queued together; we’ll identify and read them in order.">
         <Host matchContents colorScheme="light">
           <Button label="Back to the scan" onPress={() => router.back()} />
         </Host>
@@ -358,12 +366,18 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           <ThemedText type="subtitle">From the label</ThemedText>
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
           <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} onUnlock={onUnlock} />
+          {capture && !savedId && <>
+            <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />
+            <CapturePhotosButton disabled={saving} input={{ scanId: remoteScanId, capture, view: LABEL_VIEW, draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' } }} />
+          </>}
           <LabelActions
+            allowContribution={!labelOnly}
             canSave={canSaveLabel(form)}
             canShare={canShareLabel(form)}
             saving={saving}
             sharing={sharing}
             savedId={savedId}
+            completion={completion}
             shared={shared}
             saveError={saveError}
             shareError={shareError}
@@ -399,6 +413,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           {LABEL_PROMPT}
         </OverlayCaption>
         <View style={styles.bottom}>
+          {capture && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={busy} />}
           {cameraError ? <OverlayCaption>{cameraError}</OverlayCaption> : busy ? <OverlayCaption>Keeping the label…</OverlayCaption> : null}
           <View style={styles.controls}>
             <GlassSurface isInteractive style={styles.importButton}>

@@ -4,10 +4,12 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
+import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
-import { CapturePhotosButton } from './capture-photos-button';
+import { CaptureCompletion } from './capture-completion';
+import { CaptureContextButton } from './capture-context-button';
 import { CardHeader } from './result/card-header';
 import { FailedCard } from './states/failed-card';
 import { SaveAnywayForm } from './states/save-anyway-form';
@@ -29,15 +31,17 @@ export function LocalScanScreen({ localId }: { localId: string }) {
   const isActive = useScreenActive();
   const { data, updatedAt } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   const row = data.find((row) => row.owner === owner);
+  const labelCapture = !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
   const scanId = pending ? undefined : row?.scanId;
-  const { saving, savedId, error: saveError, save } = useSaveResult();
+  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
   const [hasDraft, setHasDraft] = useState(false);
   const keepForm = hasDraft || saving || !!savedId;
 
   useEffect(() => {
+    if (isActive && labelCapture) { router.replace({ pathname: '/label/[scanId]', params: { scanId: `local-${localId}` } }); return; }
     if (isActive && scanId && !keepForm) router.replace({ pathname: '/result/[scanId]', params: { scanId } });
-  }, [isActive, router, scanId, keepForm]);
+  }, [isActive, router, scanId, keepForm, labelCapture, localId]);
 
   function openResult() {
     if (!scanId || saving) return;
@@ -62,10 +66,14 @@ export function LocalScanScreen({ localId }: { localId: string }) {
 
   const saveProps = {
     saving, savedId, saveError,
+    captureInput: row ? { scanId: row.scanId ?? undefined, capture: row } : undefined,
     onSave: (draft: Parameters<typeof save>[0]['draft']) => { void save({ scanId: row?.scanId ?? undefined, capture: row, draft }); },
     onViewSaved: () => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } }),
     onDraftChange: setHasDraft,
   };
+
+  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (completion) return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
 
   return (
     <ThemedView style={styles.container}>
@@ -76,7 +84,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         contentContainerStyle={styles.content}
       >
         <CardHeader cropUri={row ? captureFileUri(row.cropPath) : undefined} inputSize={model.inputSize} kind={row?.status === 'failed' ? 'failed' : 'loading'} />
-        {row && !savedId && <CapturePhotosButton path={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
+        {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
         {!updatedAt ? null
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText></View>
           : scanId ? keepForm && (

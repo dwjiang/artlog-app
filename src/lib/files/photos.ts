@@ -46,3 +46,12 @@ export function deleteCapture(paths: CapturePaths): void {
     if (file.exists) file.delete();
   }
 }
+
+/** The label worker removes its source after reading, so it needs its own copy. */
+export function copyCaptureLabel(photoPath: string, localId: string): string {
+  const directory = new Directory(Paths.document, 'labels');
+  directory.create({ intermediates: true, idempotent: true });
+  const filename = `${localId}-${randomUUID()}.jpg`;
+  new File(captureFileUri(photoPath)).copy(new File(directory, filename));
+  return `labels/${filename}`;
+}

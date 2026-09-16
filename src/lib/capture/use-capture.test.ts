@@ -279,3 +279,11 @@ it('keeps the artwork visible through the native result fade and releases it at 
   await hook.rerender({ active: true, focused: true });
   expect(hook.result.current.state.phase).toBe('searching');
 });
+
+it('opens label verification directly after a label capture without waiting for an artwork reveal', async () => {
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.captureManually(async () => ({ filePath: '/label.jpg' }), 'label'); });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ subject: 'label', photoUri: 'file:///label.jpg' });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: 'scan-id', entrance: 'capture', intent: 'review' } });
+  expect(hook.result.current.presentation).toBeUndefined();
+});

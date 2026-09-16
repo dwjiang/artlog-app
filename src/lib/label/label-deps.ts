@@ -2,6 +2,7 @@ import type { FunctionArgs } from 'convex/server';
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { captureOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
@@ -82,6 +83,6 @@ export async function runLabelFlowForScan(
       verifyLabel: (args) => guard(() => labelApi.verifyLabel(args)),
     }, onStage,
     encodePhoto: async (uri) => (await prepareLabelPhoto(uri)).base64,
-    checkImages: capture ? imageCheckFor(capture) : undefined,
+    checkImages: capture && !isLabelCapture(capture) ? imageCheckFor(capture) : undefined,
   });
 }

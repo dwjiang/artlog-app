@@ -1,3 +1,5 @@
+import type { CaptureCompletion } from '../capture/completion';
+import { formatVisitDate } from '../journal/history';
 import { randomUUID } from 'expo-crypto';
 
 import { captureOwner } from '@/lib/account/owner-store';
@@ -6,7 +8,7 @@ import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { getSavedWork, listSavedWorks, markSynced } from '@/db/repos/saved-works';
 import { findArtworkPhoto, saveArtworkSession, selectArtworkPhotos } from '@/db/repos/artwork-album';
-import { clearPhotoDraft, readPhotoDraft } from '../capture/photo-draft';
+import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from '../capture/photo-draft';
 import { requestCollectionSync } from '@/lib/account/sync-events';
 import { getVisit } from '@/db/repos/visits';
 import type { PendingScan } from '@/db/schema';
@@ -26,9 +28,16 @@ export type SaveResultInput = {
 
 export type SaveResultOutcome = {
   localId: string;
+  completion: CaptureCompletion;
   /** Failed uploads stay queued for collection sync; the local save remains usable. */
   synced: Promise<void>;
 };
+
+const ACTIONABLE = new Set(['Review your added photos before saving.', 'Choose an available visit before saving.']);
+/** Failures the person can resolve keep their message; anything else is a retry prompt. */
+export function saveErrorMessage(cause: unknown): string {
+  return cause instanceof Error && ACTIONABLE.has(cause.message) ? cause.message : 'Couldn’t save. Try again.';
+}
 
 /** Saves locally first, then mirrors the row to the collection on the server. */
 export async function saveResult({ scanId, capture, view, draft }: SaveResultInput): Promise<SaveResultOutcome> {
@@ -36,7 +45,18 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   if (capture.owner !== current.owner) throw new Error('Journal owner changed');
   const { snapshot, suggested } = buildSnapshot(draft, view);
   if (!snapshot.title) snapshot.title = 'Unidentified artwork';
-  const visit = capture.visitLocalId ? await getVisit(capture.visitLocalId, current.owner) : undefined;
+  const session = readPhotoSession(current.owner, capture.photoPath);
+  const visitId = session.visitLocalId === undefined ? capture.visitLocalId : session.visitLocalId;
+  const visit = visitId ? await getVisit(visitId, current.owner) : undefined;
+  let contextChanged = false;
+  if (session.visitLocalId !== undefined) {
+    if (visitId && !visit) throw new Error('Choose an available visit before saving.');
+    const chosen = { visitLocalId: visit?.localId ?? null, visitId: visit?.remoteVisitId ?? null, venueId: visit?.venueId ?? null };
+    // The scan was identified with the capture's venue and visit; the server refuses to confirm it under a different context.
+    contextChanged = (chosen.visitLocalId ?? undefined) !== (capture.visitLocalId ?? undefined) || (chosen.venueId ?? undefined) !== (capture.venueId ?? undefined);
+    capture = { ...capture, ...chosen };
+  }
+  const confirmationScanId = contextChanged ? undefined : scanId;
   if (capture.visitLocalId != null && (!visit || visit.venueId !== capture.venueId) ||
     capture.visitId != null && (!visit || visit.remoteVisitId !== capture.visitId)) {
     throw new Error('The capture is linked to an invalid visit');
@@ -57,7 +77,7 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
   const photos = selectArtworkPhotos(localId, current.owner).all();
   const additional = readPhotoDraft(current.owner, capture.photoPath).map((photo) => ({ ...photo, savedLocalId: localId, visitLocalId: visit?.localId }));
   if (!photos.some((photo) => photo.path === capture.photoPath)) additional.unshift({ localId: captured ? randomUUID() : capture.localId, savedLocalId: localId,
-    path: capture.photoPath, kind: 'full', capturedAt: capture.capturedAt, visitLocalId: visit?.localId });
+    path: capture.photoPath, kind: session.primaryKind ?? captured?.kind ?? 'full', capturedAt: capture.capturedAt, visitLocalId: visit?.localId });
   saveArtworkSession(localId, existing ? undefined : { localId, savedAt, ...snapshot,
     visitLocalId: visit?.localId, venueId, venueName, gallery: primary?.gallery,
     objectId: primary?.objectId, artworkId: primary?.artworkId, scanId,
@@ -70,10 +90,11 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
     if (!current.isCurrent()) return;
     if (existing) return;
     const acknowledgement = await convex.mutation(api.collections.saveToCollection, {
-    localId, scanId, objectId: primary?.objectId, artworkId: primary?.artworkId, venueId, visitLocalId: visit?.localId, scope: current.scope,
-    gallery: primary?.gallery, snapshot, suggested, savedAt, venueName,
+    localId, scanId: confirmationScanId, objectId: primary?.objectId, artworkId: primary?.artworkId, venueId, visitLocalId: visit?.localId, scope: current.scope,
+    gallery: primary?.gallery, snapshot, suggested: contextChanged ? null : suggested, savedAt, venueName,
     });
     if (current.isCurrent()) await markSynced([{ ...acknowledgement, localId, revision: 0 }], current.owner);
   })().catch((error: unknown) => { console.warn('Could not sync the saved work; it stays on the phone', error); }).finally(requestCollectionSync);
-  return { localId, synced };
+  return { localId, synced, completion: { savedId: localId, title: existing?.title ?? snapshot.title, wasExisting: !!existing,
+    photoPaths: additional.map((photo) => photo.path), visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : 'No visit · Collection only' } };
 }

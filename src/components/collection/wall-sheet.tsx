@@ -4,8 +4,8 @@ import { Text, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from './gallery-button';
 
-export function WallSheet({ title, children, onDismiss, tall = false }: {
-  title: string; children: ReactNode; onDismiss: () => void; tall?: boolean;
+export function WallSheet({ title, children, onDismiss, tall = false, dismissLabel = 'Done' }: {
+  title: string; children: ReactNode; onDismiss: () => void; tall?: boolean; dismissLabel?: string;
 }) {
   return <BottomSheet isPresented onDismiss={onDismiss} snapPoints={tall ? ['full'] : [{ height: 300 }, 'full']}
     contentPadding={0} containerColor={Gallery.paper}>
@@ -14,7 +14,7 @@ export function WallSheet({ title, children, onDismiss, tall = false }: {
       <View style={{ flex: 1 }}>
         <View style={styles.sheetHeader}>
           <Text accessibilityRole="header" style={styles.sheetTitle}>{title}</Text>
-          <GalleryButton label="Done" onPress={onDismiss} />
+          <GalleryButton label={dismissLabel} onPress={onDismiss} />
         </View>
         {children}
       </View>

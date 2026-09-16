@@ -5,12 +5,16 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
 import { LocalScanScreen } from './local-scan-screen';
+import { CaptureCompletion } from './capture-completion';
+import { CaptureContextButton } from './capture-context-button';
+import type { SaveResultInput } from '@/lib/result/save';
 import { CapturePhotosButton } from './capture-photos-button';
 import { CardHeader } from './result/card-header';
 import { DocentSection } from './result/docent-section';
@@ -60,15 +64,20 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const { data: captures } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
   const capture = captures.find((row) => row.owner === owner);
   const captureStatus = capture?.status;
+  const labelCapture = !!capture && isLabelCapture(capture);
   const [selection, setSelection] = useState<ResultSelection>({});
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
-  const { saving, savedId, error: saveError, save } = useSaveResult();
+  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
   // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view = toResultViewState(scan, selection);
   const showMuseumSearch = !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
   const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch);
+
+  useEffect(() => {
+    if (isActive && labelCapture) router.replace({ pathname: '/label/[scanId]', params: { scanId } });
+  }, [isActive, labelCapture, router, scanId]);
 
   useEffect(() => {
     if (isActive && view.editable && captureStatus === 'identified') {
@@ -113,9 +122,13 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
 
   const saveProps = {
     saving, savedId, saveError,
+    captureInput: capture ? { scanId, capture, view } : undefined,
     onSave: (draft: SnapshotDraft) => { void save({ scanId, capture, view, draft }); },
     onViewSaved: () => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } }),
   };
+
+  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (completion) return <CaptureCompletion completion={completion} />;
 
   return (
     <ThemedView style={styles.container}>
@@ -131,7 +144,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
           inputSize={model.inputSize}
           kind={view.kind}
         />
-        {capture && !savedId && <CapturePhotosButton objectId={view.kind === 'confident' ? view.primary?.objectId : undefined} path={capture.photoPath} title={view.primary?.title} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
+        {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
         {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
         {view.kind === 'failed' && <FailedCard error={view.error} />}
@@ -165,6 +178,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
 }
 
 type ResultCardProps = {
+  captureInput?: Omit<SaveResultInput, 'draft'>;
   view: ResultViewState;
   saving: boolean;
   savedId?: string;
@@ -177,7 +191,7 @@ type ResultCardProps = {
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
-function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
+function ResultCard({ captureInput, view, saving, savedId, saveError, onNotRight, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
@@ -199,6 +213,7 @@ function ResultCard({ view, saving, savedId, saveError, onNotRight, onPick, onEd
           <RunnerUps candidates={suggestions} onPick={onPick} />
         </View>
       )}
+      {captureInput && editable && <CapturePhotosButton input={{ ...captureInput, draft }} disabled={saving} />}
       <SaveBar
         canSave={canSave(draft)}
         saving={saving}

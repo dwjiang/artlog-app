@@ -3,7 +3,7 @@ import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import type { ReactElement } from 'react';
 import { Link } from 'expo-router';
-import { Pressable, SectionList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { countryName, formatVisitDate, groupHistoryByMonth } from '@/lib/journal/history';
@@ -34,8 +34,8 @@ export function VisitRow({ visit, shared = false }: { visit: VisitSummary; share
     </Pressable>
   </Link>;
 }
-export function VisitTimeline({ visits, header, empty, groupByMuseum = false }: {
-  visits: VisitSummary[]; header?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean;
+export function VisitTimeline({ visits, header, controls, summary, empty, groupByMuseum = false }: {
+  visits: VisitSummary[]; header?: ReactElement; controls?: ReactElement; summary?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean;
 }) {
   const session = useSocialSession();
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === 'ready' ? {} : 'skip', session.key);
@@ -44,12 +44,21 @@ export function VisitTimeline({ visits, header, empty, groupByMuseum = false }: 
     const data = visits.filter((visit) => visit.venueId === id);
     return { key: id, title: data[0].venueName, data };
   }) : groupHistoryByMonth(visits);
-  return <SectionList sections={sections} keyExtractor={(visit) => visit.localId} contentInsetAdjustmentBehavior="automatic"
-    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" ListHeaderComponent={header} ListEmptyComponent={empty}
-    contentContainerStyle={{ paddingBottom: 30 }} ListFooterComponent={<VisitPrivacyNote />}
-    stickySectionHeadersEnabled={false}
-    renderSectionHeader={({ section }) => <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{section.title}</Text>}
-    renderItem={({ item }) => <VisitRow visit={item} shared={shared.has(item.localId)} />} />;
+  type Row = { key: string; kind: 'element'; element: ReactElement } | { key: string; kind: 'month'; title: string } | { key: string; kind: 'visit'; visit: VisitSummary };
+  const rows: Row[] = [];
+  if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
+  if (summary) rows.push({ key: 'summary', kind: 'element', element: summary });
+  for (const section of sections) {
+    rows.push({ key: `month:${section.key}`, kind: 'month', title: section.title });
+    for (const visit of section.data) rows.push({ key: visit.localId, kind: 'visit', visit });
+  }
+  return <FlatList data={rows} keyExtractor={(row) => row.key} contentInsetAdjustmentBehavior="automatic"
+    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" ListHeaderComponent={header}
+    stickyHeaderIndices={controls ? [header ? 1 : 0] : undefined}
+    contentContainerStyle={{ paddingBottom: 30 }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
+    renderItem={({ item }) => item.kind === 'element' ? item.element : item.kind === 'month'
+      ? <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{item.title}</Text>
+      : <VisitRow visit={item.visit} shared={shared.has(item.visit.localId)} />} />;
 }
 const styles = StyleSheet.create({
   visit: { paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(38,35,32,0.09)' },

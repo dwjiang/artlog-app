@@ -99,6 +99,7 @@ import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as museumSearch from "../museumSearch.js";
 import type * as museums from "../museums.js";
 import type * as orbFiles from "../orbFiles.js";
+import type * as photoVisibility from "../photoVisibility.js";
 import type * as placements from "../placements.js";
 import type * as profilePhotoData from "../profilePhotoData.js";
 import type * as profilePhotos from "../profilePhotos.js";
@@ -215,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   museumSearch: typeof museumSearch;
   museums: typeof museums;
   orbFiles: typeof orbFiles;
+  photoVisibility: typeof photoVisibility;
   placements: typeof placements;
   profilePhotoData: typeof profilePhotoData;
   profilePhotos: typeof profilePhotos;

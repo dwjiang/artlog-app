@@ -1,10 +1,11 @@
 import { checkAlbumPhoto } from '@/lib/capture/check-album-photo';
 import { getSavedWork, listSavedWorks } from '@/db/repos/saved-works';
+import { getPendingScan } from '@/db/repos/pending-scans';
 import { getVisit } from '@/db/repos/visits';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,11 +13,16 @@ import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 import { Gallery } from '@/constants/theme';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { extractCaptureMeta } from '@/lib/capture/exif';
-import { clearPhotoDraft, readPhotoDraft, writePhotoDraft, type DraftPhoto } from '@/lib/capture/photo-draft';
+import { clearPhotoDraft, readPhotoDraft, readPhotoSession, writePhotoDraft, type DraftPhoto } from '@/lib/capture/photo-draft';
 import { captureFileUri, persistArtworkPhoto } from '@/lib/files/photos';
 import { removePhotoFile } from '@/lib/account/photo-transfer';
 import { saveArtworkSession } from '@/db/repos/artwork-album';
 import type { PhotoKind } from '@/shared/collection/album';
+import { CaptureContextButton } from './capture-context-button';
+import { CaptureCompletion } from './capture-completion';
+import type { CaptureCompletion as Completion } from '@/lib/capture/completion';
+import { formatVisitDate } from '@/lib/journal/history';
+import { saveResult } from '@/lib/result/save';
 import { CameraPermission } from './camera-permission';
 import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
@@ -30,6 +36,7 @@ export function AddPhotosScreen() {
 }
 function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { draftId: string; title?: string; savedId?: string; visitId?: string; objectId?: string; owner: string }) {
   const [photos, setPhotos] = useState(() => readPhotoDraft(owner, draftId));
+  const [completion, setCompletion] = useState<Completion>();
   const [kind, setKind] = useState<PhotoKind>('detail');
   const [selected, setSelected] = useState<string | undefined>(() => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? '');
   const [removed, setRemoved] = useState<DraftPhoto>();
@@ -83,15 +90,36 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     } catch { setError('Could not add this photo. Try again.'); }
     finally { busyRef.current = false; setBusy(false); }
   }
-  function done() {
+  function sessionVisitId() {
+    const chosen = readPhotoSession(owner, draftId).visitLocalId;
+    return chosen === undefined ? visitId : chosen ?? undefined;
+  }
+  async function done() {
+    if (busyRef.current || completion) return;
     if (photos.some((photo) => photo.review)) { setError('Review the unconfirmed photos before saving.'); return; }
+    busyRef.current = true; setBusy(true); setError(undefined);
+    const session = captureOwner();
     try {
       if (savedId) {
-        saveArtworkSession(savedId, undefined, photos.map((photo) => ({ ...photo, savedLocalId: savedId, visitLocalId: visitId })), visitId, owner);
+        if (!photos.length) return;
+        const selectedVisitId = sessionVisitId();
+        const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
+        if (selectedVisitId && !visit) throw new Error('Visit unavailable');
+        if (!session.isOwnerCurrent()) return;
+        saveArtworkSession(savedId, undefined, photos.map((photo) => ({ ...photo, savedLocalId: savedId, visitLocalId: selectedVisitId })), selectedVisitId, owner);
         clearPhotoDraft(owner, draftId);
+        setCompletion({ savedId, title: title || 'Unidentified artwork', wasExisting: true, photoPaths: photos.map((photo) => photo.path),
+          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : 'No visit · Collection only' });
+      } else {
+        const input = readPhotoSession(owner, draftId).saveInput;
+        if (!input) throw new Error('Capture unavailable');
+        const capture = await getPendingScan(input.capture.localId, owner);
+        if (!capture || !session.isOwnerCurrent()) throw new Error('Capture unavailable');
+        const result = await saveResult({ ...input, capture });
+        if (session.isOwnerCurrent()) setCompletion(result.completion);
       }
-      router.back();
     } catch { setError('Could not save the photos. Your draft is still here.'); }
+    finally { busyRef.current = false; setBusy(false); }
   }
   async function saveSeparately(photo: DraftPhoto) {
     if (busyRef.current) return;
@@ -99,7 +127,9 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     const session = captureOwner(); setBusy(true);
     try {
       const existing = photo.recognized ? (await listSavedWorks(owner)).find((work) => work.objectId === photo.recognized!.objectId) : undefined;
-      const visit = visitId ? await getVisit(visitId, owner) : undefined;
+      const selectedVisitId = sessionVisitId();
+      const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
+      if (selectedVisitId && !visit) throw new Error('Visit unavailable');
       if (!session.isOwnerCurrent()) return;
       const id = existing?.localId ?? randomUUID();
       saveArtworkSession(id, existing ? undefined : { localId: id, title: photo.recognized?.title ?? 'Unidentified artwork', artist: photo.recognized?.artist ?? '',
@@ -108,10 +138,13 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
       update(photos.filter((row) => row.localId !== photo.localId)); setSelected(undefined);
     } catch { setError('Could not save this photo separately. Your draft is still here.'); } finally { busyRef.current = false; setBusy(false); }
   }
-  return <View style={styles.page}>
+  if (completion) return <CaptureCompletion completion={completion} />;
+  const photoCount = photos.length + (savedId ? 0 : 1);
+  return <ScrollView style={styles.screen} contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
     <Stack.Screen options={{ title: 'Add photos' }} />
     <View style={styles.target}><Text style={styles.eyebrow}>ADDING PHOTOS TO</Text><Text numberOfLines={2} style={styles.title}>{title || 'Unidentified artwork'}</Text>
       <Text style={styles.hint}>Full views, details, and labels stay together.</Text></View>
+    <CaptureContextButton draftId={draftId} visitId={visitId} disabled={busy} />
     <View style={styles.camera}>
       {currentPhoto ? <Image source={{ uri: captureFileUri(currentPhoto.path) }} style={StyleSheet.absoluteFill} contentFit="contain" /> : <CameraPermission>
         <Camera style={StyleSheet.absoluteFill} device="back" outputs={[output]} isActive={active} resizeMode="cover" orientationSource="interface"
@@ -149,12 +182,13 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     </ScrollView>
     {removed && <GalleryButton label="Photo removed · Undo" disabled={busy} onPress={() => { update([...photos, removed]); setRemoved(undefined); }} />}
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
-    <GalleryButton label={savedId ? `Save ${photos.length} photos` : 'Done adding photos'} variant="filled" fullWidth disabled={busy || photos.some((photo) => !!photo.review)} onPress={done} />
+    <GalleryButton label={busy ? 'Saving…' : `Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
     <Text style={[styles.hint, { textAlign: 'center' }]}>Only you can see these photos.</Text>
-  </View>;
+  </ScrollView>;
 }
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: Gallery.paper, padding: 20, paddingBottom: 30, gap: 12 },
+  screen: { flex: 1, backgroundColor: Gallery.paper },
+  page: { flexGrow: 1, padding: 20, paddingBottom: 30, gap: 12 },
   target: { backgroundColor: '#E2E7DD', padding: 14, borderRadius: 14, gap: 5 },
   eyebrow: { color: Gallery.accent, fontSize: 10, letterSpacing: 1.2, fontWeight: '600' },
   title: { color: Gallery.ink, fontSize: 20, fontFamily: 'Georgia', fontStyle: 'italic' },

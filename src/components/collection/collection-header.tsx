@@ -14,16 +14,17 @@ export function CollectionHeader() {
   const { data: profile } = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const friends = useSocialQuery(api.profiles.friends, session.status === 'ready' ? {} : 'skip', session.key);
   const edit = () => router.push(profile ? '/edit-profile' : session.status === 'profile-required' ? '/create-profile' : '/settings');
-  return <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, gap: 13, backgroundColor: Gallery.paper }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit}><ProfileAvatar name={profile?.name ?? 'Your collection'} photoUrl={profile?.photoUrl} size={52} /></Pressable>
-      <Text numberOfLines={1} style={{ flex: 1, fontSize: 25, fontWeight: '600', letterSpacing: -0.65, color: Gallery.ink }}>{profile?.name ?? 'Your collection'}</Text>
-      <GalleryIconButton label="Edit profile" icon="pencil" onPress={edit} />
+  return <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 14, backgroundColor: Gallery.paper }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 }}>
+        <ProfileAvatar name={profile?.name ?? 'Your collection'} photoUrl={profile?.photoUrl} size={40} />
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 24, lineHeight: 30, fontWeight: '600', letterSpacing: -0.65, color: Gallery.ink }}>{profile?.name ?? 'Your collection'}</Text>
+      </Pressable>
       <GalleryIconButton label="Share your profile" icon="square.and.arrow.up" onPress={() => profile ? router.push({ pathname: '/share-profile', params: { profileId: profile.profileId } }) : edit()} />
       <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push('/settings')} />
     </View>
-    {profile && <Pressable accessibilityRole="button" accessibilityLabel={`${friends.data?.length ?? 0} friends`} onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })}>
-      <Text style={{ color: Gallery.muted, fontSize: 12 }}>@{profile.username} · <Text style={{ color: Gallery.accent }}>{friends.data?.length ?? 0} friends</Text></Text>
+    {profile && <Pressable accessibilityRole="button" accessibilityLabel={friends.data?.length ? `${friends.data.length} friends` : 'Find friends'} onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })} style={{ minHeight: 44, justifyContent: 'center' }}>
+      <Text style={{ color: Gallery.muted, fontSize: 12 }}>@{profile.username} · <Text style={{ color: Gallery.ink, fontWeight: '500' }}>{friends.data?.length ? `${friends.data.length} friends` : 'Find friends'} ›</Text></Text>
     </Pressable>}
     <ProfileBio text={profile?.bio} />
   </View>;

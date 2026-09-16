@@ -4,6 +4,7 @@ import { File, UploadType } from 'expo-file-system';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { contributionPayload } from '../../../shared/attestation/attested-payloads';
+import { isLabelCapture } from '@/lib/capture/photo-draft';
 import type { PendingScan } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { convex } from '@/lib/convex-client';
@@ -19,7 +20,7 @@ export type ContributionOutcome = FunctionReturnType<typeof api.contributions.co
 
 export type ContributeInput = {
   scanId: Id<'scans'>;
-  capture: Pick<PendingScan, 'cropPath' | 'descriptors' | 'keypoints'>;
+  capture: Pick<PendingScan, 'localId' | 'owner' | 'photoPath' | 'cropPath' | 'descriptors' | 'keypoints'>;
   state: LabelFormState;
   museumSearchUpdatedAt?: number;
 };
@@ -35,6 +36,7 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<'_s
 
 /** The fingerprint, the label fields and the consented crop leave the phone; the full photo never does. */
 export async function contributeLabel({ scanId, capture, state, museumSearchUpdatedAt }: ContributeInput): Promise<ContributionOutcome> {
+  if (isLabelCapture(capture)) throw new Error('An artwork photo is required to contribute to the shared index');
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error('A title and an artist are required to share');
   await saveLabelDraft(scanId, state, museumSearchUpdatedAt);

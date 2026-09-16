@@ -37,8 +37,8 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('./collection-wall', () => {
-  const { Text } = jest.requireActual('react-native');
-  return { CollectionWall: () => <Text>Collection wall</Text> };
+  const { Text, View } = jest.requireActual('react-native');
+  return { CollectionWall: ({ header, controls }: { header: ReactNode; controls: ReactNode }) => <View>{header}{controls}<Text>Collection wall</Text></View> };
 });
 async function renderArchive() { await render(<AllArtworksScreen />); }
 
