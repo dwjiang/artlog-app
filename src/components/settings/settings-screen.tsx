@@ -1,3 +1,6 @@
+import { router } from 'expo-router';
+import { VisitPreference } from './visit-preference';
+import { GalleryButton } from '../collection/gallery-button';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -21,10 +24,11 @@ export function SettingsScreen() {
   const contributions = useQuery(api.contributions.mine, ready ? {} : 'skip');
   const [contributionsOpen, setContributionsOpen] = useState(false);
 
-  return <><ScrollView style={{ flex: 1, backgroundColor: Colors.light.backgroundElement }}
+  return <><ScrollView style={{ flex: 1, backgroundColor: Colors.light.background }}
     contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: Spacing.three, gap: Spacing.four }}>
-    <SettingsGroup title="Sharing"><SharingSection contributions={contributions} onOpenContributions={() => setContributionsOpen(true)} /></SettingsGroup>
     <SettingsGroup title="Account"><AccountSection /></SettingsGroup>
+    <SettingsGroup title="Preferences"><VisitPreference /><GalleryButton label="Public notes" icon="note.text" onPress={() => router.push('/public-notes')} /></SettingsGroup>
+    <SettingsGroup title="Sharing"><SharingSection contributions={contributions} onOpenContributions={() => setContributionsOpen(true)} /></SettingsGroup>
     <SettingsGroup title="Export"><ExportSection /></SettingsGroup>
     <SettingsGroup title="Privacy"><PrivacySection /></SettingsGroup>
     <SettingsGroup title="About"><AboutSection /></SettingsGroup>

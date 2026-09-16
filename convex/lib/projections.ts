@@ -1,10 +1,12 @@
 import type { Infer } from 'convex/values';
 import { displayMedia, publicArtwork, publicProfile, displayMediaContext, validateMedia } from '../../shared/social/contracts';
+import type { QueryCtx } from '../_generated/server';
 import type { Doc } from '../_generated/dataModel';
 
-export function projectProfile(profile: Doc<'profiles'>): Infer<typeof publicProfile> {
+export async function projectProfile(ctx: QueryCtx, profile: Doc<'profiles'>): Promise<Infer<typeof publicProfile>> {
+  const photoUrl = profile.photoStorageId ? await ctx.storage.getUrl(profile.photoStorageId) : null;
   return { profileId: profile._id, username: profile.username, name: profile.name,
-    ...(profile.bio ? { bio: profile.bio } : {}), publishedWallCount: profile.publishedWallCount };
+    ...(profile.bio ? { bio: profile.bio } : {}), ...(photoUrl ? { photoUrl } : {}), publishedWallCount: profile.publishedWallCount };
 }
 export function projectArtwork(save: Pick<Doc<'collections'>, '_id' | 'snapshot'>, asset?: Doc<'mediaAssets'> | null, reference?: Infer<typeof displayMediaContext>): Infer<typeof publicArtwork> {
   let media: Infer<typeof displayMedia> = { kind: 'placeholder', width: 1, height: 1 };

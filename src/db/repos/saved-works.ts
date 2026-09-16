@@ -24,10 +24,9 @@ export async function getSavedWork(localId: string, owner = getLocalOwner()): Pr
   return selectSavedWork(localId, owner).get();
 }
 
-/** Saved works newest first, without deleted rows. */
-export function listSavedWorks(owner = getLocalOwner()) {
+export function listSavedWorks(owner = getLocalOwner(), includeDeleted = false) {
   return db.select().from(savedWorks)
-    .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt)))
+    .where(and(eq(savedWorks.owner, owner), includeDeleted ? undefined : isNull(savedWorks.deletedAt)))
     .orderBy(desc(savedWorks.savedAt), desc(savedWorks.localId));
 }
 

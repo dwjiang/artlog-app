@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { FunctionReturnType } from 'convex/server';
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 import { harness } from './test.helpers';
 import { befriend, socialUser, socialVisit } from './lib/socialTestFixtures';
 import { LIMITS, utf8Bytes } from '../shared/journal/limits';
@@ -52,6 +52,21 @@ it('allows empty posts and preserves identity and first publication time through
   expect(await a.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: 2 })).toMatchObject({ revision: 3 });
   await a.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision: 3 });
   expect(await a.as.query(api.sharedVisits.get, { postId: first.postId! })).toMatchObject({ postId: first.postId, publishedAt: post.publishedAt });
+});
+it('lists only the caller’s active, unremoved shared visits', async () => {
+  const t = harness(), a = await socialUser(t), b = await socialUser(t);
+  await befriend(a, b);
+  const shared = await socialVisit(t, a), unshared = await socialVisit(t, a), removed = await socialVisit(t, a), theirs = await socialVisit(t, b);
+  for (const draft of [shared, unshared, removed]) await a.as.mutation(api.sharedVisits.publish, draft.selection);
+  const post = await b.as.mutation(api.sharedVisits.publish, theirs.selection);
+  await a.as.mutation(api.sharedVisits.unshare, { visitLocalId: unshared.visit.localId, revision: 1 });
+  const flagged = await a.as.query(api.sharedVisits.getState, { visitLocalId: removed.visit.localId });
+  const reportId = await b.as.mutation(api.reports.submit, { target: { kind: 'sharedVisit', postId: flagged.postId! }, reason: 'Abuse' });
+  await t.mutation(internal.review.decideReport, { reportId, operator: 'operator@example.test', decision: 'remove', reason: 'Confirmed' });
+  expect(await a.as.query(api.sharedVisits.listShared, {})).toEqual([shared.visit.localId]);
+  expect(await b.as.query(api.sharedVisits.listShared, {})).toEqual([theirs.visit.localId]);
+  expect(post.postId).not.toBeNull();
+  await expect(t.query(api.sharedVisits.listShared, {})).rejects.toThrow();
 });
 it('retains an initial revocation and serializes concurrent publication writes', async () => {
   const t = harness(), a = await socialUser(t), draft = await socialVisit(t, a, 0);

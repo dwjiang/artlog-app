@@ -1,7 +1,7 @@
 import { useAuthToken } from '@convex-dev/auth/react';
 import { useNetworkState } from 'expo-network';
 import { api } from '../../../convex/_generated/api';
-import { captureOwner, useLocalOwner, useOwnerGeneration } from '../account/owner-store';
+import { useLocalOwner, useOwnerGeneration, useServerScope } from '../account/owner-store';
 import { convexErrorCode } from '../network-error';
 import { useDeviceReady } from '../use-device-ready';
 import { useSocialQuery } from './use-social-query';
@@ -9,6 +9,7 @@ import { useSocialQuery } from './use-social-query';
 export function useSocialSession() {
   const owner = useLocalOwner();
   const generation = useOwnerGeneration();
+  const serverScope = useServerScope();
   const token = useAuthToken();
   const deviceReady = useDeviceReady();
   const network = useNetworkState();
@@ -16,7 +17,7 @@ export function useSocialSession() {
   const key = `${generation}:${offline ? 'offline' : 'online'}:${deviceReady && !!token}`;
   const account = useSocialQuery(api.accounts.me, deviceReady && !offline ? {} : 'skip', key);
   const linked = account.data?.linked === true;
-  const accountReady = linked && !!token && account.data?.scope === captureOwner().scope &&
+  const accountReady = linked && !!token && account.data?.scope === serverScope &&
     owner === `account:${account.data?.accountId}`;
   const mine = useSocialQuery(api.walls.getMine, accountReady && !offline ? {} : 'skip', key);
   const profileRequired = convexErrorCode(mine.error) === 'profile_required';

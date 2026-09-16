@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react-native';
 import { View } from 'react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { CollectionVisits } from './collection-visits';
+jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
+jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
 let mockMode: 'list' | 'globe' | undefined = 'list';
 jest.mock('@expo/ui', () => jest.requireActual('../../../__mocks__/@expo/ui'));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() }, Link: ({ children }: { children: unknown }) => children }));

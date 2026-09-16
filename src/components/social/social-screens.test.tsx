@@ -123,7 +123,7 @@ it('opens read-only artwork details from a visit and handles revoked posts', asy
 
 it('shows only the public wall note and never a visit’s private note', async () => {
   mockQuery.mockImplementation((query) => ({ data: getFunctionName(query) === 'walls:getArtwork'
-    ? { ...visit.artworks.page[0], note: 'Selected public note' }
+    ? { ...visit.artworks.page[0], layout: { x: 0.1, y: 0.1, width: 0.3, layer: 0, frame: 'gilt' }, note: 'Selected public note' }
     : { ...visit.artworks.page[0], note: 'Private note' }, refresh: mockRefresh }));
   const view = await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
   expect(screen.getByText('Selected public note')).toBeOnTheScreen();

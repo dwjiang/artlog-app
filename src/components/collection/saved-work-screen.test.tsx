@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
-import { Alert, type AlertButton } from 'react-native';
+import { scheduleRemoval } from '@/lib/collection/pending-removals';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -10,6 +10,11 @@ import { SavedWorkScreen } from './saved-work-screen';
 import { getNote, setNote } from '@/db/repos/notes';
 import { getSavedWork, insertSavedWork } from '@/db/repos/saved-works';
 
+let mockWall: Partial<ReturnType<typeof import('@/lib/wall/use-collection-wall').useCollectionWall>> = { pieces: [], signedIn: false };
+jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
+jest.mock('@/lib/collection/pending-removals', () => ({ scheduleRemoval: jest.fn() }));
+jest.mock('react-native-reanimated', () => ({ isSharedValue: () => false }));
+jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 const mockBack = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let client: ConvexReactClient;
@@ -46,10 +51,12 @@ beforeAll(async () => {
     artworkId: 'artwork-1' as Id<'artworks'>, photoPath: 'photos/lilies.jpg', cropPath: 'crops/lilies.jpg',
   });
   await insertSavedWork({ localId: 'plain', savedAt: new Date(2026, 8, 9).getTime(), title: 'Untitled', artist: 'Unknown', cropPath: 'crops/plain.jpg' });
+  await insertSavedWork({ localId: 'synced', savedAt: new Date(2026, 8, 10).getTime(), title: 'Haystacks', artist: 'Claude Monet', cropPath: 'crops/synced.jpg', syncedAt: 1 });
 });
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockWall = { pieces: [], signedIn: false };
   mockAuth.isAuthenticated = true;
   results.clear();
   listeners.clear();
@@ -81,14 +88,33 @@ function detail(savedId: string) {
 
 it('shows the snapshot as text, with the note as the only input', async () => {
   await render(detail('lilies'));
-  expect(await screen.findByText('Water Lilies')).toBeOnTheScreen();
-  for (const value of ['Claude Monet', '1916', 'Oil on canvas', "Musée d'Orsay", 'Seen at Metropolitan Museum of Art · 8 Sep 2026 · Gallery 819']) {
+  expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
+  for (const value of ['Claude Monet', 'Oil on canvas']) {
     expect(screen.getByText(value)).toBeOnTheScreen();
   }
   expect(screen.queryByDisplayValue('Water Lilies')).toBeNull();
   expect(screen.queryByDisplayValue('Claude Monet')).toBeNull();
   expect(screen.getByLabelText('Notes')).toBeOnTheScreen();
-  expect(screen.getByLabelText('Your photo of Water Lilies').props.source).toEqual([{ uri: 'file:///documents/photos/lilies.jpg' }]);
+  expect(screen.getByLabelText('Your photo of Water Lilies').props.source).toEqual([{ uri: 'file:///documents/crops/lilies.jpg' }]);
+});
+
+it('keeps a full wall from taking another artwork', async () => {
+  const items = Array.from({ length: 100 }, (_, index) => ({ saveLocalId: `other-${index}`, layout: { x: 0.1, y: 0.1, width: 0.2, layer: index, frame: 'gilt' as const } }));
+  const setLayoutDraft = jest.fn();
+  mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items }, repository: { setLayoutDraft } as never, setError: jest.fn() };
+  await render(detail('synced'));
+  const toggle = await screen.findByRole('switch', { name: 'On your wall' });
+  expect(toggle).toBeDisabled();
+  expect(screen.getByText(/Your wall holds 100 artworks/)).toBeOnTheScreen();
+  await fireEvent.press(toggle);
+  expect(setLayoutDraft).not.toHaveBeenCalled();
+});
+
+it('shows the photo on this device for a hung work rather than its published media', async () => {
+  mockWall = { signedIn: true, pieces: [{ localId: 'lilies', layout: { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: 'gilt' },
+    artwork: { title: 'Water Lilies', artist: 'Claude Monet', media: { kind: 'catalog', url: 'https://cdn.example/lilies.jpg', sourceUrl: 'https://cdn.example', rights: 'public_domain', width: 4, height: 3 } } }] };
+  await render(detail('lilies'));
+  expect((await screen.findByLabelText('Your photo of Water Lilies')).props.source).toEqual([{ uri: 'file:///documents/crops/lilies.jpg' }]);
 });
 
 it('saves the note on blur', async () => {
@@ -117,7 +143,7 @@ it('renders the artwork enrichment when the backend has it', async () => {
 it('skips the enrichment query for a work saved without an artwork', async () => {
   await render(detail('plain'));
   expect(await screen.findByText('Untitled')).toBeOnTheScreen();
-  expect(screen.getByText('Saved 9 Sep 2026')).toBeOnTheScreen();
+  expect(screen.getByText(/Your collection ·/)).toBeOnTheScreen();
   expect(screen.queryByText('About this work')).toBeNull();
   expect(client.watchQuery).not.toHaveBeenCalled();
 });
@@ -126,7 +152,7 @@ it('waits for authentication and device registration while showing the local sna
   mockAuth.isAuthenticated = false;
   results.set('devices:me', null);
   const view = await render(detail('lilies'));
-  expect(await screen.findByText('Water Lilies')).toBeOnTheScreen();
+  expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   expect(client.watchQuery).not.toHaveBeenCalled();
 
   mockAuth.isAuthenticated = true;
@@ -142,21 +168,21 @@ it('waits for authentication and device registration while showing the local sna
   mockAuth.isAuthenticated = false;
   await view.rerender(detail('lilies'));
   expect(screen.queryByText('About this work')).toBeNull();
-  expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
+  expect(screen.getByText(/Water Lilies/)).toBeOnTheScreen();
 });
 
 it.each(['devices:me', 'artworks:enrichment'])('keeps local detail usable and recovers after %s fails', async (query) => {
   const success = results.get(query);
   results.set(query, new ConvexError({ code: 'unauthenticated' }));
   await render(detail('lilies'));
-  expect(await screen.findByText('Water Lilies')).toBeOnTheScreen();
+  expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   expect(screen.getByLabelText('Your photo of Water Lilies')).toBeOnTheScreen();
   const input = screen.getByLabelText('Notes');
   await waitFor(() => expect(input).toBeEnabled());
   await fireEvent.changeText(input, 'Still editable without enrichment');
   await fireEvent(input, 'blur');
   expect(await getNote('lilies')).toMatchObject({ text: 'Still editable without enrichment' });
-  expect(screen.getByRole('button', { name: 'Delete' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Remove from collection' })).toBeOnTheScreen();
 
   await act(() => {
     results.set(query, success);
@@ -165,15 +191,10 @@ it.each(['devices:me', 'artworks:enrichment'])('keeps local detail usable and re
   expect(await screen.findByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
 });
 
-it('deletes only after confirmation and then goes back', async () => {
-  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+it('offers an undo window before deletion and returns to the collection', async () => {
   await render(detail('plain'));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Delete' }));
-  expect(alert).toHaveBeenCalledWith('Delete this work?', expect.any(String), expect.any(Array));
-  const buttons = alert.mock.calls[0][2] as AlertButton[];
-  expect(buttons.map((button) => button.text)).toEqual(['Cancel', 'Delete']);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Remove from collection' }));
+  expect(scheduleRemoval).toHaveBeenCalledWith(expect.objectContaining({ localId: 'plain', title: 'Untitled' }));
   expect((await getSavedWork('plain'))?.deletedAt).toBeNull();
-  await act(async () => { buttons[1].onPress?.(); });
-  expect((await getSavedWork('plain'))?.deletedAt).toEqual(expect.any(Number));
   expect(mockBack).toHaveBeenCalledTimes(1);
 });

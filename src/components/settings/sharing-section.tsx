@@ -6,7 +6,7 @@ import { FlatList, View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { setSharingDefault } from '@/lib/settings/sharing';
 import { useSharingDefault } from '@/lib/settings/use-sharing-default';
 
@@ -26,13 +26,13 @@ export function SharingSection({ contributions, onOpenContributions }: { contrib
   }
 
   return <View style={{ gap: Spacing.two }}>
-    <Host matchContents colorScheme="light">
+    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
       <Switch label={SHARING_SETTING} value={enabled === true} disabled={enabled === undefined || saving}
         onValueChange={(value) => { void change(value); }} />
     </Host>
     <ThemedText type="small" themeColor="textSecondary">You choose whether to share each work. No account needed.</ThemedText>
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-    <Host matchContents colorScheme="light">
+    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
       <ListItem onPress={onOpenContributions}>{`My contributions (${contributions?.length ?? '…'})`}</ListItem>
     </Host>
   </View>;
@@ -47,7 +47,7 @@ export function ContributionsSheet({ open, onDismiss, contributions }: { open: b
         <FlatList data={contributions ?? []} keyExtractor={(row) => row.contributionId}
           contentContainerStyle={{ gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
           ListEmptyComponent={<ThemedText>{contributions === undefined ? 'Connecting…' : 'No contributions yet.'}</ThemedText>} />
-        <Host matchContents colorScheme="light"><Button label="Done" onPress={onDismiss} /></Host>
+        <Host matchContents colorScheme="light" seedColor={Gallery.accent}><Button label="Done" onPress={onDismiss} /></Host>
       </View>
     </RNHostView>
   </BottomSheet>;
@@ -78,7 +78,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
     <ThemedText type="smallBold">{contribution.fields.title.value}</ThemedText>
     <ThemedText>{contribution.fields.artist.value}</ThemedText>
     <ThemedText type="small" themeColor="textSecondary">{status}</ThemedText>
-    {!removed && <Host matchContents colorScheme="light">
+    {!removed && <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
       <Button label={busy ? 'Withdrawing…' : 'Withdraw'} disabled={busy} onPress={() => { void remove(); }} />
     </Host>}
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}

@@ -80,7 +80,7 @@ it('dismisses without removing content and prevents a disabled profile from recr
   await expect(a.as.mutation(api.profiles.create, { username: 'another-name', name: 'New' })).rejects.toMatchObject({ data: { code: 'profile_required' } });
   await t.run((ctx) => ctx.db.patch(a.profileId, { active: true }));
   expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).toBeNull();
-  await expect(a.as.mutation(api.profiles.update, { name: 'New' })).rejects.toMatchObject({ data: { code: 'profile_required' } });
+  await expect(a.as.mutation(internal.profilePhotoData.save, { profileId: a.profileId, name: 'New' })).rejects.toMatchObject({ data: { code: 'profile_required' } });
 });
 it('enforces ten daily reports per account across devices without charging duplicate open reports', async () => {
   const t = harness(), reporter = await socialUser(t), sibling = await seedDevice(t);

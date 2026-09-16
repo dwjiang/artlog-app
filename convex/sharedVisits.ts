@@ -23,6 +23,16 @@ export const getState = query({
     return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId));
   },
 });
+// Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit.
+export const listShared = query({
+  args: {}, returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const { profile } = await requireProfile(ctx);
+    const publications = await ctx.db.query('sharedVisits')
+      .withIndex('by_profile_status_history', (q) => q.eq('profileId', profile._id).eq('status', 'active')).collect();
+    return publications.filter((publication) => !publication.removal).map((publication) => publication.visitLocalId);
+  },
+});
 export const preview = query({
   args: selectionArgs,
   returns: v.object({ author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string() }), visitedOn: v.string(),
@@ -36,7 +46,7 @@ export const preview = query({
       artworks.push({ saveLocalId: save.localId, artwork: projectArtwork(save, await resolveDisplayAsset(ctx, save),
         { kind: 'sharedVisitPreview', visitLocalId: visit.localId, saveLocalId: save.localId }) });
     }
-    return { author: projectProfile(profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
+    return { author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
       reflection: input.reflection, artworks };
   },
 });
@@ -89,7 +99,7 @@ export const get = query({
     const { profile } = await requireProfile(ctx);
     if (!isUuid(input.postId)) throw new ConvexError({ code: 'not_found' });
     const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile._id);
-    return { ...header(publication, author, visit), artworks: await projectArtworkPage(ctx, publication, visit, input) };
+    return { ...await header(ctx, publication, author, visit), artworks: await projectArtworkPage(ctx, publication, visit, input) };
   },
 });
 export const getArtwork = query({
@@ -116,7 +126,7 @@ async function historyPage(ctx: QueryCtx, viewerId: Id<'profiles'>, authors: Id<
     const access = await readablePublication(ctx, candidate, viewerId);
     if (access) {
       const artworks = await projectArtworkPage(ctx, candidate, access.visit, { limit: 3 });
-      const result = { ...header(candidate, access.profile, access.visit), artworks };
+      const result = { ...await header(ctx, candidate, access.profile, access.visit), artworks };
       const size = utf8Bytes(result);
       if (page.length && bytes + size > PAGE_BYTES) break;
       page.push(result); bytes += size; projected += artworks.page.length;

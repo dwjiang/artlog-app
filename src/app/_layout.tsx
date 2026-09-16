@@ -3,6 +3,7 @@ import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { useEffect } from 'react';
 
+import { RemovalToast } from '@/components/collection/removal-toast';
 import { DatabaseGate } from '@/components/database-gate';
 import { Gallery } from '@/constants/theme';
 import { CollectionSync } from '@/lib/account/collection-sync';
@@ -33,10 +34,12 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
               headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
-            <Stack.Screen name="people" options={{ title: 'Find people', headerLargeTitleEnabled: true, headerTransparent: true,
-              headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="people" options={{ title: 'Find people' }} />
             <Stack.Screen name="profile/[profileId]" options={{ title: 'Profile' }} />
             <Stack.Screen name="visit/[postId]" options={{ title: 'Visit' }} />
+            <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: 'Edit profile' }} />
+            <Stack.Screen name="share-profile" options={{ ...visitSheet, title: 'Share profile' }} />
+            <Stack.Screen name="public-notes" options={{ title: 'Public notes' }} />
             <Stack.Screen name="create-profile" options={{ title: 'Your profile', presentation: 'formSheet',
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
             <Stack.Screen name="artwork" options={{ title: 'Artwork', presentation: 'formSheet',
@@ -66,6 +69,7 @@ export default function RootLayout() {
               }}
             />
           </Stack>
+          <RemovalToast />
         </ThemeProvider>
       </ConvexAuthProvider>
     </DatabaseGate>

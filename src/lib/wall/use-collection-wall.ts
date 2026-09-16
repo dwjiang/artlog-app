@@ -2,7 +2,7 @@ import { useAuthToken } from '@convex-dev/auth/react';
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import type { SavedWork } from '@/db/schema';
-import { captureOwner, useLocalOwner, useOwnerGeneration } from '../account/owner-store';
+import { captureOwner, useLocalOwner, useOwnerGeneration, useServerScope } from '../account/owner-store';
 import { convexErrorCode } from '../network-error';
 import { captureFileUri } from '../files/photos';
 import { socialErrorMessage } from '@/shared/social/errors';
@@ -22,12 +22,13 @@ function loadFailure(cause: unknown) {
 export function useCollectionWall(works: SavedWork[]) {
   const owner = useLocalOwner();
   const generation = useOwnerGeneration();
+  const serverScope = useServerScope();
   const token = useAuthToken();
   const state = useWallRepository();
   const signedIn = owner.startsWith('account:');
   // Identifies the wall read the effect owes for the current account session; unset until the account can be read.
   // A token rotation alone keeps the session valid, so it must not trigger another read.
-  const loadKey = signedIn && token && captureOwner().scope ? generation : undefined;
+  const loadKey = signedIn && token && serverScope ? generation : undefined;
   const [loadedKey, setLoadedKey] = useState<number>();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();

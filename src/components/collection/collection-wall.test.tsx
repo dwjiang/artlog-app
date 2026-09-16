@@ -15,12 +15,12 @@ const mockTransport = {
   getMine: jest.fn(), setLayout: jest.fn(), listMine: jest.fn(), setNoteVisibility: jest.fn(),
 } satisfies WallTransport;
 jest.mock('@convex-dev/auth/react', () => ({ useAuthToken: () => mockToken }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 jest.mock('expo-network', () => ({ getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }) }));
 jest.mock('@/lib/wall/wall-transport', () => ({ createWallTransport: () => mockTransport }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
-jest.mock('react-native-reanimated', () => ({ isSharedValue: () => false }));
-jest.mock('./view-mode-picker', () => ({ ViewModePicker: () => null }));
+jest.mock('react-native-reanimated', () => ({ isSharedValue: () => false, getUseOfValueInStyleWarning: () => '' }));
 jest.mock('./wall-gallery', () => {
   const { View, Pressable, Text } = jest.requireActual('react-native');
   return {
@@ -34,9 +34,13 @@ jest.mock('@expo/ui', () => ({
   ...jest.requireActual('../../../__mocks__/@expo/ui'),
   Picker: Object.assign(() => null, { Item: () => null }), Slider: () => null,
 }));
+let mockFocus: (() => void) | undefined;
 jest.mock('expo-router', () => {
   const { View, Pressable, Text } = jest.requireActual('react-native');
-  return { useRouter: () => ({ push: mockPush }), Stack: {
+  const { useEffect } = jest.requireActual('react');
+  // Runs the effect while focused, as the real hook does, and keeps it so a test can bring the screen back into focus.
+  const useFocusEffect = (effect: () => void) => { useEffect(() => { mockFocus = effect; effect(); }, [effect]); };
+  return { useFocusEffect, useRouter: () => ({ push: mockPush }), Stack: {
     Toolbar: Object.assign(View, { Button: ({ children, hidden, disabled, onPress }: {
       children: ReactNode; hidden: boolean; disabled: boolean; onPress: () => void;
     }) => hidden ? null : <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable> }),
@@ -58,7 +62,7 @@ beforeEach(() => {
 });
 
 async function openWall() {
-  const view = await render(<CollectionWall works={[]} onModeChange={jest.fn()} />);
+  const view = await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, height: 440 } } });
   await screen.findByRole('button', { name: 'The Milkmaid' });
   return view;
@@ -66,27 +70,25 @@ async function openWall() {
 
 it('gives guests a sign-in action without requesting or publishing a wall', async () => {
   mockToken = null; switchOwner('device:guest', 'guest-scope');
-  const onModeChange = jest.fn();
-  await render(<CollectionWall works={[]} onModeChange={onModeChange} />);
+  const onEditingChange = jest.fn();
+  await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   expect(mockPush).toHaveBeenCalledWith('/settings');
   await fireEvent.press(screen.getByRole('button', { name: 'All artworks' }));
-  expect(onModeChange).toHaveBeenCalledWith('grid');
+  expect(mockPush).toHaveBeenCalledWith('/all-artworks');
   expect(mockTransport.getMine).not.toHaveBeenCalled();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
 });
 
-it('keeps additions and removals in a draft until Publish, and Cancel restores the wall', async () => {
+it('keeps additions and removals in a draft until Done, and Cancel restores the wall', async () => {
   await openWall();
-  await fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Take off wall' }));
   expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add artwork' }));
-  await screen.findByText('Sunflowers');
-  await fireEvent.press(screen.getByRole('button', { name: 'Hang' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Hang Sunflowers' }));
   expect(screen.getByRole('button', { name: 'Sunflowers' })).toBeOnTheScreen();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
@@ -94,33 +96,58 @@ it('keeps additions and removals in a draft until Publish, and Cancel restores t
   expect(screen.queryByRole('button', { name: 'Sunflowers' })).toBeNull();
 });
 
-it('reloads the synced collection each time the add sheet opens while keeping hung artwork', async () => {
-  await openWall();
-  await fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Add artwork' }));
-  await screen.findByText('Sunflowers');
-  await fireEvent.press(screen.getByRole('button', { name: 'Hang' }));
+it('hides pending deletions from the wall immediately and restores them on Undo', async () => {
+  const view = await openWall();
+  await view.rerender(<CollectionWall works={[]} hiddenIds={['save-a']} />);
+  expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
+  await view.rerender(<CollectionWall works={[]} hiddenIds={[]} />);
+  expect(screen.getByRole('button', { name: 'The Milkmaid' })).toBeOnTheScreen();
+  expect(mockTransport.setLayout).not.toHaveBeenCalled();
+});
+
+it('does not republish deleted artworks from an older wall response', async () => {
+  const view = await openWall();
+  await view.rerender(<CollectionWall works={[]} hiddenIds={['save-a']} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  await screen.findByRole('button', { name: 'Edit wall' });
+  expect(mockTransport.setLayout).toHaveBeenCalledWith(expect.objectContaining({ items: [] }), expect.anything());
+});
+
+it('publishes unique layers after hanging during a pending removal that was undone', async () => {
+  const view = await openWall();
+  await view.rerender(<CollectionWall works={[]} hiddenIds={['save-a']} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Hang Sunflowers' }));
+  await view.rerender(<CollectionWall works={[]} hiddenIds={[]} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  await screen.findByRole('button', { name: 'Edit wall' });
+  const [input] = mockTransport.setLayout.mock.calls[0] as Parameters<WallTransport['setLayout']>;
+  expect(input.items.map((item) => [item.saveLocalId, item.layout.layer])).toEqual([['save-a', 0], ['save-b', 1]]);
+});
+
+it('reloads the synced collection each time editing begins', async () => {
+  await openWall();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  await screen.findByRole('button', { name: 'Hang Sunflowers' });
+  await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
   mockTransport.listMine.mockResolvedValue({ page: [{ localId: 'save-c', snapshot: { title: 'Irises', artist: 'Vincent van Gogh' } }], cursor: null, isDone: true });
-  await fireEvent.press(screen.getByRole('button', { name: 'Add artwork' }));
-  expect(await screen.findByText('Irises')).toBeOnTheScreen();
-  expect(mockTransport.listMine).toHaveBeenLastCalledWith({ scope: 'scope-a', cursor: undefined }, expect.anything());
-  expect(screen.getByRole('button', { name: 'Sunflowers' })).toBeOnTheScreen();
-  expect(screen.getAllByRole('button', { name: 'Hang' })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  expect(await screen.findByRole('button', { name: 'Hang Irises' })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Hang Sunflowers' })).toBeNull();
 });
 
 it('publishes color, frame, and placement together using the acknowledged revision', async () => {
   await openWall();
-  await fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Wall color' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Burgundy' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Burgundy wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Baroque' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Right' }));
+  await fireEvent.press(screen.getAllByRole('button', { name: 'Done' }).at(-1)!);
   await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Publish' }));
-  await screen.findByRole('button', { name: 'Edit' });
+  await screen.findByRole('button', { name: 'Edit wall' });
   expect(mockTransport.setLayout).toHaveBeenCalledWith({ scope: 'scope-a', revision: 3, color: '#6C2F2B',
     items: [{ saveLocalId: 'save-a', layout: { ...published.items[0].layout, x: 0.125, frame: 'baroque' } }] }, expect.anything());
   expect(mockTransport.setNoteVisibility).not.toHaveBeenCalled();
@@ -129,17 +156,17 @@ it('publishes color, frame, and placement together using the acknowledged revisi
 it('keeps an unpublished edit after a network failure so it can be retried', async () => {
   await openWall();
   mockTransport.setLayout.mockRejectedValueOnce(new Error('Network request failed'));
-  await fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Publish' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(/Your wall was not published/);
-  expect(screen.getByRole('button', { name: 'Publish' })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Publish' }));
-  expect(await screen.findByRole('button', { name: 'Edit' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Your wall was not saved/);
+  expect(screen.getByRole('button', { name: 'Done' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  expect(await screen.findByRole('button', { name: 'Edit wall' })).toBeOnTheScreen();
 });
 
 it('shows the empty wall instead of a spinner while the account scope is still missing', async () => {
   switchOwner('account:a');
-  await render(<CollectionWall works={[]} onModeChange={jest.fn()} />);
+  await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   expect(screen.queryByText('Opening your wall…')).toBeNull();
   expect(screen.getByRole('button', { name: 'Load wall' })).toBeOnTheScreen();
@@ -156,6 +183,15 @@ it('treats a missing profile on refresh as a state rather than an error', async 
   expect(result.current.loading).toBe(false);
 });
 
+it('re-reads the wall each time the screen regains focus after the first load', async () => {
+  await openWall();
+  expect(mockTransport.getMine).toHaveBeenCalledTimes(1);
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await act(async () => { mockFocus?.(); });
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull());
+  expect(mockTransport.getMine).toHaveBeenCalledTimes(2);
+});
+
 it('does not reload the wall when only the auth token rotates', async () => {
   const { result, rerender } = await renderHook(() => useCollectionWall([]));
   await waitFor(() => expect(result.current.loading).toBe(false));
@@ -168,17 +204,9 @@ it('does not reload the wall when only the auth token rotates', async () => {
 
 it('offers profile creation when the account has no public profile', async () => {
   mockTransport.getMine.mockRejectedValue(new ConvexError({ code: 'profile_required' }));
-  await render(<CollectionWall works={[]} onModeChange={jest.fn()} />);
+  await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   expect(await screen.findByRole('button', { name: 'Create your wall' })).toBeOnTheScreen();
-});
-
-it('opens published artwork in the visitor preview without changing note visibility', async () => {
-  await openWall();
-  await fireEvent.press(screen.getByRole('button', { name: 'View as visitor' }));
-  await fireEvent.press(screen.getAllByRole('button', { name: 'The Milkmaid' }).at(-1)!);
-  expect(screen.getByText('Johannes Vermeer')).toBeOnTheScreen();
-  expect(mockTransport.setNoteVisibility).not.toHaveBeenCalled();
 });
 
 it('clears a rendered wall immediately when its owner changes', async () => {

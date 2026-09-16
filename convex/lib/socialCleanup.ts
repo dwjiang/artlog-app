@@ -38,6 +38,7 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts
     for (const block of [...outgoing, ...incoming]) await ctx.db.delete(block._id);
     return true;
   }
+  if (profile.photoStorageId) await ctx.storage.delete(profile.photoStorageId);
   await ctx.db.delete(profile._id);
   return true;
 }

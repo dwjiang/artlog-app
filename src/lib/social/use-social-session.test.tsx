@@ -41,6 +41,15 @@ it('waits for device, token, local account and server scope before querying the 
   expect(view.result.current.status).toBe('ready');
 });
 
+it('finishes cold-start loading when sync restores the scope for the same account', async () => {
+  switchOwner('account:a');
+  const view = await renderHook(useSocialSession);
+  expect(view.result.current.status).toBe('loading');
+  await act(() => switchOwner('account:a', 'scope-a'));
+  expect(view.result.current.status).toBe('ready');
+  expect(view.result.current.profileId).toBe('profile-a');
+});
+
 it('clears identity on account changes, sign-out, and offline transitions', async () => {
   const view = await renderHook(useSocialSession);
   expect(view.result.current.profileId).toBe('profile-a');

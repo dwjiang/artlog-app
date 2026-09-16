@@ -5,13 +5,14 @@ import { Gallery } from '@/constants/theme';
 import { searchVisitSummaries, visitCounts, type VisitSummary } from '@/lib/journal/visit-summaries';
 import { searchTerm } from '@/lib/journal/query';
 import { useVisitView } from '@/lib/journal/use-visit-view';
+import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { VisitGlobe } from './visit-globe';
 import { VisitTimeline } from './visit-timeline';
 import { VisitMessage, VisitPrivacyNote, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 export function CollectionVisits({ owner, visits, search, header, loading, error, clearSearch, onSearchChange }: {
-  owner: string; visits: VisitSummary[]; search: string; header: ReactElement;
+  owner: string; visits: VisitSummary[]; search: string; header?: ReactElement;
   loading: boolean; error?: Error; clearSearch: () => void; onSearchChange: (value: string) => void;
 }) {
   const { mode, changeMode, error: preferenceError } = useVisitView(owner);
@@ -20,10 +21,8 @@ export function CollectionVisits({ owner, visits, search, header, loading, error
   const shown = searchVisitSummaries(visits, search);
   const controls = <View style={{ paddingHorizontal: 18, paddingTop: 4, gap: 12 }}>{header}
     <View style={{ flexDirection: fontScale > 1.5 ? 'column' : 'row', alignItems: fontScale > 1.5 ? 'stretch' : 'center', justifyContent: 'space-between', gap: 8 }}>
-      <Text style={[styles.eyebrow, { flexShrink: 1 }]}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>
-      <View style={{ alignSelf: fontScale > 1.5 ? 'flex-start' : 'center' }}>
-        <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'list', label: 'List', icon: 'list.bullet' }, { value: 'globe', label: 'Globe', icon: 'globe' }]} />
-      </View>
+      <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'list', label: 'List', icon: 'list.bullet' }, { value: 'globe', label: 'Globe', icon: 'globe' }]} />
+      <GalleryButton label="Add visit" icon="plus" onPress={() => router.push('/visit-create')} />
     </View>
     {mode === 'list' && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 10, backgroundColor: Gallery.fill }}>
       <VisitSymbol name="magnifyingglass" size={16} />
@@ -41,8 +40,9 @@ export function CollectionVisits({ owner, visits, search, header, loading, error
   else if (!visits.length) message = <VisitMessage action="Add visit" onAction={() => router.push('/visit-create')}>Remember your first museum visit. You can add a visit without saving any artworks.</VisitMessage>;
   else if (mode === 'list' && !shown.length) message = <VisitMessage action="Clear search" onAction={clearSearch}>{searchTerm(search) === null
     ? 'Enter between 2 and 100 characters to search.' : `No visits match “${search.trim()}”.`}</VisitMessage>;
-  if (mode !== 'list') return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag"
-    contentContainerStyle={{ paddingBottom: 30 }}>{controls}{message ?? <VisitGlobe visits={visits} onList={() => changeMode('list')} />}<VisitPrivacyNote /></ScrollView>;
+  if (mode !== 'list') return <View style={{ flex: 1 }}>{controls}<ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag"
+    contentContainerStyle={{ paddingBottom: 30 }}>{message ?? <VisitGlobe visits={visits} onList={() => changeMode('list')} />}<VisitPrivacyNote /></ScrollView></View>;
   // One list container for every search state keeps the search field mounted while typing.
-  return <VisitTimeline visits={message ? [] : shown} header={controls} empty={message} />;
+  return <View style={{ flex: 1 }}>{controls}<VisitTimeline visits={message ? [] : shown}
+    header={<Text style={[styles.eyebrow, { padding: 18 }]}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>} empty={message} /></View>;
 }

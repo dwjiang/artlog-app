@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 import { seedDevice } from './lib/testFactories';
 import { harness } from './test.helpers';
 import { validateLayout, validateMedia, validateReport, validateSelection, validateWallItems, validateProfile, validateGeography } from '../shared/social/contracts';
@@ -36,7 +36,7 @@ it('has one winner for simultaneous username requests and never replaces an exis
   const winner = requests[0].status === 'fulfilled' ? a : b;
   const again = await winner.as.mutation(api.profiles.create, { username: 'new-name', name: 'Other' });
   expect(again).toMatchObject({ username: 'same-reader', name: 'Reader', publishedWallCount: 0 });
-  expect(await winner.as.mutation(api.profiles.update, { name: 'New display', bio: ' Short bio ' })).toMatchObject({ username: 'same-reader', name: 'New display', bio: 'Short bio' });
+  expect(await winner.as.mutation(internal.profilePhotoData.save, { profileId: again.profileId, name: 'New display', bio: ' Short bio ' })).toMatchObject({ username: 'same-reader', name: 'New display', bio: 'Short bio' });
 });
 it('normalizes accents, case, and whitespace; paginates bounded public allowlists', async () => {
   const { t, account } = await fixture();

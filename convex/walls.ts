@@ -12,7 +12,7 @@ import { contributionSource, resolveDisplayAsset } from './lib/displayMedia';
 export const DEFAULT_WALL_COLOR = '#45524B';
 const selection = v.object({ saveLocalId: v.string(), layout: wallLayout });
 const ownerItem = v.object({ ...wallArtwork.fields, saveLocalId: v.string(), noteVisible: v.boolean(),
-  noteRevision: v.number(), noteEligible: v.boolean() });
+  noteRevision: v.number(), noteEligible: v.boolean(), privateNote: v.optional(v.string()) });
 const ownerWall = v.object({ scope: v.string(), profileId: v.id('profiles'), revision: v.number(), color: v.string(), items: v.array(ownerItem) });
 
 async function wallOwner(ctx: QueryCtx, scope?: string) {
@@ -40,7 +40,7 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
   for (const item of await activeItems(ctx, wall)) {
     const current = await currentProjection(ctx, item);
     if (current) items.push({ ...current.projection, saveLocalId: item.saveLocalId, noteVisible: item.noteVisible,
-      noteRevision: item.noteRevision, noteEligible: !!current.save.note?.trim() });
+      noteRevision: item.noteRevision, noteEligible: !!current.save.note?.trim(), ...(current.save.note ? { privateNote: current.save.note } : {}) });
   }
   return { scope, profileId: profile._id, revision: wall?.layoutRevision ?? 0, color: wall?.color ?? DEFAULT_WALL_COLOR,
     items: items.sort((a, b) => a.layout.layer - b.layout.layer) };

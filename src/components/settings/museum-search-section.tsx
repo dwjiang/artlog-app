@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { SEARCH_CONSENT_BODY, SearchConsentSheet } from '@/components/scan/result/search-consent-sheet';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
@@ -32,7 +32,7 @@ export function MuseumSearchSection() {
 
   return (
     <View style={styles.section}>
-      <Host matchContents colorScheme="light">
+      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
         <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
           onValueChange={(value) => { void change(value); }} />
       </Host>

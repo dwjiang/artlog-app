@@ -51,6 +51,10 @@ export function useOwnerGeneration(): number {
   return useSyncExternalStore(subscribeOwner, () => generation, () => generation);
 }
 
+export function useServerScope(): string | undefined {
+  return useSyncExternalStore(subscribeOwner, () => serverScope, () => serverScope);
+}
+
 export function subscribeOwnerChange(listener: () => void): () => void {
   ownerListeners.add(listener); return () => { ownerListeners.delete(listener); };
 }

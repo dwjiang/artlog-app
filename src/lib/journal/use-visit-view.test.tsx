@@ -23,3 +23,12 @@ it('reports no mode until the preference is read, unless the user picks one firs
   await act(() => view.result.current.changeMode('list'));
   expect(view.result.current.mode).toBe('list');
 });
+it('starts at Globe and stops writing the selected view when remembering is disabled', async () => {
+  mockSettings.set('remember-visit-view:no-memory', 'false');
+  mockSettings.set('visit-view:no-memory', 'list');
+  const view = await renderHook(() => useVisitView('no-memory'));
+  await waitFor(() => expect(view.result.current.mode).toBe('globe'));
+  await act(() => view.result.current.changeMode('list'));
+  await act(() => view.result.current.changeMode('globe'));
+  expect(mockSettings.get('visit-view:no-memory')).toBe('list');
+});

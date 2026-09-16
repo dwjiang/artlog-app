@@ -35,17 +35,7 @@ export function WallFramePicker({ value, onChange }: { value: Frame; onChange: (
   </ScrollView>;
 }
 
-export function WallColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <View style={styles.colors}>
-    {Gallery.colors.map(({ name, value: color }) => <WallChoice key={color} label={name} selected={value === color} onPress={() => onChange(color)}>
-      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: color,
-        borderWidth: 0.5, borderColor: Gallery.separator, boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.12)' }} />
-    </WallChoice>)}
-  </View>;
-}
-
 const styles = StyleSheet.create({
   preview: { width: 44, height: 36, alignItems: 'center', justifyContent: 'center' },
   frames: { paddingHorizontal: 14, gap: 2, paddingBottom: 4 },
-  colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 });

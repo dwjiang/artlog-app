@@ -1,3 +1,6 @@
+import { api } from '../../../convex/_generated/api';
+import { useSocialQuery } from '@/lib/social/use-social-query';
+import { useSocialSession } from '@/lib/social/use-social-session';
 import type { ReactElement } from 'react';
 import { Link } from 'expo-router';
 import { Pressable, SectionList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -6,7 +9,7 @@ import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { countryName, formatVisitDate, groupHistoryByMonth } from '@/lib/journal/history';
 import { ArtworkPreviews, VisitPrivacyNote, VisitSymbol, visitStyles } from './visit-ui';
 
-export function VisitRow({ visit }: { visit: VisitSummary }) {
+export function VisitRow({ visit, shared = false }: { visit: VisitSummary; shared?: boolean }) {
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.5;
   const place = visit.city || visit.regionName || countryName(visit.country) || 'Location unavailable';
@@ -24,7 +27,7 @@ export function VisitRow({ visit }: { visit: VisitSummary }) {
             <Text style={styles.name}>{visit.venueName}</Text>
             <VisitSymbol name="chevron.right" size={13} color="#888B7E" />
           </View>
-          <Text style={styles.meta}>{place} · {artworks}</Text>
+          <Text style={styles.meta}>{place} · {artworks}{shared ? ' · Shared ✓' : ''}</Text>
           {!!visit.works.length && <View style={{ paddingTop: 9 }}><ArtworkPreviews works={visit.works} /></View>}
         </View>
       </View>
@@ -34,6 +37,9 @@ export function VisitRow({ visit }: { visit: VisitSummary }) {
 export function VisitTimeline({ visits, header, empty, groupByMuseum = false }: {
   visits: VisitSummary[]; header?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean;
 }) {
+  const session = useSocialSession();
+  const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === 'ready' ? {} : 'skip', session.key);
+  const shared = new Set(sharing.data);
   const sections = groupByMuseum ? [...new Set(visits.map((visit) => visit.venueId))].map((id) => {
     const data = visits.filter((visit) => visit.venueId === id);
     return { key: id, title: data[0].venueName, data };
@@ -43,7 +49,7 @@ export function VisitTimeline({ visits, header, empty, groupByMuseum = false }: 
     contentContainerStyle={{ paddingBottom: 30 }} ListFooterComponent={<VisitPrivacyNote />}
     stickySectionHeadersEnabled={false}
     renderSectionHeader={({ section }) => <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{section.title}</Text>}
-    renderItem={({ item }) => <VisitRow visit={item} />} />;
+    renderItem={({ item }) => <VisitRow visit={item} shared={shared.has(item.localId)} />} />;
 }
 const styles = StyleSheet.create({
   visit: { paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(38,35,32,0.09)' },
