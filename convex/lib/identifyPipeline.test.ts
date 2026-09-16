@@ -135,6 +135,17 @@ it('caps verified tentative identities at soft and isolates established confiden
   expect(run([tentative[0]]).decision.outcome).toBe('soft');
 });
 
+it('keeps established soft candidates as runner-ups behind a verified tentative suggestion', () => {
+  const corpus = candidate('corpus', 0.99);
+  const visitor = candidate('visitor', 0.98, pair.ref);
+  visitor.object.identityStatus = 'tentative'; visitor.object.ownerId = 'museum' as Id<'museums'>;
+  expect(run([corpus]).decision.outcome).toBe('soft');
+  const result = run([corpus, visitor]);
+  expect(result.decision.outcome).toBe('soft');
+  expect(result.decision.best?.candidate.object._id).toBe(visitor.object._id);
+  expect(result.decision.runnerUps.map(c => c.candidate.object._id)).toEqual([corpus.object._id]);
+});
+
 it('requires visual verification and the same museum for a tentative candidate', () => {
   const entry = candidate('visitor', 0.999, pair.ref);
   entry.object.identityStatus = 'tentative'; entry.object.ownerId = 'museum' as Id<'museums'>;

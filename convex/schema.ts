@@ -298,7 +298,6 @@ export default defineSchema({
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
     .index('by_object_device', ['indexedObjectId', 'deviceId', 'status'])
-    .index('by_venue_status', ['venueId', 'status'])
     .index('by_object_status_created', ['indexedObjectId', 'status', 'createdAt']),
 
   feedback: defineTable({
@@ -364,9 +363,10 @@ export default defineSchema({
 
   deviceRemovals: defineTable({
     deviceId: v.id('devices'), reason: v.string(),
-    phase: v.union(v.literal('contributions'), v.literal('scans'), v.literal('proposals'),
-      v.literal('feedback'), v.literal('firstWitness'), v.literal('secondWitness'), v.literal('settling'), v.literal('complete')),
-    cursor: v.union(v.string(), v.null()), processed: v.number(), settled: v.number(), resumeRevision: v.number(), startedAt: v.number(), completedAt: v.optional(v.number()),
+    phase: v.union(v.literal('contributions'), v.literal('scans'), v.literal('proposals'), v.literal('feedback'),
+      v.literal('firstWitness'), v.literal('secondWitness'), v.literal('settling'), v.literal('stalled'), v.literal('complete')),
+    cursor: v.union(v.string(), v.null()), processed: v.number(), settled: v.number(), settleAttempts: v.number(),
+    resumeRevision: v.number(), startedAt: v.number(), completedAt: v.optional(v.number()),
   }).index('by_device', ['deviceId']),
 
   promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),

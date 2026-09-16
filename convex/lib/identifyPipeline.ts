@@ -63,6 +63,9 @@ export function runPipeline(input: Parameters<typeof runPartition>[0]): ReturnTy
   const verified = [tentative.decision.best, ...tentative.decision.runnerUps]
     .filter((c): c is NonNullable<typeof c> => !!c && c.eligibleForConfident);
   const suggestion = decide(verified, input.config);
-  if (suggestion.outcome !== 'miss') return { decision: { ...suggestion, outcome: 'soft' }, verifications };
-  return { ...established, verifications };
+  if (suggestion.outcome === 'miss') return { ...established, verifications };
+  // Established candidates stay on the card so a wrong visitor label cannot hide the corpus entry.
+  const runnerUps = [...suggestion.runnerUps, established.decision.best, ...established.decision.runnerUps]
+    .filter((c): c is NonNullable<typeof c> => c !== null).slice(0, 5);
+  return { decision: { ...suggestion, outcome: 'soft', runnerUps }, verifications };
 }

@@ -7,6 +7,7 @@ import { removeContribution } from './contributionRemoval';
 import { feedbackChanged } from './feedbackReplay';
 import { readyForReview, reassessProposal } from './placements';
 import schema from './schema';
+import { revokeContributionMedia } from './lib/displayMedia';
 import { deleteOrbIfUnreferenced } from './lib/orbStorage';
 import { clearDocent } from './docent';
 import { bumpCounter } from './ingest';
@@ -133,8 +134,12 @@ export const requeueDuplicateViews = internalMutation({
 
 const NEXT_PHASE = {
   contributions: 'scans', scans: 'proposals', proposals: 'feedback', feedback: 'firstWitness',
-  firstWitness: 'secondWitness', secondWitness: 'settling', settling: 'complete', complete: 'complete',
+  firstWitness: 'secondWitness', secondWitness: 'settling', settling: 'complete', stalled: 'settling', complete: 'complete',
 } as const;
+// Settling waits on other jobs. Doubling the delay keeps a job that never finishes from spinning this
+// one; after ~20 minutes without progress the job parks for an operator to re-run revertDevice.
+const SETTLE_MAX_DELAY_MS = 60_000;
+const MAX_SETTLE_ATTEMPTS = 30;
 
 export const revertDevice = internalMutation({
   args: { deviceId: v.id('devices'), reason: v.string() }, returns: v.id('deviceRemovals'),
@@ -145,13 +150,14 @@ export const revertDevice = internalMutation({
     const existing = await ctx.db.query('deviceRemovals').withIndex('by_device', q => q.eq('deviceId', deviceId)).unique();
     if (existing) {
       if (existing.phase !== 'complete') {
-        await ctx.db.patch(existing._id, { resumeRevision: existing.resumeRevision + 1 });
+        await ctx.db.patch(existing._id, { resumeRevision: existing.resumeRevision + 1,
+          ...(existing.phase === 'stalled' ? { phase: 'settling', settleAttempts: 0 } : {}) });
         await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, { jobId: existing._id });
       }
       return existing._id;
     }
     const jobId = await ctx.db.insert('deviceRemovals', { deviceId, reason, phase: 'contributions',
-      cursor: null, processed: 0, settled: 0, resumeRevision: 0, startedAt: Date.now() });
+      cursor: null, processed: 0, settled: 0, settleAttempts: 0, resumeRevision: 0, startedAt: Date.now() });
     await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, { jobId });
     return jobId;
   },
@@ -168,15 +174,22 @@ export const cleanupDevicePage = internalMutation({
     const options = paging(job.cursor);
     let nextCursor: string | null = null;
     let processed = 0;
-    if (job.phase === 'settling') {
+    if (job.phase === 'settling' || job.phase === 'stalled') {
       const dependencies = await ctx.db.query('removalDependencies').withIndex('by_job', q => q.eq('jobId', jobId)).take(CHUNK);
       let settled = 0;
       for (const dependency of dependencies) {
+        // A resumed job re-schedules whatever each unsettled dependency is waiting on, since the
+        // original scheduled work may have been lost.
         const retry = (dependency.resumeRevision ?? 0) < job.resumeRevision;
         if (retry) await ctx.db.patch(dependency._id, { resumeRevision: job.resumeRevision });
         if (dependency.objectId) {
-          if (await ctx.db.query('entryRebuilds').withIndex('by_object', q => q.eq('objectId', dependency.objectId!)).first() ||
-            await ctx.db.query('feedbackRebuilds').withIndex('by_object', q => q.eq('objectId', dependency.objectId!)).first()) continue;
+          const entryRebuild = await ctx.db.query('entryRebuilds').withIndex('by_object', q => q.eq('objectId', dependency.objectId!)).first();
+          const feedbackRebuild = await ctx.db.query('feedbackRebuilds').withIndex('by_object', q => q.eq('objectId', dependency.objectId!)).first();
+          if (entryRebuild || feedbackRebuild) {
+            if (retry && entryRebuild) await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, { jobId: entryRebuild._id });
+            if (retry && feedbackRebuild) await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, { jobId: feedbackRebuild._id });
+            continue;
+          }
           const object = await ctx.db.get(dependency.objectId);
           if (object?.reverted && object.revertCompletedAt === undefined) {
             if (retry) await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
@@ -186,7 +199,10 @@ export const cleanupDevicePage = internalMutation({
           }
         }
         if (dependency.contributionId && await ctx.db.query('mediaAssets').withIndex('by_contribution_revoked', q =>
-          q.eq('provenance.contributionId', dependency.contributionId).eq('revokedAt', undefined)).first()) continue;
+          q.eq('provenance.contributionId', dependency.contributionId).eq('revokedAt', undefined)).first()) {
+          if (retry) await revokeContributionMedia(ctx, dependency.contributionId);
+          continue;
+        }
         if (dependency.feedbackId) {
           const row = await ctx.db.get(dependency.feedbackId);
           if (row?.multiViewAgreement && [row.multiViewAgreement.firstDeviceId, row.multiViewAgreement.secondDeviceId].includes(deviceId)) {
@@ -195,9 +211,15 @@ export const cleanupDevicePage = internalMutation({
           }
         }
         if (dependency.vectorId && await ctx.db.query('feedback').withIndex('by_multiViewDuplicateVectorId', q =>
-          q.eq('multiViewDuplicateVectorId', dependency.vectorId)).first()) continue;
+          q.eq('multiViewDuplicateVectorId', dependency.vectorId)).first()) {
+          if (retry) await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, { vectorId: dependency.vectorId, cursor: null });
+          continue;
+        }
         if (dependency.scanId && await ctx.db.query('vectors').withIndex('by_scanId', q =>
-          q.eq('scanId', dependency.scanId)).first()) continue;
+          q.eq('scanId', dependency.scanId)).first()) {
+          if (retry) await ctx.scheduler.runAfter(0, internal.revert.cleanupScanVectors, { scanId: dependency.scanId, jobId, cursor: null });
+          continue;
+        }
         if (dependency.proposalId) {
           const proposal = await ctx.db.get(dependency.proposalId);
           if (proposal?.status === 'promoted' && !readyForReview(proposal.deviceIds, proposal.firstSeenAt, proposal.lastSeenAt)) {
@@ -218,8 +240,13 @@ export const cleanupDevicePage = internalMutation({
         await ctx.db.delete(dependency._id); settled++;
       }
       const done = dependencies.length === 0;
-      await ctx.db.patch(jobId, { settled: job.settled + settled, phase: done ? 'complete' : 'settling', completedAt: done ? Date.now() : undefined });
-      if (!done) await ctx.scheduler.runAfter(100, internal.revert.cleanupDevicePage, { jobId });
+      const settleAttempts = settled || done ? 0 : job.settleAttempts + 1;
+      const stalled = !done && settleAttempts >= MAX_SETTLE_ATTEMPTS;
+      await ctx.db.patch(jobId, { settled: job.settled + settled, settleAttempts,
+        phase: done ? 'complete' : stalled ? 'stalled' : 'settling', completedAt: done ? Date.now() : undefined });
+      if (!done && !stalled) {
+        await ctx.scheduler.runAfter(Math.min(SETTLE_MAX_DELAY_MS, 100 * 2 ** settleAttempts), internal.revert.cleanupDevicePage, { jobId });
+      }
       return null;
     }
     if (job.phase === 'contributions') {

@@ -1,4 +1,4 @@
-import type { Id } from '../_generated/dataModel';
+import type { Doc, Id } from '../_generated/dataModel';
 import { normalizeAccession } from './museumWorkIdentity';
 import { normalizeText } from './textMatch';
 import type { ContributionField, EvidenceKind } from './validators';
@@ -23,6 +23,11 @@ export type AgreementContribution = {
 
 export function workKey(fields: AgreementContribution['fields']): string {
   return `${normalizeText(fields.title.value)}\n${normalizeText(fields.artist.value)}`;
+}
+
+// One label at one venue; entries of different model versions share the group and are told apart by compatibleAnchor.
+export function contributionGroup(row: Pick<Doc<'contributions'>, 'venueId' | 'fields'>): string {
+  return JSON.stringify([row.venueId, workKey(row.fields)]);
 }
 
 export function verifiedAccession(contribution: Pick<AgreementContribution, 'fields'>): string | undefined {

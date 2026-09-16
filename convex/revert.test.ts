@@ -372,7 +372,7 @@ it.each(['ban', 'opt_out', 'duplicate_opt_out'] as const)('preserves independent
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
 });
 
-it('reports a ban complete only after object cleanup and resumes an interrupted cleanup action', async () => {
+it('backs off while a dependency waits, parks a ban that never settles, and resumes it on request', async () => {
   vi.useFakeTimers();
   const t = harness();
   const alice = await seedDevice(t);
@@ -381,17 +381,22 @@ it('reports a ban complete only after object cleanup and resumes an interrupted 
   const jobId = await t.run(async ctx => {
     await ctx.db.patch(alice.deviceId, { banned: true });
     const jobId = await ctx.db.insert('deviceRemovals', { deviceId: alice.deviceId, reason: 'abuse',
-      phase: 'settling', cursor: null, processed: 1, settled: 0, resumeRevision: 0, startedAt: Date.now() });
+      phase: 'settling', cursor: null, processed: 1, settled: 0, settleAttempts: 0, resumeRevision: 0, startedAt: Date.now() });
     await ctx.db.insert('removalDependencies', { jobId, objectId: work.objectId });
     return jobId;
   });
   await t.mutation(internal.revert.cleanupDevicePage, { jobId });
   expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }))
-    .toMatchObject({ phase: 'settling', settled: 0 });
+    .toMatchObject({ phase: 'settling', settled: 0, settleAttempts: 1 });
+  // The interrupted object revert is never rescheduled by itself: the job must stop retrying.
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }))
+    .toMatchObject({ phase: 'stalled', settled: 0, settleAttempts: 30 });
+  expect(await t.run(ctx => ctx.db.get(work.vectorId))).not.toBeNull();
   await t.mutation(internal.revert.revertDevice, { deviceId: alice.deviceId, reason: 'abuse' });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }))
-    .toMatchObject({ phase: 'complete', settled: 1 });
+    .toMatchObject({ phase: 'complete', settled: 1, settleAttempts: 0 });
   expect(await t.run(ctx => ctx.db.get(work.vectorId))).toBeNull();
   expect(await t.run(ctx => ctx.db.get(work.objectId))).toHaveProperty('revertCompletedAt');
 });
@@ -413,4 +418,45 @@ it('removes every scan-owned vector across pages while preserving corpus vectors
   expect(await t.run(ctx => ctx.db.get(work.vectorId))).not.toBeNull();
   expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }))
     .toMatchObject({ phase: 'complete', settled: 76 });
+});
+
+it('re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed', async () => {
+  vi.useFakeTimers();
+  const t = harness();
+  const alice = await seedDevice(t), bob = await seedDevice(t);
+  const venueId = await t.run(ctx => seedMuseum(ctx));
+  const work = await t.run(ctx => seedArtworkWithObject(ctx));
+  const scanId = await t.run(ctx => seedScan(ctx, { deviceId: alice.deviceId }));
+  const { contributionId, objectId, jobId } = await t.run(async ctx => {
+    await ctx.db.patch(alice.deviceId, { banned: true });
+    const cropStorageId = await ctx.storage.store(new Blob(['crop'], { type: 'image/jpeg' }));
+    const contributionId = await seedContribution(ctx, { deviceId: bob.deviceId, venueId, cropStorageId });
+    const objectId = await publishContribution(ctx, (await ctx.db.get(contributionId))!);
+    const object = (await ctx.db.get(objectId))!;
+    await ctx.db.insert('vectors', { objectId: work.objectId, scanId, partition: JSON.stringify([model.modelVersion, 'established']),
+      modelVersion: model.modelVersion, source: 'user_scan', vector: testVector() });
+    // Rebuild rows whose scheduled runs were lost, and a scan whose vector cleanup never ran.
+    await ctx.db.insert('entryRebuilds', { objectId, revision: object.supportRevision ?? 0, cursor: null });
+    await ctx.db.insert('feedbackRebuilds', { objectId, revision: object.feedbackRevision ?? 0, cursor: null,
+      confirmCount: 0, rejectCount: 0, rejectionPenalty: 0, flaggedForReview: false });
+    const jobId = await ctx.db.insert('deviceRemovals', { deviceId: alice.deviceId, reason: 'abuse',
+      phase: 'settling', cursor: null, processed: 2, settled: 0, settleAttempts: 0, resumeRevision: 0, startedAt: Date.now() });
+    await ctx.db.insert('removalDependencies', { jobId, objectId });
+    await ctx.db.insert('removalDependencies', { jobId, scanId });
+    return { contributionId, objectId, jobId };
+  });
+  await t.mutation(internal.revert.cleanupDevicePage, { jobId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId })).toMatchObject({ phase: 'stalled', settled: 0 });
+  expect(await t.run(ctx => ctx.db.query('entryRebuilds').collect())).toHaveLength(1);
+  expect(await t.run(ctx => ctx.db.query('vectors').withIndex('by_scanId', q => q.eq('scanId', scanId)).collect())).toHaveLength(1);
+  await t.mutation(internal.revert.revertDevice, { deviceId: alice.deviceId, reason: 'abuse' });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  // The rescheduled scan cleanup registers and settles one more dependency for the vector it deletes.
+  expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId })).toMatchObject({ phase: 'complete', settled: 3 });
+  expect(await t.run(ctx => ctx.db.query('entryRebuilds').collect())).toEqual([]);
+  expect(await t.run(ctx => ctx.db.query('feedbackRebuilds').collect())).toEqual([]);
+  expect(await t.run(ctx => ctx.db.query('vectors').withIndex('by_scanId', q => q.eq('scanId', scanId)).collect())).toEqual([]);
+  expect(await t.run(ctx => ctx.db.get(work.vectorId))).not.toBeNull();
+  expect(await t.run(ctx => ctx.db.get(objectId))).toMatchObject({ reverted: false, sourceContributionId: contributionId });
 });

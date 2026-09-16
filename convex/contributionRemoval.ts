@@ -6,7 +6,7 @@ import { bumpCounter } from './ingest';
 import { revokeContributionMedia } from './lib/displayMedia';
 import { deleteOrbIfUnreferenced } from './lib/orbStorage';
 import { eligibleContribution } from './lib/recognitionEligibility';
-import { applyReference } from './lib/tentativeEntries';
+import { applyReference, earlier } from './lib/tentativeEntries';
 import { verifiedAccession } from './lib/agreement';
 import { beginRevert } from './revert';
 
@@ -42,10 +42,6 @@ export async function queueEntryRebuild(ctx: MutationCtx, objectId: Id<'objects'
     const jobId = await ctx.db.insert('entryRebuilds', { objectId, revision: object.supportRevision ?? 0, cursor: null });
     await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, { jobId });
   }
-}
-
-function earlier(a: Doc<'contributions'>, b: Doc<'contributions'> | null) {
-  return !b || a.createdAt < b.createdAt || (a.createdAt === b.createdAt && a._id < b._id);
 }
 
 export const rebuildPage = internalMutation({

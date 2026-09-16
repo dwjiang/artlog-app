@@ -3,53 +3,46 @@ import model from '../../shared/model/model-version.json';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { bumpCounter } from '../ingest';
-import { AGREEMENT_MIN_COSINE, REPLAY_COSINE, verifiedAccession, workKey } from './agreement';
+import { AGREEMENT_MIN_COSINE, contributionGroup, REPLAY_COSINE, verifiedAccession } from './agreement';
 import { cosine } from './cosine';
-import { museumIdentityKeys } from './museumWorkIdentity';
-import { eligibleContribution, eligibleObject, recognitionPartition } from './recognitionEligibility';
-import { isVenueOptedOut } from './venueOptOut';
+import { contributionRightsIssue, eligibleContribution, eligibleObjectRecord, recognitionPartition } from './recognitionEligibility';
 
-export function contributionGroup(row: Pick<Doc<'contributions'>, 'venueId' | 'modelVersion' | 'fields'>): string {
-  return JSON.stringify([row.venueId, row.modelVersion, workKey(row.fields)]);
+const ANCHOR_PAGE = 25;
+const REPLAY_CHECK_VECTORS = 32;
+
+export function earlier(a: Doc<'contributions'>, b: Doc<'contributions'> | null): boolean {
+  return !b || a.createdAt < b.createdAt || (a.createdAt === b.createdAt && a._id < b._id);
 }
 
-export async function assertContributionRights(ctx: QueryCtx, row: Pick<Doc<'contributions'>,
-  'venueId' | 'fields' | 'sourceUrl' | 'identityImageUrl' | 'wikidataId' | 'deviceId' | 'modelVersion' | 'vector' | 'evidence' | '_id' | 'createdAt'>) {
-  const venue = await ctx.db.get(row.venueId);
-  if (!venue || await isVenueOptedOut(ctx, venue)) throw new ConvexError({ code: 'invalid_venue' });
-  const keys = await museumIdentityKeys({ accession: verifiedAccession(row), pageUrl: row.sourceUrl,
-    imageUrl: row.identityImageUrl, names: workKey(row.fields) });
-  const artworkIds = new Set<Id<'artworks'>>();
-  for (const { key } of keys) {
-    const identity = await ctx.db.query('museumWorkIdentities').withIndex('by_venue_identity', q =>
-      q.eq('venueId', row.venueId).eq('identity', key)).unique();
-    if (identity) artworkIds.add(identity.artworkId);
-  }
-  if (row.wikidataId) {
-    const artwork = await ctx.db.query('artworks').withIndex('by_wikidataId', q => q.eq('wikidataId', row.wikidataId)).first();
-    if (artwork) artworkIds.add(artwork._id);
-  }
-  for (const artworkId of artworkIds) {
-    if (await ctx.db.query('takedowns').withIndex('by_artworkId', q => q.eq('artworkId', artworkId)).first()) {
-      throw new ConvexError({ code: 'artwork_taken_down' });
-    }
-    if (await ctx.db.query('takedowns').withIndex('by_identity_artwork_venue', q =>
-      q.eq('identityArtworkId', artworkId).eq('venueId', row.venueId)).first()) {
-      throw new ConvexError({ code: 'artwork_taken_down' });
-    }
-  }
+// The displayed reference can be withdrawn or banned before its rebuild runs. The oldest surviving
+// backer anchors the group meanwhile, so a concurrent submission joins the entry instead of forking it.
+async function eligibleAnchor(ctx: QueryCtx, object: Doc<'objects'>): Promise<Doc<'contributions'> | null> {
+  const source = object.sourceContributionId ? await ctx.db.get(object.sourceContributionId) : null;
+  if (await eligibleContribution(ctx, source)) return source;
+  const rows = await ctx.db.query('contributions').withIndex('by_object_status_created', q =>
+    q.eq('indexedObjectId', object._id).eq('status', 'tentative')).take(ANCHOR_PAGE);
+  for (const row of rows) if (await eligibleContribution(ctx, row)) return row;
+  return null;
 }
 
-export async function compatibleEntry(ctx: QueryCtx, row: Pick<Doc<'contributions'>, 'venueId' | 'modelVersion' | 'fields' | 'vector'>, object: Doc<'objects'>): Promise<boolean> {
-  if (object.identityStatus !== 'tentative' || object.reverted || object.mergedInto ||
-    object.groupKey !== contributionGroup(row) || !object.sourceContributionId) return false;
-  if (!await eligibleObject(ctx, object, row.venueId)) return false;
-  const source = await ctx.db.get(object.sourceContributionId);
-  if (!source || !await eligibleContribution(ctx, source)) return false;
+// A vector already on the entry this close to the submission is the same photo, not a second view.
+export async function replaysEntry(ctx: QueryCtx, row: Pick<Doc<'contributions'>, 'modelVersion' | 'vector'>, object: Doc<'objects'>): Promise<boolean> {
+  const vectors = await ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', q =>
+    q.eq('objectId', object._id).eq('modelVersion', row.modelVersion).eq('source', 'user')).take(REPLAY_CHECK_VECTORS);
+  return vectors.some(vector => cosine(row.vector, vector.vector) >= REPLAY_COSINE);
+}
+
+// The eligible backer a compatible submission is measured against, or null when the entry is not its group.
+export async function compatibleAnchor(ctx: QueryCtx, row: Pick<Doc<'contributions'>, 'venueId' | 'modelVersion' | 'fields' | 'vector'>,
+  object: Doc<'objects'>): Promise<Doc<'contributions'> | null> {
+  if (object.identityStatus !== 'tentative' || object.ownerId !== row.venueId || object.groupKey !== contributionGroup(row) ||
+    !await eligibleObjectRecord(ctx, object)) return null;
+  const anchor = await eligibleAnchor(ctx, object);
+  if (!anchor || anchor.modelVersion !== row.modelVersion) return null;
   const accession = verifiedAccession(row);
-  if (accession && object.provenance?.verifiedAccession && accession !== object.provenance.verifiedAccession) return false;
-  const similarity = cosine(row.vector, source.vector);
-  return similarity >= AGREEMENT_MIN_COSINE && similarity < REPLAY_COSINE;
+  if (accession && object.provenance?.verifiedAccession && accession !== object.provenance.verifiedAccession) return null;
+  const similarity = cosine(row.vector, anchor.vector);
+  return similarity >= AGREEMENT_MIN_COSINE && similarity < REPLAY_COSINE ? anchor : null;
 }
 
 export async function applyReference(ctx: MutationCtx, object: Doc<'objects'>, source: Doc<'contributions'>,
@@ -80,9 +73,11 @@ export async function applyReference(ctx: MutationCtx, object: Doc<'objects'>, s
 }
 
 export async function publishContribution(ctx: MutationCtx, row: Doc<'contributions'>, groupObjectId?: Id<'objects'>): Promise<Id<'objects'>> {
-  await assertContributionRights(ctx, row);
+  const issue = await contributionRightsIssue(ctx, row);
+  if (issue) throw new ConvexError({ code: issue });
   let object = groupObjectId ? await ctx.db.get(groupObjectId) : null;
-  if (object && !await compatibleEntry(ctx, row, object)) throw new ConvexError({ code: 'contributions_changed' });
+  const anchor = object ? await compatibleAnchor(ctx, row, object) : null;
+  if (object && !anchor) throw new ConvexError({ code: 'contributions_changed' });
   if (object) {
     const own = await ctx.db.query('contributions').withIndex('by_object_device', q =>
       q.eq('indexedObjectId', object!._id).eq('deviceId', row.deviceId).eq('status', 'tentative')).first();
@@ -106,9 +101,7 @@ export async function publishContribution(ctx: MutationCtx, row: Doc<'contributi
   await ctx.db.insert('vectors', { objectId: object._id, modelVersion: row.modelVersion, source: 'user',
     partition: recognitionPartition(row.modelVersion, row.venueId), contributionId: row._id, vector: row.vector });
   await bumpCounter(ctx, 'vectors', 1);
-  const previous = object.sourceContributionId ? await ctx.db.get(object.sourceContributionId) : null;
-  const source = previous && (previous.createdAt < row.createdAt ||
-    (previous.createdAt === row.createdAt && previous._id < row._id)) ? previous : row;
+  const source = anchor && earlier(anchor, row) ? anchor : row;
   await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
   await ctx.db.patch(object._id, { supportRevision: (object.supportRevision ?? 0) + 1 });
   return object._id;

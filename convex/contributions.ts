@@ -21,8 +21,9 @@ import {
 } from './lib/validators';
 import schema from './schema';
 import { removeContribution } from './contributionRemoval';
+import { contributionGroup } from './lib/agreement';
 import { recognitionPartition } from './lib/recognitionEligibility';
-import { compatibleEntry, contributionGroup, publishContribution } from './lib/tentativeEntries';
+import { compatibleAnchor, publishContribution, replaysEntry } from './lib/tentativeEntries';
 import { isVenueOptedOut } from './lib/venueOptOut';
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
@@ -92,6 +93,10 @@ function evidenceOf(fields: ContributionFields): EvidenceKind[] {
 
 const duplicatePage = v.object({ duplicate: v.boolean(), cursor: v.union(v.string(), v.null()) });
 type DuplicatePage = Infer<typeof duplicatePage>;
+const groupPage = v.object({
+  duplicate: v.boolean(), objectId: v.optional(v.id('objects')), revision: v.number(), cursor: v.union(v.string(), v.null()),
+});
+type GroupPage = Infer<typeof groupPage>;
 
 export const checkDuplicatePage = internalQuery({
   args: { scanId: v.id('scans'), generation: v.number(), cursor: v.union(v.string(), v.null()) },
@@ -168,19 +173,22 @@ export const authorize = internalMutation({
 
 export const findGroupPage = internalQuery({
   args: { scanId: v.id('scans'), fields: submittedFields, cursor: v.union(v.string(), v.null()) },
-  returns: v.object({ objectId: v.optional(v.id('objects')), revision: v.number(), cursor: v.union(v.string(), v.null()) }),
-  handler: async (ctx, { scanId, fields, cursor }) => {
+  returns: groupPage,
+  handler: async (ctx, { scanId, fields, cursor }): Promise<GroupPage> => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId || !scan.labelFlow) throw new ConvexError({ code: 'invalid_scan' });
     const venue = await ctx.db.get(scan.venueId);
+    const revision = venue?.contributionRevision ?? 0;
     const candidate = { venueId: scan.venueId, modelVersion: scan.modelVersion, vector: scan.vector, fields: resolveFields(scan.labelFlow, fields) };
     const page = await ctx.db.query('objects').withIndex('by_groupKey', q => q.eq('groupKey', contributionGroup(candidate)))
       .paginate({ cursor, numItems: 32 });
-    for (const object of page.page) if (await compatibleEntry(ctx, candidate, object)) {
-      return { objectId: object._id, revision: venue?.contributionRevision ?? 0, cursor: null };
+    for (const object of page.page) {
+      if (object.reverted || object.mergedInto) continue;
+      if (await replaysEntry(ctx, candidate, object)) return { duplicate: true, revision, cursor: null };
+      if (await compatibleAnchor(ctx, candidate, object)) return { duplicate: false, objectId: object._id, revision, cursor: null };
     }
-    return { revision: venue?.contributionRevision ?? 0, cursor: page.isDone ? null : page.continueCursor };
+    return { duplicate: false, revision, cursor: page.isDone ? null : page.continueCursor };
   },
 });
 
@@ -274,11 +282,12 @@ export const contribute = action({
           let venueRevision: number | undefined;
           let groupCursor: string | null = null;
           do {
-            const page: { objectId?: Id<'objects'>; revision: number; cursor: string | null } = await ctx.runQuery(internal.contributions.findGroupPage, {
+            const page: GroupPage = await ctx.runQuery(internal.contributions.findGroupPage, {
               scanId: scan._id, fields: args.fields, cursor: groupCursor,
             });
             if (venueRevision !== undefined && venueRevision !== page.revision) throw new ConvexError({ code: 'contributions_changed' });
             venueRevision = page.revision;
+            duplicate ||= page.duplicate;
             groupObjectId = page.objectId;
             groupCursor = page.cursor;
           } while (groupCursor !== null);

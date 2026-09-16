@@ -344,7 +344,7 @@ describe('contribute', () => {
     }));
     expect(await contribute({ scanId: different, cropStorageId: await storeCrop(t) })).toMatchObject({ status: 'tentative' });
     const other = await seedDevice(t);
-    const otherScan = await t.run((ctx) => seedScan(ctx, { deviceId: other.deviceId, venueId, labelFlow: verifiedFlow() }));
+    const otherScan = await t.run((ctx) => seedScan(ctx, { deviceId: other.deviceId, venueId, vector: testVector(0.95), labelFlow: verifiedFlow() }));
     const { nonce } = await other.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
     expect(await other.as.action(api.contributions.contribute, {
       scanId: otherScan, ...features, fields, cropStorageId: await storeCrop(t), consent: true, nonce, assertionBase64: 'AAAA',
@@ -483,10 +483,14 @@ describe('immediate tentative recognition', () => {
     expect(await t.run(ctx => ctx.db.get(object.artworkId))).toMatchObject({ date: '1916', identityStatus: 'tentative' });
     const duplicate = await shareAs(t, venueId, { user, vector: testVector(0.91) });
     expect(duplicate).toMatchObject({ status: 'rejected', reason: 'duplicate' });
+    // Another device replaying the second backer’s photo is the same view, not a third one.
+    const replay = await shareAs(t, venueId, { vector: second.row.vector });
+    expect(replay).toMatchObject({ status: 'rejected', reason: 'duplicate' });
+    expect(await t.run(ctx => ctx.storage.get(replay.cropStorageId))).toBeNull();
     expect(await t.run(ctx => ctx.db.query('vectors').collect())).toHaveLength(2);
   });
 
-  it('keeps conflicting verified accessions, names, model versions, and replay views separate', async () => {
+  it('keeps conflicting verified accessions, names, and model versions separate and rejects a replayed view', async () => {
     const { t, venueId } = await fixture();
     const accessionFlow = (accession: string) => verifiedFlow({ fields: { title: labelField('Water Lilies', 'qr'),
       artist: labelField('Claude Monet', 'qr'), accession: labelField(accession, 'qr') } });
@@ -494,9 +498,12 @@ describe('immediate tentative recognition', () => {
     const conflict = await shareAs(t, venueId, { flow: accessionFlow('456') });
     const renamed = await shareAs(t, venueId, { flow: verifiedFlow({ fields: { title: labelField('Haystacks', 'ocr'),
       artist: labelField('Claude Monet', 'ocr') } }) });
-    const replay = await shareAs(t, venueId, { vector: testVector(), flow: accessionFlow('123') });
     const otherModel = await shareAs(t, venueId, { modelVersion: 'other-model', flow: accessionFlow('123') });
-    expect(new Set([first, conflict, renamed, replay, otherModel].map(result => result.row.indexedObjectId)).size).toBe(5);
+    expect(new Set([first, conflict, renamed, otherModel].map(result => result.row.indexedObjectId)).size).toBe(4);
+    const replay = await shareAs(t, venueId, { vector: testVector(), flow: accessionFlow('123') });
+    expect(replay).toMatchObject({ status: 'rejected', reason: 'duplicate' });
+    expect(replay.row.indexedObjectId).toBeUndefined();
+    expect(await t.run(ctx => ctx.db.query('objects').collect())).toHaveLength(4);
   });
 
   it('preserves canonical artwork metadata and mappings when a visitor claims its Wikidata identity', async () => {
@@ -521,6 +528,46 @@ describe('immediate tentative recognition', () => {
     await t.run(ctx => ctx.db.insert('takedowns', { artworkId: corpus.artworkId, requester: 'museum', receivedAt: Date.now() }));
     await expect(contribute()).rejects.toMatchObject({ data: { code: 'artwork_taken_down' } });
     expect(await t.run(ctx => ctx.db.query('contributions').collect())).toEqual([]);
+  });
+
+  it('keeps a taken-down visitor label off the venue across devices, model versions, and sibling entries', async () => {
+    vi.useFakeTimers();
+    const { t, venueId } = await fixture();
+    const accessionFlow = (accession: string) => verifiedFlow({ fields: { title: labelField('Water Lilies', 'qr'),
+      artist: labelField('Claude Monet', 'qr'), accession: labelField(accession, 'qr') } });
+    const shared = await shareAs(t, venueId, { flow: accessionFlow('123') });
+    // Same label, kept as a separate entry by a conflicting verified accession.
+    const sibling = await shareAs(t, venueId, { vector: testVector(0.9), flow: accessionFlow('456') });
+    expect(sibling.row.indexedObjectId).not.toBe(shared.row.indexedObjectId);
+    const eligible = async (objectId: Id<'objects'>) => {
+      const vectors = await t.run(ctx => ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', q => q.eq('objectId', objectId)).collect());
+      const candidates = await t.query(internal.identify.loadCandidates, { vectorIds: vectors.map(row => row._id), scores: vectors.map(() => 1), venueId, now: Date.now() });
+      return candidates.some(candidate => candidate.object._id === objectId);
+    };
+    expect(await eligible(sibling.row.indexedObjectId!)).toBe(true);
+    await t.mutation(internal.revert.applyTakedown, { objectId: shared.row.indexedObjectId!, requester: 'museum' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await eligible(sibling.row.indexedObjectId!)).toBe(false);
+    await expect(shareAs(t, venueId)).rejects.toMatchObject({ data: { code: 'artwork_taken_down' } });
+    await expect(shareAs(t, venueId, { modelVersion: 'other-model' })).rejects.toMatchObject({ data: { code: 'artwork_taken_down' } });
+    const other = await shareAs(t, venueId, { flow: verifiedFlow({ fields: { title: labelField('Haystacks', 'ocr'),
+      artist: labelField('Claude Monet', 'ocr') } }) });
+    expect(other.status).toBe('tentative');
+  });
+
+  it('hides an existing visitor entry once the canonical artwork it claims is taken down', async () => {
+    vi.useFakeTimers();
+    const { t, venueId } = await fixture();
+    const corpus = await t.run(ctx => seedArtworkWithObject(ctx, { vector: testVector(0), artwork: { wikidataId: 'Q3374376' } }));
+    const shared = await shareAs(t, venueId);
+    const objectId = shared.row.indexedObjectId!;
+    const vector = await t.run(ctx => ctx.db.query('vectors').withIndex('by_contributionId', q => q.eq('contributionId', shared.contributionId)).unique());
+    const candidates = () => t.query(internal.identify.loadCandidates, { vectorIds: [vector!._id], scores: [1], venueId, now: Date.now() });
+    expect((await candidates()).map(candidate => candidate.object._id)).toEqual([objectId]);
+    await t.mutation(internal.revert.applyTakedown, { artworkId: corpus.artworkId, requester: 'museum' });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await candidates()).toEqual([]);
+    expect(await t.run(ctx => ctx.db.get(objectId))).toMatchObject({ reverted: false });
   });
 });
 
@@ -561,6 +608,27 @@ describe('precise contribution removal', () => {
     expect(await t.run(ctx => ctx.db.get(objectId))).toMatchObject({ reverted: true });
     expect(await t.run(ctx => ctx.db.get(before!.artworkId))).toHaveProperty('retiredAt');
     expect(await t.run(ctx => ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', q => q.eq('objectId', objectId)).collect())).toEqual([]);
+  });
+
+  it.each(['withdraw', 'ban'] as const)('joins the surviving entry when a share lands between Alice’s %s and its rebuild', async kind => {
+    vi.useFakeTimers();
+    const { t, user: alice, contribute, venueId } = await fixture();
+    const first = await contribute();
+    const objectId = (await t.run(ctx => ctx.db.get(first.contributionId)))!.indexedObjectId!;
+    const bob = await shareAs(t, venueId);
+    if (kind === 'withdraw') await alice.as.mutation(api.contributions.withdraw, { contributionId: first.contributionId });
+    else await t.mutation(internal.revert.revertDevice, { deviceId: alice.deviceId, reason: 'abuse' });
+    // Nothing scheduled has run yet: the recorded reference is still Alice’s ineligible contribution.
+    const carol = await shareAs(t, venueId, { vector: testVector(0.91) });
+    expect(carol.row.indexedObjectId).toBe(objectId);
+    expect(await t.run(ctx => ctx.db.get(objectId))).toMatchObject({ sourceContributionId: bob.contributionId });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const live = (await t.run(ctx => ctx.db.query('objects').collect())).filter(object => !object.reverted);
+    expect(live.map(object => object._id)).toEqual([objectId]);
+    expect(live[0]).toMatchObject({ sourceContributionId: bob.contributionId });
+    expect(await t.run(ctx => ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', q => q.eq('objectId', objectId)).collect()))
+      .toHaveLength(2);
+    if (kind === 'ban') expect(await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId })).toMatchObject({ phase: 'complete' });
   });
 
   it('blocks other devices from withdrawing a contribution', async () => {

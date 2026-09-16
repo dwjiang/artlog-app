@@ -5,8 +5,8 @@
 > and run each verification gate before proceeding. Acceptance taps and matching
 > photographs alone must never certify label text.
 >
-> Drift check: `git diff e97199d -- convex src/components/scan src/lib/result src/lib/museum-search`.
-> Baseline: `e97199d` (`Publish visitor contributions as removable tentative matches`).
+> Drift check: `git diff "$(git log -1 --format=%h -- docs/todos/independent-evidence-promotion/README.md)" -- convex src/components/scan src/lib/result src/lib/museum-search`.
+> Baseline: the commit that last updated this handoff.
 > Compare the listed symbols and invariants before implementation. Stop if the
 > baseline has changed materially.
 
@@ -36,13 +36,17 @@ the decision without destroying independent support or private journal records.
   Publication and recognition records commit together. The venue revision guards
   paginated grouping against concurrent submissions and removals.
 - `convex/lib/tentativeEntries.ts`: `publishContribution` creates a separate
-  community artwork with `identityStatus: 'tentative'`; `compatibleEntry` checks
+  community artwork with `identityStatus: 'tentative'`; `compatibleAnchor` checks
   model, museum, normalized names, verified accession compatibility, and cosine
-  in `[0.9, 0.999)`. `applyReference` copies the entire displayed reference from
-  one contributor. Museum/Wikidata claims stay on originating contributions;
+  in `[0.9, 0.999)` against the oldest eligible backer, so a share that lands
+  between a removal and its rebuild joins the entry instead of forking it.
+  `replaysEntry` rejects a submission within `0.999` of any vector already on
+  the entry as a duplicate rather than a second view.
+  `applyReference` copies the entire displayed reference from one contributor. Museum/Wikidata claims stay on originating contributions;
   `museumWorkIdentities` remains owned by corpus ingestion.
-- `convex/lib/agreement.ts`: `verifiedAccession` and `workKey` normalize claims
-  for grouping. There is no contribution-promotion evaluator or trust increase.
+- `convex/lib/agreement.ts`: `verifiedAccession`, `workKey`, and `contributionGroup`
+  normalize claims for grouping. There is no contribution-promotion evaluator or
+  trust increase.
 - `convex/schema.ts`: artworks, objects, placements, and scan candidates carry
   explicit identity status. Vectors carry a model/scope partition and exact
   contribution or scan/proposal attribution. Contributions use `indexedObjectId`
@@ -53,6 +57,7 @@ the decision without destroying independent support or private journal records.
   existing visual gates and soft score threshold, and its outcome is capped at soft.
 - `convex/lib/recognitionEligibility.ts`: checks source eligibility on read paths,
   including bans, withdrawal, rights, and reviewed proposal provenance.
+  `contributionRightsIssue` is the one rights predicate for sharing and reading.
 - `convex/contributionRemoval.ts`: withdrawal and banning share `removeContribution`;
   `rebuildPage` selects the oldest surviving eligible contribution, ordering by
   creation time then ID. Support revisions and final transactional eligibility
