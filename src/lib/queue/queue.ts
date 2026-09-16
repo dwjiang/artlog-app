@@ -6,11 +6,12 @@ import model from '../../../shared/model/model-version.json';
 
 import { api } from '../../../convex/_generated/api';
 import * as pending from '@/db/repos/pending-scans';
+import { isLabelCapture, updatePhotoSession } from '@/lib/capture/photo-draft';
 import { extractFeatures, orb } from '@/lib/capture/features';
 import type { CaptureStore, IdentifyResponse } from '@/lib/capture/stages';
 import { convex } from '@/lib/convex-client';
 import { embedder } from '@/lib/embed/embedder';
-import { captureFileUri, persistCapture } from '@/lib/files/photos';
+import { captureFileUri, copyCaptureLabel, persistCapture } from '@/lib/files/photos';
 import { runLabelFlowForScan } from '@/lib/label/label-deps';
 import { LabelFlowError } from '@/lib/label/flow';
 import { removeFile } from '@/lib/label/crop';
@@ -36,8 +37,10 @@ export const captureStore: CaptureStore = {
       removeFile(captureFileUri(files.cropPath));
       throw new Error('Journal owner changed');
     }
+    const labelPhotoPath = payload.subject === 'label' ? copyCaptureLabel(files.photoPath, payload.localId) : undefined;
+    if (payload.subject === 'label') updatePhotoSession(payload.owner, files.photoPath, { primaryKind: 'label' });
     await pending.enqueuePendingScan({
-      localId: payload.localId, ...files,
+      localId: payload.localId, ...files, labelPhotoPath,
       vector: payload.vector, descriptors: payload.descriptors, keypoints: payload.keypoints,
       modelVersion: payload.modelVersion, attemptModelVersion: payload.modelVersion,
       venueId: payload.venueId, visitId: payload.visitId,
@@ -58,6 +61,7 @@ function makeFlusher() {
   const owner = current.owner;
   return createFlusher({
   isCurrent: current.isCurrent,
+  isLabelCapture,
   listFlushable: (version) => pending.listFlushable(version, owner),
   listPendingLabels: () => pending.listPendingLabels(owner),
   recordLabelFailure: (id, error, options) => pending.recordLabelFailure(id, error, options, owner),

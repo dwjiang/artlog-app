@@ -4,6 +4,7 @@ import { ConvexError } from 'convex/values';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
 import { contributionPayload } from '../../../shared/attestation/attested-payloads';
+import { clearPhotoDraft, updatePhotoSession } from '@/lib/capture/photo-draft';
 import { contributeLabel, contributionErrorMessage, uploadCrop } from './contribute';
 import { clearLabelDraft, loadLabelDraft } from './draft';
 import { formStateFromFlow, setFieldValue, unlockField } from './fields';
@@ -44,7 +45,7 @@ jest.mock('expo-file-system', () => ({
 
 const scanId = 'scan-1' as Id<'scans'>;
 const feedbackId = 'fb-1' as Id<'feedback'>;
-const capture = { cropPath: 'crops/c1.jpg', descriptors: new ArrayBuffer(64), keypoints: new ArrayBuffer(32) };
+const capture = { localId: 'capture', owner: 'device:test-installation', photoPath: 'photos/capture.jpg', cropPath: 'crops/c1.jpg', descriptors: new ArrayBuffer(64), keypoints: new ArrayBuffer(32) };
 const flow: LabelFlowDisplay = {
   stage: 'verified', evidence: ['wikidata'], warnings: [], moderation: 'clear', updatedAt: 1,
   fields: {
@@ -184,4 +185,14 @@ it.each([
   [new ConvexError({ code: 'contribution_busy' }), 'Couldn’t share this work right now'],
 ])('maps %s to a sharing message', (error, message) => {
   expect(contributionErrorMessage(error)).toBe(message);
+});
+
+it('rejects label-only captures before their pixels or fingerprints leave the phone', async () => {
+  updatePhotoSession(capture.owner, capture.photoPath, { primaryKind: 'label' });
+  try {
+    await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).rejects.toThrow('An artwork photo is required');
+    expect(mockResize).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockAction).not.toHaveBeenCalled();
+  } finally { clearPhotoDraft(capture.owner, capture.photoPath); }
 });

@@ -7,7 +7,7 @@ import { db } from '@/db/client';
 import { artworkPhotos, pendingScans } from '@/db/schema';
 import { deletePendingScan } from '@/db/repos/pending-scans';
 import { useLocalOwner } from '@/lib/account/owner-store';
-import { clearPhotoDraft, readPhotoDraft } from '@/lib/capture/photo-draft';
+import { clearPhotoDraft, readPhotoDraft, isLabelCapture } from '@/lib/capture/photo-draft';
 import { removePhotoFile } from '@/lib/account/photo-transfer';
 import { GalleryButton } from '../collection/gallery-button';
 
@@ -23,7 +23,7 @@ export function CaptureDraftBanner() {
   const extras = readPhotoDraft(owner, draft.photoPath);
   return <View style={{ backgroundColor: Gallery.paper, borderRadius: 12, paddingHorizontal: 12, paddingTop: 8, borderWidth: 0.5, borderColor: Gallery.separator }}>
     <Text style={{ color: Gallery.ink, fontSize: 12 }}>Unsaved artwork · {extras.length + 1} {extras.length ? 'photos' : 'photo'}</Text>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><GalleryButton label="Resume draft" onPress={() => router.push({ pathname: '/result/[scanId]', params: { scanId: draft.scanId ?? `local-${draft.localId}` } })} />
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><GalleryButton label="Resume draft" onPress={() => router.push({ pathname: isLabelCapture(draft) ? '/label/[scanId]' : '/result/[scanId]', params: { scanId: draft.scanId ?? `local-${draft.localId}` } })} />
       <GalleryButton label="Discard" onPress={() => Alert.alert('Discard this draft?', 'These unsaved photos will be removed from this device.', [{ text: 'Keep draft', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: () => {
         void deletePendingScan(draft.localId, owner).then(async () => {
           clearPhotoDraft(owner, draft.photoPath);

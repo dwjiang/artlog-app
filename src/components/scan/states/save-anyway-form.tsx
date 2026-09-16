@@ -1,10 +1,13 @@
 import { useState } from 'react';
 
+import { CapturePhotosButton } from '../capture-photos-button';
+import type { SaveResultInput } from '@/lib/result/save';
 import { FieldsForm } from '../result/fields-form';
 import { SaveBar } from '../result/save-bar';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
 
 export type SaveAnywayFormProps = {
+  captureInput?: Omit<SaveResultInput, 'draft'>;
   saving: boolean;
   savedId?: string;
   saveError?: string;
@@ -14,7 +17,7 @@ export type SaveAnywayFormProps = {
 };
 
 /** Blank fields for a card that names no work yet; the title the user types is what gets saved. */
-export function SaveAnywayForm({ saving, savedId, saveError, onSave, onViewSaved, onDraftChange }: SaveAnywayFormProps) {
+export function SaveAnywayForm({ captureInput, saving, savedId, saveError, onSave, onViewSaved, onDraftChange }: SaveAnywayFormProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate());
   const editable = !saving && !savedId;
   return (
@@ -24,6 +27,7 @@ export function SaveAnywayForm({ saving, savedId, saveError, onSave, onViewSaved
         setDraft(next);
         onDraftChange?.(Object.values(next).some((text) => text.trim().length > 0));
       }} />
+      {captureInput && editable && <CapturePhotosButton input={{ ...captureInput, draft }} disabled={saving} />}
       <SaveBar
         saveLabel="Save anyway"
         canSave={canSave(draft)}

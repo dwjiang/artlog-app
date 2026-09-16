@@ -12,6 +12,8 @@ import * as resultSave from '@/lib/result/save';
 import { getSavedWork } from '@/db/repos/saved-works';
 import type { NewPendingScan } from '@/db/schema';
 import { FAILED_TITLE } from '@/lib/result/failure-copy';
+jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
+jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
@@ -32,7 +34,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, dismissTo: mockPush, replace: mockReplace }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -103,7 +105,7 @@ it('keeps a manual draft on completion, then saves it before opening the result'
   expect(alert).toHaveBeenCalledWith('Discard your edits?', expect.any(String), expect.any(Array));
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Pond at dusk', artist: 'My artist' });
   await fireEvent.press(screen.getByRole('button', { name: 'View result' }));
   expect(mockReplace).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId: 'scan-draft-completion' } });
@@ -126,7 +128,7 @@ it('finishes an in-flight save when identification completes and keeps the saved
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'View result' })).toBeDisabled();
   await act(() => { finishWrite(); });
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My saved title' });
   expect(screen.getByRole('button', { name: 'View result' })).toBeEnabled();
   expect(mockReplace).not.toHaveBeenCalled();
@@ -156,7 +158,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   expect(screen.getByRole('button', { name: 'Save anyway' })).toBeEnabled();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Pond at dusk');
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  const link = await screen.findByRole('link', { name: 'Saved · View in collection' });
+  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(await getSavedWork(savedId)).toMatchObject({
     title: 'Pond at dusk', artist: '', cropPath: 'crops/cap-queued.jpg', photoPath: 'photos/cap-queued.jpg', scanId: null, venueId: 'museum-legion', venueName: 'Legion of Honor',
@@ -164,7 +166,8 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   await waitFor(() => expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ localId: savedId, suggested: null })));
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();
   expect(mockHaptic).toHaveBeenCalledWith('success');
-  expect(screen.getByLabelText('Title').props.editable).toBe(false);
+  expect(screen.queryByLabelText('Title')).toBeNull();
+  expect(screen.getByText('Saved as Pond at dusk.')).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
   expect(mockReplace).not.toHaveBeenCalled();
@@ -210,13 +213,13 @@ it('saves a manual entry during an unsupported retry without presenting the old 
   expect(screen.getByText(WAITING_TITLE)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'View result' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My painting', scanId });
   expect(mockReplace).not.toHaveBeenCalled();
 
   await complete(localId);
   expect(await screen.findByRole('button', { name: 'View result' })).toBeEnabled();
-  expect(screen.getByRole('link', { name: 'Saved · View in collection' })).toBeOnTheScreen();
+  expect(screen.getByText(/^(View artwork|Saved · View in collection)$/)).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'View result' }));
   expect(mockReplace).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId } });

@@ -62,7 +62,7 @@ function SavedArtwork({ work, visitId }: { work: SavedWork; visitId?: string }) 
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
 
     <View style={{ paddingHorizontal: 20, gap: 24 }}>
-      <ArtworkAlbum work={work} visitId={visitId} />
+      <ArtworkAlbum work={work} visitId={visitId} color={wall.draft?.color} />
       <GalleryButton label={work.title === 'Unidentified artwork' ? 'Identify this artwork' : 'Edit artwork details'} icon="pencil" onPress={() => router.push({ pathname: '/identify-artwork', params: { savedId: work.localId } })} />
       {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
       <NoteEditor savedLocalId={work.localId} />

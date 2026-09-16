@@ -12,6 +12,7 @@ export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 
 export type FlushDependencies = {
   isCurrent?(): boolean;
+  isLabelCapture?(row: PendingScan): boolean;
   listFlushable(modelVersion: string): Promise<PendingScan[]>;
   listPendingLabels(): Promise<PendingScan[]>;
   clearPendingLabel(localId: string, label: LabelInput): Promise<void>;
@@ -94,7 +95,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     if (!isCurrent()) return;
     await deps.recordResult(row.localId, response);
     const label: LabelInput = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
-    if (response.status === 'identified' && response.outcome === 'confident' && isCurrent() && (label.labelPhotoPath || label.qrUrl)) {
+    if (response.status === 'identified' && response.outcome === 'confident' && !deps.isLabelCapture?.(row) && isCurrent() && (label.labelPhotoPath || label.qrUrl)) {
       await deps.clearPendingLabel(row.localId, label);
     }
   }

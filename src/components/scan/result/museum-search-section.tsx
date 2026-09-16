@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Id } from '../../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../../convex/lib/validators';
+import { CapturePhotosButton } from '../capture-photos-button';
 import { ConsentSheet } from '../label/consent-sheet';
 import { LabelActions } from '../label/label-actions';
 import { VerifiedFieldsForm } from '../label/verified-fields-form';
@@ -64,7 +65,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
 function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: LabelFlowDisplay; confirmedAt: number; scanId: Id<'scans'>; capture?: PendingScan }) {
   const router = useRouter();
   const { form, setForm, error: formError, retry: retryForm } = useLabelForm(scanId, flow, confirmedAt);
-  const { saving, savedId, error: saveError, save } = useSaveResult();
+  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
   const [consentOpen, setConsentOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<ContributionOutcome>();
@@ -104,8 +105,9 @@ function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: Labe
       <VerifiedFieldsForm state={form} warnings={flow.warnings} editable={!saving && !sharing && !shared && !savedId}
         onChange={(name, value) => setForm((current) => current && setFieldValue(current, name, value))}
         onUnlock={(name) => setForm((current) => current && unlockField(current, name))} />
+      {capture && !savedId && <CapturePhotosButton disabled={saving} input={{ scanId, capture, draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' } }} />}
       <LabelActions canSave={canSaveLabel(form)} canShare={canShareLabel(form)} saving={saving} sharing={sharing}
-        savedId={savedId} shared={shared} saveError={saveError} shareError={shareError}
+        savedId={savedId} completion={completion} shared={shared} saveError={saveError} shareError={shareError}
         onSave={() => { void save({ scanId, capture, draft: {
           title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '',
         } }); }}

@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { api } from './_generated/api';
 import { harness } from './test.helpers';
 import { socialUser, befriend } from './lib/socialTestFixtures';
-import { seedMuseum, seedArtworkWithObject, seedContribution } from './lib/testFactories';
+import { seedMuseum, seedArtworkWithObject, seedContribution, seedDevice } from './lib/testFactories';
 import { recordContributionScore } from './lib/leaderboard';
 import { publishContribution } from './lib/tentativeEntries';
 import { rankScores } from '../shared/social/leaderboard';
@@ -21,6 +21,31 @@ it('keeps participation off by default and enforces friends, global, and block v
   expect((await a.as.query(api.leaderboards.list, { ...query, audience: 'global' })).rows.map((row) => row.profile.name)).toEqual(['Cam']);
   await a.as.mutation(api.friendships.block, { profileId: b.profileId, revision: 2, blockRevision: 0 });
   expect((await a.as.query(api.leaderboards.list, query)).rows).toEqual([]);
+});
+it('lets guests browse only opted-in Global profiles without exposing private activity', async () => {
+  const t = harness(), global = await socialUser(t, 'Global'), friends = await socialUser(t, 'Friends');
+  await socialUser(t, 'Off');
+  await global.as.mutation(api.leaderboards.setPreference, { visibility: 'global' });
+  await friends.as.mutation(api.leaderboards.setPreference, { visibility: 'friends' });
+  const query = { metric: 'visits' as const, period: 'all' as const, audience: 'global' as const };
+  const board = await t.query(api.leaderboards.list, query);
+  expect(board.visibility).toBe('off');
+  expect(board.rows.map((row) => row.profile.name)).toEqual(['Global']);
+  expect(JSON.stringify(board)).not.toMatch(/accountId|deviceId|visitedOn|reflection|venueId/);
+  const guest = await seedDevice(t);
+  expect(await guest.as.query(api.leaderboards.list, query)).toEqual(board);
+  await expect(t.query(api.leaderboards.list, { ...query, audience: 'friends' })).rejects.toThrow();
+  await expect(guest.as.query(api.leaderboards.list, { ...query, audience: 'friends' })).rejects.toThrow();
+});
+it('continues to hide blocked, inactive, and removed profiles from Global', async () => {
+  const t = harness(), viewer = await socialUser(t, 'Viewer'), blocked = await socialUser(t, 'Blocked'), inactive = await socialUser(t, 'Inactive');
+  for (const person of [viewer, blocked, inactive]) await person.as.mutation(api.leaderboards.setPreference, { visibility: 'global' });
+  await viewer.as.mutation(api.friendships.block, { profileId: blocked.profileId, revision: 0, blockRevision: 0 });
+  await t.run((ctx) => ctx.db.patch(inactive.profileId, { active: false }));
+  const query = { metric: 'visits' as const, period: 'all' as const, audience: 'global' as const };
+  expect((await viewer.as.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(['Viewer']);
+  await t.run((ctx) => ctx.db.delete(blocked.accountId));
+  expect((await t.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(['Viewer']);
 });
 it('deduplicates museum days and moves backdated totals to the visit’s month', async () => {
   const t = harness(), a = await socialUser(t, 'Ada'), venueId = await t.run(seedMuseum);

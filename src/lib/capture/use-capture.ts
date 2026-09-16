@@ -12,7 +12,7 @@ import { api } from '../../../convex/_generated/api';
 import { venueIdAt } from '@/lib/venue/venue-db';
 import { resolveVenueForScan } from '@/lib/venue/use-venue';
 import { CaptureController, type CaptureAttempt } from './capture-controller';
-import { captureOptions, defaultStages } from './default-stages';
+import { captureOptions, defaultStages, labelWarper } from './default-stages';
 import { extractCaptureMeta } from './exif';
 import { runCapture } from './pipeline';
 import { PresentationImages } from './presentation-images';
@@ -26,7 +26,7 @@ export type CapturePresentation = {
   painting?: PreparedPainting;
   crop?: ImageRef;
 };
-type Completed = { attempt: CaptureAttempt; result: Exclude<CaptureResult, { kind: 'retake' }> };
+type Completed = { subject?: 'label'; attempt: CaptureAttempt; result: Exclude<CaptureResult, { kind: 'retake' }> };
 type VenueContext = Pick<CaptureInput, 'venueId' | 'visitId' | 'visitLocalId'>;
 
 export function useCapture({ active = true, focused = true } = {}) {
@@ -64,8 +64,8 @@ export function useCapture({ active = true, focused = true } = {}) {
     if (!mounted.current || !pending || !revealFinished.current || !controller.result(pending.attempt)) return;
     pendingResult.current = undefined;
     navigation.current.push({
-      pathname: '/result/[scanId]',
-      params: { scanId: pending.result.kind === 'sent' ? pending.result.scanId : `local-${pending.result.localId}`, entrance: 'capture' },
+      pathname: pending.subject === 'label' ? '/label/[scanId]' : '/result/[scanId]',
+      params: { scanId: pending.result.kind === 'sent' ? pending.result.scanId : `local-${pending.result.localId}`, entrance: 'capture', ...(pending.subject === 'label' ? { intent: 'review' } : {}) },
     });
     // Keep the frozen artwork until the native transition takes focus away from Scan.
   }, [controller]);
@@ -121,14 +121,16 @@ export function useCapture({ active = true, focused = true } = {}) {
       if (!current()) return;
       const result = await runCapture({ ...input, ...context }, {
         ...defaultStages,
+        ...(input.subject === 'label' ? { warper: labelWarper } : {}),
         onPrepared: async (painting) => {
+          if (input.subject === 'label') { releasePresentation(); completeReveal(attempt); return; }
           const [photo, crop] = await Promise.all([photoReady, retained.load(painting.cropUri)]);
           if (!current() || images.current !== retained) return;
           if (!photo || !crop) { releasePresentation(); completeReveal(attempt); return; }
           setPresentation({ attempt, photoUri: input.photoUri, source: input.source, photo, crop, painting });
           controller.revealing(attempt);
         },
-        identify: ({ cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, owner: _owner, scope, ...payload }) => {
+        identify: ({ subject: _subject, cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, owner: _owner, scope, ...payload }) => {
           if (!scope || !owner.isCurrent()) throw new Error('Journal owner changed');
           return identify({ ...payload, scope });
         },
@@ -141,7 +143,7 @@ export function useCapture({ active = true, focused = true } = {}) {
         if (input.source === 'library') setPresentation({ attempt, photoUri: input.photoUri, source: 'library' });
         controller.fail(attempt, result.message);
       } else {
-        pendingResult.current = { attempt, result };
+        pendingResult.current = { attempt, result, subject: input.subject };
         navigate();
       }
     } catch (error) {
@@ -156,12 +158,12 @@ export function useCapture({ active = true, focused = true } = {}) {
     }
   }
 
-  function captureManually(takePhoto: () => Promise<{ filePath: string }>) {
+  function captureManually(takePhoto: () => Promise<{ filePath: string }>, subject?: 'label') {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     return capture(async () => {
       const capturedAt = Date.now();
       const { filePath } = await takePhoto();
-      return { photoUri: `file://${filePath}`, quad: null, source: 'camera', capturedAt };
+      return { photoUri: `file://${filePath}`, quad: null, source: 'camera', capturedAt, ...(subject ? { subject } : {}) };
     }, undefined, (input) => resolveCaptureVisit(() => resolveVenueForScan(input.capturedAt)));
   }
 

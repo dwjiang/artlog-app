@@ -26,6 +26,8 @@ import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
 import { formStateFromFlow, unlockField } from '@/lib/label/fields';
+jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
+jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
@@ -55,7 +57,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, dismissTo: mockPush }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -257,7 +259,7 @@ it('keeps the card usable while the prose is still being written, then fills it 
   await publish({ ...confidentScanWithoutProse, docent: confidentScan.docent, factSheet: confidentScan.factSheet });
   expect(await screen.findByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Nymphéas' });
 });
 
@@ -300,7 +302,7 @@ it('fills the fields from a suggestion picked on a soft card without sending fee
 it('saves an untouched confident card locally, tells the server the suggestion was kept, and links to the collection', async () => {
   await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
-  const link = await screen.findByRole('link', { name: 'Saved · View in collection' });
+  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(mockHaptic).toHaveBeenCalledWith('success');
   expect(await getSavedWork(savedId)).toMatchObject({
@@ -311,7 +313,8 @@ it('saves an untouched confident card locally, tells the server the suggestion w
     snapshot: expect.objectContaining({ title: 'Water Lilies', artist: 'Claude Monet' }),
     suggested: { title: 'Water Lilies', artist: 'Claude Monet' },
   })));
-  expect(screen.getByLabelText('Title').props.editable).toBe(false);
+  expect(screen.queryByLabelText('Title')).toBeNull();
+  expect(screen.getByText('1 artwork · 1 new photo')).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
 });
@@ -322,11 +325,11 @@ it.each([softScan, missScan])('removes match choices after saving a $outcome car
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My painting');
   expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  const link = await screen.findByRole('link', { name: 'Saved · View in collection' });
+  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(screen.queryByText('Maybe one of these?')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Haystacks, Claude Monet' })).toBeNull();
-  expect(screen.getByLabelText('Title').props.defaultValue).toBe((await getSavedWork(savedId))?.title);
+  expect(screen.getByText(`Saved as ${(await getSavedWork(savedId))?.title}.`)).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
 });
@@ -355,8 +358,8 @@ it.each([confidentScan, softScan])('locks the draft and match choices while savi
       await savePromise;
     });
   }
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
-  expect(screen.getByLabelText('Title').props.defaultValue).toBe(scan.best?.title);
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
+  expect(screen.getByText(`Saved as ${scan.best?.title}.`)).toBeOnTheScreen();
   expect((await getSavedWork(`saved-${mockUuid}`))?.title).toBe(scan.best?.title);
   expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({
     snapshot: expect.objectContaining({ title: scan.best?.title }),
@@ -376,7 +379,7 @@ it('unlocks the draft and match choices after a local save fails so the user can
   await fireEvent.press(screen.getByRole('button', { name: 'Haystacks, Claude Monet' }));
   await fireEvent.changeText(screen.getByLabelText('Title'), 'My haystacks');
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My haystacks', objectId: haystacks.objectId });
 });
 
@@ -462,7 +465,7 @@ it('saves an unsupported scan anyway with a typed title and keeps its scan id', 
   await render(result());
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'Blue room');
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue room', scanId: SCAN_ID, objectId: null, cropPath: 'crops/c1.jpg' });
   await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: SCAN_ID, suggested: null })));
 });
@@ -470,12 +473,12 @@ it('saves an unsupported scan anyway with a typed title and keeps its scan id', 
 it('starts a fresh card when the same screen receives another scan id', async () => {
   const view = await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   results.set('scans:get', softScan);
   await view.rerender(result('scan-2'));
   expect(await screen.findByText('Maybe')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Save to collection' })).toBeOnTheScreen();
-  expect(screen.queryByRole('link', { name: 'Saved · View in collection' })).toBeNull();
+  expect(screen.queryByText(/^(View artwork|Saved · View in collection)$/)).toBeNull();
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
 });
@@ -571,7 +574,7 @@ it('resumes stored candidates on remount and restores confirmed fields from the 
   expect(jest.requireMock('expo-web-browser').openBrowserAsync).toHaveBeenCalledWith(verified.sourceUrl);
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue painting', artist: 'A. Painter', objectId: null });
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
@@ -659,7 +662,8 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
   if (stage !== 'saving') await act(async () => { finishSave(); });
   await act(async () => { finishSearch({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
   await publish({ ...softScan, museumSearch: confirmed, labelFlow: verified });
-  expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
+  if (stage === 'saved') expect(screen.getByText('Saved as The Japanese Footbridge.')).toBeOnTheScreen();
+  else expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
   expect(screen.queryByText("Found on the museum's site")).toBeNull();
   if (stage === 'failed') {
     expect(screen.getByText('Couldn’t save. Try again.')).toBeOnTheScreen();
@@ -671,7 +675,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
     await act(async () => { finishSave(); });
   }
-  const link = await screen.findByRole('link', { name: 'Saved · View in collection' });
+  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: `saved-${mockUuid}` } });
@@ -737,7 +741,7 @@ it.each(['Title', 'Institution'])('keeps edited %s when a background museum sear
   expect(screen.getByLabelText(label).props.defaultValue).toBe('My own entry');
   expect(screen.queryByText("Found on the museum's site")).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ [label.toLowerCase()]: 'My own entry' });
 });
 
@@ -846,7 +850,7 @@ it('uses the confirmed museum fields instead of an earlier label sharing draft',
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('Blue painting');
   expect(screen.getByLabelText('Title').props.editable).toBe(false);
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue painting', artist: 'A. Painter' });
 });
 
@@ -879,8 +883,8 @@ it('saves edited tentative metadata without implying confirmation', async () => 
   await render(result());
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My reading of the label');
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('link', { name: 'Saved · View in collection' });
+  await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My reading of the label' });
-  expect(screen.getByText('Maybe')).toBeOnTheScreen();
-  expect(screen.getByText('Shared by a visitor. Label not independently confirmed.')).toBeOnTheScreen();
+  expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ suggested: null }));
+  expect(screen.getByText('Saved as My reading of the label.')).toBeOnTheScreen();
 });

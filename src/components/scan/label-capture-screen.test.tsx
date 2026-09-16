@@ -6,7 +6,7 @@ import { AppState } from 'react-native';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
 
-import { LABEL_PROMPT, LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE } from './label-capture-screen';
+import { LABEL_PROMPT, LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE, QUEUED_ONLINE_MESSAGE } from './label-capture-screen';
 import { CONSENT_TITLE } from './label/consent-sheet';
 import { SHARE_BUTTON } from './label/label-actions';
 import { STEP_LABELS } from './label/progress-steps';
@@ -17,6 +17,7 @@ import { formStateFromFlow, setFieldValue, unlockField } from '@/lib/label/field
 type CameraProps = { isActive: boolean; outputs: unknown[]; onStarted: () => void };
 type StageCallback = (stage: LabelStage) => void;
 
+let mockLabelOnly = false;
 let mockReachable: boolean | undefined = true;
 let mockCameraProps: CameraProps;
 let mockQr: { enabled: boolean; onCode: (url: string) => void };
@@ -43,6 +44,9 @@ const mockHaptic = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 
+jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => mockLabelOnly }));
+jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
+jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 jest.mock('@/lib/settings/use-sharing-default', () => ({ useSharingDefault: () => true }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
@@ -136,6 +140,7 @@ async function start(props: Partial<Parameters<typeof LabelCaptureScreen>[0]> = 
 }
 
 beforeEach(() => {
+  mockLabelOnly = false;
   jest.resetAllMocks();
   mockReachable = true;
   AppState.currentState = 'active';
@@ -276,7 +281,7 @@ it('stores a QR code on a queued capture even with signal, since identify has no
   expect(mockCaptureId).toHaveBeenCalledWith('local-cap-1');
   expect(mockUseScan).toHaveBeenCalledWith(undefined);
   await act(async () => mockQr.onCode('https://museum.example/qr/1'));
-  expect(await screen.findByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+  expect(await screen.findByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
   expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', 'https://museum.example/qr/1', 'device:test-installation');
   expect(mockRun).not.toHaveBeenCalled();
 });
@@ -309,7 +314,7 @@ it('queues a QR source when its request is rate limited', async () => {
   const url = 'https://museum.example/qr/1';
   await act(async () => mockQr.onCode(url));
   await flow.fail(new LabelFlowError('rate_limited', { cause: new ConvexError({ code: 'rate_limited', retryAfter: 60_000 }) }));
-  expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+  expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
   expect(mockSetQrUrl).toHaveBeenCalledWith('cap-1', url, 'device:test-installation');
   expect(mockPersistLabel).not.toHaveBeenCalled();
   expect(mockRemove).not.toHaveBeenCalled();
@@ -351,7 +356,7 @@ it('opens a persisted verified label without taking or reading another photo', a
 it('opens the form when a queued local scan finishes and preserves edits across subscription updates', async () => {
   mockCapture = { ...capture, scanId: null, status: 'queued', labelPhotoPath: 'labels/queued.jpg' };
   const view = await start({ scanId: 'local-cap-1' });
-  expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+  expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
   mockCapture = capture;
   mockScan = { labelFlow: verified };
   await view.rerender(<LabelCaptureScreen scanId="local-cap-1" />);
@@ -398,7 +403,7 @@ it('shows a recoverable failure when a queued verification was moderated', async
   mockCapture = capture;
   mockScan = { labelFlow: { ...verified, moderation: 'flagged', fields: {}, evidence: [], warnings: [] } };
   await view.rerender(<LabelCaptureScreen scanId={scanId} />);
-  expect(screen.queryByText(QUEUED_MESSAGE)).toBeNull();
+  expect(screen.queryByText(QUEUED_ONLINE_MESSAGE)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Retake label' }));
   expect(screen.getByRole('button', { name: 'Import' })).toBeOnTheScreen();
 });
@@ -489,10 +494,20 @@ it('resumes a pending label before starting another capture', async () => {
   mockScan = { labelFlow: verified };
   mockCapture = { ...capture, labelPhotoPath: 'labels/pending.jpg' };
   const view = await start({ intent: 'capture' });
-  expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+  expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
   mockCapture = capture;
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
   await view.rerender(<LabelCaptureScreen scanId={scanId} intent="capture" />);
   expect(await screen.findByLabelText('Title')).toHaveProp('defaultValue', 'Water Lilies');
+});
+
+it('keeps a label-first scan out of the shared artwork index', async () => {
+  mockLabelOnly = true;
+  mockScan = { labelFlow: verified };
+  await render(<LabelCaptureScreen scanId={scanId} />);
+  expect(await screen.findByText('From the label')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
+  expect(mockContribute).not.toHaveBeenCalled();
 });

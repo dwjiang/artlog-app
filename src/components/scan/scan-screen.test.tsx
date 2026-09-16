@@ -182,3 +182,13 @@ it('shows the stage breakdown of the last capture in development', async () => {
   await render(<ScanScreen />);
   expect(screen.getByText('Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38')).toBeOnTheScreen();
 });
+
+it('offers label scanning beside the shutter and captures it as label material', async () => {
+  await render(<ScanScreen />);
+  const label = screen.getByRole('button', { name: 'Scan label' });
+  expect(label).toBeDisabled();
+  await act(() => mockCameraProps.onStarted());
+  await fireEvent.press(label);
+  expect(mockCapture).toHaveBeenCalledWith(expect.any(Function), 'label');
+  expect(mockPhoto).toHaveBeenCalledTimes(1);
+});

@@ -97,7 +97,12 @@ export function ScanScreen() {
             <Pressable accessibilityRole="button" accessibilityLabel="Scan artwork" disabled={busy || !active || !cameraReady}
               onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }}
               style={[styles.shutter, (busy || !cameraReady) && styles.dimmed]}><View style={styles.shutterInner} /></Pressable>
-            <Text style={{ color: Gallery.muted, fontSize: 11, width: 56, textAlign: 'center' }}>Scan artwork</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Scan label" disabled={busy || !active || !cameraReady}
+              onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}), 'label'); }}
+              style={[styles.labelButton, (busy || !cameraReady) && styles.dimmed]}>
+              <Image source="sf:text.viewfinder" style={styles.importIcon} tintColor={Gallery.accent} />
+              <Text style={{ color: Gallery.muted, fontSize: 11 }}>Scan label</Text>
+            </Pressable>
           </View>}
         </View>
       </View>
@@ -113,6 +118,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: Gallery.accent, padding: 5 },
   shutterInner: { flex: 1, borderRadius: 32, backgroundColor: Gallery.accent },
+  labelButton: { width: 66, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 5 },
   importButton: { backgroundColor: Gallery.fill, width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
   importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   importIcon: { width: 24, height: 24 },

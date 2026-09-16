@@ -1,6 +1,8 @@
 import { Button, Host } from '@expo/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CaptureCompletion } from '../capture-completion';
+import type { CaptureCompletion as Completion } from '@/lib/capture/completion';
 import { ContributeResult } from './contribute-result';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -10,11 +12,13 @@ import { useSharingDefault } from '@/lib/settings/use-sharing-default';
 export const SHARE_BUTTON = 'Add to the shared index';
 
 export type LabelActionsProps = {
+  allowContribution?: boolean;
   canSave: boolean;
   canShare: boolean;
   saving: boolean;
   sharing: boolean;
   savedId?: string;
+  completion?: Completion;
   shared?: ContributionOutcome;
   saveError?: string;
   shareError?: string;
@@ -24,12 +28,12 @@ export type LabelActionsProps = {
 };
 
 export function LabelActions({
-  canSave, canShare, saving, sharing, savedId, shared, saveError, shareError, onSave, onShare, onViewSaved,
+  allowContribution = true, canSave, canShare, saving, sharing, savedId, completion, shared, saveError, shareError, onSave, onShare, onViewSaved,
 }: LabelActionsProps) {
-  const offerSharing = useSharingDefault();
+  const offerSharing = useSharingDefault() && allowContribution;
   return (
     <View style={styles.bar}>
-      {savedId ? (
+      {completion ? <CaptureCompletion completion={completion} sharedToIndex={shared?.status === 'tentative'} inline /> : savedId ? (
         <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
           <ThemedText themeColor="accent">Saved · View in collection</ThemedText>
         </Pressable>
