@@ -11,5 +11,6 @@
 - [Production release](todos/release/README.md)
 - [Hackathon submission](todos/hackathon/README.md)
 - [Full corpus upload](todos/production-upload/README.md) — deferred
+- [Independent-evidence promotion](todos/independent-evidence-promotion/README.md) — deferred; tentative labels stay tentative in this release
 - [Hub scoring](todos/hub-scoring/README.md) — deferred
 - [Deferred product work](todos/deferred-product/README.md)
