@@ -1,53 +1,71 @@
-import { socialStyles } from './social-styles';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SocialText as Text } from './social-text';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { WallGallery } from '@/components/collection/wall-gallery';
+import { NativeSegmentedPicker } from '@/components/collection/native-segmented-picker';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { Gallery } from '@/constants/theme';
-import { useSocialQuery } from '@/lib/social/use-social-query';
+import { useCursorPages, useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
+import type { SharedVisit } from '@/lib/social/types';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { FriendshipControls } from './friendship-controls';
-import { SocialGate, SocialState } from './social-state';
-import { ProfileIdentity } from './visit-card';
+import { PageFooter, SocialGate, SocialState } from './social-state';
+import { ProfileAvatar } from './profile-avatar';
+import { VisitCard } from './visit-card';
+import { socialStyles } from './social-styles';
 
-export function ProfileScreen({ profileId }: { profileId: string }) {
-  const session = useSocialSession();
-  const router = useRouter();
-  const [width, setWidth] = useState(0);
+const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
+const visitId = (visit: SharedVisit) => visit.postId;
+
+export function ProfileScreen({ profileId, preview = false }: { profileId: string; preview?: boolean }) {
+  const session = useSocialSession(), router = useRouter();
+  const [width, setWidth] = useState(0), [tab, setTab] = useState<'wall' | 'visits'>('wall');
+  const scroll = useRef<ScrollView>(null), offsets = useRef({ wall: 0, visits: 0 });
   const args = profileId && !session.offline ? { profileId: profileId as Id<'profiles'> } : 'skip';
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : 'skip', session.key);
-  const unavailable = !profileId || profile.data === null;
-  const error = profile.error ?? wall.error;
+  const relationship = useSocialQuery(api.friendships.getState, session.status === 'ready' && session.profileId !== profileId ? args : 'skip', session.key);
+  const canReadVisits = !preview && session.status === 'ready' && (session.profileId === profileId || (relationship.data?.state === 'accepted' && !relationship.data.blocked));
+  const visits = useCursorPages(api.sharedVisits.listByProfile, canReadVisits ? { profileId: profileId as Id<'profiles'> } : 'skip', session.key, visitPage, visitId);
+  function changeTab(value: 'wall' | 'visits') { setTab(value); requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false })); }
+  if (session.offline) return <SocialGate session={session} />;
+  if (!profileId || profile.data === null) return <SocialState title="Profile unavailable." detail="This public profile is no longer available." />;
+  if (profile.error) return <SocialState title="Couldn’t load this profile." detail={socialErrorMessage(profile.error) ?? 'Please try again.'} action="Try again" onAction={profile.refresh} />;
+  if (!profile.data) return <SocialState title="Opening profile…" loading />;
+  const person = profile.data;
   return <GestureHandlerRootView style={socialStyles.root}>
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.content}>
-      {session.offline ? <SocialGate session={session} /> : unavailable ? <SocialState title="Profile unavailable."
-        detail="This public profile is no longer available." /> : profile.error ? <SocialState title="Couldn’t load this profile."
-          detail={socialErrorMessage(profile.error) ?? 'Please try again.'} action="Try again" onAction={profile.refresh} />
-        : !profile.data ? <SocialState title="Opening profile…" loading /> : <>
-          <View style={socialStyles.section}>
-            <ProfileIdentity profile={profile.data} interactive={false} />
-            {!!profile.data.bio && <Text selectable style={socialStyles.body}>{profile.data.bio}</Text>}
-            <FriendshipControls key={`${session.key}:${profileId}`} profileId={profile.data.profileId} session={session} />
-          </View>
-          {session.status === 'signed-out' || session.status === 'profile-required' ? <SocialGate session={session} /> : null}
-          <Text accessibilityRole="header" style={[socialStyles.title, { padding: 24 }]}>Public wall</Text>
-          {error ? <SocialState title="Couldn’t load this wall." detail={socialErrorMessage(error) ?? 'Please try again.'}
-            action="Try again" onAction={wall.refresh} /> : wall.data ? <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-              {width > 0 && <WallGallery width={width} color={wall.data.color}
-                pieces={wall.data.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}
-                onSelect={(piece) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: piece.localId } })}>
-                {!wall.data.items.length && <View style={{ backgroundColor: Gallery.surface, margin: 24, borderRadius: 12 }}>
-                  <SocialState title="A wall waiting for art." detail="No artworks have been hung here yet." />
-                </View>}
-              </WallGallery>}
-            </View> : <SocialState title="Opening wall…" loading />}
-        </>}
+    <ScrollView ref={scroll} contentInsetAdjustmentBehavior="automatic" stickyHeaderIndices={[1]} scrollEventThrottle={100}
+      onScroll={(event) => { offsets.current[tab] = event.nativeEvent.contentOffset.y; }} contentContainerStyle={{ paddingBottom: 30 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 16 }}>
+        {preview && <Text style={socialStyles.caption}>VISITOR PREVIEW</Text>}
+        <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}><ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
+          <View style={{ flex: 1, gap: 4 }}><Text style={{ fontSize: 27, fontWeight: '600', color: Gallery.ink }}>{person.name}</Text>
+            <Text style={socialStyles.caption}>@{person.username} · {wall.data?.items.length ?? 0} artworks on the wall</Text></View>
+        </View>
+        {!!person.bio && <Text selectable style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>{person.bio}</Text>}
+        {!preview && <FriendshipControls key={`${session.key}:${profileId}`} profileId={person.profileId} session={session} />}
+        {!preview && session.profileId === profileId && <GalleryButton label="Edit profile" icon="pencil" onPress={() => router.push('/edit-profile')} />}
+      </View>
+      <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 18, paddingBottom: 14, paddingTop: 6 }}>
+        <NativeSegmentedPicker label="Profile view" value={tab} onChange={changeTab} options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} />
+      </View>
+      {tab === 'wall' ? wall.error ? <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
+        : wall.data ? <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+          {width > 0 && <WallGallery width={width} color={wall.data.color} pieces={wall.data.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}
+            onSelect={(piece) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: piece.localId, color: wall.data!.color } })}>
+            {!wall.data.items.length && <SocialState title="A wall waiting for art." detail="No artworks have been hung here yet." />}
+          </WallGallery>}
+        </View> : <SocialState title="Opening wall…" loading />
+        : !canReadVisits ? <SocialState title="Visits are shared with friends." detail="Their public wall is here for everyone. Museum visits shared with friends will appear here once you’re connected." icon="lock" />
+          : <View>{visits.items.map((visit) => <VisitCard key={visit.postId} visit={visit} token={session.token} />)}
+            {visits.done && !visits.items.length && !visits.error && <SocialState title="No shared visits yet." detail="When they share a museum visit, it will appear here." />}
+            <PageFooter {...visits} count={visits.items.length} />
+          </View>}
     </ScrollView>
   </GestureHandlerRootView>;
 }

@@ -9,7 +9,7 @@ import { projectProfile, projectSharedVisitCard } from './projections';
 import { resolveDisplayAsset } from './displayMedia';
 
 export const publicationHeader = v.object({
-  postId: v.string(), author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string() }),
+  postId: v.string(), author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string(), city: v.optional(v.string()) }),
   visitedOn: v.string(), reflection: v.string(), publishedAt: v.number(), revision: v.number(),
 });
 export const artworkPage = v.object({ page: v.array(sharedVisitCard), cursor: v.union(v.string(), v.null()), isDone: v.boolean() });
@@ -52,8 +52,9 @@ export function publicationItems(ctx: QueryCtx, publicationId: Id<'sharedVisits'
   return ctx.db.query('sharedVisitItems').withIndex('by_publication_position', (q) => q.eq('publicationId', publicationId))
     .take(LIMITS.selectedSaves + 1);
 }
-export function header(publication: Doc<'sharedVisits'>, profile: Doc<'profiles'>, visit: Doc<'visits'>): Infer<typeof publicationHeader> {
-  return { postId: publication.postId, author: projectProfile(profile), venue: { venueId: visit.venueId, name: visit.venueName },
+export async function header(ctx: QueryCtx, publication: Doc<'sharedVisits'>, profile: Doc<'profiles'>, visit: Doc<'visits'>): Promise<Infer<typeof publicationHeader>> {
+  const venue = await ctx.db.get(visit.venueId);
+  return { postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
     visitedOn: publication.visitedOn, reflection: publication.reflection, publishedAt: publication.publishedAt, revision: publication.publicationRevision };
 }
 export async function stateForPublication(ctx: QueryCtx, publication: Doc<'sharedVisits'> | null): Promise<Infer<typeof publicationState>> {

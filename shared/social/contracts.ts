@@ -2,7 +2,7 @@ import { ConvexError, type Infer, v } from 'convex/values';
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from '../journal/limits';
 
 export const publicProfile = v.object({
-  profileId: v.id('profiles'), username: v.string(), name: v.string(), bio: v.optional(v.string()), publishedWallCount: v.number(),
+  profileId: v.id('profiles'), username: v.string(), name: v.string(), bio: v.optional(v.string()), photoUrl: v.optional(v.string()), publishedWallCount: v.number(),
 });
 export const frame = v.union(...(['gilt', 'baroque', 'walnut', 'oak', 'black', 'white', 'mat', 'none'] as const).map(v.literal));
 export const wallLayout = v.object({ x: v.number(), y: v.number(), width: v.number(), layer: v.number(), frame });

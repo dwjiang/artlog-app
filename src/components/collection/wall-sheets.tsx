@@ -1,31 +1,13 @@
-import { BottomSheet, Host, RNHostView, Slider } from '@expo/ui';
+import { WallSheet } from './wall-sheet';
+import { Host, Slider } from '@expo/ui';
 import { accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
-import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Gallery, Spacing } from '@/constants/theme';
 import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from '@/lib/wall/wall-layout';
-import { WallArtwork } from './wall-gallery';
+import { WallArtwork } from './wall-artwork';
 import { GalleryButton } from './gallery-button';
 import { WallFramePicker } from './wall-options';
-
-export function WallSheet({ title, children, onDismiss, tall = false }: {
-  title: string; children: ReactNode; onDismiss: () => void; tall?: boolean;
-}) {
-  return <BottomSheet isPresented onDismiss={onDismiss} snapPoints={tall ? ['full'] : [{ height: 300 }, 'full']}
-    contentPadding={0} containerColor={Gallery.paper}>
-    {/* Presented content needs its own React Native touch and measurement root. */}
-    <RNHostView>
-      <View style={{ flex: 1 }}>
-        <View style={styles.sheetHeader}>
-          <Text accessibilityRole="header" style={styles.sheetTitle}>{title}</Text>
-          <GalleryButton label="Done" onPress={onDismiss} />
-        </View>
-        {children}
-      </View>
-    </RNHostView>
-  </BottomSheet>;
-}
 
 export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: string }) {
   return <>
@@ -75,17 +57,9 @@ export function WallArtworkSheet({ piece, editing, color, onChange, onRemove, on
   </WallSheet>;
 }
 
-export const wallSheetStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   section: { padding: 20, gap: 8 },
   caption: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
-  body: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-});
-
-const styles = StyleSheet.create({
-  ...wallSheetStyles,
-  sheetHeader: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
-  sheetTitle: { fontSize: 15, fontWeight: '600', color: Gallery.ink },
   hero: { alignItems: 'center', justifyContent: 'center', paddingVertical: 26, paddingHorizontal: 24,
     experimental_backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.06) 100%)' },
   artist: { fontSize: 19, lineHeight: 25, fontWeight: '600', color: Gallery.ink },

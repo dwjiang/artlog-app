@@ -10,9 +10,10 @@ export default function CollectionLayout() {
     <Stack screenOptions={{ headerTintColor: Gallery.ink, headerStyle: { backgroundColor: Gallery.paper },
       contentStyle: { backgroundColor: Gallery.paper }, headerShadowVisible: false,
       headerTitleStyle: { color: Gallery.ink }, headerLargeTitleStyle: { color: Gallery.ink } }}>
-      <Stack.Screen name="collection" options={{ title: 'Collection', headerLargeTitleEnabled: true }} />
+      <Stack.Screen name="collection" options={{ title: 'Collection', headerShown: false }} />
       <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
       <Stack.Screen name="visit-place" options={{ title: 'Visits by museum' }} />
+      <Stack.Screen name="all-artworks" options={{ title: 'All artworks' }} />
       <Stack.Screen name="[savedId]" options={{ title: 'Saved work' }} />
     </Stack>
   );

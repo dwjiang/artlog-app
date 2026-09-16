@@ -9,10 +9,7 @@ jest.mock('@expo/ui', () => ({
   ...jest.requireActual('../../../__mocks__/@expo/ui'),
   TextInput: jest.requireActual('react-native').TextInput,
 }));
-jest.mock('./wall-sheets', () => ({
-  WallSheet: ({ children }: { children: ReactNode }) => children,
-  wallSheetStyles: {},
-}));
+jest.mock('./wall-sheet', () => ({ WallSheet: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(() => jest.clearAllMocks());
 

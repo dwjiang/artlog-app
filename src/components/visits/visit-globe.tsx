@@ -4,6 +4,10 @@ import { accessibilityLabel, font, foregroundStyle, pickerStyle, tag } from '@ex
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useLocalOwner } from '@/lib/account/owner-store';
+import { useGlobeSession } from '@/lib/journal/globe-session';
+import { WallSheet } from '../collection/wall-sheet';
+import { GalleryButton } from '../collection/gallery-button';
 import { Gallery } from '@/constants/theme';
 import { countryName, formatVisitDate, placeIdentity } from '@/lib/journal/history';
 import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from '@/lib/journal/visit-summaries';
@@ -14,7 +18,10 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
   visits: VisitSummary[]; expanded?: boolean; initialVenueId?: string; onList: () => void;
 }) {
   const museums = mappedMuseums(visits);
-  const [selectedId, setSelectedId] = useState(initialVenueId);
+  const session = useGlobeSession(useLocalOwner());
+  const selectedId = session.selectedId ?? initialVenueId;
+  const setSelectedId = (selectedId: string) => session.update({ selectedId });
+  const [clusterIds, setClusterIds] = useState<string[]>([]);
   const selected = museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
   const globe = useRef<GlobeCanvasHandle>(null);
   const { height, fontScale } = useWindowDimensions();
@@ -32,7 +39,8 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
   }
   return <View>
     <View style={{ marginTop: 8 }}>
-      <GlobeCanvas ref={globe} pins={pins} selectedId={selected.venueId} initialPin={initialPin} height={expanded ? Math.max(420, height * 0.65) : 337} onSelect={setSelectedId} />
+      <GlobeCanvas ref={globe} pins={pins} selectedId={selected.venueId} initialPin={initialPin} height={expanded ? Math.max(420, height * 0.65) : 337} onSelect={setSelectedId}
+        initialCamera={session.camera} onCameraChange={(camera) => session.update({ camera })} onCluster={setClusterIds} />
       <Host matchContents style={styles.worldMenu} colorScheme="light">
         <Menu label={<NativeText modifiers={[font({ size: 10, weight: 'medium' }), foregroundStyle('#7C8278')]}>YOUR WORLD ⌄</NativeText>}
           modifiers={[accessibilityLabel('Choose a visited museum')]}>
@@ -68,6 +76,10 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
         </View>
       </Pressable>
     </View>
+    {!!clusterIds.length && <WallSheet title="Museums here" onDismiss={() => setClusterIds([])}>
+      <View style={{ padding: 20, gap: 10 }}>{museums.filter((museum) => clusterIds.includes(museum.venueId)).map((museum) =>
+        <GalleryButton key={museum.venueId} label={museum.venueName} icon="building.columns" onPress={() => { select(museum.venueId); setClusterIds([]); }} />)}</View>
+    </WallSheet>}
     {visits.some((visit) => !visit.coordinates) && <VisitMessage action="Show List" onAction={onList}>Some visits have no globe location.</VisitMessage>}
   </View>;
 }

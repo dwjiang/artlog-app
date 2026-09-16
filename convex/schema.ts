@@ -440,6 +440,7 @@ export default defineSchema({
   profiles: defineTable({
     removal: v.optional(removal),
     accountId: v.id('accounts'), username: v.string(), name: v.string(), bio: v.optional(v.string()),
+    photoStorageId: v.optional(v.id('_storage')),
     searchText: v.string(), active: v.boolean(), publishedWallCount: v.number(), createdAt: v.number(), updatedAt: v.number(),
   }).index('by_accountId', ['accountId']).index('by_username', ['username'])
     .searchIndex('search_text', { searchField: 'searchText', filterFields: ['active'] }),

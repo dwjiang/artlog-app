@@ -35,7 +35,7 @@ function persist(note: NoteDraft | undefined): void {
   });
 }
 
-/** The only editable part of a saved work; saves on blur and when the screen closes mid-edit. */
+// Saves on blur and when the screen closes mid-edit.
 export function NoteEditor({ savedLocalId }: { savedLocalId: string }) {
   const owner = useLocalOwner();
   return <WorkNoteEditor key={`${owner}:${savedLocalId}`} savedLocalId={savedLocalId} owner={owner} />;
@@ -67,7 +67,7 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
 
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" themeColor="textSecondary">Notes</ThemedText>
+      <ThemedText type="smallBold" themeColor="textSecondary">Your private note</ThemedText>
       <TextInput
         accessibilityLabel="Notes"
         placeholder="Add a note about this work"

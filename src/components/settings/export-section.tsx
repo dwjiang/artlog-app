@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { listNotes } from '@/db/repos/notes';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
@@ -34,7 +34,7 @@ export function ExportSection() {
   }
 
   return <View style={{ gap: Spacing.two }}>
-    <Host matchContents colorScheme="light">
+    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
       <Button label={busy ? 'Exporting…' : 'Export collection as JSON'} disabled={busy} onPress={() => { void exportCollection(); }} />
     </Host>
     <ThemedText type="small" themeColor="textSecondary">Includes saved works, visits and notes. Photo files aren’t included in this export.</ThemedText>

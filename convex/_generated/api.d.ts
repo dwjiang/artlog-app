@@ -93,6 +93,8 @@ import type * as museumSearch from "../museumSearch.js";
 import type * as museums from "../museums.js";
 import type * as orbFiles from "../orbFiles.js";
 import type * as placements from "../placements.js";
+import type * as profilePhotoData from "../profilePhotoData.js";
+import type * as profilePhotos from "../profilePhotos.js";
 import type * as profiles from "../profiles.js";
 import type * as promotion from "../promotion.js";
 import type * as reports from "../reports.js";
@@ -200,6 +202,8 @@ declare const fullApi: ApiFromModules<{
   museums: typeof museums;
   orbFiles: typeof orbFiles;
   placements: typeof placements;
+  profilePhotoData: typeof profilePhotoData;
+  profilePhotos: typeof profilePhotos;
   profiles: typeof profiles;
   promotion: typeof promotion;
   reports: typeof reports;

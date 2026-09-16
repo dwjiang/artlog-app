@@ -6,34 +6,18 @@ import { DisplayMedia } from '@/components/artwork/display-media';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { WallFrame, wallFrameInset } from '@/components/collection/wall-frame';
 import { Gallery } from '@/constants/theme';
-import { artworkCount, initials, visitDate } from '@/lib/social/presentation';
+import { artworkCount, visitDate } from '@/lib/social/presentation';
 import type { PublicProfile, SharedArtwork, SharedVisit } from '@/lib/social/types';
+import { ProfileAvatar } from './profile-avatar';
 import { socialStyles } from './social-styles';
-
-const avatarColors = [
-  { background: '#DDE1D0', ink: '#67714D' },
-  { background: '#E6DACB', ink: '#79614C' },
-  { background: '#D6DEE3', ink: '#4F6573' },
-  { background: '#E4D6D7', ink: '#7B5D62' },
-];
-
-function ProfileAvatar({ name, size }: { name: string; size: number }) {
-  const { fontScale } = useWindowDimensions();
-  const letters = initials(name);
-  const colors = avatarColors[letters.codePointAt(0)! % avatarColors.length];
-  return <View style={[styles.feedAvatar, { backgroundColor: colors.background,
-    width: size * fontScale, height: size * fontScale, borderRadius: size * fontScale / 2 }]}>
-    <Text style={[styles.feedInitials, { color: colors.ink, fontSize: size * 0.3 }]}>{letters}</Text>
-  </View>;
-}
 
 export function ProfileIdentity({ profile, interactive = true }: { profile: PublicProfile; interactive?: boolean }) {
   const router = useRouter();
   const content = <>
-    <ProfileAvatar name={profile.name} size={44} />
+    <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={44} />
     <View style={{ flex: 1, gap: 2 }}>
       <Text style={styles.name}>{profile.name}</Text>
-      <Text style={socialStyles.caption}>@{profile.username}</Text>
+      <Text style={socialStyles.caption}>@{profile.username} · {profile.publishedWallCount} artworks</Text>
     </View>
   </>;
   return interactive ? <Pressable accessibilityRole="button" accessibilityLabel={`View ${profile.name}’s profile`}
@@ -85,17 +69,18 @@ export function VisitCard({ visit, token }: { visit: SharedVisit; token?: string
       <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s profile`}
         onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: visit.author.profileId } })}
         style={[styles.feedIdentity, fontScale > 1.4 && { flex: 0, width: '100%' }]}>
-        <ProfileAvatar name={visit.author.name} size={37} />
+        <ProfileAvatar name={visit.author.name} photoUrl={visit.author.photoUrl} size={37} />
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={styles.feedName}>{visit.author.name}</Text>
           <Text style={styles.feedMuseum}>visited <Text style={{ fontWeight: '500' }}>{visit.venue.name}</Text></Text>
         </View>
       </Pressable>
-      <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}</Text>
+      <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}{visit.venue.city ? ` · ${visit.venue.city}` : ''}</Text>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s visit to ${visit.venue.name}`} onPress={openVisit}>
       <VisitArtworks artworks={visit.artworks.page} token={token} compact />
     </Pressable>
+    {visit.publishedAt > Date.parse(`${visit.visitedOn}T23:59:59Z`) + 86400000 && <Text style={[styles.feedMeta, { marginTop: 10 }]}>Added later · ordered by visit date</Text>}
     {!!visit.reflection && <Text selectable style={styles.reflection}>{visit.reflection}</Text>}
     <View style={styles.actions}>
       <Text style={styles.feedMeta}>{artworkCount(visit.artworks)}</Text>
