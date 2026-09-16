@@ -1,0 +1,1 @@
+ALTER TABLE `savedWorks` DROP COLUMN `photoStorageId`;

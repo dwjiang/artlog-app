@@ -1,6 +1,6 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
@@ -8,6 +8,9 @@ import { useVisits } from '@/lib/journal/use-visits';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { GalleryButton } from '../collection/gallery-button';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
+import { WallFrame } from '../collection/wall-frame';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { WorkLink } from '../collection/work-link';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
@@ -22,6 +25,9 @@ export function VisitDetailScreen() {
   return <VisitDetail key={`${owner}:${visitId}`} visit={visit} />;
 }
 function VisitDetail({ visit }: { visit: VisitSummary }) {
+  const [search, setSearch] = useState('');
+  const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
+  const filtered = visit.works.filter((work) => `${work.title} ${work.artist}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const generation = useOwnerGeneration();
   const sharing = useVisitSharing(visit.localId, visit.works.map((work) => work.localId));
   const signedIn = visit.owner.startsWith('account:');
@@ -59,13 +65,23 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
       <View>
         <View style={styles.sectionLabel}>
           <Text accessibilityRole="header" style={detail.sectionTitle}>{visit.works.length} {visit.works.length === 1 ? 'artwork' : 'artworks'} saved</Text>
-          <Text style={detail.secondary}>From this visit</Text>
+          <GalleryButton label="Link artwork" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />
         </View>
-        {visit.works.length ? visit.works.map((work) => <WorkLink key={work.localId} work={work} style={detail.work}>
-          <View style={detail.art}><SavedWorkImage contain path={work.cropPath} title={work.title} style={{ width: '100%', height: '100%' }} /></View>
-          <View style={{ flex: 1, gap: 2 }}><Text style={detail.workTitle}>{work.title}</Text><Text style={detail.artist}>{work.artist}</Text></View>
-          <VisitSymbol name="chevron.right" size={13} color="#8A8C7E" />
-        </WorkLink>) : <Text style={[styles.caption, { paddingVertical: 22 }]}>No artworks saved on this visit. The memory still belongs here.</Text>}
+        {visit.works.length >= 5 && <TextInput accessibilityLabel="Search visit artworks" placeholder="Search artworks or artists" value={search} onChangeText={setSearch} style={{ padding: 13, backgroundColor: Gallery.fill, borderRadius: 10, marginVertical: 12, color: Gallery.ink }} />}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 20, paddingTop: 20 }}>
+          {filtered.map((work) => {
+            const album = photos.data.filter((photo) => photo.owner === visit.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId);
+            const cover = album.find((photo) => photo.kind === 'full') ?? album[0];
+            return <WorkLink key={work.localId} work={work} visitId={visit.localId} style={{ width: '46%', gap: 8 }}>
+              <View style={{ alignItems: 'center', justifyContent: 'center', height: 170, backgroundColor: '#E4E7DD', borderRadius: 8 }}>
+                <WallFrame frame="gilt" width={116}><SavedWorkImage contain path={cover?.path ?? work.cropPath} title={work.title} style={{ width: 108, height: 120 }} /></WallFrame>
+                <Text style={{ position: 'absolute', bottom: 7, right: 7, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3, backgroundColor: Gallery.paper, color: Gallery.muted, fontSize: 10 }}>{album.length} {album.length === 1 ? 'photo' : 'photos'}</Text>
+              </View>
+              <Text numberOfLines={2} style={detail.workTitle}>{work.title}</Text><Text style={detail.artist}>{work.artist || 'Artist unknown'}</Text>
+            </WorkLink>;
+          })}
+        </View>
+        {!filtered.length && <Text style={[styles.caption, { paddingVertical: 22 }]}>{search ? 'No matching artworks.' : 'No artworks saved on this visit. The memory still belongs here.'}</Text>}
       </View>
     </VisitPage>
   </>;

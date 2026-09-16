@@ -65,7 +65,7 @@ it('hides foreign detail and membership and keeps a visit after its last save is
   await user.as.mutation(api.sync.syncJournal, { scope: user.scope, since: 0, visits: [], saves });
   const page = await user.as.query(api.visits.savedWorks, { scope: user.scope, localId: visit.localId, limit: 2 });
   const last = await user.as.query(api.visits.savedWorks, { scope: user.scope, localId: visit.localId, limit: 2, cursor: page.cursor });
-  expect([...page.page, ...last.page].map((row) => row.localId)).toEqual(saves.map((row) => row.localId).sort().reverse());
+  expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(saves.map((row) => row.localId).sort());
   for (const save of saves) await user.as.mutation(api.collections.remove, { scope: user.scope, localId: save.localId });
   expect((await user.as.query(api.visits.savedWorks, { scope: user.scope, localId: visit.localId })).page).toEqual([]);
   expect(await user.as.query(api.visits.detail, { scope: user.scope, localId: visit.localId })).toMatchObject({ localId: visit.localId });

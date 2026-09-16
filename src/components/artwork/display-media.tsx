@@ -13,7 +13,7 @@ export function DisplayMedia(props: Props) {
   const { media, token } = props;
   let uri: string | undefined;
   if (media.kind === 'catalog') uri = media.url;
-  else if (media.kind === 'derivative' && (media.reference.kind === 'wallItem' || token)) {
+  else if ((media.kind === 'derivative' || media.kind === 'photo') && (media.reference.kind === 'wallItem' || token)) {
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
     if (site) {
       const url = new URL('/display-media', site);
@@ -26,6 +26,7 @@ export function DisplayMedia(props: Props) {
         url.searchParams.set('itemId', reference.itemId);
         if (reference.kind === 'sharedVisit') url.searchParams.set('postId', reference.postId);
       }
+      if (reference.photoLocalId) url.searchParams.set('photoLocalId', reference.photoLocalId);
       uri = url.href;
     }
   }
@@ -45,7 +46,7 @@ function MediaImage({ media, label, width, token, uri }: Props & { uri?: string 
     </View>
   );
   return <Image accessible accessibilityLabel={label} source={{ uri,
-    ...(media.kind === 'derivative' && media.reference.kind !== 'wallItem' && token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
-    style={size} contentFit="contain" cachePolicy={media.kind === 'derivative' ? 'none' : 'memory-disk'}
+    ...((media.kind === 'derivative' || media.kind === 'photo') && media.reference.kind !== 'wallItem' && token ? { headers: { Authorization: `Bearer ${token}` } } : {}) }}
+    style={size} contentFit="contain" cachePolicy={(media.kind === 'derivative' || media.kind === 'photo') ? 'none' : 'memory-disk'}
     recyclingKey={uri} onError={() => setFailed(true)} />;
 }

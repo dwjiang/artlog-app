@@ -8,10 +8,11 @@ import { LocalScanScreen, MISSING_TITLE } from './local-scan-screen';
 import { RETRY_BUTTON } from './states/failed-card';
 import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE } from './states/waiting-for-signal-card';
 import { enqueuePendingScan, markIdentified, markIdentifying, retryPendingScan } from '@/db/repos/pending-scans';
-import * as savedWorks from '@/db/repos/saved-works';
+import * as resultSave from '@/lib/result/save';
 import { getSavedWork } from '@/db/repos/saved-works';
 import type { NewPendingScan } from '@/db/schema';
 import { FAILED_TITLE } from '@/lib/result/failure-copy';
+jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
@@ -112,10 +113,10 @@ it('finishes an in-flight save when identification completes and keeps the saved
   await enqueuePendingScan(row('saving-completion', { status: 'queued' }));
   let finishWrite!: () => void;
   const pendingWrite = new Promise<void>((resolve) => { finishWrite = resolve; });
-  const insert = savedWorks.insertSavedWork;
-  jest.spyOn(savedWorks, 'insertSavedWork').mockImplementationOnce(async (work) => {
+  const save = resultSave.saveResult;
+  jest.spyOn(resultSave, 'saveResult').mockImplementationOnce(async (input) => {
     await pendingWrite;
-    await insert(work);
+    return save(input);
   });
   await render(<LocalScanScreen localId="saving-completion" />);
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My saved title');
@@ -152,7 +153,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/cap-queued.jpg' }]);
   await fireEvent.press(screen.getByRole('button', { name: LABEL_NOW }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: 'local-cap-queued', offline: '1' } });
-  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeEnabled();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Pond at dusk');
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
   const link = await screen.findByRole('link', { name: 'Saved · View in collection' });

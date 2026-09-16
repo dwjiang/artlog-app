@@ -4,14 +4,14 @@ import type { Harness } from '../test.helpers';
 import { seedContribution, seedDevice, seedJournalVisit, seedMuseum, seedScan } from './testFactories';
 
 export type SocialUser = Awaited<ReturnType<typeof seedDevice>> & { accountId: Id<'accounts'>; profileId: Id<'profiles'> };
-export async function socialUser(t: Harness, name = crypto.randomUUID()): Promise<SocialUser> {
+export async function socialUser(t: Harness, name: string = crypto.randomUUID()): Promise<SocialUser> {
   const device = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert('accounts', { appleUserId: name, deviceIds: [device.deviceId], createdAt: 1 });
     await ctx.db.patch(device.deviceId, { accountId: id });
     return id;
   });
-  const profile = await device.as.mutation(api.profiles.create, { username: `u-${name.slice(0,20)}`, name });
+  const profile = await device.as.mutation(api.profiles.create, { username: `u-${name.toLowerCase().slice(0,20)}`, name });
   return { ...device, accountId, profileId: profile.profileId, scope: `account:${accountId}:0` };
 }
 export async function socialVisit(t: Harness, user: Awaited<ReturnType<typeof socialUser>>, count = 2, visitedOn = '2026-09-01') {

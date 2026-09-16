@@ -34,6 +34,9 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
               headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
+            <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
+            <Stack.Screen name="leaderboards" options={{ title: 'Leaderboards' }} />
             <Stack.Screen name="people" options={{ title: 'Find people' }} />
             <Stack.Screen name="profile/[profileId]" options={{ title: 'Profile' }} />
             <Stack.Screen name="visit/[postId]" options={{ title: 'Visit' }} />

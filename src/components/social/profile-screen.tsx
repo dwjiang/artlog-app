@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { SocialText as Text } from './social-text';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { WallGallery } from '@/components/collection/wall-gallery';
-import { NativeSegmentedPicker } from '@/components/collection/native-segmented-picker';
+import { ProfileBio } from './profile-bio';
+import { GalleryIconButton } from '../collection/gallery-icon-button';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { Gallery } from '@/constants/theme';
 import { useCursorPages, useSocialQuery } from '@/lib/social/use-social-query';
@@ -16,7 +17,7 @@ import { socialErrorMessage } from '@/shared/social/errors';
 import { FriendshipControls } from './friendship-controls';
 import { PageFooter, SocialGate, SocialState } from './social-state';
 import { ProfileAvatar } from './profile-avatar';
-import { VisitCard } from './visit-card';
+import { formatVisitDate } from '@/lib/journal/history';
 import { socialStyles } from './social-styles';
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
@@ -43,16 +44,19 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
       onScroll={(event) => { offsets.current[tab] = event.nativeEvent.contentOffset.y; }} contentContainerStyle={{ paddingBottom: 30 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 16 }}>
         {preview && <Text style={socialStyles.caption}>VISITOR PREVIEW</Text>}
-        <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}><ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
-          <View style={{ flex: 1, gap: 4 }}><Text style={{ fontSize: 27, fontWeight: '600', color: Gallery.ink }}>{person.name}</Text>
-            <Text style={socialStyles.caption}>@{person.username} · {wall.data?.items.length ?? 0} artworks on the wall</Text></View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={60} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {!preview && <FriendshipControls key={`${session.key}:${profileId}`} profileId={person.profileId} session={session} />}
+            <GalleryIconButton label="Share profile" icon="square.and.arrow.up" onPress={() => router.push({ pathname: '/share-profile', params: { profileId: person.profileId } })} />
+          </View>
         </View>
-        {!!person.bio && <Text selectable style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>{person.bio}</Text>}
-        {!preview && <FriendshipControls key={`${session.key}:${profileId}`} profileId={person.profileId} session={session} />}
+        <View style={{ gap: 6 }}><Text style={{ fontSize: 28, fontWeight: '600', color: Gallery.ink }}>{person.name}</Text><Text style={socialStyles.caption}>@{person.username}</Text></View>
+        <ProfileBio text={person.bio} />
         {!preview && session.profileId === profileId && <GalleryButton label="Edit profile" icon="pencil" onPress={() => router.push('/edit-profile')} />}
       </View>
       <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 18, paddingBottom: 14, paddingTop: 6 }}>
-        <NativeSegmentedPicker label="Profile view" value={tab} onChange={changeTab} options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} />
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>{(['wall', 'visits'] as const).map((value) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={value === 'wall' ? 'Wall' : 'Visits'} accessibilityState={{ selected: tab === value }} onPress={() => changeTab(value)} style={{ flex: 1, paddingVertical: 13, alignItems: 'center', borderBottomWidth: tab === value ? 2 : 0, borderBottomColor: Gallery.accent }}><Text style={{ fontSize: 13, color: tab === value ? Gallery.accent : Gallery.muted }}>{value === 'wall' ? 'Wall' : 'Visits'}</Text></Pressable>)}</View>
       </View>
       {tab === 'wall' ? wall.error ? <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
         : wall.data ? <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
@@ -62,7 +66,7 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
           </WallGallery>}
         </View> : <SocialState title="Opening wall…" loading />
         : !canReadVisits ? <SocialState title="Visits are shared with friends." detail="Their public wall is here for everyone. Museum visits shared with friends will appear here once you’re connected." icon="lock" />
-          : <View>{visits.items.map((visit) => <VisitCard key={visit.postId} visit={visit} token={session.token} />)}
+          : <View>{visits.items.map((visit) => <Pressable key={visit.postId} accessibilityRole="button" accessibilityLabel={`Visit to ${visit.venue.name}`} onPress={() => router.push({ pathname: '/visit/[postId]', params: { postId: visit.postId } })} style={{ padding: 20, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator, gap: 7 }}><Text style={{ color: Gallery.ink, fontSize: 17, fontFamily: 'Georgia' }}>{visit.venue.name}</Text><Text style={socialStyles.caption}>{formatVisitDate(visit.visitedOn)} · {visit.artworkCount ?? visit.artworks.page.length} artworks · Friends</Text></Pressable>)}
             {visits.done && !visits.items.length && !visits.error && <SocialState title="No shared visits yet." detail="When they share a museum visit, it will appear here." />}
             <PageFooter {...visits} count={visits.items.length} />
           </View>}

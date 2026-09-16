@@ -5,14 +5,17 @@ import { getLocalOwner } from '../../lib/account/owner-store';
 import { requestCollectionSync } from '../../lib/account/sync-events';
 
 import { db } from '../client';
-import { notes, pendingScans, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
+import { artworkPhotos, artworkEncounters, notes, pendingScans, savedWorks, type NewSavedWork, type SavedWork } from '../schema';
+import { saveArtworkSession } from './artwork-album';
 import { requireVisitMembership } from './visit-membership';
 
-// Snapshot fields are immutable by construction: this module exposes no update to them.
 
+/** A save with its capture as the first album photo; the scan flow builds the same session in saveResult. */
 export async function insertSavedWork(work: NewSavedWork, owner = getLocalOwner()): Promise<void> {
   requireVisitMembership(owner, work);
-  db.insert(savedWorks).values({ ...work, owner }).run();
+  const path = work.photoPath ?? work.cropPath;
+  const visitLocalId = work.visitLocalId ?? undefined;
+  saveArtworkSession(work.localId, work, path ? [{ localId: work.localId, savedLocalId: work.localId, kind: 'full', capturedAt: work.savedAt, visitLocalId, path }] : [], visitLocalId, owner);
 }
 
 /** The row as a query for `useLiveQuery`; `getSavedWork` reads it once. */
@@ -32,6 +35,8 @@ export function listSavedWorks(owner = getLocalOwner(), includeDeleted = false) 
 
 export async function softDeleteSavedWork(localId: string, deletedAt = Date.now(), owner = getLocalOwner()): Promise<void> {
   await db.update(savedWorks).set({ deletedAt, syncedAt: null, revision: sql`${savedWorks.revision} + 1` }).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)));
+  db.update(artworkPhotos).set({ deletedAt, syncedAt: null }).where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.savedLocalId, localId))).run();
+  db.update(artworkEncounters).set({ deletedAt, syncedAt: null }).where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.savedLocalId, localId))).run();
   requestCollectionSync();
 }
 
@@ -71,24 +76,23 @@ export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLo
       const existing = tx.select().from(savedWorks).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).get();
       const newlyDeleted = existing?.deletedAt === null && row.deletedAt !== undefined;
       if (existing) {
-        tx.update(savedWorks).set({
-          photoStorageId: existing.photoStorageId ?? row.photoStorageId ?? null,
-          cropStorageId: existing.cropStorageId ?? row.cropStorageId ?? null,
-        }).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
+        tx.update(savedWorks).set({ cropStorageId: existing.cropStorageId ?? row.cropStorageId ?? null })
+          .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
         // Tombstones must survive even when a local edit is pending or a newer note arrived first.
         if (newlyDeleted) {
           tx.update(savedWorks).set({ deletedAt: row.deletedAt, syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
             .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
         }
         if (existing.syncedAt === null || !isNewer(row, existing)) continue;
-        tx.update(savedWorks).set({ syncedAt: newlyDeleted ? null : row.updatedAt, syncedBy: row.updatedBy })
+        // Optional snapshot fields arrive absent when cleared; drizzle skips undefined in SET, so write nulls explicitly.
+        tx.update(savedWorks).set({ ...row.snapshot, date: row.snapshot.date ?? null, medium: row.snapshot.medium ?? null, institution: row.snapshot.institution ?? null,
+          objectId: row.objectId ?? null, artworkId: row.artworkId ?? null, syncedAt: newlyDeleted ? null : row.updatedAt, syncedBy: row.updatedBy })
           .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
       } else {
         tx.insert(savedWorks).values({
           owner, localId: row.localId, visitLocalId: row.visitLocalId, ...row.snapshot, venueId: row.venueId, venueName: row.venueName, gallery: row.gallery,
           savedAt: row.savedAt, objectId: row.objectId, artworkId: row.artworkId,
-          photoPath: null, cropPath: null, syncedAt: row.updatedAt, syncedBy: row.updatedBy, deletedAt: row.deletedAt,
-          photoStorageId: row.photoStorageId, cropStorageId: row.cropStorageId,
+          photoPath: null, cropPath: null, syncedAt: row.updatedAt, syncedBy: row.updatedBy, deletedAt: row.deletedAt, cropStorageId: row.cropStorageId,
         }).run();
       }
       tx.insert(notes).values({ owner, savedLocalId: row.localId, text: row.note ?? '', updatedAt: row.updatedAt })
@@ -99,15 +103,12 @@ export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLo
 
 export function listPhotoTransfers(owner = getLocalOwner()) {
   return db.select().from(savedWorks).where(and(eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt), or(
-    and(isNotNull(savedWorks.photoPath), isNull(savedWorks.photoStorageId)),
-    and(isNull(savedWorks.photoPath), isNotNull(savedWorks.photoStorageId)),
     and(isNotNull(savedWorks.cropPath), isNull(savedWorks.cropStorageId)),
     and(isNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
   ))).orderBy(savedWorks.localId).limit(20);
 }
 
-export async function updatePhotoTransfer(localId: string, values: Partial<Pick<SavedWork,
-  'photoPath' | 'cropPath' | 'photoStorageId' | 'cropStorageId'>>, owner = getLocalOwner()): Promise<boolean> {
+export async function updatePhotoTransfer(localId: string, values: Partial<Pick<SavedWork, 'cropPath' | 'cropStorageId'>>, owner = getLocalOwner()): Promise<boolean> {
   const updated = await db.update(savedWorks).set(values)
     .where(and(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)), isNull(savedWorks.deletedAt))).returning({ localId: savedWorks.localId });
   return updated.length > 0;
@@ -124,10 +125,18 @@ export async function isPhotoFileReferenced(path: string): Promise<boolean> {
     or(eq(savedWorks.photoPath, path), eq(savedWorks.cropPath, path)))).limit(1);
   const pending = await db.select({ localId: pendingScans.localId }).from(pendingScans)
     .where(or(eq(pendingScans.photoPath, path), eq(pendingScans.cropPath, path))).limit(1);
-  return saved.length > 0 || pending.length > 0;
+  const album = db.select().from(artworkPhotos).where(and(eq(artworkPhotos.path, path), isNull(artworkPhotos.deletedAt))).limit(1).all();
+  return saved.length > 0 || pending.length > 0 || album.length > 0;
 }
 
 export async function clearDeletedPhotoPaths(localId: string, owner = getLocalOwner()): Promise<void> {
   await db.update(savedWorks).set({ photoPath: null, cropPath: null })
     .where(and(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)), isNotNull(savedWorks.deletedAt)));
+}
+
+export function editSavedWork(localId: string, fields: Pick<SavedWork, 'title' | 'artist' | 'date' | 'medium'>, owner = getLocalOwner()) {
+  const work = selectSavedWork(localId, owner).get();
+  if (!work || work.deletedAt !== null) throw new Error('Artwork unavailable');
+  db.update(savedWorks).set({ ...fields, syncedAt: null, revision: sql`${savedWorks.revision} + 1` }).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId))).run();
+  requestCollectionSync();
 }

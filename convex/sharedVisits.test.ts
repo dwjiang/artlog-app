@@ -20,7 +20,7 @@ it('previews without mutations or private fields, preserves order, and uses no f
   const post = await a.as.query(api.sharedVisits.get, { postId: state.postId! });
   expect(post.artworks.page.map((x) => x.artwork)).toEqual(preview.artworks.map((x) => x.artwork));
   expect(JSON.stringify(post)).not.toMatch(/PRIVATE|saveLocalId|visitLocalId|accountId|storageId/);
-  expect(Object.keys(post).sort()).toEqual(['artworks', 'author', 'postId', 'publishedAt', 'reflection', 'revision', 'venue', 'visitedOn']);
+  expect(Object.keys(post).sort()).toEqual(['artworkCount', 'artworks', 'author', 'postId', 'publishedAt', 'reflection', 'revision', 'venue', 'visitedOn']);
 });
 it('rejects forged selections, private visits, duplicate UUIDs, and missing shared text', async () => {
   const t = harness(), a = await socialUser(t), b = await socialUser(t), draft = await socialVisit(t, a), other = await socialVisit(t, b);
@@ -178,7 +178,7 @@ it('merges 200 friend streams under transaction limits and honors short-page cur
         const localId = crypto.randomUUID();
         const saveId = await ctx.db.insert('collections', { owner, localId, visitId, visitLocalId, venueId, snapshot: { title: 'Work', artist: 'Artist' },
           savedAt: 1, updatedAt: 1, updatedBy: viewer.deviceId, changeVersion: 1 });
-        await ctx.db.insert('sharedVisitItems', { publicationId, saveId, saveLocalId: localId, position });
+        await ctx.db.insert('sharedVisitItems', { publicationId, saveId, saveLocalId: localId, position, highlighted: true });
       }
       const [firstProfileId, secondProfileId] = canonicalPair(viewer.profileId, profileId);
       await ctx.db.insert('friendships', { firstProfileId, secondProfileId, requesterId: viewer.profileId, state: 'accepted', revision: 2, updatedAt: 1 });

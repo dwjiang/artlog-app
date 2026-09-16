@@ -1,7 +1,8 @@
+import { ownedAlbumPhoto, selectedPhotoMedia } from './albumMedia';
 import { ConvexError, type Infer, v } from 'convex/values';
 import { pagination, type JournalOwner } from '../../shared/journal/contracts';
 import { isCalendarDate, isRevision, isUuid, LIMITS, utf8Bytes } from '../../shared/journal/limits';
-import { publicProfile, sharedVisitCard, validateSelection } from '../../shared/social/contracts';
+import { publicProfile, sharedVisitCard, sharedPhotoSelection, sharedSelection, validateSelection } from '../../shared/social/contracts';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
 import { findOwnedVisit, requireMembership, requireOwnedSave } from './ownership';
@@ -10,12 +11,12 @@ import { resolveDisplayAsset } from './displayMedia';
 
 export const publicationHeader = v.object({
   postId: v.string(), author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string(), city: v.optional(v.string()) }),
-  visitedOn: v.string(), reflection: v.string(), publishedAt: v.number(), revision: v.number(),
+  artworkCount: v.optional(v.number()), visitedOn: v.string(), reflection: v.string(), publishedAt: v.number(), revision: v.number(),
 });
 export const artworkPage = v.object({ page: v.array(sharedVisitCard), cursor: v.union(v.string(), v.null()), isDone: v.boolean() });
 export const publicationView = v.object({ ...publicationHeader.fields, artworks: artworkPage });
 export const publicationState = v.object({ postId: v.union(v.string(), v.null()), status: v.union(v.literal('private'), v.literal('active')),
-  removed: v.boolean(), reflection: v.string(), saveLocalIds: v.array(v.string()), revision: v.number() });
+  photoSelections: v.optional(v.array(sharedPhotoSelection)), highlightLocalIds: v.optional(v.array(v.string())), removed: v.boolean(), reflection: v.string(), saveLocalIds: v.array(v.string()), revision: v.number() });
 export const PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_ARTWORKS = 50;
 // Reserve for one more maximum-size save plus its media rows; preview and publish share it so they accept the same selections.
@@ -34,16 +35,15 @@ export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: st
   if (!visit) throw new ConvexError({ code: 'not_found' });
   return visit;
 }
-export async function selectedSaves(ctx: QueryCtx, owner: JournalOwner, input: {
-  visitLocalId: string; saveLocalIds: string[]; reflection: string; revision: number;
-}) {
+export async function selectedSaves(ctx: QueryCtx, owner: JournalOwner, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
   validateSelection(input);
   const visit = await ownedVisit(ctx, owner, input.visitLocalId);
   const saves = [];
   for (const localId of input.saveLocalIds) {
     if (!await readHeadroom(ctx, SAVE_READ_RESERVE)) throw new ConvexError({ code: 'invalid_post' });
     const save = await requireOwnedSave(ctx, owner, localId);
-    requireMembership(save, visit);
+    await requireMembership(ctx, save, visit);
+    for (const id of input.photoSelections?.find((row) => row.saveLocalId === localId)?.photoLocalIds ?? []) await ownedAlbumPhoto(ctx, save, id);
     saves.push(save);
   }
   return { visit, saves };
@@ -54,13 +54,15 @@ export function publicationItems(ctx: QueryCtx, publicationId: Id<'sharedVisits'
 }
 export async function header(ctx: QueryCtx, publication: Doc<'sharedVisits'>, profile: Doc<'profiles'>, visit: Doc<'visits'>): Promise<Infer<typeof publicationHeader>> {
   const venue = await ctx.db.get(visit.venueId);
-  return { postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
+  return { artworkCount: (await publicationItems(ctx, publication._id)).length, postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
     visitedOn: publication.visitedOn, reflection: publication.reflection, publishedAt: publication.publishedAt, revision: publication.publicationRevision };
 }
 export async function stateForPublication(ctx: QueryCtx, publication: Doc<'sharedVisits'> | null): Promise<Infer<typeof publicationState>> {
-  return { postId: publication?.postId ?? null, status: publication?.status ?? 'private', removed: !!publication?.removal,
+  const items = publication ? await publicationItems(ctx, publication._id) : [];
+  return { photoSelections: items.filter((item) => item.photoLocalIds?.length).map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
+    highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId), postId: publication?.postId ?? null, status: publication?.status ?? 'private', removed: !!publication?.removal,
     reflection: publication?.reflection ?? '', revision: publication?.publicationRevision ?? 0,
-    saveLocalIds: publication ? (await publicationItems(ctx, publication._id)).map((item) => item.saveLocalId) : [] };
+    saveLocalIds: items.map((item) => item.saveLocalId) };
 }
 export function checkPublicationRevision(observed: number, current: number) {
   if (!isRevision(observed)) throw new ConvexError({ code: 'invalid_post' });
@@ -84,7 +86,7 @@ function artworkPosition(publication: Doc<'sharedVisits'>, cursor?: string | nul
   }
 }
 export async function projectArtworkPage(ctx: QueryCtx, publication: Doc<'sharedVisits'>, visit: Doc<'visits'>,
-  input: { cursor?: string | null; limit?: number }): Promise<Infer<typeof artworkPage>> {
+  input: { cursor?: string | null; limit?: number; highlightsOnly?: boolean }): Promise<Infer<typeof artworkPage>> {
   const { numItems } = pagination(input);
   const start = artworkPosition(publication, input.cursor);
   const items = await ctx.db.query('sharedVisitItems').withIndex('by_publication_position',
@@ -94,9 +96,9 @@ export async function projectArtworkPage(ctx: QueryCtx, publication: Doc<'shared
   for (const item of items) {
     if (page.length >= numItems || !await readHeadroom(ctx)) break;
     const save = await ctx.db.get(item.saveId);
-    if (save && save.deletedAt === undefined && item.saveLocalId === save.localId) {
-      requireMembership(save, visit);
-      const card = projectSharedVisitCard(item, save, await resolveDisplayAsset(ctx, save), publication.postId);
+    if (save && save.deletedAt === undefined && item.saveLocalId === save.localId && (!input.highlightsOnly || item.highlighted)) {
+      await requireMembership(ctx, save, visit);
+      const card = await projectVisitAlbum(ctx, item, save, publication.postId);
       const size = utf8Bytes(card);
       if (page.length && bytes + size > PAGE_BYTES) break;
       page.push(card); bytes += size;
@@ -129,4 +131,14 @@ export async function historyHead(ctx: QueryCtx, profileId: Id<'profiles'>, befo
     (q) => q.eq('profileId', profileId).eq('status', 'active').eq('visitedOn', before.visitedOn).lt('postId', before.postId)).order('desc').first();
   return sameDate ?? ctx.db.query('sharedVisits').withIndex('by_profile_status_history',
     (q) => q.eq('profileId', profileId).eq('status', 'active').lt('visitedOn', before.visitedOn)).order('desc').first();
+}
+
+export async function projectVisitAlbum(ctx: QueryCtx, item: Doc<'sharedVisitItems'>, save: Doc<'collections'>, postId: string): Promise<Infer<typeof sharedVisitCard>> {
+  const card = projectSharedVisitCard(item, save, await resolveDisplayAsset(ctx, save), postId);
+  const photos = [];
+  for (const localId of item.photoLocalIds ?? []) {
+    try { photos.push(await selectedPhotoMedia(ctx, save, localId, { kind: 'sharedVisit', postId, itemId: item._id })); }
+    catch (error) { if (!(error instanceof ConvexError && error.data.code === 'not_found')) throw error; }
+  }
+  return photos.length ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos } : card;
 }

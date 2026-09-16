@@ -9,6 +9,8 @@ import type { OwnerWall, WallTransport } from '@/lib/wall/wall-transport';
 import { switchOwner } from '@/lib/account/owner-store';
 import { CollectionWall } from './collection-wall';
 
+jest.mock('@/db/client', () => ({ db: jest.requireActual('@/db/test-db').createTestDatabase() }));
+jest.mock('@/lib/account/collection-sync', () => ({ flushCollectionMedia: async () => {} }));
 const mockPush = jest.fn();
 let mockToken: string | null = 'token';
 const mockTransport = {
@@ -48,7 +50,7 @@ jest.mock('expo-router', () => {
 });
 
 const published: OwnerWall = { scope: 'scope-a', profileId: 'profile-a' as never, revision: 3, color: '#CDD0CA', items: [{
-  itemId: 'item-a' as never, saveLocalId: 'save-a', noteVisible: false, noteRevision: 0, noteEligible: true,
+  itemId: 'item-a' as never, placementId: 'save-a', saveLocalId: 'save-a', noteVisible: false, noteRevision: 0, noteEligible: true,
   layout: { x: 0.1, y: 0.2, width: 0.4, frame: 'gilt', layer: 0 },
   artwork: { title: 'The Milkmaid', artist: 'Johannes Vermeer', media: { kind: 'placeholder', width: 1, height: 1 } },
 }] };
@@ -149,7 +151,7 @@ it('publishes color, frame, and placement together using the acknowledged revisi
   await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
   await screen.findByRole('button', { name: 'Edit wall' });
   expect(mockTransport.setLayout).toHaveBeenCalledWith({ scope: 'scope-a', revision: 3, color: '#6C2F2B',
-    items: [{ saveLocalId: 'save-a', layout: { ...published.items[0].layout, x: 0.125, frame: 'baroque' } }] }, expect.anything());
+    items: [{ placementId: 'save-a', saveLocalId: 'save-a', layout: { ...published.items[0].layout, x: 0.125, frame: 'baroque' } }] }, expect.anything());
   expect(mockTransport.setNoteVisibility).not.toHaveBeenCalled();
 });
 
@@ -227,7 +229,7 @@ it.each([false, true])('loads local draft artwork proportions, tolerating a miss
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.loadSelections());
     await act(() => result.current.repository.setLayoutDraft({ color: '#CDD0CA', items: [
-      { saveLocalId: 'save-b', layout: published.items[0].layout },
+      { placementId: 'save-b', saveLocalId: 'save-b', layout: published.items[0].layout },
     ] }));
     expect(result.current.pieces[0].artwork.title).toBe('Sunflowers');
     expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900);

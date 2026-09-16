@@ -7,6 +7,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import model from '../../../shared/model/model-version.json';
 
+import { CapturePhotosButton } from './capture-photos-button';
 import { CardHeader } from './result/card-header';
 import { FailedCard } from './states/failed-card';
 import { SaveAnywayForm } from './states/save-anyway-form';
@@ -75,6 +76,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         contentContainerStyle={styles.content}
       >
         <CardHeader cropUri={row ? captureFileUri(row.cropPath) : undefined} inputSize={model.inputSize} kind={row?.status === 'failed' ? 'failed' : 'loading'} />
+        {row && !savedId && <CapturePhotosButton path={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
         {!updatedAt ? null
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText></View>
           : scanId ? keepForm && (

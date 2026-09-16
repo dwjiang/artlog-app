@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { bumpCounter } from '../ingest';
 import { AGREEMENT_MIN_COSINE, contributionGroup, REPLAY_COSINE, verifiedAccession } from './agreement';
 import { cosine } from './cosine';
+import { recordContributionScore } from './leaderboard';
 import { contributionRightsIssue, eligibleContribution, eligibleObjectRecord, recognitionPartition } from './recognitionEligibility';
 
 const ANCHOR_PAGE = 25;
@@ -97,7 +98,10 @@ export async function publishContribution(ctx: MutationCtx, row: Doc<'contributi
       onView: true, source: 'contribution', confidence: 0.7 });
     await bumpCounter(ctx, 'artworks', 1); await bumpCounter(ctx, 'objects', 1); await bumpCounter(ctx, 'placements', 1);
   }
-  await ctx.db.patch(row._id, { indexedObjectId: object._id });
+  // Sharing is the accepted contribution this release; the leaderboard credits it once per entry.
+  const acceptedAt = row.acceptedAt ?? Date.now();
+  await ctx.db.patch(row._id, { indexedObjectId: object._id, acceptedAt });
+  await recordContributionScore(ctx, { ...row, acceptedAt }, object._id, acceptedAt);
   await ctx.db.insert('vectors', { objectId: object._id, modelVersion: row.modelVersion, source: 'user',
     partition: recognitionPartition(row.modelVersion, row.venueId), contributionId: row._id, vector: row.vector });
   await bumpCounter(ctx, 'vectors', 1);

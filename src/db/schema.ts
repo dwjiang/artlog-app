@@ -52,7 +52,6 @@ export const savedWorks = sqliteTable(
     scanId: text().$type<Id<'scans'>>(),
     photoPath: text(),
     cropPath: text(),
-    photoStorageId: text().$type<Id<'_storage'>>(),
     cropStorageId: text().$type<Id<'_storage'>>(),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
@@ -72,6 +71,27 @@ export const notes = sqliteTable('notes', {
 }, (table) => [primaryKey({ columns: [table.owner, table.savedLocalId] }),
   foreignKey({ columns: [table.owner, table.savedLocalId], foreignColumns: [savedWorks.owner, savedWorks.localId] }).onUpdate('cascade'),
 ]);
+
+export const artworkPhotos = sqliteTable('artworkPhotos', {
+  owner: text().notNull(), localId: text().notNull(), savedLocalId: text().notNull(),
+  kind: text({ enum: ['full', 'detail', 'label'] }).notNull(), capturedAt: integer().notNull(),
+  visitLocalId: text(), caption: text(), path: text(), storageId: text().$type<Id<'_storage'>>(),
+  deletedAt: integer(), syncedAt: integer(), revision: integer().notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.owner, table.localId] }),
+  foreignKey({ columns: [table.owner, table.savedLocalId], foreignColumns: [savedWorks.owner, savedWorks.localId] }).onUpdate('cascade').onDelete('cascade'),
+  index('artworkPhotos_owner_work').on(table.owner, table.savedLocalId),
+]);
+
+export const artworkEncounters = sqliteTable('artworkEncounters', {
+  owner: text().notNull(), savedLocalId: text().notNull(), visitLocalId: text().notNull(),
+  note: text(), deletedAt: integer(), syncedAt: integer(), revision: integer().notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.owner, table.savedLocalId, table.visitLocalId] }),
+  foreignKey({ columns: [table.owner, table.savedLocalId], foreignColumns: [savedWorks.owner, savedWorks.localId] }).onUpdate('cascade').onDelete('cascade'),
+  index('artworkEncounters_owner_visit').on(table.owner, table.visitLocalId),
+]);
+
+export type ArtworkPhoto = typeof artworkPhotos.$inferSelect;
+export type ArtworkEncounter = typeof artworkEncounters.$inferSelect;
 
 export const pendingScanStatuses = ['queued', 'identifying', 'identified', 'failed'] as const;
 export type PendingScanStatus = (typeof pendingScanStatuses)[number];

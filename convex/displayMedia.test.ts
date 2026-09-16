@@ -173,10 +173,10 @@ it('schedules preparation only for selected items with a consented source and no
     await ctx.db.insert('collections', { ...fields, localId: localIds[1] });
     return localIds;
   });
-  const items = [f.a.selection, { saveLocalId: unscanned, layout: { ...f.a.layout, layer: 1 } }];
+  const items = [f.a.selection, { placementId: unscanned, saveLocalId: unscanned, layout: { ...f.a.layout, layer: 1 } }];
   await f.a.as.mutation(api.walls.setLayout, { ...f.a.input, revision: 2, items });
   expect(await scheduled()).toBe(before);
-  await f.a.as.mutation(api.walls.setLayout, { ...f.a.input, revision: 3, items: [...items, { saveLocalId: scanned, layout: { ...f.a.layout, layer: 2 } }] });
+  await f.a.as.mutation(api.walls.setLayout, { ...f.a.input, revision: 3, items: [...items, { placementId: scanned, saveLocalId: scanned, layout: { ...f.a.layout, layer: 2 } }] });
   expect(await scheduled()).toBe(before + 1);
 });
 
@@ -204,7 +204,7 @@ it('uses trusted catalog registration first and falls back when catalog identity
 
 it('leaves placeholders for unconsented owner photos and corrupt contribution images', async () => {
   const t = harness(), a = await wallFixture(t, 'a');
-  await t.run(async (ctx) => { const storageId = await ctx.storage.store(new Blob(['photo'])); await ctx.db.patch(a.saveId, { photoStorageId: storageId, cropStorageId: storageId }); });
+  await t.run(async (ctx) => { const storageId = await ctx.storage.store(new Blob(['photo'])); await ctx.db.patch(a.saveId, { cropStorageId: storageId }); });
   const { items: [item] } = await a.as.mutation(api.walls.setLayout, a.input);
   await t.action(internal.displayMediaPrepare.prepare, { saveId: a.saveId });
   expect((await t.query(api.walls.getArtwork, { itemId: item.itemId }))?.artwork.media.kind).toBe('placeholder');

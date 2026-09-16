@@ -70,7 +70,7 @@ it('deletion revokes profile and publication access immediately', async () => {
 });
 it('projects only permitted artwork fields, no artwork notes on shared cards, and a square placeholder', () => {
   const save = { snapshot: { title: 'Work', artist: 'Artist', date: '1900', medium: 'Oil', institution: 'Private context' },
-    localId: 'private-save', note: 'Private note', photoStorageId: 'private-storage', scanId: 'private-scan' } as never;
+    localId: 'private-save', note: 'Private note', cropStorageId: 'private-storage', scanId: 'private-scan' } as never;
   const artwork = projectArtwork(save);
   expect(artwork).toEqual({ title: 'Work', artist: 'Artist', date: '1900', medium: 'Oil', media: { kind: 'placeholder', width: 1, height: 1 } });
   expect(projectSharedVisitCard({ _id: 'item' } as never, save)).toEqual({ itemId: 'item', artwork });
@@ -86,7 +86,7 @@ it('invalidates reverse save references, consent and revisions while keeping the
     const localId = crypto.randomUUID();
     const saveId = await ctx.db.insert('collections', { owner: { kind: 'account', accountId: user.accountId }, localId, snapshot: { title: 'Work', artist: '' }, savedAt: 1, note: 'Note', updatedAt: 1, updatedBy: user.deviceId, changeVersion: 2 });
     const wallId = await ctx.db.insert('walls', { profileId: profile.profileId, color: '#fff', layoutRevision: 3 });
-    const itemId = await ctx.db.insert('wallItems', { wallId, profileId: profile.profileId, saveId, saveLocalId: localId, active: true, noteVisible: true, noteRevision: 2, layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' } });
+    const itemId = await ctx.db.insert('wallItems', { wallId, profileId: profile.profileId, saveId, placementId: localId, saveLocalId: localId, active: true, noteVisible: true, noteRevision: 2, layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' } });
     const post = await ctx.db.insert('sharedVisits', { profileId: profile.profileId, visitId, visitLocalId: 'visit', postId: crypto.randomUUID(), visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 5 });
     await ctx.db.insert('sharedVisitItems', { publicationId: post, saveId, saveLocalId: localId, position: 0 });
     await ctx.db.patch(profile.profileId, { publishedWallCount: 1 });

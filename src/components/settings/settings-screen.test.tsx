@@ -19,6 +19,7 @@ const contribution = {
   contributionId: 'contribution-1', status: 'tentative', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
 };
 
+jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));

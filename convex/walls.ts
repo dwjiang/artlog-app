@@ -1,3 +1,4 @@
+import { ownedAlbumPhoto, selectedPhotoMedia } from './lib/albumMedia';
 import { ConvexError, type Infer, v } from 'convex/values';
 import { isRevision, LIMITS } from '../shared/journal/limits';
 import { validateWallItems, wallArtwork, wallLayout } from '../shared/social/contracts';
@@ -10,8 +11,8 @@ import { projectWallArtwork } from './lib/projections';
 import { contributionSource, resolveDisplayAsset } from './lib/displayMedia';
 
 export const DEFAULT_WALL_COLOR = '#45524B';
-const selection = v.object({ saveLocalId: v.string(), layout: wallLayout });
-const ownerItem = v.object({ ...wallArtwork.fields, saveLocalId: v.string(), noteVisible: v.boolean(),
+const selection = v.object({ placementId: v.string(), photoLocalId: v.optional(v.string()), saveLocalId: v.string(), layout: wallLayout });
+const ownerItem = v.object({ ...wallArtwork.fields, placementId: v.string(), photoLocalId: v.optional(v.string()), saveLocalId: v.string(), noteVisible: v.boolean(),
   noteRevision: v.number(), noteEligible: v.boolean(), privateNote: v.optional(v.string()) });
 const ownerWall = v.object({ scope: v.string(), profileId: v.id('profiles'), revision: v.number(), color: v.string(), items: v.array(ownerItem) });
 
@@ -27,7 +28,9 @@ async function activeItems(ctx: QueryCtx, wall: Doc<'walls'> | null) {
 async function currentProjection(ctx: QueryCtx, item: Doc<'wallItems'>) {
   try {
     const current = await requirePublicWallItem(ctx, item._id);
-    return { ...current, projection: projectWallArtwork(current.item, current.save, await resolveDisplayAsset(ctx, current.save)) };
+    const projection = projectWallArtwork(current.item, current.save, await resolveDisplayAsset(ctx, current.save));
+    if (item.photoLocalId) projection.artwork.media = await selectedPhotoMedia(ctx, current.save, item.photoLocalId, { kind: 'wallItem', itemId: item._id });
+    return { ...current, projection };
   } catch (error) {
     if (error instanceof ConvexError && error.data.code === 'not_found') return null;
     throw error;
@@ -39,7 +42,7 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
   const items = [];
   for (const item of await activeItems(ctx, wall)) {
     const current = await currentProjection(ctx, item);
-    if (current) items.push({ ...current.projection, saveLocalId: item.saveLocalId, noteVisible: item.noteVisible,
+    if (current) items.push({ ...current.projection, placementId: item.placementId, ...(item.photoLocalId ? { photoLocalId: item.photoLocalId } : {}), saveLocalId: item.saveLocalId, noteVisible: item.noteVisible,
       noteRevision: item.noteRevision, noteEligible: !!current.save.note?.trim(), ...(current.save.note ? { privateNote: current.save.note } : {}) });
   }
   return { scope, profileId: profile._id, revision: wall?.layoutRevision ?? 0, color: wall?.color ?? DEFAULT_WALL_COLOR,
@@ -77,23 +80,28 @@ export const setLayout = mutation({
     validateWallItems(input.items, input.revision);
     if (!/^#[0-9a-f]{6}$/i.test(input.color)) throw new ConvexError({ code: 'invalid_wall' });
     const color = input.color.toUpperCase();
-    const selected = await Promise.all(input.items.map(async (item) => ({ ...item, save: await requireOwnedSave(ctx, owner, item.saveLocalId) })));
+    const selected = await Promise.all(input.items.map(async (item) => {
+      const save = await requireOwnedSave(ctx, owner, item.saveLocalId);
+      if (item.photoLocalId) await ownedAlbumPhoto(ctx, save, item.photoLocalId);
+      return { ...item, save };
+    }));
     const wall = await ctx.db.query('walls').withIndex('by_profileId', (q) => q.eq('profileId', profile._id)).unique();
     const previous = await activeItems(ctx, wall);
     const unchanged = color === (wall?.color ?? DEFAULT_WALL_COLOR) && previous.length === selected.length &&
-      selected.every((item) => previous.some((old) => old.saveId === item.save._id && sameLayout(old.layout, item.layout)));
+      selected.every((item) => previous.some((old) => old.placementId === item.placementId && old.saveId === item.save._id && old.photoLocalId === item.photoLocalId && sameLayout(old.layout, item.layout)));
     if (!unchanged && input.revision !== (wall?.layoutRevision ?? 0)) throw new ConvexError({ code: 'conflict' });
     const wallId = wall?._id ?? await ctx.db.insert('walls', { profileId: profile._id, color, layoutRevision: 0 });
     if (unchanged) return readMine(ctx);
-    const selectedIds = new Set(selected.map((item) => item.save._id));
-    for (const item of previous) if (!selectedIds.has(item.saveId)) {
+    const selectedIds = new Set(selected.map((item) => item.placementId));
+    for (const item of previous) if (!selectedIds.has(item.placementId)) {
       await ctx.db.patch(item._id, { active: false, noteVisible: false, noteRevision: item.noteRevision + 1 });
     }
     for (const item of selected) {
-      const existing = await ctx.db.query('wallItems').withIndex('by_wall_saveId', (q) => q.eq('wallId', wallId).eq('saveId', item.save._id)).unique();
-      if (existing) await ctx.db.patch(existing._id, { layout: item.layout, active: true, noteVisible: existing.active && existing.noteVisible });
+      const existing = await ctx.db.query('wallItems').withIndex('by_wall_placement', (q) => q.eq('wallId', wallId).eq('placementId', item.placementId)).unique();
+      if (existing && existing.saveId !== item.save._id) throw new ConvexError({ code: 'invalid_wall' });
+      if (existing) await ctx.db.patch(existing._id, { photoLocalId: item.photoLocalId, layout: item.layout, active: true, noteVisible: existing.active && existing.noteVisible });
       else await ctx.db.insert('wallItems', { wallId, profileId: profile._id, saveId: item.save._id, saveLocalId: item.saveLocalId,
-        layout: item.layout, active: true, noteVisible: false, noteRevision: 0 });
+        placementId: item.placementId, photoLocalId: item.photoLocalId, layout: item.layout, active: true, noteVisible: false, noteRevision: 0 });
       if (!await resolveDisplayAsset(ctx, item.save) && await contributionSource(ctx, item.save)) {
         await ctx.scheduler.runAfter(0, internal.displayMediaPrepare.prepare, { saveId: item.save._id });
       }

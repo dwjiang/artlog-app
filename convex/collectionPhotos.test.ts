@@ -12,9 +12,9 @@ async function fixture() {
   });
   const work = { localId: crypto.randomUUID(), snapshot: { title: 'Water Lilies', artist: 'Monet' }, savedAt: 1 };
   const scope = async (device = owner) => (await device.as.query(api.accounts.me, {})).scope;
-  const path = async (device = owner, kind = 'photo') => `/collection-photo?localId=${work.localId}&kind=${kind}&scope=${encodeURIComponent(await scope(device))}`;
+  const path = async (device = owner, query = 'kind=crop') => `/collection-photo?localId=${work.localId}&${query}&scope=${encodeURIComponent(await scope(device))}`;
   await owner.as.mutation(api.collections.saveToCollection, { ...work, suggested: null, scope: await scope() });
-  const upload = async (device = owner, kind = 'photo', body = jpeg, headers = {}) => device.as.fetch(await path(device, kind), {
+  const upload = async (device = owner, query = 'kind=crop', body = jpeg, headers = {}) => device.as.fetch(await path(device, query), {
     method: 'POST', body, headers: { 'Content-Type': 'image/jpeg', ...headers },
   });
   const sync = async (device = sibling, since = 0) => device.as.mutation(api.sync.syncJournal, { scope: await scope(device), since, visits: [], saves: [] });
@@ -30,11 +30,15 @@ it('serves private bytes to the canonical account and denies other owners or ano
   expect((await outsider.as.fetch(await path(outsider))).status).toBe(404);
   expect((await t.fetch(await path())).status).toBe(401);
 });
-it('is idempotent under concurrent uploads and validates content, byte size, and UUID ownership', async () => {
+it('is idempotent under concurrent uploads and validates content, byte size, kind, and UUID ownership', async () => {
   const { t, owner, outsider, work, scope, path, upload } = await fixture();
   expect((await upload(outsider)).status).toBe(404);
-  expect((await upload(owner, 'photo', new Uint8Array())).status).toBe(400);
-  expect((await upload(owner, 'photo', jpeg, { 'Content-Length': '20000000' })).status).toBe(413);
+  expect((await upload(owner, 'kind=crop', new Uint8Array())).status).toBe(400);
+  expect((await upload(owner, 'kind=crop', jpeg, { 'Content-Length': '20000000' })).status).toBe(413);
+  // The full photo is an album row: kind=photo needs its photoId and the crop never takes one.
+  expect((await upload(owner, 'kind=photo')).status).toBe(400);
+  expect((await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status).toBe(400);
+  expect((await upload(owner, `kind=photo&photoId=${crypto.randomUUID()}`)).status).toBe(404);
   const responses = await Promise.all([upload(), upload()]);
   const ids = await Promise.all(responses.map((r) => r.json())); expect(ids[0]).toEqual(ids[1]);
   expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toHaveLength(1);
@@ -44,9 +48,10 @@ it('is idempotent under concurrent uploads and validates content, byte size, and
 it('advances sync for late photos without changing note edit stamps, and survives source sign-out', async () => {
   const { owner, sibling, path, upload, sync } = await fixture();
   const first = await sync(); const stamp = first.saves[0].updatedAt;
-  await upload(); await upload(owner, 'crop');
+  await upload();
   const next = await sync(sibling, first.checkpoint);
-  expect(next.saves[0]).toMatchObject({ updatedAt: stamp, photoStorageId: expect.any(String), cropStorageId: expect.any(String) });
+  expect(next.saves[0]).toMatchObject({ updatedAt: stamp, cropStorageId: expect.any(String) });
+  expect(next.saves[0]).not.toHaveProperty('photoStorageId');
   expect(next.checkpoint).toBeGreaterThan(first.checkpoint);
   const stalePath = await path();
   await owner.as.mutation(api.accounts.unlink, {});

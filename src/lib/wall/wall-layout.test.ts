@@ -40,7 +40,7 @@ it('varies new artwork sizes while keeping each placement clear of existing pain
 
 it('removes only the wall placement and compacts layers for the API', () => {
   const draft = { color: '#CDD0CA', items: ['one', 'two', 'three'].map((saveLocalId, layer) => ({
-    saveLocalId, layout: { ...piece(1, 1).layout, layer },
+    placementId: saveLocalId, saveLocalId, layout: { ...piece(1, 1).layout, layer },
   })) };
   expect(removeWallPiece(draft, 'two').items.map((item) => [item.saveLocalId, item.layout.layer]))
     .toEqual([['one', 0], ['three', 1]]);

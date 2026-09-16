@@ -37,7 +37,7 @@ export function AllArtworksScreen() {
             <Text style={{ fontSize: 14, fontWeight: '600', color: Gallery.ink }}>{item.artist}</Text>
             <Text style={{ fontSize: 13, fontStyle: 'italic', color: Gallery.ink }}>{item.title}{item.date ? `, ${item.date}` : ''}</Text>
             <Text style={{ fontSize: 10, lineHeight: 15, color: Gallery.muted }}>{item.venueName ?? item.institution ?? 'Your collection'} · {new Date(item.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-            <Text style={{ fontSize: 10, color: Gallery.muted }}>{item.scanId ? 'Saved from Scan' : 'Saved artwork'}</Text>
+            <Text style={{ fontSize: 10, color: Gallery.muted }}>{works.find((work) => work.localId === item.localId)?.photoCount ?? 0} photos · {works.find((work) => work.localId === item.localId)?.visitCount ?? 0} visits</Text>
           </View>
           <Text style={{ color: Gallery.muted }}>›</Text>
         </WorkLink>;

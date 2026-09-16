@@ -9,6 +9,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { SavedWorkScreen } from './saved-work-screen';
 import { getNote, setNote } from '@/db/repos/notes';
 import { getSavedWork, insertSavedWork } from '@/db/repos/saved-works';
+import { addArtworkPhoto, editArtworkPhoto } from '@/db/repos/artwork-album';
 
 let mockWall: Partial<ReturnType<typeof import('@/lib/wall/use-collection-wall').useCollectionWall>> = { pieces: [], signedIn: false };
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
@@ -90,16 +91,16 @@ it('shows the snapshot as text, with the note as the only input', async () => {
   await render(detail('lilies'));
   expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   for (const value of ['Claude Monet', 'Oil on canvas']) {
-    expect(screen.getByText(value)).toBeOnTheScreen();
+    expect(screen.getByText(new RegExp(value))).toBeOnTheScreen();
   }
   expect(screen.queryByDisplayValue('Water Lilies')).toBeNull();
   expect(screen.queryByDisplayValue('Claude Monet')).toBeNull();
   expect(screen.getByLabelText('Notes')).toBeOnTheScreen();
-  expect(screen.getByLabelText('Your photo of Water Lilies').props.source).toEqual([{ uri: 'file:///documents/crops/lilies.jpg' }]);
+  expect(screen.getByLabelText('full photo 1 of Water Lilies').props.source).toEqual([{ uri: 'file:///documents/photos/lilies.jpg' }]);
 });
 
 it('keeps a full wall from taking another artwork', async () => {
-  const items = Array.from({ length: 100 }, (_, index) => ({ saveLocalId: `other-${index}`, layout: { x: 0.1, y: 0.1, width: 0.2, layer: index, frame: 'gilt' as const } }));
+  const items = Array.from({ length: 100 }, (_, index) => ({ placementId: `other-${index}`, saveLocalId: `other-${index}`, layout: { x: 0.1, y: 0.1, width: 0.2, layer: index, frame: 'gilt' as const } }));
   const setLayoutDraft = jest.fn();
   mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items }, repository: { setLayoutDraft } as never, setError: jest.fn() };
   await render(detail('synced'));
@@ -110,11 +111,23 @@ it('keeps a full wall from taking another artwork', async () => {
   expect(setLayoutDraft).not.toHaveBeenCalled();
 });
 
+it('hangs an available album photo after the original photo was removed', async () => {
+  await insertSavedWork({ localId: 'replacement-work', title: 'Study', artist: '', savedAt: 1, photoPath: 'original.jpg', syncedAt: 1 });
+  editArtworkPhoto('replacement-work', { deletedAt: 2 });
+  addArtworkPhoto({ localId: 'replacement-photo', savedLocalId: 'replacement-work', path: 'replacement.jpg', kind: 'full', capturedAt: 3 });
+  const setLayoutDraft = jest.fn(), publishLayout = jest.fn().mockResolvedValue(undefined);
+  mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items: [] }, repository: { setLayoutDraft, publishLayout } as never, setError: jest.fn() };
+  await render(detail('replacement-work'));
+  await fireEvent.press(await screen.findByRole('switch', { name: 'On your wall' }));
+  expect(setLayoutDraft).toHaveBeenCalledWith(expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: 'replacement-work', photoLocalId: 'replacement-photo' })] }));
+  expect(publishLayout).toHaveBeenCalledTimes(1);
+});
+
 it('shows the photo on this device for a hung work rather than its published media', async () => {
   mockWall = { signedIn: true, pieces: [{ localId: 'lilies', layout: { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: 'gilt' },
     artwork: { title: 'Water Lilies', artist: 'Claude Monet', media: { kind: 'catalog', url: 'https://cdn.example/lilies.jpg', sourceUrl: 'https://cdn.example', rights: 'public_domain', width: 4, height: 3 } } }] };
   await render(detail('lilies'));
-  expect((await screen.findByLabelText('Your photo of Water Lilies')).props.source).toEqual([{ uri: 'file:///documents/crops/lilies.jpg' }]);
+  expect((await screen.findByLabelText('full photo 1 of Water Lilies')).props.source).toEqual([{ uri: 'file:///documents/photos/lilies.jpg' }]);
 });
 
 it('saves the note on blur', async () => {
@@ -143,7 +156,7 @@ it('renders the artwork enrichment when the backend has it', async () => {
 it('skips the enrichment query for a work saved without an artwork', async () => {
   await render(detail('plain'));
   expect(await screen.findByText('Untitled')).toBeOnTheScreen();
-  expect(screen.getByText(/Your collection ·/)).toBeOnTheScreen();
+  expect(screen.getByText('Saved without a visit. You can link one anytime.')).toBeOnTheScreen();
   expect(screen.queryByText('About this work')).toBeNull();
   expect(client.watchQuery).not.toHaveBeenCalled();
 });
@@ -176,7 +189,7 @@ it.each(['devices:me', 'artworks:enrichment'])('keeps local detail usable and re
   results.set(query, new ConvexError({ code: 'unauthenticated' }));
   await render(detail('lilies'));
   expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
-  expect(screen.getByLabelText('Your photo of Water Lilies')).toBeOnTheScreen();
+  expect(screen.getByLabelText('full photo 1 of Water Lilies')).toBeOnTheScreen();
   const input = screen.getByLabelText('Notes');
   await waitFor(() => expect(input).toBeEnabled());
   await fireEvent.changeText(input, 'Still editable without enrichment');

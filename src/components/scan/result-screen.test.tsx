@@ -1,3 +1,5 @@
+import { db } from '@/db/client';
+import { notes, savedWorks } from '@/db/schema';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { getFunctionName } from 'convex/server';
@@ -24,6 +26,7 @@ import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
 import { formStateFromFlow, unlockField } from '@/lib/label/fields';
+jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
 const mockSign = jest.fn();
@@ -90,6 +93,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  db.delete(notes).run(); db.delete(savedWorks).run();
   mockFocused = true;
   jest.resetAllMocks();
   mockNetwork.isInternetReachable = true;
@@ -269,7 +273,7 @@ it('shows a soft match as a maybe with the suggestions and the label button', as
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
 });
 
-it('leaves an unidentified card blank, offers every candidate and requires a title to save', async () => {
+it('leaves an unidentified card blank, offers every candidate and can save without a title', async () => {
   results.set('scans:get', missScan);
   await render(result());
   expect(await screen.findByText('Unidentified')).toBeOnTheScreen();
@@ -277,7 +281,7 @@ it('leaves an unidentified card blank, offers every candidate and requires a tit
   expect(screen.getByLabelText('Artist').props.defaultValue).toBe('');
   expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Not right?' })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Pond at dusk');
@@ -441,7 +445,7 @@ it('waits for the device before querying and shows the unsupported, failed and q
   await view.rerender(result());
   expect(await screen.findByText('Update the app to identify this painting')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Update the app' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeEnabled();
   expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
   await publish(failedScan);
   expect(await screen.findByText('Couldn’t identify this painting')).toBeOnTheScreen();

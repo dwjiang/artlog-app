@@ -41,7 +41,8 @@ the decision without destroying independent support or private journal records.
   in `[0.9, 0.999)` against the oldest eligible backer, so a share that lands
   between a removal and its rebuild joins the entry instead of forking it.
   `replaysEntry` rejects a submission within `0.999` of any vector already on
-  the entry as a duplicate rather than a second view.
+  the entry as a duplicate rather than a second view. Publishing sets
+  `acceptedAt` and records the leaderboard contribution credit.
   `applyReference` copies the entire displayed reference from one contributor. Museum/Wikidata claims stay on originating contributions;
   `museumWorkIdentities` remains owned by corpus ingestion.
 - `convex/lib/agreement.ts`: `verifiedAccession`, `workKey`, and `contributionGroup`

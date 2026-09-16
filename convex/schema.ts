@@ -1,8 +1,10 @@
+import { leaderboardMetric, leaderboardVisibility } from '../shared/social/leaderboard';
 import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
+import { albumPhoto, albumEncounter } from '../shared/collection/album';
 import { journalOwner, journalVisit, journalSave } from '../shared/journal/contracts';
 import { wallLayout, relationshipState, publicationStatus, mediaSource, reportTarget, reportEvidence, reportReview, removal } from '../shared/social/contracts';
 import {
@@ -289,12 +291,14 @@ export default defineSchema({
     status: contributionStatus,
     rejectedReason: v.optional(contributionRejectedReason),
     indexedObjectId: v.optional(v.id('objects')),
+    acceptedAt: v.optional(v.number()), creditedAccountId: v.optional(v.id('accounts')),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
     .index('by_scanId', ['scanId'])
     .index('by_cropStorageId', ['cropStorageId'])
     .index('by_orbStorageId', ['orbStorageId'])
+    .index('by_device_status', ['deviceId', 'status'])
     .index('by_device_venue_model', ['deviceId', 'venueId', 'modelVersion'])
     .index('by_status', ['status'])
     .index('by_object_device', ['indexedObjectId', 'deviceId', 'status'])
@@ -479,7 +483,7 @@ export default defineSchema({
 
   collections: defineTable({
     ...journalSave.fields, owner: journalOwner,
-    photoStorageId: v.optional(v.id('_storage')), cropStorageId: v.optional(v.id('_storage')),
+    cropStorageId: v.optional(v.id('_storage')),
     photoUpdatedAt: v.optional(v.number()), visitId: v.optional(v.id('visits')),
     scanId: v.optional(v.id('scans')), confirmationRecorded: v.optional(v.boolean()),
     updatedAt: v.number(), updatedBy: v.id('devices'), changeVersion: v.number(),
@@ -487,9 +491,16 @@ export default defineSchema({
     .index('by_owner_savedAt', ['owner', 'deletedAt', 'savedAt', 'localId'])
     .index('by_owner_changeVersion', ['owner', 'changeVersion'])
     .index('by_visitId', ['visitId'])
-    .index('by_owner_visit_live', ['owner', 'visitLocalId', 'deletedAt', 'savedAt', 'localId'])
-    .index('by_photoStorageId_deletedAt', ['photoStorageId', 'deletedAt'])
     .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt']),
+
+  artworkPhotos: defineTable({ ...albumPhoto.fields, owner: journalOwner, saveId: v.id('collections'),
+    storageId: v.optional(v.id('_storage')), width: v.optional(v.number()), height: v.optional(v.number()), updatedAt: v.number(), changeVersion: v.number(),
+  }).index('by_owner_localId', ['owner', 'localId']).index('by_saveId', ['saveId']).index('by_save_deletedAt', ['saveId', 'deletedAt'])
+    .index('by_owner_changeVersion', ['owner', 'changeVersion']).index('by_storageId', ['storageId']),
+  artworkEncounters: defineTable({ ...albumEncounter.fields, owner: journalOwner, saveId: v.id('collections'), visitId: v.id('visits'),
+    updatedAt: v.number(), changeVersion: v.number(),
+  }).index('by_save_visit', ['saveId', 'visitId']).index('by_save_deletedAt', ['saveId', 'deletedAt']).index('by_visitId', ['visitId'])
+    .index('by_owner_changeVersion', ['owner', 'changeVersion']),
 
   journalSyncState: defineTable({ owner: journalOwner, version: v.number() }).index('by_owner', ['owner']),
   journalClaims: defineTable({
@@ -498,21 +509,26 @@ export default defineSchema({
     createdAt: v.number(), completedAt: v.optional(v.number()),
   }).index('by_deviceId', ['deviceId']).index('by_accountId', ['accountId']),
 
+  leaderboardScores: defineTable({ accountId: v.id('accounts'), metric: leaderboardMetric, period: v.string(), score: v.number() })
+    .index('by_account_metric_period', ['accountId', 'metric', 'period']),
+  leaderboardCredits: defineTable({ accountId: v.id('accounts'), objectId: v.id('objects'), acceptedAt: v.number() })
+    .index('by_account_object', ['accountId', 'objectId']),
   profiles: defineTable({
+    leaderboardVisibility: v.optional(leaderboardVisibility),
     removal: v.optional(removal),
     accountId: v.id('accounts'), username: v.string(), name: v.string(), bio: v.optional(v.string()),
     photoStorageId: v.optional(v.id('_storage')),
     searchText: v.string(), active: v.boolean(), publishedWallCount: v.number(), createdAt: v.number(), updatedAt: v.number(),
-  }).index('by_accountId', ['accountId']).index('by_username', ['username'])
+  }).index('by_accountId', ['accountId']).index('by_username', ['username']).index('by_active', ['active']).index('by_leaderboard', ['leaderboardVisibility'])
     .searchIndex('search_text', { searchField: 'searchText', filterFields: ['active'] }),
   walls: defineTable({ profileId: v.id('profiles'), color: v.string(), layoutRevision: v.number() })
     .index('by_profileId', ['profileId']),
   wallItems: defineTable({
     removal: v.optional(removal),
     wallId: v.id('walls'), profileId: v.id('profiles'), saveId: v.id('collections'), saveLocalId: v.string(),
+    placementId: v.string(), photoLocalId: v.optional(v.string()),
     active: v.boolean(), layout: wallLayout, noteVisible: v.boolean(), noteRevision: v.number(), noteResetVersion: v.optional(v.number()),
-  }).index('by_wall_active', ['wallId', 'active']).index('by_wall_saveId', ['wallId', 'saveId'])
-    .index('by_saveId', ['saveId']),
+  }).index('by_wall_active', ['wallId', 'active']).index('by_wall_placement', ['wallId', 'placementId']).index('by_save_active', ['saveId', 'active']),
   friendships: defineTable({
     firstProfileId: v.id('profiles'), secondProfileId: v.id('profiles'), requesterId: v.id('profiles'),
     state: relationshipState, revision: v.number(), updatedAt: v.number(),
@@ -529,6 +545,7 @@ export default defineSchema({
     .index('by_profile_status_history', ['profileId', 'status', 'visitedOn', 'postId']).index('by_visitId', ['visitId']),
   sharedVisitItems: defineTable({
     publicationId: v.id('sharedVisits'), saveId: v.id('collections'), saveLocalId: v.string(), position: v.number(),
+    photoLocalIds: v.optional(v.array(v.string())), highlighted: v.optional(v.boolean()),
   }).index('by_publication_position', ['publicationId', 'position']).index('by_publication_save', ['publicationId', 'saveId'])
     .index('by_saveId', ['saveId']),
   mediaAssets: defineTable({

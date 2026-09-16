@@ -7,8 +7,10 @@ import { AppState } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import { createJournalRepository } from '@/db/repos/journal';
 import { claimLocalJournal } from '@/db/repos/journal-claim';
+import { listUnsyncedVisits } from '@/db/repos/visits';
 import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import * as savedWorks from '@/db/repos/saved-works';
+import { albumMediaPending } from '@/db/repos/artwork-album';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
 import { SyncUnavailableError } from '@/lib/network-error';
@@ -17,6 +19,7 @@ import { syncJournal, type SyncContext } from './sync';
 import { onCollectionChange } from './sync-events';
 import { syncCollectionPhotos } from './photo-sync';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
+import { syncArtworkAlbums } from './album-sync';
 
 let context: SyncContext | null = null;
 let generation = 0;
@@ -62,7 +65,9 @@ async function flush(queue: Queue): Promise<unknown> {
 // Photo transfers run in their own queue so a large backlog never delays note, deletion or import sync.
 const transfers: Queue = {
   label: 'Photo transfer', running: null, requested: false,
-  run: (context, token, isCurrent) => syncCollectionPhotos({
+  run: async (context, token, isCurrent) => {
+    await syncArtworkAlbums(context, token, isCurrent);
+    await syncCollectionPhotos({
     ...savedWorks,
     listPhotoTransfers: () => savedWorks.listPhotoTransfers(context.owner),
     getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
@@ -72,7 +77,8 @@ const transfers: Queue = {
     upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
     download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
     removeFile: removePhotoFile,
-  }, isCurrent),
+    }, isCurrent);
+  },
 };
 const sync: Queue = {
   label: 'Collection sync', running: null, requested: false,
@@ -127,6 +133,27 @@ export async function flushJournal(): Promise<void> {
   if (!ready()) throw new SyncUnavailableError();
   const failure = await flush(sync);
   if (failure !== undefined) throw failure;
+}
+
+async function journalPending(owner: string): Promise<boolean> {
+  return (await savedWorks.listUnsynced(owner)).length > 0 || (await listUnsyncedVisits(owner)).length > 0;
+}
+
+/**
+ * Syncs the journal, album rows and photo bytes before an action publishes references to them. A transfer failure
+ * fails the caller only while something it depends on is still missing; an unrelated stuck photo keeps retrying alone.
+ * Each sync round trip spends a shared rate-limit token, so a caller with nothing pending makes no request at all.
+ */
+export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMediaPending>[1] = {}): Promise<void> {
+  const session = ready();
+  if (!session) throw new SyncUnavailableError();
+  const { owner } = session.context;
+  if (!albumMediaPending(owner, dependsOn) && !await journalPending(owner)) return;
+  await flushJournal();
+  while (transfers.running) await transfers.running;
+  if (!ready()) throw new SyncUnavailableError();
+  const failure = await flush(transfers);
+  if (failure !== undefined && albumMediaPending(owner, dependsOn)) throw failure;
 }
 
 export function resumeCollectionSync(): void {

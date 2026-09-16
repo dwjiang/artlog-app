@@ -24,7 +24,7 @@ export function useSaveResult() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (cause) {
       console.warn('Could not save the work', cause);
-      setError('Couldn’t save. Try again.');
+      setError(cause instanceof Error && cause.message === 'Review your added photos before saving.' ? cause.message : 'Couldn’t save. Try again.');
     } finally {
       setSaving(false);
     }
