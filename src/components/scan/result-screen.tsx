@@ -11,6 +11,7 @@ import model from '../../../shared/model/model-version.json';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 import { LocalScanScreen } from './local-scan-screen';
+import { CapturePhotosButton } from './capture-photos-button';
 import { CardHeader } from './result/card-header';
 import { DocentSection } from './result/docent-section';
 import { FieldsForm } from './result/fields-form';
@@ -129,6 +130,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
           inputSize={model.inputSize}
           kind={view.kind}
         />
+        {capture && !savedId && <CapturePhotosButton objectId={view.kind === 'confident' ? view.primary?.objectId : undefined} path={capture.photoPath} title={view.primary?.title} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
         {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
         {view.kind === 'failed' && <FailedCard error={view.error} />}

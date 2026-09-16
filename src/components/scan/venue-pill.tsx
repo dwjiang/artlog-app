@@ -33,8 +33,8 @@ export function VenuePill() {
         onPress={() => router.push('/venue-picker')}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />
-        <ThemedText type="smallBold" themeColor="overlayText" numberOfLines={1} style={styles.label}>{label}</ThemedText>
+        <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.accent} />
+        <ThemedText type="smallBold" themeColor="accent" numberOfLines={1} style={styles.label}>{label}</ThemedText>
       </Pressable>
     </GlassSurface>
   );

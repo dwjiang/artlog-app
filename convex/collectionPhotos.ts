@@ -5,47 +5,63 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { httpAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from './_generated/server';
 import { requireDeviceFromAction } from './lib/auth';
+import { ownedAlbumPhoto } from './lib/albumMedia';
 import { deleteUnreferencedPhoto } from './lib/collectionPhotos';
 import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from './lib/ownership';
 import { isUuid } from '../shared/journal/limits';
 import { limitDevice } from './lib/rateLimits';
 
 const kindValidator = v.union(v.literal('photo'), v.literal('crop'));
-const args = { scope: v.string(), localId: v.string(), kind: kindValidator };
+const args = { scope: v.string(), localId: v.string(), kind: kindValidator, photoId: v.optional(v.string()) };
 
 async function requireCollection(ctx: QueryCtx | MutationCtx, scope: string, localId: string) {
   const { owner } = await requireJournalOwner(ctx, scope);
   return requireOwnedSave(ctx, owner, localId);
 }
 
+// A save carries only its crop; every full-frame photo is an album row addressed by photoId.
+async function target(ctx: QueryCtx | MutationCtx, scope: string, localId: string, kind: CollectionPhotoKind, photoId?: string) {
+  const save = await requireCollection(ctx, scope, localId);
+  if (kind === 'crop') return { save, photo: undefined };
+  if (!photoId) throw new ConvexError({ code: 'invalid_photo' });
+  return { save, photo: await ownedAlbumPhoto(ctx, save, photoId) };
+}
+
 export const findForCaller = internalQuery({
   args, returns: v.union(v.id('_storage'), v.null()),
-  handler: async (ctx, { scope, localId, kind }) => (await requireCollection(ctx, scope, localId))[`${kind}StorageId`] ?? null,
+  handler: async (ctx, { scope, localId, kind, photoId }) => {
+    const { save, photo } = await target(ctx, scope, localId, kind, photoId);
+    return (photo ? photo.storageId : save.cropStorageId) ?? null;
+  },
 });
 
 // Only the authenticated HTTP upload can attach a freshly stored file. Clients cannot claim storage IDs.
 export const attach = internalMutation({
-  args: { ...args, storageId: v.id('_storage') }, returns: v.id('_storage'),
-  handler: async (ctx, { scope, localId, kind, storageId }) => {
-    const row = await requireCollection(ctx, scope, localId);
-    const existing = row[`${kind}StorageId`];
+  args: { ...args, storageId: v.id('_storage'), width: v.optional(v.number()), height: v.optional(v.number()) }, returns: v.id('_storage'),
+  handler: async (ctx, { scope, localId, kind, photoId, storageId, width, height }) => {
+    const { save, photo } = await target(ctx, scope, localId, kind, photoId);
+    const existing = photo ? photo.storageId : save.cropStorageId;
     if (existing) {
       if (existing !== storageId) await deleteUnreferencedPhoto(ctx, storageId);
       return existing;
     }
-    await ctx.db.patch(row._id, { [`${kind}StorageId`]: storageId, photoUpdatedAt: Date.now(), changeVersion: await nextChangeVersion(ctx, row.owner) });
+    const changeVersion = await nextChangeVersion(ctx, save.owner);
+    if (photo) await ctx.db.patch(photo._id, { storageId, width, height, changeVersion });
+    else await ctx.db.patch(save._id, { cropStorageId: storageId, photoUpdatedAt: Date.now(), changeVersion });
     return storageId;
   },
 });
 
-function parameters(request: Request): { scope: string; localId: string; kind: CollectionPhotoKind } {
+function parameters(request: Request): { scope: string; localId: string; kind: CollectionPhotoKind; photoId?: string } {
   const url = new URL(request.url);
   const scope = url.searchParams.get('scope');
   const localId = url.searchParams.get('localId'), kind = url.searchParams.get('kind');
   if (!scope || scope.length > 256 || !localId || !isUuid(localId) || (kind !== 'photo' && kind !== 'crop')) {
     throw new ConvexError({ code: 'invalid_photo' });
   }
-  return { scope, localId, kind };
+  const photoId = url.searchParams.get('photoId') ?? undefined;
+  if (kind === 'photo' ? !photoId || !isUuid(photoId) : photoId !== undefined) throw new ConvexError({ code: 'invalid_photo' });
+  return { scope, localId, kind, photoId };
 }
 
 function failure(error: unknown): Response {
@@ -74,7 +90,9 @@ export const upload = httpAction(async (ctx, request) => {
     const header = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
     if (header[0] !== 0xff || header[1] !== 0xd8 || header[2] !== 0xff) throw new ConvexError({ code: 'invalid_photo' });
     uploaded = await ctx.storage.store(blob);
-    const storageId = await ctx.runMutation(internal.collectionPhotos.attach, { ...input, storageId: uploaded });
+    const width = Number(request.headers.get('X-Photo-Width')), height = Number(request.headers.get('X-Photo-Height'));
+    const dimensions = width > 0 && height > 0 && width <= 65535 && height <= 65535 ? { width, height } : {};
+    const storageId = await ctx.runMutation(internal.collectionPhotos.attach, { ...input, storageId: uploaded, ...dimensions });
     return Response.json({ storageId });
   } catch (error) {
     if (uploaded) await ctx.runMutation(internal.collectionPhotos.discard, { storageId: uploaded });

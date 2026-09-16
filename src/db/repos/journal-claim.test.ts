@@ -4,6 +4,8 @@ import { claimLocalJournal } from './journal-claim';
 import * as saves from './saved-works';
 import * as visitRepo from './visits';
 import { getNote, setNote } from './notes';
+import { getSetting } from './settings';
+import { captureVisitKey, setCaptureVisit } from '../../lib/capture/visit-context';
 import { anonymousOwner, initializeOwner, switchOwner } from '../../lib/account/owner-store';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
@@ -22,6 +24,18 @@ it('claims associations, notes, photos and tombstones atomically and safely repe
   expect(await saves.getSavedWork('save')).toMatchObject({ owner: 'account:a', visitLocalId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, photoPath: 'photo.jpg', deletedAt: 2 });
   expect(await getNote('save')).toMatchObject({ text: 'My note', owner: 'account:a' });
   expect(await visitRepo.getVisit('e7257140-7164-58eb-88ac-f010276ded02')).toMatchObject({ owner: 'account:a' });
+});
+it('carries the capture visit preference to the account unless the account already chose one', async () => {
+  const source = anonymousOwner();
+  await visitRepo.upsertVisit({ localId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
+  await setCaptureVisit('e7257140-7164-58eb-88ac-f010276ded02', source);
+  await claimLocalJournal(source, 'account:a', 'claim');
+  expect(await getSetting(captureVisitKey('account:a'))).toBe('e7257140-7164-58eb-88ac-f010276ded02');
+  expect(await getSetting(captureVisitKey(source))).toBeUndefined();
+  await setCaptureVisit('none', source);
+  await claimLocalJournal(source, 'account:a', 'again');
+  expect(await getSetting(captureVisitKey('account:a'))).toBe('e7257140-7164-58eb-88ac-f010276ded02');
+  expect(await getSetting(captureVisitKey(source))).toBeUndefined();
 });
 it('hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them', async () => {
   await saves.insertSavedWork({ localId: 'save', title: 'A', artist: '', savedAt: 1 }, 'account:a');

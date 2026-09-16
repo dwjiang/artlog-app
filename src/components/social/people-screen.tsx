@@ -1,5 +1,5 @@
 import { socialStyles } from './social-styles';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
@@ -19,7 +19,8 @@ const profileId = (profile: PublicProfile) => profile.profileId;
 
 export function PeopleScreen() {
   const session = useSocialSession();
-  const [filter, setFilter] = useState<'all' | 'friends'>('all');
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const [filter, setFilter] = useState<'all' | 'friends'>(params.filter === 'friends' ? 'friends' : 'all');
   const friends = useSocialQuery(api.profiles.friends, session.status === 'ready' ? {} : 'skip', session.key);
   const [text, setText] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -28,12 +29,13 @@ export function PeopleScreen() {
   const searching = text === debounced && !!query && !session.offline;
   const results = useCursorPages(api.profiles.search, searching ? { query: query! } : 'skip',
     session.key, searchPage, profileId);
+  const discovery = useCursorPages(api.profiles.discover, !text.trim() && !session.offline ? {} : 'skip', session.key, searchPage, profileId);
   return <>
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
-      keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : []}
+      keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
       keyExtractor={profileId} renderItem={({ item }) => <View style={[socialStyles.section, { gap: 8 }]}><ProfileIdentity profile={item} />
         {friends.data?.some((friend) => friend.profileId === item.profileId) && <Text style={{ fontSize: 11, color: Gallery.accent, marginLeft: 56 }}>✓ Friends</Text>}</View>}
-      ListHeaderComponent={<View style={{ padding: 18 }}><NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
+      ListHeaderComponent={<View style={{ padding: 18, gap: 16 }}>{!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 12 }}>Discover people and their little museums.</Text>}<NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
       ListEmptyComponent={filter === 'friends' ? <SocialState title={session.status !== 'ready' ? 'Sign in to find your friends.' : friends.error ? 'Couldn’t load your friends.' : friends.loading ? 'Opening friends…' : 'No friends found.'}
@@ -42,8 +44,8 @@ export function PeopleScreen() {
           detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
           : text !== debounced ? <SocialState title="Searching…" loading />
             : results.done ? <SocialState title="No people found." detail="Try another name or username." /> : null}
-      ListFooterComponent={filter === 'all' && searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : null}
-      onEndReached={filter === 'all' && searching ? results.loadMore : undefined} onEndReachedThreshold={0.4} />
+      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
+      onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
     <Stack.SearchBar placeholder="Name or username" autoCapitalize="none" hideWhenScrolling={false} placement="stacked" allowToolbarIntegration={false}
       onChangeText={(event) => setText(event.nativeEvent.text)} onCancelButtonPress={() => setText('')} />
   </>;

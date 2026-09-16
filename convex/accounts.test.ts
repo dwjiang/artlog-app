@@ -153,7 +153,7 @@ it('purges the deleted account’s journal, photos and sync state in batches', a
     }
     for (let i = 0; i < 60; i++) {
       await ctx.db.insert('collections', { owner, localId: crypto.randomUUID(), snapshot: { title: 'Work', artist: '' }, savedAt: 1,
-        updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 6, ...(i === 0 ? { photoStorageId: stored } : {}) });
+        updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 6, ...(i === 0 ? { cropStorageId: stored } : {}) });
     }
   });
   await a.as.mutation(api.accounts.deleteAccount, {});

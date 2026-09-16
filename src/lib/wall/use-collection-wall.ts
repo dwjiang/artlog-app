@@ -1,4 +1,6 @@
+import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { useAuthToken } from '@convex-dev/auth/react';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import type { SavedWork } from '@/db/schema';
@@ -29,6 +31,7 @@ export function useCollectionWall(works: SavedWork[]) {
   // Identifies the wall read the effect owes for the current account session; unset until the account can be read.
   // A token rotation alone keeps the session valid, so it must not trigger another read.
   const loadKey = signedIn && token && serverScope ? generation : undefined;
+  const [photoAspects, setPhotoAspects] = useState<Record<string, number>>({});
   const [loadedKey, setLoadedKey] = useState<number>();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();
@@ -62,7 +65,7 @@ export function useCollectionWall(works: SavedWork[]) {
   }
 
   const draft = state.layoutDraft ?? (state.acknowledged ? { color: state.acknowledged.color,
-    items: state.acknowledged.items.map(({ saveLocalId, layout }) => ({ saveLocalId, layout })) } : null);
+    items: state.acknowledged.items.map(({ placementId, photoLocalId, saveLocalId, layout }) => ({ placementId, photoLocalId, saveLocalId, layout })) } : null);
 
   async function loadSelections(reset = false) {
     if (loadingSelections || (!reset && cursor === null)) return;
@@ -93,17 +96,33 @@ export function useCollectionWall(works: SavedWork[]) {
     } finally { if (session.isCurrent()) setLoadingSelections(false); }
   }
 
-  const pieces: WallPiece[] = (draft?.items ?? []).flatMap(({ saveLocalId, layout }) => {
-    const published = state.acknowledged?.items.find((item) => item.saveLocalId === saveLocalId);
+  const albumPhotos = useLiveQuery(selectAllArtworkPhotos(owner), [owner]);
+  const albumPhoto = (saveLocalId: string, photoLocalId?: string) => photoLocalId
+    ? albumPhotos.data.find((row) => row.owner === owner && row.savedLocalId === saveLocalId && row.localId === photoLocalId) : undefined;
+  const photoPaths = JSON.stringify((draft?.items ?? []).flatMap((item) => {
+    const photo = albumPhoto(item.saveLocalId, item.photoLocalId);
+    return photo?.path ? [{ id: photo.localId, path: photo.path }] : [];
+  }));
+  useEffect(() => {
+    let active = true;
+    void Promise.all((JSON.parse(photoPaths) as { id: string; path: string }[]).map(async ({ id, path }) => {
+      try { const size = await Image.getSize(captureFileUri(path)); return [id, size.width / size.height] as const; } catch { return [id, 1] as const; }
+    })).then((entries) => { if (active) setPhotoAspects(Object.fromEntries(entries)); });
+    return () => { active = false; };
+  }, [photoPaths]);
+
+  const pieces: WallPiece[] = (draft?.items ?? []).flatMap(({ placementId, photoLocalId, saveLocalId, layout }) => {
+    const published = state.acknowledged?.items.find((item) => item.placementId === placementId);
     const selection = selections.find((item) => item.localId === saveLocalId);
     const work = works.find((item) => item.localId === saveLocalId);
     const snapshot = selection?.snapshot ?? work;
     if (!published && !snapshot) return [];
-    return [{ localId: saveLocalId, layout, artwork: published?.artwork ?? {
+    const photo = albumPhoto(saveLocalId, photoLocalId);
+    return [{ localId: placementId, saveLocalId, photoLocalId, layout, artwork: published?.artwork ?? {
       title: snapshot!.title, artist: snapshot!.artist, date: snapshot!.date ?? undefined,
       medium: snapshot!.medium ?? undefined,
       media: { kind: 'placeholder' as const, width: 1 as const, height: 1 as const },
-    }, cropPath: !published ? work?.cropPath : undefined, cropAspectRatio: !published ? selection?.cropAspectRatio : undefined }];
+    }, cropPath: photo?.path ?? (!published ? work?.cropPath : undefined), cropAspectRatio: photo ? photoAspects[photo.localId] : !published ? selection?.cropAspectRatio : undefined }];
   });
 
   return { ...state, signedIn, loading: signedIn && (refreshing || (loadKey !== undefined && loadedKey !== loadKey)), error, setError, profileRequired, refresh,

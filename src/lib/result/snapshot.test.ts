@@ -9,9 +9,9 @@ it('pre-fills the draft from the candidate and leaves an unidentified card blank
   expect(draftFromCandidate(undefined)).toEqual({ title: '', artist: '', date: '', medium: '', institution: '' });
 });
 
-it('requires a title before saving', () => {
-  expect(canSave(draftFromCandidate(undefined))).toBe(false);
-  expect(canSave({ ...draftFromCandidate(undefined), title: '   ' })).toBe(false);
+it('allows an unidentified artwork without a title', () => {
+  expect(canSave(draftFromCandidate(undefined))).toBe(true);
+  expect(canSave({ ...draftFromCandidate(undefined), title: '   ' })).toBe(true);
   expect(canSave({ ...draftFromCandidate(undefined), title: 'Untitled' })).toBe(true);
 });
 

@@ -25,26 +25,22 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
     const pending = await deps.listPhotoTransfers();
     if (!pending.length) return;
     let failure: unknown;
+    // Only the crop travels with the save; the full photo is an album row and transfers with the album.
     for (const work of pending) {
-      for (const kind of ['crop', 'photo'] as const) {
-        if (!isCurrent()) return;
-        const current = await deps.getSavedWork(work.localId);
-        if (!isCurrent()) return;
-        if (!current || current.deletedAt !== null) break;
-        const path = current[`${kind}Path`], storageId = current[`${kind}StorageId`];
-        try {
-          if (path && !storageId) {
-            const uploaded = await deps.upload(work.localId, kind, path);
-            if (!isCurrent()) return;
-            await deps.updatePhotoTransfer(work.localId, { [`${kind}StorageId`]: uploaded });
-          } else if (!path && storageId) {
-            const downloaded = await deps.download(work.localId, kind, storageId);
-            if (!isCurrent() || !await deps.updatePhotoTransfer(work.localId, { [`${kind}Path`]: downloaded })) {
-              deps.removeFile(downloaded);
-            }
-          }
-        } catch (error) { failure = error; }
-      }
+      if (!isCurrent()) return;
+      const current = await deps.getSavedWork(work.localId);
+      if (!isCurrent()) return;
+      if (!current || current.deletedAt !== null) continue;
+      try {
+        if (current.cropPath && !current.cropStorageId) {
+          const uploaded = await deps.upload(work.localId, 'crop', current.cropPath);
+          if (!isCurrent()) return;
+          await deps.updatePhotoTransfer(work.localId, { cropStorageId: uploaded });
+        } else if (!current.cropPath && current.cropStorageId) {
+          const downloaded = await deps.download(work.localId, 'crop', current.cropStorageId);
+          if (!isCurrent() || !await deps.updatePhotoTransfer(work.localId, { cropPath: downloaded })) deps.removeFile(downloaded);
+        }
+      } catch (error) { failure = error; }
     }
     if (failure) throw failure;
   }

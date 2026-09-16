@@ -91,7 +91,7 @@ export function createWallRepository(deps: Dependencies) {
     setLayoutDraft: (draft: LayoutDraft) => {
       if (!state.acknowledged) throw new Error('Refresh your wall first');
       if (!state.layoutDraft) layoutRevision = state.acknowledged.revision;
-      update({ layoutDraft: { color: draft.color, items: draft.items.map((item) => ({ saveLocalId: item.saveLocalId, layout: { ...item.layout } })) } });
+      update({ layoutDraft: { color: draft.color, items: draft.items.map((item) => ({ placementId: item.placementId, saveLocalId: item.saveLocalId, photoLocalId: item.photoLocalId, layout: { ...item.layout } })) } });
     },
     setNoteDraft: (changes: { itemId: NoteDraft[number]['itemId']; visible: boolean }[]) => {
       if (!state.acknowledged) throw new Error('Refresh your wall first');

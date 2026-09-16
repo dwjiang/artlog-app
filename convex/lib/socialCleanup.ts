@@ -4,6 +4,12 @@ import { deleteUnreferencedPhoto } from './collectionPhotos';
 
 const BATCH = 50;
 export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts'>): Promise<boolean> {
+  const scores = await ctx.db.query('leaderboardScores').withIndex('by_account_metric_period', (q) => q.eq('accountId', accountId)).take(BATCH);
+  const credits = await ctx.db.query('leaderboardCredits').withIndex('by_account_object', (q) => q.eq('accountId', accountId)).take(BATCH);
+  if (scores.length || credits.length) {
+    for (const row of [...scores, ...credits]) await ctx.db.delete(row._id);
+    return true;
+  }
   const reporter = { kind: 'account' as const, accountId };
   const reports = await ctx.db.query('reports').withIndex('by_reporter_createdAt', (q) => q.eq('reporter', reporter)).take(BATCH);
   if (reports.length) {
@@ -44,6 +50,11 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts
 }
 // True when a full batch was removed and more rows may remain.
 export async function purgeSaveMediaBatch(ctx: MutationCtx, saveId: Id<'collections'>): Promise<boolean> {
+  const photos = await ctx.db.query('artworkPhotos').withIndex('by_saveId', (q) => q.eq('saveId', saveId)).take(BATCH);
+  const encounters = await ctx.db.query('artworkEncounters').withIndex('by_save_visit', (q) => q.eq('saveId', saveId)).take(BATCH);
+  for (const child of [...photos, ...encounters]) await ctx.db.delete(child._id);
+  for (const photo of photos) if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
+  if (photos.length === BATCH || encounters.length === BATCH) return true;
   const assets = await ctx.db.query('mediaAssets').withIndex('by_saveId', (q) => q.eq('saveId', saveId)).take(BATCH);
   for (const asset of assets) await ctx.db.delete(asset._id);
   for (const storageId of new Set(assets.map((asset) => asset.storageId))) {

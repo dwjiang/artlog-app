@@ -1,3 +1,5 @@
+import { randomUUID } from 'expo-crypto';
+import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +16,7 @@ import { GalleryButton } from './gallery-button';
 import { WallArtworkSheet } from './wall-sheets';
 import { WallProfileSheet } from './wall-profile-sheet';
 import { WallGallery } from './wall-gallery';
+import { WallPhotoPicker } from './wall-photo-picker';
 import { WallFramePicker } from './wall-options';
 import { SavedWorkImage } from './saved-work-image';
 import { WallFrame } from './wall-frame';
@@ -31,12 +34,12 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const [editing, setEditing] = useState(false), [width, setWidth] = useState(0);
   const [profile, setProfile] = useState(false), [options, setOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
-  const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.localId));
+  const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
   const color = wall.draft?.color ?? Gallery.accent;
   const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
-  const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((hung) => hung.saveLocalId === item.localId));
+  const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId));
   // Detail screens edit the wall through their own repository, so each return to this screen re-reads it. The memoized
   // callback reads through a ref so the first load (owned by the hook) and edits in progress are skipped without re-running.
   const focus = useRef({ loaded: false, editing: false });
@@ -70,7 +73,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   }
   function move(id: string, layout: WallLayout) {
     if (!wall.draft || wall.pending) return;
-    wall.repository.setLayoutDraft({ ...wall.draft, items: wall.draft.items.map((item) => item.saveLocalId === id
+    wall.repository.setLayoutDraft({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === id
       ? { ...item, layout: constrainLayout(item.layout, layout) } : item) });
   }
   function remove(id: string) {
@@ -78,9 +81,11 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     wall.repository.setLayoutDraft(removeWallPiece(wall.draft, id)); setSelectedId(undefined); setOptions(false);
   }
   function add(localId: string) {
-    if (!wall.draft || wall.pending || count >= LIMITS.wallItems || wall.draft.items.some((item) => item.saveLocalId === localId)) return;
-    wall.repository.setLayoutDraft({ ...wall.draft, items: [...wall.draft.items, { saveLocalId: localId, layout: nextWallLayout(pieces) }] });
-    setSelectedId(localId);
+    if (!wall.draft || wall.pending || count >= LIMITS.wallItems) return;
+    const placementId = randomUUID();
+    const photoLocalId = selectArtworkPhotos(localId).all().find((photo) => photo.kind !== 'label')?.localId;
+    wall.repository.setLayoutDraft({ ...wall.draft, items: [...wall.draft.items, { placementId, photoLocalId, saveLocalId: localId, layout: nextWallLayout(pieces) }] });
+    setSelectedId(placementId);
   }
 
   return <GestureHandlerRootView style={styles.root}>
@@ -107,7 +112,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         {width > 0 && <WallGallery pieces={pieces} color={color} width={width} editing={editing && !wall.pending}
           selectedId={selectedId} onRemove={remove} onMove={move} onSelect={(piece) => {
             if (editing) setSelectedId(piece.localId);
-            else if (works.some((work) => work.localId === piece.localId)) router.push({ pathname: '/[savedId]', params: { savedId: piece.localId } });
+            else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/[savedId]', params: { savedId: piece.saveLocalId! } });
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
@@ -126,6 +131,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
       {selected ? <>
         <View style={styles.trayHeading}><GalleryButton label="All saved art" icon="chevron.left" onPress={() => setSelectedId(undefined)} />
           <GalleryButton label="Size & position" onPress={() => setOptions(true)} disabled={wall.pending} /></View>
+        {selected.saveLocalId && <WallPhotoPicker savedId={selected.saveLocalId} selectedId={selected.photoLocalId} onSelect={(photoLocalId) => {
+          if (wall.draft && !wall.pending) wall.repository.setLayoutDraft({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
+        }} />}
+        <GalleryButton label="Hang another photo of this artwork" disabled={wall.pending || count >= LIMITS.wallItems} onPress={() => { if (selected.saveLocalId) add(selected.saveLocalId); }} />
         <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallFramePicker value={selected.layout.frame} onChange={(frame) => move(selected.localId, { ...selected.layout, frame })} /></View>
       </> : <>
         <Text style={[styles.caption, { paddingHorizontal: 18, paddingTop: 12 }]}>YOUR SAVED ART · TAP TO HANG</Text>
@@ -136,7 +145,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             <Text numberOfLines={1} style={{ fontSize: 10, color: Gallery.muted }}>{item.snapshot.artist}</Text>
           </Pressable>)}
           {wall.loadingSelections ? <ActivityIndicator color={Gallery.accent} /> : wall.cursor !== null ? <GalleryButton label="More artworks" onPress={() => { void wall.loadSelections(); }} />
-            : !available.length ? <Text style={styles.caption}>All your synced artworks are on the wall.</Text> : null}
+            : !available.length ? <Text style={styles.caption}>Save an artwork to add it to your wall.</Text> : null}
         </ScrollView>
       </>}
     </View>}

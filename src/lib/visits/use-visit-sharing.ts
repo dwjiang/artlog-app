@@ -1,7 +1,8 @@
+import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { captureOwner, subscribeOwner } from '../account/owner-store';
-import { flushJournal } from '../account/collection-sync';
+import { flushCollectionMedia } from '../account/collection-sync';
 import { createVisitSharingController } from './visit-sharing-controller';
 import { createVisitSharingTransport } from './visit-sharing-transport';
 
@@ -11,7 +12,15 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
     const input = { token, saveLocalIds };
     const controller = createVisitSharingController({ visitLocalId, saveLocalIds: () => input.saveLocalIds,
       transport: createVisitSharingTransport(process.env.EXPO_PUBLIC_CONVEX_URL!),
-      capture: () => ({ ...captureOwner(), token: input.token }), subscribeOwner, flush: flushJournal });
+      capture: () => ({ ...captureOwner(), token: input.token }), subscribeOwner,
+      flush: () => {
+        const draft = controller.getSnapshot().draft;
+        return flushCollectionMedia({ saveLocalIds: draft?.saveLocalIds ?? input.saveLocalIds, photoLocalIds: draft?.photoSelections?.flatMap((row) => row.photoLocalIds) ?? [] });
+      },
+      photoSelections: () => input.saveLocalIds.flatMap((saveLocalId) => {
+        const photos = selectArtworkPhotos(saveLocalId).all().filter((photo) => photo.kind !== 'label');
+        return photos.length ? [{ saveLocalId, photoLocalIds: photos.map((photo) => photo.localId) }] : [];
+      }) });
     return { controller, update: (value: typeof input) => { input.token = value.token; input.saveLocalIds = value.saveLocalIds; } };
   });
   useEffect(() => { session.update({ token, saveLocalIds }); }, [session, token, saveLocalIds]);

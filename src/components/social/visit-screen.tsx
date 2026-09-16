@@ -1,6 +1,6 @@
 import { socialStyles } from './social-styles';
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { SocialText as Text } from './social-text';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
@@ -9,6 +9,7 @@ import type { SharedArtwork, SharedVisit } from '@/lib/social/types';
 import { useCursorPages } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { PageFooter, SocialGate, SocialState } from './social-state';
+import { DisplayMedia } from '../artwork/display-media';
 import { VisitArtworks, VisitHeading } from './visit-card';
 
 const artworksPage = (visit: SharedVisit) => visit.artworks;
@@ -30,7 +31,7 @@ export function VisitScreen({ postId }: { postId: string }) {
     </> : null}
     renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.artwork.title}`}
       onPress={() => router.push({ pathname: '/artwork', params: { kind: 'visit', postId, itemId: item.itemId } })}>
-      <VisitArtworks artworks={[item]} token={session.token} />
+      {item.photos?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 24 }}>{item.photos.map((media, index) => <DisplayMedia key={index} media={media} token={session.token} label={`${item.artwork.title}, photo ${index + 1}`} width={240} />)}</ScrollView> : <VisitArtworks artworks={[item]} token={session.token} />}
       <View style={socialStyles.section}>
         <Text selectable style={socialStyles.body}>{item.artwork.title}</Text>
         <Text selectable style={socialStyles.caption}>{item.artwork.artist}</Text>

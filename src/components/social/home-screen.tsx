@@ -42,6 +42,7 @@ export function HomeScreen() {
         onPress={() => router.push('/settings')}>Your profile and settings</Stack.Toolbar.Button>
     </Stack.Toolbar>
     <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button icon="trophy" accessibilityLabel="Leaderboards" tintColor={Gallery.ink} hidesSharedBackground onPress={() => router.push('/leaderboards')}>Leaderboards</Stack.Toolbar.Button>
       <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Find people" tintColor={Gallery.ink} hidesSharedBackground
         onPress={() => router.push('/people')}>Find people</Stack.Toolbar.Button>
     </Stack.Toolbar>

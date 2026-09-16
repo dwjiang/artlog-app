@@ -1,3 +1,4 @@
+import { recordContributionScore } from './lib/leaderboard';
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
@@ -145,7 +146,8 @@ export const apply = internalMutation({
       const promotionNote = hasStrongEvidence(row)
         ? 'strong'
         : `agreement with ${others.join(', ')}${result.differentDays ? ' on different days' : ''}`;
-      await ctx.db.patch(row._id, { status: 'promoted', promotedObjectId: objectId, promotionNote });
+      await ctx.db.patch(row._id, { status: 'promoted', promotedObjectId: objectId, promotionNote, acceptedAt: row.acceptedAt ?? Date.now() });
+      await recordContributionScore(ctx, row, objectId, row.acceptedAt ?? Date.now());
     }
     for (const deviceId of deviceIds) await ctx.db.patch(deviceId, { trustWeight: CONFIRMED_TRUST_WEIGHT });
     await bumpCounter(ctx, 'objects', 1);
@@ -197,9 +199,10 @@ export const appendPartners = internalMutation({
     for (const row of accepted) {
       await ctx.db.insert('vectors', { objectId: object._id, modelVersion: row.modelVersion, source: 'user', vector: row.vector });
       await ctx.db.patch(row._id, {
-        status: 'promoted', promotedObjectId: object._id,
+        status: 'promoted', promotedObjectId: object._id, acceptedAt: row.acceptedAt ?? Date.now(),
         promotionNote: hasStrongEvidence(row) ? 'strong' : `agreement with ${anchor._id}`,
       });
+      await recordContributionScore(ctx, row, object._id, row.acceptedAt ?? Date.now());
       await ctx.db.patch(row.deviceId, { trustWeight: CONFIRMED_TRUST_WEIGHT });
     }
     if (accepted.length) {

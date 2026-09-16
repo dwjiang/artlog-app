@@ -56,10 +56,10 @@ export async function requireOwnedSave(ctx: ReadCtx, owner: JournalOwner, localI
   if (!save || save.deletedAt !== undefined) throw new ConvexError({ code: 'not_found' });
   return save;
 }
-export function requireMembership(save: Doc<'collections'>, visit: Doc<'visits'>): void {
-  if (!sameOwner(save.owner, visit.owner) || save.venueId !== visit.venueId || save.visitId !== visit._id || save.visitLocalId !== visit.localId) {
-    throw new ConvexError({ code: 'not_found' });
-  }
+export async function requireMembership(ctx: ReadCtx, save: Doc<'collections'>, visit: Doc<'visits'>): Promise<void> {
+  if (!sameOwner(save.owner, visit.owner)) throw new ConvexError({ code: 'not_found' });
+  const encounter = await ctx.db.query('artworkEncounters').withIndex('by_save_visit', (q) => q.eq('saveId', save._id).eq('visitId', visit._id)).unique();
+  if (encounter ? encounter.deletedAt !== undefined : save.visitId !== visit._id || save.visitLocalId !== visit.localId) throw new ConvexError({ code: 'not_found' });
 }
 export async function nextChangeVersion(ctx: MutationCtx, owner: JournalOwner): Promise<number> {
   const state = await ctx.db.query('journalSyncState').withIndex('by_owner', (q) => q.eq('owner', owner)).unique();

@@ -5,6 +5,8 @@ export type WallLayout = LayoutInput['items'][number]['layout'];
 export type WallFrame = WallLayout['frame'];
 export type WallPiece = {
   localId: string;
+  saveLocalId?: string;
+  photoLocalId?: string;
   artwork: OwnerWall['items'][number]['artwork'];
   layout: WallLayout;
   cropPath?: string | null;
@@ -44,7 +46,7 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
 }
 
 export function removeWallPiece(draft: WallDraft, localId: string): WallDraft {
-  return { ...draft, items: draft.items.filter((item) => item.saveLocalId !== localId)
+  return { ...draft, items: draft.items.filter((item) => item.placementId !== localId)
     .map((item, layer) => ({ ...item, layout: { ...item.layout, layer } })) };
 }
 

@@ -47,7 +47,7 @@ it('uploads a bounded JPEG copy with authentication while leaving the original f
   expect(mockSave).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.85 });
   expect(mockUpload).toHaveBeenCalledWith('file:///cache/encoded.jpg',
     'https://test.convex.site/collection-photo?scope=scope&localId=save-1&kind=photo', expect.objectContaining({
-      httpMethod: 'POST', headers: { Authorization: 'Bearer private-token', 'Content-Type': 'image/jpeg' },
+      httpMethod: 'POST', headers: { Authorization: 'Bearer private-token', 'Content-Type': 'image/jpeg', 'X-Photo-Height': '3000', 'X-Photo-Width': '4000' },
     }));
   expect(mockDelete.mock.calls).toEqual([['file:///cache/encoded.jpg']]);
 });

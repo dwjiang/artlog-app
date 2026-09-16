@@ -24,10 +24,16 @@ it('imports metadata and notes without a photo, then deduplicates a replay', asy
   expect(await repo.listUnsynced()).toEqual([]);
 });
 
-it('keeps an existing photo and immutable snapshot when remote metadata changes', async () => {
+it('keeps local photos while receiving artwork details edited on another device', async () => {
   await repo.insertSavedWork({ localId: 'work', title: 'Original', artist: 'Artist', savedAt: 1, photoPath: 'photo.jpg', cropPath: 'crop.jpg', syncedAt: 1 });
   await repo.upsertFromRemote([{ ...remote, updatedBy: deviceId }]);
-  expect(await repo.getSavedWork('work')).toMatchObject({ title: 'Original', photoPath: 'photo.jpg', cropPath: 'crop.jpg', syncedAt: 10 });
+  expect(await repo.getSavedWork('work')).toMatchObject({ title: 'Water Lilies', photoPath: 'photo.jpg', cropPath: 'crop.jpg', syncedAt: 10 });
+});
+
+it('clears a date, medium, or institution removed on another device', async () => {
+  await repo.insertSavedWork({ localId: 'work', title: 'Original', artist: 'Artist', date: '1906', medium: 'Oil', institution: 'Museum', savedAt: 1, syncedAt: 1 });
+  await repo.upsertFromRemote([{ ...remote, snapshot: { title: 'Water Lilies', artist: 'Monet' } }]);
+  expect(await repo.getSavedWork('work')).toMatchObject({ title: 'Water Lilies', date: null, medium: null, institution: null, syncedAt: 10 });
 });
 
 it('keeps an in-flight note edit dirty even if the old upload is acknowledged', async () => {
@@ -62,7 +68,7 @@ it('keeps one save when another device returns a copy of the same work', async (
   await repo.insertSavedWork({ localId: remote.localId, title: 'Original', artist: 'Artist', savedAt: 1, photoPath: 'photo.jpg', syncedAt: 1 });
   await repo.upsertFromRemote([remote]);
   expect(await repo.listSavedWorks()).toHaveLength(1);
-  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ title: 'Original', photoPath: 'photo.jpg' });
+  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ title: 'Water Lilies', photoPath: 'photo.jpg' });
 });
 
 it('does not replace a newer note with an older device copy on a later page', async () => {
@@ -99,8 +105,8 @@ it('does not move the confirmed version backward when an older upload response a
 it('accepts an image reference without replacing a newer local note or original photo', async () => {
   await repo.insertSavedWork({ localId: remote.localId, title: 'Painting', artist: '', savedAt: 1, photoPath: 'original.heic' });
   await setNote(remote.localId, 'Still uploading');
-  const photoStorageId = 'cloud-photo' as Id<'_storage'>;
-  await repo.upsertFromRemote([{ ...remote, photoStorageId }]);
-  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ photoPath: 'original.heic', photoStorageId, syncedAt: null });
+  const cropStorageId = 'cloud-crop' as Id<'_storage'>;
+  await repo.upsertFromRemote([{ ...remote, cropStorageId }]);
+  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ photoPath: 'original.heic', cropStorageId, syncedAt: null });
   expect(await getNote(remote.localId)).toMatchObject({ text: 'Still uploading' });
 });

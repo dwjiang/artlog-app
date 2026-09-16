@@ -1,4 +1,4 @@
-import type { SavedWork, Visit } from '@/db/schema';
+import type { ArtworkEncounter, SavedWork, Visit } from '@/db/schema';
 import { venueLocation } from '../venue/venue-location';
 import type { VenueRow } from '../venue/resolve';
 import { filterWorks } from '../collection/search';
@@ -15,12 +15,14 @@ export type VisitSummary = Visit & {
   works: SavedWork[];
 };
 
-export function visitSummaries(visits: Visit[], works: SavedWork[], metadata: Map<string, VenueRow>, owner: string): VisitSummary[] {
+export function visitSummaries(visits: Visit[], works: SavedWork[], metadata: Map<string, VenueRow>, owner: string, encounters: ArtworkEncounter[] = []): VisitSummary[] {
   const byVisit = new Map<string, SavedWork[]>();
-  for (const work of works) {
-    if (work.owner !== owner || work.deletedAt !== null || !work.visitLocalId) continue;
-    const group = byVisit.get(work.visitLocalId) ?? [];
-    group.push(work); byVisit.set(work.visitLocalId, group);
+  for (const encounter of encounters) {
+    if (encounter.owner !== owner || encounter.deletedAt !== null) continue;
+    const work = works.find((row) => row.owner === owner && row.localId === encounter.savedLocalId && row.deletedAt === null);
+    if (!work) continue;
+    const group = byVisit.get(encounter.visitLocalId) ?? [];
+    group.push(work); byVisit.set(encounter.visitLocalId, group);
   }
   return groupHistoryByMonth(visits.filter((visit) => visit.owner === owner)).flatMap((group) => group.data).map((visit) => {
     const venue = metadata.get(visit.venueId);
