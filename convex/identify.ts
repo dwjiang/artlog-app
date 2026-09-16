@@ -13,6 +13,7 @@ import type { ScoredCandidate } from './lib/calibrator/calibrate';
 import { featureIndex } from './lib/calibrator/features';
 import { DEFAULT_CALIBRATOR } from './lib/calibrator/weights';
 import { MAX_ORB_VERIFICATIONS, runPipeline } from './lib/identifyPipeline';
+import { eligibleObject, eligibleVector, recognitionPartition } from './lib/recognitionEligibility';
 import { loadOrb } from './lib/orbStorage';
 import { isSupported, validateVector } from './lib/modelVersion';
 import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from '../shared/orb/features';
@@ -35,18 +36,18 @@ export type LoadedCandidate = Infer<typeof loadedCandidate> & { descriptors?: Ar
 export const loadCandidates = internalQuery({
   args: { vectorIds: v.array(v.id('vectors')), scores: v.array(v.number()), venueId: v.optional(v.id('museums')), now: v.number() },
   returns: v.array(loadedCandidate),
-  handler: async (ctx, { vectorIds, scores, now }): Promise<LoadedCandidate[]> => {
+  handler: async (ctx, { vectorIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
     if (vectorIds.length !== scores.length || vectorIds.length > 32) {
       throw new ConvexError({ code: 'bad_candidates' });
     }
     const byObject = new Map<Id<'objects'>, { object: Doc<'objects'>; similarity: number }>();
     for (let i = 0; i < vectorIds.length; i++) {
       const vector = await ctx.db.get(vectorIds[i]);
-      if (!vector) continue;
+      if (!vector || !await eligibleVector(ctx, vector)) continue;
       let object = await ctx.db.get(vector.objectId);
       if (!object || object.reverted) continue;
       if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
-      if (!object || object.reverted || object.mergedInto) continue;
+      if (!object || !await eligibleObject(ctx, object, venueId)) continue;
       const previous = byObject.get(object._id);
       if (!previous || scores[i] > previous.similarity) byObject.set(object._id, { object, similarity: scores[i] });
     }
@@ -116,25 +117,27 @@ function candidateSignals(
   return scored.map(({ candidate, probability, features }) => {
     const verification = verifications.get(candidate.object._id);
     return {
-      objectId: candidate.object._id, similarity: candidate.similarity, margin: features[featureIndex('margin')],
+      identityStatus: candidate.object.identityStatus, objectId: candidate.object._id, similarity: candidate.similarity, margin: features[featureIndex('margin')],
       orbInliers: verification?.inlierCount ?? 0, probability, homographyValid: verification?.verified ?? false,
     };
   });
 }
 
 async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): Promise<ScanDisplay> {
-  const matches = await ctx.vectorSearch('vectors', 'by_vector', {
-    vector: scan.vector, limit: 32, filter: (q) => q.eq('modelVersion', scan.modelVersion),
+  const search = (venueId?: Id<'museums'>) => ctx.vectorSearch('vectors', 'by_vector', {
+    vector: scan.vector, limit: 32, filter: q => q.eq('partition', recognitionPartition(scan.modelVersion, venueId)),
   });
+  const [established, tentative] = await Promise.all([search(), scan.venueId ? search(scan.venueId) : []]);
   const now = Date.now();
-  const [candidates, context] = await Promise.all([
-    ctx.runQuery(internal.identify.loadCandidates, {
-      vectorIds: matches.map((match) => match._id), scores: matches.map((match) => match._score),
-      venueId: scan.venueId, now,
-    }),
-    ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
+  const load = (matches: typeof established) => ctx.runQuery(internal.identify.loadCandidates, {
+    vectorIds: matches.map(match => match._id), scores: matches.map(match => match._score), venueId: scan.venueId, now,
+  });
+  const [establishedCandidates, tentativeCandidates, context] = await Promise.all([
+    load(established), load(tentative), ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
   ]);
-  const references = candidates.filter((candidate) => candidate.orbStorageId !== undefined).slice(0, MAX_ORB_VERIFICATIONS);
+  const candidates = [...establishedCandidates, ...tentativeCandidates];
+  const references = [establishedCandidates, tentativeCandidates].flatMap(group =>
+    group.filter(candidate => candidate.orbStorageId !== undefined).slice(0, MAX_ORB_VERIFICATIONS));
   await Promise.all(references.map(async (candidate) => {
     Object.assign(candidate, await loadOrb(ctx, candidate.orbStorageId!, candidate.keypointCount!));
   }));
@@ -144,7 +147,7 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
   const top = decision.best;
   const verification = top ? verifications.get(top.candidate.object._id) : undefined;
   const best = top ? {
-    objectId: top.candidate.object._id, artworkId: top.candidate.artwork._id,
+    identityStatus: top.candidate.object.identityStatus, objectId: top.candidate.object._id, artworkId: top.candidate.artwork._id,
     probability: top.probability,
     gallery: top.candidate.placement?.venueId === scan.venueId ? top.candidate.placement?.gallery : undefined,
     corners: verification?.verified ? verification.corners ?? undefined : undefined,
@@ -152,7 +155,7 @@ async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): 
   await ctx.runMutation(internal.scans.setResult, {
     scanId: scan._id, generation: scan.generation, status: 'identified', outcome: decision.outcome,
     best, runnerUps: decision.runnerUps.map(({ candidate, probability }) => ({
-      objectId: candidate.object._id, artworkId: candidate.artwork._id, probability,
+      identityStatus: candidate.object.identityStatus, objectId: candidate.object._id, artworkId: candidate.artwork._id, probability,
     })),
     candidateSignals: candidateSignals([...(top ? [top] : []), ...decision.runnerUps], verifications),
     calibratorVersion: decision.calibratorVersion,

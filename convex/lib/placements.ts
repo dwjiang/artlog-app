@@ -37,6 +37,12 @@ export async function loadCurrentPlacement(
 ): Promise<Doc<'placements'> | null> {
   let placement: Doc<'placements'> | null = null;
   for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
+    if (row.proposalId) {
+      const proposal = await ctx.db.get(row.proposalId);
+      if (!proposal || proposal.revertedAt !== undefined) continue;
+      const devices = await Promise.all(proposal.deviceIds.map(id => ctx.db.get(id)));
+      if (devices.some(device => !device || device.banned)) continue;
+    }
     placement = currentPlacement(placement ? [placement, row] : [row], now);
   }
   return placement;

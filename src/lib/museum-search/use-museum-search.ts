@@ -22,6 +22,7 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   const mounted = useRef(false);
   const canRun = useRef(false);
   const stored = scan?.museumSearch;
+  const automatic = scan?.best?.identityStatus !== 'tentative';
   const available = scan?.status === 'identified' && scan.outcome !== 'confident' && !!scan.venueId;
   useLayoutEffect(() => { canRun.current = active && online && available; }, [active, online, available]);
 
@@ -53,9 +54,9 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   }, [scan, stored]);
 
   useEffect(() => {
-    if (phase.stage !== 'running' && available && active && online && consent === 'granted' && !attempted.current &&
+    if (automatic && phase.stage !== 'running' && available && active && online && consent === 'granted' && !attempted.current &&
       (!stored || stored.stage === 'candidates' || stored.stage === 'exhibitions')) void run();
-  }, [available, active, online, consent, stored, run, phase.stage]);
+  }, [automatic, available, active, online, consent, stored, run, phase.stage]);
 
   useEffect(() => {
     if (!scan || stored?.stage !== 'confirmed') return;

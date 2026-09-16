@@ -10,7 +10,7 @@ import { effectiveObjectPenalty } from './rejectionPenalty';
 const GALLERY_TTL_MS = 15 * 60_000;
 export const MAX_ORB_VERIFICATIONS = 10;
 
-export function runPipeline(input: {
+function runPartition(input: {
   query: OrbFeatures;
   candidates: LoadedCandidate[];
   venueId?: string;
@@ -51,4 +51,18 @@ export function runPipeline(input: {
     };
   }), input.config);
   return { decision: decide(scored, input.config), verifications };
+}
+
+
+export function runPipeline(input: Parameters<typeof runPartition>[0]): ReturnType<typeof runPartition> {
+  const established = runPartition({ ...input, candidates: input.candidates.filter(c => c.object.identityStatus === 'established') });
+  const tentative = runPartition({ ...input, candidates: input.candidates.filter(c =>
+    c.object.identityStatus === 'tentative' && input.venueId !== undefined && c.object.ownerId === input.venueId) });
+  const verifications = new Map([...established.verifications, ...tentative.verifications]);
+  if (established.decision.outcome === 'confident') return { ...established, verifications };
+  const verified = [tentative.decision.best, ...tentative.decision.runnerUps]
+    .filter((c): c is NonNullable<typeof c> => !!c && c.eligibleForConfident);
+  const suggestion = decide(verified, input.config);
+  if (suggestion.outcome !== 'miss') return { decision: { ...suggestion, outcome: 'soft' }, verifications };
+  return { ...established, verifications };
 }

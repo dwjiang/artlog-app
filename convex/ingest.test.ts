@@ -9,7 +9,6 @@ import { internal } from './_generated/api';
 import type { ActionCtx } from './_generated/server';
 import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE, upsertDescriptors } from './ingest';
 import { loadOrb } from './lib/orbStorage';
-import { seedContribution, seedDevice } from './lib/testFactories';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.*s');
@@ -93,7 +92,7 @@ describe('calibrator training exports', () => {
     await t.run(async (ctx) => {
       await ctx.db.patch(objectId, { calibratorPenalty: 0.3, rejectionPenalty: 0.2 });
       for (const [id, version] of [[objectId, 'old'], [ids['met:alias'], model.modelVersion]] as const) {
-        await ctx.db.insert('vectors', { objectId: id, modelVersion: version, source: 'corpus', vector: vector(1) });
+        await ctx.db.insert('vectors', { partition: JSON.stringify([version, 'established']), objectId: id, modelVersion: version, source: 'corpus', vector: vector(1) });
       }
     });
     const page = await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion });
@@ -112,7 +111,7 @@ describe('calibrator training exports', () => {
     const { t, objectId } = await seeded();
     await t.run(async (ctx) => {
       for (let i = 0; i < TRAINING_EXPORT_PAGE_SIZE + 1; i++) {
-        await ctx.db.insert('vectors', {
+        await ctx.db.insert('vectors', { partition: JSON.stringify([model.modelVersion, 'established']),
           objectId, modelVersion: model.modelVersion, source: 'corpus',
           viewKey: String(i), vector: vector(i),
         });
@@ -201,28 +200,14 @@ describe('upserting museums and artworks', () => {
 });
 
 describe('upserting objects', () => {
-  it.each(['accession', 'page'] as const)('uses a corrected artwork assignment for later promotion by %s', async (identity) => {
+  it('retains corrected corpus identity mappings for takedown checks', async () => {
     const { t, objectId } = await seeded();
-    const device = await seedDevice(t);
     const corrected = { ...wheatField, key: 'met:corrected', title: 'Cypresses', wikidataId: undefined };
     const { ids } = await t.mutation(internal.ingest.upsertArtworks, { rows: [corrected] });
     await t.mutation(internal.ingest.upsertObjects, { rows: [{ ...metObject, artworkKey: corrected.key }] });
-    const object = await t.run((ctx) => ctx.db.get(objectId));
-    expect(object?.artworkId).toBe(ids[corrected.key]);
-    const contributionId = await t.run((ctx) => seedContribution(ctx, {
-      deviceId: device.deviceId, venueId: object!.ownerId!, evidence: ['qr'],
-      sourceUrl: identity === 'page' ? metObject.pageUrl : undefined,
-      fields: {
-        title: { value: corrected.title, evidence: 'qr', edited: false },
-        artist: { value: corrected.artist, evidence: 'qr', edited: false },
-        accession: identity === 'accession' ? { value: metObject.accession, evidence: 'qr', edited: false } : undefined,
-      },
-    }));
-    const promotedId = await t.mutation(internal.promotion.apply, { contributionId, partners: [] });
-    expect(promotedId).not.toBeNull();
-    const promoted = await t.run((ctx) => ctx.db.get(promotedId!));
-    expect(promoted?.artworkId).toBe(ids[corrected.key]);
-    expect(await t.run((ctx) => ctx.db.get(promoted!.artworkId))).toMatchObject({ title: corrected.title });
+    expect((await t.run(ctx => ctx.db.get(objectId)))?.artworkId).toBe(ids[corrected.key]);
+    const bindings = await t.run(ctx => ctx.db.query('museumWorkIdentities').collect());
+    expect(bindings.every(binding => binding.artworkId === ids[corrected.key])).toBe(true);
   });
 
   it('resolves artwork and owner keys and initializes counters only on insert', async () => {
@@ -319,7 +304,7 @@ describe('placements, vectors and descriptors', () => {
     expect(placements.find((p) => p.source === 'wikidata')?.confidence).toBe(0.6);
   });
 
-  it('replaces vectors per model version and source and checks the dimension', async () => {
+  it('replaces corpus vectors by view and checks the dimension', async () => {
     const { t, objectId } = await seeded();
     const row = {
       objectKey: 'met:436535',
@@ -332,7 +317,7 @@ describe('placements, vectors and descriptors', () => {
     await t.mutation(internal.ingest.upsertVectors, {
       rows: [
         { ...row, vector: vector(2) },
-        { ...row, source: 'user', vector: vector(3) },
+        { ...row, viewKey: 'second-view', vector: vector(3) },
       ],
     });
 
@@ -345,7 +330,7 @@ describe('placements, vectors and descriptors', () => {
         .collect()
     );
     expect(vectors).toHaveLength(2);
-    expect(vectors.find((vec) => vec.source === 'corpus')?.vector[1]).toBe(vector(2)[1]);
+    expect(vectors.find((vec) => vec.viewKey === 'primary')?.vector[1]).toBe(vector(2)[1]);
 
     expect(
       await errorData(
@@ -355,7 +340,7 @@ describe('placements, vectors and descriptors', () => {
   });
 
   // A full 1536-dim batch under transaction limits takes ~2 s alone and more under parallel suite load.
-  it('updates a full vector batch with multiple sources within transaction limits', { timeout: 20_000 }, async () => {
+  it('updates a full vector batch with multiple views within transaction limits', { timeout: 20_000 }, async () => {
     const t = convexTest({ schema, modules, transactionLimits: true });
     await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
     await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
@@ -372,9 +357,9 @@ describe('placements, vectors and descriptors', () => {
       vector: vector(1),
     }));
     const original = await t.mutation(internal.ingest.upsertVectors, { rows });
-    for (const source of ['user', 'user_scan'] as const) {
+    for (const view of ['second', 'third']) {
       await t.mutation(internal.ingest.upsertVectors, {
-        rows: rows.map((row) => ({ ...row, source })),
+        rows: rows.map((row) => ({ ...row, viewKey: `${row.viewKey}:${view}` })),
       });
     }
 
@@ -393,9 +378,9 @@ describe('placements, vectors and descriptors', () => {
           .collect()
       );
       expect(vectors).toHaveLength(3);
-      expect(vectors.find((row) => row.source === 'corpus')?.vector).toEqual(vector(2));
-      expect(vectors.find((row) => row.source === 'user')?.vector).toEqual(vector(1));
-      expect(vectors.find((row) => row.source === 'user_scan')?.vector).toEqual(vector(1));
+      expect(vectors.find((row) => row.viewKey === object.key)?.vector).toEqual(vector(2));
+      expect(vectors.find((row) => row.viewKey === `${object.key}:second`)?.vector).toEqual(vector(1));
+      expect(vectors.find((row) => row.viewKey === `${object.key}:third`)?.vector).toEqual(vector(1));
     }
   });
 

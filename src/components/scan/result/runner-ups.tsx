@@ -1,3 +1,4 @@
+import { TentativeOriginNotice } from './tentative-origin-notice';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -23,7 +24,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         >
           {candidate.thumbnailUrl ? (
-            <Image source={candidate.thumbnailUrl} contentFit="cover" accessibilityLabel={`Museum image of ${candidate.title}`} style={styles.thumbnail} />
+            <Image source={candidate.thumbnailUrl} contentFit="cover" accessibilityLabel={`${candidate.identityStatus === 'tentative' ? 'Visitor' : 'Museum'} image of ${candidate.title}`} style={styles.thumbnail} />
           ) : (
             <View style={[styles.thumbnail, styles.placeholder]} />
           )}
@@ -32,6 +33,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
             <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
               {[candidate.artist, candidate.institution].filter(Boolean).join(' · ')}
             </ThemedText>
+            {candidate.identityStatus === 'tentative' && <TentativeOriginNotice />}
           </View>
         </Pressable>
       ))}

@@ -15,7 +15,7 @@ const contributionReview = v.object({
   _id: v.id('contributions'), deviceId: contributionFields.deviceId, venueId: contributionFields.venueId,
   scanId: contributionFields.scanId, fields: contributionFields.fields, evidence: contributionFields.evidence,
   wikidataId: contributionFields.wikidataId, status: contributionFields.status, rejectedReason: contributionFields.rejectedReason,
-  promotedObjectId: contributionFields.promotedObjectId, promotionNote: contributionFields.promotionNote,
+  indexedObjectId: contributionFields.indexedObjectId,
   createdAt: contributionFields.createdAt,
 });
 
@@ -28,17 +28,17 @@ export const listFlaggedObjects = internalQuery({
     ctx.db.query('objects').withIndex('by_flaggedForReview', (q) => q.eq('flaggedForReview', true)).order('desc').take(MAX_ROWS),
 });
 
-export const listPendingContributions = internalQuery({
+export const listContributions = internalQuery({
   args: { status: v.optional(contributionFields.status), cursor: v.optional(cursorArg) },
   returns: v.object({ rows: v.array(contributionReview), cursor: cursorArg }),
   handler: async (ctx, { status, cursor }) => {
     const page = await ctx.db.query('contributions')
-      .withIndex('by_status', (q) => q.eq('status', status ?? 'pending')).order('desc')
+      .withIndex('by_status', (q) => q.eq('status', status ?? 'tentative')).order('desc')
       .paginate({ cursor: cursor ?? null, numItems: MAX_ROWS, maximumBytesRead: REVIEW_PAGE_BYTES });
     return { rows: page.page.map((row) => ({
       _id: row._id, deviceId: row.deviceId, venueId: row.venueId, scanId: row.scanId, fields: row.fields, evidence: row.evidence,
-      wikidataId: row.wikidataId, status: row.status, rejectedReason: row.rejectedReason, promotedObjectId: row.promotedObjectId,
-      promotionNote: row.promotionNote, createdAt: row.createdAt,
+      wikidataId: row.wikidataId, status: row.status, rejectedReason: row.rejectedReason, indexedObjectId: row.indexedObjectId,
+      createdAt: row.createdAt,
     })), cursor: page.isDone ? null : page.continueCursor };
   },
 });

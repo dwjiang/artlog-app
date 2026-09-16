@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, seedJournalVisit } from './lib/testFactories';
 import { harness } from './test.helpers';
@@ -16,7 +16,7 @@ async function fixture() {
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
+  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId, best: { objectId: work.objectId, artworkId: work.artworkId, probability: 0.95, identityStatus: 'established' } }));
   const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
   await t.run((ctx) => ctx.db.patch(scanId, { visitId }));
   const args: {
@@ -125,4 +125,28 @@ it('rejects changed or foreign visit associations even when the save UUID is ret
   await expect(save({ visitLocalId: undefined })).rejects.toMatchObject({ data: { code: 'invalid_save' } });
   const venueId = await t.run(seedMuseum);
   await expect(save({ venueId })).rejects.toMatchObject({ data: { code: 'not_found' } });
+});
+
+it('deduplicates attributable confirmation events by save and refuses a work outside the actual scan candidates', async () => {
+  const { t, user, args, save } = await fixture();
+  const first = await save(); await save();
+  expect(await t.run(ctx => ctx.db.query('feedbackEvents').collect())).toMatchObject([{
+    kind: 'confirmation', deviceId: user.deviceId, scanId: args.scanId, objectId: args.objectId, saveId: first.collectionId,
+  }]);
+  const other = await t.run(ctx => seedArtworkWithObject(ctx));
+  await expect(save({ localId: crypto.randomUUID(), objectId: other.objectId, artworkId: other.artworkId }))
+    .rejects.toMatchObject({ data: { code: 'invalid_object' } });
+  expect(await t.run(ctx => ctx.db.get(other.objectId))).toMatchObject({ confirmCount: 0 });
+});
+
+it('replays confirmations after a device ban without altering private journal snapshots', async () => {
+  vi.useFakeTimers();
+  const { t, user, save, object, rows } = await fixture();
+  await save();
+  const before = await rows();
+  await t.mutation(internal.revert.revertDevice, { deviceId: user.deviceId, reason: 'abuse' });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await object()).toMatchObject({ confirmCount: 0 });
+  expect(await rows()).toEqual(before);
+  vi.useRealTimers();
 });

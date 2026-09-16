@@ -51,7 +51,7 @@ export function toResultViewState(scan: ScanResult | Error | undefined, selectio
   const primary = chosen ?? (scan.outcome === 'miss' ? undefined : scan.best);
   const runnerUps = candidates.filter((candidate) => candidate !== primary && !rejected.has(candidate.objectId));
   const kind: ResultKind = !primary ? 'unidentified'
-    : chosen || scan.outcome !== 'confident' ? 'soft'
+    : chosen || primary.identityStatus === 'tentative' || scan.outcome !== 'confident' ? 'soft'
     : 'confident';
   return {
     kind, primary, runnerUps, editable: true,

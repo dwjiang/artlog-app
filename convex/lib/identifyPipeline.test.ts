@@ -17,15 +17,15 @@ function candidate(id = 'one', similarity = 0.99, features?: OrbFeatures): Loade
   const objectId = id as Id<'objects'>;
   return {
     similarity, runnerUpSimilarity: 0,
-    object: {
+    object: { identityStatus: 'established' as const,
       _id: objectId, _creationTime: 0, artworkId, key: id, source: 'corpus', sourceId: id,
       calibratorPenalty: 0, confirmCount: 0, rejectCount: 0, reverted: false,
     },
-    artwork: {
+    artwork: { identityStatus: 'established' as const,
       _id: artworkId, _creationTime: 0, key: id, title: id, artist: 'Artist',
       rightsStatus: 'public_domain', multiplicity: 'unique',
     },
-    placement: {
+    placement: { identityStatus: 'established',
       _id: `placement-${id}` as Id<'placements'>, _creationTime: 0, objectId,
       venueId: 'museum' as Id<'museums'>, gallery: '4', onView: true, source: 'feed', confidence: 1,
     },
@@ -118,4 +118,30 @@ it('uses the strongest different object for the similarity margin', () => {
 
 it('returns a miss with no candidates', () => {
   expect(run([]).decision).toMatchObject({ outcome: 'miss', best: null, runnerUps: [] });
+});
+
+it('caps verified tentative identities at soft and isolates established confidence from their count and scores', () => {
+  const established = candidate('corpus', 0.99, pair.ref);
+  const tentative = Array.from({ length: 40 }, (_, i) => {
+    const entry = candidate(`visitor-${i}`, 0.999, pair.ref);
+    entry.object.identityStatus = 'tentative'; entry.object.ownerId = 'museum' as Id<'museums'>;
+    return entry;
+  });
+  const baseline = run([established]);
+  const together = run([...tentative, established]);
+  expect(together.decision.outcome).toBe('confident');
+  expect(together.decision.best?.candidate.object._id).toBe(established.object._id);
+  expect(together.decision.best?.probability).toBe(baseline.decision.best?.probability);
+  expect(run([tentative[0]]).decision.outcome).toBe('soft');
+});
+
+it('requires visual verification and the same museum for a tentative candidate', () => {
+  const entry = candidate('visitor', 0.999, pair.ref);
+  entry.object.identityStatus = 'tentative'; entry.object.ownerId = 'museum' as Id<'museums'>;
+  expect(run([entry]).decision.outcome).toBe('soft');
+  entry.object.ownerId = 'elsewhere' as Id<'museums'>;
+  expect(run([entry]).decision.best).toBeNull();
+  entry.object.ownerId = 'museum' as Id<'museums'>;
+  entry.descriptors = undefined; entry.keypoints = undefined;
+  expect(run([entry]).decision.best).toBeNull();
 });

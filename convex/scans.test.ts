@@ -18,7 +18,7 @@ async function fixture() {
     vector: testVector(), capturedAt: Date.now(), venueId,
   };
   const created = await t.mutation(internal.scans.create, args);
-  const best = { objectId: work.objectId, artworkId: work.artworkId, probability: 0.99, gallery: '4' };
+  const best = { identityStatus: 'established' as const, objectId: work.objectId, artworkId: work.artworkId, probability: 0.99, gallery: '4' };
   return { t, user, venueId, work, args, scanId: created.scan._id, best };
 }
 
@@ -44,7 +44,7 @@ it.each(['public_domain', 'in_copyright', 'unknown'] as const)(
     await t.run((ctx) => ctx.db.patch(work.artworkId, { rightsStatus }));
     await t.mutation(internal.scans.setResult, {
       scanId, generation: 0, status: 'identified', outcome: 'soft', best,
-      runnerUps: [{ objectId: best.objectId, artworkId: best.artworkId, probability: 0.5 }],
+      runnerUps: [{ identityStatus: 'established' as const, objectId: best.objectId, artworkId: best.artworkId, probability: 0.5 }],
       calibratorVersion: 'lr-v1',
     });
     const result = await user.as.query(api.scans.get, { scanId });

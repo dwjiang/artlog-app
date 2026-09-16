@@ -85,10 +85,10 @@ describe('enrich.claimBatch', () => {
       await t.run(async (ctx) => {
         for (let i = 0; i < 200; i++) {
           const key = `enriched-${batch}-${i}`;
-          const artworkId = await ctx.db.insert('artworks', {
+          const artworkId = await ctx.db.insert('artworks', { identityStatus: 'established' as const,
             key, title: 'Work', artist: 'Artist', rightsStatus: 'unknown', multiplicity: 'unique', factSheetUpdatedAt: 1,
           });
-          await ctx.db.insert('objects', {
+          await ctx.db.insert('objects', { identityStatus: 'established' as const,
             key, artworkId, source: 'user', sourceId: key, confirmCount: 0, rejectCount: 0,
             calibratorPenalty: 0, reverted: false,
           });

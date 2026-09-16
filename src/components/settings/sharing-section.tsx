@@ -61,7 +61,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
   const [withdrawn, setWithdrawn] = useState(false);
   const removed = withdrawn || contribution.rejectedReason === 'withdrawn';
   const status = removed ? 'Withdrawn' : {
-    private: 'Awaiting verification', pending: 'Pending review', promoted: 'In the shared index', rejected: 'Not added to the index',
+    tentative: 'Shared · Tentative', rejected: 'Not added to the index',
   }[contribution.status];
 
   async function remove() {

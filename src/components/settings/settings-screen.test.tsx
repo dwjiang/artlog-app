@@ -16,7 +16,7 @@ let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null
 let mockReady = true;
 let mockBusy = false;
 const contribution = {
-  contributionId: 'contribution-1', status: 'private', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
+  contributionId: 'contribution-1', status: 'tentative', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
 };
 
 jest.mock('@expo/ui');
@@ -97,7 +97,7 @@ it('opens contributions and withdraws the selected work', async () => {
   await render(<SettingsScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'My contributions (1)' }));
   expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
-  expect(screen.getByText('Awaiting verification')).toBeOnTheScreen();
+  expect(screen.getByText('Shared · Tentative')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Withdraw' }));
   expect(mockWithdraw).toHaveBeenCalledWith({ contributionId: 'contribution-1' });
   expect(screen.getByText('Withdrawn')).toBeOnTheScreen();

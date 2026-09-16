@@ -135,9 +135,13 @@ it('withdrawing the contribution revokes its derivative and deletes the file', a
 });
 
 it('reverting the scanning device revokes its derivatives and deletes the file', async () => {
+  vi.useFakeTimers();
   const f = await fixture(); await f.t.action(internal.displayMediaPrepare.prepare, { saveId: f.a.saveId });
   const asset = (await f.t.run((ctx) => ctx.db.query('mediaAssets').collect()))[0];
   await f.t.mutation(internal.revert.revertDevice, { deviceId: f.a.deviceId, reason: 'flooding' });
+  expect((await f.t.fetch(f.path)).status).toBe(404);
+  await f.t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
   expect(await f.t.run((ctx) => ctx.db.get(f.contributionId))).toMatchObject({ status: 'rejected', rejectedReason: 'device_reverted', displayMediaRevokedAt: expect.any(Number) });
   expect(await f.t.run((ctx) => ctx.db.get(asset._id))).toMatchObject({ revokedAt: expect.any(Number) });
   expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();

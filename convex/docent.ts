@@ -37,7 +37,7 @@ export const load = internalQuery({
   })),
   handler: async (ctx, { artworkId }) => {
     const artwork = await ctx.db.get(artworkId);
-    if (!artwork) return null;
+    if (!artwork || artwork.identityStatus !== 'established') return null;
     let pageUrl: string | undefined;
     let owner: Doc<'museums'> | null = null;
     for await (const object of ctx.db.query('objects').withIndex('by_artworkId', (q) => q.eq('artworkId', artworkId))) {
@@ -57,7 +57,7 @@ export const claim = internalMutation({
   returns: v.union(v.number(), v.null()),
   handler: async (ctx, { artworkId }) => {
     const artwork = await ctx.db.get(artworkId);
-    if (!artwork || artwork.docent?.en || artwork.factSheetNeedsReview) return null;
+    if (!artwork || artwork.identityStatus !== 'established' || artwork.docent?.en || artwork.factSheetNeedsReview) return null;
     const now = Date.now();
     if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) return null;
     const generation = (artwork.enrichGeneration ?? 0) + 1;
@@ -76,7 +76,7 @@ export const writeEnrichment = internalMutation({
   handler: async (ctx, { artworkId, generation, factSheet, docentEn }) => {
     const artwork = await ctx.db.get(artworkId);
     if (!artwork) throw new ConvexError({ code: 'artwork_not_found' });
-    if (artwork.factSheetNeedsReview || artwork.enrichGeneration !== generation || artwork.enrichClaimedAt === undefined) return false;
+    if (artwork.identityStatus !== 'established' || artwork.factSheetNeedsReview || artwork.enrichGeneration !== generation || artwork.enrichClaimedAt === undefined) return false;
     const now = Date.now();
     await ctx.db.patch(artworkId, {
       ...(factSheet ? { factSheet, factSheetUpdatedAt: now } : {}),

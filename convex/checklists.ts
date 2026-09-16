@@ -105,7 +105,7 @@ export const ingestChecklist = internalMutation({
         if (row._id !== identical?._id) await ctx.db.patch(row._id, { closedAt: now });
       }
       if (!identical) {
-        await ctx.db.insert('placements', {
+        await ctx.db.insert('placements', { identityStatus: resolved.object.identityStatus,
           objectId, venueId: venue._id, gallery: args.gallery, onView: true,
           from, to, source: 'checklist', confidence: 0.85, exhibition,
         });

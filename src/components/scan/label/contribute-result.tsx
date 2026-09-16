@@ -5,9 +5,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import type { ContributionOutcome } from '@/lib/label/contribute';
 
 export const CONTRIBUTION_MESSAGES = {
-  private: 'Thanks — shared privately until it’s verified',
-  pending: 'Thanks — this work is waiting for a second confirmation',
-  promoted: 'Thanks — this work is in the shared index',
+  tentative: 'Shared as a tentative match for other visitors at this museum.',
   duplicate: 'This work is already in the shared index — thanks anyway',
   rejected: 'This contribution couldn’t be accepted',
 } as const;

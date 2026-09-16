@@ -150,7 +150,7 @@ beforeEach(() => {
   mockPhoto.mockResolvedValue({ filePath: '/tmp/label.jpg' });
   mockPersistLabel.mockResolvedValue('labels/cap-1.jpg');
   mockRun.mockResolvedValue(verified);
-  mockContribute.mockResolvedValue({ contributionId: 'contrib-1', status: 'private' });
+  mockContribute.mockResolvedValue({ contributionId: 'contrib-1', status: 'tentative' });
   mockSave.mockResolvedValue({ localId: 'saved-1', synced: Promise.resolve() });
   mockHaptic.mockResolvedValue(undefined);
   mockPermission.mockResolvedValue({ granted: true });
@@ -204,7 +204,7 @@ it('shares only after consent: Share uploads and contributes, Not now sends noth
     scanId, capture,
     state: expect.objectContaining({ title: expect.objectContaining({ value: 'Water Lilies', locked: true }) }),
   });
-  expect(await screen.findByText('Thanks — shared privately until it’s verified')).toBeOnTheScreen();
+  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.getByLabelText('Date').props.editable).toBe(false);
 });

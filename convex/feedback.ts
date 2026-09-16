@@ -4,6 +4,9 @@ import { ConvexError, v } from 'convex/values';
 import { rejectionPayload } from '../shared/attestation/attested-payloads';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalQuery, mutation, type MutationCtx } from './_generated/server';
+import { feedbackChanged } from './feedbackReplay';
+import { eligibleObject } from './lib/recognitionEligibility';
+import schema from './schema';
 import { requireAttestedWrite } from './devices';
 import { proposePlacementFromScan } from './placements';
 import { requireDevice } from './lib/auth';
@@ -34,7 +37,7 @@ export const rejectMatch = mutation({
     }
     const signals = scan.candidateSignals?.find((candidate) => candidate.objectId === objectId);
     const object = await ctx.db.get(objectId);
-    if (!candidateIds(scan).includes(objectId) || !signals || !object) throw new ConvexError({ code: 'invalid_object' });
+    if (!candidateIds(scan).includes(objectId) || !signals || !object || !await eligibleObject(ctx, object, scan.venueId)) throw new ConvexError({ code: 'invalid_object' });
     const existing = await ctx.db.query('feedback')
       .withIndex('by_scanId', (q) => q.eq('scanId', scanId))
       .filter((q) => q.eq(q.field('rejectedObjectId'), objectId)).unique();
@@ -53,6 +56,8 @@ export const rejectMatch = mutation({
       venueMismatch: scan.venueId !== undefined && placement !== null && placement.venueId !== scan.venueId,
       penaltyAdded, resolution: { kind: 'unresolved' }, createdAt: now,
     });
+    await ctx.db.insert('feedbackEvents', { kind: 'rejection', deviceId: device._id, scanId, objectId, feedbackId, createdAt: now });
+    await feedbackChanged(ctx, objectId, false);
     await ctx.db.patch(objectId, {
       rejectCount,
       ...(flagged ? {
@@ -114,6 +119,7 @@ export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<'scans'
     const artwork = object ? await ctx.db.get(object.artworkId) : null;
     if (!object || !artwork || normalizedTitle !== normalizeText(artwork.title) || !personMatches(artist, artwork.artist)) continue;
     await ctx.db.patch(row._id, { resolution: { kind: 'false_rejection' } });
+    await feedbackChanged(ctx, object._id);
     await ctx.db.patch(object._id, {
       rejectCount: Math.max(0, object.rejectCount - 1),
       rejectionPenalty: Math.max(0, (object.rejectionPenalty ?? 0) - row.penaltyAdded),
@@ -123,5 +129,21 @@ export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<'scans'
 
 export const exportForTraining = internalQuery({
   args: { paginationOpts: paginationOptsValidator },
-  handler: (ctx, { paginationOpts }) => ctx.db.query('feedback').paginate(paginationOpts),
+  returns: v.object({ page: v.array(schema.doc('feedback')), continueCursor: v.string(), isDone: v.boolean() }),
+  handler: async (ctx, { paginationOpts }) => {
+    const result = await ctx.db.query('feedback').withIndex('by_rejectedObjectId').paginate(paginationOpts);
+    const page = [];
+    for (const row of result.page) {
+      const device = await ctx.db.get(row.deviceId);
+      const object = await ctx.db.get(row.rejectedObjectId);
+      if (!device || device.banned || !object || object.identityStatus !== 'established' || !await eligibleObject(ctx, object)) continue;
+      if (row.resolution.kind === 'label') continue;
+      if (row.resolution.kind === 'runner_up') {
+        const resolved = row.resolution.objectId ? await ctx.db.get(row.resolution.objectId) : null;
+        if (!resolved || resolved.identityStatus !== 'established' || !await eligibleObject(ctx, resolved)) continue;
+      }
+      page.push(row);
+    }
+    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+  },
 });

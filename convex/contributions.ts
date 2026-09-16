@@ -7,13 +7,10 @@ import type { Doc, Id } from './_generated/dataModel';
 import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server';
 import { requireAttestedWrite } from './devices';
 import { decodeQuery } from './identify';
-import { bumpCounter } from './ingest';
-import { REPLAY_COSINE } from './lib/agreement';
 import { requireDevice, requireDeviceFromAction } from './lib/auth';
 import { cosine } from './lib/cosine';
-import { revokeContributionMedia } from './lib/displayMedia';
 import { FIELD_NAMES } from './lib/labelVerify';
-import { deleteOrbIfUnreferenced, storeOrb } from './lib/orbStorage';
+import { storeOrb } from './lib/orbStorage';
 import { limitDevice } from './lib/rateLimits';
 import {
   contributionRejectedReason,
@@ -23,7 +20,10 @@ import {
   type LabelFlow,
 } from './lib/validators';
 import schema from './schema';
-import { beginRevert } from './revert';
+import { removeContribution } from './contributionRemoval';
+import { recognitionPartition } from './lib/recognitionEligibility';
+import { compatibleEntry, contributionGroup, publishContribution } from './lib/tentativeEntries';
+import { isVenueOptedOut } from './lib/venueOptOut';
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
 export const DUPLICATE_COSINE = 0.995;
@@ -55,7 +55,7 @@ const contributionSummary = v.object({
   contributionId: v.id('contributions'), status: contributionFields.status, rejectedReason: contributionFields.rejectedReason,
   venueId: contributionFields.venueId, scanId: contributionFields.scanId, fields: contributionFields.fields,
   evidence: contributionFields.evidence, wikidataId: contributionFields.wikidataId,
-  promotedObjectId: contributionFields.promotedObjectId, createdAt: contributionFields.createdAt,
+  indexedObjectId: contributionFields.indexedObjectId, createdAt: contributionFields.createdAt,
 });
 
 export const requestCropUpload = mutation({
@@ -123,6 +123,8 @@ async function deleteUnreferencedCrop(ctx: MutationCtx, cropStorageId: Id<'_stor
 async function validateSubmission(
   ctx: MutationCtx, scan: Doc<'scans'>, submitted: SubmittedFields, cropStorageId: Id<'_storage'>,
 ): Promise<{ flow: LabelFlow; fields: ContributionFields }> {
+  const venue = scan.venueId ? await ctx.db.get(scan.venueId) : null;
+  if (!venue || await isVenueOptedOut(ctx, venue)) throw new ConvexError({ code: 'invalid_venue' });
   const flow = scan.labelFlow;
   if (!flow || flow.stage !== 'verified' || flow.moderation === 'flagged') throw new ConvexError({ code: 'label_unverified' });
   const fields = resolveFields(flow, submitted);
@@ -164,11 +166,30 @@ export const authorize = internalMutation({
   },
 });
 
+export const findGroupPage = internalQuery({
+  args: { scanId: v.id('scans'), fields: submittedFields, cursor: v.union(v.string(), v.null()) },
+  returns: v.object({ objectId: v.optional(v.id('objects')), revision: v.number(), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { scanId, fields, cursor }) => {
+    const device = await requireDevice(ctx);
+    const scan = await ctx.db.get(scanId);
+    if (!scan || scan.deviceId !== device._id || !scan.venueId || !scan.labelFlow) throw new ConvexError({ code: 'invalid_scan' });
+    const venue = await ctx.db.get(scan.venueId);
+    const candidate = { venueId: scan.venueId, modelVersion: scan.modelVersion, vector: scan.vector, fields: resolveFields(scan.labelFlow, fields) };
+    const page = await ctx.db.query('objects').withIndex('by_groupKey', q => q.eq('groupKey', contributionGroup(candidate)))
+      .paginate({ cursor, numItems: 32 });
+    for (const object of page.page) if (await compatibleEntry(ctx, candidate, object)) {
+      return { objectId: object._id, revision: venue?.contributionRevision ?? 0, cursor: null };
+    }
+    return { revision: venue?.contributionRevision ?? 0, cursor: page.isDone ? null : page.continueCursor };
+  },
+});
+
 export const commit = internalMutation({
   args: {
     scanId: v.id('scans'), generation: v.number(), orbStorageId: v.id('_storage'), orbSha256: v.string(), keypointCount: v.number(),
     fields: submittedFields, cropStorageId: v.id('_storage'), duplicate: v.boolean(),
     previousContributionId: v.union(v.id('contributions'), v.null()),
+    groupObjectId: v.optional(v.id('objects')), venueRevision: v.number(),
   },
   returns: contributionResult,
   handler: async (ctx, args): Promise<ContributionResult> => {
@@ -189,7 +210,13 @@ export const commit = internalMutation({
     const { flow, fields } = await validateSubmission(ctx, scan, args.fields, cropStorageId);
     const orb = await ctx.db.system.get('_storage', args.orbStorageId);
     if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) throw new ConvexError({ code: 'bad_orb_file' });
-    const duplicate = args.duplicate;
+    const venue = (await ctx.db.get(scan.venueId))!;
+    if ((venue.contributionRevision ?? 0) !== args.venueRevision) throw new ConvexError({ code: 'contributions_changed' });
+    const own = args.groupObjectId ? await ctx.db.query('contributions').withIndex('by_object_device', q =>
+      q.eq('indexedObjectId', args.groupObjectId).eq('deviceId', device._id).eq('status', 'tentative')).first() : null;
+    const duplicate = args.duplicate || own !== null;
+    const cropOwner = await ctx.db.query('contributions').withIndex('by_cropStorageId', q => q.eq('cropStorageId', cropStorageId)).first();
+    if (!duplicate && cropOwner) throw new ConvexError({ code: 'crop_already_shared' });
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId);
     const contributionId = await ctx.db.insert('contributions', {
       deviceId: device._id, venueId: scan.venueId, scanId, vector: scan.vector, modelVersion: scan.modelVersion,
@@ -200,10 +227,12 @@ export const commit = internalMutation({
       identityImageUrl: flow.identityImageUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
       wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
-      status: duplicate ? 'rejected' : 'private', rejectedReason: duplicate ? 'duplicate' : undefined, createdAt: Date.now(),
+      status: duplicate ? 'rejected' : 'tentative', rejectedReason: duplicate ? 'duplicate' : undefined, createdAt: Date.now(),
     });
+    if (!duplicate) await publishContribution(ctx, (await ctx.db.get(contributionId))!, args.groupObjectId);
+    await ctx.db.patch(venue._id, { contributionRevision: (venue.contributionRevision ?? 0) + 1 });
     await ctx.db.patch(device._id, { lastContributionId: contributionId });
-    return duplicate ? { contributionId, status: 'rejected', reason: 'duplicate' } : { contributionId, status: 'private' };
+    return duplicate ? { contributionId, status: 'rejected', reason: 'duplicate' } : { contributionId, status: 'tentative' };
   },
 });
 
@@ -223,12 +252,14 @@ export const contribute = action({
     const { scan } = authorization;
     let previousContributionId = authorization.previousContributionId;
     const matches = await ctx.vectorSearch('vectors', 'by_vector', {
-      vector: scan.vector, limit: 3, filter: (q) => q.eq('modelVersion', scan.modelVersion),
+      vector: scan.vector, limit: 3, filter: (q) => q.eq('partition', recognitionPartition(scan.modelVersion)),
     });
+    const established = await ctx.runQuery(internal.identify.loadCandidates, { vectorIds: matches.map(match => match._id),
+      scores: matches.map(match => match._score), venueId: scan.venueId, now: Date.now() });
     const orb = await storeOrb(ctx, descriptors, keypoints);
     try {
       for (let attempt = 0; attempt < MAX_COMMIT_ATTEMPTS; attempt++) {
-        let duplicate = matches.some((match) => match._score >= DUPLICATE_COSINE);
+        let duplicate = established.some(candidate => candidate.object.identityStatus === 'established' && candidate.similarity >= DUPLICATE_COSINE);
         let cursor: string | null = null;
         do {
           if (duplicate) break;
@@ -239,8 +270,20 @@ export const contribute = action({
           cursor = page.cursor;
         } while (cursor !== null);
         try {
+          let groupObjectId: Id<'objects'> | undefined;
+          let venueRevision: number | undefined;
+          let groupCursor: string | null = null;
+          do {
+            const page: { objectId?: Id<'objects'>; revision: number; cursor: string | null } = await ctx.runQuery(internal.contributions.findGroupPage, {
+              scanId: scan._id, fields: args.fields, cursor: groupCursor,
+            });
+            if (venueRevision !== undefined && venueRevision !== page.revision) throw new ConvexError({ code: 'contributions_changed' });
+            venueRevision = page.revision;
+            groupObjectId = page.objectId;
+            groupCursor = page.cursor;
+          } while (groupCursor !== null);
           return await ctx.runMutation(internal.contributions.commit, {
-            ...submission, generation: scan.generation, keypointCount, duplicate, previousContributionId,
+            ...submission, generation: scan.generation, keypointCount, duplicate, previousContributionId, groupObjectId, venueRevision: venueRevision!,
             orbStorageId: orb.storageId, orbSha256: orb.sha256,
           });
         } catch (error) {
@@ -255,82 +298,13 @@ export const contribute = action({
   },
 });
 
-// Stop at the first live backer; a popular work's vectors need not fit in one transaction.
-async function otherBacker(
-  ctx: MutationCtx, object: Doc<'objects'>, row: Doc<'contributions'>, deviceId?: Id<'devices'>,
-): Promise<Doc<'contributions'> | null> {
-  const backers = ctx.db.query('contributions').withIndex('by_promotedObject_device', (q) => {
-    const ofObject = q.eq('promotedObjectId', object._id);
-    return deviceId ? ofObject.eq('deviceId', deviceId) : ofObject;
-  });
-  for await (const backer of backers) {
-    if (backer._id !== row._id && backer.status === 'promoted') return backer;
-  }
-  return null;
-}
-
-// A withdrawal removes only what this device shared. An object other devices still back keeps its
-// entry; a partner's consented crop and features replace the withdrawn ones.
-async function detachContribution(
-  ctx: MutationCtx, object: Doc<'objects'>, row: Doc<'contributions'>, partner: Doc<'contributions'>,
-): Promise<void> {
-  const vectors = ctx.db.query('vectors').withIndex('by_objectId_modelVersion_source', (q) =>
-    q.eq('objectId', object._id).eq('modelVersion', row.modelVersion).eq('source', 'user'));
-  for await (const vector of vectors) {
-    if (cosine(vector.vector, row.vector) < REPLAY_COSINE) continue;
-    await ctx.db.delete(vector._id);
-    await bumpCounter(ctx, 'vectors', -1);
-    break;
-  }
-  const descriptors = await ctx.db.query('descriptors').withIndex('by_objectId', (q) => q.eq('objectId', object._id)).unique();
-  if (descriptors?.extractedFrom === `contribution:${row._id}`) {
-    if (!partner.orbStorageId || !partner.orbSha256) throw new ConvexError({ code: 'reference_descriptors_required' });
-    await ctx.db.patch(descriptors._id, {
-      storageId: partner.orbStorageId, sha256: partner.orbSha256, keypointCount: partner.keypointCount,
-      extractedFrom: `contribution:${partner._id}`,
-    });
-  }
-  const provenance = object.provenance ?? { contributionIds: [], deviceIds: [] };
-  const sameDevice = await otherBacker(ctx, object, row, row.deviceId);
-  const crop = partner.cropStorageId;
-  await ctx.db.patch(object._id, {
-    ...(row.cropStorageId && object.thumbnailStorageId === row.cropStorageId
-      ? { thumbnailStorageId: crop, imageRef: crop ? `storage:${crop}` : undefined }
-      : {}),
-    provenance: {
-      ...provenance,
-      contributionIds: provenance.contributionIds.filter((id) => id !== row._id),
-      deviceIds: sameDevice ? provenance.deviceIds : provenance.deviceIds.filter((id) => id !== row.deviceId),
-    },
-  });
-}
-
 export const withdraw = mutation({
-  args: { contributionId: v.id('contributions') },
-  returns: v.null(),
+  args: { contributionId: v.id('contributions') }, returns: v.null(),
   handler: async (ctx, { contributionId }) => {
     const device = await requireDevice(ctx);
     const row = await ctx.db.get(contributionId);
     if (!row || row.deviceId !== device._id) throw new ConvexError({ code: 'contribution_not_found' });
-    if (row.rejectedReason === 'withdrawn') return null;
-    const object = row.promotedObjectId ? await ctx.db.get(row.promotedObjectId) : null;
-    if (object && !object.reverted) {
-      const partner = await otherBacker(ctx, object, row);
-      if (partner) {
-        await detachContribution(ctx, object, row, partner);
-      } else {
-        // Hide it in this transaction; the existing paged cascade removes index entries afterwards.
-        await beginRevert(ctx, object, 'withdrawn');
-        await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, { objectId: object._id, reason: 'withdrawn' });
-      }
-    }
-    if (row.cropStorageId && await ctx.db.system.get('_storage', row.cropStorageId)) await ctx.storage.delete(row.cropStorageId);
-    await revokeContributionMedia(ctx, row._id);
-    await ctx.db.patch(row._id, {
-      status: 'rejected', rejectedReason: 'withdrawn', cropStorageId: undefined,
-      orbStorageId: undefined, orbSha256: undefined,
-    });
-    if (row.orbStorageId) await deleteOrbIfUnreferenced(ctx, row.orbStorageId);
+    await removeContribution(ctx, row, 'withdrawn');
     return null;
   },
 });
@@ -345,7 +319,7 @@ export const mine = query({
     return rows.map((row) => ({
       contributionId: row._id, status: row.status, rejectedReason: row.rejectedReason, venueId: row.venueId,
       scanId: row.scanId, fields: row.fields, evidence: row.evidence, wikidataId: row.wikidataId,
-      promotedObjectId: row.promotedObjectId, createdAt: row.createdAt,
+      indexedObjectId: row.indexedObjectId, createdAt: row.createdAt,
     }));
   },
 });

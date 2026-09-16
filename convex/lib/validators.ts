@@ -37,12 +37,8 @@ export const checklistExhibition = v.object({
 export const seedSource = v.union(v.literal('wikidata'), v.literal('poi'), v.literal('manual'));
 export type SeedSource = Infer<typeof seedSource>;
 
-export const contributionStatus = v.union(
-  v.literal('private'),
-  v.literal('pending'),
-  v.literal('promoted'),
-  v.literal('rejected')
-);
+export const identityStatus = v.union(v.literal('established'), v.literal('tentative'));
+export const contributionStatus = v.union(v.literal('tentative'), v.literal('rejected'));
 export type ContributionStatus = Infer<typeof contributionStatus>;
 
 export const proposalStatus = v.union(
@@ -94,6 +90,7 @@ export const contributionRejectedReason = v.union(
 export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;
 
 export const candidateSignal = v.object({
+  identityStatus,
   objectId: v.id('objects'),
   similarity: v.number(),
   margin: v.number(),

@@ -1,6 +1,8 @@
 import { pageArgs, pagination, validateSave } from '../shared/journal/contracts';
 import { ConvexError, v } from 'convex/values';
 
+import { feedbackChanged } from './feedbackReplay';
+import { eligibleObject } from './lib/recognitionEligibility';
 import { mutation, query } from './_generated/server';
 import { requireJournalOwner, findOwnedSave, nextChangeVersion } from './lib/ownership';
 import { upsertJournalSave } from './lib/journal';
@@ -28,8 +30,8 @@ export const saveToCollection = mutation({
     const existing = await findOwnedSave(ctx, owner, args.localId);
     const { suggested, scope: _scope, scanId, ...row } = args;
     const saved = await upsertJournalSave(ctx, owner, device._id, { ...row, note: existing?.note });
+    const scan = args.scanId ? await ctx.db.get(args.scanId) : null;
     if (args.scanId) {
-      const scan = await ctx.db.get(args.scanId);
       if (!scan || scan.deviceId !== device._id) throw new ConvexError({ code: 'invalid_scan' });
       if (scan.venueId !== saved.venueId || scan.visitId !== saved.visitId) throw new ConvexError({ code: 'not_found' });
     }
@@ -43,10 +45,19 @@ export const saveToCollection = mutation({
     // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
     const artwork = object && suggested ? await ctx.db.get(object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
-    if (object && suggested && artwork &&
+    if (object && suggested && scan && ![scan.best, ...(scan.runnerUps ?? [])].some(candidate => candidate?.objectId === object._id)) {
+      throw new ConvexError({ code: 'invalid_object' });
+    }
+    if (object && suggested && scan && artwork && await eligibleObject(ctx, object, scan.venueId) &&
       same(snapshot.title, suggested.title) && same(snapshot.artist, suggested.artist) &&
       same(suggested.title, artwork.title) && same(suggested.artist, artwork.artist)) {
-      await ctx.db.patch(object._id, { confirmCount: object.confirmCount + 1 });
+      const event = await ctx.db.query('feedbackEvents').withIndex('by_save', q => q.eq('saveId', collectionId)).unique();
+      if (!event) {
+        await ctx.db.insert('feedbackEvents', { kind: 'confirmation', deviceId: device._id, scanId: scan._id,
+          objectId: object._id, saveId: collectionId, createdAt: Date.now() });
+        await ctx.db.patch(object._id, { confirmCount: object.confirmCount + 1 });
+        await feedbackChanged(ctx, object._id, false);
+      }
     }
     return { collectionId, updatedAt, updatedBy, deletedAt: existing?.deletedAt };
   },

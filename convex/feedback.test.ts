@@ -26,11 +26,11 @@ async function fixture() {
     return { venueId, elsewhere, best, runnerUp, other };
   });
   const signals = (objectId: Id<'objects'>, similarity: number, probability: number) =>
-    ({ objectId, similarity, margin: 0.1, orbInliers: 20, probability, homographyValid: true });
+    ({ identityStatus: 'established' as const, objectId, similarity, margin: 0.1, orbInliers: 20, probability, homographyValid: true });
   const seedRejectableScan = (overrides: Partial<Doc<'scans'>> = {}) => t.run((ctx) => seedScan(ctx, {
     deviceId: user.deviceId, venueId, outcome: 'confident',
-    best: { objectId: best.objectId, artworkId: best.artworkId, probability: 0.9 },
-    runnerUps: [{ objectId: runnerUp.objectId, artworkId: runnerUp.artworkId, probability: 0.4 }],
+    best: { identityStatus: 'established' as const, objectId: best.objectId, artworkId: best.artworkId, probability: 0.9 },
+    runnerUps: [{ identityStatus: 'established' as const, objectId: runnerUp.objectId, artworkId: runnerUp.artworkId, probability: 0.4 }],
     candidateSignals: [signals(best.objectId, 0.8, 0.9), signals(runnerUp.objectId, 0.7, 0.4)],
     ...overrides,
   }));
@@ -111,8 +111,8 @@ describe('rejectMatch', () => {
     const { deviceId } = await user.as.mutation(api.devices.registerDevice, { platform: 'ios' });
     const work = await t.run((ctx) => seedArtworkWithObject(ctx));
     const scanId = await t.run((ctx) => seedScan(ctx, {
-      deviceId, best: { objectId: work.objectId, artworkId: work.artworkId, probability: 0.9 },
-      candidateSignals: [{ objectId: work.objectId, similarity: 0.8, margin: 0.1, orbInliers: 0, probability: 0.9, homographyValid: false }],
+      deviceId, best: { identityStatus: 'established' as const, objectId: work.objectId, artworkId: work.artworkId, probability: 0.9 },
+      candidateSignals: [{ identityStatus: 'established' as const, objectId: work.objectId, similarity: 0.8, margin: 0.1, orbInliers: 0, probability: 0.9, homographyValid: false }],
     }));
     const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
     await expect(user.as.mutation(api.feedback.rejectMatch, { scanId, objectId: work.objectId, nonce, assertionBase64: 'AAAA' }))
@@ -124,7 +124,7 @@ describe('rejectMatch', () => {
 describe('resolveRejection', () => {
   it('keeps a completed resolution immutable while allowing identical retries', async () => {
     const { t, user, scanId, venueId, best, runnerUp, other, reject, feedback, proposals } = await fixture();
-    await t.run((ctx) => ctx.db.patch(scanId, { runnerUps: [runnerUp, other].map((work) => ({
+    await t.run((ctx) => ctx.db.patch(scanId, { runnerUps: [runnerUp, other].map((work) => ({ identityStatus: 'established' as const,
       objectId: work.objectId, artworkId: work.artworkId, probability: 0.4,
     })) }));
     const { feedbackId } = await reject(best.objectId);

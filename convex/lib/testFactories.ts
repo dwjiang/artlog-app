@@ -48,23 +48,23 @@ export async function seedArtworkWithObject(ctx: TestCtx, options: {
   vector?: number[];
   modelVersion?: string;
   descriptors?: OrbFeatures;
-  placement?: Omit<Doc<'placements'>, '_id' | '_creationTime' | 'objectId'>;
+  placement?: Omit<Doc<'placements'>, '_id' | '_creationTime' | 'objectId' | 'identityStatus'>;
   artwork?: Partial<Omit<Doc<'artworks'>, '_id' | '_creationTime'>>;
   object?: Partial<Omit<Doc<'objects'>, '_id' | '_creationTime' | 'artworkId'>>;
 } = {}) {
   const key = crypto.randomUUID();
-  const artworkId = await ctx.db.insert('artworks', {
+  const artworkId = await ctx.db.insert('artworks', { identityStatus: 'established' as const,
     key, title: 'Water Lilies', artist: 'Claude Monet', date: '1916',
     rightsStatus: 'public_domain', multiplicity: 'unique', ...options.artwork,
   });
-  const objectId = await ctx.db.insert('objects', {
+  const objectId = await ctx.db.insert('objects', { identityStatus: 'established' as const,
     key, artworkId, ownerId: options.placement?.venueId, medium: 'Oil on canvas',
     source: 'corpus', sourceId: key, thumbnailUrl: 'https://museum.example/work.jpg',
     confirmCount: 0, rejectCount: 0, calibratorPenalty: 0, reverted: false,
     ...options.object,
   });
   await registerMuseumObject(ctx, { artworkId, ownerId: options.placement?.venueId, ...options.object });
-  const vectorId = await ctx.db.insert('vectors', {
+  const vectorId = await ctx.db.insert('vectors', { partition: JSON.stringify([options.modelVersion ?? model.modelVersion, 'established']),
     objectId, modelVersion: options.modelVersion ?? model.modelVersion,
     source: 'corpus', vector: options.vector ?? testVector(),
   });
@@ -75,7 +75,7 @@ export async function seedArtworkWithObject(ctx: TestCtx, options: {
       inputSize: model.inputSize, extractedFrom: 'synthetic fixture',
     });
   }
-  if (options.placement) await ctx.db.insert('placements', { objectId, ...options.placement });
+  if (options.placement) await ctx.db.insert('placements', { identityStatus: options.object?.identityStatus ?? 'established', objectId, ...options.placement });
   return { artworkId, objectId, vectorId };
 }
 
@@ -102,7 +102,7 @@ export async function seedContribution(
   const orb = await storeOrb(ctx, descriptors, keypoints);
   return ctx.db.insert('contributions', {
     vector: testVector(), modelVersion: model.modelVersion, orbStorageId: orb.storageId, orbSha256: orb.sha256,
-    keypointCount: 0, evidence: ['wikidata'], status: 'private', createdAt: Date.now(),
+    keypointCount: 0, evidence: ['wikidata'], status: 'tentative', createdAt: Date.now(),
     fields: {
       title: { value: 'Water Lilies', edited: false, evidence: 'wikidata' },
       artist: { value: 'Claude Monet', edited: false, evidence: 'wikidata' },
