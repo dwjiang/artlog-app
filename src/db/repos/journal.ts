@@ -4,6 +4,7 @@ import { filterVisits, summarizeJournal } from '../../lib/journal/history';
 import { pageRows, searchTerm, type PageOptions } from '../../lib/journal/query';
 import { applyVenueMetadata, openVenueDb, venueMetadataForIds, type VenueMetadata } from '../../lib/venue/venue-db';
 import * as visits from './visits';
+import { selectArtworkEncounters } from './artwork-album';
 import { listSavedWorks } from './saved-works';
 
 export function createJournalRepository(owner = getLocalOwner(), isCurrent = () => true) {
@@ -33,7 +34,8 @@ export function createJournalRepository(owner = getLocalOwner(), isCurrent = () 
     async savedWorks(localId: string, options: PageOptions = {}) {
       const visit = await visits.getVisit(localId, owner);
       if (!visit) throw new ConvexError({ code: 'not_found' });
-      const rows = (await listSavedWorks(owner)).filter((row) => row.visitLocalId === localId && row.venueId === visit.venueId);
+      const linked = new Set(selectArtworkEncounters(owner).all().filter((row) => row.visitLocalId === localId).map((row) => row.savedLocalId));
+      const rows = (await listSavedWorks(owner)).filter((row) => linked.has(row.localId));
       return pageRows(rows, (row) => `${String(row.savedAt).padStart(16, '0')}|${row.localId}`, JSON.stringify([owner, 'membership', localId]), options);
     },
     async summaries(by: 'museum' | 'place', options: PageOptions = {}) {

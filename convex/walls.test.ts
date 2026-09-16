@@ -12,7 +12,7 @@ it('creates exactly one wall on first write, normalizes color and acknowledges u
   expect(await t.run((ctx) => ctx.db.query('walls').collect())).toHaveLength(0);
   const results = await Promise.all([1, 2].map(() => a.as.mutation(api.walls.setLayout, { ...a.input, color: '#abcdef' })));
   expect(results[0]).toEqual(results[1]);
-  expect(results[0]).toMatchObject({ revision: 1, color: '#ABCDEF', items: [{ saveLocalId: a.saveLocalId, noteVisible: false, noteRevision: 0 }] });
+  expect(results[0]).toMatchObject({ revision: 1, color: '#ABCDEF', items: [{ placementId: a.input.items[0].placementId, saveLocalId: a.saveLocalId, noteVisible: false, noteRevision: 0 }] });
   expect(await t.run((ctx) => ctx.db.query('walls').collect())).toHaveLength(1);
   expect(await t.query(api.profiles.getPublic, { profileId: a.profile.profileId })).toMatchObject({ publishedWallCount: 1 });
   await expect(a.as.mutation(api.walls.setLayout, { ...a.input, color: '#123456' })).rejects.toMatchObject({ data: { code: 'conflict' } });
@@ -174,7 +174,7 @@ it('sorts layers and rejects simultaneous replacements based on the same revisio
     const { _id: _id, _creationTime: _creationTime, ...fields } = save;
     const localId = crypto.randomUUID(); await ctx.db.insert('collections', { ...fields, localId }); return localId;
   });
-  const items = [{ ...a.selection, layout: { ...a.layout, layer: 2 } }, { saveLocalId: another, layout: { ...a.layout, layer: 1 } }];
+  const items = [{ ...a.selection, layout: { ...a.layout, layer: 2 } }, { placementId: another, saveLocalId: another, layout: { ...a.layout, layer: 1 } }];
   const first = await a.as.mutation(api.walls.setLayout, { ...a.input, items });
   expect(first.items.map((item) => item.layout.layer)).toEqual([1, 2]);
   const results = await Promise.allSettled(['#123456', '#654321'].map((color) => a.as.mutation(api.walls.setLayout, { ...a.input, items, revision: 1, color })));

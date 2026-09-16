@@ -27,7 +27,7 @@ it('selects at most 50 artworks, starts with no shared reflection, and allows ze
   expect(controller.getSnapshot().draft?.reflection).toBe('');
   controller.edit({ saveLocalIds: [], reflection: 'For friends' });
   await controller.preview(); await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith({ visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0 }, expect.anything());
+  expect(transport.publish).toHaveBeenCalledWith({ visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0, photoSelections: [], highlightLocalIds: [] }, expect.anything());
   expect(controller.getSnapshot().success).toBe('published');
 });
 it('flushes before every request and sends no request when sync fails', async () => {

@@ -23,6 +23,10 @@ export function captureFileUri(path: string): string {
   return new File(Paths.document, path).uri;
 }
 
+export async function persistArtworkPhoto(uri: string, localId: string): Promise<string> {
+  return moveInto('artwork-photos', uri, localId);
+}
+
 /** Moves the full-frame photo and the crop out of the caches so they last until the scan is saved or dismissed. */
 export async function persistCapture(
   { photoUri, cropUri, localId }: { photoUri: string; cropUri: string; localId: string },

@@ -36,10 +36,14 @@ export const savedWorks = query({
     const { owner } = await requireJournalOwner(ctx, args.scope);
     const visit = await findOwnedVisit(ctx, owner, args.localId);
     if (!visit) throw new ConvexError({ code: 'not_found' });
-    const result = await ctx.db.query('collections').withIndex('by_owner_visit_live', (q) =>
-      q.eq('owner', owner).eq('visitLocalId', visit.localId).eq('deletedAt', undefined)).order('desc').paginate(pagination(args));
-    result.page.forEach((save) => requireMembership(save, visit));
-    return { page: result.page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+    const result = await ctx.db.query('artworkEncounters').withIndex('by_visitId', (q) => q.eq('visitId', visit._id)).order('desc').paginate(pagination(args));
+    const page = [];
+    for (const encounter of result.page) if (encounter.deletedAt === undefined) {
+      const save = await ctx.db.get(encounter.saveId);
+      if (!save || save.deletedAt !== undefined) continue;
+      await requireMembership(ctx, save, visit); page.push(save);
+    }
+    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
   },
 });
 

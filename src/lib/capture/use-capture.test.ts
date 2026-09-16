@@ -16,6 +16,7 @@ const mockImageLoad = jest.fn();
 const mockRelease = jest.fn();
 let mockReachable: boolean | undefined = true;
 
+jest.mock('./visit-context', () => ({ resolveCaptureVisit: (fallback: () => Promise<unknown>) => fallback() }));
 jest.mock('convex/react', () => ({ useAction: () => mockIdentify }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-image', () => ({ Image: { loadAsync: (...args: unknown[]) => mockImageLoad(...args) } }));
@@ -165,10 +166,7 @@ it('publishes the captured photo before venue lookup finishes', async () => {
   mockResolveVenue.mockReturnValue(new Promise((done) => { resolve = done; }));
   const hook = await renderHook(useCapture);
   let pending!: Promise<void>;
-  await act(async () => {
-    const attempt = hook.result.current.controller.begin('camera')!;
-    pending = hook.result.current.captureAutomatically(attempt, async () => ({ filePath: '/photo.jpg' }));
-  });
+  await act(async () => { pending = hook.result.current.captureManually(async () => ({ filePath: '/photo.jpg' })); });
   expect(hook.result.current.presentation?.photoUri).toBe('file:///photo.jpg');
   expect(mockPipeline).not.toHaveBeenCalled();
   expect(mockWarning).toHaveBeenCalledWith('light');

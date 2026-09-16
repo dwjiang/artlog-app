@@ -53,9 +53,13 @@ it('rechecks friendship, publication, selection, and media eligibility on every 
 it('denies an owner-photo pointer and a publication revoked during the storage fetch', async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();
   const context = await publish(); await befriend(a, b);
-  await t.run((ctx) => ctx.db.patch(draft.saves[0].id, { photoStorageId: asset.storageId }));
+  const pointer = await t.run(async (ctx) => {
+    const save = (await ctx.db.get(draft.saves[0].id))!;
+    return ctx.db.insert('artworkPhotos', { owner: save.owner, saveId: save._id, savedLocalId: save.localId, localId: crypto.randomUUID(),
+      kind: 'full', capturedAt: 1, storageId: asset.storageId, updatedAt: 1, changeVersion: 1 });
+  });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
-  await t.run((ctx) => ctx.db.patch(draft.saves[0].id, { photoStorageId: undefined }));
+  await t.run((ctx) => ctx.db.delete(pointer));
   const response = await serveSharedMedia({ ...transport(b), storage: { get: async (id: typeof asset.storageId) => {
     const blob = await transport(b).storage.get(id);
     await a.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: 1 });

@@ -1,3 +1,5 @@
+import { internal } from './_generated/api';
+import { recordVisitScore } from './lib/leaderboard';
 import { ConvexError, v } from 'convex/values';
 import { sameOwner } from '../shared/journal/contracts';
 import { LIMITS, utf8Bytes } from '../shared/journal/limits';
@@ -22,6 +24,7 @@ export const resume = mutation({
         if (bytes + size > LIMITS.batchBytes) break;
         if (await findOwnedVisit(ctx, owner, row.localId)) throw new ConvexError({ code: 'ownership_collision' });
         await ctx.db.patch(row._id, { owner, changeVersion: await nextChangeVersion(ctx, owner) });
+        await recordVisitScore(ctx, owner, row.venueId, row.visitedOn);
         moved++; bytes += size;
       }
       if (!await ctx.db.query('visits').withIndex('by_owner_localId', (q) => q.eq('owner', source)).first()) {
@@ -41,10 +44,16 @@ export const resume = mutation({
         }
       }
       await ctx.db.patch(row._id, { owner, changeVersion: await nextChangeVersion(ctx, owner) });
+      const photos = await ctx.db.query('artworkPhotos').withIndex('by_save_deletedAt', (q) => q.eq('saveId', row._id).eq('deletedAt', undefined)).take(101);
+      const encounters = await ctx.db.query('artworkEncounters').withIndex('by_save_deletedAt', (q) => q.eq('saveId', row._id).eq('deletedAt', undefined)).take(101);
+      for (const child of [...photos, ...encounters]) await ctx.db.patch(child._id, { owner, changeVersion: await nextChangeVersion(ctx, owner) });
       moved++; bytes += size;
     }
     const complete = !await ctx.db.query('collections').withIndex('by_owner_localId', (q) => q.eq('owner', source)).first();
-    if (complete) await ctx.db.patch(claim._id, { phase: 'complete', completedAt: Date.now() });
+    if (complete) {
+      await ctx.db.patch(claim._id, { phase: 'complete', completedAt: Date.now() });
+      await ctx.scheduler.runAfter(0, internal.leaderboards.claimContributions, { deviceId: device._id, accountId: owner.accountId, cursor: null });
+    }
     return { claimId: claim._id, complete, moved };
   },
 });

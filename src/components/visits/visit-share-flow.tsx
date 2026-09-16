@@ -1,3 +1,4 @@
+import { SharePhotoPicker } from './share-photo-picker';
 import { Host, RNHostView } from '@expo/ui';
 import { Toggle } from '@expo/ui/swift-ui';
 import { accessibilityLabel, buttonStyle, disabled, toggleStyle } from '@expo/ui/swift-ui/modifiers';
@@ -53,6 +54,7 @@ function ShareError({ sharing }: { sharing: Sharing }) {
 }
 export function VisitShareScreen() {
   const { sharing, visit } = useShareFlow();
+  const [photoWorkId, setPhotoWorkId] = useState<string>();
   const [creatingProfile, setCreatingProfile] = useState(false);
   const { width, fontScale } = useWindowDimensions();
   const columns = fontScale > 1.5 ? 2 : 3;
@@ -62,6 +64,11 @@ export function VisitShareScreen() {
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so friends can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to share visits with friends.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
   if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
+  const photoWork = visit.works.find((work) => work.localId === photoWorkId);
+  if (photoWork) return <SharePhotoPicker work={photoWork} selected={draft.photoSelections?.find((row) => row.saveLocalId === photoWork.localId)?.photoLocalIds ?? []}
+    onDone={() => setPhotoWorkId(undefined)} onChange={(ids) => {
+      controller.edit({ photoSelections: [...(draft.photoSelections ?? []).filter((row) => row.saveLocalId !== photoWork.localId), ...(ids.length ? [{ saveLocalId: photoWork.localId, photoLocalIds: ids }] : [])] });
+    }} />;
   const selected = new Set(draft.saveLocalIds);
   const active = sharing.acknowledged?.status === 'active';
   async function preview() {
@@ -88,7 +95,7 @@ export function VisitShareScreen() {
       <ShareError sharing={sharing} />
       {sharing.conflict && <GalleryButton label="Refresh sharing status" disabled={sharing.busy} onPress={() => { void controller.load(); }} />}
     </View>}
-    renderItem={({ item }) => <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: tileWidth }}>
+    renderItem={({ item }) => <View style={{ width: tileWidth }}><Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: tileWidth }}>
       <Toggle isOn={selected.has(item.localId)} onIsOnChange={(value) => controller.edit({ saveLocalIds: value ? [...draft.saveLocalIds, item.localId] : draft.saveLocalIds.filter((id) => id !== item.localId) })}
         modifiers={[toggleStyle('button'), buttonStyle('plain'), accessibilityLabel(`Share ${item.title}`),
           disabled(sharing.busy || (!selected.has(item.localId) && selected.size >= LIMITS.selectedSaves))]}>
@@ -100,8 +107,20 @@ export function VisitShareScreen() {
           </View>
         </RNHostView>
       </Toggle>
-    </Host>}
+    </Host>
+      {selected.has(item.localId) && <View style={{ gap: 2 }}>
+        <GalleryButton label={`${draft.photoSelections?.find((row) => row.saveLocalId === item.localId)?.photoLocalIds.length ?? 0} photos · Choose`} onPress={() => setPhotoWorkId(item.localId)} />
+        <GalleryButton label={draft.highlightLocalIds?.includes(item.localId) ? `★ Highlight ${draft.highlightLocalIds.indexOf(item.localId) + 1}` : '☆ Highlight'}
+          disabled={!draft.highlightLocalIds?.includes(item.localId) && (draft.highlightLocalIds?.length ?? 0) >= 3}
+          onPress={() => controller.edit({ highlightLocalIds: draft.highlightLocalIds?.includes(item.localId) ? draft.highlightLocalIds.filter((id) => id !== item.localId) : [...(draft.highlightLocalIds ?? []), item.localId] })} />
+        {!!draft.highlightLocalIds?.includes(item.localId) && draft.highlightLocalIds.indexOf(item.localId) > 0 && <GalleryButton label="Move highlight earlier" onPress={() => {
+          const ordered = [...draft.highlightLocalIds!], index = ordered.indexOf(item.localId);
+          [ordered[index - 1], ordered[index]] = [ordered[index], ordered[index - 1]]; controller.edit({ highlightLocalIds: ordered });
+        }} />}
+      </View>}
+    </View>}
     ListFooterComponent={<View style={{ gap: 12 }}>
+      <Text style={styles.fine}>Choose up to 3 highlights for the feed. Friends can open the visit to see every selected artwork and photo.</Text>
       <Text style={styles.caption}>A reflection for friends (optional)</Text>
       <TextInput accessibilityLabel="Shared reflection" placeholder="What stayed with you?" value={draft.reflection}
         multiline maxLength={LIMITS.sharedReflection} editable={!sharing.busy} style={[styles.input, styles.reflection]}

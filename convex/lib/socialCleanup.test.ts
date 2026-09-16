@@ -14,11 +14,12 @@ it('revokes immediately, purges social references in batches, and deletes files 
     const storageId = await t.run(async (ctx) => {
       const storageId = await ctx.storage.store(new Blob(['derivative']));
       const wallId = await ctx.db.insert('walls', { profileId: a.profileId, layoutRevision: 1, color: '#fff' });
+      await ctx.db.insert('leaderboardScores', { accountId: a.accountId, metric: 'visits', period: 'all', score: 1 });
       for (let i = 0; i < 75; i++) {
         await ctx.db.insert('mediaAssets', { saveId: draft.saves[0].id, storageId, provenance: asset.provenance, createdAt: i,
           source: { kind: 'derivative', rights: 'contributor_consent', width: 10, height: 10 } });
       }
-      await ctx.db.insert('wallItems', { wallId, profileId: a.profileId, saveId: draft.saves[0].id, saveLocalId: draft.saves[0].localId,
+      await ctx.db.insert('wallItems', { wallId, profileId: a.profileId, saveId: draft.saves[0].id, placementId: draft.saves[0].localId, saveLocalId: draft.saves[0].localId,
         active: true, noteVisible: false, noteRevision: 0, layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' } });
       await ctx.db.insert('blocks', { blockerId: b.profileId, blockedId: a.profileId, active: false, revision: 2 });
       return storageId;
@@ -30,7 +31,7 @@ it('revokes immediately, purges social references in batches, and deletes files 
     await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({ data: { code: 'not_found' } });
     expect(await t.run((ctx) => ctx.db.system.get('_storage', storageId))).not.toBeNull();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    for (const table of ['sharedVisits', 'sharedVisitItems', 'wallItems', 'walls', 'friendships', 'blocks', 'mediaAssets', 'collections', 'visits'] as const) {
+    for (const table of ['sharedVisits', 'sharedVisitItems', 'wallItems', 'walls', 'friendships', 'blocks', 'mediaAssets', 'collections', 'visits', 'leaderboardScores', 'leaderboardCredits'] as const) {
       expect(await t.run((ctx) => ctx.db.query(table).collect())).toEqual([]);
     }
     expect(await t.run((ctx) => ctx.db.get(a.profileId))).toBeNull();

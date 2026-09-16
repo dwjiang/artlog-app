@@ -35,7 +35,7 @@ export function VisitHeading({ visit }: { visit: SharedVisit }) {
   </View>;
 }
 
-export function VisitArtworks({ artworks, token, compact = false }: { artworks: SharedArtwork[]; token?: string | null; compact?: boolean }) {
+export function VisitArtworks({ artworks, token, compact = false, totalCount }: { totalCount?: number; artworks: SharedArtwork[]; token?: string | null; compact?: boolean }) {
   const [width, setWidth] = useState(0);
   const preview = artworks.slice(0, 3);
   return <View testID="visit-artworks" style={[styles.backdrop, compact && styles.preview]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
@@ -56,6 +56,7 @@ export function VisitArtworks({ artworks, token, compact = false }: { artworks: 
         </WallFrame>
       </View>;
     })}
+    {!!totalCount && totalCount > preview.length && <View style={{ position: 'absolute', right: 12, bottom: 12, borderRadius: 16, backgroundColor: Gallery.paper, paddingHorizontal: 9, paddingVertical: 5 }}><Text style={{ color: Gallery.ink, fontSize: 12 }}>+{totalCount - preview.length}</Text></View>}
     {!preview.length && <Text style={socialStyles.caption}>A moment from the museum.</Text>}
   </View>;
 }
@@ -78,12 +79,12 @@ export function VisitCard({ visit, token }: { visit: SharedVisit; token?: string
       <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}{visit.venue.city ? ` · ${visit.venue.city}` : ''}</Text>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s visit to ${visit.venue.name}`} onPress={openVisit}>
-      <VisitArtworks artworks={visit.artworks.page} token={token} compact />
+      <VisitArtworks artworks={visit.artworks.page} token={token} compact totalCount={visit.artworkCount} />
     </Pressable>
     {visit.publishedAt > Date.parse(`${visit.visitedOn}T23:59:59Z`) + 86400000 && <Text style={[styles.feedMeta, { marginTop: 10 }]}>Added later · ordered by visit date</Text>}
     {!!visit.reflection && <Text selectable style={styles.reflection}>{visit.reflection}</Text>}
     <View style={styles.actions}>
-      <Text style={styles.feedMeta}>{artworkCount(visit.artworks)}</Text>
+      <Text style={styles.feedMeta}>{visit.artworkCount === undefined ? artworkCount(visit.artworks) : `${visit.artworkCount} ${visit.artworkCount === 1 ? 'artwork' : 'artworks'} shared`}</Text>
       <GalleryButton label="View visit" icon="arrow.right" iconPosition="trailing" onPress={openVisit} />
     </View>
   </View>;

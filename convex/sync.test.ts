@@ -27,13 +27,13 @@ async function fixture() {
   }
   return { t, user, other, visit, sync, link, claim };
 }
-it('syncs empty visits and save associations idempotently, with immutable snapshots', async () => {
+it('syncs empty visits and later edits to artwork details without duplicating the artwork', async () => {
   const { t, user, visit, sync } = await fixture();
   const work = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
   const first = await sync(user, { visits: [visit], saves: [work] });
   expect(first.saves[0]).toMatchObject({ visitLocalId: visit.localId, visitId: first.visits[0]._id });
   const repeat = await sync(user, { visits: [visit], saves: [{ ...work, snapshot: { title: 'Changed', artist: '' } }], since: first.checkpoint });
-  expect(repeat.saves).toEqual([]); expect(repeat.visits).toEqual([]);
+  expect(repeat.saves).toMatchObject([{ snapshot: { title: 'Changed', artist: '' } }]); expect(repeat.visits).toMatchObject([{ localId: visit.localId }]);
   expect(await t.run((ctx) => ctx.db.query('collections').collect())).toHaveLength(1);
 });
 it('uses auth ownership, never the caller scope, and hides missing or foreign parents', async () => {

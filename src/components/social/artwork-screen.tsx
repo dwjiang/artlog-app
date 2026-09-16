@@ -1,5 +1,5 @@
 import { socialStyles } from './social-styles';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { SocialText as Text } from './social-text';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -11,9 +11,11 @@ import { SocialGate, SocialState } from './social-state';
 import { WallArtworkSummary } from '../collection/wall-sheets';
 import { Gallery } from '@/constants/theme';
 import { VisitArtworks } from './visit-card';
+import { DisplayMedia } from '../artwork/display-media';
 
 export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; itemId: string; postId?: string; color?: string }) {
   const session = useSocialSession();
+  const { width } = useWindowDimensions();
   const shared = kind === 'visit';
   const invalid = !itemId || (kind !== 'wall' && !shared) || (shared && !postId);
   const canRead = !invalid && !session.offline && (!shared || session.status === 'ready');
@@ -30,7 +32,8 @@ export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; i
           action="Try again" onAction={result.refresh} /> : !data ? <SocialState title="Opening artwork…" loading /> : <>
           {!shared && wall.data ? <WallArtworkSummary color={color && /^#[0-9a-f]{6}$/i.test(color) ? color : Gallery.accent}
             piece={{ localId: wall.data.itemId, layout: wall.data.layout, artwork: wall.data.artwork }} />
-            : <VisitArtworks artworks={[{ ...data, itemId: data.itemId as Id<'sharedVisitItems'> }]} token={session.token} />}
+            : visit.data?.photos?.length ? <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator>{visit.data.photos.map((media, i) => <View key={i} style={{ width: width - 40 }}><DisplayMedia media={media} label={`${data.artwork.title}, photo ${i + 1}`} width={width - 40} token={session.token} /></View>)}</ScrollView>
+              : <VisitArtworks artworks={[{ ...data, itemId: data.itemId as Id<'sharedVisitItems'> }]} token={session.token} />}
           <View style={socialStyles.section}>
             {shared && <><Text selectable accessibilityRole="header" style={socialStyles.title}>{data.artwork.title}</Text>
             <Text selectable style={socialStyles.body}>{data.artwork.artist}</Text>

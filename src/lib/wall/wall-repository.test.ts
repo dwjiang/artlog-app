@@ -3,10 +3,10 @@ import { createWallRepository } from './wall-repository';
 import type { OwnerWall, WallTransport } from './wall-transport';
 
 const wall: OwnerWall = { scope: 'account:a:1', profileId: 'profile-a' as never, revision: 1, color: '#45524B', items: [{
-  itemId: 'item-a' as never, saveLocalId: 'save-a', layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' },
+  itemId: 'item-a' as never, placementId: 'save-a', saveLocalId: 'save-a', layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' },
   noteVisible: false, noteRevision: 0, noteEligible: true, artwork: { title: 'Title', artist: 'Artist', media: { kind: 'placeholder', width: 1, height: 1 } },
 }] };
-const draft = { color: '#123456', items: wall.items.map(({ saveLocalId, layout }) => ({ saveLocalId, layout })) };
+const draft = { color: '#123456', items: wall.items.map(({ placementId, saveLocalId, layout }) => ({ placementId, saveLocalId, layout })) };
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((r) => { resolve = r; }); return { promise, resolve }; }
 function fixture() {
   let version = 0, owner = 'account:a', scope = wall.scope, changed = () => {};

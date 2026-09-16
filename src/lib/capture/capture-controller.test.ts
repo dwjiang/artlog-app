@@ -1,131 +1,66 @@
 import { CaptureController } from './capture-controller';
-import { toCorners, type FrameSize } from './rectangle';
-import type { Quad } from './stages';
 
-const frame = { width: 768, height: 1024 };
-const painting: Quad = [[0.15, 0.25], [0.85, 0.25], [0.85, 0.75], [0.15, 0.75]];
-const shifted = (dx: number, dy = 0) => painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
-function observe(controller: CaptureController, now: number, quads: Quad[] = [painting], preview: FrameSize = frame) {
-  return controller.observe({ ...frame, observations: quads.map((quad) => ({ confidence: 1, corners: toCorners(quad) })) }, preview, now);
-}
-function hold(controller: CaptureController, from = 0, quads = [painting], preview = frame) {
-  for (let now = from; now < from + 800; now += 100) expect(observe(controller, now, quads, preview)).toBeUndefined();
-  return observe(controller, from + 800, quads, preview);
-}
 function failed() {
   const controller = new CaptureController();
-  const attempt = hold(controller)!;
+  const attempt = controller.begin('camera')!;
   controller.fail(attempt, 'Dodge the glare');
   controller.finish(attempt);
   return controller;
 }
 
-it('captures once after 800 ms of steady framing and blocks overlapping imports and detections', () => {
+it('starts one capture at a time and blocks overlapping imports', () => {
   const controller = new CaptureController();
-  expect(hold(controller)).toMatchObject({ quad: painting, source: 'camera' });
-  expect(observe(controller, 900)).toBeUndefined();
+  expect(controller.begin('camera')).toMatchObject({ source: 'camera', valid: true });
+  expect(controller.begin('camera')).toBeUndefined();
   expect(controller.begin('library')).toBeUndefined();
   expect(controller.getSnapshot().phase).toBe('capturing');
 });
 
-it('restarts stability after movement', () => {
-  const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
-  expect(observe(controller, 800, [shifted(0.12, 0.12)])).toBeUndefined();
-});
-
-it.each([
-  [[[0.02, 0.2], [0.72, 0.2], [0.72, 0.8], [0.02, 0.8]], { width: 390, height: 844 }],
-  [[[0.05, 0.05], [0.95, 0.05], [0.95, 0.4], [0.05, 0.4]], frame],
-  [[[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]], frame],
-  [[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.4]], frame],
-] as [Quad, FrameSize][])('rejects cropped, off-center, small, or skewed candidates', (quad, preview) => {
-  expect(hold(new CaptureController(), 0, [quad], preview)).toBeUndefined();
-});
-
-it('selects the largest eligible candidate from several rectangles', () => {
-  const detail: Quad = [[0.2, 0.3], [0.8, 0.3], [0.8, 0.7], [0.2, 0.7]];
-  expect(hold(new CaptureController(), 0, [detail, painting])?.quad).toEqual(painting);
-});
-
-it('requires a new full window after the candidate leaves the visible preview', () => {
-  const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
-  observe(controller, 800, [], frame);
-  expect(hold(controller, 900)).toBeDefined();
-});
-
-it('does not recapture an unchanged failure, even with another candidate present', () => {
+it('keeps the failure message until the next shutter press replaces it', () => {
   const controller = failed();
-  for (let now = 900; now <= 5000; now += 100) expect(observe(controller, now, [painting, shifted(0.14, 0.14)])).toBeUndefined();
-  expect(controller.getSnapshot().phase).toBe('retry');
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'retry', message: 'Dodge the glare', occupied: false });
+  expect(controller.begin('camera')).toBeDefined();
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'capturing', message: undefined });
 });
 
-it('rearms after movement of 10% of the frame diagonal followed by fresh stability', () => {
-  const controller = failed();
-  expect(observe(controller, 900, [shifted(0.05)])).toBeUndefined();
-  expect(controller.getSnapshot().phase).toBe('retry');
-  expect(hold(controller, 1000, [shifted(0.13, 0.13)])).toBeDefined();
-});
-
-it('requires 700 ms of continuous absence before a fresh stable detection', () => {
-  const controller = failed();
-  observe(controller, 900, []);
-  observe(controller, 1500, []);
-  observe(controller, 1550);
-  expect(controller.getSnapshot().phase).toBe('retry');
-  observe(controller, 1600, []);
-  observe(controller, 2300, []);
-  expect(controller.getSnapshot().phase).toBe('searching');
-  expect(hold(controller, 2400)).toBeDefined();
-});
-
-it('pauses on focus loss or backgrounding and starts a fresh stability window', () => {
+it('ignores the shutter while unfocused or backgrounded', () => {
   const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
   controller.setActive(false);
-  expect(observe(controller, 800)).toBeUndefined();
+  expect(controller.begin('camera')).toBeUndefined();
   controller.setActive(true);
-  expect(hold(controller, 900)).toBeDefined();
+  expect(controller.begin('camera')).toBeDefined();
 });
 
 it('cancels old ownership but retains the capture lock until pending work finishes', () => {
   const controller = new CaptureController();
-  const attempt = hold(controller)!;
+  const attempt = controller.begin('camera')!;
   controller.reset();
   expect(attempt.valid).toBe(false);
   expect(controller.begin('library')).toBeUndefined();
   expect(controller.result(attempt)).toBe(false);
   controller.finish(attempt);
-  expect(hold(controller, 900)).toBeDefined();
+  expect(controller.begin('camera')).toBeDefined();
 });
 
 it('blocks scanning on results and starts a fresh session on return', () => {
   const controller = new CaptureController();
-  const attempt = hold(controller)!;
+  const attempt = controller.begin('camera')!;
   controller.processing(attempt);
   controller.revealing(attempt);
   controller.finish(attempt);
   expect(controller.begin('library')).toBeUndefined();
   expect(controller.result(attempt)).toBe(true);
   expect(controller.result(attempt)).toBe(false);
-  expect(hold(controller, 900)).toBeUndefined();
+  expect(controller.begin('camera')).toBeUndefined();
   controller.reset();
-  expect(hold(controller, 1800)).toBeDefined();
+  expect(controller.begin('camera')).toBeDefined();
 });
 
-it('holds a failed import until the user chooses another photo or uses the camera', () => {
+it('lets a failed import continue with another photo or the camera', () => {
   const controller = new CaptureController();
   const attempt = controller.begin('library')!;
   controller.fail(attempt, 'Fit all corners');
   controller.finish(attempt);
-  expect(hold(controller)).toBeUndefined();
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'retry', source: 'library' });
   expect(controller.begin('library')).toBeDefined();
-});
-
-it('does not count an unexplained gap in camera frames as steady detection', () => {
-  const controller = new CaptureController();
-  observe(controller, 0);
-  expect(observe(controller, 800)).toBeUndefined();
-  expect(hold(controller, 800)).toBeDefined();
 });

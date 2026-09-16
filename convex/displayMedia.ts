@@ -1,3 +1,4 @@
+import { ownedAlbumPhoto } from './lib/albumMedia';
 import { ConvexError, v } from 'convex/values';
 import { catalogMedia, validateMedia, wallItemMediaContext } from '../shared/social/contracts';
 import { internal } from './_generated/api';
@@ -82,7 +83,11 @@ export const revokeContribution = internalMutation({
 export const findForWallItem = internalQuery({
   args: { context: wallItemMediaContext }, returns: v.union(v.id('_storage'), v.null()),
   handler: async (ctx, { context }) => {
-    const { save } = await requirePublicWallItem(ctx, context.itemId);
+    const { item, save } = await requirePublicWallItem(ctx, context.itemId);
+    if (context.photoLocalId) {
+      if (context.photoLocalId !== item.photoLocalId) throw new ConvexError({ code: 'not_found' });
+      return (await ownedAlbumPhoto(ctx, save, context.photoLocalId)).storageId ?? null;
+    }
     const asset = await resolveDisplayAsset(ctx, save);
     return asset?.source.kind === 'derivative' && await isCurrentAsset(ctx, save, asset) ? asset.storageId ?? null : null;
   },
@@ -94,9 +99,9 @@ export const download = httpAction(async (ctx, request) => {
     const params = new URL(request.url).searchParams;
     const kind = params.get('kind');
     const keys: readonly string[] | null = kind && Object.hasOwn(PARAMS, kind) ? PARAMS[kind as keyof typeof PARAMS] : null;
-    if (!keys || [...params.keys()].some((key) => key !== 'kind' && !keys.includes(key)) || keys.some((key) => !params.get(key))) throw new Error('Invalid context');
+    if (!keys || [...params.keys()].some((key) => key !== 'kind' && key !== 'photoLocalId' && !keys.includes(key)) || keys.some((key) => !params.get(key))) throw new Error('Invalid context');
     // The internal queries validate table-specific IDs before any lookup.
-    const context = { kind, ...Object.fromEntries(keys.map((key) => [key, params.get(key)!])) } as never;
+    const context = { kind, ...Object.fromEntries(keys.map((key) => [key, params.get(key)!])), ...(params.get('photoLocalId') ? { photoLocalId: params.get('photoLocalId') } : {}) } as never;
     if (kind !== 'wallItem') return await serveSharedMedia(ctx, context);
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await ctx.storage.get(storageId) : null;

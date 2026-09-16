@@ -1,4 +1,4 @@
-import type { Visit, SavedWork } from '@/db/schema';
+import type { ArtworkEncounter, Visit, SavedWork } from '@/db/schema';
 import type { VenueRow } from '../venue/resolve';
 import { mappedMuseums, searchVisitSummaries, visitCounts, visitSummaries, visitsAtPlace } from './visit-summaries';
 import { groupHistoryByMonth } from './history';
@@ -8,7 +8,7 @@ const work = (localId: string, visitLocalId: string | null, extra = {}): SavedWo
   title: 'Water Lilies', artist: 'Claude Monet', savedAt: 1, deletedAt: null, ...extra } as SavedWork);
 const metadata = new Map<string, VenueRow>([['museum', { region: 'paris', city: 'Paris', cityKey: 'paris', country: 'FR', lat: 48.86, lng: 2.32 } as VenueRow]]);
 const summaries = () => visitSummaries([visit('old', '2024-01-01'), visit('repeat', '2024-02-29'), visit('new', '2024-02-29', 'unmapped')],
-  [work('painting', 'old'), work('import', null), work('foreign', 'old', { owner: 'b' }), work('deleted', 'old', { deletedAt: 1 })], metadata, 'a');
+  [work('painting', 'old'), work('import', null), work('foreign', 'old', { owner: 'b' }), work('deleted', 'old', { deletedAt: 1 })], metadata, 'a', [{ owner: 'a', savedLocalId: 'painting', visitLocalId: 'old', deletedAt: null } as ArtworkEncounter]);
 it('sorts repeat and empty visits newest first and groups calendar months', () => {
   const rows = summaries();
   expect(rows.map((row) => row.localId)).toEqual(['repeat', 'new', 'old']);

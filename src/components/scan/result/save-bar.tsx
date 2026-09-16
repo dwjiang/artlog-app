@@ -1,3 +1,5 @@
+import { router } from 'expo-router';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { Button, Host } from '@expo/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -23,15 +25,15 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
   return (
     <View style={styles.bar}>
       {savedId ? (
-        <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
+        <View style={{ gap: 12 }}><ThemedText type="title">Added to your collection.</ThemedText><Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
           <ThemedText themeColor="accent">Saved · View in collection</ThemedText>
-        </Pressable>
+        </Pressable><GalleryButton label="Keep exploring" variant="filled" fullWidth onPress={() => router.dismissAll()} /></View>
       ) : (
         <>
           <Host matchContents colorScheme="light">
             <Button label={saving ? 'Saving…' : saveLabel} disabled={!canSave || saving} onPress={onSave} />
           </Host>
-          {!canSave && <ThemedText type="small" themeColor="textSecondary">Add a title to save this work.</ThemedText>}
+          {!canSave && <ThemedText type="small" themeColor="textSecondary">Shorten these details to save this work.</ThemedText>}
           {error && <ThemedText type="small">{error}</ThemedText>}
           {onLabel && (
             <Host matchContents colorScheme="light">

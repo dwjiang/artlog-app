@@ -24,7 +24,7 @@ jest.mock('expo-router', () => {
   const { Pressable, Text, TextInput } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.Button = function ToolbarButton({ children, onPress, accessibilityLabel }: { children: string; onPress: () => void; accessibilityLabel: string }) { return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>; };
-  return { useRouter: () => ({ push: mockPush }), Stack: { Toolbar,
+  return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar,
     SearchBar: ({ onChangeText }: { onChangeText: (event: { nativeEvent: { text: string } }) => void }) =>
       <TextInput accessibilityLabel="Name or username" onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} /> } };
 });
@@ -99,14 +99,14 @@ it('debounces native header search for 300 ms and skips invalid searches', async
   jest.useFakeTimers();
   await render(<PeopleScreen />);
   await fireEvent.changeText(screen.getByLabelText('Name or username'), 'alex');
-  expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === 'profiles:search').at(-1)[1]).toBe('skip');
   await act(() => jest.advanceTimersByTime(299));
-  expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === 'profiles:search').at(-1)[1]).toBe('skip');
   await act(() => jest.advanceTimersByTime(1));
-  expect(mockPages.mock.calls.at(-1)[1]).toEqual({ query: 'alex' });
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === 'profiles:search').at(-1)[1]).toEqual({ query: 'alex' });
   await fireEvent.changeText(screen.getByLabelText('Name or username'), 'a'.repeat(101));
   await act(() => jest.advanceTimersByTime(300));
-  expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === 'profiles:search').at(-1)[1]).toBe('skip');
   jest.useRealTimers();
 });
 

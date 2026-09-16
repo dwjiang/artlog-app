@@ -32,7 +32,7 @@ it('asks for the update, opens TestFlight while no store URL is configured, and 
   expect(screen.getByText(UPDATE_LINE)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: UPDATE_BUTTON }));
   expect(openURL).toHaveBeenCalledWith('itms-beta://');
-  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeEnabled();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Blue room');
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
   expect(handlers.onSave).toHaveBeenCalledWith(expect.objectContaining({ title: 'Blue room' }));

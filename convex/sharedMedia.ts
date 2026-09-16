@@ -1,3 +1,4 @@
+import { ownedAlbumPhoto } from './lib/albumMedia';
 import { ConvexError, type Infer, v } from 'convex/values';
 import { previewMediaContext, sharedVisitMediaContext, validateMediaContext } from '../shared/social/contracts';
 import { internal } from './_generated/api';
@@ -16,18 +17,25 @@ export const authorize = internalQuery({
     const { profile, owner } = await requireProfile(ctx);
     let save;
     if (context.kind === 'sharedVisit') {
-      save = (await requireSharedVisitItem(ctx, context.postId, context.itemId, profile._id)).save;
+      const result = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile._id);
+      save = result.save;
+      if (context.photoLocalId && !result.item.photoLocalIds?.includes(context.photoLocalId)) throw new ConvexError({ code: 'not_found' });
     } else {
       const visit = await ownedVisit(ctx, owner, context.visitLocalId);
       save = await requireOwnedSave(ctx, owner, context.saveLocalId);
-      requireMembership(save, visit);
+      await requireMembership(ctx, save, visit);
+    }
+    if (context.photoLocalId) {
+      const photo = await ownedAlbumPhoto(ctx, save, context.photoLocalId);
+      if (!photo.storageId) throw new ConvexError({ code: 'not_found' });
+      return photo.storageId;
     }
     const asset = await resolveDisplayAsset(ctx, save);
     if (!asset?.storageId || projectArtwork(save, asset, context).media.kind !== 'derivative') throw new ConvexError({ code: 'not_found' });
     // A media row must never turn a reusable owner photo into a social derivative.
-    const photo = await ctx.db.query('collections').withIndex('by_photoStorageId_deletedAt', (q) => q.eq('photoStorageId', asset.storageId)).first();
     const crop = await ctx.db.query('collections').withIndex('by_cropStorageId_deletedAt', (q) => q.eq('cropStorageId', asset.storageId)).first();
-    if (photo || crop) throw new ConvexError({ code: 'not_found' });
+    const album = await ctx.db.query('artworkPhotos').withIndex('by_storageId', (q) => q.eq('storageId', asset.storageId)).first();
+    if (crop || album) throw new ConvexError({ code: 'not_found' });
     return asset.storageId;
   },
 });

@@ -6,6 +6,7 @@ import { AppState, Text } from 'react-native';
 
 import { LocalScanScreen } from '@/components/scan/local-scan-screen';
 import { QueueSheet } from '@/components/scan/states/queue-sheet';
+jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 let mockRows: { owner: string; localId: string; status: 'queued' | 'identified'; cropPath: string; capturedAt?: number; scanId?: string }[] = [];
 const mockListeners = new Set<() => void>();

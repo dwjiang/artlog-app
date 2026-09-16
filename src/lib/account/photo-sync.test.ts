@@ -7,53 +7,53 @@ import { syncCollectionPhotos, type PhotoSyncDependencies } from './photo-sync';
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 let deps: PhotoSyncDependencies;
 const upload = jest.fn(), download = jest.fn(), removeDownload = jest.fn();
-const photoStorageId = 'cloud-photo' as Id<'_storage'>;
 const cropStorageId = 'cloud-crop' as Id<'_storage'>;
 beforeEach(async () => {
   await db.delete(notes); await db.delete(savedWorks);
   jest.clearAllMocks(); upload.mockReset(); download.mockReset();
-  upload.mockImplementation(async (_localId, kind) => kind === 'photo' ? photoStorageId : cropStorageId);
+  upload.mockImplementation(async () => cropStorageId);
   download.mockImplementation(async (localId, kind) => `collection-photos/${localId}-${kind}.jpg`);
   deps = { ...repo, upload, download, removeFile: removeDownload };
 });
 
-it('backs up both images independently of metadata sync and never uploads them again once acknowledged', async () => {
+it('backs up only the crop independently of metadata sync and never uploads it again once acknowledged', async () => {
   await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, syncedAt: 1, photoPath: 'photo.jpg', cropPath: 'crop.jpg' });
   await syncCollectionPhotos(deps);
-  expect(upload.mock.calls).toEqual([['a', 'crop', 'crop.jpg'], ['a', 'photo', 'photo.jpg']]);
-  expect(await repo.getSavedWork('a')).toMatchObject({ photoStorageId, cropStorageId, photoPath: 'photo.jpg', syncedAt: 1 });
+  // The full photo is an album row, so it must not be uploaded a second time as the save's photo.
+  expect(upload.mock.calls).toEqual([['a', 'crop', 'crop.jpg']]);
+  expect(await repo.getSavedWork('a')).toMatchObject({ cropStorageId, photoPath: 'photo.jpg', syncedAt: 1 });
   await syncCollectionPhotos(deps);
-  expect(upload).toHaveBeenCalledTimes(2);
+  expect(upload).toHaveBeenCalledTimes(1);
 });
 
-it('retries a failed photo without re-uploading the completed crop or blocking another work', async () => {
-  for (const localId of ['a', 'b']) await repo.insertSavedWork({ localId, title: 'Painting', artist: '', savedAt: 1, photoPath: `${localId}.jpg`, cropPath: 'crop.jpg' });
-  upload.mockImplementation(async (localId, kind) => {
-    if (localId === 'a' && kind === 'photo') throw new Error('offline');
-    return kind === 'photo' ? photoStorageId : cropStorageId;
+it('retries a failed crop without blocking another work', async () => {
+  for (const localId of ['a', 'b']) await repo.insertSavedWork({ localId, title: 'Painting', artist: '', savedAt: 1, photoPath: `${localId}.jpg`, cropPath: `${localId}-crop.jpg` });
+  upload.mockImplementation(async (localId) => {
+    if (localId === 'a') throw new Error('offline');
+    return cropStorageId;
   });
   await expect(syncCollectionPhotos(deps)).rejects.toThrow('offline');
-  expect(await repo.getSavedWork('b')).toMatchObject({ photoStorageId, cropStorageId });
-  upload.mockClear(); upload.mockResolvedValue(photoStorageId);
+  expect(await repo.getSavedWork('b')).toMatchObject({ cropStorageId });
+  upload.mockClear(); upload.mockResolvedValue(cropStorageId);
   await syncCollectionPhotos(deps);
-  expect(upload.mock.calls).toEqual([['a', 'photo', 'a.jpg']]);
+  expect(upload.mock.calls).toEqual([['a', 'crop', 'a-crop.jpg']]);
 });
 
-it('downloads imported photos into persistent local paths and resumes a partial download', async () => {
-  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, photoStorageId, cropStorageId });
-  download.mockResolvedValueOnce('collection-photos/crop.jpg').mockRejectedValueOnce(new Error('offline'));
+it('downloads an imported crop into a persistent local path and retries after a failed download', async () => {
+  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, cropStorageId });
+  download.mockRejectedValueOnce(new Error('offline'));
   await expect(syncCollectionPhotos(deps)).rejects.toThrow('offline');
-  expect(await repo.getSavedWork('a')).toMatchObject({ cropPath: 'collection-photos/crop.jpg', photoPath: null });
+  expect(await repo.getSavedWork('a')).toMatchObject({ cropPath: null, photoPath: null });
   download.mockClear();
   await syncCollectionPhotos(deps);
-  expect(download.mock.calls).toEqual([['a', 'photo', photoStorageId]]);
-  expect(await repo.getSavedWork('a')).toMatchObject({ photoPath: 'collection-photos/a-photo.jpg' });
+  expect(download.mock.calls).toEqual([['a', 'crop', cropStorageId]]);
+  expect(await repo.getSavedWork('a')).toMatchObject({ cropPath: 'collection-photos/a-crop.jpg', photoPath: null });
   expect(upload).not.toHaveBeenCalled();
 });
 
 it('discards a download completed after sign-out without writing paths or starting another transfer', async () => {
   let active = true;
-  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, photoStorageId, cropStorageId });
+  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, cropStorageId });
   download.mockImplementationOnce(async () => { active = false; return 'collection-photos/discard.jpg'; });
   await syncCollectionPhotos(deps, () => active);
   expect(await repo.getSavedWork('a')).toMatchObject({ photoPath: null, cropPath: null });
@@ -61,24 +61,24 @@ it('discards a download completed after sign-out without writing paths or starti
   expect(download).toHaveBeenCalledTimes(1);
 });
 
-it('does not restore a photo when its saved work is deleted during transfer', async () => {
-  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, photoStorageId });
+it('does not restore a crop when its saved work is deleted during transfer', async () => {
+  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, cropStorageId });
   download.mockImplementationOnce(async () => { await repo.softDeleteSavedWork('a'); return 'collection-photos/deleted.jpg'; });
   await syncCollectionPhotos(deps);
-  expect(await repo.getSavedWork('a')).toMatchObject({ photoPath: null, deletedAt: expect.any(Number) });
+  expect(await repo.getSavedWork('a')).toMatchObject({ cropPath: null, deletedAt: expect.any(Number) });
   expect(removeDownload).toHaveBeenCalledWith('collection-photos/deleted.jpg');
 });
 
 it('does not acknowledge an upload across an account change', async () => {
   let active = true;
-  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, photoPath: 'photo.jpg' });
-  upload.mockImplementationOnce(async () => { active = false; return photoStorageId; });
+  await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1, cropPath: 'crop.jpg' });
+  upload.mockImplementationOnce(async () => { active = false; return cropStorageId; });
   await syncCollectionPhotos(deps, () => active);
-  expect(await repo.getSavedWork('a')).toMatchObject({ photoStorageId: null });
+  expect(await repo.getSavedWork('a')).toMatchObject({ cropStorageId: null });
 });
 
-it('drains more than one batch of queued photos', async () => {
-  await db.insert(savedWorks).values(Array.from({ length: 21 }, (_, i) => ({ owner: 'device:test-installation', localId: String(i), title: 'Painting', artist: '', savedAt: i, photoPath: `${i}.jpg` })));
+it('drains more than one batch of queued crops', async () => {
+  await db.insert(savedWorks).values(Array.from({ length: 21 }, (_, i) => ({ owner: 'device:test-installation', localId: String(i), title: 'Painting', artist: '', savedAt: i, cropPath: `${i}.jpg` })));
   await syncCollectionPhotos(deps);
   expect(upload).toHaveBeenCalledTimes(21);
   expect(await repo.listPhotoTransfers()).toEqual([]);
@@ -88,7 +88,7 @@ it('cleans up deleted local photos while keeping a file used by another saved wo
   await repo.insertSavedWork({ localId: 'a', title: 'Painting', artist: '', savedAt: 1,
     photoPath: 'shared.jpg', cropPath: 'collection-photos/crop.jpg', deletedAt: 2 });
   await repo.insertSavedWork({ localId: 'b', title: 'Painting', artist: '', savedAt: 1,
-    photoPath: 'shared.jpg', photoStorageId });
+    photoPath: 'shared.jpg' });
   await syncCollectionPhotos(deps);
   expect(removeDownload.mock.calls).toEqual([['collection-photos/crop.jpg']]);
   expect(await repo.getSavedWork('a')).toMatchObject({ photoPath: null, cropPath: null });

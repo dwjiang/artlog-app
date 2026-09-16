@@ -15,7 +15,7 @@ export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().
     snapshot: { title: 'Saved title', artist: 'Saved artist', date: '1900', medium: 'Oil' }, savedAt: 1,
     note: 'Private journal note', updatedAt: 1, updatedBy: device.deviceId, changeVersion: 1 }));
   const layout = { x: 0, y: 0, width: 0.5, layer: 0, frame: 'oak' as const };
-  const selection = { saveLocalId, layout };
+  const selection = { placementId: crypto.randomUUID(), saveLocalId, layout };
   const input = { scope, revision: 0, color: '#45524B', items: [selection] };
   return { ...device, accountId, scope, profile, saveId, saveLocalId, layout, selection, input };
 }

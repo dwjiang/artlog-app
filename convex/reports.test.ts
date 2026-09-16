@@ -54,7 +54,7 @@ it('captures only published wall text and retains removal even if an active flag
   const itemId = await t.run(async (ctx) => {
     const wallId = await ctx.db.insert('walls', { profileId: a.profileId, color: '#fff', layoutRevision: 1 });
     await ctx.db.patch(a.profileId, { publishedWallCount: 1 });
-    return ctx.db.insert('wallItems', { profileId: a.profileId, wallId, saveId: draft.saves[0].id, saveLocalId: draft.saves[0].localId,
+    return ctx.db.insert('wallItems', { profileId: a.profileId, wallId, saveId: draft.saves[0].id, placementId: draft.saves[0].localId, saveLocalId: draft.saves[0].localId,
       active: true, noteVisible: false, noteRevision: 0, layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' } });
   });
   const reportId = await reporter.as.mutation(api.reports.submit, { target: { kind: 'wallItem', itemId }, reason: 'Abuse' });

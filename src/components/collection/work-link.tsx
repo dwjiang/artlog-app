@@ -5,14 +5,15 @@ import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-nat
 import type { SavedWork } from '@/db/schema';
 
 type WorkLinkProps = {
+  visitId?: string;
   work: Pick<SavedWork, 'localId' | 'title' | 'artist'>;
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 };
 
-export function WorkLink({ work, style, children }: WorkLinkProps) {
+export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
   return (
-    <Link href={{ pathname: '/[savedId]', params: { savedId: work.localId } }} asChild>
+    <Link href={{ pathname: '/[savedId]', params: { savedId: work.localId, visitId } }} asChild>
       <Pressable accessibilityRole="button" accessibilityLabel={`${work.title}, ${work.artist}`} style={StyleSheet.flatten(style)}>
         {children}
       </Pressable>

@@ -2,9 +2,10 @@ import { captureOwner, getLocalOwner, switchOwner } from './owner-store';
 import { act, render } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { CollectionSync, flushJournal, pauseCollectionSync, resumeCollectionSync } from './collection-sync';
+import { CollectionSync, flushCollectionMedia, flushJournal, pauseCollectionSync, resumeCollectionSync } from './collection-sync';
 import { SyncUnavailableError } from '@/lib/network-error';
 import { requestCollectionSync } from './sync-events';
+jest.mock('./album-sync', () => ({ syncArtworkAlbums: async () => {} }));
 
 const mockSync = jest.fn();
 const mockPhotos = jest.fn();
@@ -23,9 +24,12 @@ jest.mock('expo-network', () => ({ addNetworkStateListener: (callback: typeof mo
   mockNetwork = callback; return { remove: jest.fn() };
 } }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: (...args: unknown[]) => mockClaim(...args) } }));
-jest.mock('@/db/repos/saved-works', () => ({}));
+let mockPending = false, mockJournalPending = false;
+jest.mock('@/db/repos/artwork-album', () => ({ albumMediaPending: (...args: unknown[]) => mockAlbumPending(...args) }));
+const mockAlbumPending = jest.fn((..._args: unknown[]) => mockPending);
+jest.mock('@/db/repos/saved-works', () => ({ listUnsynced: async () => mockJournalPending ? [{}] : [] }));
 jest.mock('@/db/repos/settings', () => ({ setSetting: async () => {} }));
-jest.mock('@/db/repos/visits', () => ({}));
+jest.mock('@/db/repos/visits', () => ({ listUnsyncedVisits: () => [] }));
 jest.mock('@/db/repos/journal-claim', () => ({ claimLocalJournal: async () => {} }));
 jest.mock('./sync', () => ({ syncJournal: (...args: unknown[]) => mockSync(...args) }));
 
@@ -125,6 +129,26 @@ it('rejects flushJournal with the sync failure, keeps the scheduled retry, and r
   Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' });
   pauseCollectionSync();
   await expect(flushJournal()).rejects.toBeInstanceOf(SyncUnavailableError);
+});
+
+it('lets flushCollectionMedia through a transfer failure unless the caller depends on the missing media', async () => {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  await render(<CollectionSync />); await tick();
+  const failure = new Error('Photo exceeds the upload limit');
+  mockPhotos.mockRejectedValue(failure);
+  mockPending = false; mockJournalPending = false;
+  const before = { sync: mockSync.mock.calls.length, photos: mockPhotos.mock.calls.length };
+  await expect(flushCollectionMedia({ photoLocalIds: ['other'] })).resolves.toBeUndefined();
+  expect(mockAlbumPending).toHaveBeenLastCalledWith('account:account', { photoLocalIds: ['other'] });
+  // Nothing pending: no sync round trip is spent on the caller's behalf.
+  expect(mockSync).toHaveBeenCalledTimes(before.sync); expect(mockPhotos).toHaveBeenCalledTimes(before.photos);
+  mockJournalPending = true;
+  await expect(flushCollectionMedia({ photoLocalIds: ['other'] })).resolves.toBeUndefined();
+  expect(mockSync).toHaveBeenCalledTimes(before.sync + 1); expect(mockPhotos).toHaveBeenCalledTimes(before.photos + 1);
+  mockPending = true;
+  await expect(flushCollectionMedia({ photoLocalIds: ['hung'] })).rejects.toBe(failure);
+  mockPhotos.mockResolvedValue(undefined);
+  await expect(flushCollectionMedia({ photoLocalIds: ['hung'] })).resolves.toBeUndefined();
 });
 
 it('keeps a linked scope across a token refresh but suspends it again when the account scope changes', async () => {

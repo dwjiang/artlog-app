@@ -41,7 +41,7 @@ it('saves a snapshot once per local id and confirms an untouched suggestion exac
   expect(saved[0]).toMatchObject({
     _id: collectionId, owner: { kind: 'device', deviceId: user.deviceId }, localId: args.localId, scanId: args.scanId, objectId: args.objectId,
     artworkId: args.artworkId, venueId: args.venueId, visitLocalId: args.visitLocalId, gallery: '4',
-    snapshot: { ...snapshot, title: ' Water Lilies ' }, savedAt: expect.any(Number),
+    snapshot, savedAt: expect.any(Number),
   });
   expect(saved[0]).not.toHaveProperty('suggested');
   expect(await object()).toMatchObject({ confirmCount: 1 });

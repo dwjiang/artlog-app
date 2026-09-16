@@ -63,3 +63,14 @@ export const friends = query({
     return people.sort((a, b) => a.name.localeCompare(b.name));
   },
 });
+
+export const discover = query({
+  args: { ...pageArgs },
+  returns: v.object({ page: v.array(publicProfile), cursor: v.union(v.string(), v.null()), isDone: v.boolean() }),
+  handler: async (ctx, input) => {
+    const result = await ctx.db.query('profiles').withIndex('by_active', (q) => q.eq('active', true)).order('desc').paginate(pagination(input));
+    const page = [];
+    for (const profile of result.page) if (!profile.removal && await ctx.db.get(profile.accountId)) page.push(await projectProfile(ctx, profile));
+    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+  },
+});

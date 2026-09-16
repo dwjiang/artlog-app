@@ -1,3 +1,4 @@
+import { LIMITS } from '../../../shared/journal/limits';
 import type { SnapshotFields } from '../../../convex/lib/validators';
 import type { ResultCandidate, ResultViewState } from './state';
 
@@ -15,7 +16,7 @@ export function draftFromCandidate(candidate?: Pick<ResultCandidate, SnapshotFie
 }
 
 export function canSave(draft: SnapshotDraft): boolean {
-  return draft.title.trim().length > 0;
+  return Object.values(draft).every((value) => value.length <= LIMITS.snapshot);
 }
 
 function optional(value: string): string | undefined {
