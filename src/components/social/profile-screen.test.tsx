@@ -4,6 +4,7 @@ import { ProfileScreen } from './profile-screen';
 const mockPages = jest.fn();
 let mockRelationship: { state: string; blocked: boolean } = { state: 'none', blocked: false };
 const mockPerson = { profileId: 'friend' as never, username: 'friend', name: 'Jamie Chen', publishedWallCount: 0 };
+jest.mock('@expo/ui');
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 jest.mock('../collection/wall-gallery', () => ({ WallGallery: () => null }));
@@ -17,7 +18,7 @@ jest.mock('@/lib/social/use-social-query', () => ({
 beforeEach(() => { jest.clearAllMocks(); mockRelationship = { state: 'none', blocked: false }; });
 it('requests authorized public visits for strangers and omits visits in wall preview', async () => {
   const view = await render(<ProfileScreen profileId="friend" />);
-  await fireEvent.press(screen.getByRole('tab', { name: 'Visits' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
   expect(screen.getByText('No shared visits yet.')).toBeOnTheScreen();
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: 'friend' });
   mockRelationship = { state: 'accepted', blocked: false };
@@ -27,7 +28,7 @@ it('requests authorized public visits for strangers and omits visits in wall pre
 it('requests only the selected friend’s shared visits and stops after a block', async () => {
   mockRelationship = { state: 'accepted', blocked: false };
   const view = await render(<ProfileScreen profileId="friend" />);
-  await fireEvent.press(screen.getByRole('tab', { name: 'Visits' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: 'friend' });
   expect(screen.getByText('No shared visits yet.')).toBeOnTheScreen();
   mockRelationship = { state: 'accepted', blocked: true };

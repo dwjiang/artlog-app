@@ -1,10 +1,11 @@
-import { Button, Host, Switch } from '@expo/ui';
+import { Switch, Text } from '@expo/ui';
+import { Section } from '@expo/ui/swift-ui';
 import { useMutation } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 
 import { api } from '../../../convex/_generated/api';
 
-import { ThemedText } from '@/components/themed-text';
+import { ActionRow } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { getAppAttest } from '@/lib/app-attest';
 import { signPayload } from '@/lib/attested-write';
@@ -15,6 +16,10 @@ import { useDevTimings } from '@/lib/settings/use-dev-timings';
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function Status({ children }: { children: string }) {
+  return <Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{children}</Text>;
 }
 
 export function DevTools({ attested }: { attested: boolean }) {
@@ -104,43 +109,25 @@ export function DevTools({ attested }: { attested: boolean }) {
     }
   }
 
-  return (
-    <>
-      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-        <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
-          onValueChange={(value) => {
-            setSavingTimings(true);
-            void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
-          }} />
-      </Host>
-      <ThemedText themeColor="textSecondary">
-        {supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}
-      </ThemedText>
-      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-        <Button
-          label={running ? 'Checking assertion…' : 'Check App Attest'}
-          disabled={!supported || !attested || running}
-          onPress={() => { void checkAssertion(); }}
-        />
-      </Host>
-      {result && <ThemedText themeColor="textSecondary">{result}</ThemedText>}
-      <ThemedText themeColor="textSecondary">{modelStatus}</ThemedText>
-      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-        <Button
-          label={progress ?? 'Export calibration embeddings'}
-          disabled={progress !== undefined}
-          onPress={() => { void exportCalibration(); }}
-        />
-      </Host>
-      {calibration && <ThemedText themeColor="textSecondary">{calibration}</ThemedText>}
-      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-        <Button
-          label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'}
-          disabled={checkingOrb}
-          onPress={() => { void checkOrbParity(); }}
-        />
-      </Host>
-      {orbParity && <ThemedText themeColor="textSecondary">{orbParity}</ThemedText>}
-    </>
-  );
+  return <>
+    <Section title="Capture">
+      <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
+        onValueChange={(value) => {
+          setSavingTimings(true);
+          void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
+        }} />
+    </Section>
+    <Section title="App Attest">
+      <Status>{supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}</Status>
+      <ActionRow label={running ? 'Checking assertion…' : 'Check App Attest'} disabled={!supported || !attested || running} onPress={() => { void checkAssertion(); }} />
+      {result ? <Status>{result}</Status> : null}
+    </Section>
+    <Section title="Embedding">
+      <Status>{modelStatus}</Status>
+      <ActionRow label={progress ?? 'Export calibration embeddings'} disabled={progress !== undefined} onPress={() => { void exportCalibration(); }} />
+      {calibration ? <Status>{calibration}</Status> : null}
+      <ActionRow label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'} disabled={checkingOrb} onPress={() => { void checkOrbParity(); }} />
+      {orbParity ? <Status>{orbParity}</Status> : null}
+    </Section>
+  </>;
 }

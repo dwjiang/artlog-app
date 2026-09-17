@@ -5,10 +5,8 @@ import { WallProfileSheet } from './wall-profile-sheet';
 
 const mockCreate = jest.fn();
 jest.mock('convex/react', () => ({ useMutation: () => mockCreate }));
-jest.mock('@expo/ui', () => ({
-  ...jest.requireActual('../../../__mocks__/@expo/ui'),
-  TextInput: jest.requireActual('react-native').TextInput,
-}));
+jest.mock('@expo/ui');
+jest.mock('@expo/ui/swift-ui');
 jest.mock('./wall-sheet', () => ({ WallSheet: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -31,7 +29,7 @@ it('keeps entered profile details when a username is taken', async () => {
   await fireEvent.changeText(screen.getByPlaceholderText('Your name'), 'Alex');
   await fireEvent.changeText(screen.getByPlaceholderText('Username'), 'alex');
   await fireEvent.press(screen.getByRole('button', { name: 'Create public profile' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('That username is already taken.');
+  expect(await screen.findByText('That username is already taken.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Create public profile' })).toBeEnabled();
   expect(onCreated).not.toHaveBeenCalled();
 });

@@ -1,25 +1,24 @@
-import { Host, Switch } from '@expo/ui';
+import { Switch } from '@expo/ui';
+import { Section } from '@expo/ui/swift-ui';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
-import { SEARCH_CONSENT_BODY, SearchConsentSheet } from '@/components/scan/result/search-consent-sheet';
-import { ThemedText } from '@/components/themed-text';
-import { Gallery, Spacing } from '@/constants/theme';
+import { GroupedFooter } from '@/components/grouped-list';
+import { SEARCH_CONSENT_BODY } from '@/components/scan/result/search-consent-sheet';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
 
 export const MUSEUM_SEARCH_SETTING = 'Search museum sites with my photo';
 
-export function MuseumSearchSection() {
+/** Turning the switch on asks the owner to present the consent sheet; consent itself is stored by that sheet. */
+export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: () => void }) {
   const consent = useMuseumSearchConsent(useScreenActive());
-  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
 
   async function change(enabled: boolean) {
     setError(undefined);
-    if (enabled) { setOpen(true); return; }
+    if (enabled) { onRequestConsent(); return; }
     setSaving(true);
     try {
       await setMuseumSearchConsent('declined');
@@ -30,17 +29,8 @@ export function MuseumSearchSection() {
     }
   }
 
-  return (
-    <View style={styles.section}>
-      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-        <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
-          onValueChange={(value) => { void change(value); }} />
-      </Host>
-      <ThemedText type="small" themeColor="textSecondary">{SEARCH_CONSENT_BODY}</ThemedText>
-      {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-      <SearchConsentSheet open={open} onGranted={() => setOpen(false)} onDismiss={() => setOpen(false)} />
-    </View>
-  );
+  return <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? SEARCH_CONSENT_BODY}</GroupedFooter>}>
+    <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
+      onValueChange={(value) => { void change(value); }} />
+  </Section>;
 }
-
-const styles = StyleSheet.create({ section: { gap: Spacing.two } });

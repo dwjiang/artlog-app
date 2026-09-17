@@ -1,18 +1,16 @@
-import { Column, Host, TextInput, Text as NativeText } from '@expo/ui';
+import { Text, TextInput } from '@expo/ui';
+import { Section } from '@expo/ui/swift-ui';
+import { accessibilityLabel, listRowBackground } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
-import { SocialText as Text } from './social-text';
 import { api } from '../../../convex/_generated/api';
+import { ActionRow, GroupedFooter, GroupedList } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { captureOwner } from '@/lib/account/owner-store';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { LIMITS } from '@/shared/journal/limits';
-import { GalleryButton } from '@/components/collection/gallery-button';
-import { socialStyles as styles } from './social-styles';
 
 export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
-  const { fontScale } = useWindowDimensions();
   const create = useMutation(api.profiles.create);
   const [name, setName] = useState(''), [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState<string>();
@@ -29,29 +27,14 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     } finally { if (session.isCurrent()) setBusy(false); }
   }
 
-  return <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.section, { gap: 20 }]}>
-      <Text style={styles.body}>{introduction}</Text>
-      <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
-        <Column spacing={20}>
-          <Column spacing={8} alignment="start">
-            <NativeText textStyle={{ fontSize: 15 * fontScale, fontWeight: '500', color: Gallery.ink }}>Name</NativeText>
-            <TextInput placeholder="Your name" onChangeText={setName} autoCapitalize="words" maxLength={LIMITS.name}
-              style={formStyles.input} textStyle={{ fontSize: 17 * fontScale, color: Gallery.ink }} />
-          </Column>
-          <Column spacing={8} alignment="start">
-            <NativeText textStyle={{ fontSize: 15 * fontScale, fontWeight: '500', color: Gallery.ink }}>Username</NativeText>
-            <TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax}
-              style={formStyles.input} textStyle={{ fontSize: 17 * fontScale, color: Gallery.ink }} />
-          </Column>
-        </Column>
-      </Host>
-      <Text style={styles.caption}>Your name, username, and wall are public. Visits and private notes are separate.</Text>
-      {error && <Text accessibilityRole="alert" selectable style={styles.body}>{error}</Text>}
-      <GalleryButton label={busy ? 'Creating…' : 'Create public profile'} variant="filled" fullWidth disabled={busy || !name.trim() || !username.trim()}
-        onPress={() => { void submit(); }} />
-  </ScrollView>;
+  return <GroupedList>
+    <Section><Text textStyle={{ fontSize: 15, color: Gallery.ink }} modifiers={[listRowBackground('transparent')]}>{introduction}</Text></Section>
+    <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your name, username, and wall are public. Visits and private notes are separate.'}</GroupedFooter>}>
+      <TextInput placeholder="Your name" onChangeText={setName} autoCapitalize="words" maxLength={LIMITS.name} editable={!busy} modifiers={[accessibilityLabel('Name')]} />
+      <TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax} editable={!busy} modifiers={[accessibilityLabel('Username')]} />
+    </Section>
+    <Section>
+      <ActionRow label={busy ? 'Creating…' : 'Create public profile'} disabled={busy || !name.trim() || !username.trim()} onPress={() => { void submit(); }} />
+    </Section>
+  </GroupedList>;
 }
-
-const formStyles = StyleSheet.create({
-  input: { padding: 12, backgroundColor: Gallery.surface, borderRadius: 9, borderWidth: 0.5, borderColor: Gallery.separator },
-});
