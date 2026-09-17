@@ -32,13 +32,27 @@ const VENUE_COLUMNS = 'id, key, name, lat, lng, website, region, city, cityKey, 
 async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
   const assetKey = asset.hash ?? asset.uri;
-  if (target.exists && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) return undefined;
+  const reusable = target.exists && await installedTableIsValid();
+  if (reusable && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) return undefined;
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('The bundled venue table could not be loaded');
-  const carried = target.exists ? await journalVenueRows() : [];
+  const carried = reusable ? await journalVenueRows() : [];
   target.parentDirectory.create({ intermediates: true, idempotent: true });
-  new File(asset.localUri).copy(target, { overwrite: true });
+  await new File(asset.localUri).copy(target, { overwrite: true });
   return { assetKey, carried };
+}
+
+async function installedTableIsValid(): Promise<boolean> {
+  const db = await openDatabaseAsync(VENUE_DB_NAME, { useNewConnection: true });
+  try {
+    await validateVenueTable(db);
+    return true;
+  } catch {
+    // The installed hash only records which bundle was copied, not that the copy landed intact.
+    return false;
+  } finally {
+    await db.closeAsync();
+  }
 }
 
 async function journalVenueRows(): Promise<VenueRow[]> {
@@ -94,14 +108,20 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
     const target = venueDbFile();
     const installed = await installBundledTable(target);
     const db = await openDatabaseAsync(VENUE_DB_NAME);
-    await db.execAsync('CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)');
-    if (installed) {
-      for (const venue of installed.carried) await writeVenue(db, venue, 'IGNORE');
-      await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
+    try {
+      await validateVenueTable(db);
+      await db.execAsync('CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)');
+      if (installed) {
+        for (const venue of installed.carried) await writeVenue(db, venue, 'IGNORE');
+        await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
+      }
+      await installStagedTable(db).catch((error: unknown) => console.warn('Could not install the refreshed venue table', error));
+      if (__DEV__) console.debug('Venue table', await readVenueTableMeta(db));
+      return db;
+    } catch (error) {
+      await db.closeAsync();
+      throw error;
     }
-    await installStagedTable(db).catch((error: unknown) => console.warn('Could not install the refreshed venue table', error));
-    if (__DEV__) console.debug('Venue table', await readVenueTableMeta(db));
-    return db;
   })().catch((error: unknown) => {
     opening = undefined;
     throw error;

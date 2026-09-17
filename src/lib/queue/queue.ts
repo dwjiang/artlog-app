@@ -37,7 +37,7 @@ export const captureStore: CaptureStore = {
       removeFile(captureFileUri(files.cropPath));
       throw new Error('Journal owner changed');
     }
-    const labelPhotoPath = payload.subject === 'label' ? copyCaptureLabel(files.photoPath, payload.localId) : undefined;
+    const labelPhotoPath = payload.subject === 'label' ? await copyCaptureLabel(files.photoPath, payload.localId) : undefined;
     if (payload.subject === 'label') updatePhotoSession(payload.owner, files.photoPath, { primaryKind: 'label' });
     await pending.enqueuePendingScan({
       localId: payload.localId, ...files, labelPhotoPath,
