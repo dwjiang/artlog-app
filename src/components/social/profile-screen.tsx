@@ -29,7 +29,7 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : 'skip', session.key);
   const relationship = useSocialQuery(api.friendships.getState, session.status === 'ready' && session.profileId !== profileId ? args : 'skip', session.key);
-  const canReadVisits = !preview && session.status === 'ready' && (session.profileId === profileId || (relationship.data?.state === 'accepted' && !relationship.data.blocked));
+  const canReadVisits = !preview && !session.offline && !!profile.data && !relationship.data?.blocked;
   const visits = useCursorPages(api.sharedVisits.listByProfile, canReadVisits ? { profileId: profileId as Id<'profiles'> } : 'skip', session.key, visitPage, visitId);
   function changeTab(value: 'wall' | 'visits') { setTab(value); requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false })); }
   if (session.offline) return <SocialGate session={session} />;
@@ -52,8 +52,8 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
       </View>
       {tab === 'wall' ? wall.error ? <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
         : wall.data ? <PublicWallView wall={wall.data} arrangedBy={person.name.split(' ')[0]} onSelect={(item) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: item.itemId, color: wall.data!.color } })} /> : <SocialState title="Opening wall…" loading />
-        : !canReadVisits ? <SocialState title="Visits are shared with friends." detail="Their public wall is here for everyone. Museum visits shared with friends will appear here once you’re connected." icon="lock" />
-          : <View>{visits.items.map((visit) => <Pressable key={visit.postId} accessibilityRole="button" accessibilityLabel={`Visit to ${visit.venue.name}`} onPress={() => router.push({ pathname: '/visit/[postId]', params: { postId: visit.postId } })} style={{ padding: 20, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator, gap: 7 }}><Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '500' }}>{visit.venue.name}</Text><Text style={socialStyles.caption}>{formatVisitDate(visit.visitedOn)} · {visit.artworkCount ?? visit.artworks.page.length} artworks · Friends</Text></Pressable>)}
+        : !canReadVisits ? <SocialState title="Visits aren’t available here." detail={preview ? 'This preview shows your public wall.' : 'Shared visits aren’t available for this profile.'} icon="lock" />
+          : <View>{visits.items.map((visit) => <Pressable key={visit.postId} accessibilityRole="button" accessibilityLabel={`Visit to ${visit.venue.name}`} onPress={() => router.push({ pathname: '/visit/[postId]', params: { postId: visit.postId } })} style={{ padding: 20, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator, gap: 7 }}><Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '500' }}>{visit.venue.name}</Text><Text style={socialStyles.caption}>{formatVisitDate(visit.visitedOn)} · {visit.artworkCount ?? visit.artworks.page.length} artworks · {visit.audience === 'public' ? 'Public' : 'Friends'}</Text></Pressable>)}
             {visits.done && !visits.items.length && !visits.error && <SocialState title="No shared visits yet." detail="When they share a museum visit, it will appear here." />}
             <PageFooter {...visits} count={visits.items.length} />
           </View>}

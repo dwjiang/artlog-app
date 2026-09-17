@@ -61,21 +61,27 @@ export async function canReadProfilePosts(ctx: ReadCtx, authorId: Id<'profiles'>
   const { edge, block, reverseBlock } = await relationshipSnapshot(ctx, authorId, viewerId);
   return edge?.state === 'accepted' && !block?.active && !reverseBlock?.active;
 }
-export async function readablePublication(ctx: ReadCtx, publication: Doc<'sharedVisits'>, viewerId: Id<'profiles'>) {
-  if (publication.status !== 'active' || publication.removal || !await canReadProfilePosts(ctx, publication.profileId, viewerId)) return null;
+export async function readablePublication(ctx: ReadCtx, publication: Doc<'sharedVisits'>, viewerId?: Id<'profiles'>) {
+  if (publication.status !== 'active' || publication.removal) return null;
+  if (publication.audience === 'friends') {
+    if (!viewerId || !await canReadProfilePosts(ctx, publication.profileId, viewerId)) return null;
+  } else if (viewerId && viewerId !== publication.profileId) {
+    const { block, reverseBlock } = await relationshipSnapshot(ctx, publication.profileId, viewerId);
+    if (block?.active || reverseBlock?.active) return null;
+  }
   const profile = await activeProfile(ctx, publication.profileId);
   const visit = await ctx.db.get(publication.visitId);
   if (!profile || !visit || visit.localId !== publication.visitLocalId ||
     !sameOwner(visit.owner, { kind: 'account', accountId: profile.accountId })) return null;
   return { publication, profile, visit };
 }
-export async function requireSharedVisit(ctx: ReadCtx, postId: string, viewerId: Id<'profiles'>) {
+export async function requireSharedVisit(ctx: ReadCtx, postId: string, viewerId?: Id<'profiles'>) {
   const publication = await ctx.db.query('sharedVisits').withIndex('by_postId', (q) => q.eq('postId', postId)).unique();
   const access = publication && await readablePublication(ctx, publication, viewerId);
   if (!access) throw new ConvexError({ code: 'not_found' });
   return access;
 }
-export async function requireSharedVisitItem(ctx: ReadCtx, postId: string, itemId: Id<'sharedVisitItems'>, viewerId: Id<'profiles'>) {
+export async function requireSharedVisitItem(ctx: ReadCtx, postId: string, itemId: Id<'sharedVisitItems'>, viewerId?: Id<'profiles'>) {
   const { publication, visit } = await requireSharedVisit(ctx, postId, viewerId);
   const item = await ctx.db.get(itemId);
   const save = item ? await ctx.db.get(item.saveId) : null;

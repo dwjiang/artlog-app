@@ -5,7 +5,7 @@ import { SettingsIdentity } from './settings-identity';
 const mockPush = jest.fn();
 let mockStatus = 'ready';
 let mockProfile: { name: string; username: string } | undefined;
-jest.mock('expo-router', () => ({ router: { push: (href: string) => mockPush(href) } }));
+jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'a', status: mockStatus }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockProfile }) }));
 
@@ -23,8 +23,16 @@ it('opens profile editing for a public profile and profile creation when one is 
   expect(mockPush).toHaveBeenLastCalledWith('/create-profile');
 });
 
+it('opens the shared sign-in sheet for a guest', async () => {
+  mockStatus = 'signed-out';
+  await render(<SettingsIdentity />);
+  expect(screen.getByText('Guest')).toBeOnTheScreen();
+  expect(screen.getByText(/without signing in/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Sign in to Artlog' }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
+});
+
 it.each([
-  ['signed-out', 'Guest', /without signing in/],
   ['offline', 'Offline', /back online/],
   ['error', undefined, /couldn’t be checked/],
   ['loading', undefined, /Checking your account/],

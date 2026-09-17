@@ -39,7 +39,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     catch { setError('Could not save participation. Try again.'); }
     finally { saving.current = false; setPending(false); }
   }
-  return <LeaderboardSheet title="Participation" dismissLabel="Cancel" onDismiss={() => { if (!saving.current) onDismiss(); }}>
+  return <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>
     <Text style={{ color: Gallery.ink, fontSize: 15, lineHeight: 22 }}>Who can see your leaderboard activity?</Text>
     {session.status === 'ready' ? <>
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
@@ -59,7 +59,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
       </Host>
       {preference.loading && <SocialState title="Loading participation…" loading />}
       {preference.error && <SocialState title="Couldn’t load participation." action="Try again" onAction={preference.refresh} />}
-    </> : <SocialGate session={session} />}
+    </> : <SocialGate session={session} context="leaderboards" />}
     <View style={{ padding: 16, backgroundColor: Gallery.fill, borderRadius: 12, gap: 10 }}>
       <Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '600' }}>Totals only. Not your visit history.</Text>
       <Text style={{ color: Gallery.muted, fontSize: 12, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and accepted contributions, for this month and all time. Existing activity counts too, including private visits.</Text>

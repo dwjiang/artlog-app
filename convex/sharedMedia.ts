@@ -3,7 +3,7 @@ import { ConvexError, type Infer, v } from 'convex/values';
 import { previewMediaContext, sharedVisitMediaContext, validateMediaContext } from '../shared/social/contracts';
 import { internal } from './_generated/api';
 import { internalQuery, type ActionCtx } from './_generated/server';
-import { requireMembership, requireOwnedSave, requireProfile } from './lib/ownership';
+import { requireMembership, requireOwnedSave, requireProfile, optionalProfile } from './lib/ownership';
 import { requireSharedVisitItem } from './lib/publicationAccess';
 import { ownedVisit } from './lib/sharedPublications';
 import { resolveDisplayAsset } from './lib/displayMedia';
@@ -14,13 +14,14 @@ export const authorize = internalQuery({
   args: { context: sharedMediaContext }, returns: v.id('_storage'),
   handler: async (ctx, { context }) => {
     validateMediaContext(context);
-    const { profile, owner } = await requireProfile(ctx);
     let save;
     if (context.kind === 'sharedVisit') {
-      const result = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile._id);
+      const profile = await optionalProfile(ctx);
+      const result = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile?._id);
       save = result.save;
       if (context.photoLocalId && !result.item.photoLocalIds?.includes(context.photoLocalId)) throw new ConvexError({ code: 'not_found' });
     } else {
+      const { owner } = await requireProfile(ctx);
       const visit = await ownedVisit(ctx, owner, context.visitLocalId);
       save = await requireOwnedSave(ctx, owner, context.saveLocalId);
       await requireMembership(ctx, save, visit);

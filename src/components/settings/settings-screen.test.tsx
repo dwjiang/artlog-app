@@ -8,6 +8,7 @@ import { LabelActions, SHARE_BUTTON } from '@/components/scan/label/label-action
 import { getSharingDefault, setSharingDefault } from '@/lib/settings/sharing';
 import { setSetting } from '@/db/repos/settings';
 
+const mockPush = jest.fn();
 const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
@@ -22,7 +23,13 @@ const contribution = {
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
 jest.mock('./settings-identity', () => ({ SettingsIdentity: () => null }));
 jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View }));
+jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View,
+  List: jest.requireActual('react-native').View,
+  Section: ({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) => {
+    const { View, Text } = jest.requireActual('react-native');
+    return <View>{title && <Text accessibilityRole="header">{title}</Text>}{children}{footer}</View>;
+  },
+}));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => mockReady }));
@@ -48,7 +55,7 @@ jest.mock('convex/react', () => ({
     return undefined;
   },
 }));
-jest.mock('expo-router', () => ({ Link: ({ children }: { children: ReactNode }) => children }));
+jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) }, Stack: { Screen: () => null }, Link: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(async () => {
   jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false;
@@ -56,15 +63,16 @@ beforeEach(async () => {
   await setSharingDefault(true);
 });
 
-it('renders every section, the privacy promise and About backend status without the placeholder', async () => {
+it('renders every group, the privacy promise and About backend status on one page', async () => {
   await render(<SettingsScreen />);
-  for (const title of ['Sharing', 'Account', 'Export', 'Privacy', 'About', 'Developer']) {
+  for (const title of ['Account', 'Preferences', 'Privacy', 'Sharing', 'Export', 'About', 'Developer']) {
     expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   }
   expect(screen.getByText(PRIVACY_COPY)).toBeOnTheScreen();
   expect(screen.getByText('Backend: connected')).toBeOnTheScreen();
-  expect(screen.queryByText('Open venue picker')).toBeNull();
   expect(screen.getByRole('button', { name: 'Source code' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Public notes' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/public-notes');
 });
 
 it('persists sharing off and hides the offer when returning to a label review', async () => {
@@ -116,10 +124,10 @@ it('keeps withdrawal retryable when the network fails', async () => {
   expect(screen.getByText('Withdrawn')).toBeOnTheScreen();
 });
 
-it('offers Apple sign-in and wires the existing account action', async () => {
+it('opens the shared sign-in sheet from the account row', async () => {
   await render(<SettingsScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
-  expect(mockSignIn).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
 it('shows linked devices and preserves sign-out and account deletion controls', async () => {

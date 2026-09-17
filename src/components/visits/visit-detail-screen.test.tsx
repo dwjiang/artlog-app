@@ -11,15 +11,25 @@ const mockVisit = {
   visitedOn: '2024-02-29', location: 'New York', reflection: 'The afternoon light',
   works: [{ localId: 'painting', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }],
 } as VisitSummary;
+let mockPublication: { status: string; audience: 'friends' | 'public' } | null = null;
 jest.mock('@/lib/journal/use-visits', () => ({
   useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }),
 }));
 jest.mock('@/lib/visits/use-visit-sharing', () => ({
-  useVisitSharing: () => ({ controller: {}, token: null, acknowledged: null }),
+  useVisitSharing: () => ({ controller: {}, token: null, acknowledged: mockPublication }),
 }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: () => null }));
 
 afterEach(() => jest.useRealTimers());
+beforeEach(() => { mockPublication = null; mockVisit.owner = 'device:test-installation'; });
+
+it.each(['friends', 'public'] as const)('shows the %s audience on a published visit', async (audience) => {
+  mockVisit.owner = 'account:test-account';
+  mockPublication = { status: 'active', audience };
+  await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
+  expect(screen.getByText(audience === 'public' ? 'Shared publicly' : 'Shared with friends')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Edit shared visit' })).toBeOnTheScreen();
+});
 
 it('opens saved artwork from a visit and returns to its private reflection', async () => {
   const navigation = renderRouter({

@@ -17,6 +17,7 @@ import { socialStyles } from './social-styles';
 import { SocialText as Text } from './social-text';
 
 type Media = SharedArtwork['artwork']['media'];
+type VisitAudience = SharedVisit['audience'];
 const artworksPage = (visit: SharedVisit) => visit.artworks;
 const artworkId = (item: SharedArtwork) => item.itemId;
 
@@ -28,7 +29,7 @@ export function VisitScreen({ postId }: { postId: string }) {
 function VisitGallery({ postId, session }: { postId: string; session: ReturnType<typeof useSocialSession> }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const ready = session.status === 'ready';
+  const ready = !session.offline && ['ready', 'signed-out', 'profile-required'].includes(session.status);
   const visit = useCursorPages(api.sharedVisits.get, ready && postId ? { postId } : 'skip', session.key, artworksPage, artworkId);
   const unavailable = !postId || convexErrorCode(visit.error) === 'not_found';
   const totalCount = visit.first?.artworkCount ?? visit.items.length;
@@ -45,7 +46,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
     keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets
     refreshControl={ready ? <RefreshControl refreshing={visit.refreshing} tintColor={Gallery.accent} onRefresh={visit.refresh} /> : undefined}
     ListHeaderComponent={ready && !unavailable && visit.first && author ? <>
-      <SharedVisitHeading venue={visit.first.venue} visitedOn={visit.first.visitedOn}
+      <SharedVisitHeading venue={visit.first.venue} visitedOn={visit.first.visitedOn} audience={visit.first.audience}
         owner={{ name: author.name, photoUrl: author.photoUrl, onPress: () => router.push({ pathname: '/profile/[profileId]', params: { profileId: author.profileId } }) }} />
       {!!visit.first.reflection && <Text selectable style={styles.reflection}>{visit.first.reflection}</Text>}
       <SharedCountHeading label={`${countLabel} ${countLabel === '1' ? 'artwork' : 'artworks'} shared`} />
@@ -60,9 +61,9 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
     onEndReached={ready ? visit.loadMore : undefined} onEndReachedThreshold={0.4} />;
 }
 
-/** The friend-facing header: museum stamp, sharing badge, whose visit it is, place, and date. */
-export function SharedVisitHeading({ venue, visitedOn, owner }: {
-  venue: { name: string; city?: string }; visitedOn: string; owner: { name: string; photoUrl?: string; onPress?: () => void };
+/** The viewer-facing header: museum stamp, audience badge, whose visit it is, place, and date. */
+export function SharedVisitHeading({ venue, visitedOn, audience, owner }: {
+  venue: { name: string; city?: string }; visitedOn: string; audience: VisitAudience; owner: { name: string; photoUrl?: string; onPress?: () => void };
 }) {
   const identity = <>
     <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} size={25} />
@@ -72,8 +73,8 @@ export function SharedVisitHeading({ venue, visitedOn, owner }: {
   return <View style={styles.heading}>
     <View style={styles.stampRow}>
       <View style={styles.stamp}><VisitSymbol name="building.columns" size={23} color="#66735C" /></View>
-      <View style={styles.status}><VisitSymbol name="person.2" size={11} color="#627158" />
-        <Text style={styles.statusText}>Shared with friends</Text></View>
+      <View style={styles.status}><VisitSymbol name={audience === 'public' ? 'globe' : 'person.2'} size={11} color="#627158" />
+        <Text style={styles.statusText}>{audience === 'public' ? 'Shared publicly' : 'Shared with friends'}</Text></View>
     </View>
     {owner.onPress ? <Pressable accessibilityRole="button" accessibilityLabel={`View ${owner.name}’s profile`} style={styles.owner} onPress={owner.onPress}>{identity}</Pressable>
       : <View style={styles.owner}>{identity}</View>}
@@ -109,10 +110,10 @@ export function SharedArtworkTile({ title, artist, photos, token, onPress }: {
 
 export type ProjectedArtwork = { key: string; title: string; artist: string | null; photos: Media[] };
 
-/** A complete shared visit the way friends see it, for previews and the owner's shared version. */
-export function SharedVisitProjection({ banner, author, venue, visitedOn, reflection, artworks, token, footer, note }: {
-  banner?: { title: string; copy: string }; author: Pick<PublicProfile, 'name' | 'photoUrl'>; venue: { name: string; city?: string };
-  visitedOn: string; reflection: string; artworks: ProjectedArtwork[]; token?: string | null; footer?: ReactElement; note?: string;
+/** A complete shared visit the way its audience sees it, for previews and the owner's shared version. */
+export function SharedVisitProjection({ banner, author, venue, visitedOn, audience, reflection, artworks, token, footer, note }: {
+  banner?: { title: string; copy: string }; author: Pick<PublicProfile, 'name' | 'photoUrl'>; venue: { name: string; city?: string }; visitedOn: string;
+  audience: VisitAudience; reflection: string; artworks: ProjectedArtwork[]; token?: string | null; footer?: ReactElement; note?: string;
 }) {
   const [search, setSearch] = useState('');
   const query = artworks.length >= 5 ? search.trim() : '';
@@ -122,7 +123,7 @@ export function SharedVisitProjection({ banner, author, venue, visitedOn, reflec
     keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
     ListHeaderComponent={<>
       {banner && <View style={styles.banner}><Text style={styles.bannerTitle}>{banner.title}</Text><Text style={styles.bannerCopy}>{banner.copy}</Text></View>}
-      <SharedVisitHeading venue={venue} visitedOn={visitedOn} owner={author} />
+      <SharedVisitHeading venue={venue} visitedOn={visitedOn} audience={audience} owner={author} />
       {!!reflection && <Text selectable style={styles.reflection}>{reflection}</Text>}
       <SharedCountHeading label={`${artworks.length} ${artworks.length === 1 ? 'artwork' : 'artworks'} shared`} />
       {artworks.length >= 5 && <VisitGallerySearch value={search} onChangeText={setSearch} />}

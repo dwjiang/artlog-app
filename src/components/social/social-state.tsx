@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { SocialText as Text } from './social-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
-import { AccountSection } from '@/components/settings/account-section';
+import { signInRoute, type SignInContext } from '@/lib/account/sign-in-context';
 import { Gallery } from '@/constants/theme';
 import type { SocialSession } from '@/lib/social/use-social-session';
 import { socialErrorMessage } from '@/shared/social/errors';
@@ -17,17 +17,17 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
       : <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={{ width: 40, height: 40 }} />}
     <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>
     {detail && <Text selectable style={socialStyles.body}>{detail}</Text>}
-    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="outlined" />}
+    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" capsule />}
   </View>;
 }
 
-export function SocialGate({ session, browsePublic = false }: { session: SocialSession; browsePublic?: boolean }) {
+export function SocialGate({ session, browsePublic = false, context = 'friends' }: { session: SocialSession; browsePublic?: boolean; context?: SignInContext }) {
   const router = useRouter();
   if (session.status === 'ready') return null;
-  if (session.status === 'signed-out') return <View style={socialStyles.section}>
-    <SocialState title="Art is better together." detail="See the museum visits and artworks your friends share." icon="person.2" />
+  if (session.status === 'signed-out') return <View style={socialStyles.gate}>
+    <SocialState title="Art is better together." detail="See the museum visits and artworks your friends share." icon="person.2"
+      action="Sign in" onAction={() => router.push(signInRoute(context))} />
     {browsePublic && <GalleryButton label="Browse public walls" variant="outlined" onPress={() => router.push('/people')} />}
-    <AccountSection />
   </View>;
   if (session.status === 'profile-required') return <View style={socialStyles.section}><SocialState title="Make yourself at home."
     detail="Create your public profile to find friends and follow their museum visits." icon="person.crop.circle.badge.plus"

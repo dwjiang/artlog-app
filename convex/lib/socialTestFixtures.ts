@@ -28,7 +28,7 @@ export async function socialVisit(t: Harness, user: Awaited<ReturnType<typeof so
         updatedAt: 1, updatedBy: user.deviceId, changeVersion: i + 2 });
       saves.push({ id, localId });
     }
-    return { visit, saves, selection: { visitLocalId: visit.localId, saveLocalIds: saves.map((s) => s.localId), reflection: '', revision: 0 } };
+    return { visit, saves, selection: { audience: 'friends' as const, visitLocalId: visit.localId, saveLocalIds: saves.map((s) => s.localId), reflection: '', revision: 0 } };
   });
 }
 export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {

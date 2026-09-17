@@ -3,8 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 
 export const Host = View;
 export const RNHostView = View;
-export function ListItem({ children, onPress }: { children: ReactNode; onPress?: () => void }) {
-  return <Pressable accessibilityRole="button" onPress={onPress}><Text>{children}</Text></Pressable>;
+export function ListItem({ children, onPress, supportingText }: { children: ReactNode; onPress?: () => void; supportingText?: ReactNode }) {
+  return <Pressable accessibilityRole="button" onPress={onPress}><Text>{children}</Text>{supportingText && <Text>{supportingText}</Text>}</Pressable>;
 }
 export function Switch({ label, value, onValueChange, disabled }: ComponentProps<typeof import('@expo/ui').Switch>) {
   return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked: value, disabled: !!disabled }}

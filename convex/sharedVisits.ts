@@ -2,19 +2,19 @@ import { selectedPhotoMedia } from './lib/albumMedia';
 import { ConvexError, v } from 'convex/values';
 import { pageArgs, pagination } from '../shared/journal/contracts';
 import { isRevision, isUuid, LIMITS, utf8Bytes } from '../shared/journal/limits';
-import { displayMedia, publicArtwork, publicProfile, sharedSelection, sharedVisitCard } from '../shared/social/contracts';
+import { visitAudience, displayMedia, publicArtwork, publicProfile, sharedSelection, sharedVisitCard } from '../shared/social/contracts';
 import { mutation, query, type QueryCtx } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
-import { requireProfile } from './lib/ownership';
+import { activeProfile, optionalProfile, requireProfile } from './lib/ownership';
 import { projectArtwork, projectProfile } from './lib/projections';
-import { acceptedRelationships } from './lib/friendships';
+import { acceptedRelationships, relationshipSnapshot } from './lib/friendships';
 import { canReadProfilePosts, readablePublication, requireSharedVisit, requireSharedVisitItem } from './lib/publicationAccess';
 import { limitKey } from './lib/rateLimits';
 import { resolveDisplayAsset } from './lib/displayMedia';
 import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
-import { checkPublicationRevision, compareHistory, header, historyCursor, historyHead, ownedVisit, PAGE_ARTWORKS, PAGE_BYTES,
-  parseHistoryCursor, projectArtworkPage, publicationForVisit, publicationItems, publicationState, publicationView, readHeadroom,
-  SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
+import { checkPublicationRevision, compareHistory, header, historyCursor, historyHead, type HistoryStream, ownedVisit, PAGE_ARTWORKS, PAGE_BYTES,
+  parseHistoryCursor, profileHistory, projectArtworkPage, publicationForVisit, publicationItems, publicationState, publicationView, publicHistory,
+  publicProfileHistory, readHeadroom, SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
 
 const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
 export const getState = query({
@@ -37,7 +37,7 @@ export const listShared = query({
 });
 export const preview = query({
   args: selectionArgs,
-  returns: v.object({ author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string() }), visitedOn: v.string(),
+  returns: v.object({ audience: visitAudience, author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string() }), visitedOn: v.string(),
     reflection: v.string(), artworks: v.array(v.object({ saveLocalId: v.string(), artwork: publicArtwork, photos: v.optional(v.array(displayMedia)) })) }),
   handler: async (ctx, input) => {
     const { profile, owner } = await requireProfile(ctx);
@@ -50,7 +50,7 @@ export const preview = query({
       const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
       artworks.push({ saveLocalId: save.localId, artwork: photos.length ? { ...artwork, media: photos[0] } : artwork, ...(photos.length ? { photos } : {}) });
     }
-    return { author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
+    return { audience: input.audience, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
       reflection: input.reflection, artworks };
   },
 });
@@ -63,7 +63,7 @@ export const publish = mutation({
     checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
     const { visit, saves } = await selectedSaves(ctx, owner, input);
     await limitKey(ctx, 'publishVisit', accountId);
-    const fields = { status: 'active' as const, reflection: input.reflection, visitedOn: visit.visitedOn,
+    const fields = { audience: input.audience, status: 'active' as const, reflection: input.reflection, visitedOn: visit.visitedOn,
       publicationRevision: input.revision + 1, updatedAt: Date.now(), publishedAt: publication?.publishedAt || Date.now() };
     const publicationId = publication?._id ?? await ctx.db.insert('sharedVisits', { ...fields,
       profileId: profile._id, postId: crypto.randomUUID(), visitId: visit._id, visitLocalId: visit.localId });
@@ -94,7 +94,7 @@ export const unshare = mutation({
     // Even an unshared draft needs a tombstone to reject a delayed first publish.
     const publicationId = publication?._id ?? await ctx.db.insert('sharedVisits', {
       postId: crypto.randomUUID(), profileId: profile._id, visitId: visit._id, visitLocalId, visitedOn: visit.visitedOn,
-      status: 'private', reflection: '', publishedAt: 0, updatedAt: Date.now(), publicationRevision: revision + 1,
+      audience: 'friends', status: 'private', reflection: '', publishedAt: 0, updatedAt: Date.now(), publicationRevision: revision + 1,
     });
     if (publication) await ctx.db.patch(publicationId, { status: 'private', publicationRevision: revision + 1, updatedAt: Date.now() });
     return stateForPublication(ctx, (await ctx.db.get(publicationId))!);
@@ -103,31 +103,31 @@ export const unshare = mutation({
 export const get = query({
   args: { postId: v.string(), ...pageArgs }, returns: publicationView,
   handler: async (ctx, input) => {
-    const { profile } = await requireProfile(ctx);
+    const profile = await optionalProfile(ctx);
     if (!isUuid(input.postId)) throw new ConvexError({ code: 'not_found' });
-    const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile._id);
+    const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile?._id);
     return { ...await header(ctx, publication, author, visit), artworks: await projectArtworkPage(ctx, publication, visit, input) };
   },
 });
 export const getArtwork = query({
   args: { postId: v.string(), itemId: v.id('sharedVisitItems') }, returns: v.object({ ...sharedVisitCard.fields, enrichment: v.optional(publicArtworkStory) }),
   handler: async (ctx, { postId, itemId }) => {
-    const { profile } = await requireProfile(ctx);
-    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile._id);
+    const profile = await optionalProfile(ctx);
+    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
     const enrichment = await projectArtworkStory(ctx, save);
     return { ...await projectVisitAlbum(ctx, item, save, postId), ...(enrichment ? { enrichment } : {}) };
   },
 });
 
-async function historyPage(ctx: QueryCtx, viewerId: Id<'profiles'>, authors: Id<'profiles'>[], scope: string,
+async function historyPage(ctx: QueryCtx, viewerId: Id<'profiles'> | undefined, sources: HistoryStream[], scope: string,
   input: { cursor?: string | null; limit?: number }) {
   const { numItems } = pagination(input);
   const before = parseHistoryCursor(scope, input.cursor);
-  const streams = (await Promise.all(authors.map(async (id) => ({ id, head: await historyHead(ctx, id, before) }))));
+  const streams = await Promise.all(sources.map(async (source) => ({ source, head: await historyHead(source, before) })));
   const page = [];
   let scanned = 0, projected = 0, bytes = 0, last = before;
   while (scanned < LIMITS.maxPage && page.length < numItems) {
-    const stream = streams.filter((s): s is { id: Id<'profiles'>; head: Doc<'sharedVisits'> } => !!s.head)
+    const stream = streams.filter((s): s is { source: HistoryStream; head: Doc<'sharedVisits'> } => !!s.head)
       .sort((a, b) => -compareHistory(a.head, b.head))[0];
     if (!stream || !await readHeadroom(ctx) || projected + 3 > PAGE_ARTWORKS) break;
     const candidate = stream.head;
@@ -140,13 +140,19 @@ async function historyPage(ctx: QueryCtx, viewerId: Id<'profiles'>, authors: Id<
       page.push(result); bytes += size; projected += artworks.page.length;
     }
     last = candidate; scanned++;
-    const next = await historyHead(ctx, stream.id, candidate);
-    streams.find((s) => s.id === stream.id)!.head = next;
+    streams.find((s) => s.source === stream.source)!.head = await historyHead(stream.source, candidate);
   }
   const isDone = streams.every((s) => !s.head);
   return { page, isDone, cursor: isDone ? null : last ? historyCursor(scope, last) : input.cursor ?? null };
 }
 const historyResult = v.object({ page: v.array(publicationView), cursor: v.union(v.string(), v.null()), isDone: v.boolean() });
+export const listPublic = query({
+  args: pageArgs, returns: historyResult,
+  handler: async (ctx, input) => {
+    const viewer = await optionalProfile(ctx);
+    return historyPage(ctx, viewer?._id, [publicHistory(ctx)], `public:${viewer?._id ?? 'guest'}`, input);
+  },
+});
 export const listFeed = query({
   args: pageArgs, returns: historyResult,
   handler: async (ctx, input) => {
@@ -154,14 +160,21 @@ export const listFeed = query({
     // Each candidate is re-authorized in historyPage, so the edge list alone selects the streams.
     const edges = await acceptedRelationships(ctx, profile._id);
     const authors = edges.slice(0, LIMITS.friends).map((edge) => edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId);
-    return historyPage(ctx, profile._id, authors, `feed:${profile._id}`, input);
+    return historyPage(ctx, profile._id, authors.map((id) => profileHistory(ctx, id)), `feed:${profile._id}`, input);
   },
 });
 export const listByProfile = query({
   args: { profileId: v.id('profiles'), ...pageArgs }, returns: historyResult,
   handler: async (ctx, input) => {
-    const { profile } = await requireProfile(ctx);
-    if (!await canReadProfilePosts(ctx, input.profileId, profile._id)) throw new ConvexError({ code: 'not_found' });
-    return historyPage(ctx, profile._id, [input.profileId], `profile:${profile._id}:${input.profileId}`, input);
+    const viewer = await optionalProfile(ctx);
+    if (!await activeProfile(ctx, input.profileId)) throw new ConvexError({ code: 'not_found' });
+    if (viewer && viewer._id !== input.profileId) {
+      // A block in either direction hides every post, so skip the per-candidate scan that would reject them all.
+      const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
+      if (block?.active || reverseBlock?.active) return { page: [], cursor: null, isDone: true };
+    }
+    const publicOnly = !viewer || !await canReadProfilePosts(ctx, input.profileId, viewer._id);
+    const stream = publicOnly ? publicProfileHistory(ctx, input.profileId) : profileHistory(ctx, input.profileId);
+    return historyPage(ctx, viewer?._id, [stream], `profile:${viewer?._id ?? 'guest'}:${input.profileId}:${publicOnly ? 'public' : 'friends'}`, input);
   },
 });

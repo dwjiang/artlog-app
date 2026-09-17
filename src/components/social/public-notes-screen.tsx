@@ -1,3 +1,5 @@
+import { router } from 'expo-router';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useCollectionWall } from '@/lib/wall/use-collection-wall';
@@ -24,7 +26,7 @@ export function PublicNotesScreen() {
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingVertical: 20, gap: 24 }}>
     <Text style={{ paddingHorizontal: 20, fontSize: 14, lineHeight: 21, color: Gallery.muted }}>Your thoughts belong to you. Choose which notes visitors can read alongside artworks on your wall.</Text>
-    {!wall.signedIn ? <SocialState title="Sign in to share notes." detail="Your collection notes stay private on this device." />
+    {!wall.signedIn ? <SocialState title="Sign in to share notes." detail="Your collection notes stay private on this device." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
       : wall.profileRequired ? <SocialState title="Create your public profile first." /> : wall.loading ? <SocialState title="Opening your notes…" loading /> : <>
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between' }}><GalleryButton label={preview ? 'Back to selection' : 'Preview'} onPress={() => setPreview(!preview)} />
           <GalleryButton label={wall.pending ? 'Saving…' : 'Save choices'} disabled={wall.pending || !changes.length} variant="filled" onPress={() => { void save(); }} /></View>

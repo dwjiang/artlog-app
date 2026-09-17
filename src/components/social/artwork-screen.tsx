@@ -14,7 +14,8 @@ export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; i
   const session = useSocialSession();
   const shared = kind === 'visit';
   const invalid = !itemId || (kind !== 'wall' && !shared) || (shared && !postId);
-  const canRead = !invalid && !session.offline && (!shared || session.status === 'ready');
+  const sessionReady = ['ready', 'signed-out', 'profile-required'].includes(session.status);
+  const canRead = !invalid && !session.offline && (!shared || sessionReady);
   const wall = useSocialQuery(api.walls.getArtwork, canRead && !shared ? { itemId: itemId as Id<'wallItems'> } : 'skip', session.key);
   const visit = useSocialQuery(api.sharedVisits.getArtwork,
     canRead && shared ? { itemId: itemId as Id<'sharedVisitItems'>, postId: postId! } : 'skip', session.key);
@@ -22,7 +23,7 @@ export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; i
   const data = result.data;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === 'not_found';
   return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.content}>
-    {session.offline || (shared && session.status !== 'ready') ? <SocialGate session={session} />
+    {session.offline || (shared && !sessionReady) ? <SocialGate session={session} />
       : unavailable ? <SocialState title="Artwork unavailable." detail="This artwork is no longer shared." />
         : result.error ? <SocialState title="Couldn’t load this artwork." detail={socialErrorMessage(result.error) ?? 'Please try again.'}
           action="Try again" onAction={result.refresh} /> : !data ? <SocialState title="Opening artwork…" loading /> : <PublishedArtwork key={`${session.key}:${itemId}`}

@@ -2,16 +2,18 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { ProfileAvatar } from '../social/profile-avatar';
 
-/** Whose settings these are: the public profile when one exists, otherwise the guest or sign-in state. */
+/** Whose settings these are: the public profile when one exists, otherwise the guest or sign-in state. Guests open the sign-in sheet. */
 export function SettingsIdentity() {
   const session = useSocialSession();
   const profile = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const person = profile.data;
-  const target = person ? '/edit-profile' as const : session.status === 'profile-required' ? '/create-profile' as const : undefined;
+  const target = person ? '/edit-profile' as const : session.status === 'profile-required' ? '/create-profile' as const
+    : session.status === 'signed-out' ? signInRoute('account') : undefined;
   const status = person ? 'Public profile' : session.status === 'signed-out' ? 'Guest' : session.status === 'profile-required' ? 'No profile yet'
     : session.status === 'offline' ? 'Offline' : undefined;
   const detail = person ? `@${person.username}` : DETAILS[session.status] ?? 'Checking your account…';
@@ -23,7 +25,7 @@ export function SettingsIdentity() {
     </View>
     {status && <Text style={styles.status}>{status}</Text>}
   </>;
-  return target ? <Pressable accessibilityRole="button" accessibilityLabel={person ? 'Edit your profile' : 'Create your profile'} onPress={() => router.push(target)}
+  return target ? <Pressable accessibilityRole="button" accessibilityLabel={person ? 'Edit your profile' : session.status === 'signed-out' ? 'Sign in to Artlog' : 'Create your profile'} onPress={() => router.push(target)}
     style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>{content}</Pressable> : <View style={styles.row}>{content}</View>;
 }
 

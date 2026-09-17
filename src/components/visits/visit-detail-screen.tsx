@@ -36,7 +36,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   useFocusEffect(useCallback(() => { if (signedIn && token && generation) void controller.load(); }, [controller, signedIn, token, generation]));
   const active = sharing.acknowledged?.status === 'active';
   const status = !signedIn ? 'Private on this device' : sharing.profileRequired ? 'Private visit'
-    : sharing.error ? 'Sharing status unavailable' : active ? 'Shared with friends'
+    : sharing.error ? 'Sharing status unavailable' : active ? sharing.acknowledged?.audience === 'public' ? 'Shared publicly' : 'Shared with friends'
       : sharing.acknowledged ? 'Private visit' : 'Checking sharing status…';
   const openSharing = () => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } });
   function stopSharing() {

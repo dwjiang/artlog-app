@@ -14,6 +14,8 @@ let mockSession: SocialSession;
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => mockSession }));
 jest.mock('@/lib/social/use-social-query', () => ({ useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: (...args: unknown[]) => mockQuery(...args) }));
+jest.mock('../account/welcome-prompt', () => ({ WelcomePrompt: () => null }));
+jest.mock('@/db/repos/settings', () => ({ getSetting: jest.fn(async () => undefined), setSetting: jest.fn(async () => {}) }));
 jest.mock('@/components/settings/account-section', () => ({ AccountSection: () => {
   const { Text } = jest.requireActual('react-native'); return <Text>Apple sign-in</Text>;
 } }));
@@ -29,7 +31,7 @@ jest.mock('expo-router', () => {
       <TextInput accessibilityLabel="Name or username" onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} /> } };
 });
 
-const visit: SharedVisit = {
+const visit: SharedVisit = { audience: 'friends',
   postId: 'post-a', author: { profileId: 'alex' as never, name: 'Alex Chen', username: 'alex', publishedWallCount: 0 },
   venue: { venueId: 'museum' as never, name: 'Museum of Modern Art' }, visitedOn: '2026-09-12',
   reflection: 'I kept coming back to the blue.', publishedAt: 1, revision: 1,
@@ -67,7 +69,7 @@ it('opens visits, authors, and people from Home', async () => {
 });
 
 it.each([
-  ['signed-out', 'Apple sign-in'], ['profile-required', 'Make yourself at home.'],
+  ['profile-required', 'Make yourself at home.'],
   ['offline', 'You’re offline.'], ['loading', 'Getting things ready…'],
 ] as const)('gates private Home content while %s', async (status, expected) => {
   mockSession = { ...mockSession, status };
@@ -147,9 +149,24 @@ it.each([false, true])('keeps artwork proportions, credentials, and the unavaila
 });
 
 
-it.each(['signed-out', 'profile-required'] as const)('offers public walls without requiring an account profile: %s', async (status) => {
-  mockSession = { ...mockSession, status };
+it('loads public visits for guests and opens their details without signing in', async () => {
+  mockSession = { ...mockSession, status: 'signed-out', token: null };
+  mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: 'public' }] }));
   await render(<HomeScreen />);
+  expect(getFunctionName(mockPages.mock.calls[0][0])).toBe('sharedVisits:listPublic');
+  expect(mockPages.mock.calls[0][1]).toEqual({});
+  expect(screen.getByText('Public visits')).toBeOnTheScreen();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
+  await fireEvent.press(await screen.findByRole('button', { name: 'Sign in' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'friends' } });
+});
+
+it('offers public walls while the public visit feed is empty', async () => {
+  mockSession = { ...mockSession, status: 'signed-out' };
+  await render(<HomeScreen />);
+  expect(screen.getByText('No public visits yet.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Browse public walls' }));
   expect(mockPush).toHaveBeenCalledWith('/people');
 });
