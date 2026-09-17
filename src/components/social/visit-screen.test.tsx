@@ -17,7 +17,7 @@ const artwork = (id: string, title: string, artist = 'Claude Monet'): SharedArtw
 });
 const works = [artwork('a', 'Water Lilies'), artwork('b', 'The Dance', 'Henri Matisse'), artwork('c', 'Still Life', 'Paul Cézanne'),
   artwork('d', 'Haystacks'), artwork('e', 'The Garden')];
-const visit: SharedVisit = {
+const visit: SharedVisit = { audience: 'friends',
   postId: 'post-a', author: { profileId: 'alex' as never, name: 'Alex Chen', username: 'alex', publishedWallCount: 0 },
   venue: { venueId: 'museum' as never, name: 'Musée d’Orsay', city: 'Paris' }, visitedOn: '2026-09-12',
   reflection: 'The small details always win.', publishedAt: 1, revision: 1, artworkCount: 5,

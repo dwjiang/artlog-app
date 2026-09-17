@@ -224,7 +224,7 @@ it('delegates shared access to the social guard, never falls back to wall access
     const visitId = await ctx.db.insert('visits', { localId: visitLocalId, owner: { kind: 'account', accountId: f.a.accountId },
       venueId: f.venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: f.a.deviceId, changeVersion: 1 });
     await ctx.db.patch(f.a.saveId, { visitLocalId, visitId, venueId: f.venueId });
-    const publicationId = await ctx.db.insert('sharedVisits', { postId, profileId: f.a.profile.profileId, visitId, visitLocalId,
+    const publicationId = await ctx.db.insert('sharedVisits', { audience: 'friends', postId, profileId: f.a.profile.profileId, visitId, visitLocalId,
       visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
     return ctx.db.insert('sharedVisitItems', { publicationId, saveId: f.a.saveId, saveLocalId: f.a.saveLocalId, position: 0 });
   });

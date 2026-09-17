@@ -32,6 +32,9 @@ export default function RootLayout() {
             headerTitleStyle: { color: Gallery.ink }, headerLargeTitleStyle: { color: Gallery.ink }, headerBackButtonDisplayMode: 'minimal',
             headerShadowVisible: false, contentStyle: { backgroundColor: Gallery.paper } }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, headerShown: false }} />
+            <Stack.Screen name="welcome" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true, headerShown: false }} />
+            <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
             <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
               headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />

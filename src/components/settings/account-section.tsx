@@ -1,13 +1,15 @@
 import { Button, Host, VStack } from '@expo/ui/swift-ui';
-import * as AppleAuthentication from 'expo-apple-authentication';
+import { router } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { useAccount } from '@/lib/account/use-account';
+import { signInRoute } from '@/lib/account/sign-in-context';
+import { GalleryButton } from '../collection/gallery-button';
 
 export function AccountSection() {
-  const { account, available, busy, error, ready, signInWithApple, signOut, deleteAccount } = useAccount();
+  const { account, busy, error, signOut, deleteAccount } = useAccount();
   return (
     <View style={styles.section}>
       {account?.linked ? <>
@@ -24,12 +26,7 @@ export function AccountSection() {
           </VStack>
         </Host>}
       </> : <>
-        <ThemedText themeColor="textSecondary">Sign in with Apple to sync across devices. Your saved works and photos stay on this phone when you sign out.</ThemedText>
-        {available && ready && !busy && <AppleAuthentication.AppleAuthenticationButton
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={8} style={styles.appleButton} onPress={() => { void signInWithApple(); }}
-        />}
+        <GalleryButton label="Sign in to Artlog" onPress={() => router.push(signInRoute('account'))} />
       </>}
       {busy && <ThemedText themeColor="textSecondary">Updating account…</ThemedText>}
       {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
@@ -37,4 +34,4 @@ export function AccountSection() {
   );
 }
 
-const styles = StyleSheet.create({ section: { gap: Spacing.two }, appleButton: { height: 44, width: 230 } });
+const styles = StyleSheet.create({ section: { gap: Spacing.two } });

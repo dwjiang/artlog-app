@@ -1,21 +1,22 @@
 import { ownedAlbumPhoto, selectedPhotoMedia } from './albumMedia';
+import type { IndexRange, NamedTableInfo, Query } from 'convex/server';
 import { ConvexError, type Infer, v } from 'convex/values';
 import { pagination, type JournalOwner } from '../../shared/journal/contracts';
 import { isCalendarDate, isRevision, isUuid, LIMITS, utf8Bytes } from '../../shared/journal/limits';
-import { publicProfile, sharedVisitCard, sharedPhotoSelection, sharedSelection, validateSelection } from '../../shared/social/contracts';
-import type { Doc, Id } from '../_generated/dataModel';
+import { visitAudience, publicProfile, sharedVisitCard, sharedPhotoSelection, sharedSelection, validateSelection } from '../../shared/social/contracts';
+import type { DataModel, Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';
 import { findOwnedVisit, requireMembership, requireOwnedSave } from './ownership';
 import { projectProfile, projectSharedVisitCard } from './projections';
 import { resolveDisplayAsset } from './displayMedia';
 
-export const publicationHeader = v.object({
+export const publicationHeader = v.object({ audience: visitAudience,
   postId: v.string(), author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string(), city: v.optional(v.string()) }),
   artworkCount: v.optional(v.number()), visitedOn: v.string(), reflection: v.string(), publishedAt: v.number(), revision: v.number(),
 });
 export const artworkPage = v.object({ page: v.array(sharedVisitCard), cursor: v.union(v.string(), v.null()), isDone: v.boolean() });
 export const publicationView = v.object({ ...publicationHeader.fields, artworks: artworkPage });
-export const publicationState = v.object({ postId: v.union(v.string(), v.null()), status: v.union(v.literal('private'), v.literal('active')),
+export const publicationState = v.object({ audience: visitAudience, postId: v.union(v.string(), v.null()), status: v.union(v.literal('private'), v.literal('active')),
   photoSelections: v.optional(v.array(sharedPhotoSelection)), highlightLocalIds: v.optional(v.array(v.string())), removed: v.boolean(), reflection: v.string(), saveLocalIds: v.array(v.string()), revision: v.number() });
 export const PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_ARTWORKS = 50;
@@ -54,12 +55,12 @@ export function publicationItems(ctx: QueryCtx, publicationId: Id<'sharedVisits'
 }
 export async function header(ctx: QueryCtx, publication: Doc<'sharedVisits'>, profile: Doc<'profiles'>, visit: Doc<'visits'>): Promise<Infer<typeof publicationHeader>> {
   const venue = await ctx.db.get(visit.venueId);
-  return { artworkCount: (await publicationItems(ctx, publication._id)).length, postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
+  return { audience: publication.audience, artworkCount: (await publicationItems(ctx, publication._id)).length, postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
     visitedOn: publication.visitedOn, reflection: publication.reflection, publishedAt: publication.publishedAt, revision: publication.publicationRevision };
 }
 export async function stateForPublication(ctx: QueryCtx, publication: Doc<'sharedVisits'> | null): Promise<Infer<typeof publicationState>> {
   const items = publication ? await publicationItems(ctx, publication._id) : [];
-  return { photoSelections: items.filter((item) => item.photoLocalIds?.length).map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
+  return { audience: publication?.audience ?? 'friends', photoSelections: items.filter((item) => item.photoLocalIds?.length).map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
     highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId), postId: publication?.postId ?? null, status: publication?.status ?? 'private', removed: !!publication?.removal,
     reflection: publication?.reflection ?? '', revision: publication?.publicationRevision ?? 0,
     saveLocalIds: items.map((item) => item.saveLocalId) };
@@ -124,13 +125,19 @@ export function parseHistoryCursor(scope: string, cursor?: string | null): Histo
     return { visitedOn: value.visitedOn, postId: value.postId };
   } catch { throw new ConvexError({ code: 'invalid_pagination' }); }
 }
-export async function historyHead(ctx: QueryCtx, profileId: Id<'profiles'>, before: HistoryKey | null) {
-  if (!before) return ctx.db.query('sharedVisits').withIndex('by_profile_status_history',
-    (q) => q.eq('profileId', profileId).eq('status', 'active')).order('desc').first();
-  const sameDate = await ctx.db.query('sharedVisits').withIndex('by_profile_status_history',
-    (q) => q.eq('profileId', profileId).eq('status', 'active').eq('visitedOn', before.visitedOn).lt('postId', before.postId)).order('desc').first();
-  return sameDate ?? ctx.db.query('sharedVisits').withIndex('by_profile_status_history',
-    (q) => q.eq('profileId', profileId).eq('status', 'active').lt('visitedOn', before.visitedOn)).order('desc').first();
+// Every history index ends in ['visitedOn', 'postId']; a stream binds the prefix so one head query serves all of them.
+type HistoryTail = IndexRange & { eq(field: 'visitedOn', value: string): { lt(field: 'postId', value: string): IndexRange }; lt(field: 'visitedOn', value: string): IndexRange };
+export type HistoryStream = (bound: (tail: HistoryTail) => IndexRange) => Query<NamedTableInfo<DataModel, 'sharedVisits'>>;
+export const profileHistory = (ctx: QueryCtx, profileId: Id<'profiles'>): HistoryStream => (bound) =>
+  ctx.db.query('sharedVisits').withIndex('by_profile_status_history', (q) => bound(q.eq('profileId', profileId).eq('status', 'active')));
+export const publicProfileHistory = (ctx: QueryCtx, profileId: Id<'profiles'>): HistoryStream => (bound) =>
+  ctx.db.query('sharedVisits').withIndex('by_profile_audience_status_history', (q) => bound(q.eq('profileId', profileId).eq('audience', 'public').eq('status', 'active')));
+export const publicHistory = (ctx: QueryCtx): HistoryStream => (bound) =>
+  ctx.db.query('sharedVisits').withIndex('by_audience_status_history', (q) => bound(q.eq('audience', 'public').eq('status', 'active')));
+export async function historyHead(stream: HistoryStream, before: HistoryKey | null) {
+  if (!before) return stream((tail) => tail).order('desc').first();
+  const sameDate = await stream((tail) => tail.eq('visitedOn', before.visitedOn).lt('postId', before.postId)).order('desc').first();
+  return sameDate ?? stream((tail) => tail.lt('visitedOn', before.visitedOn)).order('desc').first();
 }
 
 export async function projectVisitAlbum(ctx: QueryCtx, item: Doc<'sharedVisitItems'>, save: Doc<'collections'>, postId: string): Promise<Infer<typeof sharedVisitCard>> {

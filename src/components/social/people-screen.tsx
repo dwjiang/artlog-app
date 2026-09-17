@@ -9,7 +9,7 @@ import type { PublicProfile } from '@/lib/social/types';
 import { useCursorPages, useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { LIMITS } from '@/shared/journal/limits';
-import { PageFooter, SocialState } from './social-state';
+import { PageFooter, SocialGate, SocialState } from './social-state';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { SocialText as Text } from './social-text';
 import { ProfileIdentity } from './visit-card';
@@ -38,7 +38,7 @@ export function PeopleScreen() {
       ListHeaderComponent={<View style={{ padding: 18, gap: 16 }}>{!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 12 }}>Discover people and their little museums.</Text>}<NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
-      ListEmptyComponent={filter === 'friends' ? <SocialState title={session.status !== 'ready' ? 'Sign in to find your friends.' : friends.error ? 'Couldn’t load your friends.' : friends.loading ? 'Opening friends…' : 'No friends found.'}
+      ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : friends.loading ? 'Opening friends…' : 'No friends found.'}
         loading={friends.loading} detail={friends.loading ? undefined : 'Search All people to make a connection.'} action={friends.error ? 'Try again' : undefined} onAction={friends.refresh} /> : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
         : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2"
           detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />

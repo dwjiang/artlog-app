@@ -1,8 +1,9 @@
+import { getAuthUserId } from '@convex-dev/auth/server';
 import { ConvexError } from 'convex/values';
 import { type JournalOwner, ownerKey, sameOwner } from '../../shared/journal/contracts';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx, MutationCtx } from '../_generated/server';
-import { requireDevice } from './auth';
+import { findDeviceForUser, requireDevice } from './auth';
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function ownerForDevice(ctx: ReadCtx, device: Doc<'devices'>): Promise<JournalOwner> {
@@ -67,4 +68,14 @@ export async function nextChangeVersion(ctx: MutationCtx, owner: JournalOwner): 
   if (state) await ctx.db.patch(state._id, { version });
   else await ctx.db.insert('journalSyncState', { owner, version });
   return version;
+}
+
+export async function optionalProfile(ctx: ReadCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) return null;
+  const device = await findDeviceForUser(ctx, userId);
+  if (device?.banned) throw new ConvexError({ code: 'device_banned' });
+  if (!device?.accountId || !await ctx.db.get(device.accountId)) return null;
+  const profile = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', device.accountId!)).unique();
+  return profile?.active && !profile.removal ? profile : null;
 }

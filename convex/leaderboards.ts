@@ -1,24 +1,12 @@
-import { getAuthUserId } from '@convex-dev/auth/server';
-import { ConvexError, v } from 'convex/values';
+import { v } from 'convex/values';
 import { leaderboardMetric, leaderboardVisibility, rankScores } from '../shared/social/leaderboard';
 import { publicProfile } from '../shared/social/contracts';
 import { internal } from './_generated/api';
 import { recordContributionScore } from './lib/leaderboard';
-import { internalMutation, mutation, query, type QueryCtx } from './_generated/server';
-import { findDeviceForUser } from './lib/auth';
-import { activeProfile, requireProfile } from './lib/ownership';
+import { internalMutation, mutation, query } from './_generated/server';
+import { activeProfile, optionalProfile, requireProfile } from './lib/ownership';
 import { acceptedRelationships, findBlock } from './lib/friendships';
 import { projectProfile } from './lib/projections';
-
-async function globalViewer(ctx: QueryCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) return null;
-  const device = await findDeviceForUser(ctx, userId);
-  if (device?.banned) throw new ConvexError({ code: 'device_banned' });
-  if (!device?.accountId || !await ctx.db.get(device.accountId)) return null;
-  const profile = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', device.accountId!)).unique();
-  return profile?.active && !profile.removal ? profile : null;
-}
 
 export const preference = query({ args: {}, returns: leaderboardVisibility, handler: async (ctx) => (await requireProfile(ctx)).profile.leaderboardVisibility ?? 'off' });
 export const setPreference = mutation({ args: { visibility: leaderboardVisibility }, returns: v.null(), handler: async (ctx, { visibility }) => {
@@ -29,7 +17,7 @@ export const list = query({
   args: { metric: leaderboardMetric, audience: v.union(v.literal('friends'), v.literal('global')), period: v.union(v.literal('month'), v.literal('all')) },
   returns: v.object({ visibility: leaderboardVisibility, rows: v.array(v.object({ profile: publicProfile, score: v.number(), rank: v.number() })) }),
   handler: async (ctx, args) => {
-    const viewer = args.audience === 'friends' ? (await requireProfile(ctx)).profile : await globalViewer(ctx);
+    const viewer = args.audience === 'friends' ? (await requireProfile(ctx)).profile : await optionalProfile(ctx);
     const visibility = viewer?.leaderboardVisibility ?? 'off';
     const period = args.period === 'all' ? 'all' : new Date().toISOString().slice(0, 7);
     const edges = args.audience === 'friends' && viewer ? await acceptedRelationships(ctx, viewer._id) : [];

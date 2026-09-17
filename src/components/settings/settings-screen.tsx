@@ -1,52 +1,50 @@
-import { LeaderboardPreference } from './leaderboard-preference';
+import { Host, Icon, ListItem, Text } from '@expo/ui';
+import { List, Section } from '@expo/ui/swift-ui';
+import { background, foregroundStyle, frame, listStyle, scrollContentBackground } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
-import { VisitPreference } from './visit-preference';
-import { GalleryButton } from '../collection/gallery-button';
-import { useConvexAuth, useQuery } from 'convex/react';
-import { useState, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import type { ComponentProps } from 'react';
 
-import { api } from '../../../convex/_generated/api';
-import { AboutSection } from './about-section';
-import { AccountSection } from './account-section';
-import { DevTools } from './dev-tools';
-import { ExportSection } from './export-section';
-import { PrivacySection } from './privacy-section';
-import { ContributionsSheet, SharingSection } from './sharing-section';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, Spacing } from '@/constants/theme';
-import { useDeviceReady } from '@/lib/use-device-ready';
+import { Gallery } from '@/constants/theme';
+import { signInRoute } from '@/lib/account/sign-in-context';
+import { useAccount } from '@/lib/account/use-account';
 
 export function SettingsScreen() {
-  const { isAuthenticated } = useConvexAuth();
-  const me = useQuery(api.devices.me, isAuthenticated ? {} : 'skip');
-  const ready = useDeviceReady();
-  const contributions = useQuery(api.contributions.mine, ready ? {} : 'skip');
-  const [contributionsOpen, setContributionsOpen] = useState(false);
-
-  return <><ScrollView style={{ flex: 1, backgroundColor: Colors.light.background }}
-    contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: Spacing.three, gap: Spacing.four }}>
-    <SettingsGroup title="Account"><AccountSection /></SettingsGroup>
-    <SettingsGroup title="Preferences"><VisitPreference /><LeaderboardPreference /><GalleryButton label="Public notes" icon="note.text" onPress={() => router.push('/public-notes')} /></SettingsGroup>
-    <SettingsGroup title="Sharing"><SharingSection contributions={contributions} onOpenContributions={() => setContributionsOpen(true)} /></SettingsGroup>
-    <SettingsGroup title="Export"><ExportSection /></SettingsGroup>
-    <SettingsGroup title="Privacy"><PrivacySection /></SettingsGroup>
-    <SettingsGroup title="About"><AboutSection /></SettingsGroup>
-    {__DEV__ && <SettingsGroup title="Developer">
-      <ThemedText type="small" themeColor="textSecondary">
-        {me ? `Device: ${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Device: registering…'}
-      </ThemedText>
-      <DevTools attested={me?.attested ?? false} />
-    </SettingsGroup>}
-  </ScrollView>
-    <ContributionsSheet open={contributionsOpen} onDismiss={() => setContributionsOpen(false)} contributions={contributions} />
-  </>;
+  const { account } = useAccount();
+  return <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
+    <List modifiers={[listStyle('insetGrouped'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink)]}>
+      <Section footer={<Text textStyle={{ fontSize: 12, color: Gallery.muted }}>{account?.linked
+        ? 'Saved works and photos sync privately across your devices.' : 'Saved works and photos stay on this phone when you sign out.'}</Text>}>
+        <ListItem leading={<Icon name="person.crop.circle" size={38} color={Gallery.muted} />}
+          trailing={<Icon name="chevron.right" size={12} color={Gallery.muted} />}
+          supportingText={<Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{account?.linked
+            ? account.email ?? `${account.deviceCount} linked ${account.deviceCount === 1 ? 'device' : 'devices'}`
+            : 'Sync your collection and share visits with friends.'}</Text>}
+          onPress={() => router.push(account?.linked ? { pathname: '/settings-detail', params: { section: 'account' } } : signInRoute('account'))}>
+          {account?.linked ? 'Your Artlog account' : 'Sign in to Artlog'}
+        </ListItem>
+      </Section>
+      <Section title="Preferences">
+        <SettingsRow label="Visits" icon="building.columns.fill" section="visits" />
+        <SettingsRow label="Leaderboards" icon="trophy.fill" section="leaderboards" />
+        <SettingsRow label="Public notes" icon="note.text" onPress={() => router.push('/public-notes')} />
+      </Section>
+      <Section title="Sharing">
+        <SettingsRow label="Contributions" icon="person.crop.square.fill" section="contributions" />
+      </Section>
+      <Section title="Your data">
+        <SettingsRow label="Export journal" icon="square.and.arrow.up" section="export" />
+        <SettingsRow label="Privacy" icon="hand.raised.fill" section="privacy" />
+        <SettingsRow label="About Artlog" icon="info.circle.fill" section="about" />
+      </Section>
+      {__DEV__ && <Section title="Developer"><SettingsRow label="Developer tools" icon="wrench.and.screwdriver.fill" section="developer" /></Section>}
+    </List>
+  </Host>;
 }
 
-function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
-  return <View style={{ gap: Spacing.two }}>
-    <ThemedText type="smallBold" themeColor="textSecondary" accessibilityRole="header" style={{ paddingHorizontal: Spacing.three }}>{title}</ThemedText>
-    <ThemedView style={{ gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.three, borderCurve: 'continuous' }}>{children}</ThemedView>
-  </View>;
+function SettingsRow({ label, icon, section, onPress }: {
+  label: string; icon: ComponentProps<typeof Icon>['name']; section?: string; onPress?: () => void;
+}) {
+  return <ListItem leading={<Icon name={icon} size={22} color={Gallery.accent} modifiers={[frame({ width: 28, height: 28 })]} />}
+    trailing={<Icon name="chevron.right" size={12} color={Gallery.muted} />}
+    onPress={onPress ?? (() => router.push({ pathname: '/settings-detail', params: { section } }))}>{label}</ListItem>;
 }

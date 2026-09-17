@@ -32,17 +32,19 @@ it('renders accessible square placeholders for absent and broken images and reco
   await view.rerender(<DisplayMedia media={{ ...catalog, url: 'https://museum.example/new.jpg' }} label="Saved title" width={100} />);
   expect(screen.getByRole('image', { name: 'Saved title' })).toBeOnTheScreen();
 });
-it('requires shared-context credentials and drops the image when credentials disappear', async () => {
+it('serves shared visits with optional credentials and requires them only for previews', async () => {
   const media = { ...derivative, reference: { kind: 'sharedVisit' as const, postId: 'post-a', itemId: 'shared-item' as never } };
   const view = await render(<DisplayMedia media={media} label="Saved title" width={100} />);
-  expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
+  expect(screen.getByRole('image').props.source.uri).toContain('kind=sharedVisit&itemId=shared-item&postId=post-a');
+  expect(screen.getByRole('image').props.source.headers).toBeUndefined();
   await view.rerender(<DisplayMedia media={media} label="Saved title" width={100} token="token-a" />);
   expect(screen.getByRole('image').props.source.headers).toEqual({ Authorization: 'Bearer token-a' });
-  expect(screen.getByRole('image').props.source.uri).toContain('kind=sharedVisit&itemId=shared-item&postId=post-a');
-  await view.rerender(<DisplayMedia media={media} label="Saved title" width={100} token={null} />);
-  expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
   const preview = { ...derivative, reference: { kind: 'sharedVisitPreview' as const, visitLocalId: 'visit-a', saveLocalId: 'save-a' } };
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} />);
+  expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
   await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token="token-a" />);
   expect(screen.getByRole('image').props.source.uri).toContain('kind=sharedVisitPreview&visitLocalId=visit-a&saveLocalId=save-a');
   expect(screen.getByRole('image').props.source.headers).toEqual({ Authorization: 'Bearer token-a' });
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token={null} />);
+  expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
 });

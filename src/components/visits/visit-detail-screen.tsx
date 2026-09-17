@@ -34,7 +34,8 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const { controller, token } = sharing;
   useFocusEffect(useCallback(() => { if (signedIn && token && generation) void controller.load(); }, [controller, signedIn, token, generation]));
   const status = !signedIn ? 'Private on this device' : sharing.profileRequired ? 'Private visit'
-    : sharing.error ? 'Sharing status unavailable' : sharing.acknowledged?.status === 'active' ? 'Shared with friends'
+    : sharing.error ? 'Sharing status unavailable' : sharing.acknowledged?.status === 'active'
+      ? sharing.acknowledged.audience === 'public' ? 'Shared publicly' : 'Shared with friends'
       : sharing.acknowledged ? 'Private visit' : 'Checking sharing status…';
   return <>
     <Stack.Screen options={{ title: 'Visit' }} />
@@ -51,7 +52,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
         <Text selectable style={[styles.title, { letterSpacing: -0.8 }]}>{visit.venueName}</Text>
         <Text selectable style={styles.caption}>{visit.location || 'Location unavailable'}{'\n'}{formatVisitDate(visit.visitedOn)}</Text>
       </View>
-      <GalleryButton label={sharing.acknowledged?.status === 'active' ? 'Manage sharing' : 'Share with friends'} variant="filled" fullWidth
+      <GalleryButton label={sharing.acknowledged?.status === 'active' ? 'Manage sharing' : 'Share visit'} variant="filled" fullWidth
         onPress={() => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })} />
       <View>
         <View style={styles.sectionLabel}>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { SocialSession } from '@/lib/social/use-social-session';
@@ -9,12 +9,19 @@ const mockSession = { status: 'signed-out' as SocialSession['status'], key: 'gue
 let mockVisibility = 'off';
 let mockRows = [{ profile: { profileId: 'global-person', name: 'Ada', username: 'ada', publishedWallCount: 2 }, rank: 1, score: 4 }];
 const mockSettings = new Map<string, string>();
+let mockSheetDismiss: (() => void) | undefined;
 
 jest.mock('@expo/ui');
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@expo/ui/swift-ui', () => {
   const React = jest.requireActual('react'), { Pressable, Text, View } = jest.requireActual('react-native');
   return { ...jest.requireMock('@expo/ui'),
+    Host: ({ children }: { children: ReactNode }) => <View>{children}</View>,
+    VStack: View, ScrollView: View,
+    BottomSheet: ({ isPresented, onDismiss, children }: { isPresented: boolean; onDismiss: () => void; children: ReactNode }) => {
+      mockSheetDismiss = onDismiss;
+      return isPresented ? <View>{children}</View> : null;
+    },
     Menu: ({ label, children }: { label: ReactNode; children: ReactNode }) => <View>{label}{children}</View>,
     Picker: ({ children, onSelectionChange }: { children: ReactNode; onSelectionChange: (value: string) => void }) => <View>{React.Children.map(children, (child: { props: { children: string; modifiers: { $type: string; tag?: string }[] } }) =>
       <Pressable accessibilityRole="button" accessibilityLabel={`Choose ${child.props.children}`} onPress={() => onSelectionChange(child.props.modifiers.find((modifier) => modifier.$type === 'tag')?.tag ?? '')}><Text>{child.props.children}</Text></Pressable>)}</View>,
@@ -65,13 +72,25 @@ it('changes category and period independently using the dropdowns', async () => 
 });
 
 it('explains ranking rules and offers participation management from that view', async () => {
+  mockSession.status = 'ready';
   await render(<LeaderboardScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'How rankings work' }));
   expect(screen.getByRole('header', { name: 'Periods and ties' })).toBeOnTheScreen();
   expect(screen.getByText(/1, 2, 2, 4/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
+  await act(() => mockSheetDismiss?.());
   expect(screen.getByRole('header', { name: 'Participation' })).toBeOnTheScreen();
   expect(screen.getByText('Totals only. Not your visit history.')).toBeOnTheScreen();
+});
+
+it('finishes dismissing ranking rules before opening the guest sign-in sheet', async () => {
+  await render(<LeaderboardScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'How rankings work' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
+  expect(mockPush).not.toHaveBeenCalled();
+  await act(() => mockSheetDismiss?.());
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'leaderboards' } });
+  expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull();
 });
 
 it('keeps Manage available with a ranking and only changes participation after Save', async () => {
@@ -81,6 +100,7 @@ it('keeps Manage available with a ranking and only changes participation after S
   await fireEvent.press(screen.getByRole('button', { name: 'Friends only' }));
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+  await act(() => mockSheetDismiss?.());
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Manage' }));
   expect(screen.getByRole('button', { name: 'Friends & Global' })).toBeSelected();
@@ -88,6 +108,21 @@ it('keeps Manage available with a ranking and only changes participation after S
   await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
   expect(mockChange).toHaveBeenCalledWith({ visibility: 'off' });
   await waitFor(() => expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull());
+});
+
+it('holds Cancel while a participation save is pending so a dismissed sheet never outlives its screen state', async () => {
+  mockSession.status = 'ready';
+  let finish!: () => void;
+  mockChange.mockReturnValueOnce(new Promise<null>((resolve) => { finish = () => resolve(null); }));
+  await render(<LeaderboardScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Friends only' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  await act(async () => { finish(); });
+  await waitFor(() => expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull());
+  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  expect(screen.getByRole('header', { name: 'Participation' })).toBeOnTheScreen();
 });
 
 it('keeps a failed participation change available for retry', async () => {

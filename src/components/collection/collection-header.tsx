@@ -1,3 +1,4 @@
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { SocialText as Text } from '../social/social-text';
@@ -13,7 +14,7 @@ export function CollectionHeader() {
   const session = useSocialSession();
   const { data: profile } = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const friends = useSocialQuery(api.profiles.friends, session.status === 'ready' ? {} : 'skip', session.key);
-  const edit = () => router.push(profile ? '/edit-profile' : session.status === 'profile-required' ? '/create-profile' : '/settings');
+  const edit = () => router.push(profile ? '/edit-profile' : session.status === 'profile-required' ? '/create-profile' : signInRoute('wall'));
   return <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 14, backgroundColor: Gallery.paper }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 }}>

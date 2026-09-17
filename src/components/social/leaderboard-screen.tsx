@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { useLeaderboardChoice, type LeaderboardChoice } from '@/lib/social/use-leaderboard-choice';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
@@ -31,6 +32,12 @@ export function LeaderboardScreen() {
   const [ownVisible, setOwnVisible] = useState(false);
   const list = useRef<FlatList<BoardRow>>(null);
   const { bottom } = useSafeAreaInsets();
+  function manageParticipation() {
+    if (guest) {
+      setSheet(undefined);
+      router.push(session.status === 'signed-out' ? signInRoute('leaderboards') : '/create-profile');
+    } else setSheet('participation');
+  }
   const rows = board.data?.rows ?? [];
   const mine = rows.find((row) => row.profile.profileId === session.profileId);
   const visibility = board.data?.visibility ?? 'off';
@@ -88,7 +95,7 @@ export function LeaderboardScreen() {
         <SocialState title="Your friends, when you’re ready." detail="A profile is needed to connect with friends. You can browse Global without joining." icon="person.2"
           action="Browse Global" onAction={() => filter({ audience: 'global' })} />
         <GalleryButton label={session.status === 'profile-required' ? 'Create your profile' : 'Sign in to connect'}
-          onPress={() => router.push(session.status === 'profile-required' ? '/create-profile' : '/settings')} />
+          onPress={() => router.push(session.status === 'profile-required' ? '/create-profile' : signInRoute('leaderboards'))} />
       </View> : <SocialGate session={session} />
         : board.loading ? <SocialState title="Opening leaderboard…" loading />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
@@ -110,9 +117,9 @@ export function LeaderboardScreen() {
         </Pressable>
         : <View style={{ flex: 1 }}><Text style={styles.footerTitle}>{visibility === 'friends' ? 'Friends only' : 'Not participating'}</Text>
           <Text style={styles.caption}>{visibility === 'friends' ? 'You’re not listed on Global.' : 'Browse without sharing your totals.'}</Text></View>}
-      <GalleryButton label={visibility === 'off' ? 'Join' : 'Manage'} variant="outlined" onPress={() => setSheet('participation')} />
+      <GalleryButton label={visibility === 'off' ? 'Join' : 'Manage'} variant="outlined" onPress={manageParticipation} />
     </View>
-    {sheet === 'rules' && <LeaderboardRules onDismiss={() => setSheet(undefined)} onParticipation={() => setSheet('participation')} />}
+    {sheet === 'rules' && <LeaderboardRules onDismiss={() => setSheet(undefined)} onParticipation={manageParticipation} />}
     {sheet === 'participation' && <LeaderboardParticipation onDismiss={() => setSheet(undefined)} />}
   </View>;
 }

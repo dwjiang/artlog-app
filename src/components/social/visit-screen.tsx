@@ -27,7 +27,7 @@ export function VisitScreen({ postId }: { postId: string }) {
 function VisitGallery({ postId, session }: { postId: string; session: ReturnType<typeof useSocialSession> }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const ready = session.status === 'ready';
+  const ready = !session.offline && ['ready', 'signed-out', 'profile-required'].includes(session.status);
   const visit = useCursorPages(api.sharedVisits.get, ready && postId ? { postId } : 'skip', session.key, artworksPage, artworkId);
   const unavailable = !postId || convexErrorCode(visit.error) === 'not_found';
   const totalCount = visit.first?.artworkCount ?? visit.items.length;
@@ -77,8 +77,8 @@ function SharedVisitHeading({ visit }: { visit: SharedVisit }) {
   return <View style={styles.heading}>
     <View style={styles.stampRow}>
       <View style={styles.stamp}><VisitSymbol name="building.columns" size={23} color="#66735C" /></View>
-      <View style={styles.status}><VisitSymbol name="person.2" size={11} color="#627158" />
-        <Text style={styles.statusText}>Shared with friends</Text></View>
+      <View style={styles.status}><VisitSymbol name={visit.audience === 'public' ? 'globe' : 'person.2'} size={11} color="#627158" />
+        <Text style={styles.statusText}>{visit.audience === 'public' ? 'Shared publicly' : 'Shared with friends'}</Text></View>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s profile`} style={styles.owner}
       onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: visit.author.profileId } })}>

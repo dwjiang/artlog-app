@@ -1,3 +1,4 @@
+import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { SharePhotoPicker } from './share-photo-picker';
 import { Host, RNHostView } from '@expo/ui';
 import { Toggle } from '@expo/ui/swift-ui';
@@ -16,7 +17,8 @@ import { DisplayMedia } from '../artwork/display-media';
 import { GalleryButton } from '../collection/gallery-button';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { ProfileForm } from '../social/profile-form';
-import { AccountSection } from '../settings/account-section';
+import { SocialState } from '../social/social-state';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 type Sharing = ReturnType<typeof useVisitSharing>;
@@ -60,7 +62,8 @@ export function VisitShareScreen() {
   const columns = fontScale > 1.5 ? 2 : 3;
   const tileWidth = (width - 40 - (columns - 1) * 8) / columns;
   const { controller, draft } = sharing;
-  if (!visit.owner.startsWith('account:')) return <VisitPage><Text style={styles.body}>Sign in to share visits with friends.</Text><AccountSection /></VisitPage>;
+  if (!visit.owner.startsWith('account:')) return <VisitPage><SocialState title="Share a visit." detail="Sign in to share visits with friends." icon="person.2"
+    action="Sign in" onAction={() => router.push(signInRoute('visit'))} /></VisitPage>;
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so friends can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to share visits with friends.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
   if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
@@ -78,14 +81,19 @@ export function VisitShareScreen() {
     keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}
     ListHeaderComponent={<View style={{ gap: 18 }}>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what travels.</Text>
-      <Text style={styles.caption}>Your visit to {visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · friends only</Text>
-      {sharing.success && <Text accessibilityRole="alert" style={styles.body}>{sharing.success === 'published' ? 'Visit shared with friends.' : 'Sharing stopped.'}</Text>}
+      <Text style={styles.caption}>Your visit to {visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · {draft.audience === 'public' ? 'public' : 'friends only'}</Text>
+      {sharing.success && <Text accessibilityRole="alert" style={styles.body}>{sharing.success === 'published' ? sharing.acknowledged?.audience === 'public' ? 'Visit shared publicly.' : 'Visit shared with friends.' : 'Sharing stopped.'}</Text>}
       {active && <View style={styles.card}>
-        <Text style={styles.body}>Shared with friends</Text>
+        <Text style={styles.body}>{sharing.acknowledged?.audience === 'public' ? 'Shared publicly' : 'Shared with friends'}</Text>
         <GalleryButton label="View shared visit" disabled={sharing.busy} onPress={() => router.push({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })} />
-        <GalleryButton label="Stop sharing" destructive disabled={sharing.busy} onPress={() => Alert.alert('Stop sharing this visit?', 'Friends will no longer be able to see this visit.',
+        <GalleryButton label="Stop sharing" destructive disabled={sharing.busy} onPress={() => Alert.alert('Stop sharing this visit?', 'This visit will no longer be shared with anyone.',
           [{ text: 'Cancel', style: 'cancel' }, { text: 'Stop sharing', style: 'destructive', onPress: () => { void controller.unshare(); } }])} />
       </View>}
+      <NativeSegmentedPicker label="Who can see this visit" disabled={sharing.busy || sharing.acknowledged?.removed} value={draft.audience} onChange={(audience) => controller.edit({ audience })}
+        options={[{ value: 'friends', label: 'Friends' }, { value: 'public', label: 'Public' }]} />
+      <Text style={styles.caption}>{draft.audience === 'public'
+        ? 'Anyone can see this visit, its selected photos and reflection, including people without an account.'
+        : 'Only your connected friends can see this visit.'}</Text>
       {sharing.acknowledged?.removed ? <Text style={styles.error}>This share is no longer available.</Text> : <>
         <View style={styles.sectionLabel}><Text style={styles.caption}>Choose artworks</Text>
           <Text style={styles.fine}>{selected.size}/{LIMITS.selectedSaves} selected</Text></View>
@@ -120,8 +128,8 @@ export function VisitShareScreen() {
       </View>}
     </View>}
     ListFooterComponent={<View style={{ gap: 12 }}>
-      <Text style={styles.fine}>Choose up to 3 highlights for the feed. Friends can open the visit to see every selected artwork and photo.</Text>
-      <Text style={styles.caption}>A reflection for friends (optional)</Text>
+      <Text style={styles.fine}>Choose up to 3 highlights for the feed. Viewers can open the visit to see every selected artwork and photo.</Text>
+      <Text style={styles.caption}>A shared reflection (optional)</Text>
       <TextInput accessibilityLabel="Shared reflection" placeholder="What stayed with you?" value={draft.reflection}
         multiline maxLength={LIMITS.sharedReflection} editable={!sharing.busy} style={[styles.input, styles.reflection]}
         onChangeText={(reflection) => controller.edit({ reflection })} />
@@ -140,7 +148,7 @@ export function VisitSharePreviewScreen() {
   }
   if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
   return <VisitPage>
-    <Text style={styles.caption}>This is what your friends will see.</Text>
+    <Text style={styles.caption}>{preview.audience === 'public' ? 'This is what anyone can see.' : 'This is what your friends will see.'}</Text>
     <Text style={styles.heading}>{preview.author.name}</Text><Text style={styles.caption}>@{preview.author.username}</Text>
     <Text style={styles.title}>{preview.venue.name}</Text><Text style={styles.body}>{formatVisitDate(preview.visitedOn)}</Text>
     {!!preview.reflection && <Text selectable style={styles.body}>{preview.reflection}</Text>}
@@ -149,9 +157,9 @@ export function VisitSharePreviewScreen() {
       <Text style={styles.body}>{artwork.title}</Text><Text style={styles.caption}>{artwork.artist}</Text>
     </View>)}
     <ShareError sharing={sharing} />
-    <GalleryButton label={sharing.busy ? 'Sharing…' : sharing.acknowledged?.status === 'active' ? 'Update shared visit' : 'Share with friends'} variant="filled" fullWidth
+    <GalleryButton label={sharing.busy ? 'Sharing…' : sharing.acknowledged?.status === 'active' ? 'Update shared visit' : preview.audience === 'public' ? 'Share publicly' : 'Share with friends'} variant="filled" fullWidth
       disabled={sharing.busy || sharing.conflict} onPress={() => { void publish(); }} />
-    <Text style={styles.caption}>Only your friends can see this visit. Your private journal stays private.</Text>
+    <Text style={styles.caption}>{preview.audience === 'public' ? 'This visit will appear on public Home, including for people without an account. Your private journal stays private.' : 'Only your friends can see this visit. Your private journal stays private.'}</Text>
     <Stack.Screen options={{ title: `Preview · ${preview.artworks.length} ${preview.artworks.length === 1 ? 'artwork' : 'artworks'}` }} />
   </VisitPage>;
 }

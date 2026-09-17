@@ -14,6 +14,7 @@ import { captureOwner } from '@/lib/account/owner-store';
 import { LIMITS } from '@/shared/journal/limits';
 import { convexErrorCode } from '@/lib/network-error';
 import { GalleryButton } from './gallery-button';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { WallArtworkSheet } from './wall-sheets';
 import { WallProfileSheet } from './wall-profile-sheet';
 import { WallGallery } from './wall-gallery';
@@ -154,7 +155,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             <Text style={[styles.emptyTitle, { color: wallInk }]}>{wall.loading ? 'Opening your wall…' : 'Your own little museum.'}</Text>
             <Text style={[styles.emptyCaption, { color: wallInk }]}>{!wall.signedIn ? 'A place for the art that stays with you. Sign in to curate your public wall.'
               : wall.profileRequired ? 'Create a profile, then choose the art you’d like to show.' : editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>
-            {wall.loading ? <ActivityIndicator color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" inverse={!isLightWall(color)} variant="filled" onPress={() => router.push('/settings')} />
+            {wall.loading ? <ActivityIndicator color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" capsule inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
               : wall.profileRequired ? <GalleryButton label="Create your wall" inverse={!isLightWall(color)} variant="filled" onPress={() => setProfile(true)} />
                 : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
