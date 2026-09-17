@@ -1,3 +1,5 @@
+import { SignInPromo } from '../account/sign-in-promo';
+import { WelcomePrompt } from '../account/welcome-prompt';
 import { socialStyles } from './social-styles';
 import { Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -16,25 +18,27 @@ const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
   const session = useSocialSession();
-  const feed = useCursorPages(api.sharedVisits.listFeed, session.status === 'ready' ? {} : 'skip', session.key, feedPage, visitId);
+  const guest = session.status === 'signed-out';
+  const ready = session.status === 'ready' || guest;
+  const feed = useCursorPages(guest ? api.sharedVisits.listPublic : api.sharedVisits.listFeed, ready ? {} : 'skip', session.key, feedPage, visitId);
   const router = useRouter();
-  const ready = session.status === 'ready';
   return <>
+    <WelcomePrompt status={session.status} />
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
       data={ready ? feed.items : []} keyExtractor={visitId} initialNumToRender={4} maxToRenderPerBatch={4}
       renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
       refreshControl={ready ? <RefreshControl refreshing={feed.refreshing}
         tintColor={Gallery.accent} onRefresh={feed.refresh} /> : undefined}
-      ListHeaderComponent={<View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.eyebrow}>Recent visits</Text>
+      ListHeaderComponent={!ready ? null : <>{guest && <SignInPromo />}<View style={styles.heading}>
+        <Text accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Image source="sf:arrow.down" tintColor={Gallery.muted} style={{ width: 11, height: 11 }} />
           <Text style={styles.order}>Newest visit first</Text>
         </View>
-      </View>}
+      </View></>}
       ListEmptyComponent={!ready ? <SocialGate session={session} browsePublic /> : feed.done && !feed.error
-        ? <SocialState title="A new view is on its way." detail="When your friends share a museum visit, it will appear here. Find someone whose eye you love."
-          action="Find people" onAction={() => router.push('/people')} /> : null}
+        ? <SocialState title={guest ? "No public visits yet." : "A new view is on its way."} detail={guest ? "When someone shares a visit publicly, it will appear here. Explore public walls in the meantime." : "When your friends share a museum visit, it will appear here. Find someone whose eye you love."}
+          action={guest ? "Browse public walls" : "Find people"} onAction={() => router.push('/people')} /> : null}
       ListFooterComponent={ready ? <PageFooter {...feed} count={feed.items.length} /> : null}
       onEndReached={ready ? feed.loadMore : undefined} onEndReachedThreshold={0.4} />
     <Stack.Toolbar placement="left">

@@ -3,8 +3,8 @@ import { ConvexError } from 'convex/values';
 import { createVisitSharingController } from './visit-sharing-controller';
 import type { SharePreview, ShareState, VisitSharingTransport } from './visit-sharing-transport';
 import { captureOwner, subscribeOwner, switchOwner } from '../account/owner-store';
-const initial: ShareState = { status: 'private', postId: null, removed: false, reflection: '', saveLocalIds: [], revision: 0 };
-const preview: SharePreview = { author: { name: 'Reader', username: 'reader' } as SharePreview['author'], venue: { venueId: 'museum' as never, name: 'Museum' },
+const initial: ShareState = { audience: 'friends', status: 'private', postId: null, removed: false, reflection: '', saveLocalIds: [], revision: 0 };
+const preview: SharePreview = { audience: 'friends', author: { name: 'Reader', username: 'reader' } as SharePreview['author'], venue: { venueId: 'museum' as never, name: 'Museum' },
   visitedOn: '2024-02-29', reflection: 'For friends', artworks: [] };
 const transport = { getState: jest.fn(), preview: jest.fn(), publish: jest.fn(), get: jest.fn(), unshare: jest.fn() } satisfies VisitSharingTransport;
 const flush = jest.fn();
@@ -27,7 +27,7 @@ it('selects at most 50 artworks, starts with no shared reflection, and allows ze
   expect(controller.getSnapshot().draft?.reflection).toBe('');
   controller.edit({ saveLocalIds: [], reflection: 'For friends' });
   await controller.preview(); await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith({ visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0, photoSelections: [], highlightLocalIds: [] }, expect.anything());
+  expect(transport.publish).toHaveBeenCalledWith({ audience: 'friends', visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0, photoSelections: [], highlightLocalIds: [] }, expect.anything());
   expect(controller.getSnapshot().success).toBe('published');
 });
 it('flushes before every request and sends no request when sync fails', async () => {
@@ -90,4 +90,16 @@ it('reads all artwork pages of a shared visit', async () => {
   transport.get.mockResolvedValueOnce({ ...preview, artworks: { page: [{ itemId: 'two' }], isDone: true, cursor: null } });
   await controller.view();
   expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual(['one', 'two']);
+});
+
+it('defaults to friends and requires a fresh preview when the audience changes', async () => {
+  await controller.load();
+  expect(controller.getSnapshot().draft?.audience).toBe('friends');
+  await controller.preview();
+  controller.edit({ audience: 'public' });
+  expect(controller.getSnapshot().preview).toBeNull();
+  expect(await controller.publish()).toBe(false);
+  await controller.preview();
+  await controller.publish();
+  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: 'public' }), expect.anything());
 });

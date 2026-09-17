@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
+import { SettingsDetailScreen } from './settings-detail-screen';
 import { SettingsScreen } from './settings-screen';
 import { SHARING_SETTING } from './sharing-section';
 import { PRIVACY_COPY } from './privacy-section';
@@ -8,6 +9,7 @@ import { LabelActions, SHARE_BUTTON } from '@/components/scan/label/label-action
 import { getSharingDefault, setSharingDefault } from '@/lib/settings/sharing';
 import { setSetting } from '@/db/repos/settings';
 
+const mockPush = jest.fn();
 const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
@@ -21,7 +23,13 @@ const contribution = {
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
 jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View }));
+jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View,
+  List: jest.requireActual('react-native').View,
+  Section: ({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) => {
+    const { View, Text } = jest.requireActual('react-native');
+    return <View>{title && <Text accessibilityRole="header">{title}</Text>}{children}{footer}</View>;
+  },
+}));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => mockReady }));
@@ -47,7 +55,7 @@ jest.mock('convex/react', () => ({
     return undefined;
   },
 }));
-jest.mock('expo-router', () => ({ Link: ({ children }: { children: ReactNode }) => children }));
+jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) }, Stack: { Screen: () => null }, Link: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(async () => {
   jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false;
@@ -55,19 +63,25 @@ beforeEach(async () => {
   await setSharingDefault(true);
 });
 
-it('renders every section, the privacy promise and About backend status without the placeholder', async () => {
+it('shows grouped settings and opens the matching detail', async () => {
   await render(<SettingsScreen />);
-  for (const title of ['Sharing', 'Account', 'Export', 'Privacy', 'About', 'Developer']) {
-    expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
+  for (const title of ['Preferences', 'Sharing', 'Your data', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
+  for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About Artlog', 'about']]) {
+    await fireEvent.press(screen.getByRole('button', { name: label }));
+    expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
   }
+});
+
+it('keeps privacy and About details accessible', async () => {
+  const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(screen.getByText(PRIVACY_COPY)).toBeOnTheScreen();
+  await view.rerender(<SettingsDetailScreen section="about" />);
   expect(screen.getByText('Backend: connected')).toBeOnTheScreen();
-  expect(screen.queryByText('Open venue picker')).toBeNull();
   expect(screen.getByRole('button', { name: 'Source code' })).toBeOnTheScreen();
 });
 
 it('persists sharing off and hides the offer when returning to a label review', async () => {
-  const settings = await render(<SettingsScreen />);
+  const settings = await render(<SettingsDetailScreen section="contributions" />);
   const toggle = screen.getByRole('switch', { name: SHARING_SETTING });
   await waitFor(() => expect(toggle).toBeChecked());
   await fireEvent.press(toggle);
@@ -78,14 +92,14 @@ it('persists sharing off and hides the offer when returning to a label review', 
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
   await review.unmount();
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="contributions" />);
   await waitFor(() => expect(screen.getByRole('switch', { name: SHARING_SETTING })).toBeEnabled());
   expect(screen.getByRole('switch', { name: SHARING_SETTING })).not.toBeChecked();
 });
 
 it('updates a mounted label review when sharing is reenabled', async () => {
   await setSharingDefault(false);
-  await render(<><SettingsScreen /><LabelActions canSave canShare saving={false} sharing={false} onSave={jest.fn()} onShare={jest.fn()} onViewSaved={jest.fn()} /></>);
+  await render(<><SettingsDetailScreen section="contributions" /><LabelActions canSave canShare saving={false} sharing={false} onSave={jest.fn()} onShare={jest.fn()} onViewSaved={jest.fn()} /></>);
   const toggle = screen.getByRole('switch', { name: SHARING_SETTING });
   await waitFor(() => expect(toggle).toBeEnabled());
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
@@ -95,7 +109,7 @@ it('updates a mounted label review when sharing is reenabled', async () => {
 });
 
 it('opens contributions and withdraws the selected work', async () => {
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="contributions" />);
   await fireEvent.press(screen.getByRole('button', { name: 'My contributions (1)' }));
   expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
   expect(screen.getByText('Shared · Tentative')).toBeOnTheScreen();
@@ -107,7 +121,7 @@ it('opens contributions and withdraws the selected work', async () => {
 
 it('keeps withdrawal retryable when the network fails', async () => {
   mockWithdraw.mockRejectedValueOnce(new Error('offline'));
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="contributions" />);
   await fireEvent.press(screen.getByRole('button', { name: 'My contributions (1)' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Withdraw' }));
   expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't withdraw/);
@@ -115,15 +129,15 @@ it('keeps withdrawal retryable when the network fails', async () => {
   expect(screen.getByText('Withdrawn')).toBeOnTheScreen();
 });
 
-it('offers Apple sign-in and wires the existing account action', async () => {
+it('opens the shared sign-in sheet from the account row', async () => {
   await render(<SettingsScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
-  expect(mockSignIn).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
 it('shows linked devices and preserves sign-out and account deletion controls', async () => {
   mockAccount = { linked: true, deviceCount: 2, email: 'visitor@example.com' };
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="account" />);
   expect(screen.getByText('Signed in · 2 devices')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Delete account' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
@@ -133,9 +147,8 @@ it('shows linked devices and preserves sign-out and account deletion controls', 
 it('keeps local choices available before device registration completes', async () => {
   mockReady = false;
   await setSetting('sharing-default', 'false');
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="contributions" />);
   await waitFor(() => expect(screen.getByRole('switch', { name: SHARING_SETTING })).toBeEnabled());
-  expect(screen.getByRole('button', { name: 'Export collection as JSON' })).toBeEnabled();
   await fireEvent.press(screen.getByRole('button', { name: 'My contributions (…)' }));
   expect(screen.getByText('Connecting…')).toBeOnTheScreen();
 });

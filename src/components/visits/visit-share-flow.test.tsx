@@ -28,8 +28,8 @@ jest.mock('expo-router', () => {
 });
 beforeEach(() => {
   jest.clearAllMocks(); mockPage = 'index'; mockVisit.owner = 'account:a';
-  mockSharing = { acknowledged: { postId: null, status: 'private', removed: false, revision: 0, saveLocalIds: [], reflection: '' },
-    draft: { visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
+  mockSharing = { acknowledged: { audience: 'friends', postId: null, status: 'private', removed: false, revision: 0, saveLocalIds: [], reflection: '' },
+    draft: { audience: 'friends', visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
     profileRequired: false, conflict: false, busy: false, controller: mockController, token: 'token' } as unknown as ReturnType<typeof useVisitSharing>;
 });
 it('shows selection and an independent shared reflection without exposing the private reflection', async () => {
@@ -57,7 +57,7 @@ it('lets an artwork tile change the shared selection without changing the reflec
 });
 it('renders the server preview and stays on it when publishing fails', async () => {
   mockPage = 'preview';
-  mockSharing.preview = { author: { name: 'Reader', username: 'reader' } as never, venue: { name: 'Museum', venueId: 'museum' as never },
+  mockSharing.preview = { audience: 'friends', author: { name: 'Reader', username: 'reader' } as never, venue: { name: 'Museum', venueId: 'museum' as never },
     visitedOn: '2024-02-29', reflection: 'Shared reflection only', artworks: [{ saveLocalId: 'save', artwork: { title: 'Water Lilies', artist: 'Monet', media: { kind: 'placeholder', width: 1, height: 1 } } }] };
   mockController.publish.mockResolvedValue(false);
   await render(<VisitShareLayout />);
@@ -79,4 +79,24 @@ it('reuses profile and sign-in entry points before offering sharing', async () =
   mockVisit.owner = 'device:guest'; await view.rerender(<VisitShareLayout />);
   await waitFor(() => expect(screen.queryByLabelText('Shared reflection')).toBeNull());
   expect(screen.getByText('Sign in to share visits with friends.')).toBeOnTheScreen();
+});
+
+it('starts with Friends and explains public access before previewing', async () => {
+  const view = await render(<VisitShareLayout />);
+  expect(screen.getByRole('button', { name: 'Friends' })).toBeSelected();
+  await fireEvent.press(screen.getByRole('button', { name: 'Public' }));
+  expect(mockController.edit).toHaveBeenCalledWith({ audience: 'public' });
+  mockSharing.draft!.audience = 'public';
+  await view.rerender(<VisitShareLayout />);
+  expect(screen.getByText('Anyone can see this visit, its selected photos and reflection, including people without an account.')).toBeOnTheScreen();
+});
+
+it('names the public audience in the final sharing action', async () => {
+  mockPage = 'preview';
+  mockSharing.preview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as never,
+    venue: { name: 'Museum', venueId: 'museum' as never }, visitedOn: '2024-02-29', reflection: '', artworks: [] };
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('This is what anyone can see.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Share publicly' }));
+  expect(mockController.publish).toHaveBeenCalledTimes(1);
 });

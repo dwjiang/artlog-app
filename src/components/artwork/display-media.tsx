@@ -13,7 +13,7 @@ export function DisplayMedia(props: Props) {
   const { media, token } = props;
   let uri: string | undefined;
   if (media.kind === 'catalog') uri = media.url;
-  else if ((media.kind === 'derivative' || media.kind === 'photo') && (media.reference.kind === 'wallItem' || token)) {
+  else if ((media.kind === 'derivative' || media.kind === 'photo') && (media.reference.kind !== 'sharedVisitPreview' || token)) {
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
     if (site) {
       const url = new URL('/display-media', site);

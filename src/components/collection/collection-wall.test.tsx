@@ -86,7 +86,7 @@ it('gives guests a sign-in action without requesting or publishing a wall', asyn
   await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
-  expect(mockPush).toHaveBeenCalledWith('/settings');
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'wall' } });
   await fireEvent.press(screen.getByRole('button', { name: 'All artworks' }));
   expect(mockPush).toHaveBeenCalledWith('/all-artworks');
   expect(mockTransport.getMine).not.toHaveBeenCalled();

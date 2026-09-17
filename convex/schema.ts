@@ -6,7 +6,7 @@ import { v } from 'convex/values';
 import model from '../shared/model/model-version.json';
 import { albumPhoto, albumEncounter } from '../shared/collection/album';
 import { journalOwner, journalVisit, journalSave } from '../shared/journal/contracts';
-import { wallLayout, relationshipState, publicationStatus, mediaSource, reportTarget, reportEvidence, reportReview, removal } from '../shared/social/contracts';
+import { wallLayout, relationshipState, publicationStatus, visitAudience, mediaSource, reportTarget, reportEvidence, reportReview, removal } from '../shared/social/contracts';
 import {
   candidateSignal,
   challengePurpose,
@@ -539,9 +539,11 @@ export default defineSchema({
   sharedVisits: defineTable({
     removal: v.optional(removal),
     postId: v.string(), profileId: v.id('profiles'), visitId: v.id('visits'), visitLocalId: v.string(),
-    visitedOn: v.string(), status: publicationStatus, reflection: v.string(),
+    visitedOn: v.string(), status: publicationStatus, audience: visitAudience, reflection: v.string(),
     publishedAt: v.number(), updatedAt: v.number(), publicationRevision: v.number(),
   }).index('by_postId', ['postId']).index('by_profile_visit', ['profileId', 'visitLocalId'])
+    .index('by_audience_status_history', ['audience', 'status', 'visitedOn', 'postId'])
+    .index('by_profile_audience_status_history', ['profileId', 'audience', 'status', 'visitedOn', 'postId'])
     .index('by_profile_status_history', ['profileId', 'status', 'visitedOn', 'postId']).index('by_visitId', ['visitId']),
   sharedVisitItems: defineTable({
     publicationId: v.id('sharedVisits'), saveId: v.id('collections'), saveLocalId: v.string(), position: v.number(),

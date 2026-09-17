@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useState } from 'react';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from '../collection/gallery-button';
 import { LeaderboardSheet } from './leaderboard-sheet';
@@ -24,11 +25,12 @@ const rules = [
 ];
 
 export function LeaderboardRules({ onDismiss, onParticipation }: { onDismiss: () => void; onParticipation: () => void }) {
-  return <LeaderboardSheet title="How rankings work" onDismiss={onDismiss}>
+  const [participating, setParticipating] = useState(false);
+  return <LeaderboardSheet title="How rankings work" isPresented={!participating} onDismiss={participating ? onParticipation : onDismiss}>
     {rules.map((rule) => <View key={rule.title} style={{ gap: 10 }}>
       <Text accessibilityRole="header" style={{ color: Gallery.ink, fontSize: 16, fontWeight: '600' }}>{rule.title}</Text>
       {rule.paragraphs.map((paragraph) => <Text key={paragraph} style={{ color: Gallery.muted, fontSize: 13, lineHeight: 21 }}>{paragraph}</Text>)}
     </View>)}
-    <GalleryButton label="Manage participation" variant="outlined" fullWidth onPress={onParticipation} />
+    <GalleryButton label="Manage participation" variant="outlined" fullWidth onPress={() => setParticipating(true)} />
   </LeaderboardSheet>;
 }

@@ -60,7 +60,7 @@ it('deletion revokes profile and publication access immediately', async () => {
     const venueId = await ctx.db.insert('museums', { key: 'v', name: 'Museum', lat: 0, lng: 0, seedSource: 'manual', region: 'US', optOut: false });
     const localId = crypto.randomUUID();
     const visitId = await ctx.db.insert('visits', { owner: { kind: 'account', accountId: user.accountId }, localId, venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: user.deviceId, changeVersion: 1 });
-    await ctx.db.insert('sharedVisits', { postId, profileId: profile.profileId, visitId, visitLocalId: localId, visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
+    await ctx.db.insert('sharedVisits', { audience: 'friends', postId, profileId: profile.profileId, visitId, visitLocalId: localId, visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
   });
   expect(await t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId))).toMatchObject({ publication: { postId } });
   await user.as.mutation(api.accounts.deleteAccount, {});
@@ -87,7 +87,7 @@ it('invalidates reverse save references, consent and revisions while keeping the
     const saveId = await ctx.db.insert('collections', { owner: { kind: 'account', accountId: user.accountId }, localId, snapshot: { title: 'Work', artist: '' }, savedAt: 1, note: 'Note', updatedAt: 1, updatedBy: user.deviceId, changeVersion: 2 });
     const wallId = await ctx.db.insert('walls', { profileId: profile.profileId, color: '#fff', layoutRevision: 3 });
     const itemId = await ctx.db.insert('wallItems', { wallId, profileId: profile.profileId, saveId, placementId: localId, saveLocalId: localId, active: true, noteVisible: true, noteRevision: 2, layout: { x: 0, y: 0, width: 1, layer: 0, frame: 'none' } });
-    const post = await ctx.db.insert('sharedVisits', { profileId: profile.profileId, visitId, visitLocalId: 'visit', postId: crypto.randomUUID(), visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 5 });
+    const post = await ctx.db.insert('sharedVisits', { audience: 'friends', profileId: profile.profileId, visitId, visitLocalId: 'visit', postId: crypto.randomUUID(), visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 5 });
     await ctx.db.insert('sharedVisitItems', { publicationId: post, saveId, saveLocalId: localId, position: 0 });
     await ctx.db.patch(profile.profileId, { publishedWallCount: 1 });
     return { localId, visitId, wallId, itemId, post };
@@ -125,8 +125,8 @@ it('publishes eligible media with an allowlist and binds derivatives to a public
 });
 it('enforces shared selection, profile, and geography boundaries', () => {
   const id = crypto.randomUUID();
-  expect(() => validateSelection({ saveLocalIds: [id], reflection: '', revision: 0 })).not.toThrow();
-  for (const input of [{ saveLocalIds: [id, id], reflection: '', revision: 0 }, { saveLocalIds: [], reflection: 'x'.repeat(1201), revision: 0 }, { saveLocalIds: ['bad'], reflection: '', revision: 0 }, { saveLocalIds: [], reflection: '', revision: -1 }]) expect(() => validateSelection(input)).toThrow();
+  expect(() => validateSelection({ audience: 'friends', saveLocalIds: [id], reflection: '', revision: 0 })).not.toThrow();
+  for (const input of [{ saveLocalIds: [id, id], reflection: '', revision: 0 }, { saveLocalIds: [], reflection: 'x'.repeat(1201), revision: 0 }, { saveLocalIds: ['bad'], reflection: '', revision: 0 }, { saveLocalIds: [], reflection: '', revision: -1 }]) expect(() => validateSelection({ ...input, audience: 'friends' })).toThrow();
   expect(() => validateWallItems([], Infinity)).toThrow();
   for (const input of [{ name: ' ' }, { name: 'x'.repeat(61) }, { name: 'Reader', bio: 'x'.repeat(161) }]) expect(() => validateProfile(input)).toThrow();
   expect(() => validateGeography({})).not.toThrow();

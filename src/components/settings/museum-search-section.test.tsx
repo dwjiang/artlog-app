@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { MUSEUM_SEARCH_SETTING } from './museum-search-section';
 import { runMuseumSearch } from '@/lib/museum-search/flow';
-import { SettingsScreen } from './settings-screen';
+import { SettingsDetailScreen } from './settings-detail-screen';
 import { getMuseumSearchConsent, setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
@@ -14,15 +14,14 @@ jest.mock('@/lib/account/use-account', () => ({
   useAccount: () => ({ account: null, available: false, busy: false, ready: false }),
 }));
 jest.mock('convex/react', () => ({ useQuery: () => undefined, useConvexAuth: () => ({ isAuthenticated: false }) }));
-jest.mock('expo-router', () => ({ Link: ({ children }: { children: ReactNode }) => children }));
+jest.mock('expo-router', () => ({ Link: ({ children }: { children: ReactNode }) => children, Stack: { Screen: () => null } }));
 jest.mock('@expo/ui');
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => false }));
 
 beforeEach(async () => { await setMuseumSearchConsent('unset'); });
 
 it('mounts the privacy control in Settings and requires consent before enabling it', async () => {
-  await render(<SettingsScreen />);
-  expect(screen.getByRole('header', { name: 'Account' })).toBeOnTheScreen();
+  await render(<SettingsDetailScreen section="privacy" />);
   const toggle = await screen.findByRole('switch', { name: MUSEUM_SEARCH_SETTING });
   await waitFor(() => expect(toggle).toBeEnabled());
   expect(toggle).not.toBeChecked();
@@ -36,13 +35,13 @@ it('mounts the privacy control in Settings and requires consent before enabling 
 
 it('persists off as declined through a remount and keeps cancellation off', async () => {
   await setMuseumSearchConsent('granted');
-  const view = await render(<SettingsScreen />);
+  const view = await render(<SettingsDetailScreen section="privacy" />);
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   await fireEvent.press(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING }));
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   expect(await getMuseumSearchConsent()).toBe('declined');
   await view.unmount();
-  await render(<SettingsScreen />);
+  await render(<SettingsDetailScreen section="privacy" />);
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).toBeEnabled());
   expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
   await fireEvent.press(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING }));
@@ -56,7 +55,7 @@ it('persists off as declined through a remount and keeps cancellation off', asyn
 
 it('prevents any photo preparation or upload after revoking consent in Settings and returning to a scan', async () => {
   await setMuseumSearchConsent('granted');
-  const view = await render(<SettingsScreen />);
+  const view = await render(<SettingsDetailScreen section="privacy" />);
   const toggle = screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING });
   await waitFor(() => expect(toggle).toBeChecked());
   await fireEvent.press(toggle);

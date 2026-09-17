@@ -60,7 +60,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     const available = new Set(saveLocalIds());
     const previous = preserveDraft ? state.draft : null;
     const draft = previous ? { ...previous, saveLocalIds: previous.saveLocalIds.filter((id) => available.has(id)), revision: acknowledged.revision }
-      : { visitLocalId, revision: acknowledged.revision,
+      : { visitLocalId, audience: acknowledged.audience, revision: acknowledged.revision,
         saveLocalIds: (acknowledged.postId ? acknowledged.saveLocalIds.filter((id) => available.has(id)) : [...available]).slice(0, LIMITS.selectedSaves),
         reflection: acknowledged.postId ? acknowledged.reflection : '',
         photoSelections: acknowledged.postId ? acknowledged.photoSelections ?? [] : photoSelections().filter((row) => [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId)),
@@ -78,7 +78,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       const result = await transport.getState({ visitLocalId }, context);
       if (current()) { if (state.acknowledged?.revision !== result.revision) emit({ preview: null }); accept(result); }
     }),
-    edit(patch: Partial<Pick<ShareSelection, 'reflection' | 'saveLocalIds' | 'photoSelections' | 'highlightLocalIds'>>) {
+    edit(patch: Partial<Pick<ShareSelection, 'audience' | 'reflection' | 'saveLocalIds' | 'photoSelections' | 'highlightLocalIds'>>) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;

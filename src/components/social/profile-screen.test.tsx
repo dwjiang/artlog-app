@@ -15,11 +15,11 @@ jest.mock('@/lib/social/use-social-query', () => ({
   useCursorPages: (...args: unknown[]) => { mockPages(...args); return { items: [], done: true, loading: false }; },
 }));
 beforeEach(() => { jest.clearAllMocks(); mockRelationship = { state: 'none', blocked: false }; });
-it('does not request private visits for strangers or a visitor preview', async () => {
+it('requests authorized public visits for strangers and omits visits in wall preview', async () => {
   const view = await render(<ProfileScreen profileId="friend" />);
   await fireEvent.press(screen.getByRole('tab', { name: 'Visits' }));
-  expect(screen.getByText('Visits are shared with friends.')).toBeOnTheScreen();
-  expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
+  expect(screen.getByText('No shared visits yet.')).toBeOnTheScreen();
+  expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: 'friend' });
   mockRelationship = { state: 'accepted', blocked: false };
   await view.rerender(<ProfileScreen profileId="friend" preview />);
   expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
