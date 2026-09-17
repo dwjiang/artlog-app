@@ -1,8 +1,8 @@
-import { Button, Host } from '@expo/ui';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { SaveAnywayForm, type SaveAnywayFormProps } from './save-anyway-form';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
@@ -26,9 +26,7 @@ export function UnsupportedCard(save: SaveAnywayFormProps) {
         <ThemedText type="subtitle">{UPDATE_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{UPDATE_LINE}</ThemedText>
       </View>
-      <Host matchContents colorScheme="light">
-        <Button label={UPDATE_BUTTON} onPress={openStore} />
-      </Host>
+      <GalleryButton label={UPDATE_BUTTON} variant="filled" fullWidth onPress={openStore} />
       {notice && <ThemedText type="small">{notice}</ThemedText>}
       <SaveAnywayForm {...save} />
     </>

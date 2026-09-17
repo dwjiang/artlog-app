@@ -8,7 +8,7 @@ import type { SharePreview, ShareSelection, ShareState, SharedVisit, VisitSharin
 type Session = { owner: string; scope?: string; token: string | null; isCurrent: () => boolean };
 type State = {
   acknowledged: ShareState | null; draft: ShareSelection | null; preview: SharePreview | null; shared: SharedVisit | null;
-  busy: boolean; error?: string; profileRequired: boolean; conflict: boolean; success?: 'published' | 'unshared';
+  busy: boolean; error?: string; profileRequired: boolean; conflict: boolean;
 };
 const empty = (): State => ({ acknowledged: null, draft: null, preview: null, shared: null, busy: false, profileRequired: false, conflict: false });
 
@@ -36,7 +36,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       request.signal.addEventListener('abort', () => reject(new Error('Sharing request cancelled or timed out')), { once: true });
     });
     const timeout = setTimeout(() => request.abort(), 30_000);
-    emit({ busy: true, error: undefined, success: undefined });
+    emit({ busy: true, error: undefined });
     try {
       await Promise.race([flush(), cancelled]);
       if (!current()) return false;
@@ -91,7 +91,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       }
       draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
       draft.highlightLocalIds = draft.highlightLocalIds?.filter((id) => draft.saveLocalIds.includes(id)).slice(0, 3);
-      emit({ draft, preview: null, success: undefined });
+      emit({ draft, preview: null });
     },
     preview: () => run(async (context, current) => {
       const fresh = await transport.getState({ visitLocalId }, context);
@@ -106,7 +106,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       const draft = state.draft;
       return run(async (context, current) => {
         const result = await transport.publish(draft, context);
-        if (current()) { accept(result, false); emit({ preview: null, success: 'published' }); }
+        if (current()) { accept(result, false); emit({ preview: null }); }
       });
     },
     unshare: () => {
@@ -114,7 +114,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       const revision = state.acknowledged.revision;
       return run(async (context, current) => {
         const result = await transport.unshare({ visitLocalId, revision }, context);
-        if (current()) { accept(result); emit({ preview: null, shared: null, success: 'unshared', conflict: false }); }
+        if (current()) { accept(result); emit({ preview: null, shared: null, conflict: false }); }
       });
     },
     view: () => run(async (context, current) => {

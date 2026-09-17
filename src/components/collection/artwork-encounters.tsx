@@ -7,6 +7,7 @@ import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from '@/d
 import { listVisits } from '@/db/repos/visits';
 import type { SavedWork } from '@/db/schema';
 import { formatVisitDate } from '@/lib/journal/history';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from './gallery-button';
 
 export function useArtworkEncounters(work: SavedWork) {
@@ -30,7 +31,7 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
         placeholder="What did you notice this time?" placeholderTextColor={Gallery.muted} style={styles.input} />
       <View style={styles.actions}>
         <GalleryButton label="Save encounter note" onPress={() => {
-          try { editEncounter(work.localId, encounter.visit.localId, { note }, work.owner); setEditing(false); setError(undefined); }
+          try { editEncounter(work.localId, encounter.visit.localId, { note }, work.owner); setEditing(false); setError(undefined); showToast('Private note saved for this encounter.'); }
           catch { setError('Your note could not be saved. Try again.'); }
         }} />
         <GalleryButton label="Cancel" onPress={() => { setEditing(false); setError(undefined); }} />
@@ -54,7 +55,7 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
     {encounters.map(({ visit, photoCount }) => <Pressable key={visit.localId} accessibilityRole="button"
       accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
       accessibilityState={{ selected: visit.localId === visitId }} disabled={visit.localId === visitId}
-      onPress={() => router.push({ pathname: '/[savedId]', params: { savedId: work.localId, visitId: visit.localId } })} style={styles.visit}>
+      onPress={() => router.push({ pathname: '/saved/[savedId]', params: { savedId: work.localId, visitId: visit.localId } })} style={styles.visit}>
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={styles.visitName}>{visit.venueName}</Text>
         <Text style={styles.caption}>{formatVisitDate(visit.visitedOn)} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</Text>
@@ -65,7 +66,7 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
     {!encounters.length && <Text style={styles.caption}>Saved without a visit. You can link one anytime.</Text>}
     {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [
       { text: 'Cancel', style: 'cancel' }, { text: 'Unlink', onPress: () => {
-        try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/[savedId]', params: { savedId: work.localId } }); }
+        try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/saved/[savedId]', params: { savedId: work.localId } }); }
         catch { setError('This visit could not be unlinked. Try again.'); }
       } },
     ])} />}

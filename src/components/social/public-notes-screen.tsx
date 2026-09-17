@@ -29,7 +29,7 @@ export function PublicNotesScreen() {
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between' }}><GalleryButton label={preview ? 'Back to selection' : 'Preview'} onPress={() => setPreview(!preview)} />
           <GalleryButton label={wall.pending ? 'Saving…' : 'Save choices'} disabled={wall.pending || !changes.length} variant="filled" onPress={() => { void save(); }} /></View>
         {preview && wall.acknowledged ? <PublicNotesPreview wall={{ profileId: wall.acknowledged.profileId, color: wall.acknowledged.color,
-          items: items.map((item) => ({ itemId: item.itemId, layout: item.layout, artwork: item.artwork,
+          artworkCount: new Set(items.map((item) => item.saveLocalId)).size, items: items.map((item) => ({ itemId: item.itemId, layout: item.layout, artwork: item.artwork,
             ...(visible(item) && item.privateNote ? { note: item.privateNote } : {}) })) }} />
           : items.filter((item) => item.noteEligible || item.noteVisible).map((item) => <View key={item.itemId} style={{ marginHorizontal: 20, paddingBottom: 22, gap: 12, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: Gallery.ink }}>{item.artwork.artist}</Text>

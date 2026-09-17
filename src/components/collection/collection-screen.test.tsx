@@ -74,7 +74,7 @@ describe('with saved works', () => {
     expect(screen.getAllByRole('button', { name: /, / }).map((cell) => cell.props.accessibilityLabel)).toEqual([
       '100% Cotton, Anon', 'Water Lilies, Claude Monet', 'Untitled, Unknown',
     ]);
-    expect(mockHrefs).toContainEqual({ pathname: '/[savedId]', params: { savedId: 'lilies' } });
+    expect(mockHrefs).toContainEqual({ pathname: '/saved/[savedId]', params: { savedId: 'lilies' } });
     expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
     expect(screen.getByText('Claude Monet')).toBeOnTheScreen();
   });

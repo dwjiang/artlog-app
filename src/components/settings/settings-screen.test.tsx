@@ -20,6 +20,7 @@ const contribution = {
 };
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
+jest.mock('./settings-identity', () => ({ SettingsIdentity: () => null }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));

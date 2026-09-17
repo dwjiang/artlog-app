@@ -18,6 +18,11 @@ export function selectArtworkPhotos(savedLocalId: string, owner = getLocalOwner(
   return db.select().from(artworkPhotos).where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.savedLocalId, savedLocalId), isNull(artworkPhotos.deletedAt)))
     .orderBy(asc(artworkPhotos.capturedAt), asc(artworkPhotos.localId));
 }
+/** Photos captured during one visit; a photo saved without a visit or at another visit belongs to neither share. */
+export function selectVisitArtworkPhotos(savedLocalId: string, visitLocalId: string, owner = getLocalOwner()) {
+  return db.select().from(artworkPhotos).where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.savedLocalId, savedLocalId),
+    eq(artworkPhotos.visitLocalId, visitLocalId), isNull(artworkPhotos.deletedAt))).orderBy(asc(artworkPhotos.capturedAt), asc(artworkPhotos.localId));
+}
 /** Any album row with this id, tombstoned or live; ids are stable so a capture's row outlives its file path. */
 export function findArtworkPhoto(localId: string, owner = getLocalOwner()) {
   return db.select().from(artworkPhotos).where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId))).get();

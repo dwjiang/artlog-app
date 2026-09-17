@@ -48,7 +48,7 @@ beforeEach(() => {
   process.env.EXPO_PUBLIC_CONVEX_SITE_URL = 'https://test.convex.site';
 });
 
-it('opens visits, authors, people, and settings from Home', async () => {
+it('opens visits, authors, and people from Home', async () => {
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
   expect(screen.getByText('Newest visit first')).toBeOnTheScreen();
@@ -63,8 +63,7 @@ it('opens visits, authors, people, and settings from Home', async () => {
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/profile/[profileId]', params: { profileId: 'alex' } });
   await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
   expect(mockPush).toHaveBeenLastCalledWith('/people');
-  await fireEvent.press(screen.getByRole('button', { name: 'Your profile and settings' }));
-  expect(mockPush).toHaveBeenLastCalledWith('/settings');
+  expect(screen.queryByRole('button', { name: 'Your profile and settings' })).toBeNull();
 });
 
 it.each([

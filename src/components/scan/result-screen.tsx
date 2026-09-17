@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
@@ -29,6 +28,7 @@ import { FailedCard } from './states/failed-card';
 import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { Spacing } from '@/constants/theme';
 import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
@@ -124,7 +124,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
     saving, savedId, saveError,
     captureInput: capture ? { scanId, capture, view } : undefined,
     onSave: (draft: SnapshotDraft) => { void save({ scanId, capture, view, draft }); },
-    onViewSaved: () => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } }),
+    onViewSaved: () => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } }),
   };
 
   if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
@@ -159,11 +159,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
           />
         )}
         {view.editable && showMuseumSearch && <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />}
-        {view.editable && view.kind !== 'confident' && (
-          <Host matchContents colorScheme="light">
-            <Button variant="outlined" label={LABEL_BUTTON} disabled={saving} onPress={openLabel} />
-          </Host>
-        )}
+        {view.editable && view.kind !== 'confident' && <GalleryButton label={LABEL_BUTTON} variant="outlined" fullWidth disabled={saving} onPress={openLabel} />}
       </ScrollView>
       <NotRightSheet
         open={sheet.open}
@@ -234,7 +230,7 @@ function ResultCard({ captureInput, view, saving, savedId, saveError, onNotRight
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.four },
+  content: { padding: 20, gap: Spacing.four },
   section: { gap: Spacing.two },
   notRight: { alignSelf: 'flex-end', paddingVertical: Spacing.one },
 });

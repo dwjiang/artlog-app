@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 
 import { APP_STORE_URL, UPDATE_BUTTON, UPDATE_LINE, UPDATE_TITLE, UnsupportedCard } from './unsupported-card';
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {

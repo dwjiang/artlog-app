@@ -9,6 +9,7 @@ import { listVisits } from '@/db/repos/visits';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
 import { normalizeSearch } from '@/shared/journal/limits';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from './gallery-button';
 import { SavedWorkImage } from './saved-work-image';
 
@@ -41,7 +42,7 @@ function LinkPicker({ owner, savedId, visitId }: { owner: string; savedId?: stri
         const linked = encounters.data.some((entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit);
         return <Pressable accessibilityRole="button" accessibilityLabel={`${linked ? 'Linked: ' : 'Link '}${row.title}`} disabled={linked}
           onPress={() => {
-            try { linkArtworkVisit(work, visit, owner); router.dismissTo({ pathname: '/[savedId]', params: { savedId: work, visitId: visit } }); }
+            try { linkArtworkVisit(work, visit, owner); showToast('Artwork linked. Add photos from this visit separately.'); router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId: work, visitId: visit } }); }
             catch { setError('Could not link this visit. Try again.'); }
           }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 0.5, borderColor: Gallery.separator, opacity: linked ? 0.6 : 1 }}>
           {!savedId && <SavedWorkImage path={row.path} title={row.title} contain style={{ width: 56, height: 56, borderRadius: 4 }} />}

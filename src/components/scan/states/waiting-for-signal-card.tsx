@@ -1,6 +1,6 @@
-import { Button, Host } from '@expo/ui';
 import { StyleSheet, View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
@@ -24,9 +24,7 @@ export function WaitingForSignalCard({ status, onLabel }: WaitingForSignalCardPr
         <ThemedText type="subtitle">{waiting ? WAITING_TITLE : IDENTIFYING_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{waiting ? WAITING_LINE : IDENTIFYING_LINE}</ThemedText>
       </View>
-      <Host matchContents colorScheme="light">
-        <Button label={LABEL_NOW} onPress={onLabel} />
-      </Host>
+      <GalleryButton label={LABEL_NOW} variant="filled" fullWidth onPress={onLabel} />
     </>
   );
 }

@@ -1,12 +1,13 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
 import { useVisits } from '@/lib/journal/use-visits';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { useVisitSharing } from '@/lib/visits/use-visit-sharing';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from '../collection/gallery-button';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
@@ -33,13 +34,19 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const signedIn = visit.owner.startsWith('account:');
   const { controller, token } = sharing;
   useFocusEffect(useCallback(() => { if (signedIn && token && generation) void controller.load(); }, [controller, signedIn, token, generation]));
+  const active = sharing.acknowledged?.status === 'active';
   const status = !signedIn ? 'Private on this device' : sharing.profileRequired ? 'Private visit'
-    : sharing.error ? 'Sharing status unavailable' : sharing.acknowledged?.status === 'active' ? 'Shared with friends'
+    : sharing.error ? 'Sharing status unavailable' : active ? 'Shared with friends'
       : sharing.acknowledged ? 'Private visit' : 'Checking sharing status…';
+  const openSharing = () => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } });
+  function stopSharing() {
+    Alert.alert('Stop sharing this visit?', 'Friends will no longer be able to see this visit.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Stop sharing', style: 'destructive', onPress: () => { void controller.unshare().then((done) => { if (done) showToast('Visit is private again.'); }); } },
+    ]);
+  }
   return <>
     <Stack.Screen options={{ title: 'Visit' }} />
-    <Stack.Toolbar placement="right"><Stack.Toolbar.Button icon="square.and.arrow.up" accessibilityLabel="Share visit"
-      onPress={() => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>Share visit</Stack.Toolbar.Button></Stack.Toolbar>
     <VisitPage>
       <View style={detail.stampRow}>
         <View style={detail.stamp}><VisitSymbol name="building.columns" size={23} color="#66735C" /></View>
@@ -51,8 +58,11 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
         <Text selectable style={[styles.title, { letterSpacing: -0.8 }]}>{visit.venueName}</Text>
         <Text selectable style={styles.caption}>{visit.location || 'Location unavailable'}{'\n'}{formatVisitDate(visit.visitedOn)}</Text>
       </View>
-      <GalleryButton label={sharing.acknowledged?.status === 'active' ? 'Manage sharing' : 'Share with friends'} variant="filled" fullWidth
-        onPress={() => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })} />
+      <View style={detail.actions}>
+        <GalleryButton label={active ? 'Edit shared visit' : 'Share visit'} variant={active ? 'outlined' : 'filled'} fullWidth={!active} onPress={openSharing} />
+        {active && <GalleryButton label="View shared version" variant="outlined"
+          onPress={() => router.push({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })} />}
+      </View>
       <View>
         <View style={styles.sectionLabel}>
           <Text accessibilityRole="header" style={detail.sectionTitle}>Your reflection</Text>
@@ -79,12 +89,14 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
         </View>
         {!filtered.length && <Text style={[styles.caption, { paddingVertical: 22 }]}>{query ? 'No artworks match this search.' : 'No artworks saved on this visit. The memory still belongs here.'}</Text>}
       </View>
+      {active && <GalleryButton label="Stop sharing this visit" destructive fullWidth disabled={sharing.busy} onPress={stopSharing} />}
     </VisitPage>
   </>;
 }
 
 const detail = StyleSheet.create({
   stampRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   stamp: { width: 43, height: 43, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#747C6540', backgroundColor: '#E4E7DC', alignItems: 'center', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#E5E7DE', paddingVertical: 5, paddingHorizontal: 8, borderRadius: 20, flexShrink: 1 },
   badgeText: { fontSize: 10, lineHeight: 15, fontWeight: '500', color: '#627158', flexShrink: 1 },

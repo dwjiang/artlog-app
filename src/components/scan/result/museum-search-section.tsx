@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -11,6 +10,7 @@ import { LabelActions } from '../label/label-actions';
 import { VerifiedFieldsForm } from '../label/verified-fields-form';
 import { SearchConsentSheet } from './search-consent-sheet';
 import { SourceChip } from './source-chip';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PendingScan } from '@/db/schema';
@@ -35,9 +35,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
   if (search.restoring || search.restoreError) return (
     <View style={styles.section}>
       <ThemedText>{search.restoreError ? 'Couldn’t load your museum result. Try again.' : 'Loading museum result…'}</ThemedText>
-      {search.restoreError && <Host matchContents colorScheme="light">
-        <Button label="Try again" onPress={search.retryRestore} />
-      </Host>}
+      {search.restoreError && <GalleryButton label="Try again" variant="outlined" onPress={search.retryRestore} />}
     </View>
   );
   return (
@@ -46,9 +44,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
         <MuseumSearchResult key={`${scanId}:${search.confirmedAt}`} flow={search.flow} confirmedAt={search.confirmedAt} scanId={scanId} capture={capture} />
       ) : (
         <>
-          <Host matchContents colorScheme="light">
-            <Button variant="outlined" label={MUSEUM_SEARCH_BUTTON} disabled={!search.canSearch || search.running} onPress={search.requestSearch} />
-          </Host>
+          <GalleryButton label={MUSEUM_SEARCH_BUTTON} variant="outlined" fullWidth disabled={!search.canSearch || search.running} onPress={search.requestSearch} />
           {search.running ? (
             <View accessibilityLiveRegion="polite" style={styles.progress}>
               <ThemedText>{"Searching the museum's collection…"}</ThemedText>
@@ -92,9 +88,7 @@ function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: Labe
   if (!form) return (
     <View style={styles.section}>
       <ThemedText>{formError?.message ?? 'Loading your edits…'}</ThemedText>
-      {formError && <Host matchContents colorScheme="light">
-        <Button label="Try again" onPress={retryForm} />
-      </Host>}
+      {formError && <GalleryButton label="Try again" variant="outlined" onPress={retryForm} />}
     </View>
   );
 
@@ -112,7 +106,7 @@ function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: Labe
           title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '',
         } }); }}
         onShare={() => setConsentOpen(true)}
-        onViewSaved={() => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } })} />
+        onViewSaved={() => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } })} />
       <ConsentSheet open={consentOpen} onShare={() => { void share(); }} onDismiss={() => setConsentOpen(false)} />
     </>
   );

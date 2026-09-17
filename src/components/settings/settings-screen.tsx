@@ -1,10 +1,6 @@
-import { LeaderboardPreference } from './leaderboard-preference';
-import { router } from 'expo-router';
-import { VisitPreference } from './visit-preference';
-import { GalleryButton } from '../collection/gallery-button';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { useState, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 import { AboutSection } from './about-section';
@@ -12,10 +8,11 @@ import { AccountSection } from './account-section';
 import { DevTools } from './dev-tools';
 import { ExportSection } from './export-section';
 import { PrivacySection } from './privacy-section';
+import { SettingsIdentity } from './settings-identity';
 import { ContributionsSheet, SharingSection } from './sharing-section';
+import { VisitPreference } from './visit-preference';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, Spacing } from '@/constants/theme';
+import { Gallery } from '@/constants/theme';
 import { useDeviceReady } from '@/lib/use-device-ready';
 
 export function SettingsScreen() {
@@ -25,13 +22,13 @@ export function SettingsScreen() {
   const contributions = useQuery(api.contributions.mine, ready ? {} : 'skip');
   const [contributionsOpen, setContributionsOpen] = useState(false);
 
-  return <><ScrollView style={{ flex: 1, backgroundColor: Colors.light.background }}
-    contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: Spacing.three, gap: Spacing.four }}>
+  return <><ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <SettingsIdentity />
     <SettingsGroup title="Account"><AccountSection /></SettingsGroup>
-    <SettingsGroup title="Preferences"><VisitPreference /><LeaderboardPreference /><GalleryButton label="Public notes" icon="note.text" onPress={() => router.push('/public-notes')} /></SettingsGroup>
+    <SettingsGroup title="Preferences"><VisitPreference /></SettingsGroup>
+    <SettingsGroup title="Privacy"><PrivacySection /></SettingsGroup>
     <SettingsGroup title="Sharing"><SharingSection contributions={contributions} onOpenContributions={() => setContributionsOpen(true)} /></SettingsGroup>
     <SettingsGroup title="Export"><ExportSection /></SettingsGroup>
-    <SettingsGroup title="Privacy"><PrivacySection /></SettingsGroup>
     <SettingsGroup title="About"><AboutSection /></SettingsGroup>
     {__DEV__ && <SettingsGroup title="Developer">
       <ThemedText type="small" themeColor="textSecondary">
@@ -45,8 +42,16 @@ export function SettingsScreen() {
 }
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
-  return <View style={{ gap: Spacing.two }}>
-    <ThemedText type="smallBold" themeColor="textSecondary" accessibilityRole="header" style={{ paddingHorizontal: Spacing.three }}>{title}</ThemedText>
-    <ThemedView style={{ gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.three, borderCurve: 'continuous' }}>{children}</ThemedView>
+  return <View style={styles.group}>
+    <Text accessibilityRole="header" style={styles.eyebrow}>{title}</Text>
+    <View style={styles.groupBody}>{children}</View>
   </View>;
 }
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: Gallery.paper },
+  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40, gap: 26 },
+  group: { gap: 8 },
+  eyebrow: { fontSize: 10, lineHeight: 16, fontWeight: '500', letterSpacing: 1.1, textTransform: 'uppercase', color: Gallery.muted },
+  groupBody: { gap: 14, paddingTop: 13, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+});

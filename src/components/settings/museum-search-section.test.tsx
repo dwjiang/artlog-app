@@ -7,6 +7,7 @@ import { SettingsScreen } from './settings-screen';
 import { getMuseumSearchConsent, setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
+jest.mock('./settings-identity', () => ({ SettingsIdentity: () => null }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('./dev-tools', () => ({ DevTools: () => null }));

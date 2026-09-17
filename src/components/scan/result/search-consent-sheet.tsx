@@ -1,7 +1,8 @@
-import { BottomSheet, Button, Host } from '@expo/ui';
+import { BottomSheet } from '@expo/ui';
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
@@ -38,12 +39,8 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
         <ThemedText type="subtitle">{SEARCH_CONSENT_TITLE}</ThemedText>
         <ThemedText>{SEARCH_CONSENT_BODY}</ThemedText>
         {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-        <Host matchContents colorScheme="light">
-          <Button label="Search" disabled={saving} onPress={() => { void grant(); }} />
-        </Host>
-        <Host matchContents colorScheme="light">
-          <Button variant="outlined" label="Not now" disabled={saving} onPress={onDismiss} />
-        </Host>
+        <GalleryButton label="Search" variant="filled" fullWidth disabled={saving} onPress={() => { void grant(); }} />
+        <GalleryButton label="Not now" variant="outlined" fullWidth disabled={saving} onPress={onDismiss} />
       </View>
     </BottomSheet>
   );

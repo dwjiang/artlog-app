@@ -37,10 +37,6 @@ export function HomeScreen() {
           action="Find people" onAction={() => router.push('/people')} /> : null}
       ListFooterComponent={ready ? <PageFooter {...feed} count={feed.items.length} /> : null}
       onEndReached={ready ? feed.loadMore : undefined} onEndReachedThreshold={0.4} />
-    <Stack.Toolbar placement="left">
-      <Stack.Toolbar.Button icon="person.crop.circle" accessibilityLabel="Your profile and settings" tintColor={Gallery.accent} hidesSharedBackground
-        onPress={() => router.push('/settings')}>Your profile and settings</Stack.Toolbar.Button>
-    </Stack.Toolbar>
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button icon="trophy" accessibilityLabel="Leaderboards" tintColor={Gallery.ink} hidesSharedBackground onPress={() => router.push('/leaderboards')}>Leaderboards</Stack.Toolbar.Button>
       <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Find people" tintColor={Gallery.ink} hidesSharedBackground

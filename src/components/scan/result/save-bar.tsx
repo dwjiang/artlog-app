@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { GalleryButton } from '@/components/collection/gallery-button';
-import { Button, Host } from '@expo/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -30,16 +29,10 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
         </Pressable><GalleryButton label="Scan next artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
       ) : (
         <>
-          <Host matchContents colorScheme="light">
-            <Button label={saving ? 'Saving…' : saveLabel} disabled={!canSave || saving} onPress={onSave} />
-          </Host>
+          <GalleryButton label={saving ? 'Saving…' : saveLabel} variant="filled" fullWidth disabled={!canSave || saving} onPress={onSave} />
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Shorten these details to save this work.</ThemedText>}
           {error && <ThemedText type="small">{error}</ThemedText>}
-          {onLabel && (
-            <Host matchContents colorScheme="light">
-              <Button variant="outlined" label={LABEL_BUTTON} disabled={saving} onPress={onLabel} />
-            </Host>
-          )}
+          {onLabel && <GalleryButton label={LABEL_BUTTON} variant="outlined" fullWidth disabled={saving} onPress={onLabel} />}
         </>
       )}
     </View>

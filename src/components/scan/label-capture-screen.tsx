@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,6 +25,7 @@ import { ProgressSteps } from './label/progress-steps';
 import { VerifiedFieldsForm } from './label/verified-fields-form';
 import { SourceChip } from './result/source-chip';
 import { OverlayCaption } from './overlay-caption';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { GlassSurface } from '@/components/glass-surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -297,38 +297,28 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     if (!pendingLabel && storedFlow?.moderation === 'flagged') {
       return (
         <StateCard title={new LabelFlowError('label_flagged').message}>
-          <Host matchContents colorScheme="light">
-            <Button label="Retake label" disabled={busy} onPress={() => { void retakeLabel(); }} />
-          </Host>
+          <GalleryButton label="Retake label" variant="filled" fullWidth disabled={busy} onPress={() => { void retakeLabel(); }} />
         </StateCard>
       );
     }
     if (!pendingLabel && scan && !(scan instanceof Error) && scan.outcome === 'confident') {
       return (
         <StateCard title="Painting identified">
-          <Host matchContents colorScheme="light">
-            <Button label="View result" onPress={() => router.replace({ pathname: '/result/[scanId]', params: { scanId: scan.scanId } })} />
-          </Host>
+          <GalleryButton label="View result" variant="filled" fullWidth onPress={() => router.replace({ pathname: '/result/[scanId]', params: { scanId: scan.scanId } })} />
         </StateCard>
       );
     }
     if (capture && capture.lastError && capture.attempts >= MAX_LABEL_ATTEMPTS) {
       return (
         <StateCard title={new LabelFlowError(capture.lastError).message}>
-          <Host matchContents colorScheme="light">
-            <Button label="Try again" disabled={busy} onPress={() => { void retryPendingLabel(capture.localId); }} />
-          </Host>
-          <Host matchContents colorScheme="light">
-            <Button variant="outlined" label="Retake label" disabled={busy} onPress={() => { void retakeLabel(); }} />
-          </Host>
+          <GalleryButton label="Try again" variant="filled" fullWidth disabled={busy} onPress={() => { void retryPendingLabel(capture.localId); }} />
+          <GalleryButton label="Retake label" variant="outlined" fullWidth disabled={busy} onPress={() => { void retakeLabel(); }} />
         </StateCard>
       );
     }
     return (
       <StateCard title={network.isInternetReachable === false ? QUEUED_MESSAGE : QUEUED_ONLINE_MESSAGE} detail="Your scan and this label are queued together; we’ll identify and read them in order.">
-        <Host matchContents colorScheme="light">
-          <Button label="Back to the scan" onPress={() => router.back()} />
-        </Host>
+        <GalleryButton label="Back to the scan" variant="filled" fullWidth onPress={() => router.back()} />
       </StateCard>
     );
   }
@@ -338,9 +328,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   if (phase.kind === 'error') {
     return (
       <StateCard title={phase.message}>
-        <Host matchContents colorScheme="light">
-          <Button label="Try again" onPress={() => setPhase({ kind: 'capture', restore: false })} />
-        </Host>
+        <GalleryButton label="Try again" variant="filled" fullWidth onPress={() => setPhase({ kind: 'capture', restore: false })} />
       </StateCard>
     );
   }
@@ -348,7 +336,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   if (phase.kind === 'review' && !form) {
     return (
       <StateCard title={formError?.message ?? 'Loading the label…'}>
-        {formError && <Host matchContents colorScheme="light"><Button label="Try again" onPress={retryForm} /></Host>}
+        {formError && <GalleryButton label="Try again" variant="filled" fullWidth onPress={retryForm} />}
       </StateCard>
     );
   }
@@ -383,7 +371,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
             shareError={shareError}
             onSave={() => { void save(); }}
             onShare={() => setConsentOpen(true)}
-            onViewSaved={() => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } })}
+            onViewSaved={() => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } })}
           />
         </ScrollView>
         <ConsentSheet open={consentOpen} onShare={() => { void share(); }} onDismiss={() => setConsentOpen(false)} />
@@ -450,7 +438,7 @@ function StateCard({ title, detail, children }: { title: string; detail?: string
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.four },
+  content: { padding: 20, gap: Spacing.four },
   camera: { flex: 1, backgroundColor: Colors.light.background },
   overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.four },
   bottom: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.three },

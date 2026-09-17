@@ -28,7 +28,7 @@ export function VisitRow({ visit, shared = false }: { visit: VisitSummary; share
             <VisitSymbol name="chevron.right" size={13} color="#888B7E" />
           </View>
           <Text style={styles.meta}>{place} · {artworks}{shared ? ' · Shared ✓' : ''}</Text>
-          {!!visit.works.length && <View style={{ paddingTop: 9 }}><ArtworkPreviews works={visit.works} /></View>}
+          {!!visit.works.length && <View style={{ paddingTop: 9 }}><ArtworkPreviews works={visit.works} limit={3} overflow /></View>}
         </View>
       </View>
     </Pressable>

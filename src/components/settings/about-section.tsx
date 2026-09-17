@@ -1,4 +1,3 @@
-import { Host, ListItem } from '@expo/ui';
 import { useQuery } from 'convex/react';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
@@ -8,7 +7,8 @@ import { View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import model from '../../../shared/model/model-version.json';
 import { ThemedText } from '@/components/themed-text';
-import { Gallery, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { SettingsRow } from './settings-row';
 
 const SOURCE_URL = 'https://github.com/dwjiang/artlog-app';
 
@@ -24,7 +24,7 @@ export function AboutSection() {
     <ThemedText>Artlog · {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'Unknown version'}</ThemedText>
     <ThemedText type="small" themeColor="textSecondary">Model: {model.modelVersion}</ThemedText>
     <ThemedText themeColor="textSecondary">{health ? 'Backend: connected' : 'Backend: connecting…'}</ThemedText>
-    <Host matchContents colorScheme="light" seedColor={Gallery.accent}><ListItem onPress={() => { void open(SOURCE_URL); }}>Source code</ListItem></Host>
+    <SettingsRow title="Source code" detail={SOURCE_URL} onPress={() => { void open(SOURCE_URL); }} />
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
   </View>;
 }

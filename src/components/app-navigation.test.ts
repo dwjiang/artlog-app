@@ -46,23 +46,15 @@ describe('App navigation', () => {
     });
   });
 
-  it('keeps Collection behind a directly opened journal visit', () => {
-    const collection = getTabsState('/journal/demo')?.routes.find(
-      (route) => route.name === '(collection)'
-    )?.state;
-    expect(collection?.routes.map((route) => route.name)).toEqual(['collection', 'journal/[visitId]']);
-    expect(collection?.routes[1].params).toMatchObject({ visitId: 'demo' });
-  });
-
-  it('keeps the Collection list behind a directly opened saved work', () => {
-    const collection = getTabsState('/demo')?.routes.find(
-      (route) => route.name === '(collection)'
-    )?.state;
-
-    expect(collection?.routes.map((route) => route.name)).toEqual(['collection', '[savedId]']);
-    expect(collection?.index).toBe(1);
-    expect(collection?.routes[1].params).toMatchObject({ savedId: 'demo' });
-  });
+  // Artwork and visit details open above whichever tab is active, so a scan never switches to Collection.
+  it.each([['journal/demo', 'journal/[visitId]', { visitId: 'demo' }], ['saved/demo', 'saved/[savedId]', { savedId: 'demo' }]])(
+    'opens %s above the tabs instead of inside Collection', (path, name, params) => {
+      const root = getRootState(`/${path}`);
+      expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', name]);
+      expect(root?.index).toBe(1);
+      expect(root?.routes[1].params).toMatchObject(params);
+      expect(getTabsState(`/${path}`)?.routes.find((route) => route.name === '(collection)')?.state).toBeUndefined();
+    });
 
   it.each(['result', 'label'])('keeps Scan behind a directly opened %s', (screen) => {
     const scan = getTabsState(`/${screen}/demo`)?.routes.find(

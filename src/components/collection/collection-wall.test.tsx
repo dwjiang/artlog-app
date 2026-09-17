@@ -382,7 +382,7 @@ it('opens the selected wall photo in the private artwork album', async () => {
   await render(<CollectionWall works={[{ localId: 'save-a' } as SavedWork]} />);
   await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, y: 0 } } });
   await fireEvent.press(await screen.findByRole('button', { name: 'The Milkmaid' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/[savedId]', params: { savedId: 'save-a', photoId: 'detail-photo' } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'save-a', photoId: 'detail-photo' } });
 });
 
 it('scrolls a newly hung artwork into view', async () => {

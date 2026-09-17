@@ -16,6 +16,7 @@ import type { VenueRow } from '@/lib/venue/resolve';
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from '@/lib/venue/search-venues';
 import { calendarDate, LIMITS } from '@/shared/journal/limits';
 import { socialErrorMessage } from '@/shared/social/errors';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from '../collection/gallery-button';
 import { VisitMessage, VisitPage, visitStyles as styles } from './visit-ui';
 
@@ -64,7 +65,8 @@ function CreateForm({ savedId }: { savedId?: string }) {
     try {
       await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, reflection: reflection.trim() || null }, session.owner, savedId);
       if (session.isOwnerCurrent()) {
-        if (savedId) router.dismissTo({ pathname: '/[savedId]', params: { savedId, visitId: localId } });
+        showToast(savedId ? 'New visit linked. Other photos are unchanged.' : 'Visit saved privately. No artwork needed.');
+        if (savedId) router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId, visitId: localId } });
         else router.back();
       }
     } catch (cause) { if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'Your visit could not be saved. Try again.'); }
@@ -124,7 +126,7 @@ function ReflectionForm({ visit }: { visit: VisitSummary }) {
     submitting.current = true; setBusy(true); setError(undefined); Keyboard.dismiss();
     try {
       await patchVisit(visit.localId, { reflection: reflection.trim() || null }, session.owner);
-      if (session.isOwnerCurrent()) router.back();
+      if (session.isOwnerCurrent()) { showToast('Private reflection saved.'); router.back(); }
     } catch (cause) { if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'Your reflection could not be saved. Try again.'); }
     finally { if (session.isOwnerCurrent()) { submitting.current = false; setBusy(false); } }
   }

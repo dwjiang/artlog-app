@@ -1,11 +1,11 @@
-import { Button, Host } from '@expo/ui';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
-import { Gallery, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { listNotes } from '@/db/repos/notes';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
@@ -34,9 +34,7 @@ export function ExportSection() {
   }
 
   return <View style={{ gap: Spacing.two }}>
-    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-      <Button label={busy ? 'Exporting…' : 'Export collection as JSON'} disabled={busy} onPress={() => { void exportCollection(); }} />
-    </Host>
+    <GalleryButton label={busy ? 'Exporting…' : 'Export collection as JSON'} variant="outlined" fullWidth disabled={busy} onPress={() => { void exportCollection(); }} />
     <ThemedText type="small" themeColor="textSecondary">Includes saved works, visits and notes. Photo files aren’t included in this export.</ThemedText>
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
   </View>;

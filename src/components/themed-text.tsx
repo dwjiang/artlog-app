@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Fonts, Gallery, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -30,44 +30,14 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   );
 }
 
+// The gallery scale from DESIGN.md: 14/21 body, 12/18 supporting copy, semibold headings without display sizes.
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
-  },
+  small: { fontSize: 12, lineHeight: 18 },
+  smallBold: { fontSize: 12, lineHeight: 18, fontWeight: 600 },
+  default: { fontSize: 14, lineHeight: 21 },
+  title: { fontSize: 28, lineHeight: 33, fontWeight: 600, letterSpacing: -0.8 },
+  subtitle: { fontSize: 22, lineHeight: 27, fontWeight: 600, letterSpacing: -0.4 },
+  link: { fontSize: 13, lineHeight: 20, fontWeight: 500 },
+  linkPrimary: { fontSize: 13, lineHeight: 20, fontWeight: 500, color: Gallery.accent },
+  code: { fontFamily: Fonts.mono, fontWeight: Platform.select({ android: 700 }) ?? 500, fontSize: 12 },
 });
