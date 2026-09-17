@@ -1,4 +1,4 @@
-import { BottomSheet, Button, Host, RNHostView, Switch } from '@expo/ui';
+import { BottomSheet, Button, Host, ListItem, RNHostView, Switch } from '@expo/ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useRef, useState } from 'react';
@@ -9,7 +9,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { setSharingDefault } from '@/lib/settings/sharing';
 import { useSharingDefault } from '@/lib/settings/use-sharing-default';
-import { SettingsRow } from './settings-row';
 
 export const SHARING_SETTING = 'Offer to share confirmed labels';
 export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
@@ -33,7 +32,9 @@ export function SharingSection({ contributions, onOpenContributions }: { contrib
     </Host>
     <ThemedText type="small" themeColor="textSecondary">You choose whether to share each work. No account needed.</ThemedText>
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-    <SettingsRow title={`My contributions (${contributions?.length ?? '…'})`} detail="Labels you shared with other visitors. Withdraw any of them here." onPress={onOpenContributions} />
+    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
+      <ListItem onPress={onOpenContributions}>{`My contributions (${contributions?.length ?? '…'})`}</ListItem>
+    </Host>
   </View>;
 }
 
