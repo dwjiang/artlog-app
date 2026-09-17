@@ -25,13 +25,13 @@ export function PublicProfileHeader({ person, actions, children }: { person: Pub
   </View>;
 }
 
-export function PublicWallView({ wall, onSelect }: { wall: PublicWall; onSelect: (item: PublicWall['items'][number]) => void }) {
+export function PublicWallView({ wall, arrangedBy, onSelect }: { wall: PublicWall; arrangedBy?: string; onSelect: (item: PublicWall['items'][number]) => void }) {
   const [width, setWidth] = useState(0);
   const wallInk = isLightWall(wall.color) ? Gallery.ink : Gallery.paper;
   return <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-    <View style={{ paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
+    <View style={{ paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
       <Text style={{ fontSize: 10, letterSpacing: 1.1, color: Gallery.muted }}>PUBLIC COLLECTION</Text>
-      <Text style={{ fontSize: 11, color: Gallery.muted }}>{wall.items.length} {wall.items.length === 1 ? 'piece' : 'pieces'}</Text>
+      <Text style={{ fontSize: 11, color: Gallery.muted }}>{wall.artworkCount} {wall.artworkCount === 1 ? 'artwork' : 'artworks'}{arrangedBy ? ` · arranged by ${arrangedBy}` : ''}</Text>
     </View>
     {width > 0 && <WallGallery width={width} color={wall.color}
       pieces={wall.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}
@@ -41,6 +41,6 @@ export function PublicWallView({ wall, onSelect }: { wall: PublicWall; onSelect:
         <Text style={{ fontSize: 14, lineHeight: 21, color: wallInk, textAlign: 'center', opacity: 0.85 }}>No artworks have been hung here yet.</Text>
       </View>}
     </WallGallery>}
-    <Text style={{ ...socialStyles.caption, padding: 20, lineHeight: 18 }}>Selected artworks and notes. The rest of this collection stays private.</Text>
+    <Text style={{ ...socialStyles.caption, padding: 20, lineHeight: 18 }}>A chosen wall, not a complete archive. Only notes selected for public display appear here.</Text>
   </View>;
 }

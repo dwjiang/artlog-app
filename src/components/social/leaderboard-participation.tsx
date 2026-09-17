@@ -7,6 +7,7 @@ import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from '../collection/gallery-button';
 import { LeaderboardSheet } from './leaderboard-sheet';
 import { SocialGate, SocialState } from './social-state';
@@ -30,7 +31,11 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
   async function save() {
     if (saving.current || preference.data === undefined) return;
     saving.current = true; setPending(true); setError(undefined);
-    try { await change({ visibility: value }); onDismiss(); }
+    try {
+      await change({ visibility: value });
+      showToast(value === 'off' ? 'You’re off both leaderboards.' : value === 'friends' ? 'Your totals are shared with friends only.' : 'Your totals are shared on Friends & Global.');
+      onDismiss();
+    }
     catch { setError('Could not save participation. Try again.'); }
     finally { saving.current = false; setPending(false); }
   }

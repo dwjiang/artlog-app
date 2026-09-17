@@ -1,6 +1,6 @@
-import { Button, Host } from '@expo/ui';
 import { StyleSheet, View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { FAILED_TITLE, failureCopy } from '@/lib/result/failure-copy';
@@ -20,11 +20,7 @@ export function FailedCard({ error, onRetry }: FailedCardProps) {
         <ThemedText type="subtitle">{FAILED_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText>
       </View>
-      {onRetry && (
-        <Host matchContents colorScheme="light">
-          <Button label={RETRY_BUTTON} onPress={onRetry} />
-        </Host>
-      )}
+      {onRetry && <GalleryButton label={RETRY_BUTTON} variant="filled" fullWidth onPress={onRetry} />}
     </>
   );
 }

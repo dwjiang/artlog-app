@@ -32,12 +32,12 @@ function Editor({ work }: { work: SavedWork }) {
       const result = await convex.mutation(api.artworkAlbums.merge, { scope: session.scope, sourceLocalId: work.localId, targetLocalId: target.localId });
       if (!session.isCurrent()) return;
       await upsertFromRemote(result.saves, session.owner); applyAlbum(result.photos, result.encounters, session.owner);
-      router.replace({ pathname: '/[savedId]', params: { savedId: target.localId } });
+      router.replace({ pathname: '/saved/[savedId]', params: { savedId: target.localId } });
     } catch { setError('Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.'); }
     finally { setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 18 }}>
-    <Text style={{ fontFamily: 'Georgia', fontSize: 26, color: Gallery.ink }}>Give this artwork a name.</Text>
+    <Text style={{ fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8, color: Gallery.ink }}>Give this artwork a name.</Text>
     <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Your photos and visits stay together as you learn more.</Text>
     {([{ label: 'Title', value: title, change: setTitle }, { label: 'Artist', value: artist, change: setArtist }, { label: 'Date', value: date, change: setDate }, { label: 'Medium', value: medium, change: setMedium }]).map((field) => <View key={field.label} style={{ gap: 6 }}><Text style={{ color: Gallery.muted, fontSize: 11 }}>{field.label}</Text><TextInput accessibilityLabel={field.label} value={field.value} onChangeText={field.change} maxLength={500} editable={!busy} style={{ backgroundColor: Gallery.fill, color: Gallery.ink, padding: 15, borderRadius: 10 }} /></View>)}
     <GalleryButton label="Save artwork details" variant="filled" fullWidth disabled={busy} onPress={() => { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }} />

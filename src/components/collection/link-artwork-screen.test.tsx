@@ -38,5 +38,5 @@ it('searches artworks by artist, shows their photos, and returns in the linked v
   expect(screen.queryByRole('button', { name: 'Link Night' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Link Garden' }));
   expect(mockLink).toHaveBeenCalledWith('garden', 'paris', 'device:guest');
-  expect(mockDismiss).toHaveBeenCalledWith({ pathname: '/[savedId]', params: { savedId: 'garden', visitId: 'paris' } });
+  expect(mockDismiss).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'garden', visitId: 'paris' } });
 });

@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -14,6 +13,7 @@ import { CardHeader } from './result/card-header';
 import { FailedCard } from './states/failed-card';
 import { SaveAnywayForm } from './states/save-anyway-form';
 import { WaitingForSignalCard } from './states/waiting-for-signal-card';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -68,7 +68,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
     saving, savedId, saveError,
     captureInput: row ? { scanId: row.scanId ?? undefined, capture: row } : undefined,
     onSave: (draft: Parameters<typeof save>[0]['draft']) => { void save({ scanId: row?.scanId ?? undefined, capture: row, draft }); },
-    onViewSaved: () => router.push({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: savedId ?? '' } }),
+    onViewSaved: () => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } }),
     onDraftChange: setHasDraft,
   };
 
@@ -90,9 +90,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
           : scanId ? keepForm && (
             <View style={styles.section}>
               <ThemedText type="subtitle">Your result is ready</ThemedText>
-              <Host matchContents colorScheme="light">
-                <Button label="View result" disabled={saving} onPress={openResult} />
-              </Host>
+              <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
             </View>
           )
           : row.status === 'failed' ? <FailedCard error={row.lastError} onRetry={retry} />
@@ -106,6 +104,6 @@ export function LocalScanScreen({ localId }: { localId: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.four },
+  content: { padding: 20, gap: Spacing.four },
   section: { gap: Spacing.two },
 });

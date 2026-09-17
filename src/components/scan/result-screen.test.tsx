@@ -57,7 +57,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, dismissTo: mockPush }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -316,7 +316,7 @@ it('saves an untouched confident card locally, tells the server the suggestion w
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(screen.getByText('1 artwork · 1 new photo')).toBeOnTheScreen();
   await fireEvent.press(link);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
 });
 
 it.each([softScan, missScan])('removes match choices after saving a $outcome card', async (scan) => {
@@ -331,7 +331,7 @@ it.each([softScan, missScan])('removes match choices after saving a $outcome car
   expect(screen.queryByRole('button', { name: 'Haystacks, Claude Monet' })).toBeNull();
   expect(screen.getByText(`Saved as ${(await getSavedWork(savedId))?.title}.`)).toBeOnTheScreen();
   await fireEvent.press(link);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
 });
 
 it.each([confidentScan, softScan])('locks the draft and match choices while saving a $outcome card', async (scan) => {
@@ -678,7 +678,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
   await fireEvent.press(link);
-  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: `saved-${mockUuid}` } });
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/saved/[savedId]', params: { savedId: `saved-${mockUuid}` } });
   expect(mockSaveMutation).toHaveBeenCalledTimes(1);
 });
 

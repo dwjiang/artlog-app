@@ -20,7 +20,7 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
       router.dismissAll();
       router.navigate('/(tabs)/(scan)/scan');
     }} />
-    <GalleryButton label="View artwork" fullWidth onPress={() => router.dismissTo({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: completion.savedId } })} />
+    <GalleryButton label="View artwork" fullWidth onPress={() => router.navigate({ pathname: '/saved/[savedId]', params: { savedId: completion.savedId } })} />
     {onViewResult && <GalleryButton label="View result" fullWidth onPress={onViewResult} />}
     <Text style={styles.note}>{sharedToIndex ? 'An artwork crop was shared with the index.' : 'New photos are private.'} Your wall and shared visits haven’t changed.</Text>
   </>;
@@ -29,7 +29,7 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
   content: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 28, gap: 14 },
-  title: { fontFamily: 'Georgia', fontSize: 32, color: Gallery.ink },
+  title: { fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8, color: Gallery.ink, textAlign: 'center' },
   copy: { fontSize: 14, lineHeight: 21, color: Gallery.ink, textAlign: 'center' },
   note: { fontSize: 12, lineHeight: 19, color: Gallery.muted, textAlign: 'center' },
   photos: { flexDirection: 'row', gap: 8, marginVertical: 12, width: '100%' },

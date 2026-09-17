@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { RemovalToast } from '@/components/collection/removal-toast';
 import { DatabaseGate } from '@/components/database-gate';
+import { ToastLayer } from '@/components/toast';
 import { Gallery } from '@/constants/theme';
 import { CollectionSync } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
@@ -37,6 +38,8 @@ export default function RootLayout() {
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
             <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
               headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="saved/[savedId]" options={{ title: 'Saved work' }} />
+            <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
             <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
             <Stack.Screen name="leaderboards" options={{ title: 'Leaderboards' }} />
@@ -75,7 +78,7 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-          <RemovalToast />
+          <ToastLayer><RemovalToast /></ToastLayer>
         </ThemeProvider>
       </ConvexAuthProvider>
     </DatabaseGate>

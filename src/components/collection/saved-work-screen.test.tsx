@@ -242,7 +242,7 @@ it('keeps encounter photos and notes specific to the selected visit and opens ot
   await fireEvent.press(screen.getByRole('button', { name: /View Water Lilies at Orsay/ }));
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: /View Water Lilies at Met/ }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/[savedId]', params: { savedId: 'lilies', visitId: second } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'lilies', visitId: second } });
   await view.rerender(<ConvexProvider client={client}><SavedWorkScreen savedId="lilies" visitId={second} /></ConvexProvider>);
   expect(await screen.findByText('Second encounter thought')).toBeOnTheScreen();
   expect(screen.queryByText('First encounter thought')).toBeNull();

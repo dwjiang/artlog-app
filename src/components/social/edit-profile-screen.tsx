@@ -11,6 +11,8 @@ import { captureOwner } from '@/lib/account/owner-store';
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from '@/lib/social/profile-photo';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { useSocialQuery } from '@/lib/social/use-social-query';
+import { showToast } from '@/lib/ui/toast';
+
 import type { PublicProfile } from '@/lib/social/types';
 import { LIMITS } from '@/shared/journal/limits';
 import { socialErrorMessage } from '@/shared/social/errors';
@@ -49,7 +51,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       const bytes = typeof photo === 'string' ? await profilePhotoBytes(photo) : photo;
       if (!owner.isCurrent() || !mounted.current) return;
       await save({ name: name.trim(), bio: bio.trim(), ...(bytes !== undefined ? { photo: bytes } : {}) });
-      if (owner.isCurrent() && mounted.current) router.back();
+      if (owner.isCurrent() && mounted.current) { showToast('Profile updated. Your wall and visits are unchanged.'); router.back(); }
     } catch (cause) { if (owner.isCurrent() && mounted.current) setError(socialErrorMessage(cause) ?? 'Your profile was not saved. Please try again.'); }
     finally { if (owner.isCurrent() && mounted.current) setBusy(false); }
   }

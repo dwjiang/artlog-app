@@ -13,7 +13,7 @@ type WorkLinkProps = {
 
 export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
   return (
-    <Link href={{ pathname: '/[savedId]', params: { savedId: work.localId, visitId } }} asChild>
+    <Link href={{ pathname: '/saved/[savedId]', params: { savedId: work.localId, visitId } }} asChild>
       <Pressable accessibilityRole="button" accessibilityLabel={`${work.title}, ${work.artist}`} style={StyleSheet.flatten(style)}>
         {children}
       </Pressable>

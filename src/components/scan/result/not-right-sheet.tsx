@@ -1,7 +1,8 @@
-import { BottomSheet, Button, Host } from '@expo/ui';
+import { BottomSheet } from '@expo/ui';
 import { StyleSheet, View } from 'react-native';
 
 import { RunnerUps } from './runner-ups';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { ResultCandidate } from '@/lib/result/state';
@@ -25,9 +26,7 @@ export function NotRightSheet({ open, onDismiss, runnerUps, onPick, onLabel, not
         <ThemedText type="subtitle">{hasRunnerUps ? 'Maybe one of these?' : 'Not in our index yet'}</ThemedText>
         {notice && <ThemedText type="small" themeColor="textSecondary">{notice}</ThemedText>}
         {hasRunnerUps && <RunnerUps candidates={runnerUps} onPick={onPick} />}
-        <Host matchContents colorScheme="light">
-          <Button label={hasRunnerUps ? 'None of these — point at the label' : 'Point at the label'} onPress={onLabel} />
-        </Host>
+        <GalleryButton label={hasRunnerUps ? 'None of these — point at the label' : 'Point at the label'} variant="filled" fullWidth onPress={onLabel} />
       </View>
     </BottomSheet>
   );

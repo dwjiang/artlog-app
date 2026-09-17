@@ -44,6 +44,7 @@ const mockHaptic = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => mockLabelOnly }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
@@ -61,7 +62,7 @@ jest.mock('@expo/ui', () => {
     BottomSheet: ({ isPresented, children }: { isPresented: boolean; children: ReactNode }) => isPresented ? <View accessibilityLabel="Consent sheet">{children}</View> : null,
   };
 });
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush, replace: mockReplace, back: mockBack }) }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => true }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isInternetReachable: mockReachable }) }));
 jest.mock('expo-haptics', () => ({
@@ -233,7 +234,7 @@ it('saves the label result without a suggestion, then links to the collection', 
     draft: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: '', institution: '' },
   });
   await fireEvent.press(await screen.findByRole('link', { name: 'Saved · View in collection' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: 'saved-1' } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'saved-1' } });
 });
 
 it('reads an imported label photo and ignores a cancelled picker', async () => {

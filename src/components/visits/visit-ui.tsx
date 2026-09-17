@@ -26,12 +26,16 @@ export function VisitPrivacyNote() {
     <Text style={[visitStyles.fine, { flex: 1 }]}>Your visits are private until you choose to share one.</Text>
   </View>;
 }
-export function ArtworkPreviews({ works, size = 42, limit = 5 }: { works: SavedWork[]; size?: number; limit?: number }) {
+export function ArtworkPreviews({ works, size = 42, limit = 5, overflow = false }: { works: SavedWork[]; size?: number; limit?: number; overflow?: boolean }) {
   const unique = [...new Map(works.map((work) => [`${work.owner}:${work.localId}`, work])).values()];
+  const hidden = unique.length - limit;
   return <View style={visitStyles.previews}>{unique.slice(0, limit).map((work) => <View key={`${work.owner}:${work.localId}`}
     style={[visitStyles.thumbnail, { width: size, height: size }]}>
     <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: '100%', height: '100%' }} />
-  </View>)}</View>;
+  </View>)}
+    {overflow && hidden > 0 && <View accessibilityLabel={`${hidden} more ${hidden === 1 ? 'artwork' : 'artworks'}`} style={[visitStyles.more, { height: size }]}>
+      <Text style={visitStyles.moreLabel}>+{hidden}</Text></View>}
+  </View>;
 }
 export const visitStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
@@ -45,6 +49,8 @@ export const visitStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   previews: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
   thumbnail: { padding: 4, backgroundColor: '#E5E6DE', borderRadius: 4 },
+  more: { minWidth: 32, paddingHorizontal: 6, borderRadius: 7, backgroundColor: '#DDE2D4', alignItems: 'center', justifyContent: 'center' },
+  moreLabel: { fontSize: 11, color: '#59664D' },
   eyebrow: { fontSize: 10, lineHeight: 16, fontWeight: '500', letterSpacing: 1.1, textTransform: 'uppercase', color: Gallery.muted },
   fine: { fontSize: 11, lineHeight: 17, color: '#78816D' },
   sectionLabel: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, paddingTop: 15, paddingBottom: 8 },

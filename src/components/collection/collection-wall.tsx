@@ -13,6 +13,7 @@ import { constrainLayout, isLightWall, nextWallLayout, removeWallPiece, type Wal
 import { captureOwner } from '@/lib/account/owner-store';
 import { LIMITS } from '@/shared/journal/limits';
 import { convexErrorCode } from '@/lib/network-error';
+import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from './gallery-button';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { WallArtworkSheet } from './wall-sheets';
@@ -106,8 +107,8 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     if (!wall.draft || blocked) return;
     commit(removeWallPiece(wall.draft, id)); setSelectedId(undefined); setOptions(false);
   }
-  function add(localId: string, chosenPhotoId?: string) {
-    if (!wall.draft || blocked || count >= LIMITS.wallItems) return;
+  function add(localId: string, chosenPhotoId?: string): boolean {
+    if (!wall.draft || blocked || count >= LIMITS.wallItems) return false;
     const placementId = randomUUID();
     revealId.current = placementId;
     const photoLocalId = chosenPhotoId ?? selectArtworkPhotos(localId).all().find((photo) => photo.kind !== 'label')?.localId;
@@ -115,6 +116,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     if (chosenPhotoId && selected?.saveLocalId === localId) layout.frame = selected.layout.frame;
     commit({ ...wall.draft, items: [...wall.draft.items, { placementId, photoLocalId, saveLocalId: localId, layout }] });
     setSelectedId(placementId);
+    return true;
   }
 
   return <GestureHandlerRootView style={styles.root}>
@@ -148,7 +150,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         {width > 0 && <WallGallery pieces={pieces} color={color} width={width} editing={editing && !blocked}
           selectedId={selectedId} onRemove={remove} onMove={move} onSelect={(piece) => {
             if (editing) setSelectedId(piece.localId);
-            else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/[savedId]', params: { savedId: piece.saveLocalId!, photoId: piece.photoLocalId } });
+            else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/saved/[savedId]', params: { savedId: piece.saveLocalId!, photoId: piece.photoLocalId } });
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
@@ -175,7 +177,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <Text style={[styles.caption, { paddingHorizontal: 18, paddingTop: 12 }]}>Not on the wall ({available.length})</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, padding: 18, alignItems: 'center' }}>
           {available.map((item) => <Pressable key={item.localId} accessibilityRole="button" accessibilityLabel={`Hang ${item.snapshot.title}`}
-            disabled={blocked || count >= LIMITS.wallItems} onPress={() => add(item.localId)} style={{ width: 66, alignItems: 'center', gap: 7 }}>
+            disabled={blocked || count >= LIMITS.wallItems} onPress={() => { if (add(item.localId)) showToast('Selected image added to your wall. Other photos stay private.'); }} style={{ width: 66, alignItems: 'center', gap: 7 }}>
             <WallFrame frame="gilt" width={54}><SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} title={item.snapshot.title} contain style={{ width: 46, height: 49 }} /></WallFrame>
             <Text numberOfLines={1} style={{ fontSize: 10, color: Gallery.muted }}>{item.snapshot.artist}</Text>
           </Pressable>)}
@@ -186,8 +188,11 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     </View>}
     {photoPicker && selected?.saveLocalId && <WallPhotoSheet savedId={selected.saveLocalId} title={selected.artwork.title} photoId={selected.photoLocalId} duplicate={photoPicker === 'duplicate'}
       onDismiss={() => setPhotoPicker(undefined)} onConfirm={(photoLocalId) => {
-        if (photoPicker === 'duplicate') add(selected.saveLocalId!, photoLocalId);
-        else if (wall.draft && !blocked) commit({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
+        if (photoPicker === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Another placement, still one artwork. Only this photo is public.'); }
+        else if (wall.draft && !blocked) {
+          commit({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
+          showToast('Wall photo updated. Other photos remain private.');
+        }
         setPhotoPicker(undefined);
       }} />}
     {options && selected && <WallArtworkSheet piece={selected} editing={editing} disabled={blocked} color={color} onDismiss={() => setOptions(false)} onChange={(layout) => move(selected.localId, layout)} onRemove={() => remove(selected.localId)} />}

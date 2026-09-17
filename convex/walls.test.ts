@@ -107,11 +107,18 @@ it('allowlists public data and keeps snapshot metadata without catalog enrichmen
   const t = harness(), a = await wallFixture(t, 'a');
   const { items: [item] } = await a.as.mutation(api.walls.setLayout, a.input);
   const publicWall = await t.query(api.walls.getPublic, { profileId: a.profile.profileId });
-  expect(Object.keys(publicWall!).sort()).toEqual(['color', 'items', 'profileId']);
+  expect(Object.keys(publicWall!).sort()).toEqual(['artworkCount', 'color', 'items', 'profileId']);
   expect(Object.keys(publicWall!.items[0]).sort()).toEqual(['artwork', 'itemId', 'layout']);
   expect(publicWall!.items[0].artwork).toEqual({ title: 'Saved title', artist: 'Saved artist', date: '1900', medium: 'Oil', media: { kind: 'placeholder', width: 1, height: 1 } });
   expect(JSON.stringify(publicWall)).not.toContain(a.saveLocalId);
   expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual(publicWall!.items[0]);
+});
+
+it('counts artworks by save so a second placement of the same work adds a piece, not an artwork', async () => {
+  const t = harness(), a = await wallFixture(t, 'a');
+  const second = { ...a.selection, placementId: crypto.randomUUID(), layout: { ...a.layout, x: 0.5, layer: 1 } };
+  await a.as.mutation(api.walls.setLayout, { ...a.input, items: [a.selection, second] });
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({ artworkCount: 1, items: [{ layout: a.layout }, { layout: second.layout }] });
 });
 
 it.each(['deleted', 'missing', 'inactive', 'wrong-owner', 'wrong-parent'] as const)('checks current parents before direct and wall reads: %s', async (change) => {

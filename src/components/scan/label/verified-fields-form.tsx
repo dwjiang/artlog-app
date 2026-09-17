@@ -6,7 +6,7 @@ import type { LabelFieldName, LabelWarning } from '../../../../convex/lib/valida
 
 import { EvidenceBadge } from './evidence-badge';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { EVIDENCE_SOURCES, LABEL_FIELD_LABELS, LABEL_FIELD_NAMES, WARNING_MESSAGES, type LabelFormState } from '@/lib/label/fields';
 
 export const UNLOCK_TITLE = 'Edit this field?';
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   host: { flex: 1 },
-  input: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement },
-  inputLocked: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one, borderRadius: Spacing.two, backgroundColor: Colors.light.background },
+  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 9, backgroundColor: Gallery.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  inputLocked: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 9, backgroundColor: Gallery.fill },
   lockButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   lockIcon: { width: 18, height: 18 },
 });

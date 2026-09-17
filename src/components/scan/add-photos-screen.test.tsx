@@ -70,7 +70,7 @@ it('retains an edited visit after leaving the session and saves only new photos 
     expect.objectContaining({ path: 'detail.jpg', visitLocalId: 'eaebe816-f46f-5312-a657-f92d1af2cb76' }),
   ]));
   await fireEvent.press(screen.getByRole('button', { name: 'View artwork' }));
-  expect(mockDismissTo).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId: 'artwork' } });
+  expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'artwork' } });
 });
 
 it('saves an unsaved artwork and every added photo directly from the session', async () => {

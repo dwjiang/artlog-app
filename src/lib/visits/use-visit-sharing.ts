@@ -1,4 +1,4 @@
-import { selectArtworkPhotos } from '@/db/repos/artwork-album';
+import { selectVisitArtworkPhotos } from '@/db/repos/artwork-album';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { captureOwner, subscribeOwner } from '../account/owner-store';
@@ -18,7 +18,7 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
         return flushCollectionMedia({ saveLocalIds: draft?.saveLocalIds ?? input.saveLocalIds, photoLocalIds: draft?.photoSelections?.flatMap((row) => row.photoLocalIds) ?? [] });
       },
       photoSelections: () => input.saveLocalIds.flatMap((saveLocalId) => {
-        const photos = selectArtworkPhotos(saveLocalId).all().filter((photo) => photo.kind !== 'label');
+        const photos = selectVisitArtworkPhotos(saveLocalId, visitLocalId).all().filter((photo) => photo.kind !== 'label');
         return photos.length ? [{ saveLocalId, photoLocalIds: photos.map((photo) => photo.localId) }] : [];
       }) });
     return { controller, update: (value: typeof input) => { input.token = value.token; input.saveLocalIds = value.saveLocalIds; } };

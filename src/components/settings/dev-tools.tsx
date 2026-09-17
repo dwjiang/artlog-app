@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../../convex/_generated/api';
 
 import { ThemedText } from '@/components/themed-text';
+import { Gallery } from '@/constants/theme';
 import { getAppAttest } from '@/lib/app-attest';
 import { signPayload } from '@/lib/attested-write';
 import { embedder } from '@/lib/embed/embedder';
@@ -105,7 +106,7 @@ export function DevTools({ attested }: { attested: boolean }) {
 
   return (
     <>
-      <Host matchContents colorScheme="light">
+      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
         <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
           onValueChange={(value) => {
             setSavingTimings(true);
@@ -115,7 +116,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       <ThemedText themeColor="textSecondary">
         {supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}
       </ThemedText>
-      <Host matchContents colorScheme="light">
+      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
         <Button
           label={running ? 'Checking assertion…' : 'Check App Attest'}
           disabled={!supported || !attested || running}
@@ -124,7 +125,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       </Host>
       {result && <ThemedText themeColor="textSecondary">{result}</ThemedText>}
       <ThemedText themeColor="textSecondary">{modelStatus}</ThemedText>
-      <Host matchContents colorScheme="light">
+      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
         <Button
           label={progress ?? 'Export calibration embeddings'}
           disabled={progress !== undefined}
@@ -132,7 +133,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         />
       </Host>
       {calibration && <ThemedText themeColor="textSecondary">{calibration}</ThemedText>}
-      <Host matchContents colorScheme="light">
+      <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
         <Button
           label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'}
           disabled={checkingOrb}

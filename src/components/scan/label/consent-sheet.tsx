@@ -1,6 +1,7 @@
-import { BottomSheet, Button, Host } from '@expo/ui';
+import { BottomSheet } from '@expo/ui';
 import { StyleSheet, View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
@@ -19,12 +20,8 @@ export function ConsentSheet({ open, onShare, onDismiss }: ConsentSheetProps) {
       <View style={styles.content}>
         <ThemedText type="subtitle">{CONSENT_TITLE}</ThemedText>
         <ThemedText>{CONSENT_BODY}</ThemedText>
-        <Host matchContents colorScheme="light">
-          <Button label="Share" onPress={onShare} />
-        </Host>
-        <Host matchContents colorScheme="light">
-          <Button variant="outlined" label="Not now" onPress={onDismiss} />
-        </Host>
+        <GalleryButton label="Share" variant="filled" fullWidth onPress={onShare} />
+        <GalleryButton label="Not now" variant="outlined" fullWidth onPress={onDismiss} />
       </View>
     </BottomSheet>
   );

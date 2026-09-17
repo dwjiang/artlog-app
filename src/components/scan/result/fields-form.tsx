@@ -2,7 +2,7 @@ import { Host, TextInput } from '@expo/ui';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { SNAPSHOT_FIELDS, type SnapshotDraft, type SnapshotField } from '@/lib/result/snapshot';
 
 export const FIELD_LABELS: Record<SnapshotField, string> = {
@@ -43,5 +43,5 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.three },
   field: { gap: Spacing.one },
   host: { width: '100%' },
-  input: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement },
+  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 9, backgroundColor: Gallery.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
 });

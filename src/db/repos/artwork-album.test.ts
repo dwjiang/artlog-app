@@ -1,6 +1,6 @@
 import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from './saved-works';
 import { upsertVisit } from './visits';
-import { albumMediaPending, saveArtworkSession, addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit, pendingAlbum, selectArtworkEncounters, selectArtworkPhotos } from './artwork-album';
+import { albumMediaPending, saveArtworkSession, addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit, pendingAlbum, selectArtworkEncounters, selectArtworkPhotos, selectVisitArtworkPhotos } from './artwork-album';
 import { createJournalRepository } from './journal';
 import { db } from '../client';
 import { artworkPhotos } from '../schema';
@@ -20,6 +20,11 @@ it('keeps photo kinds together and links a repeat visit only once', () => {
   linkArtworkVisit('work', 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3342');
   expect(selectArtworkPhotos('work').all().map((row) => row.kind)).toEqual(['full', 'detail', 'label']);
   expect(selectArtworkEncounters().all()).toHaveLength(2);
+});
+it('scopes photos to the visit they were taken on, so a repeat visit does not inherit earlier photos', () => {
+  expect(selectVisitArtworkPhotos('work', 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3341').all().map((row) => row.kind)).toEqual(['full']);
+  expect(selectVisitArtworkPhotos('work', 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3342').all().map((row) => row.kind)).toEqual(['detail', 'label']);
+  expect(selectVisitArtworkPhotos('work', 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3342', 'account:other').all()).toEqual([]);
 });
 it('lists the same artwork on both visits without cloning it', async () => {
   const journal = createJournalRepository(owner);

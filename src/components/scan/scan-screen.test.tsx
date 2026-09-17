@@ -28,6 +28,7 @@ const mockImpactHaptic = jest.fn();
 const mockObserve = jest.fn();
 const mockResolveVenue = jest.fn();
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('./capture-draft-banner', () => ({ CaptureDraftBanner: () => null }));
 jest.mock('@expo/ui', () => {

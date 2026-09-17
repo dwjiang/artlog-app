@@ -52,16 +52,17 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
 export const getMine = query({ args: {}, returns: ownerWall, handler: readMine });
 export const getPublic = query({
   args: { profileId: v.id('profiles') },
-  returns: v.union(v.object({ profileId: v.id('profiles'), color: v.string(), items: v.array(wallArtwork) }), v.null()),
+  // artworkCount is computed here because public items carry no save identity; a save may hang more than once.
+  returns: v.union(v.object({ profileId: v.id('profiles'), color: v.string(), artworkCount: v.number(), items: v.array(wallArtwork) }), v.null()),
   handler: async (ctx, { profileId }) => {
     if (!await activeProfile(ctx, profileId)) return null;
     const wall = await ctx.db.query('walls').withIndex('by_profileId', (q) => q.eq('profileId', profileId)).unique();
-    const items = [];
+    const items = [], saves = new Set<string>();
     for (const item of await activeItems(ctx, wall)) {
       const current = await currentProjection(ctx, item);
-      if (current) items.push(current.projection);
+      if (current) { items.push(current.projection); saves.add(current.save._id); }
     }
-    return { profileId, color: wall?.color ?? DEFAULT_WALL_COLOR, items: items.sort((a, b) => a.layout.layer - b.layout.layer) };
+    return { profileId, color: wall?.color ?? DEFAULT_WALL_COLOR, artworkCount: saves.size, items: items.sort((a, b) => a.layout.layer - b.layout.layer) };
   },
 });
 export const getArtwork = query({

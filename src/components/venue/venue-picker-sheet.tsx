@@ -1,8 +1,8 @@
-import { Button, Host } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { formatDistance } from '@/lib/venue/resolve';
@@ -62,11 +62,7 @@ export function VenuePickerSheet() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <ThemedText type="subtitle">{title}</ThemedText>
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
-        {status === 'denied' && (
-          <Host matchContents colorScheme="light">
-            <Button label="Open Settings" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />
-          </Host>
-        )}
+        {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
         {options.map((option) => {
           const key = venueOptionKey(option);
           const current = option.kind === 'seeded' && option.venueId === venue?.venueId;
@@ -89,11 +85,7 @@ export function VenuePickerSheet() {
           );
         })}
         {(failure ?? error) && <ThemedText selectable>{failure ?? error}</ThemedText>}
-        {status !== 'locating' && (
-          <Host matchContents colorScheme="light">
-            <Button label={options.length > 0 ? 'Not here' : 'OK'} onPress={notHere} />
-          </Host>
-        )}
+        {status !== 'locating' && <GalleryButton label={options.length > 0 ? 'Not here' : 'OK'} variant="outlined" fullWidth onPress={notHere} />}
     </ScrollView>
   );
 }

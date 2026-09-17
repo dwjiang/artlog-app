@@ -34,7 +34,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, dismissTo: mockPush, replace: mockReplace }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush, replace: mockReplace }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -169,7 +169,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(screen.getByText('Saved as Pond at dusk.')).toBeOnTheScreen();
   await fireEvent.press(link);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(tabs)/(collection)/[savedId]', params: { savedId } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
   expect(mockReplace).not.toHaveBeenCalled();
 });
 

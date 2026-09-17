@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { NotRightSheet } from './not-right-sheet';
 import { bridge, haystacks } from './__fixtures__/scan';
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

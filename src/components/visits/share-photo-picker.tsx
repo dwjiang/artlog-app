@@ -2,19 +2,19 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
-import { selectArtworkPhotos } from '@/db/repos/artwork-album';
+import { selectVisitArtworkPhotos } from '@/db/repos/artwork-album';
 import type { SavedWork } from '@/db/schema';
 import { captureFileUri } from '@/lib/files/photos';
 import { GalleryButton } from '../collection/gallery-button';
 
-export function SharePhotoPicker({ work, selected, onChange, onDone }: {
-  work: SavedWork; selected: string[]; onChange: (ids: string[]) => void; onDone: () => void;
+export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: {
+  work: SavedWork; visitId: string; selected: string[]; onChange: (ids: string[]) => void; onDone: () => void;
 }) {
-  const { data } = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
+  const { data } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [work.localId, visitId, work.owner]);
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
     <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
-    <Text style={{ color: Gallery.ink, fontFamily: 'Georgia', fontSize: 26 }}>{work.title}</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Choose the photos your friends can see. New photos stay private until you select them.</Text>
+    <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Photos for friends</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>{work.title}{'\n'}Choose the photos your friends can see. New photos stay private until you select them.</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {data.filter((row) => row.owner === work.owner).map((photo) => <Pressable key={photo.localId} accessibilityRole="checkbox"
         accessibilityLabel={`Share ${photo.kind} photo${photo.caption ? `: ${photo.caption}` : ''}`} accessibilityState={{ checked: selected.includes(photo.localId) }}

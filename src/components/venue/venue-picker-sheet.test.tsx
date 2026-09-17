@@ -11,6 +11,7 @@ const mockDismiss = jest.fn();
 const mockResolve = jest.fn();
 let mockView: VenueView;
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {

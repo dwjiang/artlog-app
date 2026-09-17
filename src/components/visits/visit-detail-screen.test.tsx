@@ -28,19 +28,19 @@ it.each(['friends', 'public'] as const)('shows the %s audience on a published vi
   mockPublication = { status: 'active', audience };
   await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
   expect(screen.getByText(audience === 'public' ? 'Shared publicly' : 'Shared with friends')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Manage sharing' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Edit shared visit' })).toBeOnTheScreen();
 });
 
 it('opens saved artwork from a visit and returns to its private reflection', async () => {
   const navigation = renderRouter({
     _layout: () => <Stack />,
     'journal/[visitId]': VisitDetailScreen,
-    '[savedId]': () => <Text>Saved painting</Text>,
+    'saved/[savedId]': () => <Text>Saved painting</Text>,
   }, { initialUrl: '/journal/visit' });
   await navigation;
   expect(screen.getByText('The afternoon light')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' }));
-  await waitFor(() => expect(navigation.getPathname()).toBe('/painting'));
+  await waitFor(() => expect(navigation.getPathname()).toBe('/saved/painting'));
   expect(screen.getByText('Saved painting')).toBeOnTheScreen();
   await act(() => router.back());
   expect(navigation.getPathname()).toBe('/journal/visit');
