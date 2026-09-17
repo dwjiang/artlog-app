@@ -8,6 +8,7 @@ import { setNote } from '@/db/repos/notes';
 
 const mockWrite = jest.fn();
 jest.mock('@expo/ui');
+jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('expo-sharing', () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
 jest.mock('expo-file-system', () => ({
@@ -51,7 +52,7 @@ it('shows a retryable error if the file cannot be written', async () => {
   mockWrite.mockImplementationOnce(() => { throw new Error('disk full'); });
   await render(<ExportSection />);
   await fireEvent.press(screen.getByRole('button', { name: 'Export collection as JSON' }));
-  expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't export your collection/);
+  expect(screen.getByText(/Couldn't export your collection/)).toBeOnTheScreen();
   expect(Sharing.shareAsync).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Export collection as JSON' }));
   expect(Sharing.shareAsync).toHaveBeenCalledTimes(1);
@@ -61,6 +62,6 @@ it('does not write a file if sharing is unavailable', async () => {
   jest.mocked(Sharing.isAvailableAsync).mockResolvedValue(false);
   await render(<ExportSection />);
   await fireEvent.press(screen.getByRole('button', { name: 'Export collection as JSON' }));
-  expect(screen.getByRole('alert')).toBeOnTheScreen();
+  expect(screen.getByText(/Couldn't export your collection/)).toBeOnTheScreen();
   expect(mockWrite).not.toHaveBeenCalled();
 });

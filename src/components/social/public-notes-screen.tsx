@@ -1,47 +1,66 @@
-import { router } from 'expo-router';
-import { signInRoute } from '@/lib/account/sign-in-context';
+import { Switch, Text } from '@expo/ui';
+import { Section, Text as SwiftText } from '@expo/ui/swift-ui';
+import { font, foregroundStyle, italic, listRowBackground } from '@expo/ui/swift-ui/modifiers';
+import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { useCollectionWall } from '@/lib/wall/use-collection-wall';
+import { ScrollView } from 'react-native';
+import { ActionRow, GroupedFooter, GroupedList } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
-import { NoteVisibility } from '../collection/note-visibility';
-import { GalleryButton } from '../collection/gallery-button';
-import { SocialState } from './social-state';
+import { signInRoute } from '@/lib/account/sign-in-context';
+import { showToast } from '@/lib/ui/toast';
+import { useCollectionWall } from '@/lib/wall/use-collection-wall';
 import { PublicNotesPreview } from './public-notes-preview';
+import { SocialState } from './social-state';
+import { socialStyles } from './social-styles';
+
+const INTRO = 'Your thoughts belong to you. Choose which notes visitors can read alongside artworks on your wall. Editing a shared note makes it private until you share it again.';
 
 export function PublicNotesScreen() {
   const wall = useCollectionWall([]);
-  const [preview, setPreview] = useState(false), [saved, setSaved] = useState(false);
+  const [preview, setPreview] = useState(false);
   const changes = wall.noteDraft;
   const items = wall.acknowledged?.items ?? [];
   function visible(item: typeof items[number]) { return changes.find((change) => change.itemId === item.itemId)?.visible ?? item.noteVisible; }
   function toggle(item: typeof items[number], value: boolean) {
     wall.repository.setNoteDraft([...changes.filter((change) => change.itemId !== item.itemId), { itemId: item.itemId, visible: value }]);
-    setSaved(false); wall.setError(undefined);
+    wall.setError(undefined);
   }
   async function save() {
     wall.setError(undefined);
-    try { await wall.repository.publishNotes(); setSaved(true); setPreview(false); }
+    try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
     catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
-  return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingVertical: 20, gap: 24 }}>
-    <Text style={{ paddingHorizontal: 20, fontSize: 14, lineHeight: 21, color: Gallery.muted }}>Your thoughts belong to you. Choose which notes visitors can read alongside artworks on your wall.</Text>
-    {!wall.signedIn ? <SocialState title="Sign in to share notes." detail="Your collection notes stay private on this device." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
-      : wall.profileRequired ? <SocialState title="Create your public profile first." /> : wall.loading ? <SocialState title="Opening your notes…" loading /> : <>
-        <View style={{ paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between' }}><GalleryButton label={preview ? 'Back to selection' : 'Preview'} onPress={() => setPreview(!preview)} />
-          <GalleryButton label={wall.pending ? 'Saving…' : 'Save choices'} disabled={wall.pending || !changes.length} variant="filled" onPress={() => { void save(); }} /></View>
-        {preview && wall.acknowledged ? <PublicNotesPreview wall={{ profileId: wall.acknowledged.profileId, color: wall.acknowledged.color,
-          artworkCount: new Set(items.map((item) => item.saveLocalId)).size, items: items.map((item) => ({ itemId: item.itemId, layout: item.layout, artwork: item.artwork,
-            ...(visible(item) && item.privateNote ? { note: item.privateNote } : {}) })) }} />
-          : items.filter((item) => item.noteEligible || item.noteVisible).map((item) => <View key={item.itemId} style={{ marginHorizontal: 20, paddingBottom: 22, gap: 12, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: Gallery.ink }}>{item.artwork.artist}</Text>
-          <Text style={{ fontSize: 13, fontStyle: 'italic', color: Gallery.muted }}>{item.artwork.title}</Text>
-          {!!item.privateNote && <Text selectable style={{ fontFamily: 'Georgia', fontSize: 17, lineHeight: 24, color: Gallery.ink }}>{item.privateNote}</Text>}
-          <NoteVisibility visible={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onChange={(value) => toggle(item, value)} />
-        </View>)}
-        {!preview && !items.some((item) => item.noteEligible) && <Text style={{ paddingHorizontal: 20, color: Gallery.muted, lineHeight: 21 }}>Add a note to an artwork on your wall. It will appear here after syncing.</Text>}
-        {saved && <Text accessibilityRole="alert" style={{ paddingHorizontal: 20, color: Gallery.accent }}>Your choices are saved.</Text>}
-      </>}
-    {wall.error && <View style={{ paddingHorizontal: 20, gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text><GalleryButton label="Refresh notes" onPress={() => { void wall.refresh(); }} /></View>}
-  </ScrollView>;
+  const gate = !wall.signedIn ? <SocialState title="Sign in to share notes." detail="Your collection notes stay private on this device." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
+    : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
+      : wall.loading ? <SocialState title="Opening your notes…" loading /> : null;
+  if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.gate}>{gate}</ScrollView>;
+  // The header keeps only direct Toolbar.Button children, so no fragments here.
+  const toolbar = <Stack.Toolbar placement="right">
+    {preview ? <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(false)}>Edit</Stack.Toolbar.Button>
+      : <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(true)}>Preview</Stack.Toolbar.Button>}
+    {!preview && <Stack.Toolbar.Button variant="done" tintColor={Gallery.ink} disabled={wall.pending || !changes.length} onPress={() => { void save(); }}>{wall.pending ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>}
+  </Stack.Toolbar>;
+  if (preview && wall.acknowledged) return <>{toolbar}
+    <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingVertical: 20 }}>
+      <PublicNotesPreview wall={{ profileId: wall.acknowledged.profileId, color: wall.acknowledged.color,
+        artworkCount: new Set(items.map((item) => item.saveLocalId)).size, items: items.map((item) => ({ itemId: item.itemId, layout: item.layout, artwork: item.artwork,
+          ...(visible(item) && item.privateNote ? { note: item.privateNote } : {}) })) }} />
+    </ScrollView>
+  </>;
+  const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
+  return <>{toolbar}
+    <GroupedList>
+      <Section footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
+        <Text textStyle={{ fontSize: 15, color: Gallery.ink }} modifiers={[listRowBackground('transparent')]}>{INTRO}</Text>
+        {wall.error ? <ActionRow label="Refresh notes" icon="arrow.clockwise" onPress={() => { void wall.refresh(); }} /> : null}
+      </Section>
+      {eligible.map((item) => <Section key={item.itemId}>
+        <SwiftText modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(Gallery.ink)]}>{item.artwork.artist}</SwiftText>
+        <SwiftText modifiers={[font({ size: 13 }), italic(), foregroundStyle(Gallery.muted)]}>{item.artwork.title}</SwiftText>
+        {item.privateNote ? <SwiftText modifiers={[font({ size: 17, design: 'serif' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
+        <Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} />
+      </Section>)}
+      {!eligible.length ? <Section><Text textStyle={{ fontSize: 15, color: Gallery.muted }}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></Section> : null}
+    </GroupedList>
+  </>;
 }

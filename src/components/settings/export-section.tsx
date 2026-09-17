@@ -1,11 +1,9 @@
+import { Section } from '@expo/ui/swift-ui';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
-import { View } from 'react-native';
 
-import { GalleryButton } from '@/components/collection/gallery-button';
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { ActionRow, GroupedFooter } from '@/components/grouped-list';
 import { listNotes } from '@/db/repos/notes';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
@@ -33,9 +31,7 @@ export function ExportSection() {
     finally { inFlight.current = false; setBusy(false); }
   }
 
-  return <View style={{ gap: Spacing.two }}>
-    <GalleryButton label={busy ? 'Exporting…' : 'Export collection as JSON'} variant="outlined" fullWidth disabled={busy} onPress={() => { void exportCollection(); }} />
-    <ThemedText type="small" themeColor="textSecondary">Includes saved works, visits and notes. Photo files aren’t included in this export.</ThemedText>
-    {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-  </View>;
+  return <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Includes saved works, visits and notes. Photo files aren’t included in this export.'}</GroupedFooter>}>
+    <ActionRow label={busy ? 'Exporting…' : 'Export collection as JSON'} icon="square.and.arrow.up" disabled={busy} onPress={() => { void exportCollection(); }} />
+  </Section>;
 }

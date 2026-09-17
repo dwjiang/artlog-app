@@ -12,6 +12,7 @@ const mockRunCalibrationExport = jest.fn();
 const mockRunOrbParityCheck = jest.fn();
 
 jest.mock('@expo/ui');
+jest.mock('@expo/ui/swift-ui');
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('convex/react', () => ({ useMutation: () => mockAssertSmoke }));

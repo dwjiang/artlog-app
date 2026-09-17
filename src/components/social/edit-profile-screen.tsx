@@ -1,11 +1,11 @@
-import { Column, Host, TextInput } from '@expo/ui';
-import { accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
+import { ListItem, TextInput } from '@expo/ui';
+import { Section } from '@expo/ui/swift-ui';
+import { accessibilityLabel, disabled } from '@expo/ui/swift-ui/modifiers';
 import { useAction } from 'convex/react';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
-import { GalleryButton } from '../collection/gallery-button';
+import { ActionRow, GroupedFooter, GroupedList, ValueRow } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { captureOwner } from '@/lib/account/owner-store';
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from '@/lib/social/profile-photo';
@@ -18,7 +18,6 @@ import { LIMITS } from '@/shared/journal/limits';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { ProfileAvatar } from './profile-avatar';
 import { SocialGate, SocialState } from './social-state';
-import { visitStyles as styles } from '../visits/visit-ui';
 
 export function EditProfileScreen() {
   const session = useSocialSession();
@@ -56,26 +55,28 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
     finally { if (owner.isCurrent() && mounted.current) setBusy(false); }
   }
   const shownPhoto = photo === undefined ? profile.photoUrl : photo ?? undefined;
-  return <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets
-    keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { gap: 20 }]}>
-    <View style={{ flexDirection: 'row', gap: 17, alignItems: 'center', paddingVertical: 14, borderBottomWidth: 0.5, borderColor: Gallery.separator }}>
-      <ProfileAvatar name={name} photoUrl={shownPhoto} size={76} />
-      <View><GalleryButton label={shownPhoto ? 'Change photo' : 'Add photo'} onPress={() => { void choose(); }} disabled={busy} />
-        {shownPhoto && <GalleryButton label="Remove photo" onPress={() => { removeProfilePhotoDraft(draftFile.current); draftFile.current = undefined; setPhoto(null); }} disabled={busy} />}</View>
-    </View>
-    <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
-      <Column spacing={10} alignment="start">
+  return <>
+    <Stack.Toolbar placement="left">
+      <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.accent} onPress={() => router.back()}>Cancel</Stack.Toolbar.Button>
+    </Stack.Toolbar>
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button variant="done" disabled={busy || !name.trim()} tintColor={Gallery.accent} onPress={() => { void submit(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
+    </Stack.Toolbar>
+    <GroupedList>
+      <Section>
+        <ListItem leading={<ProfileAvatar name={name} photoUrl={shownPhoto} size={56} />} modifiers={[disabled(busy)]} onPress={() => { void choose(); }}>{shownPhoto ? 'Change photo' : 'Add photo'}</ListItem>
+        {shownPhoto ? <ActionRow label="Remove photo" destructive disabled={busy}
+          onPress={() => { removeProfilePhotoDraft(draftFile.current); draftFile.current = undefined; setPhoto(null); }} /> : null}
+      </Section>
+      <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your photo, name and introduction appear on your public profile.'}</GroupedFooter>}>
         <TextInput defaultValue={name} placeholder="Name" onChangeText={setName} maxLength={LIMITS.name} autoCapitalize="words" editable={!busy}
-          modifiers={[accessibilityLabel('Name')]} style={fieldStyle} textStyle={{ fontSize: 14, color: Gallery.ink }} />
+          modifiers={[accessibilityLabel('Name')]} />
         <TextInput defaultValue={bio} placeholder="A little about the art you love…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
-          modifiers={[accessibilityLabel('Introduction')]} style={fieldStyle} textStyle={{ fontSize: 14, color: Gallery.ink }} />
-      </Column>
-    </Host>
-    <View style={{ gap: 8 }}><Text style={styles.caption}>Username</Text><Text selectable style={styles.input}>@{profile.username}</Text></View>
-    <Text style={styles.fine}>Your photo, name and introduction appear on your public profile.</Text>
-    {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    <GalleryButton label={busy ? 'Saving…' : 'Save profile'} onPress={() => { void submit(); }} disabled={busy || !name.trim()} variant="filled" fullWidth />
-    <GalleryButton label="Cancel" onPress={() => router.back()} disabled={busy} fullWidth />
-  </ScrollView>;
+          modifiers={[accessibilityLabel('Introduction')]} />
+      </Section>
+      <Section footer={<GroupedFooter>Usernames can’t be changed.</GroupedFooter>}>
+        <ValueRow label="Username" value={`@${profile.username}`} />
+      </Section>
+    </GroupedList>
+  </>;
 }
-const fieldStyle = { padding: 12, backgroundColor: Gallery.surface, borderRadius: 9, borderWidth: 0.5, borderColor: Gallery.separator };

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { getFunctionName as mockFunctionName } from 'convex/server';
 import { PublicNotesScreen } from './public-notes-screen';
-const mockSetDraft = jest.fn(), mockPublish = jest.fn(), mockGallery = jest.fn();
+const mockSetDraft = jest.fn(), mockPublish = jest.fn(), mockGallery = jest.fn(), mockToast = jest.fn();
 const layout = { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: 'gilt' };
 const media = { kind: 'placeholder', width: 1, height: 1 };
 const mockWall = {
@@ -11,6 +11,16 @@ const mockWall = {
   ] }, noteDraft: [] as { itemId: string; visible: boolean }[], repository: { setNoteDraft: mockSetDraft, publishNotes: mockPublish }, setError: jest.fn(),
 };
 jest.mock('@expo/ui');
+jest.mock('@expo/ui/swift-ui');
+jest.mock('@/lib/ui/toast', () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
+jest.mock('expo-router', () => {
+  const { Pressable, Text } = jest.requireActual('react-native');
+  const Toolbar = ({ children }: { children: React.ReactNode }) => children;
+  Toolbar.Button = function ToolbarButton({ children, onPress, disabled }: { children: string; onPress: () => void; disabled?: boolean }) {
+    return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable>;
+  };
+  return { router: { push: jest.fn() }, Stack: { Toolbar } };
+});
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'reader' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: (query: Parameters<typeof mockFunctionName>[0]) => ({
@@ -59,9 +69,9 @@ it('applies unsaved choices in preview, keeps them on return, and publishes only
   expect(screen.queryByText('A selected thought')).toBeNull();
   expect(mockPublish).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Back to wall' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Back to selection' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
   expect(screen.getAllByRole('switch', { name: 'Show note on public wall' })[1]).toHaveProp('accessibilityState', expect.objectContaining({ checked: true }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Save choices' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
   expect(mockPublish).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Your choices are saved.')).toBeOnTheScreen();
+  expect(mockToast).toHaveBeenCalledWith('Your note choices are saved.');
 });

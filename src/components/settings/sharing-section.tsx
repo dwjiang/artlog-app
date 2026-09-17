@@ -1,10 +1,12 @@
-import { BottomSheet, Button, Host, ListItem, RNHostView, Switch } from '@expo/ui';
+import { BottomSheet, Button, Host, RNHostView, Switch } from '@expo/ui';
+import { Section } from '@expo/ui/swift-ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
+import { GroupedFooter, NavigationRow } from '@/components/grouped-list';
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { setSharingDefault } from '@/lib/settings/sharing';
@@ -25,17 +27,15 @@ export function SharingSection({ contributions, onOpenContributions }: { contrib
     finally { setSaving(false); }
   }
 
-  return <View style={{ gap: Spacing.two }}>
-    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
+  return <>
+    <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'You choose whether to share each work. No account needed.'}</GroupedFooter>}>
       <Switch label={SHARING_SETTING} value={enabled === true} disabled={enabled === undefined || saving}
         onValueChange={(value) => { void change(value); }} />
-    </Host>
-    <ThemedText type="small" themeColor="textSecondary">You choose whether to share each work. No account needed.</ThemedText>
-    {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-    <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-      <ListItem onPress={onOpenContributions}>{`My contributions (${contributions?.length ?? '…'})`}</ListItem>
-    </Host>
-  </View>;
+    </Section>
+    <Section>
+      <NavigationRow label={`My contributions (${contributions?.length ?? '…'})`} icon="tray.full.fill" onPress={onOpenContributions} />
+    </Section>
+  </>;
 }
 
 export function ContributionsSheet({ open, onDismiss, contributions }: { open: boolean; onDismiss: () => void; contributions: Contribution[] | undefined }) {

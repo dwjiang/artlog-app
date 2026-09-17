@@ -23,13 +23,7 @@ const contribution = {
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
 jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui', () => ({ ...jest.requireMock('@expo/ui'), VStack: jest.requireActual('react-native').View,
-  List: jest.requireActual('react-native').View,
-  Section: ({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) => {
-    const { View, Text } = jest.requireActual('react-native');
-    return <View>{title && <Text accessibilityRole="header">{title}</Text>}{children}{footer}</View>;
-  },
-}));
+jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => mockReady }));
@@ -76,7 +70,7 @@ it('keeps privacy and About details accessible', async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(screen.getByText(PRIVACY_COPY)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
-  expect(screen.getByText('Backend: connected')).toBeOnTheScreen();
+  expect(screen.getByText('Connected')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Source code' })).toBeOnTheScreen();
 });
 
@@ -138,7 +132,8 @@ it('opens the shared sign-in sheet from the account row', async () => {
 it('shows linked devices and preserves sign-out and account deletion controls', async () => {
   mockAccount = { linked: true, deviceCount: 2, email: 'visitor@example.com' };
   await render(<SettingsDetailScreen section="account" />);
-  expect(screen.getByText('Signed in · 2 devices')).toBeOnTheScreen();
+  expect(screen.getByText('2 devices')).toBeOnTheScreen();
+  expect(screen.getByText('visitor@example.com')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Delete account' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
   expect(mockSignOut).toHaveBeenCalledTimes(1);

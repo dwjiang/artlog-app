@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { GalleryIconButton } from '../collection/gallery-icon-button';
+import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { Gallery } from '@/constants/theme';
 import { useCursorPages, useSocialQuery } from '@/lib/social/use-social-query';
@@ -47,8 +48,9 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
       </View>}>
         {!preview && session.profileId === profileId && <GalleryButton label="Edit profile" icon="pencil" onPress={() => router.push('/edit-profile')} />}
       </PublicProfileHeader></View>
-      <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 18, paddingBottom: 14, paddingTop: 6 }}>
-        <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 24, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>{(['wall', 'visits'] as const).map((value) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={value === 'wall' ? 'Wall' : 'Visits'} accessibilityState={{ selected: tab === value }} onPress={() => changeTab(value)} style={{ paddingVertical: 13, paddingHorizontal: 2, borderBottomWidth: tab === value ? 2 : 0, borderBottomColor: Gallery.accent }}><Text style={{ fontSize: 13, color: tab === value ? Gallery.accent : Gallery.muted }}>{value === 'wall' ? 'Wall' : 'Visits'}</Text></Pressable>)}</View>
+      <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 18, paddingBottom: 12, paddingTop: 4 }}>
+        <NativeSegmentedPicker label="Profile section" value={tab} onChange={changeTab}
+          options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} />
       </View>
       {tab === 'wall' ? wall.error ? <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
         : wall.data ? <PublicWallView wall={wall.data} arrangedBy={person.name.split(' ')[0]} onSelect={(item) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: item.itemId, color: wall.data!.color } })} /> : <SocialState title="Opening wall…" loading />
