@@ -18,6 +18,9 @@ url = "https://huggingface.co/mcp?login"
 [mcp_servers.tavily]
 url = "https://mcp.tavily.com/mcp/"
 
+[mcp_servers.mobbin]
+url = "https://api.mobbin.com/mcp"
+
 [mcp_servers.XcodeBuildMCP.env]
 XCODEBUILDMCP_ENABLED_WORKFLOWS = "simulator,ui-automation,debugging"
 
