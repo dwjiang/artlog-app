@@ -46,6 +46,10 @@
         "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main"
       ],
       "env": {}
+    },
+    "mobbin": {
+      "type": "http",
+      "url": "https://api.mobbin.com/mcp"
     }
   }
 }
