@@ -1,6 +1,6 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 import { db } from '../client';
-import { visits } from '../schema';
+import { artworkEncounters, artworkPhotos, savedWorks, visits } from '../schema';
 import * as repo from './visits';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
@@ -8,7 +8,18 @@ const venueId = 'museum-1' as Id<'museums'>;
 const first = '00000000-0000-4000-8000-000000000001';
 const second = '00000000-0000-4000-8000-000000000002';
 const visit = { localId: first, venueId, venueName: 'Museum', visitedOn: '2024-02-29', timeZone: 'UTC' };
-beforeEach(async () => { await db.delete(visits); });
+beforeEach(async () => { await db.delete(savedWorks); await db.delete(visits); });
+
+it('creates and links a visit atomically without copying photos, including retries', async () => {
+  await db.insert(savedWorks).values({ owner: 'account:me', localId: 'art', title: 'Painting', artist: 'Artist', savedAt: 1 });
+  await repo.upsertVisit(visit, 'account:me', 'art');
+  await repo.upsertVisit(visit, 'account:me', 'art');
+  expect(await repo.listVisits('account:me')).toHaveLength(1);
+  expect(await db.select().from(artworkEncounters)).toEqual([expect.objectContaining({ owner: 'account:me', savedLocalId: 'art', visitLocalId: first })]);
+  expect(await db.select().from(artworkPhotos)).toEqual([]);
+  await expect(repo.upsertVisit({ ...visit, localId: second }, 'account:other', 'art')).rejects.toThrow('not_found');
+  expect(await repo.listVisits('account:other')).toEqual([]);
+});
 
 it('preserves empty, manual and repeat visits and retries the same UUID', async () => {
   await repo.upsertVisit(visit); await repo.upsertVisit(visit);

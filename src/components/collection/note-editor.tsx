@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { getNote, setNote } from '@/db/repos/notes';
+import { GalleryButton } from './gallery-button';
 
 type NoteDraft = {
   owner: string;
@@ -44,6 +45,7 @@ export function NoteEditor({ savedLocalId }: { savedLocalId: string }) {
 function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: string }) {
   const [draft, setDraft] = useState<string>();
   const [saveFailed, setSaveFailed] = useState(false);
+  const [editing, setEditing] = useState(false);
   const latest = useRef<NoteDraft>(undefined);
 
   useEffect(() => {
@@ -67,8 +69,8 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
 
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" themeColor="textSecondary">Your private note</ThemedText>
-      <TextInput
+      <ThemedText type="smallBold" themeColor="textSecondary">Your artwork note</ThemedText>
+      {editing ? <><TextInput
         accessibilityLabel="Notes"
         placeholder="Add a note about this work"
         placeholderTextColor={Colors.light.textSecondary}
@@ -85,6 +87,11 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
         style={styles.input}
       />
       {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary">{NOTE_LENGTH_MESSAGE}</ThemedText>}
+      <GalleryButton label="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
+      </> : <>
+        {!!draft && <ThemedText selectable>{draft}</ThemedText>}
+        <GalleryButton label={draft ? 'Edit artwork note' : 'Add a private artwork note'} disabled={draft === undefined} onPress={() => setEditing(true)} />
+      </>}
       {saveFailed ? (
         <>
           <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>

@@ -27,7 +27,8 @@ export function VisitPrivacyNote() {
   </View>;
 }
 export function ArtworkPreviews({ works, size = 42, limit = 5 }: { works: SavedWork[]; size?: number; limit?: number }) {
-  return <View style={visitStyles.previews}>{works.slice(0, limit).map((work) => <View key={work.localId}
+  const unique = [...new Map(works.map((work) => [`${work.owner}:${work.localId}`, work])).values()];
+  return <View style={visitStyles.previews}>{unique.slice(0, limit).map((work) => <View key={`${work.owner}:${work.localId}`}
     style={[visitStyles.thumbnail, { width: size, height: size }]}>
     <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: '100%', height: '100%' }} />
   </View>)}</View>;

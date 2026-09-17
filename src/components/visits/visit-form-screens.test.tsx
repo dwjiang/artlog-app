@@ -1,11 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
+import { insertSavedWork } from '@/db/repos/saved-works';
+import { selectArtworkEncounters } from '@/db/repos/artwork-album';
 import { getVisit, listVisits } from '@/db/repos/visits';
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { pickerDate } from '@/lib/journal/visit-date';
 import { VisitCreateScreen, VisitReflectionScreen } from './visit-form-screens';
-const mockBack = jest.fn();
+const mockBack = jest.fn(), mockDismissTo = jest.fn();
+let mockSavedId: string | undefined;
 let mockVisitId = '00000000-0000-4000-8000-000000000001';
 const mockVenue = { id: 'museum', name: 'Museum of Art', city: 'New York', lat: 40.78, lng: -73.96, country: 'US', region: 'new-york' };
 const mockIsland = { id: 'island', name: 'Island Museum', lat: -19.05, lng: -169.92, region: 'country:NU' };
@@ -16,12 +19,12 @@ jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [moc
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('expo-router', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
-  return { router: { back: () => mockBack() }, useLocalSearchParams: () => ({ visitId: mockVisitId }), Stack: {
+  return { router: { back: () => mockBack(), dismissTo: (...args: unknown[]) => mockDismissTo(...args) }, useLocalSearchParams: () => ({ visitId: mockVisitId, savedId: mockSavedId }), Stack: {
     Toolbar: Object.assign(View, { Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) =>
       <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable> }),
   } };
 });
-beforeEach(() => { mockBack.mockClear(); switchOwner(anonymousOwner(), 'scope-form'); });
+beforeEach(() => { mockSavedId = undefined; mockBack.mockClear(); mockDismissTo.mockClear(); switchOwner(anonymousOwner(), 'scope-form'); });
 afterEach(() => jest.restoreAllMocks());
 async function fill() {
   await fireEvent.changeText(screen.getByLabelText('Search museums'), 'museum');
@@ -69,4 +72,27 @@ it('persists edited private reflections and restores them after reopening', asyn
   expect((await getVisit(mockVisitId))?.reflection).toBe('Remember the light');
   await view.rerender(<View />); await view.rerender(<VisitReflectionScreen />);
   await waitFor(() => expect(screen.getByLabelText('Private reflection')).toHaveProp('value', 'Remember the light'));
+});
+
+it('creates a linked visit and returns to that artwork in its new visit context', async () => {
+  mockSavedId = 'linked-work';
+  await insertSavedWork({ localId: mockSavedId, title: 'Garden', artist: 'Artist', savedAt: 1 });
+  await render(<VisitCreateScreen />); await fill();
+  await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(mockDismissTo).toHaveBeenCalled());
+  const { params } = mockDismissTo.mock.calls[0][0];
+  expect(params.savedId).toBe(mockSavedId);
+  expect(await getVisit(params.visitId)).toMatchObject({ venueName: 'Museum of Art' });
+  expect(selectArtworkEncounters().all()).toContainEqual(expect.objectContaining({ savedLocalId: mockSavedId, visitLocalId: params.visitId, deletedAt: null }));
+  expect(mockBack).not.toHaveBeenCalled();
+});
+it('cancels a pending linked visit without creating a visit or encounter', async () => {
+  mockSavedId = 'cancel-work';
+  await insertSavedWork({ localId: mockSavedId, title: 'Garden', artist: 'Artist', savedAt: 1 });
+  const before = (await listVisits()).length;
+  await render(<VisitCreateScreen />); await fill();
+  await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+  expect(mockBack).toHaveBeenCalledTimes(1);
+  expect(await listVisits()).toHaveLength(before);
+  expect(selectArtworkEncounters().all().some((entry) => entry.savedLocalId === mockSavedId)).toBe(false);
 });

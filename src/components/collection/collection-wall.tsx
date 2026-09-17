@@ -35,6 +35,8 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const [profile, setProfile] = useState(false), [options, setOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const [photoPicker, setPhotoPicker] = useState<'choose' | 'duplicate'>();
+  const scroll = useRef<ScrollView>(null), wallTop = useRef(0), controlsHeight = useRef(0);
+  const revealId = useRef<string | undefined>(undefined);
   const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
   const color = wall.draft?.color ?? Gallery.accent;
@@ -43,6 +45,15 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((piece) => piece.saveLocalId === item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave;
+  useEffect(() => {
+    const piece = pieces.find((item) => item.localId === revealId.current);
+    if (!piece || !width) return;
+    const frame = requestAnimationFrame(() => {
+      scroll.current?.scrollTo({ y: Math.max(0, wallTop.current + piece.layout.y * width - controlsHeight.current - 24), animated: false });
+      revealId.current = undefined;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pieces, width]);
   // Detail screens edit the wall through their own repository, so each return to this screen re-reads it. The memoized
   // callback reads through a ref so the first load (owned by the hook) and edits in progress are skipped without re-running.
   const focus = useRef({ loaded: false, editing: false });
@@ -97,6 +108,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   function add(localId: string, chosenPhotoId?: string) {
     if (!wall.draft || blocked || count >= LIMITS.wallItems) return;
     const placementId = randomUUID();
+    revealId.current = placementId;
     const photoLocalId = chosenPhotoId ?? selectArtworkPhotos(localId).all().find((photo) => photo.kind !== 'label')?.localId;
     const layout = nextWallLayout(pieces);
     if (chosenPhotoId && selected?.saveLocalId === localId) layout.frame = selected.layout.frame;
@@ -105,10 +117,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   }
 
   return <GestureHandlerRootView style={styles.root}>
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} scrollEnabled={!wall.pending} stickyHeaderIndices={[header ? 1 : 0]}
+    <ScrollView ref={scroll} contentContainerStyle={{ flexGrow: 1 }} scrollEnabled={!wall.pending} stickyHeaderIndices={[header ? 1 : 0]}
       refreshControl={wall.signedIn && !editing ? <RefreshControl refreshing={wall.loading} tintColor={Gallery.accent} onRefresh={() => { void wall.refresh(); }} /> : undefined}>
     {header}
-    <View style={{ backgroundColor: Gallery.paper }}>{controls}
+    <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{controls}
     <View style={styles.toolbar}>
       <GalleryButton label="All artworks" icon="list.bullet" disabled={blocked}
         onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
@@ -131,11 +143,11 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <GalleryButton label="Retry saving" disabled={wall.pending} onPress={() => { void publish(); }} />
         <GalleryButton label="Discard unsaved change" disabled={wall.pending} onPress={discard} />
       </View> : <GalleryButton label="Try again" onPress={() => { void wall.refresh(); }} />}</View>}
-      <View accessibilityLabel="Collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+      <View accessibilityLabel="Collection wall" onLayout={(event) => { setWidth(event.nativeEvent.layout.width); wallTop.current = event.nativeEvent.layout.y; }}>
         {width > 0 && <WallGallery pieces={pieces} color={color} width={width} editing={editing && !blocked}
           selectedId={selectedId} onRemove={remove} onMove={move} onSelect={(piece) => {
             if (editing) setSelectedId(piece.localId);
-            else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/[savedId]', params: { savedId: piece.saveLocalId! } });
+            else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/[savedId]', params: { savedId: piece.saveLocalId!, photoId: piece.photoLocalId } });
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>

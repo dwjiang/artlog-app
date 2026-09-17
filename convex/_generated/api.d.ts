@@ -73,6 +73,7 @@ import type * as lib_placements from "../lib/placements.js";
 import type * as lib_plausibility from "../lib/plausibility.js";
 import type * as lib_politeFetch from "../lib/politeFetch.js";
 import type * as lib_projections from "../lib/projections.js";
+import type * as lib_publicArtworkStory from "../lib/publicArtworkStory.js";
 import type * as lib_publicationAccess from "../lib/publicationAccess.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_recognitionEligibility from "../lib/recognitionEligibility.js";
@@ -190,6 +191,7 @@ declare const fullApi: ApiFromModules<{
   "lib/plausibility": typeof lib_plausibility;
   "lib/politeFetch": typeof lib_politeFetch;
   "lib/projections": typeof lib_projections;
+  "lib/publicArtworkStory": typeof lib_publicArtworkStory;
   "lib/publicationAccess": typeof lib_publicationAccess;
   "lib/rateLimits": typeof lib_rateLimits;
   "lib/recognitionEligibility": typeof lib_recognitionEligibility;

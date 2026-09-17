@@ -146,3 +146,35 @@ it.each([false, true])('keeps artwork proportions, credentials, and the unavaila
   await fireEvent(image, 'error');
   expect(screen.getByRole('image', { name: 'Blue afternoon: image unavailable' })).toBeOnTheScreen();
 });
+
+
+it.each(['signed-out', 'profile-required'] as const)('offers public walls without requiring an account profile: %s', async (status) => {
+  mockSession = { ...mockSession, status };
+  await render(<HomeScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Browse public walls' }));
+  expect(mockPush).toHaveBeenCalledWith('/people');
+});
+
+it('shows overflow artwork counts and omits an empty art stage for a reflection-only visit', async () => {
+  mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 6 }] }));
+  const view = await render(<HomeScreen />);
+  expect(screen.getByText('+5 more')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'View all 6 artworks' }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
+  mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 0, artworks: { page: [], cursor: null, isDone: true } }] }));
+  await view.rerender(<HomeScreen />);
+  expect(screen.queryByTestId('visit-artworks')).toBeNull();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'View visit' })).toBeOnTheScreen();
+});
+
+it.each(['wall', 'visit'])('renders sourced artwork stories in %s details', async (kind) => {
+  mockQuery.mockReturnValue({ data: { ...visit.artworks.page[0], layout: { frame: 'gilt' }, enrichment: {
+    docent: [{ sentence: 'Painted beside the garden.', factIds: ['museum'] }],
+    factSheet: [{ id: 'museum', sourceUrl: 'https://museum.example/work', sourceLabel: 'Museum source' }],
+  } }, refresh: mockRefresh });
+  await render(<ArtworkScreen kind={kind} itemId="art-a" postId="post-a" />);
+  expect(screen.getByText('About this work')).toBeOnTheScreen();
+  expect(screen.getByText('Painted beside the garden.')).toBeOnTheScreen();
+  expect(screen.getByText('Museum source')).toBeOnTheScreen();
+});

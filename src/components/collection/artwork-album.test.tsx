@@ -43,3 +43,19 @@ it('resets the photo position when an emptied album receives a new photo', async
   expect(screen.getByRole('button', { name: 'Previous photo' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Next photo' })).toBeDisabled();
 });
+
+it('opens the wall photo that was tapped after the album loads', async () => {
+  mockPhotos = [];
+  const view = await render(<ArtworkAlbum work={work} photoId="photo-2" />);
+  mockPhotos = initialPhotos;
+  await view.rerender(<ArtworkAlbum work={work} photoId="photo-2" />);
+  expect(screen.getByText('3 / 4')).toBeOnTheScreen();
+  expect(screen.getByText('Visibility of photo-2')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
+  expect(screen.getByText('2 / 4')).toBeOnTheScreen();
+});
+
+it('falls back to the first available photo if the requested photo was removed', async () => {
+  await render(<ArtworkAlbum work={work} photoId="removed" />);
+  expect(screen.getByText('1 / 4')).toBeOnTheScreen();
+});

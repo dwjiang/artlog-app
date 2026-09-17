@@ -6,20 +6,30 @@ import { visitInput } from '../../lib/journal/visit-payload';
 import { getLocalOwner } from '../../lib/account/owner-store';
 import { requestCollectionSync } from '../../lib/account/sync-events';
 import { db } from '../client';
-import { visits, type NewVisit, type Visit } from '../schema';
+import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from '../schema';
 
 /** Sync state is owned by markVisitsSynced and upsertVisitsFromRemote; callers describe only the visit itself. */
 export type VisitDraft = Omit<NewVisit, 'owner' | 'remoteVisitId' | 'syncedAt' | 'syncedBy' | 'revision'>;
-export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner()): Promise<void> {
+export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), artworkLocalId?: string): Promise<void> {
   validateVisit(visitInput(visit));
   db.transaction((tx) => {
+    if (artworkLocalId && !tx.select().from(savedWorks).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, artworkLocalId), isNull(savedWorks.deletedAt))).get()) {
+      throw new ConvexError({ code: 'not_found' });
+    }
     const existing = tx.select().from(visits).where(and(eq(visits.owner, owner), eq(visits.localId, visit.localId))).get();
     if (existing && existing.venueId !== visit.venueId) throw new ConvexError({ code: 'invalid_visit' });
     const fields = { ...visitInput(visit), venueName: visit.venueName, reflection: visit.reflection ?? null,
       startedAt: visit.startedAt ?? null, endedAt: visit.endedAt ?? null };
-    if (existing && Object.entries(fields).every(([key, value]) => existing[key as keyof Visit] === value)) return;
-    tx.insert(visits).values({ ...fields, owner }).onConflictDoUpdate({ target: [visits.owner, visits.localId],
-      set: { ...fields, syncedAt: null, revision: sql`${visits.revision} + 1` } }).run();
+    if (!existing || Object.entries(fields).some(([key, value]) => existing[key as keyof Visit] !== value)) {
+      tx.insert(visits).values({ ...fields, owner }).onConflictDoUpdate({ target: [visits.owner, visits.localId],
+        set: { ...fields, syncedAt: null, revision: sql`${visits.revision} + 1` } }).run();
+    }
+    if (artworkLocalId) {
+      const encounter = tx.select().from(artworkEncounters).where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.savedLocalId, artworkLocalId), eq(artworkEncounters.visitLocalId, visit.localId))).get();
+      if (!encounter || encounter.deletedAt !== null) tx.insert(artworkEncounters).values({ owner, savedLocalId: artworkLocalId, visitLocalId: visit.localId })
+        .onConflictDoUpdate({ target: [artworkEncounters.owner, artworkEncounters.savedLocalId, artworkEncounters.visitLocalId],
+          set: { deletedAt: null, syncedAt: null, revision: sql`${artworkEncounters.revision} + 1` } }).run();
+    }
   });
   requestCollectionSync();
 }
