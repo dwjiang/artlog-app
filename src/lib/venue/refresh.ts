@@ -51,7 +51,7 @@ async function installTable(latest: LatestVenueTable): Promise<void> {
   } finally {
     await downloaded.closeAsync();
   }
-  temp.move(new File(target.parentDirectory, STAGED_VENUE_DB_NAME), { overwrite: true });
+  await temp.move(new File(target.parentDirectory, STAGED_VENUE_DB_NAME), { overwrite: true });
 }
 
 export const refreshDependencies: RefreshDependencies = {

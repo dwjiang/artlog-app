@@ -32,8 +32,8 @@ jest.mock('expo-file-system', () => {
       return { uri, create: () => fs.mkdirSync(uri, { recursive: true }) };
     }
     delete() { fs.unlinkSync(this.uri); }
-    copy(target: File) { fs.copyFileSync(this.uri, target.uri); }
-    move(target: File) { fs.renameSync(this.uri, target.uri); this.uri = target.uri; }
+    async copy(target: File) { await fs.promises.copyFile(this.uri, target.uri); }
+    async move(target: File) { await fs.promises.rename(this.uri, target.uri); this.uri = target.uri; }
     static async downloadFileAsync(_url: string, target: File) { fs.copyFileSync(mockLatest, target.uri); return target; }
   }
   return { File, Paths: { get document() { return mockRoot; } } };
@@ -104,6 +104,45 @@ it('keeps the live table writable after a refresh and carries later confirmation
 it('names a venue from the local table for a saved work', async () => {
   expect(await venueDb.venueNameById('museum-1' as never)).toBe('Museum');
   expect(await venueDb.venueNameById('museum-none' as never)).toBeUndefined();
+});
+
+it.each(['city', 'country', 'cityKey'])('replaces an installed table missing %s even when the asset hash matches', async (column) => {
+  const live = await venueDb.openVenueDb();
+  await live.execAsync(`ALTER TABLE venues DROP COLUMN ${column}`);
+  await live.closeAsync();
+  loadModules();
+
+  const reopened = await venueDb.openVenueDb();
+  expect(await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).toEqual([
+    expect.objectContaining({ id: 'museum-1', city: null, country: null, cityKey: null }),
+  ]);
+});
+
+it('opens the shipped museum asset for nearby lookup and search', async () => {
+  mockBundled = path.resolve(__dirname, '../../..', 'assets/venues.db');
+  const db = await venueDb.openVenueDb();
+  const { searchVenues } = jest.requireActual<typeof import('./search-venues')>('./search-venues');
+  const matches = await searchVenues('Metropolitan Museum', db);
+  expect(matches.length).toBeGreaterThan(0);
+  expect(await venueDb.nearest(db, matches[0], 400)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: matches[0].id }),
+  ]));
+});
+
+it('rejects an invalid bundle without marking it installed and retries after it is corrected', async () => {
+  const outdated = new Database(mockBundled);
+  outdated.exec('ALTER TABLE venues DROP COLUMN city');
+  outdated.close();
+  await expect(venueDb.openVenueDb()).rejects.toThrow('city');
+  expect(mockSettings.has('venueTableAssetHash')).toBe(false);
+  expect(mockConnections.size).toBe(0);
+
+  const corrected = new Database(mockBundled);
+  corrected.exec('ALTER TABLE venues ADD COLUMN city TEXT');
+  corrected.close();
+  const db = await venueDb.openVenueDb();
+  expect(await venueDb.nearest(db, { lat: 40, lng: -73 }, 400)).toHaveLength(1);
+  expect(mockSettings.get('venueTableAssetHash')).toBe('bundle');
 });
 
 it('keeps the live table when a download fails validation', async () => {
