@@ -4,6 +4,7 @@ import { StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-na
 import { Gallery } from '@/constants/theme';
 import { normalizeSearch } from '@/shared/journal/limits';
 import { WallFrame, wallFrameInset } from '../collection/wall-frame';
+import { SavedWorkImage } from '../collection/saved-work-image';
 
 export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
   return normalizeSearch(`${work.title} ${work.artist ?? ''}`).includes(normalizeSearch(query));
@@ -26,7 +27,7 @@ export function VisitGalleryArtwork({ title, artist, photoCount, aspectRatio = 1
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
   const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
-  const frameWidth = Math.min(stageWidth * 0.83, stageWidth / 1.04 * 0.81 * Math.min(1, ratio));
+  const frameWidth = Math.min(stageWidth * 0.83, stageWidth / 1.04 * 0.81 * ratio);
   return <>
     <View style={styles.stage} onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}>
       <WallFrame frame="gilt" width={frameWidth}>{children(Math.max(1, frameWidth - wallFrameInset('gilt', frameWidth) * 2))}</WallFrame>
@@ -38,6 +39,17 @@ export function VisitGalleryArtwork({ title, artist, photoCount, aspectRatio = 1
     <Text numberOfLines={2} style={styles.title}>{title}</Text>
     <Text numberOfLines={2} style={styles.artist}>{artist || 'Artist unknown'}</Text>
   </>;
+}
+
+export function LocalVisitGalleryArtwork({ title, artist, photoCount, path }: {
+  title: string; artist: string | null; photoCount: number; path: string | null;
+}) {
+  const [image, setImage] = useState<{ path: string | null; ratio: number }>();
+  const ratio = image?.path === path ? image.ratio : 1;
+  return <VisitGalleryArtwork title={title} artist={artist} photoCount={photoCount} aspectRatio={ratio}>
+    {(width) => <SavedWorkImage contain path={path} title={title} style={{ width, aspectRatio: ratio }}
+      onLoad={({ width: imageWidth, height }) => setImage({ path, ratio: imageWidth / height })} />}
+  </VisitGalleryArtwork>;
 }
 
 const styles = StyleSheet.create({

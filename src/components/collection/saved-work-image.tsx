@@ -5,12 +5,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { captureFileUri } from '@/lib/files/photos';
 
-export function SavedWorkImage({ path, title, style, contain = false }: {
+export function SavedWorkImage({ path, title, style, contain = false, onLoad }: {
   path: string | null; title: string; style: StyleProp<ViewStyle>; contain?: boolean;
+  onLoad?: (size: { width: number; height: number }) => void;
 }) {
   return (
     <View style={[styles.container, style]}>
       {path ? <Image source={captureFileUri(path)} contentFit={contain ? 'contain' : 'cover'}
+        onLoad={({ source }) => { if (source.width > 0 && source.height > 0) onLoad?.(source); }}
         accessibilityLabel={`Your photo of ${title}`} style={StyleSheet.absoluteFill} />
         : <ThemedText type="small" themeColor="textSecondary" style={styles.placeholder}>Photo syncing…</ThemedText>}
     </View>

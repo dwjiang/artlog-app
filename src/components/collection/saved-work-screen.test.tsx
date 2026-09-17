@@ -7,16 +7,17 @@ import { scheduleRemoval } from '@/lib/collection/pending-removals';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 import { SavedWorkScreen } from './saved-work-screen';
+import { upsertVisit } from '@/db/repos/visits';
 import { getNote, setNote } from '@/db/repos/notes';
 import { getSavedWork, insertSavedWork } from '@/db/repos/saved-works';
-import { addArtworkPhoto, editArtworkPhoto } from '@/db/repos/artwork-album';
+import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from '@/db/repos/artwork-album';
 
 let mockWall: Partial<ReturnType<typeof import('@/lib/wall/use-collection-wall').useCollectionWall>> = { pieces: [], signedIn: false };
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
 jest.mock('@/lib/collection/pending-removals', () => ({ scheduleRemoval: jest.fn() }));
 jest.mock('react-native-reanimated', () => ({ isSharedValue: () => false }));
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
-const mockBack = jest.fn();
+const mockBack = jest.fn(), mockPush = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let client: ConvexReactClient;
 const results = new Map<string, unknown>();
@@ -24,7 +25,7 @@ const listeners = new Set<() => void>();
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }), router: { push: (...args: unknown[]) => mockPush(...args) } }));
 jest.mock('convex/react', () => ({
   ...jest.requireActual('convex/react'),
   useConvexAuth: () => mockAuth,
@@ -87,7 +88,7 @@ function detail(savedId: string) {
   return <ConvexProvider client={client}><SavedWorkScreen savedId={savedId} /></ConvexProvider>;
 }
 
-it('shows the snapshot as text, with the note as the only input', async () => {
+it('opens in reading mode with explicit note editing', async () => {
   await render(detail('lilies'));
   expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   for (const value of ['Claude Monet', 'Oil on canvas']) {
@@ -95,7 +96,8 @@ it('shows the snapshot as text, with the note as the only input', async () => {
   }
   expect(screen.queryByDisplayValue('Water Lilies')).toBeNull();
   expect(screen.queryByDisplayValue('Claude Monet')).toBeNull();
-  expect(screen.getByLabelText('Notes')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Notes')).toBeNull();
+  expect(screen.getByRole('button', { name: /artwork note/ })).toBeOnTheScreen();
   expect(screen.getByLabelText('full photo 1 of Water Lilies').props.source).toEqual([{ uri: 'file:///documents/photos/lilies.jpg' }]);
 });
 
@@ -104,6 +106,7 @@ it('keeps a full wall from taking another artwork', async () => {
   const setLayoutDraft = jest.fn();
   mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items }, repository: { setLayoutDraft } as never, setError: jest.fn() };
   await render(detail('synced'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Wall display options' }));
   const toggle = await screen.findByRole('switch', { name: 'On your wall' });
   expect(toggle).toBeDisabled();
   expect(screen.getByText(/Your wall holds 100 artworks/)).toBeOnTheScreen();
@@ -118,6 +121,7 @@ it('hangs an available album photo after the original photo was removed', async 
   const setLayoutDraft = jest.fn(), publishLayout = jest.fn().mockResolvedValue(undefined);
   mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items: [] }, repository: { setLayoutDraft, publishLayout } as never, setError: jest.fn() };
   await render(detail('replacement-work'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Wall display options' }));
   await fireEvent.press(await screen.findByRole('switch', { name: 'On your wall' }));
   expect(setLayoutDraft).toHaveBeenCalledWith(expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: 'replacement-work', photoLocalId: 'replacement-photo' })] }));
   expect(publishLayout).toHaveBeenCalledTimes(1);
@@ -130,8 +134,17 @@ it('shows the photo on this device for a hung work rather than its published med
   expect((await screen.findByLabelText('full photo 1 of Water Lilies')).props.source).toEqual([{ uri: 'file:///documents/photos/lilies.jpg' }]);
 });
 
+it('explains why a hung work cannot share its note until the note has synced', async () => {
+  const layout = { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: 'gilt' as const };
+  mockWall = { signedIn: true, pieces: [], draft: { color: '#45524B', items: [{ placementId: 'p', saveLocalId: 'lilies', layout }] }, setError: jest.fn() };
+  await render(detail('lilies'));
+  expect(await screen.findByRole('switch', { name: 'Show note on public wall' })).toBeDisabled();
+  expect(screen.getByText('Add a note and let it sync before sharing it.')).toBeOnTheScreen();
+});
+
 it('saves the note on blur', async () => {
   await render(detail('lilies'));
+  await fireEvent.press(await screen.findByRole('button', { name: /artwork note/ }));
   const input = await screen.findByLabelText('Notes');
   await waitFor(() => expect(input).toBeEnabled());
   await fireEvent.changeText(input, 'Seen with Sam');
@@ -142,7 +155,7 @@ it('saves the note on blur', async () => {
 it('shows the saved note when the work is opened again', async () => {
   await setNote('lilies', 'Seen with Sam and Ana');
   await render(detail('lilies'));
-  expect(await screen.findByDisplayValue('Seen with Sam and Ana')).toBeOnTheScreen();
+  expect(await screen.findByText('Seen with Sam and Ana')).toBeOnTheScreen();
 });
 
 it('renders the artwork enrichment when the backend has it', async () => {
@@ -190,6 +203,7 @@ it.each(['devices:me', 'artworks:enrichment'])('keeps local detail usable and re
   await render(detail('lilies'));
   expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   expect(screen.getByLabelText('full photo 1 of Water Lilies')).toBeOnTheScreen();
+  await fireEvent.press(await screen.findByRole('button', { name: /artwork note/ }));
   const input = screen.getByLabelText('Notes');
   await waitFor(() => expect(input).toBeEnabled());
   await fireEvent.changeText(input, 'Still editable without enrichment');
@@ -210,4 +224,27 @@ it('offers an undo window before deletion and returns to the collection', async 
   expect(scheduleRemoval).toHaveBeenCalledWith(expect.objectContaining({ localId: 'plain', title: 'Untitled' }));
   expect((await getSavedWork('plain'))?.deletedAt).toBeNull();
   expect(mockBack).toHaveBeenCalledTimes(1);
+});
+
+it('keeps encounter photos and notes specific to the selected visit and opens other encounters on the same artwork', async () => {
+  const first = '00000000-0000-4000-8000-000000000071', second = '00000000-0000-4000-8000-000000000072';
+  for (const [localId, venueName] of [[first, 'Orsay'], [second, 'Met']]) {
+    await upsertVisit({ localId, venueId: localId as Id<'museums'>, venueName, visitedOn: '2026-09-01', timeZone: 'UTC' });
+    linkArtworkVisit('lilies', localId);
+  }
+  editEncounter('lilies', first, { note: 'First encounter thought' });
+  editEncounter('lilies', second, { note: 'Second encounter thought' });
+  addArtworkPhoto({ localId: 'visit-one-photo', savedLocalId: 'lilies', visitLocalId: first, kind: 'full', capturedAt: 1, path: 'first-visit.jpg' });
+  const view = await render(<ConvexProvider client={client}><SavedWorkScreen savedId="lilies" visitId={first} /></ConvexProvider>);
+  expect(await screen.findByText('First encounter thought')).toBeOnTheScreen();
+  expect(screen.queryByText('Second encounter thought')).toBeNull();
+  expect(screen.getByText('1 / 1')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: /View Water Lilies at Orsay/ }));
+  expect(mockPush).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: /View Water Lilies at Met/ }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/[savedId]', params: { savedId: 'lilies', visitId: second } });
+  await view.rerender(<ConvexProvider client={client}><SavedWorkScreen savedId="lilies" visitId={second} /></ConvexProvider>);
+  expect(await screen.findByText('Second encounter thought')).toBeOnTheScreen();
+  expect(screen.queryByText('First encounter thought')).toBeNull();
+  expect(screen.queryByText('1 / 1')).toBeNull();
 });

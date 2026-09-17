@@ -1,7 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
 import { ConvexError } from 'convex/values';
 import type { ComponentProps, ReactNode } from 'react';
-import { Image } from 'react-native';
+import { Image, ScrollView } from 'react-native';
 import type { SavedWork } from '@/db/schema';
 import { useCollectionWall } from '@/lib/wall/use-collection-wall';
 import { wallAspect } from '@/lib/wall/wall-layout';
@@ -11,6 +11,7 @@ import { CollectionWall } from './collection-wall';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { addArtworkPhoto } from '@/db/repos/artwork-album';
 
+jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('node:crypto').randomUUID() }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('@/db/test-db').createTestDatabase() }));
 jest.mock('@/lib/account/collection-sync', () => ({ flushCollectionMedia: async () => {} }));
 const mockPush = jest.fn();
@@ -74,7 +75,7 @@ beforeEach(() => {
 
 async function openWall() {
   const view = await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
-  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, height: 440 } } });
+  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, height: 440, y: 60 } } });
   await screen.findByRole('button', { name: 'The Milkmaid' });
   return view;
 }
@@ -374,4 +375,25 @@ it.each([false, true])('loads local draft artwork proportions, tolerating a miss
     expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900);
     expect(mockTransport.setLayout).not.toHaveBeenCalled();
   } finally { getSize.mockRestore(); }
+});
+
+it('opens the selected wall photo in the private artwork album', async () => {
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [{ ...published.items[0], photoLocalId: 'detail-photo' }] });
+  await render(<CollectionWall works={[{ localId: 'save-a' } as SavedWork]} />);
+  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, y: 0 } } });
+  await fireEvent.press(await screen.findByRole('button', { name: 'The Milkmaid' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/[savedId]', params: { savedId: 'save-a', photoId: 'detail-photo' } });
+});
+
+it('scrolls a newly hung artwork into view', async () => {
+  const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+  try {
+    await openWall();
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Hang Sunflowers' }));
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ animated: false, y: expect.any(Number) })));
+    const call = scrollTo.mock.calls.find(([options]) => typeof options === 'object' && options && 'y' in options);
+    expect((call?.[0] as { y: number }).y).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Sunflowers' })).toBeOnTheScreen();
+  } finally { scrollTo.mockRestore(); }
 });

@@ -10,9 +10,8 @@ import { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { GalleryButton } from '../collection/gallery-button';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
-import { SavedWorkImage } from '../collection/saved-work-image';
 import { WorkLink } from '../collection/work-link';
-import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from './visit-gallery';
+import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from './visit-gallery';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 export function VisitDetailScreen() {
@@ -74,9 +73,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
             const album = photos.data.filter((photo) => photo.owner === visit.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId);
             const cover = album.find((photo) => photo.kind === 'full') ?? album.find((photo) => photo.kind !== 'label') ?? album[0];
             return <WorkLink key={work.localId} work={work} visitId={visit.localId} style={{ width: '48%', flexShrink: 1 }}>
-              <VisitGalleryArtwork title={work.title} artist={work.artist} photoCount={album.length}>
-                {(width) => <SavedWorkImage contain path={cover?.path ?? work.cropPath} title={work.title} style={{ width, height: width }} />}
-              </VisitGalleryArtwork>
+              <LocalVisitGalleryArtwork title={work.title} artist={work.artist} photoCount={album.length} path={cover?.path ?? work.cropPath} />
             </WorkLink>;
           })}
         </View>

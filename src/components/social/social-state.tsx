@@ -21,16 +21,18 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
   </View>;
 }
 
-export function SocialGate({ session }: { session: SocialSession }) {
+export function SocialGate({ session, browsePublic = false }: { session: SocialSession; browsePublic?: boolean }) {
   const router = useRouter();
   if (session.status === 'ready') return null;
   if (session.status === 'signed-out') return <View style={socialStyles.section}>
     <SocialState title="Art is better together." detail="See the museum visits and artworks your friends share." icon="person.2" />
+    {browsePublic && <GalleryButton label="Browse public walls" variant="outlined" onPress={() => router.push('/people')} />}
     <AccountSection />
   </View>;
-  if (session.status === 'profile-required') return <SocialState title="Make yourself at home."
+  if (session.status === 'profile-required') return <View style={socialStyles.section}><SocialState title="Make yourself at home."
     detail="Create your public profile to find friends and follow their museum visits." icon="person.crop.circle.badge.plus"
-    action="Create your profile" onAction={() => router.push('/create-profile')} />;
+    action="Create your profile" onAction={() => router.push('/create-profile')} />
+    {browsePublic && <GalleryButton label="Browse public walls" variant="outlined" onPress={() => router.push('/people')} />}</View>;
   if (session.status === 'offline') return <SocialState title="You’re offline."
     detail="Connect to see the latest shared visits. Your saved collection is still here." icon="wifi.slash" />;
   if (session.status === 'error') return <SocialState title="Couldn’t load your account."

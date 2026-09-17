@@ -9,6 +9,7 @@ import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile }
 import { requirePublicWallItem } from './lib/publicationAccess';
 import { projectWallArtwork } from './lib/projections';
 import { contributionSource, resolveDisplayAsset } from './lib/displayMedia';
+import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
 
 export const DEFAULT_WALL_COLOR = '#45524B';
 const selection = v.object({ placementId: v.string(), photoLocalId: v.optional(v.string()), saveLocalId: v.string(), layout: wallLayout });
@@ -64,10 +65,13 @@ export const getPublic = query({
   },
 });
 export const getArtwork = query({
-  args: { itemId: v.id('wallItems') }, returns: v.union(wallArtwork, v.null()),
+  args: { itemId: v.id('wallItems') }, returns: v.union(v.object({ ...wallArtwork.fields, enrichment: v.optional(publicArtworkStory) }), v.null()),
   handler: async (ctx, { itemId }) => {
     const item = await ctx.db.get(itemId);
-    return item ? (await currentProjection(ctx, item))?.projection ?? null : null;
+    const current = item ? await currentProjection(ctx, item) : null;
+    if (!current) return null;
+    const enrichment = await projectArtworkStory(ctx, current.save);
+    return { ...current.projection, ...(enrichment ? { enrichment } : {}) };
   },
 });
 const sameLayout = (a: Infer<typeof wallLayout>, b: Infer<typeof wallLayout>) =>

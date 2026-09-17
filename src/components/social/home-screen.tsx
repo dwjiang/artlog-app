@@ -32,7 +32,7 @@ export function HomeScreen() {
           <Text style={styles.order}>Newest visit first</Text>
         </View>
       </View>}
-      ListEmptyComponent={!ready ? <SocialGate session={session} /> : feed.done && !feed.error
+      ListEmptyComponent={!ready ? <SocialGate session={session} browsePublic /> : feed.done && !feed.error
         ? <SocialState title="A new view is on its way." detail="When your friends share a museum visit, it will appear here. Find someone whose eye you love."
           action="Find people" onAction={() => router.push('/people')} /> : null}
       ListFooterComponent={ready ? <PageFooter {...feed} count={feed.items.length} /> : null}

@@ -56,7 +56,7 @@ export function VisitArtworks({ artworks, token, compact = false, totalCount }: 
         </WallFrame>
       </View>;
     })}
-    {!!totalCount && totalCount > preview.length && <View style={{ position: 'absolute', right: 12, bottom: 12, borderRadius: 16, backgroundColor: Gallery.paper, paddingHorizontal: 9, paddingVertical: 5 }}><Text style={{ color: Gallery.ink, fontSize: 12 }}>+{totalCount - preview.length}</Text></View>}
+    {!!totalCount && totalCount > preview.length && <View style={{ position: 'absolute', right: 12, bottom: 12, borderRadius: 16, backgroundColor: Gallery.paper, paddingHorizontal: 9, paddingVertical: 5 }}><Text style={{ color: Gallery.ink, fontSize: 12 }}>+{totalCount - preview.length} more</Text></View>}
     {!preview.length && <Text style={socialStyles.caption}>A moment from the museum.</Text>}
   </View>;
 }
@@ -76,16 +76,16 @@ export function VisitCard({ visit, token }: { visit: SharedVisit; token?: string
           <Text style={styles.feedMuseum}>visited <Text style={{ fontWeight: '500' }}>{visit.venue.name}</Text></Text>
         </View>
       </Pressable>
-      <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}{visit.venue.city ? ` · ${visit.venue.city}` : ''}</Text>
+      <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}{visit.venue.city ? `\n${visit.venue.city}` : ''}</Text>
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s visit to ${visit.venue.name}`} onPress={openVisit}>
+    {!!visit.artworks.page.length && <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s visit to ${visit.venue.name}`} onPress={openVisit}>
       <VisitArtworks artworks={visit.artworks.page} token={token} compact totalCount={visit.artworkCount} />
-    </Pressable>
+    </Pressable>}
     {visit.publishedAt > Date.parse(`${visit.visitedOn}T23:59:59Z`) + 86400000 && <Text style={[styles.feedMeta, { marginTop: 10 }]}>Added later · ordered by visit date</Text>}
     {!!visit.reflection && <Text selectable style={styles.reflection}>{visit.reflection}</Text>}
     <View style={styles.actions}>
       <Text style={styles.feedMeta}>{visit.artworkCount === undefined ? artworkCount(visit.artworks) : `${visit.artworkCount} ${visit.artworkCount === 1 ? 'artwork' : 'artworks'} shared`}</Text>
-      <GalleryButton label="View visit" icon="arrow.right" iconPosition="trailing" onPress={openVisit} />
+      <GalleryButton label={visit.artworkCount && visit.artworkCount > 3 ? `View all ${visit.artworkCount} artworks` : 'View visit'} icon="arrow.right" iconPosition="trailing" onPress={openVisit} />
     </View>
   </View>;
 }

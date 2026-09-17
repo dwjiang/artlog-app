@@ -21,9 +21,10 @@ import { VisitMessage, VisitPage, visitStyles as styles } from './visit-ui';
 
 export function VisitCreateScreen() {
   const owner = useLocalOwner();
-  return <CreateForm key={owner} />;
+  const { savedId } = useLocalSearchParams<{ savedId?: string }>();
+  return <CreateForm key={`${owner}:${savedId ?? ''}`} savedId={savedId} />;
 }
-function CreateForm() {
+function CreateForm({ savedId }: { savedId?: string }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ query: string; retry: number; rows: VenueRow[]; error?: string }>();
   const [venue, setVenue] = useState<VenueRow>();
@@ -61,8 +62,11 @@ function CreateForm() {
     const session = captureOwner();
     submitting.current = true; setBusy(true); setError(undefined); Keyboard.dismiss();
     try {
-      await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, reflection: reflection.trim() || null }, session.owner);
-      if (session.isOwnerCurrent()) router.back();
+      await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, reflection: reflection.trim() || null }, session.owner, savedId);
+      if (session.isOwnerCurrent()) {
+        if (savedId) router.dismissTo({ pathname: '/[savedId]', params: { savedId, visitId: localId } });
+        else router.back();
+      }
     } catch (cause) { if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'Your visit could not be saved. Try again.'); }
     finally { if (session.isOwnerCurrent()) { submitting.current = false; setBusy(false); } }
   }
@@ -71,7 +75,7 @@ function CreateForm() {
     <Stack.Toolbar placement="right"><Stack.Toolbar.Button variant="done" disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
     <VisitPage>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep the visit.</Text>
-      <Text style={styles.caption}>A visit is yours to remember, with or without artworks.</Text>
+      <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>
       <Text accessibilityRole="header" style={styles.heading}>Museum</Text>
       {venue ? <View style={styles.card}>
         <Text style={styles.body}>{venue.name}</Text><Text style={styles.caption}>{venueLocation(venue).location}</Text>

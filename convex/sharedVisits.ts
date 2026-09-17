@@ -11,6 +11,7 @@ import { acceptedRelationships } from './lib/friendships';
 import { canReadProfilePosts, readablePublication, requireSharedVisit, requireSharedVisitItem } from './lib/publicationAccess';
 import { limitKey } from './lib/rateLimits';
 import { resolveDisplayAsset } from './lib/displayMedia';
+import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
 import { checkPublicationRevision, compareHistory, header, historyCursor, historyHead, ownedVisit, PAGE_ARTWORKS, PAGE_BYTES,
   parseHistoryCursor, projectArtworkPage, publicationForVisit, publicationItems, publicationState, publicationView, readHeadroom,
   SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
@@ -109,11 +110,12 @@ export const get = query({
   },
 });
 export const getArtwork = query({
-  args: { postId: v.string(), itemId: v.id('sharedVisitItems') }, returns: sharedVisitCard,
+  args: { postId: v.string(), itemId: v.id('sharedVisitItems') }, returns: v.object({ ...sharedVisitCard.fields, enrichment: v.optional(publicArtworkStory) }),
   handler: async (ctx, { postId, itemId }) => {
     const { profile } = await requireProfile(ctx);
     const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile._id);
-    return projectVisitAlbum(ctx, item, save, postId);
+    const enrichment = await projectArtworkStory(ctx, save);
+    return { ...await projectVisitAlbum(ctx, item, save, postId), ...(enrichment ? { enrichment } : {}) };
   },
 });
 
