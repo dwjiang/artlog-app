@@ -41,6 +41,8 @@ Code, types, tests, and configuration are the source of implementation details.
 
 ## Project conventions
 
+- Store temporary artifacts (mockups, throwaway mocks, scratch scripts, and
+  debugging output) in the gitignored `.context/` directory.
 - **iOS is the only product target.** Do not extend web/Android residue or gate
   work on its scripts.
 - For Expo or React Native code changes, read relevant Expo SDK 57 docs at
