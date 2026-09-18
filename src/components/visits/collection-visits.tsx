@@ -1,15 +1,16 @@
 import type { ReactElement } from 'react';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { searchVisitSummaries, visitCounts, type VisitSummary } from '@/lib/journal/visit-summaries';
 import { searchTerm } from '@/lib/journal/query';
 import { useVisitView } from '@/lib/journal/use-visit-view';
+import { CollectionSearchField } from '../collection/collection-search-field';
 import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { VisitGlobe } from './visit-globe';
 import { VisitTimeline } from './visit-timeline';
-import { VisitMessage, VisitPrivacyNote, VisitSymbol, visitStyles as styles } from './visit-ui';
+import { VisitMessage, VisitPrivacyNote, visitStyles as styles } from './visit-ui';
 
 export function CollectionVisits({ owner, visits, search, header, collectionControls, loading, error, clearSearch, onSearchChange }: {
   owner: string; visits: VisitSummary[]; search: string; header?: ReactElement; collectionControls?: ReactElement;
@@ -24,14 +25,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
       <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'list', label: 'List', icon: 'list.bullet' }, { value: 'globe', label: 'Globe', icon: 'globe' }]} />
       <GalleryButton label="Add visit" icon="plus" onPress={() => router.push('/visit-create')} />
     </View>
-    {mode === 'list' && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, borderRadius: 10, backgroundColor: Gallery.fill }}>
-      <VisitSymbol name="magnifyingglass" size={16} />
-      <TextInput value={search} onChangeText={onSearchChange} placeholder="Search your visits" accessibilityLabel="Search your visits" autoCapitalize="none"
-        autoCorrect={false} returnKeyType="search" clearButtonMode="never" style={{ flex: 1, minHeight: 38, paddingVertical: 8, fontSize: 14, color: Gallery.ink }} />
-      {!!search && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={clearSearch} hitSlop={10} style={{ paddingVertical: 10 }}>
-        <VisitSymbol name="xmark.circle.fill" size={16} />
-      </Pressable>}
-    </View>}
+    {mode === 'list' && <CollectionSearchField value={search} label="Search your visits" onChange={onSearchChange} onClear={clearSearch} />}
     {preferenceError && <Text style={styles.error}>{preferenceError}</Text>}
   </View></View>;
   let message: ReactElement | undefined;

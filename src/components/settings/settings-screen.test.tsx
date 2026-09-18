@@ -125,6 +125,8 @@ it('keeps withdrawal retryable when the network fails', async () => {
 
 it('opens the shared sign-in sheet from the account row', async () => {
   await render(<SettingsScreen />);
+  expect(screen.getByText('Using Artlog without an account')).toBeOnTheScreen();
+  expect(screen.getByText('Saved on this iPhone. Sign in to sync across devices or share with friends.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
