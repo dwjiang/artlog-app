@@ -1,8 +1,10 @@
 import type { ComponentProps } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Button, Column, Host, Icon, Row, Text } from '@expo/ui';
-import { accessibilityAddTraits, accessibilityElement, accessibilityLabel, background, contentShape, font, frame, shapes } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityAddTraits, accessibilityElement, accessibilityLabel, background, contentShape, font, frame, opacity, shapes, strokeBorder } from '@expo/ui/swift-ui/modifiers';
 import { Gallery, Spacing } from '@/constants/theme';
+
+const SEGMENT_RADIUS = 4;
 
 export function NativeSegmentedPicker<T extends string>({ label, value, options, onChange, disabled = false, compact = false }: {
   label: string; value?: T; options: { value: T; label: string; icon?: ComponentProps<typeof Icon>['name'] }[];
@@ -14,8 +16,10 @@ export function NativeSegmentedPicker<T extends string>({ label, value, options,
   const fillWidth = !compact || stacked;
   return <Host key={fontScale} matchContents={fillWidth ? { vertical: true } : true} colorScheme="light" style={fillWidth ? { width: '100%' } : undefined}>
     <Layout alignment="center" spacing={1}
-      style={{ backgroundColor: Gallery.ink, borderColor: Gallery.ink, borderWidth: 1, borderRadius: 4, opacity: disabled ? 0.55 : 1 }}
-      modifiers={[accessibilityElement('contain'), accessibilityLabel(label), ...(fillWidth ? [frame({ maxWidth: Infinity })] : [])]}>
+      style={{ backgroundColor: Gallery.ink, borderRadius: SEGMENT_RADIUS }}
+      modifiers={[accessibilityElement('contain'), accessibilityLabel(label), ...(fillWidth ? [frame({ maxWidth: Infinity })] : []),
+        // Style borders are a square stroke clipped by the radius, which notches the corners; stroke the rounded shape instead.
+        strokeBorder({ color: Gallery.ink, shape: 'roundedRectangle', cornerRadius: SEGMENT_RADIUS, style: { lineWidth: 1 } }), opacity(disabled ? 0.55 : 1)]}>
       {options.map((option) => {
         const selected = option.value === value;
         return <Button key={option.value} variant="text" disabled={disabled} onPress={() => onChange(option.value)}

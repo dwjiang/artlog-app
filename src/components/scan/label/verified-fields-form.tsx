@@ -1,14 +1,12 @@
-import { Host, TextInput } from '@expo/ui';
-import { accessibilityLabel, font } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
-import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import type { LabelFieldName, LabelWarning } from '../../../../convex/lib/validators';
 
+import { FieldInput } from '../field-input';
 import { EvidenceBadge } from './evidence-badge';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Gallery, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { EVIDENCE_SOURCES, LABEL_FIELD_LABELS, LABEL_FIELD_NAMES, WARNING_MESSAGES, type LabelFormState } from '@/lib/label/fields';
 
 export const UNLOCK_TITLE = 'Edit this field?';
@@ -26,7 +24,6 @@ export type VerifiedFieldsFormProps = {
 
 /** Verified fields locked with their source, the rest editable; the parent owns the state. */
 export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlock }: VerifiedFieldsFormProps) {
-  const [focused, setFocused] = useState<LabelFieldName>();
   function confirmUnlock(name: LabelFieldName) {
     const evidence = state[name].evidence;
     const source = (evidence && EVIDENCE_SOURCES[evidence]) ?? 'the museum’s records';
@@ -53,24 +50,8 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlo
               <EvidenceBadge field={field} />
             </View>
             <View style={styles.inputRow}>
-              <Host matchContents={{ vertical: true }} colorScheme="light" style={styles.host}>
-                <TextInput
-                  defaultValue={field.value}
-                  placeholder={label}
-                  editable={editable && !field.locked}
-                  autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'}
-                  autoCorrect={false}
-                  multiline
-                  selectionColor={Gallery.accent}
-                  placeholderTextColor={Gallery.muted}
-                  textStyle={{ color: Gallery.ink }}
-                  modifiers={[font({ textStyle: 'body' }), accessibilityLabel(label)]}
-                  onFocus={() => setFocused(name)}
-                  onBlur={() => setFocused(undefined)}
-                  onChangeText={(value) => onChange(name, value)}
-                  style={field.locked ? styles.inputLocked : { ...styles.input, borderColor: focused === name ? Gallery.accent : Gallery.controlBorder }}
-                />
-              </Host>
+              <FieldInput label={label} defaultValue={field.value} editable={editable} locked={field.locked} style={styles.input}
+                autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'} onChangeText={(value) => onChange(name, value)} />
               {field.locked && editable && (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${label}`} onPress={() => confirmUnlock(name)} style={styles.lockButton}>
                   <Image source="sf:lock.fill" tintColor={Colors.light.textSecondary} style={styles.lockIcon} />
@@ -93,9 +74,7 @@ const styles = StyleSheet.create({
   field: { gap: Spacing.one },
   header: { alignItems: 'flex-start', gap: Spacing.one },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  host: { flex: 1 },
-  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 8, backgroundColor: Gallery.surface, borderWidth: 1, borderColor: Gallery.controlBorder },
-  inputLocked: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 8, backgroundColor: Gallery.fill },
+  input: { flex: 1 },
   lockButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   lockIcon: { width: 18, height: 18 },
 });
