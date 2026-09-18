@@ -1,12 +1,11 @@
 import { Switch, Text } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
 import { font } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 
 import { api } from '../../../convex/_generated/api';
 
-import { ActionRow } from '@/components/grouped-list';
+import { ActionRow, GroupedSection } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { getAppAttest } from '@/lib/app-attest';
 import { signPayload } from '@/lib/attested-write';
@@ -111,24 +110,24 @@ export function DevTools({ attested }: { attested: boolean }) {
   }
 
   return <>
-    <Section title="Capture">
+    <GroupedSection title="Capture">
       <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
         onValueChange={(value) => {
           setSavingTimings(true);
           void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
         }} />
-    </Section>
-    <Section title="App Attest">
+    </GroupedSection>
+    <GroupedSection title="App Attest">
       <Status>{supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}</Status>
       <ActionRow label={running ? 'Checking assertion…' : 'Check App Attest'} disabled={!supported || !attested || running} onPress={() => { void checkAssertion(); }} />
       {result ? <Status>{result}</Status> : null}
-    </Section>
-    <Section title="Embedding">
+    </GroupedSection>
+    <GroupedSection title="Embedding">
       <Status>{modelStatus}</Status>
       <ActionRow label={progress ?? 'Export calibration embeddings'} disabled={progress !== undefined} onPress={() => { void exportCalibration(); }} />
       {calibration ? <Status>{calibration}</Status> : null}
       <ActionRow label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'} disabled={checkingOrb} onPress={() => { void checkOrbParity(); }} />
       {orbParity ? <Status>{orbParity}</Status> : null}
-    </Section>
+    </GroupedSection>
   </>;
 }

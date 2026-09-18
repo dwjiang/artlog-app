@@ -46,6 +46,11 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
     layer: index, frame: DEFAULT_WALL_FRAME };
 }
 
+/** Hanging order for numbering: the layer a piece was hung at. */
+export function orderedPieces<T extends Pick<WallPiece, 'layout'>>(pieces: T[]): T[] {
+  return [...pieces].sort((first, second) => first.layout.layer - second.layout.layer);
+}
+
 export function removeWallPiece(draft: WallDraft, localId: string): WallDraft {
   return { ...draft, items: draft.items.filter((item) => item.placementId !== localId)
     .map((item, layer) => ({ ...item, layout: { ...item.layout, layer } })) };

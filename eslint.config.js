@@ -39,6 +39,7 @@ module.exports = defineConfig([
   {
     ignores: [
       '.agents/**',
+      '.context/**',
       'dist/**',
       'convex/_generated/**',
       'src/db/migrations/**',

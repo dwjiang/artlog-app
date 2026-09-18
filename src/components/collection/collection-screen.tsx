@@ -41,14 +41,14 @@ function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch
     </View>;
   return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
-      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={<CollectionHeader />} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
+      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
         controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
           <CollectionSearchField value={artworkSearch} label="Search your artworks" placeholder="Title, artist, date or place" onChange={setArtworkSearch} onClear={() => setArtworkSearch('')} />
         </View></View>} />
-        : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={<CollectionHeader />} controls={controls} />}
+        : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} controls={controls} />}
     </View>
     <View style={{ flex: 1, display: mode === 'visits' ? 'flex' : 'none' }}>
-      <CollectionVisits {...data} header={<CollectionHeader />} collectionControls={controls} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
+      <CollectionVisits {...data} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} collectionControls={controls} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
     </View>
   </SafeAreaView>;
 }

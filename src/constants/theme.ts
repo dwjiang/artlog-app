@@ -2,18 +2,19 @@ import { Platform, type TextStyle } from 'react-native';
 import { DEFAULT_WALL_COLOR } from '@/shared/wall/defaults';
 
 export const Gallery = {
-  ink: '#171715',
-  muted: '#656560',
-  paper: '#FBFBF6',
+  ink: '#111111',
+  muted: '#6A6B70',
+  paper: '#FCFCF9',
   surface: '#FFFFFF',
-  fill: '#F0F0E8',
-  accent: '#2449C9',
-  accentPressed: '#1B389E',
-  highlight: '#F2D34F',
-  segmentTrack: '#F0F0E8',
-  segmentSelection: '#F2D34F',
-  separator: '#D5D5CC',
-  controlBorder: '#85857A',
+  fill: '#F0F0EC',
+  avatar: '#D7D7D8',
+  accent: '#0A46F3',
+  accentPressed: '#0836C4',
+  highlight: '#DFF64D',
+  segmentTrack: '#FFFFFF',
+  segmentSelection: '#DFF64D',
+  separator: '#CDCDD0',
+  controlBorder: '#111111',
   success: '#2F6846',
   warning: '#865A15',
   destructive: '#B42318',
@@ -43,7 +44,7 @@ export const Colors = {
     error: Gallery.destructive,
     controlBorder: Gallery.controlBorder,
     separator: Gallery.separator,
-    overlayScrim: 'rgba(23, 23, 21, 0.72)',
+    overlayScrim: 'rgba(17, 17, 17, 0.72)',
     overlayText: '#FFFFFF',
   },
   dark: {
@@ -95,7 +96,7 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const Radius = { artwork: 0, thumbnail: 2, button: 6, input: 8, full: 9999 } as const;
+export const Radius = { artwork: 0, thumbnail: 2, button: 8, input: 8, full: 9999 } as const;
 
 export const NavigationTheme = {
   headerTintColor: Gallery.accent,

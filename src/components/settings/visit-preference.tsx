@@ -1,7 +1,6 @@
 import { Switch } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
 import { useEffect, useState } from 'react';
-import { GroupedFooter } from '@/components/grouped-list';
+import { GroupedFooter, GroupedSection } from '@/components/grouped-list';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 
@@ -21,7 +20,7 @@ function OwnedPreference() {
     catch { if (session.isCurrent()) setError('The preference could not be saved.'); }
     finally { if (session.isCurrent()) setBusy(false); }
   }
-  return <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Open Visits in your last List or Globe view. When off, new sessions start with the globe.'}</GroupedFooter>}>
+  return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Open Visits in your last List or Globe view. When off, new sessions start with the globe.'}</GroupedFooter>}>
     <Switch label="Remember visit view" value={remember} disabled={busy} onValueChange={(value) => { void change(value); }} />
-  </Section>;
+  </GroupedSection>;
 }

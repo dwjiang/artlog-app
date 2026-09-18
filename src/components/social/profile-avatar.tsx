@@ -10,7 +10,7 @@ export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; pho
   const [failed, setFailed] = useState<string>();
   const letters = initials(name);
   return <View accessibilityElementsHidden style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden',
-    backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: Gallery.separator }}>
+    backgroundColor: Gallery.avatar, alignItems: 'center', justifyContent: 'center' }}>
     {photoUrl && failed !== photoUrl ? <Image source={photoUrl} contentFit="cover" onError={() => setFailed(photoUrl)} style={{ width: size, height: size }} />
       : <Text allowFontScaling={false} style={{ fontSize: size * 0.3, fontWeight: '600', letterSpacing: 0.4, color: Gallery.ink }}>{letters}</Text>}
   </View>;

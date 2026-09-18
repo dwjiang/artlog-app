@@ -14,7 +14,7 @@ export function NativeSegmentedPicker<T extends string>({ label, value, options,
   const fillWidth = !compact || stacked;
   return <Host key={fontScale} matchContents={fillWidth ? { vertical: true } : true} colorScheme="light" style={fillWidth ? { width: '100%' } : undefined}>
     <Layout alignment="center" spacing={1}
-      style={{ backgroundColor: Gallery.controlBorder, borderColor: Gallery.controlBorder, borderWidth: 1, opacity: disabled ? 0.55 : 1 }}
+      style={{ backgroundColor: Gallery.ink, borderColor: Gallery.ink, borderWidth: 1, borderRadius: 4, opacity: disabled ? 0.55 : 1 }}
       modifiers={[accessibilityElement('contain'), accessibilityLabel(label), ...(fillWidth ? [frame({ maxWidth: Infinity })] : [])]}>
       {options.map((option) => {
         const selected = option.value === value;
@@ -24,7 +24,7 @@ export function NativeSegmentedPicker<T extends string>({ label, value, options,
           <Row alignment="center" spacing={Spacing.one} style={{ paddingHorizontal: Spacing.two, paddingVertical: Spacing.two }} modifiers={[
             frame({ ...(fillWidth ? { maxWidth: Infinity } : {}), minHeight: 44 }),
             contentShape(shapes.rectangle()),
-            background(selected ? Gallery.segmentSelection : Gallery.paper, shapes.rectangle()),
+            background(selected ? Gallery.segmentSelection : Gallery.segmentTrack, shapes.rectangle()),
           ]}>
             {option.icon && <Icon name={option.icon} size={17} color={Gallery.ink} />}
             <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: compact ? 'subheadline' : 'body', weight: selected ? 'semibold' : 'regular' })]}>{option.label}</Text>

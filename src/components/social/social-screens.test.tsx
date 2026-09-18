@@ -54,8 +54,8 @@ beforeEach(() => {
 it('opens visits, authors, and people from Home', async () => {
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
-  expect(screen.getByText('Newest visit first')).toBeOnTheScreen();
-  expect(screen.getByText('1+ artworks shared')).toBeOnTheScreen();
+  expect(screen.queryByText('Newest visit first')).toBeNull();
+  expect(screen.getByText('1+ artworks')).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
@@ -66,6 +66,8 @@ it('opens visits, authors, and people from Home', async () => {
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/profile/[profileId]', params: { profileId: 'alex' } });
   await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
   expect(mockPush).toHaveBeenLastCalledWith('/people');
+  await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/people', params: { filter: 'friends' } });
   await fireEvent.press(screen.getByRole('button', { name: 'Leaderboards' }));
   expect(mockPush).toHaveBeenLastCalledWith('/leaderboards');
   expect(screen.queryByRole('button', { name: 'Your profile and settings' })).toBeNull();
@@ -152,6 +154,20 @@ it.each([false, true])('keeps artwork proportions, credentials, and the unavaila
 });
 
 
+it('shows fewer previews rather than letting landscape photos overflow the card', async () => {
+  const landscape = (itemId: string) => ({ ...visit.artworks.page[0], itemId: itemId as never, artwork: { ...visit.artworks.page[0].artwork, title: itemId,
+    media: { kind: 'derivative' as const, rights: 'contributor_consent' as const, width: 400, height: 300,
+      reference: { kind: 'sharedVisit' as const, postId: 'post-a', itemId: itemId as never } } } });
+  await render(<VisitArtworks artworks={['one', 'two', 'three'].map(landscape)} compact />);
+  await fireEvent(screen.getByTestId('visit-artworks'), 'layout', { nativeEvent: { layout: { width: 350 } } });
+  expect(screen.getByRole('image', { name: 'one' })).toBeOnTheScreen();
+  expect(screen.getByRole('image', { name: 'two' })).toBeOnTheScreen();
+  expect(screen.queryByRole('image', { name: 'three' })).toBeNull();
+  const image = screen.getByRole('image', { name: 'one' });
+  expect(image.props.style.width * 2 + 8).toBeLessThanOrEqual(350);
+  expect(image.props.style.height).toBeGreaterThanOrEqual(100);
+});
+
 it('loads public visits for guests and opens their details without signing in', async () => {
   mockSession = { ...mockSession, status: 'signed-out', token: null };
   mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: 'public' }] }));
@@ -173,11 +189,12 @@ it('offers public walls while the public visit feed is empty', async () => {
   expect(mockPush).toHaveBeenCalledWith('/people');
 });
 
-it('shows overflow artwork counts and omits an empty art stage for a reflection-only visit', async () => {
+it('shows the artwork count and omits an empty art stage for a reflection-only visit', async () => {
   mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 6 }] }));
   const view = await render(<HomeScreen />);
-  expect(screen.getByText('+5 more')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'View all 6 artworks' }));
+  expect(screen.queryByText('+5 more')).toBeNull();
+  expect(screen.getByText('6 artworks')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
   mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 0, artworks: { page: [], cursor: null, isDone: true } }] }));
   await view.rerender(<HomeScreen />);

@@ -1,18 +1,19 @@
 ---
 version: alpha
 name: Artlog Graphic Index
-description: A personal art journal on warm paper, with charcoal typography, cobalt actions, scarf-yellow selections, and artwork-led layouts.
+description: A personal art journal on paper, with black typography, cobalt actions, lime selections, and artwork-led layouts.
 colors:
-  primary: "#2449C9"
-  primary-pressed: "#1B389E"
-  ink: "#171715"
-  muted: "#656560"
-  paper: "#FBFBF6"
+  primary: "#0A46F3"
+  primary-pressed: "#0836C4"
+  ink: "#111111"
+  muted: "#6A6B70"
+  paper: "#FCFCF9"
   surface: "#FFFFFF"
-  fill: "#F0F0E8"
-  highlight: "#F2D34F"
-  separator: "#D5D5CC"
-  control-border: "#85857A"
+  fill: "#F0F0EC"
+  avatar: "#D7D7D8"
+  highlight: "#DFF64D"
+  separator: "#CDCDD0"
+  control-border: "#111111"
   success: "#2F6846"
   warning: "#865A15"
   destructive: "#B42318"
@@ -28,7 +29,7 @@ typography:
 rounded:
   artwork: 0px
   thumbnail: 2px
-  button: 6px
+  button: 8px
   input: 8px
   full: 9999px
 spacing:
@@ -45,9 +46,8 @@ spacing:
 
 # Artlog Graphic Index
 
-Artlog records artworks and visits in a personal collection. Warm paper, strong
-charcoal typography, cobalt actions, and scarf-yellow selections give the app a
-consistent identity. Artwork supplies the visual detail. Content rows and thin
+Artlog records artworks and visits in a personal collection. Paper, strong black
+typography, cobalt actions, and lime selections give the app a consistent identity. Artwork supplies the visual detail. Content rows and thin
 dividers establish structure without turning every section into a card.
 
 This language covers entry, Home, Collection, visits, scanning, profiles, social
@@ -76,17 +76,18 @@ carries primary text and structural symbols. Muted ink carries metadata and
 supporting copy. Separator rules divide content; the stronger control border
 identifies editable or selectable boundaries.
 
-Cobalt identifies primary actions, links, and navigation actions. Scarf yellow
-highlights editorial labels and selected segments, always with charcoal text.
-Selection also has a weight, border, checkmark, or accessibility state. Yellow
+Cobalt identifies primary actions and links; header icon buttons are ink. Lime
+highlights editorial labels, selected segments, wall numbering, and the note
+swatch, always with black text.
+Selection also has a weight, border, checkmark, or accessibility state. Lime
 never carries body text on paper or communicates selection by itself.
 
 Success, warning, and destructive colors appear with explicit words or symbols.
 Uncertain, tentative, queued, and rejected identification states remain distinct
 from verified identification and successful sharing.
 
-Cobalt on paper has 7.05:1 contrast; muted ink on paper has 5.65:1; charcoal on
-yellow has 12.14:1. Check any new text/background pairing, including opacity,
+Cobalt on paper has 6.4:1 contrast; muted ink on paper has 5.2:1; black on lime
+has 15.7:1. Check any new text/background pairing, including opacity,
 against a minimum 4.5:1 for ordinary text.
 
 ## Typography and layout
@@ -119,17 +120,19 @@ outline; destructive actions use red and explicit wording. Controls provide at
 least a 44 × 44-point target. Busy actions retain their labels and layout, block
 duplicate activation, and announce progress.
 
-Selected segments use a flat yellow surface and charcoal text. Their selected
-state is available to VoiceOver; disabled state does not rely on color alone.
+Segmented controls sit in a one-point ink border; the selected segment is flat
+lime with black text and the rest are white. Their selected state is available
+to VoiceOver; disabled state does not rely on color alone.
 Inputs have visible labels, readable muted placeholders, a stronger control
 border, cobalt focus and selection tint, and light keyboards. Validation stays
 near the relevant field or operation.
 
-Navigation uses paper backgrounds, charcoal titles, and cobalt actions in every
-stack, including Scan. Native sheets and grouped Settings forms use the same
-palette. Home has one Artlog masthead and retains its actual navigation actions.
+Navigation uses paper backgrounds, black titles, labeled back buttons, and ink
+header icons in every stack, including Scan. Settings and About are plain rows
+with separators rather than inset groups. Home has one Artlog masthead with
+search and friends actions; an overflow menu carries secondary actions.
 
-Toasts and undo use an opaque charcoal surface, white wrapping text, and readable
+Toasts and undo use an opaque ink surface, white wrapping text, and readable
 44-point actions. Existing timing and undo behavior remain intact. Available
 content stays visible during refresh, pagination, and recoverable failures.
 Initial progress is labeled; an empty state appears only after loading completes.
@@ -146,8 +149,9 @@ Full artwork views preserve the complete image and their existing photo-selectio
 behavior. Neutral placeholders identify unavailable artwork without substituting
 a portrait or a private photograph.
 
-New walls use Paper and new placements use the thin Black frame. Ordinary
-thumbnails without an explicit frame use No frame. Shared persisted defaults
+Wall pieces keep their free arrangement and size; each is numbered in lime in
+hanging order with artist and title beneath it. New walls use Paper and new placements use the
+thin Black frame. Ordinary thumbnails without an explicit frame use No frame. Shared persisted defaults
 remain separate from interface tokens. Existing paint, frames, positions, sizes,
 and selected photographs remain unchanged. Paper joins Sage, Forest, Slate,
 Burgundy, Plum, Limestone, and Chalk in the paint picker. Wall edits continue to
@@ -155,8 +159,8 @@ save automatically; Done exits editing.
 
 The charcoal portrait supplies the installed icon, centered launch mark,
 Welcome, and About. iOS applies the production icon mask. Welcome pairs the
-portrait with the Anton wordmark and existing benefits; About uses a compact
-portrait beside the name and version. Everyday screens use typography without
+portrait with the Anton wordmark and the tagline; About uses a compact portrait
+beside the name and version. Everyday screens use typography without
 repeating the portrait.
 
 ## Privacy and accessible states

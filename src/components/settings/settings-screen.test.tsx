@@ -60,7 +60,7 @@ beforeEach(async () => {
 it('shows grouped settings and opens the matching detail', async () => {
   await render(<SettingsScreen />);
   for (const title of ['Preferences', 'Sharing', 'Your data', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
-  for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About Artlog', 'about']]) {
+  for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About', 'about']]) {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
   }
@@ -70,8 +70,8 @@ it('keeps privacy and About details accessible', async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(screen.getByText(PRIVACY_COPY)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
-  expect(screen.getByText('Connected')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Source code' })).toBeOnTheScreen();
+  expect(screen.getByText('Your personal art journal.')).toBeOnTheScreen();
+  for (const label of ['Privacy policy', 'Terms', 'Send feedback', 'Source code']) expect(screen.getByRole('button', { name: label })).toBeOnTheScreen();
 });
 
 it('persists sharing off and hides the offer when returning to a label review', async () => {

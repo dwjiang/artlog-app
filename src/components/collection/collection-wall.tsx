@@ -129,9 +129,9 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     {header}
     <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{controls}
     <View style={styles.toolbar}>
-      <GalleryButton label="All artworks" icon="list.bullet" disabled={blocked}
+      <GalleryButton label="All artworks" icon="chevron.down" iconPosition="trailing" tone="ink" disabled={blocked}
         onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
-      <GalleryButton label={editing ? 'Done' : 'Edit wall'} icon={editing ? undefined : 'slider.horizontal.3'} busy={wall.pending}
+      <GalleryButton label={editing ? 'Done' : 'Edit wall'} busy={wall.pending}
         disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
     </View>
     </View>

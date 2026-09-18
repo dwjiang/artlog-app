@@ -19,7 +19,7 @@ afterEach(() => jest.restoreAllMocks());
 
 async function editNote() {
   const view = await render(<NoteEditor savedLocalId="work" />);
-  await fireEvent.press(await screen.findByRole('button', { name: 'Edit artwork note' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Edit note' }));
   const input = await screen.findByDisplayValue('Original note');
   await fireEvent.changeText(input, 'New note');
   return { view, input };

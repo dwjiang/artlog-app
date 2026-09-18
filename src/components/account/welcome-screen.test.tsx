@@ -3,16 +3,14 @@ import { WelcomeScreen } from './welcome-screen';
 
 const mockBack = jest.fn(), mockReplace = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, replace: mockReplace }) }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
 
 beforeEach(() => jest.clearAllMocks());
 
 it('lets a new visitor start exploring without an account connection', async () => {
   await render(<WelcomeScreen />);
-  expect(screen.getByText('No account needed')).toBeOnTheScreen();
-  for (const feature of ['Scan the label', 'Keep your collection', 'Remember your visits']) {
-    expect(screen.getByText(feature)).toBeOnTheScreen();
-  }
+  expect(screen.getByRole('header', { name: 'Welcome to Artlog' })).toBeOnTheScreen();
+  expect(screen.getByText('Remember the art that stays with you.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Start exploring' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockReplace).not.toHaveBeenCalled();

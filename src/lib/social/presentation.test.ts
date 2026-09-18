@@ -1,4 +1,4 @@
-import { artworkCount, friendshipActions, initials, peopleSearch, visitDate } from './presentation';
+import { friendshipActions, initials, peopleSearch, visitDate } from './presentation';
 import type { Relationship } from './types';
 
 it('formats calendar dates without shifting the visit into another day', () => {
@@ -11,12 +11,6 @@ it('uses first and last initials without inventing a photo', () => {
   expect(initials('  Alex River Chen ')).toBe('AC');
   expect(initials('李')).toBe('李');
   expect(initials('')).toBe('?');
-});
-it('reports incomplete artwork counts as lower bounds', () => {
-  const page = Array.from({ length: 3 }, () => ({ itemId: 'item' as never, artwork: {} as never }));
-  expect(artworkCount({ page, cursor: 'more', isDone: false })).toBe('3+ artworks shared');
-  expect(artworkCount({ page: page.slice(0, 1), cursor: null, isDone: true })).toBe('1 artwork shared');
-  expect(artworkCount({ page: [], cursor: null, isDone: true })).toBe('0 artworks shared');
 });
 it('enforces existing search limits before sending a request', () => {
   expect(peopleSearch('a')).toBeUndefined();

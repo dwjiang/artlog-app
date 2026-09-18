@@ -7,10 +7,9 @@ import { useSocialSession } from '@/lib/social/use-social-session';
 import { convexErrorCode } from '@/lib/network-error';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { SocialGate, SocialState } from './social-state';
-import { Gallery } from '@/constants/theme';
 import { PublishedArtwork } from './published-artwork';
 
-export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; itemId: string; postId?: string; color?: string }) {
+export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: string; postId?: string }) {
   const session = useSocialSession();
   const shared = kind === 'visit';
   const invalid = !itemId || (kind !== 'wall' && !shared) || (shared && !postId);
@@ -28,7 +27,6 @@ export function ArtworkScreen({ kind, itemId, postId, color }: { kind: string; i
         : result.error ? <SocialState title="Couldn’t load this artwork." detail={socialErrorMessage(result.error) ?? 'Please try again.'}
           action="Try again" onAction={result.refresh} /> : !data ? <SocialState title="Opening artwork…" loading /> : <PublishedArtwork key={`${session.key}:${itemId}`}
           artwork={data.artwork} photos={shared ? visit.data?.photos ?? [] : [data.artwork.media]} shared={shared}
-          color={color && /^#[0-9a-f]{6}$/i.test(color) ? color : Gallery.paper}
           frame={shared ? 'none' : wall.data?.layout.frame ?? 'none'} token={session.token}
           enrichment={data.enrichment} note={shared ? undefined : wall.data?.note} />}
   </ScrollView>;

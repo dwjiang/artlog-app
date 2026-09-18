@@ -1,5 +1,5 @@
 import { isCalendarDate, LIMITS, normalizeSearch } from '@/shared/journal/limits';
-import type { FriendshipAction, Relationship, SharedVisit } from './types';
+import type { FriendshipAction, Relationship } from './types';
 
 export function visitDate(value: string, locale?: string, format: 'full' | 'short' = 'full'): string {
   if (!isCalendarDate(value)) return 'Date unavailable';
@@ -12,11 +12,6 @@ export function initials(name: string): string {
   const words = name.trim().split(/\s+/u).filter(Boolean);
   return [words[0], words.length > 1 ? words.at(-1) : undefined]
     .filter(Boolean).map((word) => Array.from(word!)[0]).join('').toLocaleUpperCase() || '?';
-}
-
-export function artworkCount(artworks: SharedVisit['artworks']): string {
-  const count = artworks.page.length;
-  return `${count}${artworks.isDone ? '' : '+'} ${count === 1 && artworks.isDone ? 'artwork' : 'artworks'} shared`;
 }
 
 export function peopleSearch(value: string): string | undefined {

@@ -29,14 +29,15 @@ export default function RootLayout() {
         <QueueFlusher />
         <VenueResolver />
         <ThemeProvider value={navigationTheme}>
-          <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'minimal' }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'default' }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
             <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, headerShown: false }} />
-            <Stack.Screen name="welcome" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true, headerShown: false }} />
+            <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings', headerLargeTitleEnabled: true, headerTransparent: true,
+            <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Collection', headerLargeTitleEnabled: true, headerTransparent: true,
               headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
-            <Stack.Screen name="saved/[savedId]" options={{ title: 'Saved work' }} />
+            <Stack.Screen name="saved/[savedId]" options={{ title: '' }} />
+            <Stack.Screen name="wall-display" options={{ title: 'Wall display options' }} />
             <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
             <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
@@ -49,8 +50,7 @@ export default function RootLayout() {
             <Stack.Screen name="public-notes" options={{ title: 'Public notes' }} />
             <Stack.Screen name="create-profile" options={{ title: 'Your profile', presentation: 'formSheet',
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
-            <Stack.Screen name="artwork" options={{ title: 'Artwork', presentation: 'formSheet',
-              sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true }} />
+            <Stack.Screen name="artwork" options={{ title: '' }} />
             <Stack.Screen name="visit-create" options={{ ...visitSheet, title: 'Add visit' }} />
             <Stack.Screen name="visit-reflection" options={{ ...visitSheet, title: 'Private reflection' }} />
             <Stack.Screen name="visit-share/[visitId]" options={{ ...visitSheet, headerShown: false }} />

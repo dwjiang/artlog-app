@@ -1,8 +1,7 @@
 import { Switch } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
 import { useState } from 'react';
 
-import { GroupedFooter } from '@/components/grouped-list';
+import { GroupedFooter, GroupedSection } from '@/components/grouped-list';
 import { SEARCH_CONSENT_BODY } from '@/components/scan/result/search-consent-sheet';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
@@ -29,8 +28,8 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
     }
   }
 
-  return <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? SEARCH_CONSENT_BODY}</GroupedFooter>}>
+  return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? SEARCH_CONSENT_BODY}</GroupedFooter>}>
     <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
       onValueChange={(value) => { void change(value); }} />
-  </Section>;
+  </GroupedSection>;
 }
