@@ -5,9 +5,9 @@ import type { DocentSentence, FactChip } from '../../../../convex/lib/validators
 
 import { SourceChip } from './source-chip';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 
-/** How long a fresh card waits for its first prose before the section disappears. */
+/** How long to wait before explaining that background information is unavailable. */
 export const DOCENT_WAIT_MS = 10_000;
 
 export type DocentSectionProps = {
@@ -29,14 +29,14 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
   }, [pending]);
 
   const waiting = pending && !expired && !docent?.length;
-  if (!docent?.length && !waiting) return null;
+  if (!docent?.length && !waiting && !title) return null;
   const sources = new Map(factSheet?.map((chip) => [chip.id, chip]));
   return (
     <View style={styles.section}>
-      {title ? <ThemedText type="smallBold" themeColor="textSecondary">{title}</ThemedText> : null}
+      {title ? <ThemedText type="subtitle">{title}</ThemedText> : null}
       {waiting ? (
         <ThemedText themeColor="textSecondary">Writing about this work…</ThemedText>
-      ) : (
+      ) : !docent?.length ? <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText> : (
         <View style={styles.prose}>
           {docent?.map((line, index) => {
             const chips = new Map<string, FactChip>();
@@ -62,7 +62,7 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
+  section: { gap: Spacing.three, paddingTop: Spacing.four, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
   prose: { gap: Spacing.three },
   sentence: { gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

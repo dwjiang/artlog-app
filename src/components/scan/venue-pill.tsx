@@ -33,8 +33,8 @@ export function VenuePill() {
         onPress={() => router.push('/venue-picker')}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.accent} />
-        <ThemedText type="smallBold" themeColor="accent" numberOfLines={1} style={styles.label}>{label}</ThemedText>
+        <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />
+        <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>{label}</ThemedText>
       </Pressable>
     </GlassSurface>
   );
@@ -42,7 +42,7 @@ export function VenuePill() {
 
 const styles = StyleSheet.create({
   pill: { flexShrink: 1, borderRadius: Spacing.four, overflow: 'hidden' },
-  content: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three },
+  content: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three },
   pressed: { opacity: 0.6 },
   icon: { width: 18, height: 18 },
   label: { flexShrink: 1 },

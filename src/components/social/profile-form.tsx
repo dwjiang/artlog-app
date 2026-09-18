@@ -1,6 +1,6 @@
 import { Text, TextInput } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
-import { accessibilityLabel, listRowBackground } from '@expo/ui/swift-ui/modifiers';
+import { LabeledContent, Section } from '@expo/ui/swift-ui';
+import { font, accessibilityLabel, listRowBackground } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useState } from 'react';
 import { api } from '../../../convex/_generated/api';
@@ -28,10 +28,10 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   }
 
   return <GroupedList>
-    <Section><Text textStyle={{ fontSize: 15, color: Gallery.ink }} modifiers={[listRowBackground('transparent')]}>{introduction}</Text></Section>
+    <Section><Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' }), listRowBackground('transparent')]}>{introduction}</Text></Section>
     <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your name, username, and wall are public. Visits and private notes are separate.'}</GroupedFooter>}>
-      <TextInput placeholder="Your name" onChangeText={setName} autoCapitalize="words" maxLength={LIMITS.name} editable={!busy} modifiers={[accessibilityLabel('Name')]} />
-      <TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax} editable={!busy} modifiers={[accessibilityLabel('Username')]} />
+      <LabeledContent label="Name"><TextInput placeholder="Your name" onChangeText={setName} autoCapitalize="words" maxLength={LIMITS.name} editable={!busy} modifiers={[accessibilityLabel('Name')]} /></LabeledContent>
+      <LabeledContent label="Username"><TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax} editable={!busy} modifiers={[accessibilityLabel('Username')]} /></LabeledContent>
     </Section>
     <Section>
       <ActionRow label={busy ? 'Creating…' : 'Create public profile'} disabled={busy || !name.trim() || !username.trim()} onPress={() => { void submit(); }} />

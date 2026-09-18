@@ -1,5 +1,6 @@
 import { Text } from '@expo/ui';
 import { Section } from '@expo/ui/swift-ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 
 import { MuseumSearchSection } from './museum-search-section';
 import { Gallery } from '@/constants/theme';
@@ -10,7 +11,7 @@ export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => v
   return <>
     <MuseumSearchSection onRequestConsent={onRequestConsent} />
     <Section title="How your data is used">
-      <Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{PRIVACY_COPY}</Text>
+      <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'footnote' })]}>{PRIVACY_COPY}</Text>
     </Section>
   </>;
 }

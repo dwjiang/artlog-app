@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { useDatabaseMigrations } from '@/db/use-database-migrations';
 
 /** Holds the app until the local store is migrated; nothing below it touches the database earlier. */
@@ -13,14 +13,19 @@ export function DatabaseGate({ children }: PropsWithChildren) {
     return (
       <ThemedView style={styles.gate}>
         <ThemedText type="subtitle">Could not open the local database</ThemedText>
+        <ThemedText>Your collection could not be opened. Close Artlog and try opening it again. Your saved data has not been reset.</ThemedText>
         <ThemedText themeColor="textSecondary" selectable>{error.message}</ThemedText>
       </ThemedView>
     );
   }
-  if (!success) return <ThemedView style={styles.gate} />;
+  if (!success) return <ThemedView style={styles.gate}>
+    <ActivityIndicator accessibilityLabel="Opening your collection" color={Gallery.accent} />
+    <ThemedText accessibilityLiveRegion="polite" style={styles.loadingMessage}>Opening your collection…</ThemedText>
+  </ThemedView>;
   return children;
 }
 
 const styles = StyleSheet.create({
   gate: { flex: 1, justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
+  loadingMessage: { textAlign: 'center' },
 });

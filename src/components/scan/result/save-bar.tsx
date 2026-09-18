@@ -29,9 +29,9 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
         </Pressable><GalleryButton label="Scan next artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
       ) : (
         <>
-          <GalleryButton label={saving ? 'Saving…' : saveLabel} variant="filled" fullWidth disabled={!canSave || saving} onPress={onSave} />
+          <GalleryButton label={saveLabel} variant="filled" fullWidth busy={saving} disabled={!canSave || saving} onPress={onSave} />
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Shorten these details to save this work.</ThemedText>}
-          {error && <ThemedText type="small">{error}</ThemedText>}
+          {error && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{error}</ThemedText>}
           {onLabel && <GalleryButton label={LABEL_BUTTON} variant="outlined" fullWidth disabled={saving} onPress={onLabel} />}
         </>
       )}
@@ -41,5 +41,5 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
 
 const styles = StyleSheet.create({
   bar: { gap: Spacing.two },
-  saved: { paddingVertical: Spacing.two },
+  saved: { minHeight: 44, justifyContent: 'center', paddingVertical: Spacing.two },
 });

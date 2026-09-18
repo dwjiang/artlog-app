@@ -34,7 +34,7 @@ export function QueueBadge() {
 const styles = StyleSheet.create({
   badge: { borderRadius: Spacing.four, overflow: 'hidden' },
   content: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
     paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three,
   },
   pressed: { opacity: 0.7 },

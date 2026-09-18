@@ -11,16 +11,17 @@ export type FailedCardProps = {
   error?: string | null;
   /** Given for a scan still on this phone; a scan the server already answered cannot be rerun from the card. */
   onRetry?: () => void;
+  retrying?: boolean;
 };
 
-export function FailedCard({ error, onRetry }: FailedCardProps) {
+export function FailedCard({ error, onRetry, retrying = false }: FailedCardProps) {
   return (
     <>
       <View style={styles.section}>
-        <ThemedText type="subtitle">{FAILED_TITLE}</ThemedText>
+        <ThemedText type="subtitle" themeColor="error">{FAILED_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText>
       </View>
-      {onRetry && <GalleryButton label={RETRY_BUTTON} variant="filled" fullWidth onPress={onRetry} />}
+      {onRetry && <GalleryButton label={RETRY_BUTTON} busy={retrying} disabled={retrying} variant="filled" fullWidth onPress={onRetry} />}
     </>
   );
 }

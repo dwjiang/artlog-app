@@ -9,7 +9,7 @@ import { useSocialSession } from '@/lib/social/use-social-session';
 import { PublicProfileHeader, PublicWallView } from './public-wall-view';
 import { PublishedArtwork } from './published-artwork';
 import { SocialState } from './social-state';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { socialStyles } from './social-styles';
 
 export function PublicNotesPreview({ wall }: { wall: PublicWall }) {

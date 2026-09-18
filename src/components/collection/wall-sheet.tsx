@@ -1,6 +1,7 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from './gallery-button';
 
@@ -13,8 +14,8 @@ export function WallSheet({ title, children, onDismiss, tall = false, dismissLab
     <RNHostView>
       <View style={{ flex: 1 }}>
         <View style={styles.sheetHeader}>
-          <Text accessibilityRole="header" style={styles.sheetTitle}>{title}</Text>
-          <GalleryButton label={dismissLabel} onPress={onDismiss} />
+          <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>{title}</Text>
+          <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
         </View>
         {children}
       </View>
@@ -25,5 +26,5 @@ export function WallSheet({ title, children, onDismiss, tall = false, dismissLab
 const styles = {
   sheetHeader: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, flexDirection: 'row' as const,
     justifyContent: 'space-between' as const, alignItems: 'center' as const, borderBottomWidth: 0.5, borderColor: Gallery.separator },
-  sheetTitle: { fontSize: 15, fontWeight: '600' as const, color: Gallery.ink },
+  sheetTitle: { flex: 1, color: Gallery.ink },
 };

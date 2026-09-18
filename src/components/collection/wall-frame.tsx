@@ -26,7 +26,7 @@ export function WallFrame({ frame, children, width }: { frame: Frame; children: 
   const finish = wallFrames.find((item) => item.value === frame)!;
   const inset = wallFrameInset(frame, width);
   return <View style={{ width, padding: inset, backgroundColor: finish.color, experimental_backgroundImage: finish.gradient,
-    boxShadow: width < 70 ? '0 1px 3px rgba(0,0,0,0.25)' : '0 14px 22px -12px rgba(0,0,0,0.65), 0 2px 3px rgba(0,0,0,0.28)' }}>
+    boxShadow: frame === 'none' || frame === 'black' ? undefined : width < 70 ? '0 1px 3px rgba(0,0,0,0.25)' : '0 14px 22px -12px rgba(0,0,0,0.65), 0 2px 3px rgba(0,0,0,0.28)' }}>
     {children}
     {frame !== 'none' && <View pointerEvents="none" style={[StyleSheet.absoluteFill, {
       borderWidth: frame === 'mat' ? 1 : 0.5,

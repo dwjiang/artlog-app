@@ -1,10 +1,10 @@
-import { BottomSheet } from '@expo/ui';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
 export const SEARCH_CONSENT_TITLE = "Search this museum's collection?";
@@ -34,16 +34,21 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
   }
 
   return (
-    <BottomSheet isPresented={open} onDismiss={() => { if (!pending.current) onDismiss(); }}>
-      <View style={styles.content}>
-        <ThemedText type="subtitle">{SEARCH_CONSENT_TITLE}</ThemedText>
-        <ThemedText>{SEARCH_CONSENT_BODY}</ThemedText>
-        {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
-        <GalleryButton label="Search" variant="filled" fullWidth disabled={saving} onPress={() => { void grant(); }} />
-        <GalleryButton label="Not now" variant="outlined" fullWidth disabled={saving} onPress={onDismiss} />
-      </View>
+    <BottomSheet contentPadding={0} snapPoints={['full']} containerColor={Colors.light.background} isPresented={open} onDismiss={() => { if (!pending.current) onDismiss(); }}>
+      <RNHostView>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <ThemedText type="subtitle">{SEARCH_CONSENT_TITLE}</ThemedText>
+          <ThemedText>{SEARCH_CONSENT_BODY}</ThemedText>
+          {error && <ThemedText accessibilityRole="alert" themeColor="error">{error}</ThemedText>}
+          <GalleryButton label="Search" variant="filled" fullWidth busy={saving} disabled={saving} onPress={() => { void grant(); }} />
+          <GalleryButton label="Not now" variant="outlined" fullWidth disabled={saving} onPress={onDismiss} />
+        </ScrollView>
+      </RNHostView>
     </BottomSheet>
   );
 }
 
-const styles = StyleSheet.create({ content: { gap: Spacing.three, paddingBottom: Spacing.four } });
+const styles = StyleSheet.create({
+  scroll: { flex: 1 },
+  content: { gap: Spacing.three, padding: Spacing.content, paddingBottom: Spacing.six },
+});

@@ -51,16 +51,16 @@ export function PublicNotesScreen() {
   return <>{toolbar}
     <GroupedList>
       <Section footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
-        <Text textStyle={{ fontSize: 15, color: Gallery.ink }} modifiers={[listRowBackground('transparent')]}>{INTRO}</Text>
+        <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' }), listRowBackground('transparent')]}>{INTRO}</Text>
         {wall.error ? <ActionRow label="Refresh notes" icon="arrow.clockwise" onPress={() => { void wall.refresh(); }} /> : null}
       </Section>
       {eligible.map((item) => <Section key={item.itemId}>
-        <SwiftText modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(Gallery.ink)]}>{item.artwork.artist}</SwiftText>
-        <SwiftText modifiers={[font({ size: 13 }), italic(), foregroundStyle(Gallery.muted)]}>{item.artwork.title}</SwiftText>
-        {item.privateNote ? <SwiftText modifiers={[font({ size: 17, design: 'serif' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
+        <SwiftText modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' }), foregroundStyle(Gallery.ink)]}>{item.artwork.artist}</SwiftText>
+        <SwiftText modifiers={[font({ textStyle: 'footnote' }), italic(), foregroundStyle(Gallery.muted)]}>{item.artwork.title}</SwiftText>
+        {item.privateNote ? <SwiftText modifiers={[font({ textStyle: 'body' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
         <Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} />
       </Section>)}
-      {!eligible.length ? <Section><Text textStyle={{ fontSize: 15, color: Gallery.muted }}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></Section> : null}
+      {!eligible.length ? <Section><Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'subheadline' })]}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></Section> : null}
     </GroupedList>
   </>;
 }

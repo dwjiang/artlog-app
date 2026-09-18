@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import type { ContributionOutcome } from '@/lib/label/contribute';
 
 export const CONTRIBUTION_MESSAGES = {
@@ -16,13 +16,16 @@ export function contributionMessage(result: ContributionOutcome): string {
 }
 
 export function ContributeResult({ result }: { result: ContributionOutcome }) {
+  const rejected = result.status === 'rejected' && result.reason !== 'duplicate';
+  const color = rejected ? Gallery.destructive : Colors.light.warning;
   return (
-    <View style={styles.note} accessibilityRole="text">
+    <View style={[styles.note, { borderLeftColor: color }]} accessibilityRole="text" accessibilityLiveRegion="polite">
+      <ThemedText type="smallBold" style={{ color }}>{rejected ? 'Contribution not accepted' : result.status === 'tentative' ? 'Tentative contribution' : 'Already in the index'}</ThemedText>
       <ThemedText>{contributionMessage(result)}</ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  note: { padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement },
+  note: { gap: Spacing.two, padding: Spacing.three, borderLeftWidth: 3, backgroundColor: Colors.light.backgroundElement },
 });

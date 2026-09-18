@@ -1,4 +1,4 @@
-import { BottomSheet, Button, Host, RNHostView, Switch } from '@expo/ui';
+import { BottomSheet, RNHostView, Switch } from '@expo/ui';
 import { Section } from '@expo/ui/swift-ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
@@ -7,6 +7,7 @@ import { FlatList, View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
 import { GroupedFooter, NavigationRow } from '@/components/grouped-list';
+import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { setSharingDefault } from '@/lib/settings/sharing';
@@ -39,16 +40,16 @@ export function SharingSection({ contributions, onOpenContributions }: { contrib
 }
 
 export function ContributionsSheet({ open, onDismiss, contributions }: { open: boolean; onDismiss: () => void; contributions: Contribution[] | undefined }) {
-  return <BottomSheet isPresented={open} onDismiss={onDismiss} snapPoints={['half', 'full']}>
+  return <BottomSheet isPresented={open} onDismiss={onDismiss} snapPoints={['half', 'full']} contentPadding={0} containerColor={Gallery.paper}>
     <RNHostView>
-      <View style={{ flex: 1, padding: Spacing.three, gap: Spacing.three }}>
-        <ThemedText type="subtitle" accessibilityRole="header">My contributions</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>
-        <FlatList data={contributions ?? []} keyExtractor={(row) => row.contributionId}
-          contentContainerStyle={{ gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
-          ListEmptyComponent={<ThemedText>{contributions === undefined ? 'Connecting…' : 'No contributions yet.'}</ThemedText>} />
-        <Host matchContents colorScheme="light" seedColor={Gallery.accent}><Button label="Done" onPress={onDismiss} /></Host>
-      </View>
+      <FlatList style={{ flex: 1 }} data={contributions ?? []} keyExtractor={(row) => row.contributionId}
+        contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
+        ListHeaderComponent={<View style={{ gap: Spacing.three }}>
+          <ThemedText type="subtitle" accessibilityRole="header">My contributions</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>
+        </View>}
+        ListEmptyComponent={<ThemedText>{contributions === undefined ? 'Connecting…' : 'No contributions yet.'}</ThemedText>}
+        ListFooterComponent={<GalleryButton label="Done" onPress={onDismiss} />} />
     </RNHostView>
   </BottomSheet>;
 }
@@ -78,9 +79,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
     <ThemedText type="smallBold">{contribution.fields.title.value}</ThemedText>
     <ThemedText>{contribution.fields.artist.value}</ThemedText>
     <ThemedText type="small" themeColor="textSecondary">{status}</ThemedText>
-    {!removed && <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
-      <Button label={busy ? 'Withdrawing…' : 'Withdraw'} disabled={busy} onPress={() => { void remove(); }} />
-    </Host>}
+    {!removed && <GalleryButton label="Withdraw" busy={busy} disabled={busy} destructive onPress={() => { void remove(); }} />}
     {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
   </View>;
 }

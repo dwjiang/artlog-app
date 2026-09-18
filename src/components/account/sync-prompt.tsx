@@ -1,6 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { Gallery } from '@/constants/theme';
@@ -40,7 +41,7 @@ export function SyncPrompt() {
 }
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: 18, marginTop: 18, padding: 16, gap: 10, borderRadius: 20, borderCurve: 'continuous', backgroundColor: Gallery.surface },
+  card: { marginHorizontal: 20, marginTop: 24, padding: 16, gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, backgroundColor: Gallery.paper },
   title: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: Gallery.ink },
   detail: { fontSize: 13, lineHeight: 19, color: Gallery.muted },
   appleButton: { width: '100%', height: 44 },

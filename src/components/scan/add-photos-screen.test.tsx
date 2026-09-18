@@ -53,9 +53,10 @@ beforeEach(async () => {
 it('retains an edited visit after leaving the session and saves only new photos to it', async () => {
   const capture = await render(<AddPhotosScreen />);
   await fireEvent.press(await screen.findByRole('button', { name: 'The Met · 1 Sep 2026 · Change' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/capture-context', params: { draftId: 'saved-artwork' } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/capture-context', params: { draftId: 'saved-artwork', visitId: 'aea0b816-f46f-5312-a657-f92d1af2cb76' } });
   await capture.unmount();
   const context = await render(<CaptureContextScreen />);
+  expect(await screen.findByRole('button', { name: 'The Met · 1 Sep 2026', selected: true })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole('button', { name: 'Other museum · 2 Sep 2026' }));
   expect(readPhotoSession(owner, 'saved-artwork').visitLocalId).toBe('eaebe816-f46f-5312-a657-f92d1af2cb76');
   await context.unmount();

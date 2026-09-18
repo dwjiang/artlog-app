@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { useState } from 'react';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from '../collection/gallery-button';

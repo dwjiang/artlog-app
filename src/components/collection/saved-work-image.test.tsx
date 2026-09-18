@@ -1,11 +1,42 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SavedWorkImage } from './saved-work-image';
 
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
 
-it('shows a pending photo while an imported work downloads', async () => {
-  await render(<SavedWorkImage path={null} title="Water Lilies" style={{ width: 100, height: 100 }} />);
+it('shows syncing only when an actual transfer is reported on a large image surface', async () => {
+  await render(<SavedWorkImage path={null} title="Water Lilies" syncing style={{ width: 240, height: 240 }} />);
   expect(screen.getByText('Photo syncing…')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Your photo of Water Lilies')).toBeNull();
+});
+
+it('uses a labeled neutral icon in a compact thumbnail without clipping status text', async () => {
+  await render(<SavedWorkImage path={null} title="Water Lilies" style={{ width: 56, height: 48 }} />);
+  expect(screen.getByRole('image', { name: 'Water Lilies: no photo' })).toBeOnTheScreen();
+  expect(screen.queryByText('No photo')).toBeNull();
+  expect(screen.queryByText('Photo syncing…')).toBeNull();
+});
+
+it('shows a readable no-photo message on a large surface instead of implying a transfer', async () => {
+  await render(<SavedWorkImage path={null} title="Water Lilies" style={{ width: 240, height: 240 }} />);
+  expect(screen.getByText('No photo')).toBeOnTheScreen();
+  expect(screen.queryByText('Photo syncing…')).toBeNull();
+});
+
+it('measures percentage-sized thumbnails before deciding whether status text fits', async () => {
+  await render(<SavedWorkImage path={null} title="Water Lilies" style={{ width: '100%', height: '100%' }} />);
+  const placeholder = screen.getByRole('image', { name: 'Water Lilies: no photo' });
+  await fireEvent(placeholder, 'layout', { nativeEvent: { layout: { width: 32, height: 32 } } });
+  expect(screen.queryByText('No photo')).toBeNull();
+  await fireEvent(placeholder, 'layout', { nativeEvent: { layout: { width: 240, height: 240 } } });
+  expect(screen.getByText('No photo')).toBeOnTheScreen();
+});
+
+it('keeps artwork identity visible when an image fails and tries a changed photo path', async () => {
+  const view = await render(<SavedWorkImage path="broken.jpg" title="Water Lilies" style={{ width: 100, height: 100 }} />);
+  await fireEvent(screen.getByLabelText('Your photo of Water Lilies'), 'error', { nativeEvent: { error: 'Image could not load' } });
+  expect(screen.getByLabelText('Water Lilies: image unavailable')).toBeOnTheScreen();
+  await view.rerender(<SavedWorkImage path="new.jpg" title="Water Lilies" style={{ width: 100, height: 100 }} />);
+  expect(screen.getByLabelText('Your photo of Water Lilies')).toBeOnTheScreen();
+  expect(screen.queryByText('Image unavailable')).toBeNull();
 });

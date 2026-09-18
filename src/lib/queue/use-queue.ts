@@ -7,14 +7,14 @@ import { pendingScansQuery } from '@/db/repos/pending-scans';
 import type { PendingScan } from '@/db/schema';
 import { startQueueFlusher } from './queue';
 
-export type QueueState = { pending: number; items: PendingScan[] };
+export type QueueState = { pending: number; items: PendingScan[]; loading: boolean; error?: Error };
 
 /** Pending counts unfinished requests; failed captures and unreviewed results stay in items too. */
 export function useQueue(): QueueState {
   const owner = useLocalOwner();
-  const { data: rows } = useLiveQuery(pendingScansQuery(owner), [owner]);
+  const { data: rows, updatedAt, error } = useLiveQuery(pendingScansQuery(owner), [owner]);
   const data = rows.filter((row) => row.owner === owner);
-  return { pending: data.filter((row) => row.status === 'queued' || row.status === 'identifying').length, items: data };
+  return { pending: data.filter((row) => row.status === 'queued' || row.status === 'identifying').length, items: data, loading: !updatedAt && !error, error };
 }
 
 /** Runs the flusher once the anonymous session exists; identify rejects callers before that. */

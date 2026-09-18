@@ -13,24 +13,36 @@ import { CollectionWall } from './collection-wall';
 import { NativeSegmentedPicker } from './native-segmented-picker';
 
 export function CollectionScreen() {
-  return <OwnedCollection key={useLocalOwner()} />;
+  return <CollectionSession key={useLocalOwner()} />;
 }
 
-function OwnedCollection() {
-  const data = useCollectionData();
-  const guest = !data.owner.startsWith('account:');
+function CollectionSession() {
+  const [attempt, setAttempt] = useState(0);
   const [mode, setMode] = useState<'collection' | 'visits'>('collection');
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
   const [artworkSearch, setArtworkSearch] = useState('');
-  const controls = <View style={{ paddingHorizontal: 18, paddingBottom: 12, backgroundColor: Gallery.paper }}>
+  return <OwnedCollection key={attempt} mode={mode} setMode={setMode} editing={editing} setEditing={setEditing}
+    search={search} setSearch={setSearch} artworkSearch={artworkSearch} setArtworkSearch={setArtworkSearch}
+    onRetry={() => setAttempt((value) => value + 1)} />;
+}
+
+function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch, artworkSearch, setArtworkSearch, onRetry }: {
+  mode: 'collection' | 'visits'; setMode: (mode: 'collection' | 'visits') => void;
+  editing: boolean; setEditing: (editing: boolean) => void;
+  search: string; setSearch: (search: string) => void;
+  artworkSearch: string; setArtworkSearch: (search: string) => void; onRetry: () => void;
+}) {
+  const data = useCollectionData();
+  const guest = !data.owner.startsWith('account:');
+  const controls = <View style={{ paddingHorizontal: 20, paddingBottom: 12, backgroundColor: Gallery.paper }}>
       <NativeSegmentedPicker label="Collection view" value={mode} onChange={setMode} disabled={editing}
         options={[{ value: 'collection', label: guest ? 'Artworks' : 'Wall' }, { value: 'visits', label: 'Visits' }]} />
     </View>;
   return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
-      {guest ? <CollectionArtworks {...data} search={artworkSearch} header={<CollectionHeader />} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
-        controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
+      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={<CollectionHeader />} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
+        controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
           <CollectionSearchField value={artworkSearch} label="Search your artworks" placeholder="Title, artist, date or place" onChange={setArtworkSearch} onClear={() => setArtworkSearch('')} />
         </View></View>} />
         : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={<CollectionHeader />} controls={controls} />}

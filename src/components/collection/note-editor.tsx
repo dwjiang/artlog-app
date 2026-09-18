@@ -105,7 +105,7 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
+  section: { gap: Spacing.two, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.light.separator },
   input: {
     minHeight: 96, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement,
     color: Colors.light.text, fontFamily: Fonts.sans, fontSize: 16, lineHeight: 22, textAlignVertical: 'top',

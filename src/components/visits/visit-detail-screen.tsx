@@ -1,6 +1,7 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
@@ -13,6 +14,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { WorkLink } from '../collection/work-link';
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from './visit-gallery';
+import { cropSyncing } from '@/lib/account/photo-sync';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 export function VisitDetailScreen() {
@@ -26,6 +28,7 @@ export function VisitDetailScreen() {
 }
 function VisitDetail({ visit }: { visit: VisitSummary }) {
   const [search, setSearch] = useState('');
+  const { fontScale } = useWindowDimensions();
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   const query = visit.works.length >= 5 ? search : '';
   const filtered = visit.works.filter((work) => matchesVisitSearch(work, query));
@@ -49,8 +52,8 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
     <Stack.Screen options={{ title: 'Visit' }} />
     <VisitPage>
       <View style={detail.stampRow}>
-        <View style={detail.stamp}><VisitSymbol name="building.columns" size={23} color="#66735C" /></View>
-        <View style={detail.badge}><VisitSymbol name={sharing.acknowledged?.status === 'active' ? 'person.2' : 'lock'} size={11} color="#627158" />
+        <View style={detail.stamp}><VisitSymbol name="building.columns" size={23} color={Gallery.accent} /></View>
+        <View style={detail.badge}><VisitSymbol name={sharing.acknowledged?.status === 'active' ? 'person.2' : 'lock'} size={11} color={Gallery.ink} />
           <Text style={detail.badgeText}>{status}</Text>
         </View>
       </View>
@@ -68,7 +71,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
           <Text accessibilityRole="header" style={detail.sectionTitle}>Your reflection</Text>
           <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}><VisitSymbol name="lock" size={10} /><Text style={detail.secondary}>Only you</Text></View>
         </View>
-        {!!visit.reflection && <Text selectable style={[styles.body, { color: '#656A5C', marginBottom: 10 }]}>{visit.reflection}</Text>}
+        {!!visit.reflection && <Text selectable style={[styles.body, { color: Gallery.muted, marginBottom: 10 }]}>{visit.reflection}</Text>}
         <GalleryButton label={visit.reflection ? 'Edit reflection' : 'Add reflection'}
           onPress={() => router.push({ pathname: '/visit-reflection', params: { visitId: visit.localId } })} />
       </View>
@@ -82,11 +85,12 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
           {filtered.map((work) => {
             const album = photos.data.filter((photo) => photo.owner === visit.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId);
             const cover = album.find((photo) => photo.kind === 'full') ?? album.find((photo) => photo.kind !== 'label') ?? album[0];
-            return <WorkLink key={work.localId} work={work} visitId={visit.localId} style={{ width: '48%', flexShrink: 1 }}>
-              <LocalVisitGalleryArtwork title={work.title} artist={work.artist} photoCount={album.length} path={cover?.path ?? work.cropPath} />
+            return <WorkLink key={work.localId} work={work} visitId={visit.localId} style={{ width: fontScale > 1.4 ? '100%' : '48%', flexShrink: 1 }}>
+              <LocalVisitGalleryArtwork title={work.title} artist={work.artist} photoCount={album.length} path={cover?.path ?? work.cropPath} syncing={!cover && cropSyncing(work)} />
             </WorkLink>;
           })}
         </View>
+        {!filtered.length && !!query && <GalleryButton label="Clear search" onPress={() => setSearch('')} />}
         {!filtered.length && <Text style={[styles.caption, { paddingVertical: 22 }]}>{query ? 'No artworks match this search.' : 'No artworks saved on this visit. The memory still belongs here.'}</Text>}
       </View>
       {active && <GalleryButton label="Stop sharing this visit" destructive fullWidth disabled={sharing.busy} onPress={stopSharing} />}
@@ -95,11 +99,11 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
 }
 
 const detail = StyleSheet.create({
-  stampRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 },
+  stampRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  stamp: { width: 43, height: 43, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#747C6540', backgroundColor: '#E4E7DC', alignItems: 'center', justifyContent: 'center' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#E5E7DE', paddingVertical: 5, paddingHorizontal: 8, borderRadius: 20, flexShrink: 1 },
-  badgeText: { fontSize: 10, lineHeight: 15, fontWeight: '500', color: '#627158', flexShrink: 1 },
-  sectionTitle: { fontSize: 11, lineHeight: 17, fontWeight: '600', color: Gallery.ink },
-  secondary: { fontSize: 10, lineHeight: 16, color: '#878A7B' },
+  stamp: { width: 43, height: 43, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Gallery.fill, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 20, flexShrink: 1 },
+  badgeText: { fontSize: 13, lineHeight: 18, fontWeight: '500', color: Gallery.ink, flexShrink: 1 },
+  sectionTitle: { fontSize: 20, lineHeight: 26, fontWeight: '600', color: Gallery.ink },
+  secondary: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
 });

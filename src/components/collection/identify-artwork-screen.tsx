@@ -1,7 +1,8 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, TextInput, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
 import { applyAlbum } from '@/db/repos/artwork-album';
@@ -11,19 +12,27 @@ import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { flushCollectionMedia } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { GalleryButton } from './gallery-button';
+import { ArtworkQueryState } from './artwork-query-state';
 
 export function IdentifyArtworkScreen() {
   const { savedId } = useLocalSearchParams<{ savedId: string }>();
   const owner = useLocalOwner();
-  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
-  const work = data.find((row) => row.owner === owner && row.deletedAt === null);
-  return work ? <Editor key={`${owner}:${savedId}`} work={work} /> : null;
+  const [attempt, setAttempt] = useState(0);
+  return <ArtworkQuery key={`${owner}:${savedId}:${attempt}`} owner={owner} savedId={savedId} onRetry={() => setAttempt((value) => value + 1)} />;
+}
+function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
+  return work ? <Editor key={`${owner}:${savedId}`} work={work} />
+    : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
 }
 function Editor({ work }: { work: SavedWork }) {
   const [title, setTitle] = useState(work.title === 'Unidentified artwork' ? '' : work.title), [artist, setArtist] = useState(work.artist);
+  const [focusedField, setFocusedField] = useState<string>();
   const [date, setDate] = useState(work.date ?? ''), [medium, setMedium] = useState(work.medium ?? '');
   const [search, setSearch] = useState(''), [choosing, setChoosing] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState<string>();
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
+  const matches = works.data.filter((target) => target.owner === work.owner && target.localId !== work.localId && target.deletedAt === null && `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase()));
   async function merge(target: SavedWork) {
     const session = captureOwner(); if (!session.scope) { setError('Connect to the internet to merge artworks.'); return; }
     setBusy(true); setError(undefined);
@@ -37,14 +46,25 @@ function Editor({ work }: { work: SavedWork }) {
     finally { setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 18 }}>
-    <Text style={{ fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8, color: Gallery.ink }}>Give this artwork a name.</Text>
+    <Text variant="display" accessibilityRole="header" style={{ color: Gallery.ink }}>Give this artwork a name.</Text>
     <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Your photos and visits stay together as you learn more.</Text>
-    {([{ label: 'Title', value: title, change: setTitle }, { label: 'Artist', value: artist, change: setArtist }, { label: 'Date', value: date, change: setDate }, { label: 'Medium', value: medium, change: setMedium }]).map((field) => <View key={field.label} style={{ gap: 6 }}><Text style={{ color: Gallery.muted, fontSize: 11 }}>{field.label}</Text><TextInput accessibilityLabel={field.label} value={field.value} onChangeText={field.change} maxLength={500} editable={!busy} style={{ backgroundColor: Gallery.fill, color: Gallery.ink, padding: 15, borderRadius: 10 }} /></View>)}
-    <GalleryButton label="Save artwork details" variant="filled" fullWidth disabled={busy} onPress={() => { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }} />
+    {([{ label: 'Title', value: title, change: setTitle }, { label: 'Artist', value: artist, change: setArtist }, { label: 'Date', value: date, change: setDate }, { label: 'Medium', value: medium, change: setMedium }]).map((field) => <View key={field.label} style={{ gap: 8 }}><Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text><TextInput accessibilityLabel={field.label} value={field.value} onChangeText={field.change} onFocus={() => setFocusedField(field.label)} onBlur={() => setFocusedField(undefined)} maxLength={500} editable={!busy} selectionColor={Gallery.accent} keyboardAppearance="light" style={{ backgroundColor: Gallery.surface, color: Gallery.ink, fontSize: 17, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder }} /></View>)}
+    <GalleryButton label="Save artwork details" variant="filled" fullWidth disabled={busy} onPress={() => {
+      try { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }
+      catch { setError('Your artwork details could not be saved. Your edits are still here. Try again.'); }
+    }} />
+    <View style={{ borderTopWidth: 1, borderColor: Gallery.separator, paddingTop: 24, gap: 8 }}>
+    <Text variant="section" accessibilityRole="header" style={{ color: Gallery.ink }}>Combine artworks</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>Already saved this artwork? Combine its photos and visits. An internet connection is required.</Text>
     <GalleryButton label="This is an artwork I already saved" disabled={busy} onPress={() => setChoosing(!choosing)} />
-    {choosing && <View style={{ gap: 12 }}><TextInput accessibilityLabel="Find saved artwork" placeholder="Search your collection" value={search} onChangeText={setSearch} style={{ padding: 14, backgroundColor: Gallery.fill, color: Gallery.ink, borderRadius: 10 }} />
-      {works.data.filter((target) => target.owner === work.owner && target.localId !== work.localId && `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase())).map((target) => <GalleryButton key={target.localId} label={`${target.title} · ${target.artist}`} disabled={busy} onPress={() => Alert.alert('Combine these artworks?', `Move all photos, visit links, and private notes into “${target.title}”. The duplicate artwork and its shared placements will be removed.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Combine artworks', onPress: () => { void merge(target); } }])} />)}
+    {choosing && <View style={{ gap: 12 }}><Text style={{ color: Gallery.ink }}>Find saved artwork</Text><TextInput accessibilityLabel="Find saved artwork" placeholder="Search your collection" placeholderTextColor={Gallery.muted} keyboardAppearance="light" selectionColor={Gallery.accent} value={search} onChangeText={setSearch} editable={!busy} style={{ padding: 16, backgroundColor: Gallery.surface, color: Gallery.ink, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder }} />
+      {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your collection. Close and reopen this artwork to try again.</Text>
+        : !works.updatedAt && !matches.length ? <Text style={{ color: Gallery.muted }}>Loading artworks…</Text>
+        : !matches.length ? <Text style={{ color: Gallery.muted }}>{search ? 'No matching artworks. Try another title or artist.' : 'No other saved artworks to combine.'}</Text> : null}
+      {matches.map((target) => <GalleryButton key={target.localId} label={`${target.title} · ${target.artist}`} disabled={busy} onPress={() => Alert.alert('Combine these artworks?', `Move all photos, visit links, and private notes into “${target.title}”. The duplicate artwork and its shared placements will be removed.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Combine artworks', onPress: () => { void merge(target); } }])} />)}
     </View>}
+    {busy && <Text accessibilityLiveRegion="polite" style={{ color: Gallery.muted }}>Combining artworks…</Text>}
+    </View>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
   </ScrollView>;
 }

@@ -1,5 +1,7 @@
 import { Host, TextInput } from '@expo/ui';
+import { accessibilityLabel, font } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import type { LabelFieldName, LabelWarning } from '../../../../convex/lib/validators';
@@ -24,6 +26,7 @@ export type VerifiedFieldsFormProps = {
 
 /** Verified fields locked with their source, the rest editable; the parent owns the state. */
 export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlock }: VerifiedFieldsFormProps) {
+  const [focused, setFocused] = useState<LabelFieldName>();
   function confirmUnlock(name: LabelFieldName) {
     const evidence = state[name].evidence;
     const source = (evidence && EVIDENCE_SOURCES[evidence]) ?? 'the museum’s records';
@@ -57,8 +60,15 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlo
                   editable={editable && !field.locked}
                   autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'}
                   autoCorrect={false}
+                  multiline
+                  selectionColor={Gallery.accent}
+                  placeholderTextColor={Gallery.muted}
+                  textStyle={{ color: Gallery.ink }}
+                  modifiers={[font({ textStyle: 'body' }), accessibilityLabel(label)]}
+                  onFocus={() => setFocused(name)}
+                  onBlur={() => setFocused(undefined)}
                   onChangeText={(value) => onChange(name, value)}
-                  style={field.locked ? styles.inputLocked : styles.input}
+                  style={field.locked ? styles.inputLocked : { ...styles.input, borderColor: focused === name ? Gallery.accent : Gallery.controlBorder }}
                 />
               </Host>
               {field.locked && editable && (
@@ -81,11 +91,11 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.light.warning, backgroundColor: Colors.light.backgroundElement,
   },
   field: { gap: Spacing.one },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  header: { alignItems: 'flex-start', gap: Spacing.one },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   host: { flex: 1 },
-  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 9, backgroundColor: Gallery.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
-  inputLocked: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 9, backgroundColor: Gallery.fill },
+  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 8, backgroundColor: Gallery.surface, borderWidth: 1, borderColor: Gallery.controlBorder },
+  inputLocked: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 8, backgroundColor: Gallery.fill },
   lockButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   lockIcon: { width: 18, height: 18 },
 });

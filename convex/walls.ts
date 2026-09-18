@@ -11,7 +11,7 @@ import { projectWallArtwork } from './lib/projections';
 import { contributionSource, resolveDisplayAsset } from './lib/displayMedia';
 import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
 
-export const DEFAULT_WALL_COLOR = '#45524B';
+import { DEFAULT_WALL_COLOR } from '../shared/wall/defaults';
 const selection = v.object({ placementId: v.string(), photoLocalId: v.optional(v.string()), saveLocalId: v.string(), layout: wallLayout });
 const ownerItem = v.object({ ...wallArtwork.fields, placementId: v.string(), photoLocalId: v.optional(v.string()), saveLocalId: v.string(), noteVisible: v.boolean(),
   noteRevision: v.number(), noteEligible: v.boolean(), privateNote: v.optional(v.string()) });

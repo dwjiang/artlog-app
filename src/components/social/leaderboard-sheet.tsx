@@ -1,7 +1,8 @@
 import { BottomSheet, Host, RNHostView, ScrollView, VStack } from '@expo/ui/swift-ui';
 import { presentationBackground, presentationDetents, presentationDragIndicator } from '@expo/ui/swift-ui/modifiers';
 import { useState, type ReactNode } from 'react';
-import { Text, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from '../collection/gallery-button';
 
@@ -16,7 +17,7 @@ export function LeaderboardSheet({ title, children, onDismiss, dismissLabel = 'D
       <RNHostView matchContents>
         <View style={{ width, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8 }}>
           <Text accessibilityRole="header" style={{ fontSize: 22, fontWeight: '600', color: Gallery.ink }}>{title}</Text>
-          <GalleryButton label={dismissLabel} disabled={dismissDisabled} onPress={() => setOpen(false)} />
+          <GalleryButton label={dismissLabel} fullWidth={false} disabled={dismissDisabled} onPress={() => setOpen(false)} />
         </View>
       </RNHostView>
       <ScrollView><RNHostView matchContents>

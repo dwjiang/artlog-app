@@ -25,6 +25,7 @@ jest.mock('expo-image', () => ({ Image: (props: object) => {
 jest.mock('expo-router', () => {
   const { Pressable, Text, TextInput } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
+  Toolbar.View = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.Button = function ToolbarButton({ children, onPress, accessibilityLabel }: { children: string; onPress: () => void; accessibilityLabel: string }) { return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>; };
   return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar,
     SearchBar: ({ onChangeText }: { onChangeText: (event: { nativeEvent: { text: string } }) => void }) =>
@@ -65,6 +66,8 @@ it('opens visits, authors, and people from Home', async () => {
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/profile/[profileId]', params: { profileId: 'alex' } });
   await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
   expect(mockPush).toHaveBeenLastCalledWith('/people');
+  await fireEvent.press(screen.getByRole('button', { name: 'Leaderboards' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/leaderboards');
   expect(screen.queryByRole('button', { name: 'Your profile and settings' })).toBeNull();
 });
 

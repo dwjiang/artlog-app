@@ -15,6 +15,13 @@ it('keeps a newly hung local photo at its original proportions before publishing
   expect(wallBottom([{ ...piece(1, 1), cropAspectRatio: 0.5 }])).toBeCloseTo(1);
 });
 
+it('uses a thin black frame for every new placement without changing existing customization', () => {
+  const pieces = [piece(1, 1), { ...piece(2, 1), localId: 'two', layout: { ...piece(2, 1).layout, frame: 'walnut' as const } }];
+  expect(nextWallLayout([]).frame).toBe('black');
+  expect(nextWallLayout(pieces).frame).toBe('black');
+  expect(pieces.map((item) => item.layout.frame)).toEqual(['gilt', 'walnut']);
+});
+
 it('keeps a moved or enlarged artwork inside the wall', () => {
   const layout = constrainLayout(piece(1, 1).layout, { x: 2, y: -1, width: 0.9 });
   expect(layout.x + layout.width).toBeLessThanOrEqual(0.975);

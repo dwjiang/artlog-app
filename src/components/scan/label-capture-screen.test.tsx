@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { ConvexError } from 'convex/values';
 import type { ReactNode } from 'react';
-import { AppState } from 'react-native';
+import { AccessibilityInfo, AppState, DeviceEventEmitter } from 'react-native';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
@@ -32,7 +32,7 @@ const mockRetryLabel = jest.fn();
 const mockDiscardLabel = jest.fn();
 const mockLoadDraft = jest.fn();
 let mockCapture: PendingScan | undefined;
-let mockScan: { labelFlow?: LabelFlowDisplay; outcome?: 'confident'; scanId?: Id<'scans'> } | undefined;
+let mockScan: { labelFlow?: LabelFlowDisplay; outcome?: 'confident'; scanId?: Id<'scans'> } | Error | undefined;
 const mockSetLabelPhoto = jest.fn();
 const mockSetQrUrl = jest.fn();
 const mockPersistLabel = jest.fn();
@@ -52,7 +52,7 @@ jest.mock('@/lib/settings/use-sharing-default', () => ({ useSharingDefault: () =
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
-    Host: View,
+    Host: View, RNHostView: View,
     Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
     ),
@@ -143,6 +143,8 @@ async function start(props: Partial<Parameters<typeof LabelCaptureScreen>[0]> = 
 beforeEach(() => {
   mockLabelOnly = false;
   jest.resetAllMocks();
+  jest.spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled').mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockReachable = true;
   AppState.currentState = 'active';
   jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() } as never);
@@ -376,6 +378,24 @@ it('offers a retry when the queued label exhausted its attempts', async () => {
   await start();
   await fireEvent.press(await screen.findByRole('button', { name: 'Try again' }));
   expect(mockRetryLabel).toHaveBeenCalledWith('cap-1');
+});
+
+it('explains a failed label retry while keeping the stored capture', async () => {
+  mockCapture = { ...capture, labelPhotoPath: 'labels/failed.jpg', lastError: 'model_error', attempts: 5 };
+  mockRetryLabel.mockRejectedValueOnce(new Error('Disk unavailable'));
+  await start();
+  await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByText('Couldn’t retry this label. Your scan and label are still on this phone.')).toBeOnTheScreen();
+  expect(mockDiscardLabel).not.toHaveBeenCalled();
+});
+
+it('explains a failed restore and allows a new label capture', async () => {
+  mockScan = new Error('Server unavailable');
+  await render(<LabelCaptureScreen scanId={scanId} />);
+  expect(screen.getByText('Couldn’t load this label')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Capture label' }));
+  expect(screen.getByRole('button', { name: 'Import' })).toBeOnTheScreen();
 });
 
 it('opens the match when queued identification succeeds without needing the label', async () => {

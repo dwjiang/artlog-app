@@ -41,7 +41,7 @@ jest.mock('@expo/ui', () => ({
 }));
 jest.mock('@expo/ui/swift-ui', () => {
   const { View } = jest.requireActual('react-native');
-  return { Slider: ({ modifiers, ...props }: ComponentProps<typeof import('@expo/ui/swift-ui').Slider>) =>
+  return { ...jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'), Slider: ({ modifiers, ...props }: ComponentProps<typeof import('@expo/ui/swift-ui').Slider>) =>
     <View {...props} accessible accessibilityRole="adjustable" accessibilityLabel="Artwork size"
       accessibilityState={{ disabled: modifiers?.some((modifier) => modifier.$type === 'disabled' && modifier.disabled) }} /> };
 });
@@ -257,7 +257,7 @@ it('keeps editor controls visible and locked during a save', async () => {
   expect(screen.getByRole('header', { name: 'Edit artwork' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Right' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Take off wall' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Done', disabled: true })).toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: 'Right' }));
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
   await act(async () => resolveSave({ ...published, revision: 4, items: published.items.map((item) => ({ ...item, layout: { ...item.layout, x: 0.125 } })) }));

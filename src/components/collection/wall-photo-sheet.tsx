@@ -1,5 +1,6 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from './gallery-button';
 import { WallPhotoPicker } from './wall-photo-picker';
@@ -13,9 +14,9 @@ export function WallPhotoSheet({ savedId, title, photoId, duplicate, onConfirm, 
     <View style={{ flex: 1 }}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 16 }}>
         <Text style={{ fontSize: 19, color: Gallery.ink }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: Gallery.muted }}>{duplicate ? 'A second placement, linked to the same artwork.' : 'Only this placement’s image will change.'}</Text>
+        <Text style={{ fontSize: 13, color: Gallery.muted }}>{duplicate ? 'A second placement, linked to the same artwork.' : 'Only this placement’s image will change.'}</Text>
         <WallPhotoPicker savedId={savedId} selectedId={selected} onSelect={setSelected} />
-        <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>This selected image will be visible on your public wall. Other photos keep their existing sharing choices. Visit dates aren’t shown on the wall.</Text>
+        <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>This selected image will be visible on your public wall. Other photos keep their existing sharing choices. Visit dates aren’t shown on the wall.</Text>
       </ScrollView>
       <View style={{ padding: 20 }}>
         <GalleryButton label={duplicate ? 'Hang selected photo' : 'Use selected photo'} disabled={!selected} variant="filled" fullWidth onPress={() => { if (selected) onConfirm(selected); }} />

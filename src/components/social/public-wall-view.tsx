@@ -7,17 +7,17 @@ import type { PublicProfile, PublicWall } from '@/lib/social/types';
 import { isLightWall } from '@/lib/wall/wall-layout';
 import { ProfileAvatar } from './profile-avatar';
 import { ProfileBio } from './profile-bio';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { socialStyles } from './social-styles';
 
 export function PublicProfileHeader({ person, actions, children }: { person: PublicProfile; actions?: ReactNode; children?: ReactNode }) {
   return <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 12 }}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
       <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
       {actions}
     </View>
     <View style={{ gap: 4 }}>
-      <Text style={{ fontSize: 27, fontWeight: '600', color: Gallery.ink }}>{person.name}</Text>
+      <Text variant="display" style={{ color: Gallery.ink }}>{person.name}</Text>
       <Text style={socialStyles.caption}>@{person.username}</Text>
     </View>
     <ProfileBio text={person.bio} />
@@ -29,9 +29,9 @@ export function PublicWallView({ wall, arrangedBy, onSelect }: { wall: PublicWal
   const [width, setWidth] = useState(0);
   const wallInk = isLightWall(wall.color) ? Gallery.ink : Gallery.paper;
   return <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-    <View style={{ paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-      <Text style={{ fontSize: 10, letterSpacing: 1.1, color: Gallery.muted }}>PUBLIC COLLECTION</Text>
-      <Text style={{ fontSize: 11, color: Gallery.muted }}>{wall.artworkCount} {wall.artworkCount === 1 ? 'artwork' : 'artworks'}{arrangedBy ? ` · arranged by ${arrangedBy}` : ''}</Text>
+    <View style={{ paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+      <Text style={{ fontSize: 13, letterSpacing: 1.1, color: Gallery.muted }}>PUBLIC COLLECTION</Text>
+      <Text style={{ fontSize: 13, color: Gallery.muted }}>{wall.artworkCount} {wall.artworkCount === 1 ? 'artwork' : 'artworks'}{arrangedBy ? ` · arranged by ${arrangedBy}` : ''}</Text>
     </View>
     {width > 0 && <WallGallery width={width} color={wall.color}
       pieces={wall.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}

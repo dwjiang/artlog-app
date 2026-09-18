@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { SocialText as Text } from '../social/social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -16,7 +16,7 @@ export function WallGallery({ pieces, color, width, editing = false, onSelect, o
 }) {
   const light = isLightWall(color);
   return <View style={{ width, minHeight: pieces.length ? 580 : 440, height: Math.max(440, wallBottom(pieces) * width + 85),
-    backgroundColor: color, experimental_backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 24%, rgba(0,0,0,0.09) 100%)' }}>
+    backgroundColor: color }}>
     {pieces.map((piece) => <Hanging key={piece.localId} piece={piece} width={width} editing={editing}
       selected={selectedId === piece.localId} onRemove={onRemove} labelColor={light ? Gallery.ink : Gallery.paper} onSelect={onSelect} onMove={onMove} />)}
     {children}
@@ -62,7 +62,7 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
       <Animated.View style={size}><Pressable accessibilityRole="button" accessibilityLabel={`${piece.artwork.title}, ${piece.artwork.artist}`}
         accessibilityHint={editing ? 'Opens frame, size, and position controls. Hold and drag to move.' : 'Opens artwork details.'}
         onPress={() => onSelect(piece)}>
-        <View style={{ outlineColor: Gallery.paper, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
+        <View style={{ outlineColor: Gallery.segmentSelection, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
           <WallArtwork piece={piece} width={layout.width * width} />
         </View>
         {layout.width * width >= 78 && <View style={styles.label}>
@@ -72,7 +72,7 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
       </Pressable>
       {editing && selected && <>
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${piece.artwork.title} from wall`} onPress={() => onRemove?.(piece.localId)}
-          style={[styles.editBadge, { top: -18, left: -18, width: 36, height: 36, borderRadius: 18 }]}><Image source="sf:xmark" style={{ width: 11, height: 11 }} tintColor={Gallery.ink} /></Pressable>
+          style={[styles.editBadge, { top: -18, left: -18, width: 44, height: 44, borderRadius: 6 }]}><Image source="sf:xmark" style={{ width: 11, height: 11 }} tintColor={Gallery.ink} /></Pressable>
         <GestureDetector gesture={resize}><Animated.View accessible accessibilityRole="adjustable" accessibilityLabel="Artwork size"
           accessibilityHint="Drag to resize artwork." accessibilityValue={{ min: 16, max: 90, now: Math.round(layout.width * 100), text: `${Math.round(layout.width * 100)} percent of wall width` }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   artist: { fontSize: 10, fontWeight: '600' },
   title: { fontSize: 10, fontStyle: 'italic', opacity: 0.8 },
   editBadge: { position: 'absolute', top: -10, right: -10, width: 26, height: 26,
-    backgroundColor: Gallery.paper, borderRadius: 13, justifyContent: 'center', alignItems: 'center', boxShadow: '0 1px 4px #0003' },
+    backgroundColor: Gallery.segmentSelection, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
 });

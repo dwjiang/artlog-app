@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
+import { AccessibilityInfo, DeviceEventEmitter } from 'react-native';
 import { scheduleRemoval } from '@/lib/collection/pending-removals';
 
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -30,15 +31,7 @@ jest.mock('convex/react', () => ({
   ...jest.requireActual('convex/react'),
   useConvexAuth: () => mockAuth,
 }));
-jest.mock('@expo/ui/swift-ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
+jest.mock('@expo/ui/swift-ui');
 
 const enrichment = {
   docent: [{ sentence: 'Monet painted this pond at Giverny in 1916.', factIds: ['f1'] }],
@@ -58,6 +51,8 @@ beforeAll(async () => {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockWall = { pieces: [], signedIn: false };
   mockAuth.isAuthenticated = true;
   results.clear();

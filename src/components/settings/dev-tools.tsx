@@ -1,5 +1,6 @@
 import { Switch, Text } from '@expo/ui';
 import { Section } from '@expo/ui/swift-ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -19,7 +20,7 @@ function message(error: unknown): string {
 }
 
 function Status({ children }: { children: string }) {
-  return <Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{children}</Text>;
+  return <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'footnote' })]}>{children}</Text>;
 }
 
 export function DevTools({ attested }: { attested: boolean }) {

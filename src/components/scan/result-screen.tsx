@@ -2,7 +2,7 @@ import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -29,7 +29,7 @@ import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GalleryButton } from '@/components/collection/gallery-button';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
@@ -61,7 +61,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const isActive = useScreenActive();
   const client = useConvex();
   const scan = useScan(scanId);
-  const { data: captures } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
+  const { data: captures, updatedAt: captureUpdatedAt, error: captureError } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
   const capture = captures.find((row) => row.owner === owner);
   const captureStatus = capture?.status;
   const labelCapture = !!capture && isLabelCapture(capture);
@@ -140,14 +140,20 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
       >
         <CardHeader
           cropUri={capture ? captureFileUri(capture.cropPath) : undefined}
+          artworkTitle={view.primary?.title}
+          loading={!captureUpdatedAt && !captureError}
           corners={view.primary?.corners}
           inputSize={model.inputSize}
           kind={view.kind}
         />
         {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
-        {view.kind === 'loading' && <ThemedText themeColor="textSecondary">Identifying…</ThemedText>}
+        {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
+        {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
-        {view.kind === 'failed' && <FailedCard error={view.error} />}
+        {view.kind === 'failed' && <>
+          <FailedCard error={view.error} />
+          <GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} />
+        </>}
         {view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError)) && (
           <ResultCard
             key={`${view.kind}:${view.primary?.objectId ?? 'none'}`}
@@ -193,6 +199,7 @@ function ResultCard({ captureInput, view, saving, savedId, saveError, onNotRight
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
   return (
     <>
+      {draft.artist && <ThemedText type="title">{draft.artist}</ThemedText>}
       {view.primary && editable && (
         <Pressable accessibilityRole="button" onPress={onNotRight} style={styles.notRight}>
           <ThemedText type="small" themeColor="accent">Not right?</ThemedText>
@@ -232,5 +239,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: Spacing.four },
   section: { gap: Spacing.two },
-  notRight: { alignSelf: 'flex-end', paddingVertical: Spacing.one },
+  notRight: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: Spacing.two },
+  loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

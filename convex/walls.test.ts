@@ -8,7 +8,8 @@ import { clearEmptyNoteVisibility } from './lib/publicationAccess';
 
 it('creates exactly one wall on first write, normalizes color and acknowledges unchanged retries', async () => {
   const t = harness(), a = await wallFixture(t, 'a');
-  expect(await a.as.query(api.walls.getMine, {})).toMatchObject({ revision: 0, color: '#45524B', items: [] });
+  expect(await a.as.query(api.walls.getMine, {})).toMatchObject({ revision: 0, color: '#FBFBF6', items: [] });
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({ color: '#FBFBF6', items: [] });
   expect(await t.run((ctx) => ctx.db.query('walls').collect())).toHaveLength(0);
   const results = await Promise.all([1, 2].map(() => a.as.mutation(api.walls.setLayout, { ...a.input, color: '#abcdef' })));
   expect(results[0]).toEqual(results[1]);
@@ -16,6 +17,15 @@ it('creates exactly one wall on first write, normalizes color and acknowledges u
   expect(await t.run((ctx) => ctx.db.query('walls').collect())).toHaveLength(1);
   expect(await t.query(api.profiles.getPublic, { profileId: a.profile.profileId })).toMatchObject({ publishedWallCount: 1 });
   await expect(a.as.mutation(api.walls.setLayout, { ...a.input, color: '#123456' })).rejects.toMatchObject({ data: { code: 'conflict' } });
+});
+
+it('preserves an existing wall color, frame, photo choice and geometry on reads', async () => {
+  const t = harness(), a = await wallFixture(t, 'custom');
+  const customized = await a.as.mutation(api.walls.setLayout, { ...a.input, color: '#45524B',
+    items: [{ ...a.selection, layout: { ...a.layout, frame: 'walnut' } }] });
+  expect(await a.as.query(api.walls.getMine, {})).toEqual(customized);
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({ color: '#45524B',
+    items: [{ layout: { ...a.layout, frame: 'walnut' } }] });
 });
 
 it('requires a linked profile, completed claim and current owner scope', async () => {

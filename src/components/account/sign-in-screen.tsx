@@ -1,12 +1,13 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { GalleryIconButton } from '@/components/collection/gallery-icon-button';
-import { Gallery } from '@/constants/theme';
+import { Gallery, Typography } from '@/constants/theme';
 import { signInContexts, type SignInContext } from '@/lib/account/sign-in-context';
 import { useAccount } from '@/lib/account/use-account';
 
@@ -43,12 +44,12 @@ export function SignInScreen({ context = 'account' }: { context?: SignInContext 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, gap: 12 },
+  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, gap: 12 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 24, lineHeight: 29, fontWeight: '700', color: Gallery.ink },
+  title: { ...Typography.display, flex: 1, color: Gallery.ink },
   detail: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
   actions: { gap: 12, paddingTop: 12 },
   appleButton: { width: '100%', height: 50 },
-  footnote: { fontSize: 12, lineHeight: 18, color: Gallery.muted, textAlign: 'center' },
+  footnote: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: 'center' },
   error: { fontSize: 14, lineHeight: 20, color: Gallery.destructive },
 });

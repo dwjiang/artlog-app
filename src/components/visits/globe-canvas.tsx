@@ -5,10 +5,12 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { globeCamera, globeClusters, globeGeometry, hitGlobePin, type GlobeCamera, type GlobeCluster, type GlobePin } from '@/lib/journal/globe-geometry';
+import { Gallery } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
 import { globeShader } from './globe-shader';
 
 const shader = Skia.RuntimeEffect.Make(globeShader);
-const font = matchFont({ fontFamily: 'Helvetica Neue', fontSize: 10, fontWeight: '500' });
+const font = matchFont({ fontFamily: 'Helvetica Neue', fontSize: 13, fontWeight: '500' });
 export type GlobeCanvasHandle = { reset: () => void; focus: (pin: GlobePin) => void; zoom: (factor: number) => void };
 
 export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, initialCamera, onCameraChange, onCluster, ref }: {
@@ -71,6 +73,7 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
           {pins.map((pin, index) => <GlobeMarker key={pin.id} index={index} clusters={clusters} selectedId={selectedId} width={width} />)}
         </>}
       </Canvas>
+      {(!shader || !image) && <View style={{ padding: 20, gap: 8 }}><ThemedText variant="secondary">{!shader ? 'Globe rendering is unavailable. Use the museum chooser or List.' : 'Loading globe…'}</ThemedText></View>}
     </View>
   </GestureDetector></GestureHandlerRootView>;
 }
@@ -89,16 +92,16 @@ function GlobeMarker({ index, clusters, selectedId, width }: { index: number; cl
   const textX = useDerivedValue(() => labelX.get() + 5);
   const labelOpacity = useDerivedValue(() => count.get() === 1 ? 1 : 0);
   return <Group opacity={opacity} transform={transform}>
-    <Circle cx={0} cy={0} r={19} color="#F7F7EF77" opacity={selected} />
-    <Circle cx={0} cy={0} r={radius} color="#384932" />
-    <Circle cx={0} cy={0} r={radius} color="#F2F3E8" style="stroke" strokeWidth={2} />
-    <CanvasText x={countX} y={3.5} text={countText} font={font} color="#FCFBF3" />
+    <Circle cx={0} cy={0} r={19} color={Gallery.highlight} opacity={selected} style="stroke" strokeWidth={3} />
+    <Circle cx={0} cy={0} r={radius} color={Gallery.accent} />
+    <Circle cx={0} cy={0} r={radius} color={Gallery.paper} style="stroke" strokeWidth={2} />
+    <CanvasText x={countX} y={3.5} text={countText} font={font} color={Gallery.surface} />
     <Group opacity={labelOpacity}>
-      <RoundedRect x={labelX} y={13} width={labelWidth} height={17} r={4} color="#F4F4EDD9" />
-      <CanvasText x={textX} y={25} text={label} font={font} color="#43513C" />
+      <RoundedRect x={labelX} y={13} width={labelWidth} height={22} r={2} color={Gallery.paper} />
+      <CanvasText x={textX} y={29} text={label} font={font} color={Gallery.ink} />
     </Group>
   </Group>;
 }
 const styles = StyleSheet.create({
-  shadow: { height: 10, borderRadius: 100, backgroundColor: '#5560480C', boxShadow: '0 0 15px 7px #55604814' },
+  shadow: { height: 10, borderRadius: 100, backgroundColor: '#1717150C', boxShadow: '0 0 15px 7px #17171514' },
 });

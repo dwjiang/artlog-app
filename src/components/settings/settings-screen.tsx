@@ -1,5 +1,6 @@
 import { Icon, ListItem, Text } from '@expo/ui';
 import { Section } from '@expo/ui/swift-ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
 
 import { GroupedFooter, GroupedList, NavigationRow } from '@/components/grouped-list';
@@ -15,7 +16,7 @@ export function SettingsScreen() {
       ? 'Saved works and photos sync privately across your devices.' : 'Saved on this iPhone. Sign in to sync across devices or share with friends.'}</GroupedFooter>}>
       <ListItem leading={<Icon name="person.crop.circle" size={38} color={Gallery.muted} />}
         trailing={<Icon name="chevron.right" size={12} color={Gallery.muted} />}
-        supportingText={<Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{account?.linked
+        supportingText={<Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'footnote' })]}>{account?.linked
           ? account.email ?? `${account.deviceCount} linked ${account.deviceCount === 1 ? 'device' : 'devices'}`
           : 'Sync your collection and share visits with friends.'}</Text>}
         onPress={account?.linked ? detail('account') : () => router.push(signInRoute('account'))}>

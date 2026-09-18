@@ -1,7 +1,7 @@
 import { Button, Column, Host, RNHostView, Text as NativeText } from '@expo/ui';
 import { accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Gallery } from '@/constants/theme';
 import type { WallFrame as Frame } from '@/lib/wall/wall-layout';
@@ -10,15 +10,16 @@ import { WallFrame, wallFrameInset, wallFrames } from './wall-frame';
 function WallChoice({ label, selected, onPress, children, width = 68, disabled = false }: {
   label: string; selected: boolean; onPress: () => void; children: ReactNode; width?: number; disabled?: boolean;
 }) {
+  const { fontScale } = useWindowDimensions();
   return <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
     <Button variant="text" onPress={onPress} disabled={disabled}
-      style={{ paddingVertical: 9, borderRadius: 10, backgroundColor: selected ? Gallery.fill : 'transparent' }}
-      modifiers={[frame({ width, minHeight: 72 }), accessibilityLabel(label), accessibilityAddTraits(selected ? ['isSelected'] : [])]}>
+      style={{ paddingVertical: 9, borderRadius: 6, borderWidth: 1, borderColor: selected ? Gallery.ink : 'transparent', backgroundColor: selected ? Gallery.segmentSelection : 'transparent' }}
+      modifiers={[frame({ width: width * fontScale, minHeight: 72 }), accessibilityLabel(label), accessibilityAddTraits(selected ? ['isSelected'] : [])]}>
       <Column spacing={7} alignment="center">
         <RNHostView matchContents>
           <View pointerEvents="none" style={styles.preview}>{children}</View>
         </RNHostView>
-        <NativeText textStyle={{ fontSize: 10, fontWeight: selected ? '600' : '400', color: selected ? Gallery.ink : Gallery.muted }}>{label}</NativeText>
+        <NativeText textStyle={{ fontSize: 13 * fontScale, fontWeight: selected ? '600' : '400', color: selected ? Gallery.ink : Gallery.muted }}>{label}</NativeText>
       </Column>
     </Button>
   </Host>;
@@ -26,10 +27,10 @@ function WallChoice({ label, selected, onPress, children, width = 68, disabled =
 
 export function WallFramePicker({ value, onChange, disabled = false }: { value: Frame; onChange: (value: Frame) => void; disabled?: boolean }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.frames}>
-    {wallFrames.map((finish) => <WallChoice key={finish.value} label={finish.name} width={56} selected={finish.value === value} disabled={disabled} onPress={() => onChange(finish.value)}>
+    {wallFrames.map((finish) => <WallChoice key={finish.value} label={finish.name} width={80} selected={finish.value === value} disabled={disabled} onPress={() => onChange(finish.value)}>
       <WallFrame frame={finish.value} width={38}>
         <View style={{ width: 38 - wallFrameInset(finish.value, 38) * 2, height: 28 - wallFrameInset(finish.value, 38) * 2,
-          backgroundColor: '#667B81', experimental_backgroundImage: 'linear-gradient(155deg, #D8C79A 0%, #81928F 30%, #3F4E58 100%)' }} />
+          backgroundColor: Gallery.fill }} />
       </WallFrame>
     </WallChoice>)}
   </ScrollView>;

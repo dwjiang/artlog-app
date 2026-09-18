@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo, DeviceEventEmitter, ScrollView } from 'react-native';
 import { getFunctionName } from 'convex/server';
 import type { SharedArtwork } from '@/lib/social/types';
 import { ArtworkScreen } from './artwork-screen';
@@ -62,4 +63,20 @@ it('does not replace an empty shared-photo selection with another artwork image'
   expect(screen.getByText('No photos shared for this artwork.')).toBeOnTheScreen();
   expect(screen.queryByRole('image', { name: 'Starry Night, photo 1' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Next photo' })).toBeNull();
+});
+
+it('respects a live Reduce Motion change when navigating shared photos', async () => {
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
+  const scroll = jest.spyOn(ScrollView.prototype, 'scrollTo');
+  try {
+    await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+    await act(() => DeviceEventEmitter.emit('reduceMotionChanged', true));
+    await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
+    expect(scroll).toHaveBeenLastCalledWith(expect.objectContaining({ animated: false }));
+    await act(() => DeviceEventEmitter.emit('reduceMotionChanged', false));
+    await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
+    expect(scroll).toHaveBeenLastCalledWith(expect.objectContaining({ animated: true }));
+    await screen.unmount();
+  } finally { jest.restoreAllMocks(); }
 });

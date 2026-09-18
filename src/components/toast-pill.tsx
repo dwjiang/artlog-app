@@ -1,20 +1,24 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Gallery } from '@/constants/theme';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gallery, Radius, Spacing, Typography } from '@/constants/theme';
+import { ThemedText } from './themed-text';
 
-/** The dark confirmation pill: one line of paper text with optional actions such as Undo. */
 export function ToastPill({ message, actions, busy = false }: { message: string; actions?: { label: string; onPress: () => void }[]; busy?: boolean }) {
-  return <View style={styles.pill} accessibilityLiveRegion="polite">
-    <Text accessibilityRole="alert" style={styles.message}>{message}</Text>
-    {actions?.map((action) => <Pressable key={action.label} accessibilityRole="button" disabled={busy} onPress={action.onPress} hitSlop={8} style={styles.action}>
-      <Text style={styles.actionLabel}>{action.label}</Text>
+  const { fontScale } = useWindowDimensions();
+  return <View style={[styles.pill, fontScale >= 1.5 && styles.stacked]} accessibilityLiveRegion="polite" accessibilityState={{ busy }}>
+    <ThemedText variant="secondary" accessibilityRole="alert" style={styles.message}>{message}</ThemedText>
+    {actions?.map((action) => <Pressable key={action.label} accessibilityRole="button" accessibilityLabel={action.label}
+      accessibilityState={{ disabled: busy, busy }} disabled={busy} onPress={action.onPress}
+      style={({ pressed }) => [styles.action, { opacity: busy ? 0.6 : pressed ? 0.75 : 1 }]}>
+      <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
     </Pressable>)}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 180, maxWidth: '100%', paddingVertical: 12, paddingHorizontal: 15,
-    borderRadius: 13, borderCurve: 'continuous', backgroundColor: 'rgba(38, 35, 32, 0.94)', boxShadow: '0 10px 24px -10px rgba(0,0,0,0.5)' },
-  message: { flexShrink: 1, fontSize: 13, lineHeight: 18, color: Gallery.paper },
-  action: { minHeight: 28, justifyContent: 'center' },
-  actionLabel: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: Gallery.paper },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: Spacing.compact, minWidth: 180, maxWidth: '100%', paddingVertical: Spacing.two, paddingHorizontal: Spacing.three,
+    borderRadius: Radius.input, borderCurve: 'continuous', backgroundColor: Gallery.ink },
+  stacked: { flexDirection: 'column', alignItems: 'stretch' },
+  message: { flexShrink: 1, color: Gallery.surface },
+  action: { minWidth: 44, minHeight: 44, justifyContent: 'center' },
+  actionLabel: { ...Typography.secondary, fontWeight: '600', color: Gallery.surface, textDecorationLine: 'underline' },
 });
