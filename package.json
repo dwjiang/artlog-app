@@ -2,6 +2,7 @@
   "name": "artlog",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "license": "MPL-2.0",
   "dependencies": {
     "@auth/core": "^0.41.1",
     "@convex-dev/auth": "^0.0.95",
