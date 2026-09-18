@@ -3,7 +3,7 @@
 - [System architecture and user journey](system-architecture.html): browsable map of the iOS app, backend, data, and operator tooling.
 - [Experiment findings](experiments/README.md): decisions, measurements, limitations, and archived evidence.
 - Operations: [production deployment](operations/production.md) and [corpus inventory](operations/corpus.md).
-- [Hackathon reference notes](hackathon/README.md): event context, feedback, and the demo video outline.
+- [Hackathon requirements](hackathon/README.md): recorded event rules, judging criteria, submission deliverables, and vendor feedback notes.
 
 ## Open work
 

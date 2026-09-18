@@ -38,6 +38,9 @@ Code, types, tests, and configuration are the source of implementation details.
   those cannot express. Keep comments concise and remove redundant ones; reserve
   JSDoc for externally consumed contracts TypeScript cannot express.
 - Do not implement changes the user has deferred or marked out of scope.
+- This is a hackathon entry. Before changing model providers, the Token Factory or
+  Tavily runtime paths, `LICENSE`, or the README's setup and model claims, read
+  `docs/hackathon/README.md` and keep the submission eligible.
 
 ## Project conventions
 

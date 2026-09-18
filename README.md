@@ -19,9 +19,9 @@ Built for the Nebius × NVIDIA Global AI Hackathon. iOS only.
 ## Demo
 
 - **TestFlight public link:** _PLACEHOLDER — available once Beta App Review clears._
-- **Video (under 3 minutes, YouTube):** _PLACEHOLDER — outline in
-  [video outline](docs/hackathon/video-outline.md)._
-- Hackathon deliverables: [feedback notes](docs/hackathon/feedback-notes.md),
+- **Video (under 3 minutes, YouTube):** _PLACEHOLDER._
+- Hackathon deliverables: [event requirements](docs/hackathon/README.md),
+  [feedback notes](docs/hackathon/feedback-notes.md),
   [submission checklist](docs/todos/hackathon/README.md).
 
 The app opens to the camera with no account; anyone with the TestFlight build can scan within
