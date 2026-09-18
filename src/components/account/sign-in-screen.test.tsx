@@ -40,10 +40,11 @@ it('keeps sign-in errors retryable and closes only after linking finishes', asyn
   await view.rerender(<SignInScreen />);
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
-it('introduces all three features and one Apple action in the welcome sheet', async () => {
-  await render(<SignInScreen welcome />);
-  for (const text of ['Welcome to Artlog', 'Scan the label', 'Hang your wall', 'Follow friends']) expect(screen.getByText(text)).toBeOnTheScreen();
-  expect(screen.getAllByRole('button', { name: 'Sign in with Apple' })).toHaveLength(1);
+it('returns to the previous activity when the close button is pressed', async () => {
+  await render(<SignInScreen context="friends" />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Close sign-in' }));
+  expect(mockBack).toHaveBeenCalledTimes(1);
+  expect(mockSignIn).not.toHaveBeenCalled();
 });
 it('explains unavailable sign-in without preventing dismissal', async () => {
   mockAccount.available = false;

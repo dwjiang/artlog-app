@@ -159,8 +159,7 @@ it('loads public visits for guests and opens their details without signing in', 
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
-  await fireEvent.press(await screen.findByRole('button', { name: 'Sign in' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'friends' } });
+  expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
 });
 
 it('offers public walls while the public visit feed is empty', async () => {

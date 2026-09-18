@@ -1,34 +1,34 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { getSetting, removeSetting } from '@/db/repos/settings';
 import { WelcomePrompt } from './welcome-prompt';
+import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 
 const mockPush = jest.fn(), mockRouter = { push: mockPush };
 let mockActive = true;
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => mockActive }));
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
-beforeEach(async () => { jest.clearAllMocks(); mockActive = true; await removeSetting('welcome-seen'); });
-it('presents once for a guest and remembers presentation across remounts', async () => {
-  const first = await render(<WelcomePrompt status="signed-out" />);
+beforeEach(async () => { jest.clearAllMocks(); mockActive = true; switchOwner(anonymousOwner()); await removeSetting('welcome-seen'); });
+it('presents once for a guest before a server session is ready and remembers presentation across remounts', async () => {
+  const first = await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/welcome'));
   expect(await getSetting('welcome-seen')).toBe('true');
   await first.unmount();
-  await render(<WelcomePrompt status="signed-out" />);
+  await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
 });
-it('waits for the active Home screen and a settled session', async () => {
+it('waits for the active Home screen', async () => {
   mockActive = false;
-  const view = await render(<WelcomePrompt status="signed-out" />);
+  const view = await render(<WelcomePrompt />);
   expect(mockPush).not.toHaveBeenCalled();
   mockActive = true;
-  await view.rerender(<WelcomePrompt status="loading" />);
-  expect(mockPush).not.toHaveBeenCalled();
-  await view.rerender(<WelcomePrompt status="signed-out" />);
+  await view.rerender(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/welcome'));
 });
 it('does not onboard an existing linked account after signing out', async () => {
-  const view = await render(<WelcomePrompt status="ready" />);
+  switchOwner('account:existing');
+  await render(<WelcomePrompt />);
   await waitFor(async () => expect(await getSetting('welcome-seen')).toBe('true'));
-  await view.rerender(<WelcomePrompt status="signed-out" />);
+  await act(() => switchOwner(anonymousOwner()));
   expect(mockPush).not.toHaveBeenCalled();
 });

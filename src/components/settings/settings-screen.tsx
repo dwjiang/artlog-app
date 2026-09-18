@@ -11,8 +11,8 @@ export function SettingsScreen() {
   const { account } = useAccount();
   const detail = (section: string) => () => router.push({ pathname: '/settings-detail', params: { section } });
   return <GroupedList>
-    <Section footer={<GroupedFooter>{account?.linked
-      ? 'Saved works and photos sync privately across your devices.' : 'Saved works and photos stay on this phone when you sign out.'}</GroupedFooter>}>
+    <Section title={account?.linked ? undefined : 'Using Artlog without an account'} footer={<GroupedFooter>{account?.linked
+      ? 'Saved works and photos sync privately across your devices.' : 'Saved on this iPhone. Sign in to sync across devices or share with friends.'}</GroupedFooter>}>
       <ListItem leading={<Icon name="person.crop.circle" size={38} color={Gallery.muted} />}
         trailing={<Icon name="chevron.right" size={12} color={Gallery.muted} />}
         supportingText={<Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{account?.linked

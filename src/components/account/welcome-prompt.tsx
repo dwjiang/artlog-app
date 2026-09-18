@@ -2,14 +2,15 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import type { SocialSession } from '@/lib/social/use-social-session';
+import { useLocalOwner } from '@/lib/account/owner-store';
 
-export function WelcomePrompt({ status }: { status: SocialSession['status'] }) {
+export function WelcomePrompt() {
   const active = useScreenActive();
+  const owner = useLocalOwner();
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   useEffect(() => {
-    if (!active || checked || !['signed-out', 'ready', 'profile-required'].includes(status)) return;
+    if (!active || checked) return;
     let cancelled = false;
     void (async () => {
       const seen = await getSetting('welcome-seen');
@@ -17,9 +18,9 @@ export function WelcomePrompt({ status }: { status: SocialSession['status'] }) {
       await setSetting('welcome-seen', 'true');
       if (cancelled) return;
       setChecked(true);
-      if (seen !== 'true' && status === 'signed-out') router.push('/welcome');
+      if (seen !== 'true' && !owner.startsWith('account:')) router.push('/welcome');
     })().catch(() => { if (!cancelled) setChecked(true); });
     return () => { cancelled = true; };
-  }, [active, checked, router, status]);
+  }, [active, checked, router, owner]);
   return null;
 }

@@ -1,3 +1,3 @@
-import { SignInScreen } from '@/components/account/sign-in-screen';
+import { WelcomeScreen } from '@/components/account/welcome-screen';
 
-export default function WelcomeRoute() { return <SignInScreen welcome />; }
+export default function WelcomeRoute() { return <WelcomeScreen />; }
