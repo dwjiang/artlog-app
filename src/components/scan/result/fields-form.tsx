@@ -1,10 +1,8 @@
-import { Host, TextInput } from '@expo/ui';
-import { accessibilityLabel, font } from '@expo/ui/swift-ui/modifiers';
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { FieldInput } from '../field-input';
 import { ThemedText } from '@/components/themed-text';
-import { Gallery, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { SNAPSHOT_FIELDS, type SnapshotDraft, type SnapshotField } from '@/lib/result/snapshot';
 
 export const FIELD_LABELS: Record<SnapshotField, string> = {
@@ -19,30 +17,13 @@ export type FieldsFormProps = {
 
 /** Every suggested field is editable before saving; the parent owns the draft. */
 export function FieldsForm({ draft, editable, onChange }: FieldsFormProps) {
-  const [focused, setFocused] = useState<SnapshotField>();
   return (
     <View style={styles.form}>
       {SNAPSHOT_FIELDS.map((field) => (
         <View key={field} style={styles.field}>
           <ThemedText type="small" themeColor="textSecondary">{FIELD_LABELS[field]}</ThemedText>
-          <Host matchContents={{ vertical: true }} colorScheme="light" style={styles.host}>
-            <TextInput
-              defaultValue={draft[field]}
-              placeholder={FIELD_LABELS[field]}
-              editable={editable}
-              autoCapitalize={field === 'date' ? 'none' : 'words'}
-              autoCorrect={false}
-              multiline
-              selectionColor={Gallery.accent}
-              placeholderTextColor={Gallery.muted}
-              textStyle={{ color: Gallery.ink }}
-              modifiers={[font({ textStyle: 'body' }), accessibilityLabel(FIELD_LABELS[field])]}
-              onFocus={() => setFocused(field)}
-              onBlur={() => setFocused(undefined)}
-              onChangeText={(value) => onChange(field, value)}
-              style={{ ...styles.input, borderColor: focused === field ? Gallery.accent : Gallery.controlBorder }}
-            />
-          </Host>
+          <FieldInput label={FIELD_LABELS[field]} defaultValue={draft[field]} editable={editable}
+            autoCapitalize={field === 'date' ? 'none' : 'words'} onChangeText={(value) => onChange(field, value)} />
         </View>
       ))}
     </View>
@@ -52,6 +33,4 @@ export function FieldsForm({ draft, editable, onChange }: FieldsFormProps) {
 const styles = StyleSheet.create({
   form: { gap: Spacing.three },
   field: { gap: Spacing.one },
-  host: { width: '100%' },
-  input: { paddingHorizontal: 11, paddingVertical: 10, borderRadius: 8, backgroundColor: Gallery.surface, borderWidth: 1, borderColor: Gallery.controlBorder },
 });

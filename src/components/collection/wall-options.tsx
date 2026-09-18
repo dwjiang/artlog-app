@@ -1,5 +1,5 @@
 import { Button, Column, Host, RNHostView, Text as NativeText } from '@expo/ui';
-import { accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityAddTraits, accessibilityLabel, background, frame, shapes, strokeBorder } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
@@ -7,14 +7,22 @@ import { Gallery } from '@/constants/theme';
 import type { WallFrame as Frame } from '@/lib/wall/wall-layout';
 import { WallFrame, wallFrameInset, wallFrames } from './wall-frame';
 
+const CHOICE_RADIUS = 6;
+
 function WallChoice({ label, selected, onPress, children, width = 68, disabled = false }: {
   label: string; selected: boolean; onPress: () => void; children: ReactNode; width?: number; disabled?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   return <Host matchContents colorScheme="light" seedColor={Gallery.accent}>
     <Button variant="text" onPress={onPress} disabled={disabled}
-      style={{ paddingVertical: 9, borderRadius: 6, borderWidth: 1, borderColor: selected ? Gallery.ink : 'transparent', backgroundColor: selected ? Gallery.segmentSelection : 'transparent' }}
-      modifiers={[frame({ width: width * fontScale, minHeight: 72 }), accessibilityLabel(label), accessibilityAddTraits(selected ? ['isSelected'] : [])]}>
+      style={{ paddingVertical: 9 }}
+      // Style borders are a square stroke clipped by the radius, which notches the corners; paint and stroke the padded
+      // content instead, then reserve the chip's slot: modifiers apply inside-out, so the frame must come last.
+      modifiers={[
+        background(selected ? Gallery.segmentSelection : 'transparent', shapes.roundedRectangle({ cornerRadius: CHOICE_RADIUS })),
+        strokeBorder({ color: selected ? Gallery.ink : 'transparent', shape: 'roundedRectangle', cornerRadius: CHOICE_RADIUS, style: { lineWidth: 1 } }),
+        frame({ width: width * fontScale, minHeight: 72 }),
+        accessibilityLabel(label), accessibilityAddTraits(selected ? ['isSelected'] : [])]}>
       <Column spacing={7} alignment="center">
         <RNHostView matchContents>
           <View pointerEvents="none" style={styles.preview}>{children}</View>
