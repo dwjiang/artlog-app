@@ -1,9 +1,11 @@
+import { ThemedText as Text } from '@/components/themed-text';
+import { DEFAULT_WALL_COLOR, DEFAULT_THUMBNAIL_FRAME } from '@/shared/wall/defaults';
 import { randomUUID } from 'expo-crypto';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabInset, Gallery } from '@/constants/theme';
@@ -21,6 +23,7 @@ import { WallProfileSheet } from './wall-profile-sheet';
 import { WallGallery } from './wall-gallery';
 import { WallFramePicker } from './wall-options';
 import { SavedWorkImage } from './saved-work-image';
+import { cropSyncing } from '@/lib/account/photo-sync';
 import { WallFrame } from './wall-frame';
 import { WallPhotoSheet } from './wall-photo-sheet';
 
@@ -32,6 +35,7 @@ export function CollectionWall({ works, hiddenIds, onEditingChange, header, cont
 
 export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, wall, header, controls }: CollectionWallProps & { wall: ReturnType<typeof useCollectionWall> }) {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false), [width, setWidth] = useState(0);
   const [profile, setProfile] = useState(false), [options, setOptions] = useState(false);
@@ -41,7 +45,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const revealId = useRef<string | undefined>(undefined);
   const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
-  const color = wall.draft?.color ?? Gallery.accent;
+  const color = wall.draft?.color ?? DEFAULT_WALL_COLOR;
   const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
   const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((piece) => piece.saveLocalId === item.localId));
@@ -127,12 +131,12 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     <View style={styles.toolbar}>
       <GalleryButton label="All artworks" icon="list.bullet" disabled={blocked}
         onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
-      <GalleryButton label={wall.pending ? 'Saving…' : editing ? 'Done' : 'Edit wall'} icon={editing ? undefined : 'slider.horizontal.3'}
+      <GalleryButton label={editing ? 'Done' : 'Edit wall'} icon={editing ? undefined : 'slider.horizontal.3'} busy={wall.pending}
         disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
     </View>
     </View>
     {editing && <Text style={styles.publicNotice}>Changes to your wall are public. They don’t create feed posts.</Text>}
-    {editing && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 52 }} contentContainerStyle={styles.swatches}>
+    {editing && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, minHeight: 52 }} contentContainerStyle={styles.swatches}>
       <Text style={styles.caption}>Wall color</Text>
       {Gallery.colors.map(({ name, value: swatchColor }) => <Pressable key={swatchColor} accessibilityRole="button" accessibilityLabel={`${name} wall`}
         accessibilityState={{ selected: color === swatchColor, disabled: blocked }} disabled={blocked}
@@ -154,10 +158,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: wallInk }]}>{wall.loading ? 'Opening your wall…' : 'Your own little museum.'}</Text>
+            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{wall.loading ? 'Opening your wall…' : 'Your own little museum.'}</Text>
             <Text style={[styles.emptyCaption, { color: wallInk }]}>{!wall.signedIn ? 'A place for the art that stays with you. Sign in to curate your public wall.'
               : wall.profileRequired ? 'Create a profile, then choose the art you’d like to show.' : editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>
-            {wall.loading ? <ActivityIndicator color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" capsule inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
+            {wall.loading ? <ActivityIndicator color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
               : wall.profileRequired ? <GalleryButton label="Create your wall" inverse={!isLightWall(color)} variant="filled" onPress={() => setProfile(true)} />
                 : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
@@ -169,17 +173,17 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
       {selected ? <>
         <View style={styles.trayHeading}><GalleryButton label="All saved art" icon="chevron.left" onPress={() => setSelectedId(undefined)} />
           <GalleryButton label="Size & position" onPress={() => setOptions(true)} disabled={blocked} /></View>
-        <Text style={[styles.caption, { paddingHorizontal: 18 }]}>Frame for {selected.artwork.title}</Text>
+        <Text style={[styles.caption, { paddingHorizontal: 20 }]}>Frame for {selected.artwork.title}</Text>
         <WallFramePicker value={selected.layout.frame} disabled={blocked} onChange={(frame) => move(selected.localId, { ...selected.layout, frame })} />
         <View style={styles.trayHeading}><GalleryButton label="Choose photo" icon="photo" disabled={blocked} onPress={() => setPhotoPicker('choose')} />
           <GalleryButton label="Hang another photo" icon="plus" disabled={blocked || count >= LIMITS.wallItems} onPress={() => setPhotoPicker('duplicate')} /></View>
       </> : <>
-        <Text style={[styles.caption, { paddingHorizontal: 18, paddingTop: 12 }]}>Not on the wall ({available.length})</Text>
+        <Text style={[styles.caption, { paddingHorizontal: 20, paddingTop: 12 }]}>Not on the wall ({available.length})</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, padding: 18, alignItems: 'center' }}>
           {available.map((item) => <Pressable key={item.localId} accessibilityRole="button" accessibilityLabel={`Hang ${item.snapshot.title}`}
-            disabled={blocked || count >= LIMITS.wallItems} onPress={() => { if (add(item.localId)) showToast('Selected image added to your wall. Other photos stay private.'); }} style={{ width: 66, alignItems: 'center', gap: 7 }}>
-            <WallFrame frame="gilt" width={54}><SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} title={item.snapshot.title} contain style={{ width: 46, height: 49 }} /></WallFrame>
-            <Text numberOfLines={1} style={{ fontSize: 10, color: Gallery.muted }}>{item.snapshot.artist}</Text>
+            disabled={blocked || count >= LIMITS.wallItems} onPress={() => { if (add(item.localId)) showToast('Selected image added to your wall. Other photos stay private.'); }} style={{ width: 66 * fontScale, alignItems: 'center', gap: 7 }}>
+            <WallFrame frame={DEFAULT_THUMBNAIL_FRAME} width={54}><SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))} title={item.snapshot.title} contain style={{ width: 54, height: 49 }} /></WallFrame>
+            <Text style={{ fontSize: 13, color: Gallery.muted }}>{item.snapshot.artist}</Text>
           </Pressable>)}
           {wall.loadingSelections ? <ActivityIndicator color={Gallery.accent} /> : wall.cursor !== null ? <GalleryButton label="More artworks" disabled={blocked} onPress={() => { void wall.loadSelections(); }} />
             : !available.length ? <Text style={styles.caption}>{works.length ? 'Everything is on the wall.' : 'Save an artwork to add it to your wall.'}</Text> : null}
@@ -201,15 +205,15 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  toolbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, minHeight: 52, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
-  caption: { fontSize: 11, lineHeight: 17, color: Gallery.muted },
-  swatches: { alignItems: 'center', paddingHorizontal: 18, gap: 1, paddingBottom: 8 },
-  error: { paddingHorizontal: 18, paddingVertical: 10, backgroundColor: Gallery.fill },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, minHeight: 52, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  swatches: { alignItems: 'center', paddingHorizontal: 20, gap: 1, paddingBottom: 8 },
+  error: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Gallery.fill },
   empty: { minHeight: 440, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 20 },
-  emptyTitle: { fontSize: 24, fontWeight: '600', textAlign: 'center' },
+  emptyTitle: { textAlign: 'center' },
   emptyCaption: { fontSize: 14, lineHeight: 21, textAlign: 'center', maxWidth: 280, opacity: 0.85 },
-  footer: { fontSize: 11, lineHeight: 17, color: Gallery.muted, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 30 },
-  publicNotice: { fontSize: 11, lineHeight: 17, color: '#44573D', backgroundColor: '#DEE5D5', paddingHorizontal: 18, paddingVertical: 10 },
+  footer: { fontSize: 13, lineHeight: 18, color: Gallery.muted, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30 },
+  publicNotice: { fontSize: 13, lineHeight: 18, color: Gallery.ink, backgroundColor: Gallery.segmentSelection, paddingHorizontal: 20, paddingVertical: 10 },
   tray: { backgroundColor: Gallery.paper, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
-  trayHeading: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 },
+  trayHeading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 12 },
 });

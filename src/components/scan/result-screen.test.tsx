@@ -27,10 +27,12 @@ import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
 import { formStateFromFlow, unlockField } from '@/lib/label/fields';
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
+jest.mock('../collection/gallery-button');
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
+const mockDismissAll = jest.fn();
 const mockSign = jest.fn();
 const mockSaveMutation = jest.fn();
 const mockHaptic = jest.fn();
@@ -57,7 +59,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush, replace: mockReplace, dismissAll: mockDismissAll }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -70,7 +72,7 @@ jest.mock('convex/react', () => ({
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
-    Host: View,
+    Host: View, RNHostView: View,
     Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
     ),
@@ -342,11 +344,11 @@ it.each([confidentScan, softScan])('locks the draft and match choices while savi
   await render(result());
   const saveButton = await screen.findByRole('button', { name: 'Save to collection' });
   const savePromise = fireEvent.press(saveButton);
-  await screen.findByText('Saving…');
+  await screen.findByRole('button', { name: 'Save to collection', busy: true });
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Edited while saving');
   try {
     expect(screen.getByLabelText('Title').props.editable).toBe(false);
-    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save to collection', busy: true })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Not right?' })).toBeNull();
     expect(screen.queryByText('Maybe one of these?')).toBeNull();
     if (scan.outcome === 'soft') {
@@ -488,6 +490,17 @@ it('shows a failed card when the server refuses the scan', async () => {
   await render(result());
   expect(await screen.findByText('Couldn’t identify this painting')).toBeOnTheScreen();
   expect(screen.queryByText(haystacks.title)).toBeNull();
+});
+
+it('explains an invalid scan link without exposing server details and offers a way out', async () => {
+  results.set('scans:get', new Error('[CONVEX Q(scans:get)] [Request ID: secret] ArgumentValidationError: Invalid scanId\nCalled by client'));
+  await render(result('invalid-scan'));
+  expect(await screen.findByText('This scan link is invalid or no longer available.')).toBeOnTheScreen();
+  expect(screen.queryByText(/Request ID|Called by client/)).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Scan another artwork' }));
+  expect(mockDismissAll).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledWith('/(tabs)/(scan)/scan');
+  expect(mockReplace).not.toHaveBeenCalled();
 });
 
 it('offers museum search only on soft or missed cards with a venue and consent not declined', async () => {
@@ -658,7 +671,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
   await render(result());
   await screen.findByText("Searching the museum's collection…");
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
-  await screen.findByRole('button', { name: 'Saving…' });
+  await screen.findByRole('button', { name: 'Save to collection', busy: true });
   if (stage !== 'saving') await act(async () => { finishSave(); });
   await act(async () => { finishSearch({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
   await publish({ ...softScan, museumSearch: confirmed, labelFlow: verified });
@@ -672,7 +685,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
     return;
   }
   if (stage === 'saving') {
-    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save to collection', busy: true })).toBeDisabled();
     await act(async () => { finishSave(); });
   }
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
@@ -696,16 +709,16 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   await fireEvent.changeText(screen.getByLabelText(label), value);
   await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Sharing…' });
+  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
     ...verified, updatedAt: 3, sourceUrl: field === 'title' ? undefined : verified.sourceUrl,
     fields: { ...verified.fields, [field]: { value, evidence: 'ocr', locked: false } },
   } });
-  expect(screen.getByRole('button', { name: 'Sharing…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Add to the shared index', busy: true })).toBeDisabled();
   expect(screen.getByLabelText(label).props.defaultValue).toBe(value);
-  await fireEvent.press(screen.getByRole('button', { name: 'Sharing…' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index', busy: true }));
   expect(contributeLabel).toHaveBeenCalledTimes(1);
   await act(async () => { fail(new Error('Upload failed')); });
   expect(await screen.findByText('Couldn’t share this work right now')).toBeOnTheScreen();
@@ -756,7 +769,7 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
   if (edit !== 'unlock') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
   await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Sharing…' });
+  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   if (edit !== 'unlock') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {

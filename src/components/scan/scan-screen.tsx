@@ -107,7 +107,7 @@ export function ScanScreen() {
               </Pressable>
             </GlassSurface>
             <Pressable accessibilityRole="button" accessibilityLabel="Scan artwork" accessibilityHint="Scans now instead of waiting for automatic detection"
-              disabled={shutterDisabled} accessibilityState={{ disabled: shutterDisabled }}
+              disabled={shutterDisabled} accessibilityState={{ disabled: shutterDisabled, busy }}
               onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }}
               style={({ pressed }) => [styles.shutter, (pressed || shutterDisabled) && styles.dimmed]}><View style={styles.shutterInner} /></Pressable>
             <View style={styles.controlsSpacer} />
@@ -120,10 +120,10 @@ export function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Gallery.paper },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.four },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.content },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
-  contextPill: { alignSelf: 'flex-start', backgroundColor: Gallery.paper, borderRadius: Spacing.four, paddingHorizontal: Spacing.three },
+  contextPill: { alignSelf: 'flex-start', backgroundColor: Gallery.paper, borderRadius: 6, paddingHorizontal: Spacing.two },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shutter: { width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: 3, borderColor: Colors.light.overlayText, padding: 4 },
   shutterInner: { flex: 1, borderRadius: SHUTTER_SIZE / 2, backgroundColor: Colors.light.overlayText },

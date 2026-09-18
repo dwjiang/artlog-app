@@ -1,7 +1,8 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { listVisits } from '@/db/repos/visits';
@@ -25,7 +26,7 @@ type Encounter = ReturnType<typeof useArtworkEncounters>[number];
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
   const [editing, setEditing] = useState(false), [note, setNote] = useState(''), [error, setError] = useState<string>();
   return <View style={styles.context}>
-    <Text accessibilityRole="header" style={styles.heading}>This visit · private note</Text>
+    <Text variant="section" accessibilityRole="header" style={styles.heading}>This visit · private note</Text>
     {editing ? <>
       <TextInput accessibilityLabel="Private encounter note" value={note} onChangeText={setNote} multiline maxLength={2000}
         placeholder="What did you notice this time?" placeholderTextColor={Gallery.muted} style={styles.input} />
@@ -49,7 +50,7 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
   const current = encounters.find(({ visit }) => visit.localId === visitId);
   return <View>
     <View style={styles.actions}>
-      <Text accessibilityRole="header" style={styles.heading}>Seen on {encounters.length} {encounters.length === 1 ? 'visit' : 'visits'}</Text>
+      <Text variant="section" accessibilityRole="header" style={styles.heading}>Seen on {encounters.length} {encounters.length === 1 ? 'visit' : 'visits'}</Text>
       <GalleryButton label="Link visit" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })} />
     </View>
     {encounters.map(({ visit, photoCount }) => <Pressable key={visit.localId} accessibilityRole="button"
@@ -75,11 +76,11 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
 }
 
 const styles = StyleSheet.create({
-  context: { borderLeftWidth: 2, borderLeftColor: '#9AA88B', paddingLeft: 12, gap: 8 },
-  heading: { fontSize: 12, fontWeight: '600', color: Gallery.ink },
-  caption: { fontSize: 11, lineHeight: 17, color: Gallery.muted },
-  note: { fontFamily: 'Georgia', fontSize: 15, lineHeight: 22, color: '#4E5745' },
-  input: { minHeight: 96, padding: 12, borderRadius: 9, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 15, textAlignVertical: 'top' },
+  context: { borderTopWidth: 1, borderTopColor: Gallery.separator, paddingTop: 16, gap: 8 },
+  heading: { color: Gallery.ink },
+  caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  note: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
+  input: { minHeight: 96, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 15, textAlignVertical: 'top' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   visit: { paddingVertical: 14, borderBottomWidth: 0.5, borderColor: Gallery.separator, flexDirection: 'row', alignItems: 'center', gap: 10 },
   visitName: { fontSize: 13, fontWeight: '500', color: Gallery.ink },

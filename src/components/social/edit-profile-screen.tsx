@@ -1,5 +1,5 @@
 import { ListItem, TextInput } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
+import { LabeledContent, Section } from '@expo/ui/swift-ui';
 import { accessibilityLabel, disabled } from '@expo/ui/swift-ui/modifiers';
 import { useAction } from 'convex/react';
 import { router, Stack } from 'expo-router';
@@ -23,6 +23,7 @@ export function EditProfileScreen() {
   const session = useSocialSession();
   const profile = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   if (session.status !== 'ready') return <SocialGate session={session} />;
+  if (profile.data === null) return <SocialState title="Profile unavailable." detail="Your profile is no longer available for this account." action="Back" onAction={() => router.back()} />;
   if (!profile.data) return <SocialState title={profile.error ? 'Couldn’t load your profile.' : 'Opening your profile…'}
     loading={!profile.error} action={profile.error ? 'Try again' : undefined} onAction={profile.refresh} />;
   return <EditProfileForm key={session.key} profile={profile.data} />;
@@ -69,10 +70,10 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
           onPress={() => { removeProfilePhotoDraft(draftFile.current); draftFile.current = undefined; setPhoto(null); }} /> : null}
       </Section>
       <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your photo, name and introduction appear on your public profile.'}</GroupedFooter>}>
-        <TextInput defaultValue={name} placeholder="Name" onChangeText={setName} maxLength={LIMITS.name} autoCapitalize="words" editable={!busy}
-          modifiers={[accessibilityLabel('Name')]} />
-        <TextInput defaultValue={bio} placeholder="A little about the art you love…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
-          modifiers={[accessibilityLabel('Introduction')]} />
+        <LabeledContent label="Name"><TextInput defaultValue={name} placeholder="Name" onChangeText={setName} maxLength={LIMITS.name} autoCapitalize="words" editable={!busy}
+          modifiers={[accessibilityLabel('Name')]} /></LabeledContent>
+        <LabeledContent label="Introduction"><TextInput defaultValue={bio} placeholder="A little about the art you love…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
+          modifiers={[accessibilityLabel('Introduction')]} /></LabeledContent>
       </Section>
       <Section footer={<GroupedFooter>Usernames can’t be changed.</GroupedFooter>}>
         <ValueRow label="Username" value={`@${profile.username}`} />

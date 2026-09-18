@@ -4,14 +4,14 @@ import type { RightNowCard } from '../../../../convex/lib/validators';
 
 import { SourceChip } from './source-chip';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 
 /** A web-sourced line about the artist, labelled so it reads as a different kind of claim. */
 export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {
   if (!rightNow) return null;
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" themeColor="textSecondary">From the web</ThemedText>
+      <ThemedText type="subtitle">From the web</ThemedText>
       <ThemedText>{rightNow.text}</ThemedText>
       <SourceChip label={rightNow.sourceLabel} url={rightNow.sourceUrl} />
     </View>
@@ -19,5 +19,5 @@ export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
+  section: { gap: Spacing.three, paddingTop: Spacing.four, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
 });

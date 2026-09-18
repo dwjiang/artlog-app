@@ -229,6 +229,20 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     }
   }
 
+  async function retryLabel() {
+    if (!capture || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      await retryPendingLabel(capture.localId);
+    } catch {
+      if (mounted.current) setPhase({ kind: 'error', message: 'Couldn’t retry this label. Your scan and label are still on this phone.' });
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
   async function save() {
     if (!form || !remoteScanId) return;
     if (!capture) {
@@ -285,10 +299,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   if (phase.kind === 'running') {
     return (
       <ThemedView style={styles.container}>
-        <View style={styles.content}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} accessibilityState={{ busy: true }}>
           <ThemedText type="subtitle">{phase.qr ? QR_FOUND : 'Reading the label'}</ThemedText>
           <ProgressSteps stage={phase.stage} qr={phase.qr} />
-        </View>
+        </ScrollView>
       </ThemedView>
     );
   }
@@ -311,7 +325,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     if (capture && capture.lastError && capture.attempts >= MAX_LABEL_ATTEMPTS) {
       return (
         <StateCard title={new LabelFlowError(capture.lastError).message}>
-          <GalleryButton label="Try again" variant="filled" fullWidth disabled={busy} onPress={() => { void retryPendingLabel(capture.localId); }} />
+          <GalleryButton label="Try again" variant="filled" fullWidth disabled={busy} busy={busy} onPress={() => { void retryLabel(); }} />
           <GalleryButton label="Retake label" variant="outlined" fullWidth disabled={busy} onPress={() => { void retakeLabel(); }} />
         </StateCard>
       );
@@ -324,6 +338,12 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   }
 
   if (phase.kind === 'capture' && restoring) return <StateCard title="Loading the label…" />;
+
+  if (phase.kind === 'capture' && phase.restore !== false && scan instanceof Error && !storeOnly) {
+    return <StateCard title="Couldn’t load this label" detail="Your captured photo stays on this phone. Capture the label again to continue.">
+      <GalleryButton label="Capture label" variant="filled" fullWidth onPress={() => setPhase({ kind: 'capture', restore: false })} />
+    </StateCard>;
+  }
 
   if (phase.kind === 'error') {
     return (
@@ -427,11 +447,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 function StateCard({ title, detail, children }: { title: string; detail?: string; children?: React.ReactNode }) {
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <ThemedText type="subtitle">{title}</ThemedText>
         {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}
         {children}
-      </View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -440,7 +460,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: Spacing.four },
   camera: { flex: 1, backgroundColor: Colors.light.background },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.four },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.content },
   bottom: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.three },
   controls: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
@@ -450,7 +470,6 @@ const styles = StyleSheet.create({
   shutter: {
     width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: SHUTTER_RING,
     borderColor: Colors.light.overlayText, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 3, shadowOffset: { width: 0, height: 0 },
   },
   shutterCore: {
     width: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP), height: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP),

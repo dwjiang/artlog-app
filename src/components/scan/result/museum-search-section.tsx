@@ -44,9 +44,9 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
         <MuseumSearchResult key={`${scanId}:${search.confirmedAt}`} flow={search.flow} confirmedAt={search.confirmedAt} scanId={scanId} capture={capture} />
       ) : (
         <>
-          <GalleryButton label={MUSEUM_SEARCH_BUTTON} variant="outlined" fullWidth disabled={!search.canSearch || search.running} onPress={search.requestSearch} />
+          <GalleryButton label={MUSEUM_SEARCH_BUTTON} variant="outlined" fullWidth busy={search.running} disabled={!search.canSearch || search.running} onPress={search.requestSearch} />
           {search.running ? (
-            <View accessibilityLiveRegion="polite" style={styles.progress}>
+            <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }} style={styles.progress}>
               <ThemedText>{"Searching the museum's collection…"}</ThemedText>
               {search.progress && <ThemedText type="small" themeColor="textSecondary">{STAGE_TEXT[search.progress]}</ThemedText>}
             </View>

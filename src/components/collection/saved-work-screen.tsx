@@ -1,9 +1,10 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { randomUUID } from 'expo-crypto';
 import { Host, Switch } from '@expo/ui';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { ArtworkEnrichment } from './artwork-enrichment';
 import { NoteEditor } from './note-editor';
 import { Gallery } from '@/constants/theme';
@@ -22,13 +23,19 @@ import { WallFramePicker } from './wall-options';
 import { NoteVisibility } from './note-visibility';
 import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from './artwork-encounters';
 import { formatVisitDate } from '@/lib/journal/history';
+import { ArtworkQueryState } from './artwork-query-state';
 
 export type SavedWorkScreenProps = { savedId: string; visitId?: string; photoId?: string };
 export function SavedWorkScreen({ savedId, visitId, photoId }: SavedWorkScreenProps) {
   const owner = useLocalOwner();
-  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
-  const work = data.find((row) => row.owner === owner && row.deletedAt === null);
-  return work ? <SavedArtwork key={`${owner}:${savedId}:${visitId ?? ''}:${photoId ?? ''}`} work={work} visitId={visitId} photoId={photoId} /> : <View style={{ flex: 1, backgroundColor: Gallery.paper }} />;
+  const [attempt, setAttempt] = useState(0);
+  return <SavedWorkQuery key={`${owner}:${savedId}:${attempt}`} owner={owner} savedId={savedId} visitId={visitId} photoId={photoId} onRetry={() => setAttempt((value) => value + 1)} />;
+}
+function SavedWorkQuery({ owner, savedId, visitId, photoId, onRetry }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
+  return work ? <SavedArtwork key={`${owner}:${savedId}:${visitId ?? ''}:${photoId ?? ''}`} work={work} visitId={visitId} photoId={photoId} />
+    : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
 }
 function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
   const router = useRouter(), wall = useCollectionWall([work]);
@@ -70,13 +77,13 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} color={wall.draft?.color} />
       {currentEncounter ? <GalleryButton label={`From ${currentEncounter.visit.venueName} · ${formatVisitDate(currentEncounter.visit.visitedOn)}`} icon="building.columns"
         onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId: currentEncounter.visit.localId } })} />
-        : <Text style={{ fontSize: 11, lineHeight: 17, color: Gallery.muted }}>{photos.length} {photos.length === 1 ? 'photo' : 'photos'} · {encounters.length} {encounters.length === 1 ? 'visit' : 'visits'} · one artwork in your collection.</Text>}
+        : <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>{photos.length} {photos.length === 1 ? 'photo' : 'photos'} · {encounters.length} {encounters.length === 1 ? 'visit' : 'visits'} · one artwork in your collection.</Text>}
       {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
       {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
       <NoteEditor savedLocalId={work.localId} />
       {hung && <>
         <NoteVisibility visible={published?.noteVisible ?? false} disabled={wall.pending || !published?.noteEligible} onChange={(value) => { void shareNote(value); }} />
-        {!published?.noteEligible && <Text style={{ fontSize: 11, color: Gallery.muted }}>Add a note and let it sync before sharing it.</Text>}
+        {!published?.noteEligible && <Text style={{ fontSize: 13, color: Gallery.muted }}>Add a note and let it sync before sharing it.</Text>}
       </>}
       <ArtworkEncounterList work={work} encounters={encounters} visitId={currentEncounter?.visit.localId} />
       <GalleryButton label={work.title === 'Unidentified artwork' ? 'Identify this artwork' : 'Edit artwork details'} icon="pencil" onPress={() => router.push({ pathname: '/identify-artwork', params: { savedId: work.localId } })} />
@@ -86,9 +93,9 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
         <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
           <Switch label="On your wall" value={!!hung} onValueChange={toggleWall} disabled={wall.pending || !work.syncedAt || wallFull} />
         </Host>
-        {wallFull && <Text style={{ fontSize: 11, color: Gallery.muted }}>Your wall holds {LIMITS.wallItems} artworks. Take one off to hang this piece.</Text>}
+        {wallFull && <Text style={{ fontSize: 13, color: Gallery.muted }}>Your wall holds {LIMITS.wallItems} artworks. Take one off to hang this piece.</Text>}
         {hung && <>
-          <View style={{ gap: 10 }}><Text style={{ fontSize: 12, fontWeight: '600', color: Gallery.ink }}>FRAME</Text>
+          <View style={{ gap: 10 }}><Text style={{ fontSize: 13, fontWeight: '600', color: Gallery.ink }}>FRAME</Text>
             <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallFramePicker value={hung.layout.frame} onChange={(frame) => changeLayout({ frame })} /></View></View>
           <NativeSegmentedPicker label="Size on wall" value={hung.layout.width < 0.3 ? 'small' : hung.layout.width > 0.45 ? 'large' : 'medium'} disabled={wall.pending}
             options={[{ value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]}
@@ -98,6 +105,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
       </>}
       {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
         <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
+      {wall.pending && <Text accessibilityLiveRegion="polite" style={{ color: Gallery.muted }}>Saving wall changes…</Text>}
       <GalleryButton label="Remove from collection" icon="trash" destructive onPress={() => {
         scheduleRemoval({ owner: work.owner, localId: work.localId, title: work.title }); router.back();
       }} />

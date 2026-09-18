@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { View } from 'react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { CollectionVisits } from './collection-visits';
@@ -25,7 +26,13 @@ it('keeps the search field mounted through too-short, unmatched and matched quer
 it('shows loading instead of the globe until the view preference is read', async () => {
   mockMode = undefined;
   await render(<CollectionVisits {...props} search="" />);
-  expect(screen.getByText('Loading your visits…')).toBeOnTheScreen();
+  expect(screen.getByText('Loading your visits…')).toHaveStyle({ textAlign: 'center' });
   expect(screen.queryByText('Globe canvas')).toBeNull();
   expect(screen.getByRole('button', { name: 'Globe' })).toBeDisabled();
+});
+
+it('opens the Scan tab from the visits failure recovery action', async () => {
+  await render(<CollectionVisits {...props} search="" error={new Error('Read failed')} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Go to Scan' }));
+  expect(router.push).toHaveBeenCalledWith('/scan');
 });

@@ -1,8 +1,9 @@
 import { Button, Column, Host, Icon, Row, Text as NativeText } from '@expo/ui';
-import { accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
+import { font, accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
 import { useSocialQuery } from '@/lib/social/use-social-query';
@@ -50,8 +51,8 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
             <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
               <Icon name={value === mode.value ? 'largecircle.fill.circle' : 'circle'} size={20} color={Gallery.accent} />
               <Column spacing={4} alignment="start" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
-                <NativeText textStyle={{ fontSize: 14, fontWeight: '600', color: Gallery.ink }}>{PARTICIPATION_LABELS[mode.value]}</NativeText>
-                <NativeText textStyle={{ fontSize: 12, color: Gallery.muted }}>{mode.description}</NativeText>
+                <NativeText textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' })]}>{PARTICIPATION_LABELS[mode.value]}</NativeText>
+                <NativeText textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'footnote' })]}>{mode.description}</NativeText>
               </Column>
             </Row>
           </Button>)}
@@ -62,12 +63,12 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     </> : <SocialGate session={session} context="leaderboards" />}
     <View style={{ padding: 16, backgroundColor: Gallery.fill, borderRadius: 12, gap: 10 }}>
       <Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '600' }}>Totals only. Not your visit history.</Text>
-      <Text style={{ color: Gallery.muted, fontSize: 12, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and accepted contributions, for this month and all time. Existing activity counts too, including private visits.</Text>
-      <Text style={{ color: Gallery.muted, fontSize: 12, lineHeight: 19 }}>Museum names, visit dates, your globe, private notes, and artworks outside your wall stay private. Your public wall and visit-sharing choices don’t change.</Text>
+      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and accepted contributions, for this month and all time. Existing activity counts too, including private visits.</Text>
+      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Museum names, visit dates, your globe, private notes, and artworks outside your wall stay private. Your public wall and visit-sharing choices don’t change.</Text>
     </View>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
-    {session.status === 'ready' && <GalleryButton label={pending ? 'Saving…' : 'Save participation'} fullWidth variant="filled"
-      disabled={pending || preference.data === undefined} onPress={() => { void save(); }} />}
-    <Text style={{ color: Gallery.muted, fontSize: 11, lineHeight: 17 }}>Participation starts off. You can switch it off at any time to leave both boards.</Text>
+    {session.status === 'ready' && <GalleryButton label="Save participation" fullWidth variant="filled"
+      busy={pending} disabled={preference.data === undefined} onPress={() => { void save(); }} />}
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>Participation starts off. You can switch it off at any time to leave both boards.</Text>
   </LeaderboardSheet>;
 }

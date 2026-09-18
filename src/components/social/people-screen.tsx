@@ -11,7 +11,7 @@ import { useSocialSession } from '@/lib/social/use-social-session';
 import { LIMITS } from '@/shared/journal/limits';
 import { PageFooter, SocialGate, SocialState } from './social-state';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { ProfileIdentity } from './visit-card';
 
 const searchPage = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) => result;
@@ -34,8 +34,8 @@ export function PeopleScreen() {
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
       keyExtractor={profileId} renderItem={({ item }) => <View style={[socialStyles.section, { gap: 8 }]}><ProfileIdentity profile={item} />
-        {friends.data?.some((friend) => friend.profileId === item.profileId) && <Text style={{ fontSize: 11, color: Gallery.accent, marginLeft: 56 }}>✓ Friends</Text>}</View>}
-      ListHeaderComponent={<View style={{ padding: 18, gap: 16 }}>{!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 12 }}>Discover people and their little museums.</Text>}<NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
+        {friends.data?.some((friend) => friend.profileId === item.profileId) && <Text style={{ fontSize: 13, color: Gallery.accent, marginLeft: 56 }}>✓ Friends</Text>}</View>}
+      ListHeaderComponent={<View style={{ padding: 18, gap: 16 }}>{!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 13 }}>Discover people and their little museums.</Text>}<NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
       ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : friends.loading ? 'Opening friends…' : 'No friends found.'}

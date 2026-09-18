@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -16,7 +16,7 @@ import { WaitingForSignalCard } from './states/waiting-for-signal-card';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { selectPendingScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
@@ -29,13 +29,16 @@ export function LocalScanScreen({ localId }: { localId: string }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
-  const { data, updatedAt } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
   const scanId = pending ? undefined : row?.scanId;
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
   const [hasDraft, setHasDraft] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string>();
+  const retryPending = useRef(false);
   const keepForm = hasDraft || saving || !!savedId;
 
   useEffect(() => {
@@ -61,7 +64,13 @@ export function LocalScanScreen({ localId }: { localId: string }) {
   }
 
   function retry() {
-    void retryPendingScan(localId).catch((cause: unknown) => console.warn('Could not retry the scan', cause));
+    if (retryPending.current) return;
+    retryPending.current = true;
+    setRetrying(true);
+    setRetryError(undefined);
+    void retryPendingScan(localId)
+      .catch(() => setRetryError('Couldn’t retry this scan. Your photo is still here. Try again.'))
+      .finally(() => { retryPending.current = false; setRetrying(false); });
   }
 
   const saveProps = {
@@ -83,19 +92,21 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         keyboardDismissMode="interactive"
         contentContainerStyle={styles.content}
       >
-        <CardHeader cropUri={row ? captureFileUri(row.cropPath) : undefined} inputSize={model.inputSize} kind={row?.status === 'failed' ? 'failed' : 'loading'} />
+        {row && <CardHeader cropUri={captureFileUri(row.cropPath)} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
         {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
-        {!updatedAt ? null
-          : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText></View>
+        {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
+          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
+          : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
           : scanId ? keepForm && (
             <View style={styles.section}>
               <ThemedText type="subtitle">Your result is ready</ThemedText>
               <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
             </View>
           )
-          : row.status === 'failed' ? <FailedCard error={row.lastError} onRetry={retry} />
+          : row.status === 'failed' ? <FailedCard error={row.lastError} onRetry={retry} retrying={retrying} />
           : row.status === 'identified' ? null
           : <WaitingForSignalCard status={row.status} onLabel={openLabel} />}
+        {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}
         {row && (pending || keepForm) && <SaveAnywayForm {...saveProps} />}
       </ScrollView>
     </ThemedView>
@@ -106,4 +117,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: Spacing.four },
   section: { gap: Spacing.two },
+  loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

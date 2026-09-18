@@ -1,9 +1,10 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { WallSheet } from './wall-sheet';
 import { Host } from '@expo/ui';
 import { Slider } from '@expo/ui/swift-ui';
 import { accessibilityLabel, disabled as nativeDisabled } from '@expo/ui/swift-ui/modifiers';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Gallery, Spacing } from '@/constants/theme';
 import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from '@/lib/wall/wall-layout';
@@ -17,7 +18,7 @@ export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: 
       <WallArtwork piece={piece} width={Math.min(230, 180 * wallAspect(piece))} />
     </View>
     <View style={styles.section}>
-      <Text selectable style={styles.artist}>{piece.artwork.artist}</Text>
+      <Text variant="display" selectable style={styles.artist}>{piece.artwork.artist}</Text>
       <Text selectable style={styles.workTitle}>{piece.artwork.title}{piece.artwork.date ? <Text style={styles.date}>, {piece.artwork.date}</Text> : null}</Text>
       {piece.artwork.medium && <Text selectable style={styles.caption}>{piece.artwork.medium}</Text>}
     </View>
@@ -75,14 +76,13 @@ export function WallArtworkSheet({ piece, editing, disabled = false, color, onCh
 
 const styles = StyleSheet.create({
   section: { padding: 20, gap: 8 },
-  caption: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
-  hero: { alignItems: 'center', justifyContent: 'center', paddingVertical: 26, paddingHorizontal: 24,
-    experimental_backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.06) 100%)' },
-  artist: { fontSize: 19, lineHeight: 25, fontWeight: '600', color: Gallery.ink },
-  workTitle: { fontSize: 15, lineHeight: 22, fontStyle: 'italic', color: Gallery.ink },
+  caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  hero: { alignItems: 'center', justifyContent: 'center', paddingVertical: 26, paddingHorizontal: 24 },
+  artist: { color: Gallery.ink },
+  workTitle: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
   date: { fontStyle: 'normal', color: Gallery.muted },
-  heading: { fontSize: 12, fontWeight: '600', color: Gallery.ink },
-  sectionHeading: { fontSize: 12, fontWeight: '600', color: Gallery.ink, paddingHorizontal: 20, paddingBottom: 8 },
+  heading: { fontSize: 13, fontWeight: '600', color: Gallery.ink },
+  sectionHeading: { fontSize: 13, fontWeight: '600', color: Gallery.ink, paddingHorizontal: 20, paddingBottom: 8 },
   controls: { marginHorizontal: 20, paddingHorizontal: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
   directions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   removal: { paddingTop: 0 },

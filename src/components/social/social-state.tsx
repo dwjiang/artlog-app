@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { signInRoute, type SignInContext } from '@/lib/account/sign-in-context';
 import { Gallery } from '@/constants/theme';
@@ -17,7 +17,7 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
       : <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={{ width: 40, height: 40 }} />}
     <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>
     {detail && <Text selectable style={socialStyles.body}>{detail}</Text>}
-    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" capsule />}
+    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" />}
   </View>;
 }
 
@@ -52,8 +52,8 @@ export function PageFooter({ loading, error, done, count, loadMore, refresh, nou
     <GalleryButton label={canLoadMore ? `More ${noun}` : 'Try again'} onPress={canLoadMore ? loadMore : refresh} />
   </View>;
   if (count > 0 && noun === 'visits') return <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 26, paddingBottom: 8, gap: 2 }}>
-    <Text style={{ fontSize: 12, lineHeight: 20, color: Gallery.muted }}>You’re all caught up.</Text>
-    <Text style={{ fontSize: 10, lineHeight: 18, color: Gallery.muted }}>Tap a name to explore their public wall.</Text>
+    <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>You’re all caught up.</Text>
+    <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>Tap a name to explore their public wall.</Text>
   </View>;
   return count > 0 ? <View style={socialStyles.footer}>
     <Image source="sf:checkmark.circle" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />

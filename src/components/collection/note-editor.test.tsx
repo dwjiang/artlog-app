@@ -5,15 +5,7 @@ import * as notes from '@/db/repos/notes';
 import { insertSavedWork } from '@/db/repos/saved-works';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@expo/ui/swift-ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
+jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 
 beforeAll(async () => {
   await insertSavedWork({ localId: 'work', title: 'Painting', artist: 'Artist', savedAt: 1, cropPath: 'crop.jpg' });

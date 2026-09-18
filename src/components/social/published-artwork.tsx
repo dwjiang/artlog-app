@@ -1,15 +1,15 @@
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { SocialText as Text } from './social-text';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { socialStyles } from './social-styles';
-import { Gallery } from '@/constants/theme';
+import { Gallery, Typography } from '@/constants/theme';
 import type { SharedArtwork } from '@/lib/social/types';
 import { isLightWall, type WallFrame as Frame } from '@/lib/wall/wall-layout';
 import { WallFrame, wallFrameInset } from '../collection/wall-frame';
 import { DisplayMedia } from '../artwork/display-media';
 import { DocentSection, type DocentSectionProps } from '../scan/result/docent-section';
 
-export function PublishedArtwork({ artwork, photos, shared = false, color, frame = 'gilt', token, note, enrichment }: {
+export function PublishedArtwork({ artwork, photos, shared = false, color, frame = 'none', token, note, enrichment }: {
   artwork: SharedArtwork['artwork']; photos: SharedArtwork['artwork']['media'][]; shared?: boolean;
   color: string; frame?: Frame; token?: string | null; note?: string; enrichment?: DocentSectionProps;
 }) {
@@ -29,7 +29,7 @@ export function PublishedArtwork({ artwork, photos, shared = false, color, frame
       {enrichment && <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" />}
       {!!note && <View style={{ gap: 8 }}>
         <Text accessibilityRole="header" style={socialStyles.body}>Shared note</Text>
-        <Text selectable style={{ ...socialStyles.body, fontFamily: 'Georgia' }}>{note}</Text>
+        <Text selectable style={socialStyles.body}>{note}</Text>
       </View>}
     </View>
   </>;
@@ -40,18 +40,25 @@ function PublishedArtworkGallery({ title, photos, label, color, frame, width, to
 }) {
   const gallery = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => { if (active) setReduceMotion(enabled); });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
   const ink = isLightWall(color) ? Gallery.ink : Gallery.paper;
   const goTo = (index: number) => {
     const next = Math.max(0, Math.min(photos.length - 1, index));
-    setPage(next); gallery.current?.scrollTo({ x: next * width, animated: true });
+    setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
   };
   if (!photos.length) return <View style={styles.emptyGallery}><Text style={styles.caption}>No photos shared for this artwork.</Text></View>;
-  return <View style={{ backgroundColor: color, experimental_backgroundImage: 'linear-gradient(180deg, #ffffff1a 0%, transparent 24%, #00000017 100%)' }}>
+  return <View style={{ backgroundColor: color }}>
     <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false} accessibilityLabel="Artwork photos"
       onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.max(0, Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width))))}>
       {photos.map((media, index) => {
         const ratio = media.width > 0 && media.height > 0 ? media.width / media.height : 1;
-        const outerWidth = Math.max(1, Math.min(width - 80, 265 * ratio));
+        const outerWidth = Math.max(1, Math.min(width - 40, 420 * ratio));
         return <View key={index} style={[styles.slide, { width }]}>
           <WallFrame frame={frame} width={outerWidth}>
             <DisplayMedia media={media} label={`${title}, photo ${index + 1}`} width={Math.max(1, outerWidth - wallFrameInset(frame, outerWidth) * 2)} token={token} />
@@ -73,15 +80,15 @@ function PublishedArtworkGallery({ title, photos, label, color, frame, width, to
 }
 
 const styles = StyleSheet.create({
-  slide: { height: 305, paddingTop: 23, paddingBottom: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
-  galleryFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
+  slide: { minHeight: 305, paddingTop: 23, paddingBottom: 16, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  galleryFooter: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
   navigation: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   arrow: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   arrowText: { fontSize: 24 },
   details: { padding: 20, gap: 18 },
   museumLabel: { gap: 5 },
-  artist: { color: Gallery.ink, fontSize: 19, lineHeight: 25, fontWeight: '600' },
-  title: { color: Gallery.ink, fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
-  caption: { color: Gallery.muted, fontSize: 11, lineHeight: 17 },
+  artist: { ...Typography.display, color: Gallery.ink },
+  title: { color: Gallery.ink, fontSize: 20, lineHeight: 26, fontStyle: 'italic' },
+  caption: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   emptyGallery: { minHeight: 160, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill },
 });

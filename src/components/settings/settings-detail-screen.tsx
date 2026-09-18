@@ -1,7 +1,8 @@
 import { Text } from '@expo/ui';
 import { Section } from '@expo/ui/swift-ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 import { useConvexAuth, useQuery } from 'convex/react';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 
 import { api } from '../../../convex/_generated/api';
@@ -13,7 +14,7 @@ import { LeaderboardPreference } from './leaderboard-preference';
 import { PrivacySection } from './privacy-section';
 import { ContributionsSheet, SharingSection } from './sharing-section';
 import { VisitPreference } from './visit-preference';
-import { GroupedList } from '@/components/grouped-list';
+import { ActionRow, GroupedFooter, GroupedList } from '@/components/grouped-list';
 import { SearchConsentSheet } from '@/components/scan/result/search-consent-sheet';
 import { LeaderboardParticipation } from '@/components/social/leaderboard-participation';
 import { Gallery } from '@/constants/theme';
@@ -33,6 +34,9 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   return <>
     <Stack.Screen options={{ title }} />
     <GroupedList>
+      {(!(section in titles) || (section === 'developer' && !__DEV__)) && <Section title="Settings unavailable" footer={<GroupedFooter>This settings page is not available.</GroupedFooter>}>
+        <ActionRow label="Back to Settings" onPress={() => router.back()} />
+      </Section>}
       {section === 'account' && <AccountSection />}
       {section === 'visits' && <VisitPreference />}
       {section === 'leaderboards' && <LeaderboardPreference onManage={() => setSheet('participation')} />}
@@ -41,7 +45,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
       {section === 'privacy' && <PrivacySection onRequestConsent={() => setSheet('consent')} />}
       {section === 'about' && <AboutSection />}
       {section === 'developer' && __DEV__ && <>
-        <Section title="Device"><Text textStyle={{ fontSize: 13, color: Gallery.muted }}>{me ? `${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Registering…'}</Text></Section>
+        <Section title="Device"><Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'footnote' })]}>{me ? `${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Registering…'}</Text></Section>
         <DevTools attested={me?.attested ?? false} />
       </>}
     </GroupedList>

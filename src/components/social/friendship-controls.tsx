@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { friendshipActions } from '@/lib/social/presentation';
 import type { FriendshipAction, PublicProfile } from '@/lib/social/types';

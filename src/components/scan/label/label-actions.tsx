@@ -5,7 +5,7 @@ import { GalleryButton } from '@/components/collection/gallery-button';
 import type { CaptureCompletion as Completion } from '@/lib/capture/completion';
 import { ContributeResult } from './contribute-result';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import type { ContributionOutcome } from '@/lib/label/contribute';
 import { useSharingDefault } from '@/lib/settings/use-sharing-default';
 
@@ -39,19 +39,22 @@ export function LabelActions({
         </Pressable>
       ) : (
         <>
-          <GalleryButton label={saving ? 'Saving…' : 'Save to collection'} variant="filled" fullWidth disabled={!canSave || saving} onPress={onSave} />
+          <GalleryButton label="Save to collection" variant="filled" fullWidth busy={saving} disabled={!canSave || saving} onPress={onSave} />
+          <ThemedText type="small" themeColor="textSecondary">Save privately to your collection.</ThemedText>
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Add a title to save this work.</ThemedText>}
-          {saveError && <ThemedText type="small">{saveError}</ThemedText>}
+          {saveError && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{saveError}</ThemedText>}
         </>
       )}
       {shared ? (
         <ContributeResult result={shared} />
       ) : offerSharing ? (
-        <>
-          <GalleryButton label={sharing ? 'Sharing…' : SHARE_BUTTON} variant="outlined" fullWidth disabled={!canShare || sharing} onPress={onShare} />
+        <View style={styles.sharing}>
+          <ThemedText type="subtitle">Help other visitors</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Sharing with the index is optional and separate from saving.</ThemedText>
+          <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth busy={sharing} disabled={!canShare || sharing} onPress={onShare} />
           {!canShare && <ThemedText type="small" themeColor="textSecondary">A title and an artist are needed to share.</ThemedText>}
-          {shareError && <ThemedText type="small">{shareError}</ThemedText>}
-        </>
+          {shareError && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{shareError}</ThemedText>}
+        </View>
       ) : null}
     </View>
   );
@@ -59,5 +62,6 @@ export function LabelActions({
 
 const styles = StyleSheet.create({
   bar: { gap: Spacing.two },
-  saved: { paddingVertical: Spacing.two },
+  saved: { minHeight: 44, justifyContent: 'center', paddingVertical: Spacing.two },
+  sharing: { gap: Spacing.two, paddingTop: Spacing.four, marginTop: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
 });

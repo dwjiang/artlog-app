@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router/stack';
-import { Gallery } from '@/constants/theme';
+import { NavigationTheme } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: 'collection',
@@ -7,9 +7,7 @@ export const unstable_settings = {
 
 export default function CollectionLayout() {
   return (
-    <Stack screenOptions={{ headerTintColor: Gallery.ink, headerStyle: { backgroundColor: Gallery.paper },
-      contentStyle: { backgroundColor: Gallery.paper }, headerShadowVisible: false,
-      headerTitleStyle: { color: Gallery.ink }, headerLargeTitleStyle: { color: Gallery.ink } }}>
+    <Stack screenOptions={NavigationTheme}>
       <Stack.Screen name="collection" options={{ title: 'Collection', headerShown: false }} />
       <Stack.Screen name="visit-place" options={{ title: 'Visits by museum' }} />
       <Stack.Screen name="all-artworks" options={{ title: 'All artworks' }} />

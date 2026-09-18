@@ -14,3 +14,12 @@ it('keeps icon options labeled and exposes the selected visit view', async () =>
   expect(screen.getByRole('button', { name: 'List', selected: true })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Globe', selected: false })).toBeOnTheScreen();
 });
+
+it('preserves selection and blocks changes while disabled', async () => {
+  const onChange = jest.fn();
+  await render(<NativeSegmentedPicker label="Collection view" value="wall" disabled
+    options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} onChange={onChange} />);
+  expect(screen.getByRole('button', { name: 'Wall', selected: true, disabled: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Visits', disabled: true }));
+  expect(onChange).not.toHaveBeenCalled();
+});

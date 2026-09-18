@@ -1,6 +1,7 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { CollectionPhotoKind } from '../../../shared/collection/photo-limits';
 import type * as repository from '../../db/repos/saved-works';
+import type { SavedWork } from '../../db/schema';
 
 export type PhotoSyncDependencies = Pick<typeof repository,
   'listPhotoTransfers' | 'getSavedWork' | 'updatePhotoTransfer' | 'listDeletedPhotoFiles' | 'isPhotoFileReferenced' | 'clearDeletedPhotoPaths'> & {
@@ -8,6 +9,9 @@ export type PhotoSyncDependencies = Pick<typeof repository,
   download: (localId: string, kind: CollectionPhotoKind, storageId: Id<'_storage'>) => Promise<string>;
   removeFile: (path: string) => void;
 };
+
+/** A crop the account holds but this phone has not downloaded yet; the sync below fills cropPath. */
+export const cropSyncing = (work: Pick<SavedWork, 'cropPath' | 'cropStorageId'>): boolean => !work.cropPath && !!work.cropStorageId;
 
 export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurrent = () => true): Promise<void> {
   while (isCurrent()) {

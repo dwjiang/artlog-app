@@ -1,43 +1,45 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { type ComponentPropsWithRef, createContext, use } from 'react';
+import { StyleSheet, Text, type TextStyle, useWindowDimensions } from 'react-native';
 
-import { Fonts, Gallery, ThemeColor } from '@/constants/theme';
+import { Fonts, Gallery, type TextRole, type ThemeColor, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+type TextType = 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+export type ThemedTextProps = ComponentPropsWithRef<typeof Text> & {
+  variant?: TextRole;
+  type?: TextType;
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+const typeStyles: Record<TextType, TextStyle> = {
+  default: Typography.body,
+  title: Typography.display,
+  small: Typography.metadata,
+  smallBold: { ...Typography.metadata, fontWeight: '600' },
+  subtitle: Typography.section,
+  link: { ...Typography.secondary, fontWeight: '500', color: Gallery.accent },
+  linkPrimary: { ...Typography.secondary, fontWeight: '500', color: Gallery.accent },
+  code: { ...Typography.metadata, fontFamily: Fonts.mono },
+};
+
+const TextContext = createContext(false);
+
+export function ThemedText({ style, variant, type, themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const { fontScale } = useWindowDimensions();
+  const nested = use(TextContext);
 
-  return (
-    <Text
-      style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
-        style,
-      ]}
-      {...rest}
-    />
-  );
+  // A caller's own fontSize keeps its natural line height; the body role is only a fallback for unsized text.
+  const sized = StyleSheet.flatten(style)?.fontSize !== undefined;
+  const textStyle: TextStyle = StyleSheet.flatten([
+    !nested && { color: theme.text },
+    variant ? Typography[variant] : type ? typeStyles[type] : !nested && !sized && Typography.body,
+    themeColor && { color: theme[themeColor] },
+    style,
+  ]);
+
+  // iOS can retain stale text measurements after a live Dynamic Type change.
+  return <TextContext value={true}>
+    <Text key={fontScale} style={[textStyle, textStyle.fontFamily === Fonts.display && { fontWeight: '400' }]} {...rest} />
+  </TextContext>;
 }
-
-// The gallery scale from DESIGN.md: 14/21 body, 12/18 supporting copy, semibold headings without display sizes.
-const styles = StyleSheet.create({
-  small: { fontSize: 12, lineHeight: 18 },
-  smallBold: { fontSize: 12, lineHeight: 18, fontWeight: 600 },
-  default: { fontSize: 14, lineHeight: 21 },
-  title: { fontSize: 28, lineHeight: 33, fontWeight: 600, letterSpacing: -0.8 },
-  subtitle: { fontSize: 22, lineHeight: 27, fontWeight: 600, letterSpacing: -0.4 },
-  link: { fontSize: 13, lineHeight: 20, fontWeight: 500 },
-  linkPrimary: { fontSize: 13, lineHeight: 20, fontWeight: 500, color: Gallery.accent },
-  code: { fontFamily: Fonts.mono, fontWeight: Platform.select({ android: 700 }) ?? 500, fontSize: 12 },
-});

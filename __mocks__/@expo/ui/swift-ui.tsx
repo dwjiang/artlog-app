@@ -1,5 +1,5 @@
 import { Children, type ReactElement, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import type { ButtonProps, PickerProps, DatePickerProps, SectionProps, ToggleProps } from '@expo/ui/swift-ui';
 export { Text };
 export function Label({ title }: { title?: string }) { return <Text>{title}</Text>; }
@@ -8,6 +8,8 @@ export const Menu = View;
 export const List = View;
 export const VStack = View;
 export const HStack = View;
+export const ZStack = View;
+export function ProgressView() { return <ActivityIndicator accessibilityRole="progressbar" />; }
 export const ScrollView = View;
 export const RNHostView = View;
 export function Section({ title, header, children, footer }: SectionProps) {

@@ -17,11 +17,13 @@ half4 main(float2 position) {
   float longitude = atan(xy.x, z0) - yaw;
   float2 uv = float2(fract(longitude / 6.28318530718 + 0.5), 0.5 - latitude / 3.14159265359);
   half4 color = land.eval(uv * float2(2048, 1024));
+  float luminance = dot(color.rgb, half3(0.299, 0.587, 0.114));
+  color.rgb = half3(luminance, luminance, luminance * 0.98);
   float light = clamp(0.79 + 0.20 * z - 0.105 * xy.x + 0.15 * xy.y, 0.72, 1.085);
   float2 degrees = float2(longitude, latitude) * 57.295779513;
   float2 grid = abs(fract(degrees / 30.0 + 0.5) - 0.5) * 30.0;
   float line = 1.0 - smoothstep(0.06, 0.24, min(grid.x, grid.y));
-  half3 rgb = mix(color.rgb * light, half3(0.28, 0.35, 0.25), line * 0.12);
+  half3 rgb = mix(color.rgb * light, half3(0.35, 0.35, 0.33), line * 0.12);
   float alpha = clamp((1.0 - sqrt(rr)) * radius, 0.0, 1.0);
   return half4(rgb * alpha, alpha);
 }`;

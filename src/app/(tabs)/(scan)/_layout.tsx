@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router/stack';
+import { NavigationTheme } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: 'scan',
@@ -6,7 +7,7 @@ export const unstable_settings = {
 
 export default function ScanLayout() {
   return (
-    <Stack>
+    <Stack screenOptions={NavigationTheme}>
       <Stack.Screen name="scan" options={{ title: 'Scan', headerShown: false }} />
       <Stack.Screen name="result/[scanId]"
         options={({ route }) => ({ title: 'Result', animation: (route.params as { entrance?: string } | undefined)?.entrance === 'capture' ? 'fade' : 'default' })}

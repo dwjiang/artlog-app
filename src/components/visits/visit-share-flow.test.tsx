@@ -1,12 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
+import type { ArtworkPhoto } from '@/db/schema';
 import { dismissToast } from '@/lib/ui/toast';
 import type { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { VisitShareLayout } from './visit-share-flow';
-const mockPush = jest.fn(), mockBack = jest.fn(), mockDismiss = jest.fn();
+const mockPush = jest.fn(), mockBack = jest.fn(), mockDismiss = jest.fn(), mockReplace = jest.fn();
 const mockController = { load: jest.fn(), edit: jest.fn(), preview: jest.fn(), publish: jest.fn(), unshare: jest.fn(), view: jest.fn() };
 let mockPage: 'index' | 'preview' | 'shared' = 'index';
 let mockSharing: ReturnType<typeof useVisitSharing>;
+let mockPhotos: ArtworkPhoto[] = [];
 const mockVisit = { localId: 'visit', owner: 'account:a', venueName: 'Museum', visitedOn: '2024-02-29', reflection: 'PRIVATE REFLECTION',
   works: [{ localId: 'save', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }] } as VisitSummary;
 jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }) }));
@@ -15,13 +17,16 @@ jest.mock('@/lib/visits/use-visit-sharing', () => ({ useVisitSharing: () => mock
 jest.mock('../social/profile-form', () => ({ ProfileForm: () => null }));
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../settings/account-section', () => ({ AccountSection: () => null }));
-jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: () => null }));
+jest.mock('drizzle-orm/expo-sqlite', () => ({ ...jest.requireActual('drizzle-orm/expo-sqlite'), useLiveQuery: () => ({ data: mockPhotos }) }));
+jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title, path }: { title: string; path: string | null }) => {
+  const { Text } = jest.requireActual('react-native'); return <Text>{title}: {path ?? 'no selected photo'}</Text>;
+} }));
 jest.mock('../artwork/display-media', () => ({ DisplayMedia: ({ label }: { label: string }) => {
   const { Text } = jest.requireActual('react-native'); return <Text accessibilityRole="image">{label}</Text>;
 } }));
 jest.mock('expo-router', () => {
   const React = jest.requireActual('react');
-  return { router: { push: (...args: unknown[]) => mockPush(...args), back: () => mockBack(), dismiss: () => mockDismiss() },
+  return { router: { push: (...args: unknown[]) => mockPush(...args), replace: (...args: unknown[]) => mockReplace(...args), back: () => mockBack(), dismiss: () => mockDismiss() },
     useLocalSearchParams: () => ({ visitId: 'visit' }), useSegments: () => ['visit-share', '[visitId]'],
     Stack: Object.assign(() => {
       const screens = jest.requireActual('./visit-share-flow');
@@ -30,11 +35,35 @@ jest.mock('expo-router', () => {
 });
 afterEach(() => dismissToast());
 beforeEach(() => {
-  jest.clearAllMocks(); mockPage = 'index'; mockVisit.owner = 'account:a';
+  jest.clearAllMocks(); mockPage = 'index'; mockVisit.owner = 'account:a'; mockPhotos = [];
   mockVisit.works = [{ localId: 'save', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }] as VisitSummary['works'];
   mockSharing = { acknowledged: { audience: 'friends', postId: null, status: 'private', removed: false, revision: 0, saveLocalIds: [], reflection: '' },
     draft: { audience: 'friends', visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
     profileRequired: false, conflict: false, busy: false, controller: mockController, token: 'token' } as unknown as ReturnType<typeof useVisitSharing>;
+});
+it('uses the explicitly selected visit photo in the feed preview, including an explicitly selected label', async () => {
+  mockVisit.works[0].cropPath = 'private-original.jpg';
+  mockPhotos = [{ owner: 'account:a', localId: 'chosen-label', savedLocalId: 'save', visitLocalId: 'visit', path: 'selected-label.jpg', kind: 'label', deletedAt: null } as ArtworkPhoto];
+  mockSharing.draft!.photoSelections = [{ saveLocalId: 'save', photoLocalIds: ['chosen-label'] }];
+  const view = await render(<VisitShareLayout />);
+  expect(screen.getByText('Water Lilies: selected-label.jpg')).toBeOnTheScreen();
+  mockSharing.draft!.photoSelections = [];
+  await view.rerender(<VisitShareLayout />);
+  expect(screen.queryByText('Water Lilies: selected-label.jpg')).toBeNull();
+  expect(screen.getByText('Water Lilies: no selected photo')).toBeOnTheScreen();
+});
+
+it('does not use another owner, visit, artwork, deleted, or unselected photo for the feed preview', async () => {
+  mockVisit.works[0].cropPath = 'private-original.jpg';
+  const photo = { owner: 'account:a', localId: 'chosen', savedLocalId: 'save', visitLocalId: 'visit', path: 'must-stay-private.jpg', kind: 'full', deletedAt: null } as ArtworkPhoto;
+  mockPhotos = [
+    { ...photo, owner: 'account:b' }, { ...photo, visitLocalId: 'other-visit' }, { ...photo, savedLocalId: 'other-save' },
+    { ...photo, deletedAt: 1 }, { ...photo, localId: 'unselected' },
+  ];
+  mockSharing.draft!.photoSelections = [{ saveLocalId: 'save', photoLocalIds: ['chosen'] }];
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('Water Lilies: no selected photo')).toBeOnTheScreen();
+  expect(screen.queryByText('Water Lilies: must-stay-private.jpg')).toBeNull();
 });
 it('shows selection and an independent shared reflection without exposing the private reflection', async () => {
   await render(<VisitShareLayout />);
@@ -120,4 +149,30 @@ it('names the public audience in the final sharing action', async () => {
   expect(screen.getByText('Shared publicly')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Share publicly' }));
   expect(mockController.publish).toHaveBeenCalledTimes(1);
+});
+
+it('shows the sign-in gate for a guest opening the shared-version route', async () => {
+  mockPage = 'shared'; mockVisit.owner = 'device:guest';
+  await render(<VisitShareLayout />);
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
+  expect(screen.queryByText('Loading shared visit…')).toBeNull();
+  expect(mockController.view).not.toHaveBeenCalled();
+});
+
+it('distinguishes a withdrawn share from loading and returns to selection', async () => {
+  mockPage = 'shared';
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('This visit is not currently shared.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Back to selection' }));
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/visit-share/[visitId]', params: { visitId: 'visit' } });
+});
+
+it('keeps shared-version errors retryable after loading ends', async () => {
+  mockPage = 'shared'; mockSharing.acknowledged = null; mockSharing.error = 'Check your connection and try again.';
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('The shared visit could not load.')).toBeOnTheScreen();
+  expect(screen.getByRole('alert')).toHaveTextContent('Check your connection and try again.');
+  mockController.view.mockClear();
+  await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+  expect(mockController.view).toHaveBeenCalledTimes(1);
 });

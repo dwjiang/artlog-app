@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { RemovalToast } from '@/components/collection/removal-toast';
 import { DatabaseGate } from '@/components/database-gate';
 import { ToastLayer } from '@/components/toast';
-import { Gallery } from '@/constants/theme';
+import { Gallery, NavigationTheme } from '@/constants/theme';
 import { CollectionSync } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { installationStorage } from '@/lib/installation-storage';
@@ -28,10 +28,8 @@ export default function RootLayout() {
         <CollectionSync />
         <QueueFlusher />
         <VenueResolver />
-        <ThemeProvider value={DefaultTheme}>
-          <Stack screenOptions={{ headerTintColor: Gallery.ink, headerStyle: { backgroundColor: Gallery.paper },
-            headerTitleStyle: { color: Gallery.ink }, headerLargeTitleStyle: { color: Gallery.ink }, headerBackButtonDisplayMode: 'minimal',
-            headerShadowVisible: false, contentStyle: { backgroundColor: Gallery.paper } }}>
+        <ThemeProvider value={navigationTheme}>
+          <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'minimal' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, headerShown: false }} />
             <Stack.Screen name="welcome" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true, headerShown: false }} />
@@ -86,3 +84,6 @@ export default function RootLayout() {
 }
 
 const visitSheet = { presentation: 'formSheet' as const, sheetAllowedDetents: [1], sheetGrabberVisible: true, headerTintColor: Gallery.accent };
+
+const navigationTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, primary: Gallery.accent, background: Gallery.paper,
+  card: Gallery.paper, text: Gallery.ink, border: Gallery.separator, notification: Gallery.destructive } };

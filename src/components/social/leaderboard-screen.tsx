@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
@@ -22,6 +23,8 @@ const viewabilityConfig = { itemVisiblePercentThreshold: 100 };
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
+  const { fontScale } = useWindowDimensions();
+  const largeText = fontScale > 1.4;
   const { choice, changeChoice, error: preferenceError } = useLeaderboardChoice();
   const { audience, metric, period } = choice;
   const ready = session.status === 'ready';
@@ -54,10 +57,11 @@ export function LeaderboardScreen() {
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button icon="info.circle" accessibilityLabel="How rankings work" tintColor={Gallery.muted} hidesSharedBackground onPress={() => setSheet('rules')}>How rankings work</Stack.Toolbar.Button>
     </Stack.Toolbar>
-    <View style={styles.filters}>
+    <FlatList ref={list} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}
+      ListHeaderComponent={<View style={styles.filters}>
         <NativeSegmentedPicker label="Leaderboard audience" value={audience} onChange={(value) => filter({ audience: value })}
           options={[{ value: 'friends', label: 'Friends' }, { value: 'global', label: 'Global' }]} />
-        <View style={styles.filterRow}>
+        <View style={[styles.filterRow, largeText && { flexDirection: 'column' }]}>
           <LeaderboardFilter label="Ranking category" value={metric} grow={1.55} onChange={(value) => filter({ metric: value })}
             options={[{ value: 'visits', label: 'Museum visits' }, { value: 'contributions', label: 'Helpful contributions' }]} />
           <LeaderboardFilter label="Time period" value={period} onChange={(value) => filter({ period: value })}
@@ -69,8 +73,7 @@ export function LeaderboardScreen() {
           <Text style={[styles.columnLabel, { flex: 1 }]}>{audience === 'friends' ? 'FRIENDS' : 'PEOPLE'}</Text>
           <Text style={styles.columnLabel}>{metric === 'visits' ? 'LOGGED VISITS' : 'ACCEPTED'}</Text>
         </View>
-    </View>
-    <FlatList ref={list} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}
+    </View>}
       data={rows} keyExtractor={(row) => row.profile.profileId}
       viewabilityConfig={viewabilityConfig}
       onViewableItemsChanged={({ viewableItems }) => setOwnVisible(viewableItems.some(({ item }) => item.profile.profileId === session.profileId))}
@@ -81,12 +84,12 @@ export function LeaderboardScreen() {
         return <Pressable accessibilityRole="button"
           accessibilityLabel={`${tied ? 'Tied rank' : 'Rank'} ${item.rank}, ${item.profile.name}${own ? ', you' : ''}, ${item.score} ${unit}${item.score === 1 ? '' : 's'}. Open public profile.`}
           onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: item.profile.profileId } })}
-          style={[styles.row, own && styles.ownRow]}>
-          <Text style={styles.rank}>{item.rank}</Text>
+          style={[styles.row, own && styles.ownRow, largeText && { flexWrap: 'wrap' }]}>
+          <Text style={[styles.rank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
           <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={35} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Text numberOfLines={1} style={styles.name}>{item.profile.name}{own && <Text style={styles.caption}>  You</Text>}</Text>
-            <Text numberOfLines={1} style={styles.caption}>@{item.profile.username}</Text>
+            <Text style={styles.name}>{item.profile.name}{own && <Text style={styles.caption}>  You</Text>}</Text>
+            <Text style={styles.caption}>@{item.profile.username}</Text>
           </View>
           <Text style={styles.score}>{item.score}</Text>
         </Pressable>;
@@ -108,7 +111,7 @@ export function LeaderboardScreen() {
         <Text style={styles.explanation}>{audience === 'friends' ? 'Only participating friends appear.' : 'Only people who opted into Global appear.'} Equal totals share a rank.</Text>
         <GalleryButton label="How rankings work" icon="chevron.right" iconPosition="trailing" onPress={() => setSheet('rules')} />
       </View>} />
-    <View style={[styles.footer, { paddingBottom: Math.max(14, bottom) }]}>
+    <View style={[styles.footer, largeText && { flexDirection: 'column', alignItems: 'stretch' }, { paddingBottom: Math.max(14, bottom) }]}>
       {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on the board</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
         : <Pressable accessibilityRole="button" accessibilityLabel={`Jump to your position, rank ${mine.rank}, ${mine.score} ${unit}${mine.score === 1 ? '' : 's'}`}
           style={{ flex: 1, flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 44 }}
@@ -126,20 +129,20 @@ export function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  filters: { paddingHorizontal: 18, paddingTop: 10, backgroundColor: Gallery.paper },
+  filters: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: Gallery.paper },
   filterRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
   subline: { paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
-  caption: { fontSize: 10, lineHeight: 17, color: Gallery.muted },
+  caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   tableHeading: { flexDirection: 'row', gap: 10, paddingTop: 11, paddingBottom: 9, alignItems: 'center' },
-  columnLabel: { fontSize: 9, letterSpacing: 1, color: Gallery.muted },
+  columnLabel: { fontSize: 13, letterSpacing: 1, color: Gallery.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 75, paddingVertical: 12, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
-  ownRow: { backgroundColor: '#E1E7D9', borderRadius: 11, marginHorizontal: 9, paddingHorizontal: 9, marginVertical: 4, borderBottomWidth: 0 },
-  rank: { width: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
-  name: { fontSize: 13, fontWeight: '600', color: Gallery.ink, lineHeight: 18 },
+  ownRow: { backgroundColor: Gallery.highlight, borderRadius: 2, marginHorizontal: 9, paddingHorizontal: 9, marginVertical: 4, borderBottomWidth: 0 },
+  rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
+  name: { fontSize: 17, fontWeight: '600', color: Gallery.ink, lineHeight: 25 },
   score: { fontSize: 21, fontWeight: '500', color: Gallery.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  explainer: { paddingHorizontal: 18, paddingTop: 17, gap: 8 },
-  explanation: { color: Gallery.muted, fontSize: 11, lineHeight: 18 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
-  footerTitle: { color: Gallery.ink, fontSize: 12, fontWeight: '500', lineHeight: 19 },
-  position: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: '#E2E8DA', color: '#4B613F', borderRadius: 8, fontSize: 12, fontVariant: ['tabular-nums'] },
+  explainer: { paddingHorizontal: 20, paddingTop: 17, gap: 8 },
+  explanation: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  footerTitle: { color: Gallery.ink, fontSize: 13, fontWeight: '500', lineHeight: 19 },
+  position: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: Gallery.highlight, color: Gallery.ink, borderRadius: 8, fontSize: 13, fontVariant: ['tabular-nums'] },
 });

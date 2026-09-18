@@ -1,7 +1,9 @@
+import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import type { SearchBarCommands } from 'react-native-screens';
+import { FlatList, Pressable, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { linkArtworkVisit, selectArtworkEncounters } from '@/db/repos/artwork-album';
 import { listSavedWorks } from '@/db/repos/saved-works';
@@ -12,22 +14,28 @@ import { normalizeSearch } from '@/shared/journal/limits';
 import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from './gallery-button';
 import { SavedWorkImage } from './saved-work-image';
+import { cropSyncing } from '@/lib/account/photo-sync';
+import { SocialState } from '../social/social-state';
 
 export function LinkArtworkScreen() {
   const { savedId, visitId } = useLocalSearchParams<{ savedId?: string; visitId?: string }>();
   const owner = useLocalOwner();
-  return <LinkPicker key={`${owner}:${savedId ?? ''}:${visitId ?? ''}`} owner={owner} savedId={savedId} visitId={visitId} />;
+  const [attempt, setAttempt] = useState(0);
+  return <LinkPicker key={`${owner}:${savedId ?? ''}:${visitId ?? ''}:${attempt}`} owner={owner} savedId={savedId} visitId={visitId} onRetry={() => setAttempt((value) => value + 1)} />;
 }
 
-function LinkPicker({ owner, savedId, visitId }: { owner: string; savedId?: string; visitId?: string }) {
+function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; savedId?: string; visitId?: string; onRetry: () => void }) {
   const works = useLiveQuery(listSavedWorks(owner), [owner]);
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const encounters = useLiveQuery(selectArtworkEncounters(owner), [owner]);
   const [error, setError] = useState<string>(), [search, setSearch] = useState('');
-  const rows = savedId ? visits.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.venueName, subtitle: formatVisitDate(row.visitedOn), path: null }))
-    : works.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.title, subtitle: row.artist, path: row.cropPath }));
+  const searchBar = useRef<SearchBarCommands>(null);
+  const clearSearch = () => { searchBar.current?.clearText(); setSearch(''); };
+  const rows = savedId ? visits.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.venueName, subtitle: formatVisitDate(row.visitedOn), path: null, syncing: false }))
+    : works.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.title, subtitle: row.artist, path: row.cropPath, syncing: cropSyncing(row) }));
   const filtered = rows.filter((row) => normalizeSearch(`${row.title} ${row.subtitle}`).includes(normalizeSearch(search)));
-  if (!!savedId === !!visitId) return <Text style={{ padding: 20, color: Gallery.muted }}>Open an artwork or visit before linking.</Text>;
+  const query = savedId ? visits : works;
+  if (!!savedId === !!visitId) return <View style={{ flex: 1, backgroundColor: Gallery.paper }}><SocialState title="Link unavailable." detail="Open an artwork or visit before linking." action="Go back" onAction={() => router.back()} /></View>;
   return <>
     <Stack.Screen options={{ title: savedId ? 'Link a visit' : 'Link an artwork' }} />
     <FlatList style={{ backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
@@ -44,14 +52,18 @@ function LinkPicker({ owner, savedId, visitId }: { owner: string; savedId?: stri
           onPress={() => {
             try { linkArtworkVisit(work, visit, owner); showToast('Artwork linked. Add photos from this visit separately.'); router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId: work, visitId: visit } }); }
             catch { setError('Could not link this visit. Try again.'); }
-          }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 0.5, borderColor: Gallery.separator, opacity: linked ? 0.6 : 1 }}>
-          {!savedId && <SavedWorkImage path={row.path} title={row.title} contain style={{ width: 56, height: 56, borderRadius: 4 }} />}
-          <View style={{ flex: 1, gap: 4 }}><Text style={{ fontSize: 14, color: Gallery.ink }}>{row.title}</Text><Text style={{ fontSize: 12, color: Gallery.muted }}>{row.subtitle}{linked ? ' · Linked' : ''}</Text></View>
+          }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderColor: Gallery.separator }}>
+          {!savedId && <SavedWorkImage path={row.path} syncing={row.syncing} title={row.title} contain style={{ width: 56, height: 56, borderRadius: 2 }} />}
+          <View style={{ flex: 1, gap: 4 }}><Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>{row.title}</Text><Text style={{ fontSize: 13, color: Gallery.muted }}>{row.subtitle}{linked ? ' · Linked' : ''}</Text></View>
           <Text style={{ color: Gallery.muted }}>{linked ? '✓' : '›'}</Text>
         </Pressable>;
       }}
-      ListEmptyComponent={<Text style={{ paddingVertical: 24, color: Gallery.muted }}>{search ? 'No matches. Try another name.' : savedId ? 'Add a visit to link this artwork.' : 'Save an artwork before linking it to this visit.'}</Text>} />
-    <Stack.SearchBar placeholder={savedId ? 'Museum or visit date' : 'Title or artist'} hideWhenScrolling={false} autoCapitalize="none"
+      ListEmptyComponent={query.error || encounters.error ? <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
+        : !query.updatedAt && !rows.length ? <SocialState title={savedId ? 'Loading visits…' : 'Loading artworks…'} loading />
+        : <SocialState title={search ? 'No matches.' : savedId ? 'No visits yet.' : 'No artworks yet.'}
+          detail={search ? 'Try another name.' : savedId ? 'Add a visit to link this artwork.' : 'Save an artwork before linking it to this visit.'}
+          action={search ? 'Clear search' : savedId ? undefined : 'Scan artwork'} onAction={search ? clearSearch : () => router.navigate('/scan')} />} />
+    <Stack.SearchBar ref={searchBar} placeholder={savedId ? 'Museum or visit date' : 'Title or artist'} hideWhenScrolling={false} autoCapitalize="none"
       onChangeText={(event) => setSearch(event.nativeEvent.text)} onCancelButtonPress={() => setSearch('')} />
   </>;
 }

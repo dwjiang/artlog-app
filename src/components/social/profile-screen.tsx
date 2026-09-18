@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { SocialText as Text } from './social-text';
+import { ThemedText as Text } from '@/components/themed-text';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -42,13 +42,13 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
     <ScrollView ref={scroll} contentInsetAdjustmentBehavior="automatic" stickyHeaderIndices={[1]} scrollEventThrottle={100}
       onScroll={(event) => { offsets.current[tab] = event.nativeEvent.contentOffset.y; }} contentContainerStyle={{ paddingBottom: 30 }}>
       <View>{preview && <Text style={[socialStyles.caption, { paddingHorizontal: 20 }]}>VISITOR PREVIEW</Text>}
-      <PublicProfileHeader person={person} actions={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <PublicProfileHeader person={person} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1, alignItems: 'center', gap: 8 }}>
         {!preview && <FriendshipControls key={`${session.key}:${profileId}`} profileId={person.profileId} session={session} />}
         <GalleryIconButton label="Share profile" icon="square.and.arrow.up" onPress={() => router.push({ pathname: '/share-profile', params: { profileId: person.profileId } })} />
       </View>}>
         {!preview && session.profileId === profileId && <GalleryButton label="Edit profile" icon="pencil" onPress={() => router.push('/edit-profile')} />}
       </PublicProfileHeader></View>
-      <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 18, paddingBottom: 12, paddingTop: 4 }}>
+      <View style={{ backgroundColor: Gallery.paper, paddingHorizontal: 20, paddingBottom: 12, paddingTop: 4 }}>
         <NativeSegmentedPicker label="Profile section" value={tab} onChange={changeTab}
           options={[{ value: 'wall', label: 'Wall' }, { value: 'visits', label: 'Visits' }]} />
       </View>

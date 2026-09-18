@@ -13,15 +13,15 @@ export function EvidenceBadge({ field }: { field: FieldState }) {
   return (
     <View style={styles.badge} accessibilityLabel={label}>
       {verified && <Image source="sf:lock.fill" tintColor={Colors.light.textSecondary} style={styles.lock} />}
-      <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={{ flexShrink: 1 }}>{label}</ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half,
-    borderRadius: Spacing.three, backgroundColor: Colors.light.backgroundElement,
+    flexDirection: 'row', alignItems: 'flex-start', flexShrink: 1, gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half,
+    borderRadius: 2, backgroundColor: Colors.light.backgroundElement,
   },
   lock: { width: 12, height: 12 },
 });

@@ -1,3 +1,4 @@
+import { DEFAULT_WALL_FRAME } from '@/shared/wall/defaults';
 import type { LayoutInput, OwnerWall } from './wall-transport';
 
 export type WallDraft = Pick<LayoutInput, 'color' | 'items'>;
@@ -42,7 +43,7 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
   const neighbors = pieces.filter(({ layout }) => placement.x < layout.x + layout.width + 0.025
     && placement.x + placement.width + 0.025 > layout.x);
   return { ...placement, y: neighbors.length ? wallBottom(neighbors) + 0.16 : index % 2 ? 0.12 : 0.06,
-    layer: index, frame: index % 3 === 2 ? 'walnut' : 'gilt' };
+    layer: index, frame: DEFAULT_WALL_FRAME };
 }
 
 export function removeWallPiece(draft: WallDraft, localId: string): WallDraft {

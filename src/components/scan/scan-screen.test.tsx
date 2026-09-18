@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
-import { AppState, Linking, type AppStateStatus } from 'react-native';
+import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppStateStatus } from 'react-native';
 
 import { ScanScreen } from './scan-screen';
 import type { CaptureState } from '@/lib/capture/capture-controller';
@@ -78,6 +78,8 @@ jest.mock('./capture-reveal', () => ({ CaptureReveal: () => null }));
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled').mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockFocused = true;
   mockGranted = true;
   mockCanRequest = false;

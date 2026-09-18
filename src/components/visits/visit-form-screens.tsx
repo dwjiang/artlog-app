@@ -4,7 +4,8 @@ import { datePickerStyle, tint } from '@expo/ui/swift-ui/modifiers';
 import { randomUUID } from 'expo-crypto';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, TextInput, View } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
 import { patchVisit, upsertVisit } from '@/db/repos/visits';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
@@ -83,7 +84,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
         <Text style={styles.body}>{venue.name}</Text><Text style={styles.caption}>{venueLocation(venue).location}</Text>
         <GalleryButton label="Change museum" disabled={busy} onPress={() => setVenue(undefined)} />
       </View> : <>
-        <TextInput accessibilityLabel="Search museums" placeholder="Museum or city" value={query} maxLength={LIMITS.searchMax}
+        <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Search museums" placeholder="Museum or city" value={query} maxLength={LIMITS.searchMax}
           onChangeText={setQuery} autoCorrect={false} style={styles.input} returnKeyType="search" />
         {searching ? <VisitMessage loading>Searching museums…</VisitMessage> : searchError ? <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>{searchError}</VisitMessage>
           : query.trim().length < 2 ? <Text style={styles.caption}>Enter at least two characters.</Text>
@@ -100,7 +101,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
       </Host>
       {!validDate && <Text accessibilityRole="alert" style={styles.error}>Choose today or an earlier date at this museum.</Text>}
       <Text accessibilityRole="header" style={styles.heading}>Private reflection</Text>
-      <TextInput accessibilityLabel="Private reflection" placeholder="What stayed with you? (optional)" value={reflection} onChangeText={setReflection}
+      <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Private reflection" placeholder="What stayed with you? (optional)" value={reflection} onChangeText={setReflection}
         multiline maxLength={LIMITS.note} editable={!busy} style={[styles.input, styles.reflection]} />
       <Text style={styles.caption}>Only you can see this reflection.</Text>
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
@@ -134,7 +135,7 @@ function ReflectionForm({ visit }: { visit: VisitSummary }) {
     <Stack.Toolbar placement="left"><Stack.Toolbar.Button disabled={busy} onPress={() => router.back()}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
     <Stack.Toolbar placement="right"><Stack.Toolbar.Button variant="done" disabled={busy} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
     <VisitPage><Text style={[styles.title, { letterSpacing: -0.8 }]}>Just for you.</Text><Text style={styles.caption}>{visit.venueName}</Text>
-      <TextInput accessibilityLabel="Private reflection" value={reflection} onChangeText={setReflection} multiline maxLength={LIMITS.note}
+      <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Private reflection" value={reflection} onChangeText={setReflection} multiline maxLength={LIMITS.note}
         editable={!busy} style={[styles.input, styles.reflection]} autoFocus />
       <Text style={styles.caption}>Only you can see this reflection. Sharing uses a separate reflection you write yourself.</Text>
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

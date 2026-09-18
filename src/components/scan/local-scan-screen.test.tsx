@@ -13,11 +13,13 @@ import { getSavedWork } from '@/db/repos/saved-works';
 import type { NewPendingScan } from '@/db/schema';
 import { FAILED_TITLE } from '@/lib/result/failure-copy';
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
+jest.mock('../collection/gallery-button');
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockNavigate = jest.fn();
+const mockDismissAll = jest.fn();
 const mockRetry = jest.fn();
 const mockMutation = jest.fn();
 const mockHaptic = jest.fn();
@@ -34,7 +36,7 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush, replace: mockReplace }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockNavigate, replace: mockReplace, dismissAll: mockDismissAll }) }));
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -42,7 +44,7 @@ jest.mock('expo-haptics', () => ({
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
-    Host: View,
+    Host: View, RNHostView: View,
     Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
     ),
@@ -123,7 +125,7 @@ it('finishes an in-flight save when identification completes and keeps the saved
   await render(<LocalScanScreen localId="saving-completion" />);
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My saved title');
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  await screen.findByText('Saving…');
+  await screen.findByRole('button', { name: 'Save anyway', busy: true });
   await complete('saving-completion');
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'View result' })).toBeDisabled();
@@ -169,7 +171,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(screen.getByText('Saved as Pond at dusk.')).toBeOnTheScreen();
   await fireEvent.press(link);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
+  expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
@@ -248,4 +250,16 @@ it('says when the capture is no longer on this phone', async () => {
   await render(<LocalScanScreen localId="cap-gone" />);
   expect(await screen.findByText(MISSING_TITLE)).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Scan another artwork' }));
+  expect(mockDismissAll).toHaveBeenCalledTimes(1);
+  expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/(scan)/scan');
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
+it('keeps a failed scan and explains a failed retry', async () => {
+  mockRetry.mockRejectedValueOnce(new Error('Unavailable'));
+  await render(<LocalScanScreen localId="cap-failed" />);
+  await fireEvent.press(await screen.findByRole('button', { name: RETRY_BUTTON }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t retry this scan\. Your photo is still here\./);
+  expect(screen.getByRole('button', { name: RETRY_BUTTON })).toBeEnabled();
 });

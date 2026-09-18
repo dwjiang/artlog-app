@@ -3,8 +3,9 @@ import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import type { ReactElement } from 'react';
 import { Link } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Gallery } from '@/constants/theme';
+import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
+import { Fonts, Gallery } from '@/constants/theme';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { countryName, formatVisitDate, groupHistoryByMonth } from '@/lib/journal/history';
 import { ArtworkPreviews, VisitPrivacyNote, VisitSymbol, visitStyles } from './visit-ui';
@@ -25,7 +26,7 @@ export function VisitRow({ visit, shared = false }: { visit: VisitSummary; share
         <View style={styles.content}>
           <View style={styles.titleRow}>
             <Text style={styles.name}>{visit.venueName}</Text>
-            <VisitSymbol name="chevron.right" size={13} color="#888B7E" />
+            <VisitSymbol name="chevron.right" size={13} color={Gallery.muted} />
           </View>
           <Text style={styles.meta}>{place} · {artworks}{shared ? ' · Shared ✓' : ''}</Text>
           {!!visit.works.length && <View style={{ paddingTop: 9 }}><ArtworkPreviews works={visit.works} limit={3} overflow /></View>}
@@ -37,6 +38,7 @@ export function VisitRow({ visit, shared = false }: { visit: VisitSummary; share
 export function VisitTimeline({ visits, header, controls, summary, empty, groupByMuseum = false }: {
   visits: VisitSummary[]; header?: ReactElement; controls?: ReactElement; summary?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean;
 }) {
+  const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === 'ready' ? {} : 'skip', session.key);
   const shared = new Set(sharing.data);
@@ -53,22 +55,22 @@ export function VisitTimeline({ visits, header, controls, summary, empty, groupB
     for (const visit of section.data) rows.push({ key: visit.localId, kind: 'visit', visit });
   }
   return <FlatList data={rows} keyExtractor={(row) => row.key} contentInsetAdjustmentBehavior="automatic"
-    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" ListHeaderComponent={header}
-    stickyHeaderIndices={controls ? [header ? 1 : 0] : undefined}
+    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets ListHeaderComponent={header}
+    stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
     contentContainerStyle={{ paddingBottom: 30 }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
     renderItem={({ item }) => item.kind === 'element' ? item.element : item.kind === 'month'
       ? <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{item.title}</Text>
       : <VisitRow visit={item.visit} shared={shared.has(item.visit.localId)} />} />;
 }
 const styles = StyleSheet.create({
-  visit: { paddingVertical: 13, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(38,35,32,0.09)' },
+  visit: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
   row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   date: { width: 37, paddingTop: 2 },
-  day: { fontSize: 24, fontWeight: '400', letterSpacing: -1, color: Gallery.ink },
-  month: { fontSize: 9, letterSpacing: 0.6, textTransform: 'uppercase', color: '#7A7B70', marginTop: 3 },
+  day: { fontFamily: Fonts.display, fontSize: 24, letterSpacing: -1, color: Gallery.ink },
+  month: { fontSize: 13, letterSpacing: 0.6, textTransform: 'uppercase', color: Gallery.muted, marginTop: 3 },
   content: { flex: 1, alignSelf: 'stretch' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  name: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600', color: Gallery.ink },
-  meta: { fontSize: 11, lineHeight: 17, color: Gallery.muted, marginTop: 2 },
-  section: { color: '#838477', paddingTop: 15, paddingBottom: 8, paddingHorizontal: 18 },
+  name: { flex: 1, fontSize: 17, lineHeight: 25, fontWeight: '600', color: Gallery.ink },
+  meta: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2 },
+  section: { color: Gallery.muted, paddingTop: 15, paddingBottom: 8, paddingHorizontal: 20 },
 });

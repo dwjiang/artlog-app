@@ -51,11 +51,21 @@ describe('while the backend is still writing', () => {
     expect(screen.getByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
   });
 
-  it('gives up after ten seconds and disappears', async () => {
-    const view = await render(<DocentSection title="About this work" pending />);
+  it('explains unavailable background information after ten seconds', async () => {
+    await render(<DocentSection title="About this work" pending />);
     await act(() => { jest.advanceTimersByTime(9_999); });
     expect(screen.getByText('Writing about this work…')).toBeOnTheScreen();
     await act(() => { jest.advanceTimersByTime(1); });
-    expect(view.toJSON()).toBeNull();
+    expect(screen.queryByText('Writing about this work…')).toBeNull();
+    expect(screen.getByText('Background information isn’t available for this work yet.')).toBeOnTheScreen();
   });
+});
+
+it('keeps the source visible and explains a browser failure', async () => {
+  mockOpenBrowser.mockRejectedValueOnce(new Error('Unavailable'));
+  await render(<DocentSection docent={docent} factSheet={factSheet} />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Test Museum' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t open this source\./);
+  await fireEvent.press(screen.getByRole('link', { name: 'Test Museum' }));
+  expect(screen.queryByRole('alert')).toBeNull();
 });

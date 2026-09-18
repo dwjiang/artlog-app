@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { ThemedText as Text } from '@/components/themed-text';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
 import { useLocalOwner, useServerScope } from '@/lib/account/owner-store';
@@ -25,5 +25,5 @@ function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photo
 }
 
 function VisibilityLabel({ children }: { children: React.ReactNode }) {
-  return <Text selectable style={{ color: Gallery.muted, fontSize: 11, lineHeight: 17 }}>{children}</Text>;
+  return <Text selectable style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>{children}</Text>;
 }

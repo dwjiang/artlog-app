@@ -8,8 +8,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
+import { ThemedText } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { extractCaptureMeta } from '@/lib/capture/exif';
@@ -35,6 +36,7 @@ export function AddPhotosScreen() {
   return <PhotoSession key={`${owner}:${params.draftId}`} {...params} owner={owner} />;
 }
 function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { draftId: string; title?: string; savedId?: string; visitId?: string; objectId?: string; owner: string }) {
+  const { fontScale } = useWindowDimensions();
   const [photos, setPhotos] = useState(() => readPhotoDraft(owner, draftId));
   const [completion, setCompletion] = useState<Completion>();
   const [kind, setKind] = useState<PhotoKind>('detail');
@@ -142,8 +144,8 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
   const photoCount = photos.length + (savedId ? 0 : 1);
   return <ScrollView style={styles.screen} contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
     <Stack.Screen options={{ title: 'Add photos' }} />
-    <View style={styles.target}><Text style={styles.eyebrow}>ADDING PHOTOS TO</Text><Text numberOfLines={2} style={styles.title}>{title || 'Unidentified artwork'}</Text>
-      <Text style={styles.hint}>Full views, details, and labels stay together.</Text></View>
+    <View style={styles.target}><ThemedText type="smallBold" style={styles.eyebrow}>ADDING PHOTOS TO</ThemedText><ThemedText type="title" style={styles.title}>{title || 'Unidentified artwork'}</ThemedText>
+      <ThemedText type="small" style={styles.hint}>Full views, details, and labels stay together.</ThemedText></View>
     <CaptureContextButton draftId={draftId} visitId={visitId} disabled={busy} />
     <View style={styles.camera}>
       {currentPhoto ? <Image source={{ uri: captureFileUri(currentPhoto.path) }} style={StyleSheet.absoluteFill} contentFit="contain" /> : <CameraPermission>
@@ -155,49 +157,52 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
       options={[{ value: 'full', label: 'Full view' }, { value: 'detail', label: 'Detail' }, { value: 'label', label: 'Label' }]}
       onChange={(value) => currentPhoto ? update(photos.map((photo) => photo.localId === currentPhoto.localId ? { ...photo, kind: value as PhotoKind } : photo)) : setKind(value as PhotoKind)} />
     {currentPhoto ? <View style={{ gap: 4 }}>
-      {!!currentPhoto.review && <View style={{ gap: 4, padding: 10, backgroundColor: Gallery.fill, borderRadius: 10 }}>
-        <Text style={{ color: Gallery.ink, fontSize: 13 }}>{currentPhoto.review === 'checking' && busy ? 'Checking this photo…' : currentPhoto.review === 'conflict' ? `This looks like ${currentPhoto.recognized?.title ?? 'a different artwork'}.` : 'We couldn’t confirm that this is the same artwork.'}</Text>
+      {!!currentPhoto.review && <View style={{ gap: 8, padding: 16, backgroundColor: Gallery.fill, borderLeftWidth: 3, borderLeftColor: Gallery.warning }}>
+        <ThemedText themeColor="warning">{currentPhoto.review === 'checking' && busy ? 'Checking this photo…' : currentPhoto.review === 'conflict' ? `This looks like ${currentPhoto.recognized?.title ?? 'a different artwork'}.` : 'We couldn’t confirm that this is the same artwork.'}</ThemedText>
         <GalleryButton label="Keep with this artwork" disabled={busy} onPress={() => update(photos.map((photo) => photo.localId === currentPhoto.localId ? { ...photo, review: undefined } : photo))} />
         <GalleryButton label="Save as a separate artwork" disabled={busy} onPress={() => { void saveSeparately(currentPhoto); }} />
       </View>}
-      <TextInput accessibilityLabel="Photo caption" placeholder="Add a private caption" editable={!busy} value={currentPhoto.caption ?? ''} maxLength={2000} style={styles.caption}
+      <ThemedText type="smallBold">Private caption</ThemedText>
+      <TextInput accessibilityLabel="Photo caption" keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} multiline placeholder="Add a private caption" editable={!busy} value={currentPhoto.caption ?? ''} maxLength={2000} style={styles.caption}
         onChangeText={(caption) => update(photos.map((photo) => photo.localId === currentPhoto.localId ? { ...photo, caption } : photo))} />
-      <View style={styles.row}><GalleryButton label="Back to camera" disabled={busy} onPress={() => setSelected(undefined)} />
+      <View style={[styles.row, fontScale >= 1.5 && styles.stacked]}><GalleryButton label="Back to camera" disabled={busy} onPress={() => setSelected(undefined)} />
         <GalleryButton label="Remove photo" disabled={busy} destructive onPress={() => {
           if (removed) removePhotoFile(removed.path);
           setRemoved(currentPhoto); update(photos.filter((photo) => photo.localId !== currentPhoto.localId)); setSelected(undefined);
         }} /></View>
-    </View> : <View style={styles.row}>
+    </View> : <View style={[styles.row, fontScale >= 1.5 && styles.stacked]}>
       <GalleryButton label="Library" icon="photo" disabled={busy || photos.length >= 99} onPress={() => { void acquire('library'); }} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Take photo" disabled={!ready || busy || photos.length >= 99} onPress={() => { void acquire('camera'); }}
+      <Pressable accessibilityRole="button" accessibilityLabel="Take photo" accessibilityState={{ disabled: !ready || busy || photos.length >= 99, busy }} disabled={!ready || busy || photos.length >= 99} onPress={() => { void acquire('camera'); }}
         style={[styles.shutter, (!ready || busy) && { opacity: 0.4 }]}><View style={styles.shutterInner} /></Pressable>
-      <Text style={styles.hint}>{photos.length} new {photos.length === 1 ? 'photo' : 'photos'}</Text>
+      <ThemedText type="small" style={styles.hint}>{photos.length} new {photos.length === 1 ? 'photo' : 'photos'}</ThemedText>
     </View>}
     <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
-      {photos.map((photo, i) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`} disabled={busy} onPress={() => setSelected(photo.localId)}
-        style={[styles.thumb, selected === photo.localId && { borderColor: Gallery.accent }]}>
+      {photos.map((photo, i) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`} accessibilityState={{ selected: selected === photo.localId, disabled: busy }} disabled={busy} onPress={() => setSelected(photo.localId)}
+        style={[styles.thumb, selected === photo.localId && { borderColor: Gallery.ink, backgroundColor: Gallery.highlight }]}>
         <Image source={{ uri: captureFileUri(photo.path) }} style={{ width: 58, height: 58 }} contentFit="cover" />
-        <Text style={styles.thumbLabel}>{photo.kind}</Text>
+        <ThemedText type="small" style={styles.thumbLabel}>{photo.kind}</ThemedText>
       </Pressable>)}
     </ScrollView>
+    {photos.length >= 99 && <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>}
     {removed && <GalleryButton label="Photo removed · Undo" disabled={busy} onPress={() => { update([...photos, removed]); setRemoved(undefined); }} />}
-    {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
-    <GalleryButton label={busy ? 'Saving…' : `Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
-    <Text style={[styles.hint, { textAlign: 'center' }]}>Only you can see these photos.</Text>
+    {error && <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</ThemedText>}
+    <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
+    <ThemedText style={[styles.hint, { textAlign: 'center' }]}>Only you can see these photos.</ThemedText>
   </ScrollView>;
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
   page: { flexGrow: 1, padding: 20, paddingBottom: 30, gap: 12 },
-  target: { backgroundColor: '#E2E7DD', padding: 14, borderRadius: 14, gap: 5 },
-  eyebrow: { color: Gallery.accent, fontSize: 10, letterSpacing: 1.2, fontWeight: '600' },
-  title: { color: Gallery.ink, fontSize: 20, fontFamily: 'Georgia', fontStyle: 'italic' },
-  hint: { color: Gallery.muted, fontSize: 11, lineHeight: 16 },
-  camera: { flex: 1, minHeight: 160, borderRadius: 24, overflow: 'hidden', backgroundColor: '#252824' },
+  target: { paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator, gap: 8 },
+  eyebrow: { color: Gallery.muted },
+  title: { color: Gallery.ink },
+  hint: { color: Gallery.muted },
+  camera: { width: '100%', aspectRatio: 1, overflow: 'hidden', backgroundColor: Gallery.fill },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  stacked: { flexDirection: 'column', alignItems: 'stretch' },
   shutter: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, borderColor: Gallery.accent, padding: 5 },
   shutterInner: { flex: 1, borderRadius: 30, backgroundColor: Gallery.accent },
-  thumb: { borderWidth: 2, borderColor: 'transparent', borderRadius: 8, overflow: 'hidden' },
-  thumbLabel: { textAlign: 'center', fontSize: 9, color: Gallery.muted, paddingTop: 3 },
-  caption: { backgroundColor: Gallery.fill, borderRadius: 8, padding: 12, color: Gallery.ink },
+  thumb: { borderWidth: 2, borderColor: 'transparent', borderRadius: 2, overflow: 'hidden' },
+  thumbLabel: { textAlign: 'center', color: Gallery.ink, paddingVertical: 4 },
+  caption: { minHeight: 44, fontSize: 17, lineHeight: 25, backgroundColor: Gallery.surface, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, padding: 12, color: Gallery.ink },
 });

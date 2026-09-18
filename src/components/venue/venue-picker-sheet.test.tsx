@@ -84,7 +84,7 @@ it('explains an empty result and a denied permission with a way to Settings', as
 it('shows progress while locating without a dismiss button', async () => {
   mockView = { ...mockView, status: 'locating', options: [] };
   await render(<VenuePickerSheet />);
-  expect(screen.getByText('Finding your museum…')).toBeOnTheScreen();
+  expect(screen.getByText('Finding your museum…')).toHaveStyle({ textAlign: 'center' });
   expect(screen.queryByRole('button')).toBeNull();
 });
 

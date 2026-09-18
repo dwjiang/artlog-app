@@ -7,7 +7,7 @@ jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {
-    Host: View,
+    Host: View, RNHostView: View,
     Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
       <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
     ),

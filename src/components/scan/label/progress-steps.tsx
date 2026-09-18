@@ -46,7 +46,7 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
                 : spinner ? <ActivityIndicator size="small" color={Colors.light.accent} />
                 : <View style={[styles.dot, active && styles.dotActive]} />}
             </View>
-            <ThemedText themeColor={done || active ? 'text' : 'textSecondary'}>{label}</ThemedText>
+            <ThemedText style={{ flex: 1 }} themeColor={done || active ? 'text' : 'textSecondary'}>{label}</ThemedText>
           </View>
         );
       })}
@@ -59,6 +59,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   icon: { width: ICON_SIZE, height: ICON_SIZE, alignItems: 'center', justifyContent: 'center' },
   glyph: { width: ICON_SIZE, height: ICON_SIZE },
-  dot: { width: Spacing.two, height: Spacing.two, borderRadius: Spacing.one, backgroundColor: Colors.light.backgroundSelected },
+  dot: { width: Spacing.two, height: Spacing.two, borderRadius: Spacing.one, backgroundColor: Colors.light.separator },
   dotActive: { backgroundColor: Colors.light.accent },
 });

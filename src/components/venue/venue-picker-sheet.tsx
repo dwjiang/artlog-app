@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { formatDistance } from '@/lib/venue/resolve';
 import { useVenue } from '@/lib/venue/use-venue';
 import { venueOptionKey, type VenueOption } from '@/lib/venue/venue-reducer';
@@ -18,6 +18,7 @@ function detail(option: VenueOption, current: boolean): string {
 
 export function VenuePickerSheet() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const { status, venue, options, error, confirm, dismiss } = useVenue();
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
@@ -59,8 +60,9 @@ export function VenuePickerSheet() {
 
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <ThemedText type="subtitle">{title}</ThemedText>
+    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+        <ThemedText type={status === 'locating' && fontScale > 1.5 ? 'subtitle' : 'title'} style={status === 'locating' && styles.loadingTitle}>{title}</ThemedText>
+        {status === 'locating' && <ActivityIndicator color={Gallery.accent} accessibilityLabel="Locating your museum" />}
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
         {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
         {options.map((option) => {
@@ -78,13 +80,14 @@ export function VenuePickerSheet() {
               style={({ pressed }) => [styles.option, current && styles.currentOption, (pressed || confirming) && styles.pressedOption]}
             >
               <View style={styles.optionText}>
-                <ThemedText>{option.name}</ThemedText>
+                <ThemedText style={current && styles.selectedLabel}>{option.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{confirming ? 'Confirming…' : detail(option, current)}</ThemedText>
               </View>
+              {confirming && <ActivityIndicator color={Gallery.accent} />}
             </Pressable>
           );
         })}
-        {(failure ?? error) && <ThemedText selectable>{failure ?? error}</ThemedText>}
+        {(failure ?? error) && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure ?? error}</ThemedText>}
         {status !== 'locating' && <GalleryButton label={options.length > 0 ? 'Not here' : 'OK'} variant="outlined" fullWidth onPress={notHere} />}
     </ScrollView>
   );
@@ -92,9 +95,11 @@ export function VenuePickerSheet() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { padding: Spacing.four, gap: Spacing.three },
-  option: { borderRadius: Spacing.three, padding: Spacing.three, backgroundColor: Colors.light.backgroundElement },
-  currentOption: { backgroundColor: Colors.light.backgroundSelected },
+  content: { padding: Spacing.content, gap: Spacing.three },
+  loadingTitle: { textAlign: 'center' },
+  option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  currentOption: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
   pressedOption: { opacity: 0.6 },
-  optionText: { gap: Spacing.half },
+  optionText: { flex: 1, gap: Spacing.half },
+  selectedLabel: { fontWeight: '600' },
 });

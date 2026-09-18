@@ -17,8 +17,8 @@ export function CaptureContextButton({ draftId, visitId, disabled }: { draftId?:
       const visit = id && !['auto', 'none'].includes(id) ? await getVisit(id, owner) : undefined;
       if (active) setLabel(visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)} · Change` : id === 'none' ? 'No visit · Change' : id && id !== 'auto' ? 'Visit unavailable · Change' : 'Current visit · Change');
     }
-    void load();
+    void load().catch(() => { if (active) setLabel('Visit unavailable · Change'); });
     return () => { active = false; };
   }, [owner, draftId, visitId]));
-  return <GalleryButton label={label} icon="calendar" disabled={disabled} onPress={() => router.push({ pathname: '/capture-context', params: { draftId } })} />;
+  return <GalleryButton label={label} icon="calendar" disabled={disabled} onPress={() => router.push({ pathname: '/capture-context', params: { draftId, visitId } })} />;
 }
