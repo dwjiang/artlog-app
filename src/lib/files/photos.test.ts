@@ -1,8 +1,7 @@
-import { captureFileUri, copyCaptureLabel, deleteCapture, persistCapture, persistLabelPhoto } from './photos';
+import { captureFileUri, deleteCapture, persistCapture, persistLabelPhoto } from './photos';
 
 const mockCreate = jest.fn();
 const mockMove = jest.fn();
-const mockCopy = jest.fn();
 const mockDelete = jest.fn();
 const mockExisting = new Set<string>();
 let mockDocumentsUri = 'file:///documents';
@@ -23,7 +22,6 @@ jest.mock('expo-file-system', () => {
   }
   class File extends Node {
     async move(destination: Node) { mockMove(this.uri, destination.uri); this.uri = destination.uri; }
-    async copy(destination: Node) { mockCopy(this.uri, destination.uri); }
     delete() { mockDelete(this.uri); mockExisting.delete(this.uri); }
   }
   return { Directory, File, Paths: { get document() { return new Directory(mockDocumentsUri); } } };
@@ -80,11 +78,4 @@ it('finds persisted files after the app data container moves', async () => {
     ['file:///new-container/documents/photos/cap-1.jpg'],
     ['file:///new-container/documents/crops/cap-1.jpg'],
   ]);
-});
-
-it('gives the label worker a copy while retaining the original album photo', async () => {
-  expect(await copyCaptureLabel('photos/cap-1.jpg', 'cap-1')).toBe('labels/cap-1-1.jpg');
-  expect(mockCopy).toHaveBeenCalledWith('file:///documents/photos/cap-1.jpg', 'file:///documents/labels/cap-1-1.jpg');
-  expect(mockMove).not.toHaveBeenCalled();
-  expect(mockDelete).not.toHaveBeenCalled();
 });

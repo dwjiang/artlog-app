@@ -25,7 +25,7 @@ jest.mock('expo-image', () => {
   return { Image: (props: object) => <View accessible {...props} /> };
 });
 const presentation: CapturePresentation = {
-  attempt: { id: 1, source: 'camera', valid: true },
+  attempt: { id: 1, source: 'camera', quad: null, valid: true },
   photoUri: 'file:///photo.jpg', source: 'camera', photo: {} as ImageRef, crop: {} as ImageRef,
   painting: { cropUri: 'file:///crop.jpg', cropSize: 512, contentBounds: { x: 0, y: 64, width: 512, height: 384 }, photoSize: { width: 1200, height: 1600 }, corners: [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]] },
 };

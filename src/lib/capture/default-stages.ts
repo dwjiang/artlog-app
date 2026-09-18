@@ -1,5 +1,3 @@
-import { Image } from 'react-native';
-
 import model from '../../../shared/model/model-version.json';
 
 import { getVisionRect } from '../../../modules/vision-rect/src';
@@ -46,10 +44,3 @@ export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'emb
   store: captureStore,
 };
 
-// Labels use the full image: artwork-boundary detection would crop away identifying text.
-export const labelWarper: Warper = {
-  async warpAndLetterbox(photoUri, _quad, size) {
-    const [photoSize, result] = await Promise.all([Image.getSize(photoUri), getVisionRect().warpAndLetterbox(filePath(photoUri), undefined, size)]);
-    return { cropUri: `file://${result.cropPath}`, corners: [[0, 0], [1, 0], [1, 1], [0, 1]], photoSize, contentBounds: result.contentBounds, cropSize: size };
-  },
-};
