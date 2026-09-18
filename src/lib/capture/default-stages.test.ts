@@ -1,6 +1,4 @@
-import { Image } from 'react-native';
-
-import { labelWarper, warper } from './default-stages';
+import { warper } from './default-stages';
 import type { Quad } from './stages';
 
 const mockStill = jest.fn();
@@ -38,10 +36,3 @@ it('does not treat a prominent internal portrait subject as the canvas boundary'
   expect(await warper.warpAndLetterbox('file:///portrait.jpg', quad, 512)).toBeNull();
 });
 
-it('keeps the whole label image without running artwork-boundary detection', async () => {
-  jest.spyOn(Image, 'getSize').mockImplementation(async () => ({ width: 1200, height: 1600 }));
-  mockWarp.mockResolvedValue({ cropPath: '/label-crop.jpg', contentBounds: { x: 0, y: 0, width: 512, height: 512 } });
-  expect(await labelWarper.warpAndLetterbox('file:///label.jpg', null, 512)).toMatchObject({ cropUri: 'file:///label-crop.jpg', photoSize: { width: 1200, height: 1600 } });
-  expect(mockWarp).toHaveBeenCalledWith('/label.jpg', undefined, 512);
-  expect(mockStill).not.toHaveBeenCalled();
-});

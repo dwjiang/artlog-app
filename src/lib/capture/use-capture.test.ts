@@ -1,8 +1,9 @@
 import { act, renderHook } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { useCapture } from './use-capture';
-import type { CaptureDependencies, CaptureInput, CapturePayload, CaptureResult, PreparedPainting } from './stages';
+import type { CaptureDependencies, CaptureInput, CapturePayload, CaptureResult, PreparedPainting, Quad } from './stages';
 
 const mockIdentify = jest.fn();
 const mockPush = jest.fn();
@@ -280,10 +281,28 @@ it('keeps the artwork visible through the native result fade and releases it at 
   expect(hook.result.current.state.phase).toBe('searching');
 });
 
-it('opens label verification directly after a label capture without waiting for an artwork reveal', async () => {
+it('captures automatically with the detected corners and announces it', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+  const quad: Quad = [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]];
   const hook = await renderHook(useCapture);
-  await act(async () => { await hook.result.current.captureManually(async () => ({ filePath: '/label.jpg' }), 'label'); });
-  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ subject: 'label', photoUri: 'file:///label.jpg' });
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: 'scan-id', entrance: 'capture', intent: 'review' } });
-  expect(hook.result.current.presentation).toBeUndefined();
+  await act(async () => {
+    const attempt = hook.result.current.controller.begin('camera', quad)!;
+    await hook.result.current.captureAutomatically(attempt, async () => ({ filePath: '/photo.jpg' }));
+  });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ photoUri: 'file:///photo.jpg', quad, source: 'camera' });
+  expect(announce).toHaveBeenCalledWith('Artwork captured automatically.');
+  expect(mockWarning).toHaveBeenCalledWith('light');
+});
+
+it('ignores the shutter while a capture is already running', async () => {
+  let complete!: (result: CaptureResult) => void;
+  mockPipeline.mockReturnValue(new Promise<CaptureResult>((resolve) => { complete = resolve; }));
+  const hook = await renderHook(useCapture);
+  const takePhoto = jest.fn(async () => ({ filePath: '/photo.jpg' }));
+  let pending!: Promise<void> | undefined;
+  await act(async () => { pending = hook.result.current.captureManually(takePhoto); });
+  await act(async () => { await hook.result.current.captureManually(takePhoto); });
+  expect(takePhoto).toHaveBeenCalledTimes(1);
+  expect(mockWarning).toHaveBeenCalledTimes(1);
+  await act(async () => { complete({ kind: 'queued', localId: 'id', timings: { total: 1 } }); await pending; });
 });

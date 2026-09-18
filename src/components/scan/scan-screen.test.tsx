@@ -11,6 +11,7 @@ let mockFocused = true;
 let mockGranted = true;
 let mockCanRequest = false;
 let mockState: CaptureState = { phase: 'searching', occupied: false };
+let mockOnDetection: (detection: unknown) => void;
 let mockTimings: CaptureTimings | undefined;
 let mockMessage: string | undefined;
 let mockPending = 0;
@@ -20,6 +21,7 @@ let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
 const mockCapture = jest.fn();
+const mockCaptureAutomatically = jest.fn();
 const mockImport = jest.fn();
 const mockClearMessage = jest.fn();
 const mockPush = jest.fn();
@@ -27,6 +29,8 @@ const mockSelectionHaptic = jest.fn();
 const mockImpactHaptic = jest.fn();
 const mockObserve = jest.fn();
 const mockResolveVenue = jest.fn();
+const mockFrameOutput = { kind: 'frame-output' };
+const mockDetectorActive: boolean[] = [];
 
 jest.mock('@/components/collection/gallery-button');
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
@@ -56,10 +60,20 @@ jest.mock('react-native-vision-camera', () => ({
   Camera: (props: typeof mockCameraProps): ReactNode => { mockCameraProps = props; return null; },
 }));
 jest.mock('@/lib/capture/use-capture', () => ({
-  useCapture: () => ({ state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve }, captureManually: mockCapture, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage }),
+  useCapture: () => ({
+    state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve },
+    captureManually: mockCapture, captureAutomatically: mockCaptureAutomatically, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage,
+  }),
 }));
 jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue(), useVenue: () => mockVenueView }));
 jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: Array.from({ length: mockPending }, () => ({ status: 'queued' })) }) }));
+jest.mock('@/lib/capture/use-rect-detector', () => ({
+  useRectDetector: (active: boolean, callback: (detection: unknown) => void) => {
+    mockOnDetection = callback;
+    mockDetectorActive.push(active);
+    return mockFrameOutput;
+  },
+}));
 jest.mock('./capture-reveal', () => ({ CaptureReveal: () => null }));
 
 beforeEach(() => {
@@ -75,6 +89,7 @@ beforeEach(() => {
     status: 'resolved', venue: { kind: 'seeded', venueId: 'museum-1' as never, name: 'Legion of Honor' }, options: [],
     resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(),
   };
+  mockDetectorActive.length = 0;
   AppState.currentState = 'active';
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     appStateListener = listener;
@@ -88,6 +103,7 @@ beforeEach(() => {
   mockObserve.mockReturnValue(undefined);
   mockResolveVenue.mockResolvedValue({ venueId: 'museum-1', visitId: 'visit-1', visitLocalId: 'local-visit' });
   mockCapture.mockImplementation(async (takePhoto: () => Promise<unknown>) => takePhoto());
+  mockCaptureAutomatically.mockImplementation(async (_attempt: unknown, takePhoto: () => Promise<unknown>) => takePhoto());
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -100,31 +116,54 @@ it('waits until Scan is active before asking for camera access', async () => {
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
 
-
-it('waits for a ready camera and an explicit shutter press', async () => {
+it('streams frames to the detector and shows automatic scan guidance without a label button', async () => {
   await render(<ScanScreen />);
-  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
+  expect(mockCameraProps.outputs).toContain(mockFrameOutput);
   await act(() => mockCameraProps.onStarted());
-  expect(mockPhoto).not.toHaveBeenCalled();
-  expect(screen.getByText('Frame an artwork and tap the shutter.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
-  expect(mockPhoto).toHaveBeenCalledTimes(1);
-  expect(mockPhoto).toHaveBeenCalledWith({}, {});
+  expect(screen.getByText('Point at an artwork. Hold steady to scan.')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Scan label' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
   expect(mockCameraProps.orientationSource).toBe('interface');
   expect(mockCameraProps.allowHapticsAndSystemSoundsPlayback).toBe(true);
 });
 
-it('pauses the camera when another screen is focused or the app backgrounds', async () => {
+it('takes a still only when the controller accepts a detection', async () => {
+  const attempt = { source: 'camera', quad: [[0.1, 0.2], [0.9, 0.2], [0.9, 0.8], [0.1, 0.8]], valid: true };
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  await act(() => mockOnDetection({}));
+  expect(mockPhoto).not.toHaveBeenCalled();
+  mockObserve.mockReturnValue(attempt);
+  await act(() => mockOnDetection({}));
+  expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
+  expect(mockPhoto).toHaveBeenCalledWith({}, {});
+  expect(mockCapture).not.toHaveBeenCalled();
+});
+
+it('keeps the shutter as a manual fallback once the camera is ready', async () => {
+  await render(<ScanScreen />);
+  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
+  await act(() => mockCameraProps.onStarted());
+  await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
+  expect(mockCapture).toHaveBeenCalledWith(expect.any(Function));
+  expect(mockPhoto).toHaveBeenCalledTimes(1);
+  expect(mockPhoto).toHaveBeenCalledWith({}, {});
+});
+
+it('pauses the camera and detector when another screen is focused or the app backgrounds', async () => {
   const view = await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
   expect(mockCameraProps.isActive).toBe(true);
+  expect(mockDetectorActive.at(-1)).toBe(true);
   mockFocused = false;
   await view.rerender(<ScanScreen />);
   expect(mockCameraProps.isActive).toBe(false);
+  expect(mockDetectorActive.at(-1)).toBe(false);
   mockFocused = true;
   await view.rerender(<ScanScreen />);
   await act(() => appStateListener('background'));
   expect(mockCameraProps.isActive).toBe(false);
+  expect(mockDetectorActive.at(-1)).toBe(false);
 });
 
 it.each(['processing', 'revealing', 'result'] as const)('pauses scanning and imports during %s', async (phase) => {
@@ -132,7 +171,9 @@ it.each(['processing', 'revealing', 'result'] as const)('pauses scanning and imp
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
   expect(mockCameraProps.isActive).toBe(false);
+  expect(mockDetectorActive.at(-1)).toBe(false);
   expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
   if (phase === 'revealing') expect(screen.getByText('Recognizing artwork…')).toBeOnTheScreen();
 });
 
@@ -158,20 +199,33 @@ it('keeps the venue and queue controls', async () => {
   expect(screen.getByLabelText('2 scans in queue')).toBeOnTheScreen();
 });
 
-it('shows corrective guidance and asks for reframing after a camera failure', async () => {
+it('shows corrective guidance and keeps detecting after a camera failure', async () => {
   mockMessage = 'Dodge the glare';
-  mockState = { phase: 'retry', source: 'camera', occupied: false };
+  mockState = { phase: 'retry', source: 'camera', occupied: false, rearm: 'reframe' };
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.getByRole('alert')).toHaveTextContent(/Dodge the glare/);
+  expect(screen.getByText('Move the camera to reframe, then hold steady.')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Retake' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeEnabled();
+  expect(mockDetectorActive.at(-1)).toBe(true);
+});
+
+it('asks for another shutter press after a shutter failure, which holding steady cannot rescan', async () => {
+  mockMessage = 'Dodge the glare';
+  mockState = { phase: 'retry', source: 'camera', occupied: false, rearm: 'shutter' };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
   expect(screen.getByRole('alert')).toHaveTextContent(/Dodge the glare/);
   expect(screen.getByText('Reframe the artwork and tap the shutter.')).toBeOnTheScreen();
-  expect(screen.queryByRole('button', { name: 'Retake' })).toBeNull();
+  expect(screen.queryByText('Move the camera to reframe, then hold steady.')).toBeNull();
 });
 
 it('offers both explicit actions after a failed import and keeps scanning paused', async () => {
   mockMessage = 'Fit all corners';
   mockState = { phase: 'retry', source: 'library', occupied: false };
   await render(<ScanScreen />);
+  expect(mockDetectorActive.at(-1)).toBe(false);
   await fireEvent.press(screen.getByRole('button', { name: 'Choose another photo' }));
   expect(mockImport).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'Use camera' }));
@@ -182,14 +236,4 @@ it('shows the stage breakdown of the last capture in development', async () => {
   mockTimings = { warp: 273.4, triage: 8.6, embed: 480.2, orb: 11.7, identify: 38.1, total: 812.0 };
   await render(<ScanScreen />);
   expect(screen.getByText('Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38')).toBeOnTheScreen();
-});
-
-it('offers label scanning beside the shutter and captures it as label material', async () => {
-  await render(<ScanScreen />);
-  const label = screen.getByRole('button', { name: 'Scan label' });
-  expect(label).toBeDisabled();
-  await act(() => mockCameraProps.onStarted());
-  await fireEvent.press(label);
-  expect(mockCapture).toHaveBeenCalledWith(expect.any(Function), 'label');
-  expect(mockPhoto).toHaveBeenCalledTimes(1);
 });

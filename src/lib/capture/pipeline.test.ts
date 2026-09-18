@@ -181,12 +181,3 @@ it('preserves recognition when presentation decoding fails', async () => {
   expect(await runCapture(input, { ...deps, onPrepared: async () => { throw new Error('Image failed'); } }, options)).toMatchObject({ kind: 'sent' });
   expect(deps.identify).toHaveBeenCalledTimes(1);
 });
-
-it('queues label-first captures together so the label worker can read them after scan creation', async () => {
-  const deps = dependencies();
-  const result = await runCapture({ ...input, subject: 'label' }, deps, options);
-  expect(result).toMatchObject({ kind: 'queued', localId: 'capture-uuid' });
-  expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({ subject: 'label' }), 'queued');
-  expect(deps.triage.check).not.toHaveBeenCalled();
-  expect(deps.identify).not.toHaveBeenCalled();
-});

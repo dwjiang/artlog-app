@@ -1,12 +1,121 @@
-import type { RectPoint } from '../../../modules/vision-rect/src';
-import { quadArea, selectCaptureQuad, toQuad } from './rectangle';
+import type { RectObservation, RectPoint } from '../../../modules/vision-rect/src';
+import { MISS_GRACE_MS, NESTED_AREA_RATIO, RectTracker, SMOOTHING, STABLE_WINDOW_MS, previewQuad, quadArea, selectCaptureQuad, toQuad } from './rectangle';
 import type { Quad } from './stages';
 
+const frame = { width: 768, height: 1024 };
 const box = (left: number, top: number, right: number, bottom: number): RectPoint[] => [
   { x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom },
 ];
+const observe = (corners: RectPoint[], confidence = 1): RectObservation[] => [{ confidence, corners }];
 const framed = box(0.15, 0.25, 0.85, 0.75);
 const shifted = (corners: RectPoint[], dx: number, dy = 0): RectPoint[] => corners.map(({ x, y }) => ({ x: x + dx, y: y + dy }));
+
+function holdSteady(tracker: RectTracker, corners: RectPoint[], from: number, until: number) {
+  let result = tracker.push(observe(corners), frame, from);
+  for (let now = from + 100; now <= until; now += 100) result = tracker.push(observe(corners), frame, now);
+  return result;
+}
+
+describe('RectTracker guidance', () => {
+  it('searches while nothing is detected', () => {
+    expect(new RectTracker().push([], frame, 0)).toEqual({ quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0 });
+  });
+
+  it('asks to move closer when the quad covers less than a quarter of the frame', () => {
+    const result = new RectTracker().push(observe(box(0.3, 0.3, 0.7, 0.6)), frame, 0);
+    expect(result.guidance).toBe('move-closer');
+    expect(result.quad).toEqual(toQuad(box(0.3, 0.3, 0.7, 0.6)));
+  });
+
+  it('asks to fit the whole painting when a corner touches the frame edge', () => {
+    expect(new RectTracker().push(observe(box(0.01, 0.2, 0.8, 0.8)), frame, 0).guidance).toBe('fit-whole-painting');
+  });
+
+  it('asks to straighten when opposite edges differ by more than 1.3×', () => {
+    const skewed: RectPoint[] = [{ x: 0.15, y: 0.25 }, { x: 0.85, y: 0.25 }, { x: 0.85, y: 0.75 }, { x: 0.15, y: 0.5 }];
+    expect(quadArea(toQuad(skewed))).toBeGreaterThan(0.25);
+    expect(new RectTracker().push(observe(skewed), frame, 0).guidance).toBe('straighten');
+  });
+
+  it('holds still until the window fills, then reports ready', () => {
+    const tracker = new RectTracker();
+    expect(holdSteady(tracker, framed, 0, STABLE_WINDOW_MS - 100)).toMatchObject({ stable: false, guidance: 'hold-still' });
+    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS, STABLE_WINDOW_MS)).toMatchObject({ stable: true, guidance: 'ready' });
+  });
+
+  it('tolerates hand-held jitter and drops back to hold-still on a jump', () => {
+    const tracker = new RectTracker();
+    holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
+    expect(tracker.push(observe(shifted(framed, 0.03)), frame, STABLE_WINDOW_MS + 100).guidance).toBe('ready');
+    expect(tracker.push(observe(shifted(framed, -0.03)), frame, STABLE_WINDOW_MS + 200).guidance).toBe('ready');
+    expect(tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, STABLE_WINDOW_MS + 300)).toMatchObject({ stable: false, guidance: 'hold-still' });
+  });
+
+  it('smooths the tracked corners toward each new detection', () => {
+    const tracker = new RectTracker();
+    tracker.push(observe(framed), frame, 0);
+    const moved = tracker.push(observe(shifted(framed, 0.1)), frame, 100);
+    expect(moved.quad?.[0][0]).toBeCloseTo(0.15 + 0.1 * SMOOTHING);
+    expect(moved.jitter).toBeCloseTo((0.1 * SMOOTHING * frame.width) / Math.hypot(frame.width, frame.height));
+  });
+
+  it('keeps following the tracked box when a nested candidate appears or the only candidate is far away', () => {
+    const tracker = new RectTracker();
+    const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
+    const canvas = box(0.2, 0.3, 0.8, 0.7);
+    expect(tracker.push([...observe(canvas, 1), ...observe(framed, 0.6)], frame, STABLE_WINDOW_MS + 100)).toMatchObject({ stable: true, guidance: 'ready' });
+    expect(tracker.push(observe(framed), frame, STABLE_WINDOW_MS + 200).quad).toEqual(toQuad(framed));
+    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, STABLE_WINDOW_MS + 300)).toBe(tracker.push([], frame, STABLE_WINDOW_MS + 300));
+    expect(tracker.push(observe(box(0.05, 0.05, 0.4, 0.3)), frame, STABLE_WINDOW_MS + 200 + MISS_GRACE_MS + 1).guidance).toBe('searching');
+    expect(ready.guidance).toBe('ready');
+  });
+
+  it('ignores a nested inner candidate while the outer was seen recently, then accepts it after the grace period', () => {
+    const tracker = new RectTracker();
+    const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
+    const canvas = box(0.2, 0.28, 0.8, 0.72);
+    expect(quadArea(toQuad(canvas))).toBeLessThan(NESTED_AREA_RATIO * quadArea(toQuad(framed)));
+    expect(tracker.push(observe(canvas), frame, STABLE_WINDOW_MS + 100)).toBe(ready);
+    const accepted = tracker.push(observe(canvas), frame, STABLE_WINDOW_MS + MISS_GRACE_MS + 1);
+    expect(accepted.quad).toEqual(toQuad(canvas));
+    expect(accepted.guidance).toBe('hold-still');
+  });
+
+  it('upgrades to a larger candidate that encloses the tracked box and restarts the window', () => {
+    const tracker = new RectTracker();
+    const canvas = box(0.35, 0.4, 0.65, 0.6);
+    expect(holdSteady(tracker, canvas, 0, STABLE_WINDOW_MS).guidance).toBe('move-closer');
+    const upgraded = tracker.push([...observe(canvas), ...observe(framed)], frame, STABLE_WINDOW_MS + 100);
+    expect(upgraded.quad).toEqual(toQuad(framed));
+    expect(upgraded).toMatchObject({ stable: false, guidance: 'hold-still' });
+    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS + 200, 2 * STABLE_WINDOW_MS + 100).guidance).toBe('ready');
+  });
+
+  it('keeps the last result through a short detection gap and resets after the grace period', () => {
+    const tracker = new RectTracker();
+    const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
+    expect(tracker.push([], frame, STABLE_WINDOW_MS + MISS_GRACE_MS)).toBe(ready);
+    expect(tracker.push([], frame, STABLE_WINDOW_MS + MISS_GRACE_MS + 1).guidance).toBe('searching');
+    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS + MISS_GRACE_MS + 100, STABLE_WINDOW_MS + MISS_GRACE_MS + 100).guidance).toBe('hold-still');
+  });
+
+  it('tracks the largest observation', () => {
+    const observations = [...observe(box(0.4, 0.4, 0.6, 0.6), 1), ...observe(framed, 0.7)];
+    expect(new RectTracker().push(observations, frame, 0).quad).toEqual(toQuad(framed));
+  });
+});
+
+describe('previewQuad', () => {
+  it('maps a 4:3 frame onto a taller full-screen preview the way a cover-fit camera view does', () => {
+    const preview = { width: 390, height: 844 };
+    const [[left, top], , [right, bottom]] = previewQuad(toQuad(framed), frame, preview);
+    // The preview shows the middle of the frame: its height covers, so the sides are cropped away.
+    expect(top).toBeCloseTo(0.25);
+    expect(bottom).toBeCloseTo(0.75);
+    expect(left).toBeLessThan(0.15);
+    expect(right).toBeGreaterThan(0.85);
+  });
+});
 
 describe('selectCaptureQuad', () => {
   const previewQuad = toQuad(framed);
