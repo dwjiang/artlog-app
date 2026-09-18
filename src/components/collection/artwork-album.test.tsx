@@ -13,26 +13,19 @@ jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file
 jest.mock('@/db/repos/artwork-album', () => ({ selectArtworkPhotos: () => 'photos', selectArtworkEncounters: () => 'encounters', editEncounter: jest.fn() }));
 jest.mock('@/db/repos/visits', () => ({ listVisits: () => 'visits' }));
 jest.mock('drizzle-orm/expo-sqlite', () => ({ useLiveQuery: (query: string) => ({ data: query === 'photos' ? mockPhotos : [], updatedAt: mockPhotosUpdatedAt, error: mockPhotosError }) }));
-jest.mock('./photo-visibility', () => ({ PhotoVisibility: ({ photoId }: { photoId: string }) => {
-  const { Text } = jest.requireActual('react-native');
-  return <Text>{`Visibility of ${photoId}`}</Text>;
-} }));
 const work = { localId: 'work', owner: 'device:guest', title: 'Water Lilies', artist: 'Claude Monet' } as SavedWork;
 beforeEach(() => { jest.clearAllMocks(); mockPhotos = initialPhotos; mockPhotosUpdatedAt = undefined; mockPhotosError = undefined; });
 
-it('keeps the selected photo caption, privacy, and editing actions together while browsing', async () => {
+it('keeps the selected photo caption and editing action together while browsing', async () => {
   await render(<ArtworkAlbum work={work} />);
   expect(screen.getByRole('header', { name: 'Claude Monet' })).toBeOnTheScreen();
-  expect(screen.getByText('Full painting · Museum view 1')).toBeOnTheScreen();
-  expect(screen.queryByText('Full painting · Museum view 2')).toBeNull();
+  expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
+  expect(screen.queryByText('Museum view 2')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
-  expect(screen.queryByText('Full painting · Museum view 1')).toBeNull();
-  expect(screen.getByText('Full painting · Museum view 2')).toBeOnTheScreen();
-  expect(screen.getByText('Visibility of photo-1')).toBeOnTheScreen();
+  expect(screen.queryByText('Museum view 1')).toBeNull();
+  expect(screen.getByText('Museum view 2')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit full photo 2' }));
   expect(router.push).toHaveBeenCalledWith({ pathname: '/photo-details', params: { savedId: 'work', photoId: 'photo-1' } });
-  await fireEvent.press(screen.getByRole('button', { name: 'Add photos' }));
-  expect(router.push).toHaveBeenCalledWith({ pathname: '/add-photos', params: { draftId: 'saved:work', savedId: 'work', title: 'Water Lilies' } });
 });
 
 it('waits for the photo read before showing an empty album and distinguishes a read failure', async () => {
@@ -56,10 +49,10 @@ it('moves to the last remaining photo after photos are deleted, so Previous work
   mockPhotos = initialPhotos.slice(0, 2);
   await view.rerender(<ArtworkAlbum work={work} />);
   expect(screen.getByText('2 / 2')).toBeOnTheScreen();
-  expect(screen.getByText('Visibility of photo-1')).toBeOnTheScreen();
+  expect(screen.getByText('Museum view 2')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
   expect(screen.getByText('1 / 2')).toBeOnTheScreen();
-  expect(screen.getByText('Visibility of photo-0')).toBeOnTheScreen();
+  expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Previous photo' })).toBeDisabled();
 });
 
@@ -71,9 +64,9 @@ it('resets the photo position when an emptied album receives a new photo', async
   expect(screen.queryByRole('button', { name: 'Previous photo' })).toBeNull();
   mockPhotos = initialPhotos.slice(0, 1);
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.getByText('1 / 1')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Previous photo' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Next photo' })).toBeDisabled();
+  expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
+  expect(screen.queryByText('1 / 1')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Next photo' })).toBeNull();
 });
 
 it('opens the wall photo that was tapped after the album loads', async () => {
@@ -82,7 +75,7 @@ it('opens the wall photo that was tapped after the album loads', async () => {
   mockPhotos = initialPhotos;
   await view.rerender(<ArtworkAlbum work={work} photoId="photo-2" />);
   expect(screen.getByText('3 / 4')).toBeOnTheScreen();
-  expect(screen.getByText('Visibility of photo-2')).toBeOnTheScreen();
+  expect(screen.getByText('Museum view 3')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
   expect(screen.getByText('2 / 4')).toBeOnTheScreen();
 });

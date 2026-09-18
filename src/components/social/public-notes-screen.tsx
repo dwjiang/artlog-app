@@ -1,10 +1,10 @@
 import { Switch, Text } from '@expo/ui';
-import { Section, Text as SwiftText } from '@expo/ui/swift-ui';
-import { font, foregroundStyle, italic, listRowBackground } from '@expo/ui/swift-ui/modifiers';
+import { Text as SwiftText } from '@expo/ui/swift-ui';
+import { font, foregroundStyle, italic } from '@expo/ui/swift-ui/modifiers';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
-import { ActionRow, GroupedFooter, GroupedList } from '@/components/grouped-list';
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { showToast } from '@/lib/ui/toast';
@@ -50,17 +50,17 @@ export function PublicNotesScreen() {
   const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
   return <>{toolbar}
     <GroupedList>
-      <Section footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
-        <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' }), listRowBackground('transparent')]}>{INTRO}</Text>
+      <GroupedSection footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
+        <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' })]}>{INTRO}</Text>
         {wall.error ? <ActionRow label="Refresh notes" icon="arrow.clockwise" onPress={() => { void wall.refresh(); }} /> : null}
-      </Section>
-      {eligible.map((item) => <Section key={item.itemId}>
+      </GroupedSection>
+      {eligible.map((item) => <GroupedSection key={item.itemId}>
         <SwiftText modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' }), foregroundStyle(Gallery.ink)]}>{item.artwork.artist}</SwiftText>
         <SwiftText modifiers={[font({ textStyle: 'footnote' }), italic(), foregroundStyle(Gallery.muted)]}>{item.artwork.title}</SwiftText>
         {item.privateNote ? <SwiftText modifiers={[font({ textStyle: 'body' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
         <Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} />
-      </Section>)}
-      {!eligible.length ? <Section><Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'subheadline' })]}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></Section> : null}
+      </GroupedSection>)}
+      {!eligible.length ? <GroupedSection><Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'subheadline' })]}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></GroupedSection> : null}
     </GroupedList>
   </>;
 }

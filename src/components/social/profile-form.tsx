@@ -1,10 +1,10 @@
 import { Text, TextInput } from '@expo/ui';
-import { LabeledContent, Section } from '@expo/ui/swift-ui';
-import { font, accessibilityLabel, listRowBackground } from '@expo/ui/swift-ui/modifiers';
+import { LabeledContent } from '@expo/ui/swift-ui';
+import { font, accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useState } from 'react';
 import { api } from '../../../convex/_generated/api';
-import { ActionRow, GroupedFooter, GroupedList } from '@/components/grouped-list';
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { captureOwner } from '@/lib/account/owner-store';
 import { socialErrorMessage } from '@/shared/social/errors';
@@ -28,13 +28,13 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   }
 
   return <GroupedList>
-    <Section><Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' }), listRowBackground('transparent')]}>{introduction}</Text></Section>
-    <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your name, username, and wall are public. Visits and private notes are separate.'}</GroupedFooter>}>
+    <GroupedSection><Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' })]}>{introduction}</Text></GroupedSection>
+    <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your name, username, and wall are public. Visits and private notes are separate.'}</GroupedFooter>}>
       <LabeledContent label="Name"><TextInput placeholder="Your name" onChangeText={setName} autoCapitalize="words" maxLength={LIMITS.name} editable={!busy} modifiers={[accessibilityLabel('Name')]} /></LabeledContent>
       <LabeledContent label="Username"><TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax} editable={!busy} modifiers={[accessibilityLabel('Username')]} /></LabeledContent>
-    </Section>
-    <Section>
+    </GroupedSection>
+    <GroupedSection>
       <ActionRow label={busy ? 'Creating…' : 'Create public profile'} disabled={busy || !name.trim() || !username.trim()} onPress={() => { void submit(); }} />
-    </Section>
+    </GroupedSection>
   </GroupedList>;
 }

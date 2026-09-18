@@ -1,6 +1,6 @@
 import { Button, Host, Icon, ListItem, Row, Text } from '@expo/ui';
-import { LabeledContent, List } from '@expo/ui/swift-ui';
-import { background, buttonStyle, font, foregroundStyle, frame, listStyle, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
+import { LabeledContent, List, Section } from '@expo/ui/swift-ui';
+import { background, buttonStyle, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps, ReactNode } from 'react';
 import { Gallery } from '@/constants/theme';
 
@@ -9,19 +9,23 @@ type IconName = ComponentProps<typeof Icon>['name'];
 /** Render as a screen root: the native list needs the available screen frame. */
 export function GroupedList({ children }: { children: ReactNode }) {
   return <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
-    <List modifiers={[listStyle('insetGrouped'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
+    <List modifiers={[listStyle('plain'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
   </Host>;
+}
+
+/** Plain lists paint rows with the system background, so every section sets its rows on paper. */
+export function GroupedSection({ modifiers = [], ...props }: ComponentProps<typeof Section>) {
+  return <Section {...props} modifiers={[listRowBackground(Gallery.paper), ...modifiers]} />;
 }
 
 export function GroupedFooter({ children, tone = 'muted' }: { children: string; tone?: 'muted' | 'destructive' }) {
   return <Text modifiers={[font({ textStyle: 'footnote' })]} textStyle={{ color: tone === 'destructive' ? Gallery.destructive : Gallery.muted }}>{children}</Text>;
 }
 
-export function NavigationRow({ label, icon, detail, value, onPress }: {
-  label: string; icon?: IconName; detail?: string; value?: string; onPress: () => void;
+export function NavigationRow({ label, detail, value, onPress }: {
+  label: string; detail?: string; value?: string; onPress: () => void;
 }) {
-  return <ListItem leading={icon ? <Icon name={icon} size={22} color={Gallery.accent} modifiers={[frame({ width: 28, height: 28 })]} /> : undefined}
-    trailing={<Row spacing={8} alignment="center">
+  return <ListItem trailing={<Row spacing={8} alignment="center">
       {value ? <Text modifiers={[font({ textStyle: 'subheadline' })]} textStyle={{ color: Gallery.muted }}>{value}</Text> : null}
       <Icon name="chevron.right" size={13} color={Gallery.muted} />
     </Row>}

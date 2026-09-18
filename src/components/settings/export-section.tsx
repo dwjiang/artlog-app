@@ -1,9 +1,8 @@
-import { Section } from '@expo/ui/swift-ui';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
 
-import { ActionRow, GroupedFooter } from '@/components/grouped-list';
+import { ActionRow, GroupedFooter, GroupedSection } from '@/components/grouped-list';
 import { listNotes } from '@/db/repos/notes';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
@@ -31,7 +30,7 @@ export function ExportSection() {
     finally { inFlight.current = false; setBusy(false); }
   }
 
-  return <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Includes saved works, visits and notes. Photo files aren’t included in this export.'}</GroupedFooter>}>
+  return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Includes saved works, visits and notes. Photo files aren’t included in this export.'}</GroupedFooter>}>
     <ActionRow label={busy ? 'Exporting…' : 'Export collection as JSON'} icon="square.and.arrow.up" disabled={busy} onPress={() => { void exportCollection(); }} />
-  </Section>;
+  </GroupedSection>;
 }

@@ -3,7 +3,7 @@ import { accessibilityLabel, accessibilityValue, contentShape, frame, shapes, ti
 import type { ComponentProps } from 'react';
 import { Gallery } from '@/constants/theme';
 
-export function GalleryIconButton({ label, icon, onPress, disabled = false, busy = false, tone = 'accent' }: {
+export function GalleryIconButton({ label, icon, onPress, disabled = false, busy = false, tone = 'ink' }: {
   label: string; icon: ComponentProps<typeof Icon>['name']; onPress: () => void; disabled?: boolean; busy?: boolean; tone?: 'accent' | 'ink';
 }) {
   const color = Gallery[tone];

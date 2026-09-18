@@ -1,12 +1,11 @@
 import { BottomSheet, RNHostView, Switch } from '@expo/ui';
-import { Section } from '@expo/ui/swift-ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 
 import { api } from '../../../convex/_generated/api';
-import { GroupedFooter, NavigationRow } from '@/components/grouped-list';
+import { GroupedFooter, GroupedSection, NavigationRow } from '@/components/grouped-list';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
@@ -29,13 +28,13 @@ export function SharingSection({ contributions, onOpenContributions }: { contrib
   }
 
   return <>
-    <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'You choose whether to share each work. No account needed.'}</GroupedFooter>}>
+    <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'You choose whether to share each work. No account needed.'}</GroupedFooter>}>
       <Switch label={SHARING_SETTING} value={enabled === true} disabled={enabled === undefined || saving}
         onValueChange={(value) => { void change(value); }} />
-    </Section>
-    <Section>
-      <NavigationRow label={`My contributions (${contributions?.length ?? '…'})`} icon="tray.full.fill" onPress={onOpenContributions} />
-    </Section>
+    </GroupedSection>
+    <GroupedSection>
+      <NavigationRow label={`My contributions (${contributions?.length ?? '…'})`} onPress={onOpenContributions} />
+    </GroupedSection>
   </>;
 }
 

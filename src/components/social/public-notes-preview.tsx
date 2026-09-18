@@ -29,7 +29,7 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
     <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
     {selected && <WallSheet title="Visitor preview" dismissLabel="Back to wall" tall onDismiss={() => setSelectedId(undefined)}>
       <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-        <PublishedArtwork key={selected.itemId} artwork={selected.artwork} photos={[selected.artwork.media]} color={wall.color}
+        <PublishedArtwork key={selected.itemId} artwork={selected.artwork} photos={[selected.artwork.media]}
           frame={selected.layout.frame} token={session.token} note={selected.note} enrichment={detail.data?.enrichment} />
       </ScrollView>
     </WallSheet>}

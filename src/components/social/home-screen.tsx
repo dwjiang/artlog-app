@@ -1,7 +1,6 @@
 import { WelcomePrompt } from '../account/welcome-prompt';
 import { socialStyles } from './social-styles';
 import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
 import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { api } from '../../../convex/_generated/api';
@@ -33,15 +32,12 @@ export function HomeScreen() {
       ListHeaderComponent={<><View style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}>
         <Text variant={fontScale > 1.4 ? 'display' : 'wordmark'} accessibilityRole="header">Artlog</Text>
         <View style={styles.headerActions}>
-          <GalleryIconButton icon="trophy" label="Leaderboards" tone="ink" onPress={() => router.push('/leaderboards')} />
-          <GalleryIconButton icon="magnifyingglass" label="Find people" tone="ink" onPress={() => router.push('/people')} />
+          <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push('/leaderboards')} />
+          <GalleryIconButton icon="magnifyingglass" label="Find people" onPress={() => router.push('/people')} />
+          <GalleryIconButton icon="person.2" label="Friends" onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })} />
         </View>
       </View>{ready && <View style={styles.heading}>
         <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Image source="sf:arrow.down" tintColor={Gallery.muted} style={{ width: 11, height: 11 }} />
-          <Text style={styles.order}>Newest visit first</Text>
-        </View>
       </View>}</>}
       ListEmptyComponent={!ready ? <SocialGate session={session} browsePublic /> : feed.done && !feed.error
         ? <SocialState title={guest ? "No public visits yet." : "A new view is on its way."} detail={guest ? "When someone shares a visit publicly, it will appear here. Explore public walls in the meantime." : "When your friends share a museum visit, it will appear here. Find someone whose eye you love."}
@@ -52,11 +48,9 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  masthead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+  masthead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   mastheadLarge: { flexDirection: 'column', alignItems: 'flex-start' },
   headerActions: { flexDirection: 'row', gap: 8, alignSelf: 'flex-end', paddingBottom: 12 },
-  heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
-    gap: 8, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
+  heading: { flexDirection: 'row', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 6 },
   eyebrow: { backgroundColor: Gallery.highlight, paddingHorizontal: 6, paddingVertical: 3, color: Gallery.ink },
-  order: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
 });

@@ -1,11 +1,11 @@
 import { ListItem, TextInput } from '@expo/ui';
-import { LabeledContent, Section } from '@expo/ui/swift-ui';
+import { LabeledContent } from '@expo/ui/swift-ui';
 import { accessibilityLabel, disabled } from '@expo/ui/swift-ui/modifiers';
 import { useAction } from 'convex/react';
 import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../../convex/_generated/api';
-import { ActionRow, GroupedFooter, GroupedList, ValueRow } from '@/components/grouped-list';
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { captureOwner } from '@/lib/account/owner-store';
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from '@/lib/social/profile-photo';
@@ -64,20 +64,20 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       <Stack.Toolbar.Button variant="done" disabled={busy || !name.trim()} tintColor={Gallery.accent} onPress={() => { void submit(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
     </Stack.Toolbar>
     <GroupedList>
-      <Section>
+      <GroupedSection>
         <ListItem leading={<ProfileAvatar name={name} photoUrl={shownPhoto} size={56} />} modifiers={[disabled(busy)]} onPress={() => { void choose(); }}>{shownPhoto ? 'Change photo' : 'Add photo'}</ListItem>
         {shownPhoto ? <ActionRow label="Remove photo" destructive disabled={busy}
           onPress={() => { removeProfilePhotoDraft(draftFile.current); draftFile.current = undefined; setPhoto(null); }} /> : null}
-      </Section>
-      <Section footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your photo, name and introduction appear on your public profile.'}</GroupedFooter>}>
+      </GroupedSection>
+      <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your photo, name and introduction appear on your public profile.'}</GroupedFooter>}>
         <LabeledContent label="Name"><TextInput defaultValue={name} placeholder="Name" onChangeText={setName} maxLength={LIMITS.name} autoCapitalize="words" editable={!busy}
           modifiers={[accessibilityLabel('Name')]} /></LabeledContent>
         <LabeledContent label="Introduction"><TextInput defaultValue={bio} placeholder="A little about the art you love…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
           modifiers={[accessibilityLabel('Introduction')]} /></LabeledContent>
-      </Section>
-      <Section footer={<GroupedFooter>Usernames can’t be changed.</GroupedFooter>}>
+      </GroupedSection>
+      <GroupedSection footer={<GroupedFooter>Usernames can’t be changed.</GroupedFooter>}>
         <ValueRow label="Username" value={`@${profile.username}`} />
-      </Section>
+      </GroupedSection>
     </GroupedList>
   </>;
 }

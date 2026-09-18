@@ -48,9 +48,10 @@ it('resets the gallery when a shared photo is removed and hides it when the sess
   await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
   artwork = { ...artwork, photos: [media('selected-a')] };
   await view.rerender(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
-  expect(screen.getByText('1 / 1')).toBeOnTheScreen();
+  expect(screen.queryByText('1 / 1')).toBeNull();
   expect(screen.queryByRole('image', { name: 'Starry Night, photo 2' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Next photo' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Next photo' })).toBeNull();
+  expect(screen.getByRole('image', { name: 'Starry Night, photo 1' })).toBeOnTheScreen();
   mockSession = { ...mockSession, key: 'new-account', status: 'loading' };
   await view.rerender(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
   expect(screen.queryByText('Vincent van Gogh')).toBeNull();

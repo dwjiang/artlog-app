@@ -1,4 +1,5 @@
 import { ThemedText as Text } from '@/components/themed-text';
+import { Image } from 'expo-image';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -10,6 +11,7 @@ import type { SavedWork } from '@/db/schema';
 import { formatVisitDate } from '@/lib/journal/history';
 import { showToast } from '@/lib/ui/toast';
 import { GalleryButton } from './gallery-button';
+import { NoteHeading } from './note-editor';
 
 export function useArtworkEncounters(work: SavedWork) {
   const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
@@ -26,7 +28,10 @@ type Encounter = ReturnType<typeof useArtworkEncounters>[number];
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
   const [editing, setEditing] = useState(false), [note, setNote] = useState(''), [error, setError] = useState<string>();
   return <View style={styles.context}>
-    <Text variant="section" accessibilityRole="header" style={styles.heading}>This visit · private note</Text>
+    <NoteHeading title="Note from this visit">
+      {!editing && <GalleryButton label={encounter.note ? 'Edit' : 'Add'} accessibilityLabel={encounter.note ? 'Edit encounter note' : 'Add an encounter note'}
+        onPress={() => { setNote(encounter.note ?? ''); setEditing(true); }} />}
+    </NoteHeading>
     {editing ? <>
       <TextInput accessibilityLabel="Private encounter note" value={note} onChangeText={setNote} multiline maxLength={2000}
         placeholder="What did you notice this time?" placeholderTextColor={Gallery.muted} style={styles.input} />
@@ -37,34 +42,23 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
         }} />
         <GalleryButton label="Cancel" onPress={() => { setEditing(false); setError(undefined); }} />
       </View>
-    </> : <>
-      {!!encounter.note && <Text selectable style={styles.note}>{encounter.note}</Text>}
-      <GalleryButton label={encounter.note ? 'Edit encounter note' : 'Add an encounter note'} onPress={() => { setNote(encounter.note ?? ''); setEditing(true); }} />
-    </>}
+    </> : !!encounter.note && <Text selectable style={styles.note}>{encounter.note}</Text>}
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
   </View>;
 }
 
+/** One row per visit the artwork was seen on, each opening that visit in the journal. */
 export function ArtworkEncounterList({ work, encounters, visitId }: { work: SavedWork; encounters: Encounter[]; visitId?: string }) {
   const [error, setError] = useState<string>();
   const current = encounters.find(({ visit }) => visit.localId === visitId);
   return <View>
-    <View style={styles.actions}>
-      <Text variant="section" accessibilityRole="header" style={styles.heading}>Seen on {encounters.length} {encounters.length === 1 ? 'visit' : 'visits'}</Text>
-      <GalleryButton label="Link visit" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })} />
-    </View>
-    {encounters.map(({ visit, photoCount }) => <Pressable key={visit.localId} accessibilityRole="button"
+    {encounters.map(({ visit }) => <Pressable key={visit.localId} accessibilityRole="button"
       accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
-      accessibilityState={{ selected: visit.localId === visitId }} disabled={visit.localId === visitId}
-      onPress={() => router.push({ pathname: '/saved/[savedId]', params: { savedId: work.localId, visitId: visit.localId } })} style={styles.visit}>
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={styles.visitName}>{visit.venueName}</Text>
-        <Text style={styles.caption}>{formatVisitDate(visit.visitedOn)} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</Text>
-        {visit.localId === visitId && <Text style={[styles.caption, { color: Gallery.accent }]}>Viewing this visit</Text>}
-      </View>
-      <Text style={styles.caption}>›</Text>
+      onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId: visit.localId } })} style={styles.visit}>
+      <Text style={styles.visitName} numberOfLines={2}>{visit.venueName} <Text style={styles.visitDate}>· {formatVisitDate(visit.visitedOn)}</Text></Text>
+      <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
     </Pressable>)}
-    {!encounters.length && <Text style={styles.caption}>Saved without a visit. You can link one anytime.</Text>}
+    {!encounters.length && <Text style={[styles.caption, { paddingVertical: 14 }]}>Saved without a visit. You can link one anytime.</Text>}
     {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [
       { text: 'Cancel', style: 'cancel' }, { text: 'Unlink', onPress: () => {
         try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/saved/[savedId]', params: { savedId: work.localId } }); }
@@ -76,12 +70,12 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
 }
 
 const styles = StyleSheet.create({
-  context: { borderTopWidth: 1, borderTopColor: Gallery.separator, paddingTop: 16, gap: 8 },
-  heading: { color: Gallery.ink },
+  context: { gap: 8 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  note: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
-  input: { minHeight: 96, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 15, textAlignVertical: 'top' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  visit: { paddingVertical: 14, borderBottomWidth: 0.5, borderColor: Gallery.separator, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  visitName: { fontSize: 13, fontWeight: '500', color: Gallery.ink },
+  note: { fontSize: 17, lineHeight: 25, color: Gallery.ink, marginLeft: 24 },
+  input: { marginLeft: 24, minHeight: 96, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 17, textAlignVertical: 'top' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginLeft: 24 },
+  visit: { minHeight: 52, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  visitName: { flex: 1, fontSize: 17, lineHeight: 23, color: Gallery.ink },
+  visitDate: { color: Gallery.muted },
 });

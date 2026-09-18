@@ -4,7 +4,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from '../../../shared/collection/collection-limits';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Gallery, Spacing } from '@/constants/theme';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { getNote, setNote } from '@/db/repos/notes';
 import { GalleryButton } from './gallery-button';
@@ -34,6 +34,15 @@ function persist(note: NoteDraft | undefined): void {
       note.onSaveResult(true);
     }
   });
+}
+
+/** The lime swatch and heading shared by every note block, so private and shared notes read the same way. */
+export function NoteHeading({ title, children }: { title: string; children?: React.ReactNode }) {
+  return <View style={styles.heading}>
+    <View style={styles.swatch} />
+    <ThemedText accessibilityRole="header" style={styles.title}>{title}</ThemedText>
+    {children}
+  </View>;
 }
 
 // Saves on blur and when the screen closes mid-edit.
@@ -69,10 +78,13 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
 
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" themeColor="textSecondary">Your artwork note</ThemedText>
+      <NoteHeading title="Your note">
+        {editing ? <GalleryButton label="Done" accessibilityLabel="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
+          : <GalleryButton label={draft ? 'Edit' : 'Add'} accessibilityLabel={draft ? 'Edit note' : 'Add note'} disabled={draft === undefined} onPress={() => setEditing(true)} />}
+      </NoteHeading>
       {editing ? <><TextInput
         accessibilityLabel="Notes"
-        placeholder="Add a note about this work"
+        placeholder="What stayed with you?"
         placeholderTextColor={Colors.light.textSecondary}
         multiline
         maxLength={MAX_NOTE_LENGTH}
@@ -86,28 +98,29 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
         onBlur={() => persist(latest.current)}
         style={styles.input}
       />
-      {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary">{NOTE_LENGTH_MESSAGE}</ThemedText>}
-      <GalleryButton label="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
-      </> : <>
-        {!!draft && <ThemedText selectable>{draft}</ThemedText>}
-        <GalleryButton label={draft ? 'Edit artwork note' : 'Add a private artwork note'} disabled={draft === undefined} onPress={() => setEditing(true)} />
-      </>}
+      {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary" style={styles.body}>{NOTE_LENGTH_MESSAGE}</ThemedText>}
+      </> : draft ? <ThemedText selectable style={styles.body}>{draft}</ThemedText>
+        : <ThemedText themeColor="textSecondary" style={styles.body}>Keep a private note about this work.</ThemedText>}
       {saveFailed ? (
-        <>
+        <View style={styles.body}>
           <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
           <Host matchContents colorScheme="light">
             <Button label="Retry save" onPress={() => persist(latest.current)} />
           </Host>
-        </>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.light.separator },
+  section: { gap: Spacing.two },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  swatch: { width: 14, height: 14, backgroundColor: Gallery.highlight },
+  title: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600', color: Gallery.ink },
+  body: { marginLeft: 24 },
   input: {
-    minHeight: 96, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement,
-    color: Colors.light.text, fontFamily: Fonts.sans, fontSize: 16, lineHeight: 22, textAlignVertical: 'top',
+    marginLeft: 24, minHeight: 96, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement,
+    color: Colors.light.text, fontFamily: Fonts.sans, fontSize: 17, lineHeight: 24, textAlignVertical: 'top',
   },
 });
