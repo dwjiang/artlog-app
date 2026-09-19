@@ -31,13 +31,21 @@ export default function RootLayout() {
         <ThemeProvider value={navigationTheme}>
           <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'default' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
+            <Stack.Screen name="result/[scanId]"
+              options={({ route }) => ({ title: '', animation: (route.params as { entrance?: string } | undefined)?.entrance === 'capture' ? 'fade' : 'default' })}
+              listeners={({ navigation, route }) => ({
+                transitionEnd: ({ data }) => {
+                  if (!data.closing && (route.params as { entrance?: string } | undefined)?.entrance === 'capture') navigation.setParams({ entrance: undefined });
+                },
+              })} />
+            <Stack.Screen name="all-artworks" options={{ title: '', headerBackTitle: 'Collection' }} />
+            <Stack.Screen name="label/[scanId]" options={{ title: 'Label' }} />
             <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, headerShown: false }} />
             <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Collection', headerLargeTitleEnabled: true, headerTransparent: true,
-              headerStyle: { backgroundColor: 'transparent' }, headerLargeStyle: { backgroundColor: 'transparent' } }} />
+            <Stack.Screen name="settings" options={{ title: '', headerBackTitle: 'Collection' }} />
             <Stack.Screen name="saved/[savedId]" options={{ title: '' }} />
-            <Stack.Screen name="wall-display" options={{ title: 'Wall display options' }} />
+            <Stack.Screen name="wall-display" options={{ title: '' }} />
             <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
             <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
@@ -52,8 +60,8 @@ export default function RootLayout() {
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
             <Stack.Screen name="artwork" options={{ title: '' }} />
             <Stack.Screen name="visit-create" options={{ ...visitSheet, title: 'Add visit' }} />
-            <Stack.Screen name="visit-reflection" options={{ ...visitSheet, title: 'Private reflection' }} />
-            <Stack.Screen name="visit-share/[visitId]" options={{ ...visitSheet, headerShown: false }} />
+            <Stack.Screen name="visit-reflection" options={{ title: 'Reflection', headerTintColor: Gallery.accent }} />
+            <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
             <Stack.Screen name="visit-globe" options={{ presentation: 'modal', title: 'Your world', headerTintColor: Gallery.accent }} />
             <Stack.Screen
               name="venue-picker"

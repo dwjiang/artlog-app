@@ -1,6 +1,6 @@
 import { DEFAULT_THUMBNAIL_FRAME } from '@/shared/wall/defaults';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { FlatList, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -15,6 +15,7 @@ import { cropSyncing } from '@/lib/account/photo-sync';
 import { WallFrame, wallFrameInset } from './wall-frame';
 import { WorkLink } from './work-link';
 import { ListSkeleton } from '@/components/loading-skeleton';
+import { ChoiceMenu } from '../choice-menu';
 
 type Work = ReturnType<typeof useCollectionData>['works'][number];
 type Row = { key: string; kind: 'element'; element: ReactElement } | { key: string; kind: 'artist'; title: string } | { key: string; kind: 'work'; work: Work };
@@ -23,25 +24,33 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   search: string; header?: ReactElement; controls?: ReactElement; summary?: ReactElement; onClearSearch?: () => void; onRetry?: () => void;
 }) {
   const wall = useCollectionWall(works);
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
+  const [sort, setSort] = useState<'recent' | 'artist'>('recent');
   // The hook owns the first read; returning from a detail screen, which edits the wall through its own repository, re-reads it.
   const loaded = useRef(false);
   useEffect(() => { loaded.current = !!wall.acknowledged; }, [wall.acknowledged]);
   useFocusEffect(useCallback(() => { if (wall.signedIn && loaded.current) void wall.refresh(); }, [wall.repository, wall.signedIn])); // eslint-disable-line react-hooks/exhaustive-deps
-  const sections = artistSections(filterWorks(works, search));
+  const filtered = filterWorks(works, search);
   const rows: Row[] = [];
   if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
   if (summary) rows.push({ key: 'summary', kind: 'element', element: summary });
   const initialLoading = loading && !error && !works.length;
-  if (!initialLoading) rows.push({ key: 'count', kind: 'element', element: <Text style={{ padding: 20, fontSize: 13, letterSpacing: 0.8, color: Gallery.muted }}>{works.length} ARTWORKS · BY ARTIST</Text> });
-  for (const section of sections) {
-    rows.push({ key: `artist:${section.key}`, kind: 'artist', title: section.title });
-    for (const work of section.data) rows.push({ key: work.localId, kind: 'work', work });
+  if (!initialLoading) rows.push({ key: 'count', kind: 'element', element: <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+    <Text variant="metadata" themeColor="textSecondary" style={{ flex: 1 }}>{filtered.length} {filtered.length === 1 ? 'artwork' : 'artworks'}</Text>
+    <View style={{ minWidth: 96 }}><ChoiceMenu plain label="Sort artworks" value={sort} onChange={setSort} options={[{ value: 'recent', label: 'Recent' }, { value: 'artist', label: 'Artist' }]} /></View>
+  </View> });
+  if (sort === 'artist') {
+    for (const section of artistSections(filtered)) {
+      rows.push({ key: `artist:${section.key}`, kind: 'artist', title: section.title });
+      for (const work of section.data) rows.push({ key: work.localId, kind: 'work', work });
+    }
+  } else {
+    for (const work of [...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId))) rows.push({ key: work.localId, kind: 'work', work });
   }
-  const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} grouped /> : sections.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
+  const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} /> : filtered.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
     detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : works.length ? 'Try another title, artist, or place.' : 'Scan a painting to save your first artwork.'}
     action={error ? onRetry ? 'Try again' : undefined : works.length ? 'Clear search' : 'Scan artwork'}
-    onAction={error ? onRetry : works.length ? onClearSearch : () => router.push('/scan')} />;
+    onAction={error ? onRetry : works.length ? onClearSearch : () => router.navigate('/scan')} />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={empty}
@@ -52,16 +61,18 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
       const { work } = item;
       const hung = wall.draft?.items.find((piece) => piece.saveLocalId === work.localId);
       const frame = hung?.layout.frame ?? DEFAULT_THUMBNAIL_FRAME;
-      return <WorkLink work={work} style={{ flexDirection: 'row', gap: 14, alignItems: 'center', marginHorizontal: 20, paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
-        <View style={{ width: 56 }}><WallFrame frame={frame} width={56}><SavedWorkImage path={work.cropPath} syncing={cropSyncing(work)} title={work.title} contain style={{ width: 56 - 2 * wallFrameInset(frame, 56), height: 48 }} /></WallFrame>
-          {hung && <Text accessibilityLabel="On your wall" style={{ position: 'absolute', right: -5, top: -7, overflow: 'hidden', borderRadius: 8, backgroundColor: Gallery.accent, color: Gallery.paper, fontSize: 13, paddingHorizontal: 3 }}>✓</Text>}</View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ fontSize: 17, lineHeight: 25, fontWeight: '600', color: Gallery.ink }}>{work.artist}</Text>
-          <Text style={{ fontSize: 15, lineHeight: 22, color: Gallery.ink }}>{work.title}{work.date ? `, ${work.date}` : ''}</Text>
-          <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>{work.venueName ?? work.institution ?? 'Your collection'} · {new Date(work.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-          <Text style={{ fontSize: 13, color: Gallery.muted }}>{work.photoCount} {work.photoCount === 1 ? 'photo' : 'photos'} · {work.visitCount} {work.visitCount === 1 ? 'visit' : 'visits'}</Text>
+      const imageWidth = Math.max(1, width - 40);
+      return <WorkLink work={work} style={{ gap: 8, marginHorizontal: 20, paddingBottom: 12, marginBottom: 12, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
+        <WallFrame frame={frame} width={imageWidth}><SavedWorkImage path={work.cropPath} syncing={cropSyncing(work)} title={work.title} style={{ width: imageWidth - 2 * wallFrameInset(frame, imageWidth), height: imageWidth * 0.56 }} /></WallFrame>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1, gap: 1 }}>
+            <Text variant="secondary" style={{ fontWeight: '700', lineHeight: 18 }}>{work.artist}</Text>
+            <Text variant="secondary">{work.title}{work.date ? `, ${work.date}` : ''}</Text>
+            <Text variant="metadata" themeColor="textSecondary">{work.venueName ?? work.institution ?? 'Your collection'} · {new Date(work.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+            <Text variant="metadata" themeColor="textSecondary">{work.photoCount} {work.photoCount === 1 ? 'photo' : 'photos'} · {work.visitCount} {work.visitCount === 1 ? 'visit' : 'visits'}{hung ? ' · On your wall' : ''}</Text>
+          </View>
+          <Text style={{ color: Gallery.muted }} accessible={false}>›</Text>
         </View>
-        <Text style={{ color: Gallery.muted }}>›</Text>
       </WorkLink>;
     }} />;
 }

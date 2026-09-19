@@ -179,7 +179,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <View style={styles.trayHeading}><GalleryButton label="All saved art" icon="chevron.left" onPress={() => setSelectedId(undefined)} />
           <GalleryButton label="Size & position" onPress={() => setOptions(true)} disabled={blocked} /></View>
         <Text style={[styles.caption, { paddingHorizontal: 20 }]}>Frame for {selected.artwork.title}</Text>
-        <WallFramePicker value={selected.layout.frame} disabled={blocked} onChange={(frame) => move(selected.localId, { ...selected.layout, frame })} />
+        <WallFramePicker piece={selected} value={selected.layout.frame} disabled={blocked} onChange={(frame) => move(selected.localId, { ...selected.layout, frame })} />
         <View style={styles.trayHeading}><GalleryButton label="Choose photo" icon="photo" disabled={blocked} onPress={() => setPhotoPicker('choose')} />
           <GalleryButton label="Hang another photo" icon="plus" disabled={blocked || count >= LIMITS.wallItems} onPress={() => setPhotoPicker('duplicate')} /></View>
       </> : <>

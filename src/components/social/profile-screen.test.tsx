@@ -5,7 +5,12 @@ const mockPages = jest.fn();
 let mockRelationship: { state: string; blocked: boolean } = { state: 'none', blocked: false };
 const mockPerson = { profileId: 'friend' as never, username: 'friend', name: 'Jamie Chen', publishedWallCount: 0 };
 jest.mock('@expo/ui');
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('expo-router', () => {
+  const { Pressable, Text, View } = jest.requireActual('react-native');
+  const Button = ({ children, accessibilityLabel, onPress }: { children: string; accessibilityLabel?: string; onPress: () => void }) =>
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>;
+  return { Stack: { Screen: () => null, Toolbar: Object.assign(View, { Button }) }, useRouter: () => ({ push: jest.fn() }) };
+});
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 jest.mock('../collection/wall-gallery', () => ({ WallGallery: () => null }));
 jest.mock('./friendship-controls', () => ({ FriendshipControls: () => null }));
@@ -34,4 +39,10 @@ it('requests only the selected friend’s shared visits and stops after a block'
   mockRelationship = { state: 'accepted', blocked: true };
   await view.rerender(<ProfileScreen profileId="friend" />);
   expect(mockPages.mock.calls.at(-1)[1]).toBe('skip');
+});
+it('offers Share in the header only outside the visitor preview, which keeps its Done action', async () => {
+  const view = await render(<ProfileScreen profileId="friend" />);
+  expect(screen.getByRole('button', { name: 'Share profile' })).toBeOnTheScreen();
+  await view.rerender(<ProfileScreen profileId="friend" preview />);
+  expect(screen.queryByRole('button', { name: 'Share profile' })).toBeNull();
 });

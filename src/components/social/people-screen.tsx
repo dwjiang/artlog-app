@@ -13,6 +13,7 @@ import { PageFooter, SocialGate, SocialState } from './social-state';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { ThemedText as Text } from '@/components/themed-text';
 import { ProfileIdentity } from './visit-card';
+import { CollectionSearchField } from '../collection/collection-search-field';
 import { ListSkeleton } from '@/components/loading-skeleton';
 
 const searchPage = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) => result;
@@ -32,11 +33,15 @@ export function PeopleScreen() {
     session.key, searchPage, profileId);
   const discovery = useCursorPages(api.profiles.discover, !text.trim() && !session.offline ? {} : 'skip', session.key, searchPage, profileId);
   return <>
+    <Stack.Screen options={{ title: '' }} />
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
-      keyExtractor={profileId} renderItem={({ item }) => <View style={[socialStyles.section, { gap: 8 }]}><ProfileIdentity profile={item} />
-        {friends.data?.some((friend) => friend.profileId === item.profileId) && <Text style={{ fontSize: 13, color: Gallery.accent, marginLeft: 56 }}>✓ Friends</Text>}</View>}
-      ListHeaderComponent={<View style={{ padding: 18, gap: 16 }}>{!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 13 }}>Discover people and their little museums.</Text>}<NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
+      keyExtractor={profileId} renderItem={({ item }) => <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}><ProfileIdentity profile={item} showChevron friend={friends.data?.some((friend) => friend.profileId === item.profileId)} /></View>}
+      ListHeaderComponent={<View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
+        <Text variant="pageTitle" accessibilityRole="header">People</Text>
+        {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Discover people and their little museums.</Text>}
+        <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />
+        <NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
       ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : 'No friends found.'}
@@ -45,9 +50,7 @@ export function PeopleScreen() {
           detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
           : text !== debounced ? <ListSkeleton label="Searching…" avatar />
             : results.done && !results.loading && !results.error ? <SocialState title="No people found." detail="Try another name or username." /> : null}
-      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
+      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
       onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
-    <Stack.SearchBar placeholder="Name or username" autoCapitalize="none" hideWhenScrolling={false} placement="stacked" allowToolbarIntegration={false}
-      onChangeText={(event) => setText(event.nativeEvent.text)} onCancelButtonPress={() => setText('')} />
   </>;
 }

@@ -10,7 +10,6 @@ export default function CollectionLayout() {
     <Stack screenOptions={NavigationTheme}>
       <Stack.Screen name="collection" options={{ title: 'Collection', headerShown: false }} />
       <Stack.Screen name="visit-place" options={{ title: 'Visits by museum' }} />
-      <Stack.Screen name="all-artworks" options={{ title: 'All artworks' }} />
     </Stack>
   );
 }

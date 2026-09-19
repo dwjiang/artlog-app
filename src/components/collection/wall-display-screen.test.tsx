@@ -34,6 +34,19 @@ it('saves a frame change for the hung placement', async () => {
   expect(publishLayout).toHaveBeenCalledTimes(1);
 });
 
+it('previews the selected artwork and offers all eight frames without preset sizes', async () => {
+  mockWall = { signedIn: true, pieces: [{ localId: 'p', layout, cropPath: 'crops/lilies.jpg', artwork: {
+    title: 'Water Lilies', artist: 'Claude Monet', media: { kind: 'placeholder', width: 1, height: 1 },
+  } }], draft: { color: '#FCFCF9', items: [{ placementId: 'p', saveLocalId: 'lilies', layout }] }, setError: jest.fn() };
+  await render(<WallDisplayScreen savedId="lilies" />);
+  expect(await screen.findByRole('image', { name: 'Water Lilies, Black frame preview' })).toBeOnTheScreen();
+  for (const name of ['Gilt', 'Baroque', 'Walnut', 'Oak', 'Black', 'White float', 'Mat', 'No frame']) {
+    expect(screen.getByRole('button', { name })).toBeOnTheScreen();
+  }
+  for (const name of ['S', 'M', 'L']) expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(screen.getByText(/Drag its corner to resize/)).toBeOnTheScreen();
+});
+
 it('tells the owner when the artwork is not on the wall', async () => {
   mockWall = { signedIn: true, pieces: [], draft: { color: '#FCFCF9', items: [] }, setError: jest.fn() };
   await render(<WallDisplayScreen savedId="lilies" />);

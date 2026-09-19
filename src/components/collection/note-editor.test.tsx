@@ -72,3 +72,11 @@ it('explains the note limit when reached and saves a note at the limit', async (
   await fireEvent.changeText(input, 'Shorter note');
   expect(screen.queryByText('Notes can be up to 20,000 characters.')).toBeNull();
 });
+
+it('distinguishes a public wall note from a private note', async () => {
+  const view = await render(<NoteEditor savedLocalId="work" sharedOnWall />);
+  expect(await screen.findByText('Shared on your public wall')).toBeOnTheScreen();
+  expect(screen.queryByText('Only you')).toBeNull();
+  await view.rerender(<NoteEditor savedLocalId="work" sharedOnWall={false} />);
+  expect(screen.getByText('Only you')).toBeOnTheScreen();
+});

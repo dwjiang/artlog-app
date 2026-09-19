@@ -1,3 +1,4 @@
+import { GalleryBackToolbar } from '../gallery-back-toolbar';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { SharePhotoPicker } from './share-photo-picker';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -49,7 +50,7 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
     <View style={{ flex: 1 }}>
       <Stack screenOptions={NavigationTheme}>
         <Stack.Screen name="index" options={{ title: 'Share visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
-        <Stack.Screen name="preview" options={{ title: 'Sharing preview', headerBackTitle: 'Edit' }} />
+        <Stack.Screen name="preview" options={{ title: 'Preview', headerBackTitle: 'Edit' }} />
         <Stack.Screen name="shared" options={{ title: 'Shared visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
       </Stack>
       <ToastLayer offset={0} />
@@ -187,17 +188,16 @@ export function VisitSharePreviewScreen() {
   // The server previews in selection order but publishes highlights first; show friends' order.
   const highlights = sharing.draft?.highlightLocalIds ?? [];
   const ordered = [...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)), ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId))];
-  return <SharedVisitProjection banner={{ title: isPublic ? 'Preview before sharing publicly' : 'Preview before sharing', copy: 'Only these artworks, selected photos, and this reflection. No other visits or private notes.' }}
+  return <><GalleryBackToolbar /><SharedVisitProjection banner={{ title: 'Only this will be shared', copy: 'Only these artworks, selected photos, and this reflection. No other visits or private notes.' }}
+    note={isPublic ? 'This visit will appear on public Home, including for people without an account; your private journal stays private.' : 'Only your friends can see it; your private journal stays private.'}
     author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} reflection={preview.reflection} token={sharing.token} audience={preview.audience}
     artworks={ordered.map((item) => ({ key: item.saveLocalId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
     footer={<View style={share.confirm}>
       <ShareError sharing={sharing} />
-      <GalleryButton label={active ? 'Update shared visit' : isPublic ? 'Share publicly' : 'Share with friends'} busy={sharing.busy} busyLabel="Sharing…" variant="filled" fullWidth
+      <GalleryButton label={active ? 'Update shared visit' : 'Publish visit'} busy={sharing.busy} busyLabel="Sharing…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.conflict} onPress={() => { void publish(); }} />
-      <PrivacyNote>{`Preview highlights affect the feed card, not which artworks appear in this visit. ${isPublic
-        ? 'This visit will appear on public Home, including for people without an account; your private journal stays private.'
-        : 'Only your friends can see it; your private journal stays private.'}`}</PrivacyNote>
-    </View>} />;
+      <GalleryButton label="Edit selection" fullWidth disabled={sharing.busy} onPress={() => router.back()} />
+    </View>} /></>;
 }
 export function VisitSharedScreen() {
   const { sharing, visit } = useShareFlow();
@@ -239,5 +239,5 @@ const share = StyleSheet.create({
   highlightRank: { fontSize: 13, fontWeight: '600', color: Gallery.ink },
   itemBottom: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingLeft: 35, paddingRight: 12, paddingBottom: 4 },
   hint: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: 'right' },
-  confirm: { gap: 12, paddingTop: 15, marginTop: 15, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  confirm: { gap: 4, paddingTop: 12 },
 });

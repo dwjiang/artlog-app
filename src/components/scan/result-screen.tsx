@@ -1,9 +1,10 @@
 import { LoadingRing } from '@/components/loading-ring';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -15,7 +16,7 @@ import { LocalScanScreen } from './local-scan-screen';
 import { CaptureCompletion } from './capture-completion';
 import { CaptureContextButton } from './capture-context-button';
 import type { SaveResultInput } from '@/lib/result/save';
-import { CapturePhotosButton } from './capture-photos-button';
+import { useCapturePhotos } from './capture-photos-button';
 import { CardHeader } from './result/card-header';
 import { DocentSection } from './result/docent-section';
 import { FieldsForm } from './result/fields-form';
@@ -29,8 +30,9 @@ import { FailedCard } from './states/failed-card';
 import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { HighlightHeading } from '@/components/highlight-heading';
 import { GalleryButton } from '@/components/collection/gallery-button';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
@@ -131,43 +133,27 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} />;
 
+  const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
+  const header = <CardHeader cropUri={capture ? captureFileUri(capture.cropPath) : undefined} artworkTitle={view.primary?.title}
+    loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
+    onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
+  const context = <>
+    {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
+    {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
+  </>;
+  const search = view.editable && showMuseumSearch ? <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} /> : undefined;
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        automaticallyAdjustKeyboardInsets
-        keyboardDismissMode="interactive"
-        contentContainerStyle={styles.content}
-      >
-        <CardHeader
-          cropUri={capture ? captureFileUri(capture.cropPath) : undefined}
-          artworkTitle={view.primary?.title}
-          loading={!captureUpdatedAt && !captureError}
-          corners={view.primary?.corners}
-          inputSize={model.inputSize}
-          kind={view.kind}
-        />
-        {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
-        {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
-        {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
-        {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
-        {view.kind === 'failed' && <>
-          <FailedCard error={view.error} />
-          <GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} />
-        </>}
-        {view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError)) && (
-          <ResultCard
-            key={`${view.kind}:${view.primary?.objectId ?? 'none'}`}
-            view={view}
-            onNotRight={notRight}
-            onPick={pickRunnerUp}
-            onEdit={() => setHasEdits(true)}
-            {...saveProps}
-          />
-        )}
-        {view.editable && showMuseumSearch && <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />}
-        {view.editable && view.kind !== 'confident' && <GalleryButton label={LABEL_BUTTON} variant="outlined" fullWidth disabled={saving} onPress={openLabel} />}
-      </ScrollView>
+      {showCard ? <ResultCard key={`${view.kind}:${view.primary?.objectId ?? 'none'}`} view={view} header={header} context={context} search={search}
+        onPick={pickRunnerUp} onEdit={() => setHasEdits(true)} onLabel={openLabel} {...saveProps} /> :
+        <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
+          {header}{context}
+          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
+          {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
+          {view.kind === 'failed' && <><FailedCard error={view.error} /><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
+          {search}
+          {view.editable && view.kind !== 'confident' && <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={openLabel} />}
+        </ScrollView>}
       <NotRightSheet
         open={sheet.open}
         notice={sheet.notice}
@@ -186,7 +172,10 @@ type ResultCardProps = {
   saving: boolean;
   savedId?: string;
   saveError?: string;
-  onNotRight: () => void;
+  header: ReactNode;
+  context?: ReactNode;
+  search?: ReactNode;
+  onLabel: () => void;
   onPick: (candidate: ResultCandidate) => void;
   onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
@@ -194,52 +183,56 @@ type ResultCardProps = {
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
-function ResultCard({ captureInput, view, saving, savedId, saveError, onNotRight, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
+function ResultCard({ captureInput, view, saving, savedId, saveError, header, context, search, onLabel, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
+  const [editingDetails, setEditingDetails] = useState(!view.primary);
+  const { bottom } = useSafeAreaInsets();
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
-  return (
-    <>
-      {draft.artist && <ThemedText type="title">{draft.artist}</ThemedText>}
-      {view.primary && editable && (
-        <Pressable accessibilityRole="button" onPress={onNotRight} style={styles.notRight}>
-          <ThemedText type="small" themeColor="accent">Not right?</ThemedText>
-        </Pressable>
-      )}
+  const photos = useCapturePhotos(captureInput ? { ...captureInput, draft } : undefined, !editable);
+  return <>
+    <Stack.Toolbar placement="right"><Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Scan options" tintColor={Gallery.ink} hidesSharedBackground>
+      <Stack.Toolbar.MenuAction disabled={!editable} onPress={() => setEditingDetails((value) => !value)}>{editingDetails ? 'Done editing' : 'Edit details'}</Stack.Toolbar.MenuAction>
+      <Stack.Toolbar.MenuAction disabled={photos.unavailable} onPress={photos.open}>{photos.label}</Stack.Toolbar.MenuAction>
+    </Stack.Toolbar.Menu></Stack.Toolbar>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
+      {header}
+      <View style={styles.identity}>
+        {draft.artist && <ThemedText type="title" style={{ fontSize: 40, lineHeight: 46 }}>{draft.artist}</ThemedText>}
+        {!editingDetails && <>
+          <ThemedText style={styles.workTitle}>{draft.title || 'Untitled artwork'}</ThemedText>
+          {view.kind === 'confident' && !!draft.medium && <ThemedText variant="secondary" themeColor="textSecondary">{draft.medium}{draft.date ? ` · ${draft.date}` : ''}</ThemedText>}
+          {view.kind === 'confident' && !draft.medium && !!draft.date && <ThemedText variant="secondary" themeColor="textSecondary">{draft.date}</ThemedText>}
+        </>}
+      </View>
+      {view.kind === 'soft' && <ThemedText variant="secondary">This could be a match. Scan the wall label to confirm.</ThemedText>}
       {view.primary?.identityStatus === 'tentative' && <TentativeOriginNotice />}
-      <FieldsForm draft={draft} editable={editable} onChange={(field, value) => {
-        onEdit();
-        setDraft((current) => ({ ...current, [field]: value }));
-      }} />
-      {suggestions.length > 0 && (
-        <View style={styles.section}>
-          <ThemedText type="smallBold" themeColor="textSecondary">Maybe one of these?</ThemedText>
-          <RunnerUps candidates={suggestions} onPick={onPick} />
-        </View>
-      )}
-      {captureInput && editable && <CapturePhotosButton input={{ ...captureInput, draft }} disabled={saving} />}
-      <SaveBar
-        canSave={canSave(draft)}
-        saving={saving}
-        savedId={savedId}
-        error={saveError}
-        onSave={() => onSave(draft)}
-        onViewSaved={onViewSaved}
-      />
-      {view.kind === 'confident' && (
-        <>
-          <DocentSection title="About this work" docent={view.docent} factSheet={view.factSheet} pending={!view.docent?.length} />
-          <RightNowSection rightNow={view.rightNow} />
-        </>
-      )}
-    </>
-  );
+      {editingDetails && <FieldsForm draft={draft} editable={editable} onChange={(field, value) => {
+        onEdit(); setDraft((current) => ({ ...current, [field]: value }));
+      }} />}
+      {view.kind === 'confident' && context}
+      {suggestions.length > 0 && <View style={styles.section}><HighlightHeading>Other possibilities</HighlightHeading><RunnerUps candidates={suggestions} onPick={onPick} /></View>}
+      {view.kind !== 'confident' && context}
+      {view.kind === 'confident' && <>
+        <DocentSection title="About this work" docent={view.docent} factSheet={view.factSheet} pending={!view.docent?.length} />
+        <RightNowSection rightNow={view.rightNow} />
+      </>}
+      {search}
+    </ScrollView>
+    <View style={[styles.save, { paddingBottom: Math.max(12, bottom) }]}>
+      <SaveBar canSave={canSave(draft)} saving={saving} savedId={savedId} error={saveError}
+        saveLabel={view.kind === 'confident' ? 'Save to collection' : 'Save with these details'} labelFirst={view.kind !== 'confident'}
+        onSave={() => onSave(draft)} onLabel={onLabel} onViewSaved={onViewSaved} />
+    </View>
+  </>;
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, gap: Spacing.four },
-  section: { gap: Spacing.two },
-  notRight: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: Spacing.two },
+  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16, gap: Spacing.two },
+  identity: { gap: 2 },
+  workTitle: { fontSize: 20, lineHeight: 24, fontWeight: '600' },
+  section: { gap: 4 },
+  save: { paddingHorizontal: 20, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator, backgroundColor: Gallery.paper },
   loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

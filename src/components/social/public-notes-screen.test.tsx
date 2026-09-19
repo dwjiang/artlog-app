@@ -43,7 +43,7 @@ it('previews the full visitor wall and reveals only selected notes when opening 
   expect(screen.getByText('An unselected secret')).toBeOnTheScreen();
   await openWall();
   expect(screen.getByText('Reader')).toBeOnTheScreen();
-  expect(screen.getByText('PUBLIC COLLECTION')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Public collection wall')).toBeOnTheScreen();
   expect(mockGallery).toHaveBeenLastCalledWith(expect.objectContaining({ color: '#45524B', pieces: [
     expect.objectContaining({ localId: 'a', layout }), expect.objectContaining({ localId: 'b' }),
   ] }));

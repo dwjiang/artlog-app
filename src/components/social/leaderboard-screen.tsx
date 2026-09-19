@@ -5,14 +5,14 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
-import { Gallery } from '@/constants/theme';
+import { Gallery, Typography } from '@/constants/theme';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { useLeaderboardChoice, type LeaderboardChoice } from '@/lib/social/use-leaderboard-choice';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
-import { LeaderboardFilter } from './leaderboard-filter';
+import { ChoiceMenu } from '../choice-menu';
 import { LeaderboardParticipation, PARTICIPATION_LABELS } from './leaderboard-participation';
 import { LeaderboardRules } from './leaderboard-rules';
 import { ProfileAvatar } from './profile-avatar';
@@ -54,18 +54,19 @@ export function LeaderboardScreen() {
     ? date.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
     : `Through ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
   return <View style={styles.root}>
-    <Stack.Screen options={{ title: 'Leaderboards', headerLargeTitle: false }} />
+    <Stack.Screen options={{ title: '', headerLargeTitle: false }} />
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button icon="info.circle" accessibilityLabel="How rankings work" tintColor={Gallery.muted} hidesSharedBackground onPress={() => setSheet('rules')}>How rankings work</Stack.Toolbar.Button>
     </Stack.Toolbar>
     <FlatList ref={list} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}
       ListHeaderComponent={<View style={styles.filters}>
+        <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>Leaderboards</Text>
         <NativeSegmentedPicker label="Leaderboard audience" value={audience} onChange={(value) => filter({ audience: value })}
           options={[{ value: 'friends', label: 'Friends' }, { value: 'global', label: 'Global' }]} />
         <View style={[styles.filterRow, largeText && { flexDirection: 'column' }]}>
-          <LeaderboardFilter label="Ranking category" value={metric} grow={1.55} onChange={(value) => filter({ metric: value })}
+          <ChoiceMenu label="Ranking category" value={metric} grow={1.55} onChange={(value) => filter({ metric: value })}
             options={[{ value: 'visits', label: 'Museum visits' }, { value: 'contributions', label: 'Helpful contributions' }]} />
-          <LeaderboardFilter label="Time period" value={period} onChange={(value) => filter({ period: value })}
+          <ChoiceMenu label="Time period" value={period} onChange={(value) => filter({ period: value })}
             options={[{ value: 'month', label: 'This month' }, { value: 'all', label: 'All time' }]} />
         </View>
         <View style={styles.subline}><Text style={styles.caption}>{periodLabel}</Text></View>
@@ -86,8 +87,8 @@ export function LeaderboardScreen() {
           accessibilityLabel={`${tied ? 'Tied rank' : 'Rank'} ${item.rank}, ${item.profile.name}${own ? ', you' : ''}, ${item.score} ${unit}${item.score === 1 ? '' : 's'}. Open public profile.`}
           onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: item.profile.profileId } })}
           style={[styles.row, own && styles.ownRow, largeText && { flexWrap: 'wrap' }]}>
-          <Text style={[styles.rank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
-          <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={35} />
+          <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
+          <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={48} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{item.profile.name}{own && <Text style={styles.caption}>  You</Text>}</Text>
             <Text style={styles.caption}>@{item.profile.username}</Text>
@@ -108,8 +109,7 @@ export function LeaderboardScreen() {
               action={audience === 'friends' ? 'Find people' : undefined} onAction={() => router.push('/people')} />}
       ListFooterComponent={<View style={styles.explainer}>
         {preferenceError && <Text accessibilityRole="alert" style={styles.caption}>{preferenceError}</Text>}
-        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day. Not verified attendance.' : 'Distinct identification records accepted in this period. No points for duplicate or pending submissions.'}</Text>
-        <Text style={styles.explanation}>{audience === 'friends' ? 'Only participating friends appear.' : 'Only people who opted into Global appear.'} Equal totals share a rank.</Text>
+        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Distinct identification records accepted in this period. No points for duplicate or pending submissions.'}</Text>
         <GalleryButton label="How rankings work" icon="chevron.right" iconPosition="trailing" onPress={() => setSheet('rules')} />
       </View>} />
     <View style={[styles.footer, largeText && { flexDirection: 'column', alignItems: 'stretch' }, { paddingBottom: Math.max(14, bottom) }]}>
@@ -136,12 +136,13 @@ const styles = StyleSheet.create({
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   tableHeading: { flexDirection: 'row', gap: 10, paddingTop: 11, paddingBottom: 9, alignItems: 'center' },
   columnLabel: { fontSize: 13, letterSpacing: 1, color: Gallery.muted },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 75, paddingVertical: 12, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 62, paddingVertical: 7, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
   ownRow: { backgroundColor: Gallery.highlight, borderRadius: 2, marginHorizontal: 9, paddingHorizontal: 9, marginVertical: 4, borderBottomWidth: 0 },
   rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
-  name: { fontSize: 17, fontWeight: '600', color: Gallery.ink, lineHeight: 25 },
-  score: { fontSize: 21, fontWeight: '500', color: Gallery.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  explainer: { paddingHorizontal: 20, paddingTop: 17, gap: 8 },
+  ownRank: { color: Gallery.surface, backgroundColor: Gallery.ink, textAlign: 'center', paddingVertical: 4 },
+  name: { ...Typography.section, fontSize: 24, lineHeight: 28, color: Gallery.ink },
+  score: { ...Typography.section, fontSize: 28, lineHeight: 34, color: Gallery.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  explainer: { paddingHorizontal: 20, paddingTop: 10, gap: 0 },
   explanation: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
   footerTitle: { color: Gallery.ink, fontSize: 13, fontWeight: '500', lineHeight: 19 },

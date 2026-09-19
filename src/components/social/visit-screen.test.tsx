@@ -30,9 +30,9 @@ beforeEach(() => { jest.clearAllMocks(); mockPages.mockReturnValue(pages()); });
 
 it('shows the shared status, owner, place, reflection, and full artwork count', async () => {
   await render(<VisitScreen postId="post-a" />);
-  expect(screen.getByText('Shared with friends')).toBeOnTheScreen();
+  expect(screen.getByText('Friends')).toBeOnTheScreen();
   expect(screen.getByText('Musée d’Orsay')).toBeOnTheScreen();
-  expect(screen.getByText(/Paris.*September 12, 2026/s)).toBeOnTheScreen();
+  expect(screen.getByText(/September 12, 2026.*Paris/s)).toBeOnTheScreen();
   expect(screen.getByText('The small details always win.')).toBeOnTheScreen();
   expect(screen.getByText('5 artworks shared')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View Alex Chen’s profile' }));

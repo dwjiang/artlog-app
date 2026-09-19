@@ -1,14 +1,15 @@
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { selectSavedWork } from '@/db/repos/saved-works';
 import type { SavedWork } from '@/db/schema';
 import { useCollectionWall } from '@/lib/wall/use-collection-wall';
-import { constrainLayout, type WallFrame } from '@/lib/wall/wall-layout';
-import { NativeSegmentedPicker } from './native-segmented-picker';
+import { constrainLayout, wallAspect, type WallFrame } from '@/lib/wall/wall-layout';
+import { WallArtwork } from './wall-artwork';
+import { wallFrames } from './wall-frame';
 import { ArtworkQueryState } from './artwork-query-state';
 import { GalleryButton } from './gallery-button';
 import { NoteVisibility } from './note-visibility';
@@ -30,9 +31,11 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
 
 /** Everything about how one hung artwork appears on the public wall: frame, the photo shown, and the note. */
 function WallDisplay({ work }: { work: SavedWork }) {
+  const { width } = useWindowDimensions();
   const wall = useCollectionWall([work]);
   const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
   const published = wall.acknowledged?.items.find((item) => item.saveLocalId === work.localId);
+  const piece = wall.pieces.find((item) => item.localId === hung?.placementId);
   // The hook owns the first read; a later sync can change note eligibility, so it re-reads the loaded wall.
   useEffect(() => { if (wall.signedIn && work.syncedAt && wall.acknowledged) void wall.refresh(); }, [wall.repository, work.syncedAt, wall.signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
   async function saveLayout() {
@@ -40,7 +43,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
     try { await wall.repository.publishLayout(); }
     catch { wall.setError('Your wall change was not saved. Tap Retry to save these changes.'); }
   }
-  function change(patch: { frame?: WallFrame; width?: number; photoLocalId?: string }) {
+  function change(patch: { frame?: WallFrame; photoLocalId?: string }) {
     if (!wall.draft || !hung || wall.pending) return;
     const { photoLocalId, ...layout } = patch;
     wall.repository.setLayoutDraft({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === hung.placementId
@@ -54,19 +57,19 @@ function WallDisplay({ work }: { work: SavedWork }) {
     catch { wall.setError('This note could not be shared. Refresh to review the latest synced note and try again.'); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-    <Text variant="display" accessibilityRole="header" style={{ color: Gallery.ink }}>{work.title}</Text>
+    <Text variant="pageTitle" accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: Gallery.ink }}>{work.title}</Text>
     {!wall.draft ? <Text style={styles.caption}>{wall.loading ? 'Opening your wall…' : 'Your wall is unavailable right now.'}</Text>
       : !hung ? <Text style={styles.caption}>This artwork is not on your wall.</Text> : <>
+      {piece && <View accessible accessibilityRole="image" accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
+        style={[styles.preview, { backgroundColor: wall.draft.color }]}>
+        <WallArtwork piece={piece} width={Math.min(width - 88, 188 * wallAspect(piece))} />
+      </View>}
       <View style={styles.section}><Text style={styles.label}>FRAME</Text>
-        <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallFramePicker value={hung.layout.frame} onChange={(frame) => change({ frame })} /></View></View>
-      <View style={styles.section}><Text style={styles.label}>SIZE ON WALL</Text>
-        <NativeSegmentedPicker label="Size on wall" value={hung.layout.width < 0.3 ? 'small' : hung.layout.width > 0.45 ? 'large' : 'medium'} disabled={wall.pending}
-          options={[{ value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]}
-          onChange={(size) => change({ width: size === 'small' ? 0.24 : size === 'medium' ? 0.36 : 0.52 })} />
-        <Text style={styles.caption}>Drag artworks on your wall to move them, or use Edit wall for exact placement.</Text></View>
+        <WallFramePicker piece={piece} value={hung.layout.frame} disabled={wall.pending} onChange={(frame) => change({ frame })} />
+        <Text style={styles.caption}>Hold and drag on your wall to move. Drag its corner to resize.</Text></View>
       <View style={styles.section}><Text style={styles.label}>WALL PHOTO</Text>
-        <Text style={styles.caption}>Only the selected photo is public. Other photos stay private.</Text>
-        <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallPhotoPicker savedId={work.localId} selectedId={hung.photoLocalId} onSelect={(photoLocalId) => change({ photoLocalId })} /></View>
+        <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallPhotoPicker compact savedId={work.localId} selectedId={hung.photoLocalId} onSelect={(photoLocalId) => change({ photoLocalId })} /></View>
+        <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
         {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}</View>
       <View style={styles.section}>
         <NoteVisibility visible={published?.noteVisible ?? false} disabled={wall.pending || !published?.noteEligible} onChange={(value) => { void shareNote(value); }} />
@@ -76,12 +79,14 @@ function WallDisplay({ work }: { work: SavedWork }) {
     {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
       <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
     {wall.pending && <Text accessibilityLiveRegion="polite" style={styles.caption}>Saving wall changes…</Text>}
+    {hung && !wall.pending && !wall.error && <Text style={styles.caption}>Changes save automatically.</Text>}
   </ScrollView>;
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingVertical: 16, gap: 24 },
-  section: { gap: 10 },
+  content: { paddingHorizontal: 20, paddingVertical: 4, gap: 12 },
+  section: { gap: 8 },
+  preview: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 4 },
   label: { fontSize: 13, letterSpacing: 0.8, fontWeight: '600', color: Gallery.ink },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
 });

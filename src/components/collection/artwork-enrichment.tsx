@@ -24,7 +24,7 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<'artworks'> }) 
 
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" themeColor="textSecondary">About this work</ThemedText>
+      <ThemedText variant="section">About this work</ThemedText>
       {enrichment instanceof Error ? (
         <ThemedText themeColor="textSecondary">Details about this work are unavailable right now.</ThemedText>
       ) : (

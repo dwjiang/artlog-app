@@ -56,14 +56,16 @@ describe('App navigation', () => {
       expect(getTabsState(`/${path}`)?.routes.find((route) => route.name === '(collection)')?.state).toBeUndefined();
     });
 
-  it.each(['result', 'label'])('keeps Scan behind a directly opened %s', (screen) => {
-    const scan = getTabsState(`/${screen}/demo`)?.routes.find(
-      (route) => route.name === '(scan)'
-    )?.state;
+  it.each(['result', 'label'])('opens %s above the tabs with the capture identifier', (screen) => {
+    const root = getRootState(`/${screen}/demo`);
+    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', `${screen}/[scanId]`]);
+    expect(root?.index).toBe(1);
+    expect(root?.routes[1].params).toMatchObject({ scanId: 'demo' });
+  });
 
-    expect(scan?.routes.map((route) => route.name)).toEqual(['scan', `${screen}/[scanId]`]);
-    expect(scan?.index).toBe(1);
-    expect(scan?.routes[1].params).toMatchObject({ scanId: 'demo' });
+  it('opens the artwork archive above the collection tab', () => {
+    const root = getRootState('/all-artworks');
+    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', 'all-artworks']);
   });
 
   it.each(['visit/post-id', 'profile/profile-id'])('opens %s above the tabs', (path) => {

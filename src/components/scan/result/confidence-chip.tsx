@@ -22,7 +22,7 @@ export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: Styl
 
 const styles = StyleSheet.create({
   chip: {
-    alignSelf: 'flex-start', paddingHorizontal: Spacing.two, paddingVertical: Spacing.one,
+    alignSelf: 'flex-start', paddingHorizontal: Spacing.two, paddingVertical: Spacing.half,
     borderRadius: 2, borderWidth: 1, backgroundColor: Colors.light.background,
   },
 });

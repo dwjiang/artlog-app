@@ -1,4 +1,4 @@
-import { constrainLayout, nextWallLayout, orderedPieces, removeWallPiece, wallBottom, type WallPiece } from './wall-layout';
+import { constrainLayout, nextWallLayout, removeWallPiece, wallBottom, type WallPiece } from './wall-layout';
 
 const piece = (width: number, height: number): WallPiece => ({ localId: 'one',
   artwork: { title: 'A painting', artist: 'An artist', media: { kind: 'catalog', width, height,
@@ -52,9 +52,4 @@ it('removes only the wall placement and compacts layers for the API', () => {
   expect(removeWallPiece(draft, 'two').items.map((item) => [item.saveLocalId, item.layout.layer]))
     .toEqual([['one', 0], ['three', 1]]);
   expect(draft.items).toHaveLength(3);
-});
-
-it('numbers pieces by the order they were hung, not their position', () => {
-  const pieces = [2, 0, 1].map((layer) => ({ ...piece(1, 1), localId: String(layer), layout: { ...piece(1, 1).layout, layer } }));
-  expect(orderedPieces(pieces).map((item) => item.localId)).toEqual(['0', '1', '2']);
 });

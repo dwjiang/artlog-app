@@ -54,13 +54,14 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
-    <View style={{ paddingHorizontal: 20, gap: 16 }}>
+    <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
       <Divider />
       <ArtworkEncounterList work={work} encounters={encounters} visitId={currentEncounter?.visit.localId} />
       <Divider />
-      <NoteEditor savedLocalId={work.localId} />
+      <NoteEditor savedLocalId={work.localId} sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)} />
       {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
+      {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
       {!!wall.draft && <>
         <Divider />
         <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
@@ -80,7 +81,6 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
       {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
         <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
       {wall.pending && <Text accessibilityLiveRegion="polite" style={styles.caption}>Saving wall changes…</Text>}
-      {work.artworkId && <><Divider /><ArtworkEnrichment artworkId={work.artworkId} /></>}
     </View>
   </ScrollView>;
 }
@@ -88,6 +88,6 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
 const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: Gallery.separator },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 6 },
+  row: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 6 },
   rowLabel: { flex: 1, fontSize: 17, lineHeight: 23, color: Gallery.ink },
 });

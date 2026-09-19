@@ -46,3 +46,13 @@ it('opens saved artwork from a visit and returns to its private reflection', asy
   expect(navigation.getPathname()).toBe('/journal/visit');
   expect(screen.getByText('The afternoon light')).toBeOnTheScreen();
 });
+
+it('searches a small visit from the artwork search control and restores the grid when closed', async () => {
+  await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
+  await fireEvent.press(screen.getByRole('button', { name: 'Search visit artworks' }));
+  await fireEvent.changeText(screen.getByPlaceholderText('Search this visit'), 'unmatched');
+  expect(screen.queryByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeNull();
+  expect(screen.getByText('No artworks match this search.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Hide artwork search' }));
+  expect(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
+});

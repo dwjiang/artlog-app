@@ -21,8 +21,8 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
     catch { showToast('This artwork could not be shared.'); }
   }
   return <Stack.Toolbar placement="right">
-    <Stack.Toolbar.Button icon="square.and.arrow.up" accessibilityLabel="Share artwork" tintColor={Gallery.ink} disabled={!work.cropPath} onPress={() => { void share(); }}>Share</Stack.Toolbar.Button>
-    <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More options" tintColor={Gallery.ink}>
+    <Stack.Toolbar.Button icon="square.and.arrow.up" accessibilityLabel="Share artwork" tintColor={Gallery.ink} hidesSharedBackground disabled={!work.cropPath} onPress={() => { void share(); }}>Share</Stack.Toolbar.Button>
+    <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More options" tintColor={Gallery.ink} hidesSharedBackground>
       <Stack.Toolbar.MenuAction onPress={() => router.push({ pathname: '/identify-artwork', params: { savedId: work.localId } })}>
         {work.title === 'Unidentified artwork' ? 'Identify this artwork' : 'Edit artwork details'}
       </Stack.Toolbar.MenuAction>
