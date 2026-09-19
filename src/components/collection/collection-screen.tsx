@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gallery } from '@/constants/theme';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { useCollectionData } from '@/lib/collection/use-collection-data';
-import { SyncPrompt } from '@/components/account/sync-prompt';
 import { CollectionVisits } from '../visits/collection-visits';
 import { CollectionHeader } from './collection-header';
 import { CollectionArtworks } from './collection-artworks';
@@ -42,7 +41,7 @@ function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch
   const header = <CollectionHeader loading={data.loading && !data.works.length && !data.visits.length && !data.error} artworkCount={data.works.length} visitCount={data.visits.length} />;
   return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
-      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={header} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
+      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={header}
         controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
           <CollectionSearchField value={artworkSearch} label="Search your artworks" placeholder="Title, artist, date or place" onChange={setArtworkSearch} onClear={() => setArtworkSearch('')} />
         </View></View>} />

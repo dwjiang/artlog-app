@@ -22,6 +22,7 @@ export function SettingsScreen() {
   const { data: profile } = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const detail = (section: string) => () => router.push({ pathname: '/settings-detail', params: { section } });
   const accountName = account?.linked ? profile?.name ?? 'Your Artlog account' : 'Sign in to Artlog';
+  const accountDetail = account?.linked ? profile ? `@${profile.username}` : account.email : undefined;
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 16 }}>
     <ThemedText variant="pageTitle" accessibilityRole="header">Settings</ThemedText>
     <View style={{ gap: 12 }}>
@@ -34,7 +35,7 @@ export function SettingsScreen() {
             <Image source="sf:person.fill" tintColor={Gallery.ink} style={{ width: 28, height: 28 }} accessible={false} /></View>}
         <View style={{ flex: 1, gap: 4 }}>
           <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>{accountName}</ThemedText>
-          {account?.linked && <ThemedText variant="metadata" themeColor="textSecondary">{profile ? `@${profile.username}` : account.email ?? `${account.deviceCount} linked ${account.deviceCount === 1 ? 'device' : 'devices'}`}</ThemedText>}
+          {!!accountDetail && <ThemedText variant="metadata" themeColor="textSecondary">{accountDetail}</ThemedText>}
         </View>
         <ThemedText themeColor="textSecondary" accessible={false}>›</ThemedText>
       </Pressable>
@@ -51,7 +52,6 @@ export function SettingsScreen() {
       <SettingsRow label="About" icon="info.circle" onPress={detail('about')} />
     </SettingsGroup>
     <ThemedText variant="metadata" themeColor="textSecondary">Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'Unknown'}</ThemedText>
-      <ThemedText variant="metadata" themeColor="textSecondary">{account?.linked ? 'Saved works and photos sync privately across your devices.' : 'Saved on this iPhone. Sign in to sync across devices or share with friends.'}</ThemedText>
     {__DEV__ && <SettingsGroup title="Developer"><SettingsRow label="Developer tools" icon="wrench.and.screwdriver" onPress={detail('developer')} /></SettingsGroup>}
   </ScrollView>;
 }
