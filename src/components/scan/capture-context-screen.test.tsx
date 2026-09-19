@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { CaptureContextScreen } from './capture-context-screen';
+import { Gallery } from '@/constants/theme';
 import type { PhotoSessionDraft } from '@/lib/capture/photo-draft';
 
 const mockBack = jest.fn();
@@ -49,6 +51,22 @@ it('writes the choice to the draft only and closes', async () => {
   expect(mockBack).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'No visit · Save artwork only' }));
   expect(mockUpdateSession).toHaveBeenLastCalledWith('owner', 'capture.jpg', { visitLocalId: null });
+});
+
+it.each([
+  ['No visit · Save artwork only', undefined],
+  ['Museum · 29 Feb 2024', 'captured-visit'],
+])('draws an even border around the selected "%s" option', async (name, visitId) => {
+  mockParams = { draftId: 'capture.jpg', visitId };
+  mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
+  await render(<CaptureContextScreen />);
+  const style = StyleSheet.flatten(screen.getByRole('button', { name, selected: true }).props.style);
+  for (const edge of ['Top', 'Right', 'Bottom', 'Left']) {
+    expect(style[`border${edge}Width`] ?? style.borderWidth).toBe(1);
+    expect(style[`border${edge}Color`] ?? style.borderColor).toBe(Gallery.ink);
+  }
+  expect(screen.getByRole('button', { name: 'Other museum · 1 Mar 2024' }))
+    .toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator });
 });
 
 it('names the open visit as the one happening now', async () => {
