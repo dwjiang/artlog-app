@@ -11,7 +11,6 @@ import type { Id } from '../../../convex/_generated/dataModel';
 
 import { ResultScreen } from './result-screen';
 import { LABEL_BUTTON } from './result/save-bar';
-import { MUSEUM_SEARCH_BUTTON } from './result/museum-search-section';
 import {
   bridge, confidentScan, confidentScanWithoutProse, failedScan, haystacks, lilies, missScan, SCAN_ID, softScan, unsupportedScan,
 } from './result/__fixtures__/scan';
@@ -21,7 +20,7 @@ import * as visits from '@/db/repos/visits';
 import { resolveWithLabel } from '@/lib/result/feedback';
 import { runMuseumSearchForScan } from '@/lib/museum-search/museum-search-deps';
 import { candidates, confirmed, verified } from '@/lib/museum-search/__fixtures__/search';
-import { getMuseumSearchConsent, setMuseumSearchConsent } from '@/lib/settings/museum-search';
+import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
@@ -507,37 +506,19 @@ it('explains an invalid scan link without exposing server details and offers a w
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
-it('offers museum search only on soft or missed cards with a venue and consent not declined', async () => {
+it('searches soft or missed cards only with a venue and granted consent, never prompting for consent on the card', async () => {
   results.set('scans:get', softScan);
   const view = await render(result());
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeOnTheScreen();
-  await publish({ ...missScan, venueId: undefined });
-  expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull();
-  await publish(missScan);
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeOnTheScreen();
+  await screen.findByText('Maybe');
+  expect(screen.queryByText("Search this museum's collection?")).toBeNull();
   await act(async () => { await setMuseumSearchConsent('declined'); });
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
+  await view.rerender(result());
+  await publish({ ...missScan, venueId: undefined });
+  await act(async () => { await setMuseumSearchConsent('granted'); });
   await view.rerender(result());
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
-});
-
-it('requires first-use consent, keeps Not now temporary, and grants before starting the flow', async () => {
-  results.set('scans:get', missScan);
-  await render(result());
-  await fireEvent.press(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  expect(await screen.findByText("Search this museum's collection?")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
-  expect(await getMuseumSearchConsent()).toBe('unset');
-  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  jest.mocked(runMuseumSearchForScan).mockImplementation(async () => {
-    expect(await getMuseumSearchConsent()).toBe('granted');
-    return { stage: 'none', reason: 'no_candidates' };
-  });
-  await fireEvent.press(await screen.findByRole('button', { name: 'Search' }));
+  await publish(missScan);
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
-  expect(await screen.findByText("Not on the museum's site — point at the label")).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -562,7 +543,8 @@ it('waits for connectivity before automatically searching', async () => {
   mockNetwork.isInternetReachable = false;
   results.set('scans:get', missScan);
   const view = await render(result());
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeDisabled();
+  await screen.findByRole('button', { name: LABEL_BUTTON });
+  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   mockNetwork.isInternetReachable = true;
   await view.rerender(result());
@@ -607,18 +589,17 @@ it.each([
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
-it('rechecks consent after returning from Settings and prevents a stale manual action', async () => {
+it('starts automatic search after consent is granted in Settings', async () => {
   results.set('scans:get', missScan);
   const view = await render(result());
-  const staleButton = await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON });
+  await screen.findByRole('button', { name: LABEL_BUTTON });
+  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   mockFocused = false;
   await view.rerender(result());
-  await setMuseumSearchConsent('declined');
+  await setMuseumSearchConsent('granted');
   mockFocused = true;
   await view.rerender(result());
-  await fireEvent.press(staleButton);
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
-  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
+  await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -628,7 +609,7 @@ it.each(['no_venue_site', 'venue_opted_out'])('hides museum search when the back
   jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason });
   await render(result());
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Searching the museum's collection…")).toBeNull());
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -656,7 +637,6 @@ it('keeps the label available when a stored museum confirmation failed moderatio
   await render(result());
   expect(await screen.findByText("Couldn't search right now")).toBeOnTheScreen();
   expect(screen.queryByText("Found on the museum's site")).toBeNull();
-  expect(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeDisabled();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
 });
@@ -740,7 +720,7 @@ it('keeps museum search unavailable after picking a runner-up on a confident sca
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet' }));
   await screen.findByText('Maybe');
-  expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull();
+  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
@@ -881,7 +861,7 @@ it('reopens a completed label review from a scan without a museum result', async
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
 });
 
-it('keeps a tentative visitor suggestion visible until museum search is requested', async () => {
+it('keeps a tentative visitor suggestion visible without starting museum search', async () => {
   await setMuseumSearchConsent('granted');
   results.set('scans:get', { ...softScan, best: { ...softScan.best!, identityStatus: 'tentative' },
     runnerUps: [{ ...haystacks, identityStatus: 'tentative' }] });
@@ -895,8 +875,6 @@ it('keeps a tentative visitor suggestion visible until museum search is requeste
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ })).toBeEnabled();
   expect(screen.queryByText('About this work')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
 });
 
 it('saves edited tentative metadata without implying confirmation', async () => {

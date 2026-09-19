@@ -8,7 +8,6 @@ import { CapturePhotosButton } from '../capture-photos-button';
 import { ConsentSheet } from '../label/consent-sheet';
 import { LabelActions } from '../label/label-actions';
 import { VerifiedFieldsForm } from '../label/verified-fields-form';
-import { SearchConsentSheet } from './search-consent-sheet';
 import { SourceChip } from './source-chip';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
@@ -21,7 +20,6 @@ import type { MuseumSearchStage } from '@/lib/museum-search/flow';
 import type { MuseumSearchController } from '@/lib/museum-search/use-museum-search';
 import { useSaveResult } from '@/lib/result/use-save-result';
 
-export const MUSEUM_SEARCH_BUTTON = "Search this museum's collection";
 const STAGE_TEXT: Record<MuseumSearchStage, string> = {
   exhibitions: 'Looking up current exhibitions',
   describe: 'Preparing your photo', search: 'Describing the painting and searching the site',
@@ -38,22 +36,17 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
       {search.restoreError && <GalleryButton label="Try again" variant="outlined" onPress={search.retryRestore} />}
     </View>
   );
+  if (!search.flow && !search.running && !search.message) return null;
   return (
     <View style={styles.section}>
       {search.flow && search.confirmedAt !== undefined ? (
         <MuseumSearchResult key={`${scanId}:${search.confirmedAt}`} flow={search.flow} confirmedAt={search.confirmedAt} scanId={scanId} capture={capture} />
-      ) : (
-        <>
-          <GalleryButton label={MUSEUM_SEARCH_BUTTON} variant="outlined" fullWidth busy={search.running} busyLabel="Searching…" disabled={!search.canSearch || search.running} onPress={search.requestSearch} />
-          {search.running ? (
-            <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }} style={styles.progress}>
-              <ThemedText>{"Searching the museum's collection…"}</ThemedText>
-              {search.progress && <ThemedText type="small" themeColor="textSecondary">{STAGE_TEXT[search.progress]}</ThemedText>}
-            </View>
-          ) : search.message && <ThemedText themeColor="textSecondary">{search.message}</ThemedText>}
-        </>
-      )}
-      <SearchConsentSheet open={search.consentOpen} onGranted={search.acceptConsent} onDismiss={search.dismissConsent} />
+      ) : search.running ? (
+        <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }} style={styles.progress}>
+          <ThemedText>{"Searching the museum's collection…"}</ThemedText>
+          {search.progress && <ThemedText type="small" themeColor="textSecondary">{STAGE_TEXT[search.progress]}</ThemedText>}
+        </View>
+      ) : search.message && <ThemedText themeColor="textSecondary">{search.message}</ThemedText>}
     </View>
   );
 }
