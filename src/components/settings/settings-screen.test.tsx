@@ -138,15 +138,16 @@ it('keeps withdrawal retryable when the network fails', async () => {
 it('opens the shared sign-in sheet from the account row', async () => {
   await render(<SettingsScreen />);
   expect(screen.getByText('Using Artlog without an account')).toBeOnTheScreen();
-  expect(screen.getByText('Saved on this iPhone. Sign in to sync across devices or share with friends.')).toBeOnTheScreen();
+  expect(screen.queryByText(/sync across devices/i)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
-it('shows linked devices and preserves sign-out and account deletion controls', async () => {
+it('shows account details and controls without device counts or sync copy', async () => {
   mockAccount = { linked: true, deviceCount: 2, email: 'visitor@example.com' };
   await render(<SettingsDetailScreen section="account" />);
-  expect(screen.getByText('2 devices')).toBeOnTheScreen();
+  expect(screen.queryByText('Devices')).toBeNull();
+  expect(screen.queryByText(/devices|sync privately/i)).toBeNull();
   expect(screen.getByText('visitor@example.com')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Delete account' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));

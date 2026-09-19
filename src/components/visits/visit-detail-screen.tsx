@@ -43,9 +43,9 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const { controller, token } = sharing;
   useFocusEffect(useCallback(() => { if (signedIn && token && generation) void controller.load(); }, [controller, signedIn, token, generation]));
   const active = sharing.acknowledged?.status === 'active';
-  const status = !signedIn ? 'Private on this device' : sharing.profileRequired ? 'Private visit'
+  const status = !signedIn || sharing.profileRequired ? null
     : sharing.error ? 'Sharing status unavailable' : active ? sharing.acknowledged?.audience === 'public' ? 'Shared publicly' : 'Shared with friends'
-      : sharing.acknowledged ? 'Private visit' : 'Checking sharing status…';
+      : sharing.acknowledged ? null : 'Checking sharing status…';
   const openSharing = () => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } });
   function stopSharing() {
     Alert.alert('Stop sharing this visit?', 'Friends will no longer be able to see this visit.', [
@@ -60,11 +60,11 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
       <Stack.Toolbar.MenuAction icon="square.and.pencil" onPress={() => router.push({ pathname: '/visit-reflection', params: { visitId: visit.localId } })}>Edit reflection</Stack.Toolbar.MenuAction>
     </Stack.Toolbar.Menu></Stack.Toolbar>
     <VisitPage>
-      <View style={detail.stampRow}>
+      {status && <View style={detail.stampRow}>
         <View style={detail.badge}><VisitSymbol name={sharing.acknowledged?.status === 'active' ? 'person.2' : 'lock'} size={11} color={Gallery.ink} />
           <Text style={detail.badgeText}>{status}</Text>
         </View>
-      </View>
+      </View>}
       <View style={{ gap: 4 }}>
         <Text selectable accessibilityRole="header" style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}>{visit.venueName}</Text>
         <Text selectable style={styles.caption}>{formatVisitDate(visit.visitedOn)}{visit.location ? ` · ${visit.location}` : ''}</Text>

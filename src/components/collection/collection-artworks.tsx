@@ -20,8 +20,8 @@ import { ChoiceMenu } from '../choice-menu';
 type Work = ReturnType<typeof useCollectionData>['works'][number];
 type Row = { key: string; kind: 'element'; element: ReactElement } | { key: string; kind: 'artist'; title: string } | { key: string; kind: 'work'; work: Work };
 
-export function CollectionArtworks({ works, loading, error, search, header, controls, summary, onClearSearch, onRetry }: Pick<ReturnType<typeof useCollectionData>, 'works' | 'loading' | 'error'> & {
-  search: string; header?: ReactElement; controls?: ReactElement; summary?: ReactElement; onClearSearch?: () => void; onRetry?: () => void;
+export function CollectionArtworks({ works, loading, error, search, header, controls, onClearSearch, onRetry }: Pick<ReturnType<typeof useCollectionData>, 'works' | 'loading' | 'error'> & {
+  search: string; header?: ReactElement; controls?: ReactElement; onClearSearch?: () => void; onRetry?: () => void;
 }) {
   const wall = useCollectionWall(works);
   const { fontScale, width } = useWindowDimensions();
@@ -33,7 +33,6 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   const filtered = filterWorks(works, search);
   const rows: Row[] = [];
   if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
-  if (summary) rows.push({ key: 'summary', kind: 'element', element: summary });
   const initialLoading = loading && !error && !works.length;
   if (!initialLoading) rows.push({ key: 'count', kind: 'element', element: <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
     <Text variant="metadata" themeColor="textSecondary" style={{ flex: 1 }}>{filtered.length} {filtered.length === 1 ? 'artwork' : 'artworks'}</Text>

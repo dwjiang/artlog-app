@@ -8,14 +8,11 @@ import { useAccount } from '@/lib/account/use-account';
 export function AccountSection() {
   const { account, busy, error, signOut, deleteAccount } = useAccount();
   const status = busy ? <GroupedFooter>Updating account…</GroupedFooter> : error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
-  if (!account?.linked) return <GroupedSection footer={status ?? <GroupedFooter>Sync your collection and share visits with friends.</GroupedFooter>}>
+  if (!account?.linked) return <GroupedSection footer={status}>
     <ActionRow label="Sign in to Artlog" icon="person.crop.circle" onPress={() => router.push(signInRoute('account'))} />
   </GroupedSection>;
   return <>
-    <GroupedSection footer={<GroupedFooter>Saved works and photos sync privately across your devices. Downloaded photos are available offline.</GroupedFooter>}>
-      {account.email ? <ValueRow label="Apple ID" value={account.email} /> : null}
-      <ValueRow label="Devices" value={`${account.deviceCount} ${account.deviceCount === 1 ? 'device' : 'devices'}`} />
-    </GroupedSection>
+    {account.email && <GroupedSection><ValueRow label="Apple ID" value={account.email} /></GroupedSection>}
     <GroupedSection footer={status}>
       <ActionRow label="Sign out" disabled={busy} onPress={() => { void signOut(); }} />
       <ActionRow label="Delete account" destructive disabled={busy} onPress={() => Alert.alert(
