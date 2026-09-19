@@ -44,7 +44,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
     const current = selected === value;
     return <Pressable key={value} accessibilityRole="button" accessibilityLabel={detail ? `${label} · ${detail}` : label}
       accessibilityState={{ selected: current }} onPress={() => choose(value)}
-      style={({ pressed }) => [styles.option, current && styles.selected, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.option, current ? styles.selected : styles.unselected, pressed && styles.pressed]}>
       <View style={styles.optionText}>
         <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
         {detail && <ThemedText type="small" themeColor="textSecondary">{detail}</ThemedText>}
@@ -70,7 +70,8 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
   content: { padding: Spacing.content, gap: Spacing.four },
-  option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', padding: Spacing.three, gap: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', padding: Spacing.three, gap: Spacing.two },
+  unselected: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   optionText: { flex: 1, gap: Spacing.one },
   selected: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
   selectedLabel: { fontWeight: '600' },

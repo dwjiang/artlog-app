@@ -68,7 +68,7 @@ export default function RootLayout() {
               dangerouslySingular
               options={{
                 presentation: 'formSheet',
-                sheetAllowedDetents: [0.45],
+                sheetAllowedDetents: 'fitToContents',
                 sheetGrabberVisible: true,
                 headerShown: false,
               }}

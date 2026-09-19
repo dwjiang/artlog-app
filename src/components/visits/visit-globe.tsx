@@ -1,6 +1,6 @@
 import { Button, Host, Icon } from '@expo/ui';
 import { Menu, Picker, Text as NativeText } from '@expo/ui/swift-ui';
-import { accessibilityLabel, font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, font, foregroundStyle, pickerStyle, strokeBorder, tag } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -84,10 +84,14 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
     {visits.some((visit) => !visit.coordinates) && <VisitMessage action="Show List" onAction={onList}>Some visits have no globe location.</VisitMessage>}
   </View>;
 }
+const GLOBE_BUTTON_RADIUS = 6;
+
 function GlobeButton({ label, icon, onPress }: { label: string; icon: ComponentProps<typeof Icon>['name']; onPress: () => void }) {
   return <Host matchContents colorScheme="light">
-    <Button onPress={onPress} variant="text" modifiers={[accessibilityLabel(label)]}
-      style={{ width: 44, height: 44, borderRadius: 6, borderWidth: 0.5, borderColor: Gallery.separator, backgroundColor: Gallery.paper }}>
+    <Button onPress={onPress} variant="text" modifiers={[accessibilityLabel(label),
+      // Stroke the rounded shape; a style border is square and loses its corners when clipped.
+      strokeBorder({ color: Gallery.separator, shape: 'roundedRectangle', cornerRadius: GLOBE_BUTTON_RADIUS, style: { lineWidth: 1 } })]}
+      style={{ width: 44, height: 44, borderRadius: GLOBE_BUTTON_RADIUS, backgroundColor: Gallery.paper }}>
       <Icon name={icon} size={14} color={Gallery.accent} />
     </Button>
   </Host>;

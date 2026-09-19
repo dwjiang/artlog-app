@@ -2,6 +2,7 @@ import { LoadingRing } from '@/components/loading-ring';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +13,16 @@ import { formatVisitStart } from '@/lib/journal/use-visit-works';
 import { formatDistance } from '@/lib/venue/resolve';
 import { useVenue, type VenueView } from '@/lib/venue/use-venue';
 import { venueOptionKey, type CurrentVisit, type VenueOption } from '@/lib/venue/venue-reducer';
+
+/**
+ * `fitToContents` derives the sheet height from this scroll view, so an uncapped one grows past the
+ * tallest detent and the sheet then stops scrolling short of its own end at large text sizes.
+ */
+function useSheetStyle() {
+  const { height } = useWindowDimensions();
+  const { top } = useSafeAreaInsets();
+  return [styles.container, { maxHeight: height - top }];
+}
 
 function detail(option: VenueOption, nearest: boolean): string {
   const parts = [formatDistance(option.distanceM ?? Number.NaN)];
@@ -39,6 +50,7 @@ function VisitSheet({ visit, view, onChange }: { visit: CurrentVisit; view: Venu
   const { visits } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
   const works = summary?.works ?? [];
+  const sheetStyle = useSheetStyle();
   const [ending, setEnding] = useState(false);
   const [failure, setFailure] = useState<string>();
   const count = `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'} this visit`;
@@ -55,7 +67,7 @@ function VisitSheet({ visit, view, onChange }: { visit: CurrentVisit; view: Venu
     }
   }
   return (
-    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
       <View style={styles.eyebrowRow}>
         <View style={styles.dot} />
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>Visiting now · since {formatVisitStart(visit.startedAt, visit.timeZone)}</ThemedText>
@@ -74,6 +86,7 @@ function VisitSheet({ visit, view, onChange }: { visit: CurrentVisit; view: Venu
 function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => void }) {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
+  const sheetStyle = useSheetStyle();
   const { status, options, error, confirm, dismiss } = view;
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
@@ -126,7 +139,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
 
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
-    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
         <ThemedText type={status === 'locating' && fontScale > 1.5 ? 'subtitle' : 'title'} accessibilityRole="header" style={status === 'locating' && styles.loadingTitle}>{title}</ThemedText>
         {status === 'locating' && <LoadingRing color={Gallery.accent} accessibilityLabel="Locating your museum" />}
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
@@ -143,7 +156,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
               accessibilityState={{ selected: isSelected, busy: confirming, disabled: busy !== undefined }}
               disabled={busy !== undefined}
               onPress={() => setSelectedKey(key)}
-              style={({ pressed }) => [styles.option, isSelected && styles.selectedOption, (pressed || confirming) && styles.pressedOption]}
+              style={({ pressed }) => [styles.option, isSelected ? styles.selectedOption : styles.unselectedOption, (pressed || confirming) && styles.pressedOption]}
             >
               <View style={styles.optionText}>
                 <ThemedText style={isSelected && styles.selectedLabel}>{option.name}</ThemedText>
@@ -162,13 +175,14 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.background },
+  container: { flexGrow: 0, backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, gap: Spacing.three },
   loadingTitle: { textAlign: 'center' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: 'uppercase' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.success },
-  option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three },
+  unselectedOption: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   selectedOption: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
   pressedOption: { opacity: 0.6 },
   optionText: { flex: 1, gap: Spacing.half },

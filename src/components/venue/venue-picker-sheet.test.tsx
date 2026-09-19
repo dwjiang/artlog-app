@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 
 import { VenuePickerSheet } from './venue-picker-sheet';
 import type { VenueView } from '@/lib/venue/use-venue';
 import type { CurrentVisit, VenueOption } from '@/lib/venue/venue-reducer';
 jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) }));
 
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
@@ -54,6 +55,21 @@ describe('choosing a museum', () => {
     expect(screen.getByRole('button', { name: 'Neue Galerie' })).toBeSelected();
     await fireEvent.press(screen.getByRole('button', { name: 'Confirm Neue Galerie' }));
     expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
+  });
+
+  it('gives the selected museum a uniform border when selection changes', async () => {
+    await render(<VenuePickerSheet />);
+    const nearest = screen.getByRole('button', { name: seeded.name });
+    const other = screen.getByRole('button', { name: neighbour.name });
+    expect(nearest).toHaveStyle({ borderWidth: 1 });
+    expect(nearest).not.toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth });
+    expect(other).toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth });
+
+    await fireEvent.press(other);
+
+    expect(other).toHaveStyle({ borderWidth: 1 });
+    expect(other).not.toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth });
+    expect(nearest).toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth });
   });
 
   it('asks "still here?" for a lone museum beyond the automatic radius', async () => {

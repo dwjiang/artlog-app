@@ -5,6 +5,7 @@ import { accessibilityAddTraits, accessibilityElement, accessibilityLabel, backg
 import { Gallery, Spacing } from '@/constants/theme';
 
 const SEGMENT_RADIUS = 4;
+const SEGMENT_BORDER_WIDTH = 1;
 
 export function NativeSegmentedPicker<T extends string>({ label, value, options, onChange, disabled = false, compact = false }: {
   label: string; value?: T; options: { value: T; label: string; icon?: ComponentProps<typeof Icon>['name'] }[];
@@ -15,11 +16,11 @@ export function NativeSegmentedPicker<T extends string>({ label, value, options,
   const Layout = stacked ? Column : Row;
   const fillWidth = !compact || stacked;
   return <Host key={fontScale} matchContents={fillWidth ? { vertical: true } : true} colorScheme="light" style={fillWidth ? { width: '100%' } : undefined}>
-    <Layout alignment="center" spacing={1}
+    <Layout alignment="center" spacing={SEGMENT_BORDER_WIDTH}
       style={{ backgroundColor: Gallery.controlBorder, borderRadius: SEGMENT_RADIUS }}
       modifiers={[accessibilityElement('contain'), accessibilityLabel(label), ...(fillWidth ? [frame({ maxWidth: Infinity })] : []),
         // Style borders are a square stroke clipped by the radius, which notches the corners; stroke the rounded shape instead.
-        strokeBorder({ color: Gallery.controlBorder, shape: 'roundedRectangle', cornerRadius: SEGMENT_RADIUS, style: { lineWidth: 0.5 } }), opacity(disabled ? 0.55 : 1)]}>
+        strokeBorder({ color: Gallery.controlBorder, shape: 'roundedRectangle', cornerRadius: SEGMENT_RADIUS, style: { lineWidth: SEGMENT_BORDER_WIDTH } }), opacity(disabled ? 0.55 : 1)]}>
       {options.map((option) => {
         const selected = option.value === value;
         return <Button key={option.value} variant="text" disabled={disabled} onPress={() => onChange(option.value)}
