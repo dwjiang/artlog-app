@@ -1,9 +1,10 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -147,7 +148,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
         onPick={pickRunnerUp} onEdit={() => setHasEdits(true)} onLabel={openLabel} {...saveProps} /> :
         <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
           {header}{context}
-          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
+          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
           {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
           {view.kind === 'failed' && <><FailedCard error={view.error} /><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
           {search}

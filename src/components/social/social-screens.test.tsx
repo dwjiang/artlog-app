@@ -71,6 +71,41 @@ it('opens visits, authors, and people from Home', async () => {
   expect(screen.queryByRole('button', { name: 'Your profile and settings' })).toBeNull();
 });
 
+it('keeps Home navigation available through ghosts, loaded content, and pagination', async () => {
+  mockPages.mockReturnValue(pages({ loading: true, done: false }));
+  const view = await render(<HomeScreen />);
+  expect(screen.getByRole('progressbar', { name: 'Loading visits…' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Find people' })).toBeOnTheScreen();
+  expect(screen.queryByText('A new view is on its way.')).toBeNull();
+  mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
+  await view.rerender(<HomeScreen />);
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  expect(screen.getAllByRole('progressbar', { name: 'Loading visits…' })).toHaveLength(1);
+  mockPages.mockReturnValue(pages({ items: [visit] }));
+  await view.rerender(<HomeScreen />);
+  expect(screen.queryByRole('progressbar', { name: 'Loading visits…' })).toBeNull();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+});
+
+it('replaces first-load ghosts with a retry action after failure', async () => {
+  mockPages.mockReturnValue(pages({ loading: true, done: false }));
+  const view = await render(<HomeScreen />);
+  mockPages.mockReturnValue(pages({ error: new Error('Offline'), done: false }));
+  await view.rerender(<HomeScreen />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+});
+
+it('retains existing visits and shows only the refresh indicator while refreshing', async () => {
+  mockPages.mockReturnValue(pages({ items: [visit], loading: true, refreshing: true, done: false }));
+  await render(<HomeScreen />);
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Refreshing visits' })).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar', { name: 'Loading visits…' })).toBeNull();
+  expect(screen.queryByText('You’re all caught up.')).toBeNull();
+});
+
 it.each([
   ['profile-required', 'Make yourself at home.'],
   ['offline', 'You’re offline.'], ['loading', 'Getting things ready…'],
@@ -78,7 +113,7 @@ it.each([
   mockSession = { ...mockSession, status };
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
-  expect(screen.getByText(expected)).toBeOnTheScreen();
+  expect(status === 'loading' ? screen.getByLabelText(expected) : screen.getByText(expected)).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
   expect(mockPages.mock.calls[0][1]).toBe('skip');
 });

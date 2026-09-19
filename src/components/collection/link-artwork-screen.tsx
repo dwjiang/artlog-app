@@ -16,6 +16,7 @@ import { GalleryButton } from './gallery-button';
 import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import { SocialState } from '../social/social-state';
+import { ListSkeleton } from '@/components/loading-skeleton';
 
 export function LinkArtworkScreen() {
   const { savedId, visitId } = useLocalSearchParams<{ savedId?: string; visitId?: string }>();
@@ -59,7 +60,7 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
         </Pressable>;
       }}
       ListEmptyComponent={query.error || encounters.error ? <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
-        : !query.updatedAt && !rows.length ? <SocialState title={savedId ? 'Loading visits…' : 'Loading artworks…'} loading />
+        : !query.updatedAt && !rows.length ? <ListSkeleton label={savedId ? 'Loading visits…' : 'Loading artworks…'} />
         : <SocialState title={search ? 'No matches.' : savedId ? 'No visits yet.' : 'No artworks yet.'}
           detail={search ? 'Try another name.' : savedId ? 'Add a visit to link this artwork.' : 'Save an artwork before linking it to this visit.'}
           action={search ? 'Clear search' : savedId ? undefined : 'Scan artwork'} onAction={search ? clearSearch : () => router.navigate('/scan')} />} />

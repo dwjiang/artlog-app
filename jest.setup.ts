@@ -1,5 +1,8 @@
 import { initializeOwner, switchOwner } from './src/lib/account/owner-store';
 
+// Native CSS animations are verified on iOS; Jest exercises their content and accessibility states.
+jest.mock('react-native-reanimated', () => ({ __esModule: true, default: { View: jest.requireActual('react-native').View } }));
+
 // Jest does not load .env files; route modules construct the Convex client at import time.
 process.env.EXPO_PUBLIC_CONVEX_URL ??= 'https://test.convex.cloud';
 

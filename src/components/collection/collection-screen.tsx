@@ -39,16 +39,17 @@ function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch
       <NativeSegmentedPicker label="Collection view" value={mode} onChange={setMode} disabled={editing}
         options={[{ value: 'collection', label: guest ? 'Artworks' : 'Wall' }, { value: 'visits', label: 'Visits' }]} />
     </View>;
+  const header = <CollectionHeader loading={data.loading && !data.works.length && !data.visits.length && !data.error} artworkCount={data.works.length} visitCount={data.visits.length} />;
   return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
-      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
+      {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={header} summary={data.works.length > 0 ? <SyncPrompt /> : undefined}
         controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
           <CollectionSearchField value={artworkSearch} label="Search your artworks" placeholder="Title, artist, date or place" onChange={setArtworkSearch} onClear={() => setArtworkSearch('')} />
         </View></View>} />
-        : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} controls={controls} />}
+        : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={header} controls={controls} />}
     </View>
     <View style={{ flex: 1, display: mode === 'visits' ? 'flex' : 'none' }}>
-      <CollectionVisits {...data} header={<CollectionHeader artworkCount={data.works.length} visitCount={data.visits.length} />} collectionControls={controls} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
+      <CollectionVisits {...data} header={header} collectionControls={controls} search={search} onSearchChange={setSearch} clearSearch={() => setSearch('')} />
     </View>
   </SafeAreaView>;
 }

@@ -1,4 +1,5 @@
 import { socialStyles } from './social-styles';
+import { ArtworkSkeleton } from '@/components/loading-skeleton';
 import { ScrollView } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -25,7 +26,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
     {session.offline || (shared && !sessionReady) ? <SocialGate session={session} />
       : unavailable ? <SocialState title="Artwork unavailable." detail="This artwork is no longer shared." />
         : result.error ? <SocialState title="Couldn’t load this artwork." detail={socialErrorMessage(result.error) ?? 'Please try again.'}
-          action="Try again" onAction={result.refresh} /> : !data ? <SocialState title="Opening artwork…" loading /> : <PublishedArtwork key={`${session.key}:${itemId}`}
+          action="Try again" onAction={result.refresh} /> : !data ? <ArtworkSkeleton /> : <PublishedArtwork key={`${session.key}:${itemId}`}
           artwork={data.artwork} photos={shared ? visit.data?.photos ?? [] : [data.artwork.media]} shared={shared}
           frame={shared ? 'none' : wall.data?.layout.frame ?? 'none'} token={session.token}
           enrichment={data.enrichment} note={shared ? undefined : wall.data?.note} />}

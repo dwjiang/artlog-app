@@ -14,6 +14,7 @@ import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import { WallFrame, wallFrameInset } from './wall-frame';
 import { WorkLink } from './work-link';
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { ChoiceMenu } from '../choice-menu';
 
 type Work = ReturnType<typeof useCollectionData>['works'][number];
@@ -33,7 +34,8 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   const rows: Row[] = [];
   if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
   if (summary) rows.push({ key: 'summary', kind: 'element', element: summary });
-  rows.push({ key: 'count', kind: 'element', element: <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+  const initialLoading = loading && !error && !works.length;
+  if (!initialLoading) rows.push({ key: 'count', kind: 'element', element: <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
     <Text variant="metadata" themeColor="textSecondary" style={{ flex: 1 }}>{filtered.length} {filtered.length === 1 ? 'artwork' : 'artworks'}</Text>
     <View style={{ minWidth: 96 }}><ChoiceMenu plain label="Sort artworks" value={sort} onChange={setSort} options={[{ value: 'recent', label: 'Recent' }, { value: 'artist', label: 'Artist' }]} /></View>
   </View> });
@@ -45,9 +47,9 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   } else {
     for (const work of [...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId))) rows.push({ key: work.localId, kind: 'work', work });
   }
-  const empty = filtered.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : loading ? 'Opening collection…' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
-    detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : loading ? undefined : works.length ? 'Try another title, artist, or place.' : 'Scan a painting to save your first artwork.'} loading={loading && !error}
-    action={error ? onRetry ? 'Try again' : undefined : loading ? undefined : works.length ? 'Clear search' : 'Scan artwork'}
+  const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} /> : filtered.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
+    detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : works.length ? 'Try another title, artist, or place.' : 'Scan a painting to save your first artwork.'}
+    action={error ? onRetry ? 'Try again' : undefined : works.length ? 'Clear search' : 'Scan artwork'}
     onAction={error ? onRetry : works.length ? onClearSearch : () => router.navigate('/scan')} />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"

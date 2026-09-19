@@ -17,6 +17,7 @@ import { PageFooter, SocialGate, SocialState } from './social-state';
 import { PublicProfileHeader, PublicWallView } from './public-wall-view';
 import { formatVisitDate } from '@/lib/journal/history';
 import { socialStyles } from './social-styles';
+import { ProfileSkeleton } from '@/components/loading-skeleton';
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
@@ -35,7 +36,7 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
   if (session.offline) return <SocialGate session={session} />;
   if (!profileId || profile.data === null) return <SocialState title="Profile unavailable." detail="This public profile is no longer available." />;
   if (profile.error) return <SocialState title="Couldn’t load this profile." detail={socialErrorMessage(profile.error) ?? 'Please try again.'} action="Try again" onAction={profile.refresh} />;
-  if (!profile.data) return <SocialState title="Opening profile…" loading />;
+  if (!profile.data) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic"><ProfileSkeleton /></ScrollView>;
   const person = profile.data;
   return <GestureHandlerRootView style={socialStyles.root}>
     <Stack.Screen options={{ title: '' }} />

@@ -14,6 +14,7 @@ import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { ThemedText as Text } from '@/components/themed-text';
 import { ProfileIdentity } from './visit-card';
 import { CollectionSearchField } from '../collection/collection-search-field';
+import { ListSkeleton } from '@/components/loading-skeleton';
 
 const searchPage = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
@@ -43,12 +44,12 @@ export function PeopleScreen() {
         <NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
-      ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : friends.loading ? 'Opening friends…' : 'No friends found.'}
-        loading={friends.loading} detail={friends.loading ? undefined : 'Search All people to make a connection.'} action={friends.error ? 'Try again' : undefined} onAction={friends.refresh} /> : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
-        : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2"
+      ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : 'No friends found.'}
+        detail="Search All people to make a connection." action={friends.error ? 'Try again' : undefined} onAction={friends.refresh} /> : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
+        : !text.trim() && (discovery.loading || discovery.error) ? null : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2"
           detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
-          : text !== debounced ? <SocialState title="Searching…" loading />
-            : results.done ? <SocialState title="No people found." detail="Try another name or username." /> : null}
+          : text !== debounced ? <ListSkeleton label="Searching…" avatar />
+            : results.done && !results.loading && !results.error ? <SocialState title="No people found." detail="Try another name or username." /> : null}
       ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
       onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
   </>;

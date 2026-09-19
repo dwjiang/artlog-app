@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { LoadingRing } from '@/components/loading-ring';
 
 // Product voice: the card says "waiting for signal" and asks for the label now.
 export const WAITING_TITLE = 'Waiting for signal';
@@ -21,7 +22,10 @@ export function WaitingForSignalCard({ status, onLabel }: WaitingForSignalCardPr
   return (
     <>
       <View style={styles.section}>
-        <ThemedText type="subtitle">{waiting ? WAITING_TITLE : IDENTIFYING_TITLE}</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.compact }}>
+          {!waiting && <LoadingRing accessible={false} />}
+          <ThemedText type="subtitle" style={{ flex: 1 }}>{waiting ? WAITING_TITLE : IDENTIFYING_TITLE}</ThemedText>
+        </View>
         <ThemedText themeColor="textSecondary">{waiting ? WAITING_LINE : IDENTIFYING_LINE}</ThemedText>
       </View>
       <GalleryButton label={LABEL_NOW} variant="filled" fullWidth onPress={onLabel} />

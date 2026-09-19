@@ -17,6 +17,7 @@ import { LeaderboardParticipation, PARTICIPATION_LABELS } from './leaderboard-pa
 import { LeaderboardRules } from './leaderboard-rules';
 import { ProfileAvatar } from './profile-avatar';
 import { SocialGate, SocialState } from './social-state';
+import { ListSkeleton } from '@/components/loading-skeleton';
 
 type BoardRow = FunctionReturnType<typeof api.leaderboards.list>['rows'][number];
 const viewabilityConfig = { itemVisiblePercentThreshold: 100 };
@@ -101,7 +102,7 @@ export function LeaderboardScreen() {
         <GalleryButton label={session.status === 'profile-required' ? 'Create your profile' : 'Sign in to connect'}
           onPress={() => router.push(session.status === 'profile-required' ? '/create-profile' : signInRoute('leaderboards'))} />
       </View> : <SocialGate session={session} />
-        : board.loading ? <SocialState title="Opening leaderboard…" loading />
+        : board.loading && !board.error ? <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
             : <SocialState title={audience === 'friends' ? 'No participating friends yet.' : 'No Global participants yet.'}
               detail={audience === 'friends' ? 'Only friends who choose to join appear here. Everyone else stays off the board.' : 'People who choose Friends & Global will appear here.'}

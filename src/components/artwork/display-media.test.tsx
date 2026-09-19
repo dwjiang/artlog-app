@@ -11,6 +11,19 @@ const derivative = { kind: 'derivative' as const, rights: 'contributor_consent' 
   reference: { kind: 'wallItem' as const, itemId: 'item-a' as never } };
 beforeEach(() => { process.env.EXPO_PUBLIC_CONVEX_SITE_URL = 'https://test.convex.site'; });
 
+it('reveals the image when loaded and removes the ghost after failure', async () => {
+  const view = await render(<DisplayMedia media={catalog} label="Saved title" width={200} />);
+  expect(screen.getByRole('progressbar', { name: 'Loading image: Saved title' })).toHaveStyle({ position: 'absolute' });
+  await fireEvent(screen.getByRole('image', { name: 'Saved title' }), 'load');
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByRole('image', { name: 'Saved title' })).toHaveStyle({ width: 200, height: 100 });
+  await view.rerender(<DisplayMedia media={{ ...catalog, url: 'https://museum.example/new.jpg' }} label="Saved title" width={200} />);
+  expect(screen.getByRole('progressbar')).toBeOnTheScreen();
+  await fireEvent(screen.getByRole('image', { name: 'Saved title' }), 'error');
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Image unavailable')).toBeOnTheScreen();
+});
+
 it('sizes eligible catalog images by dimensions and allows normal caching', async () => {
   await render(<DisplayMedia media={catalog} label="Saved title" width={200} />);
   expect(screen.getByRole('image', { name: 'Saved title' })).toHaveStyle({ width: 200, height: 100 });

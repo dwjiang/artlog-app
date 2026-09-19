@@ -1,6 +1,7 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { signInRoute, type SignInContext } from '@/lib/account/sign-in-context';
@@ -8,12 +9,13 @@ import { Gallery } from '@/constants/theme';
 import type { SocialSession } from '@/lib/social/use-social-session';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { socialStyles } from './social-styles';
+import { FeedSkeleton, ListSkeleton, VisitSkeleton } from '@/components/loading-skeleton';
 
 export function SocialState({ title, detail, icon = 'rectangle.3.group', loading, action, onAction }: {
   title: string; detail?: string; icon?: string; loading?: boolean; action?: string; onAction?: () => void;
 }) {
   return <View style={socialStyles.state}>
-    {loading ? <ActivityIndicator color={Gallery.accent} accessibilityLabel={title} />
+    {loading ? <LoadingRing color={Gallery.accent} accessibilityLabel={title} />
       : <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={{ width: 40, height: 40 }} />}
     <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>
     {detail && <Text selectable style={socialStyles.body}>{detail}</Text>}
@@ -41,11 +43,17 @@ export function SocialGate({ session, browsePublic = false, context = 'friends' 
   return <SocialState title="Getting things ready…" loading />;
 }
 
-export function PageFooter({ loading, error, done, count, loadMore, refresh, noun = 'visits', canLoadMore }: {
+export function PageFooter({ loading, error, done, count, loadMore, refresh, noun = 'visits', canLoadMore, skeleton = 'list' }: {
   loading: boolean; error?: Error; done: boolean; count: number; loadMore: () => void; refresh: () => void;
-  canLoadMore: boolean; noun?: string;
+  canLoadMore: boolean; noun?: string; skeleton?: 'feed' | 'list' | 'gallery';
 }) {
-  if (loading) return <SocialState title={`Loading ${noun}…`} loading />;
+  if (loading && !error) {
+    const label = `Loading ${noun}…`;
+    if (count > 0) return <View style={socialStyles.footer}><LoadingRing accessibilityLabel={label} /></View>;
+    if (skeleton === 'feed') return <FeedSkeleton label={label} />;
+    if (skeleton === 'gallery') return <VisitSkeleton label={label} heading={false} />;
+    return <ListSkeleton label={label} avatar={noun === 'people'} />;
+  }
   if (error) return <SocialState title={`Couldn’t load ${noun}.`} detail={socialErrorMessage(error) ?? 'Please try again.'}
     action="Try again" onAction={refresh} />;
   if (!done) return <View style={socialStyles.footer}>

@@ -1,6 +1,7 @@
+import { ImageSkeleton } from '@/components/loading-skeleton';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ConfidenceChip } from './confidence-chip';
 import { CornersOverlay } from './corners-overlay';
@@ -28,10 +29,10 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
       <View style={styles.frame} onLayout={(event) => setSize(event.nativeEvent.layout.width)}>
       {available ? (
         <Image source={cropUri} contentFit="cover" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
-      ) : (
+      ) : loading ? <ImageSkeleton style={{ width: '100%', height: '100%' }} /> : (
         <View style={styles.placeholder}>
-          {loading ? <ActivityIndicator color={Colors.light.accent} /> : <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />}
-          <ThemedText type="smallBold" style={styles.placeholderText}>{loading ? 'Loading photo…' : 'Photo unavailable'}</ThemedText>
+          <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />
+          <ThemedText type="smallBold" style={styles.placeholderText}>Photo unavailable</ThemedText>
           {artworkTitle && <ThemedText themeColor="textSecondary" style={styles.placeholderText}>{artworkTitle}</ThemedText>}
         </View>
       )}

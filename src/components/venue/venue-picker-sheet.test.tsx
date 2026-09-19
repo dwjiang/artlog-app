@@ -4,6 +4,7 @@ import { Linking } from 'react-native';
 import { VenuePickerSheet } from './venue-picker-sheet';
 import type { VenueView } from '@/lib/venue/use-venue';
 import type { VenueOption } from '@/lib/venue/venue-reducer';
+jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 
 const mockBack = jest.fn();
 const mockConfirm = jest.fn();

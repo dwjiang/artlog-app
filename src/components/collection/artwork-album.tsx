@@ -2,13 +2,15 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import type { SavedWork } from '@/db/schema';
 import { captureFileUri } from '@/lib/files/photos';
 import { NativeSegmentedPicker } from './native-segmented-picker';
+import { ImageSkeleton } from '@/components/loading-skeleton';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
@@ -17,13 +19,7 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
   const [page, setPage] = useState(0);
   const [ratios, setRatios] = useState<Record<string, number>>({});
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => { if (active) setReduceMotion(enabled); });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => { active = false; subscription.remove(); };
-  }, []);
+  const reduceMotion = useReducedMotion();
   const gallery = useRef<ScrollView>(null);
   const { width, fontScale } = useWindowDimensions();
   const rows = photos.data.filter((row) => row.owner === work.owner && row.savedLocalId === work.localId && (scope === 'all' || row.visitLocalId === visitId));
@@ -37,8 +33,8 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
     ? Math.max(44, Math.min((width - 40) * 0.56, (width - 40) / (ratios[selectedPhoto.localId] || 1))) : 180 * fontScale;
   const goTo = (next: number) => { setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion }); };
   return <View style={{ gap: 8 }}>
-    {!rows.length && <Text accessibilityRole={photos.error ? 'alert' : undefined} style={styles.secondary}>{photos.error ? 'Photos couldn’t load. Close and reopen this artwork to try again.'
-      : !photos.updatedAt ? 'Loading photos…' : scope === 'visit' ? 'No photos from this visit yet. View all photos or add one.' : 'No photos yet. Add a photo to this artwork.'}</Text>}
+    {!rows.length && !photos.updatedAt && !photos.error ? <ImageSkeleton label="Loading photos…" style={{ width: '100%', aspectRatio: 1 / 0.56 }} /> : !rows.length && <Text accessibilityRole={photos.error ? 'alert' : undefined} style={styles.secondary}>{photos.error ? 'Photos couldn’t load. Close and reopen this artwork to try again.'
+      : scope === 'visit' ? 'No photos from this visit yet. View all photos or add one.' : 'No photos yet. Add a photo to this artwork.'}</Text>}
     {!!rows.length && <View style={{ marginHorizontal: -20 }}>
     <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
       style={{ height: imageHeight }}

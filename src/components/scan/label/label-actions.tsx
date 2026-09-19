@@ -39,7 +39,7 @@ export function LabelActions({
         </Pressable>
       ) : (
         <>
-          <GalleryButton label="Save to collection" variant="filled" fullWidth busy={saving} disabled={!canSave || saving} onPress={onSave} />
+          <GalleryButton label="Save to collection" variant="filled" fullWidth busy={saving} busyLabel="Saving…" disabled={!canSave || saving} onPress={onSave} />
           <ThemedText type="small" themeColor="textSecondary">Save privately to your collection.</ThemedText>
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Add a title to save this work.</ThemedText>}
           {saveError && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{saveError}</ThemedText>}
@@ -51,7 +51,7 @@ export function LabelActions({
         <View style={styles.sharing}>
           <ThemedText type="subtitle">Help other visitors</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">Sharing with the index is optional and separate from saving.</ThemedText>
-          <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth busy={sharing} disabled={!canShare || sharing} onPress={onShare} />
+          <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth busy={sharing} busyLabel="Sharing…" disabled={!canShare || sharing} onPress={onShare} />
           {!canShare && <ThemedText type="small" themeColor="textSecondary">A title and an artist are needed to share.</ThemedText>}
           {shareError && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{shareError}</ThemedText>}
         </View>

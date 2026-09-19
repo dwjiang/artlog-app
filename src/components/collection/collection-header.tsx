@@ -9,8 +9,9 @@ import { useSocialSession } from '@/lib/social/use-social-session';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { GalleryIconButton } from './gallery-icon-button';
 import { useLocalOwner } from '@/lib/account/owner-store';
+import { Ghost, LoadingSkeleton } from '@/components/loading-skeleton';
 
-export function CollectionHeader({ artworkCount = 0, visitCount = 0 }: { artworkCount?: number; visitCount?: number }) {
+export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = false }: { artworkCount?: number; visitCount?: number; loading?: boolean }) {
   const session = useSocialSession();
   const { fontScale, width } = useWindowDimensions();
   const accessibilityLayout = fontScale >= 1.6;
@@ -27,7 +28,8 @@ export function CollectionHeader({ artworkCount = 0, visitCount = 0 }: { artwork
     <View style={{ flex: accessibilityLayout ? undefined : 1, minWidth: 0, gap: 2 }}>
       <Text variant={accessibilityLayout ? 'section' : 'display'} accessibilityRole="header" numberOfLines={2} style={{ color: Gallery.ink }}>{profile?.name ?? 'Your collection'}</Text>
       <Text variant="secondary" style={{ color: Gallery.muted }}>{status}</Text>
-      <Text variant="secondary" style={{ color: Gallery.muted }}>{counts}</Text>
+      {loading ? <LoadingSkeleton label="Loading collection counts"><Ghost width={150} style={{ marginTop: 5 }} /></LoadingSkeleton>
+        : <Text variant="secondary" style={{ color: Gallery.muted }}>{counts}</Text>}
     </View>
   </>;
   const identityStyle = { flex: stacked ? undefined : 1, minWidth: 0, flexDirection: accessibilityLayout ? 'column' as const : 'row' as const,

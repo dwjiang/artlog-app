@@ -47,7 +47,7 @@ it('marks no visit for an unassigned fresh result and honors an explicit draft o
 
 it('distinguishes loading visits from an empty collection', async () => {
   const view = await render(<CaptureContextScreen />);
-  expect(screen.getByText('Loading visits…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Loading visits…')).toBeOnTheScreen();
   expect(screen.queryByText('No visits yet. Create a visit, or save this artwork without one.')).toBeNull();
   mockQuery = { ...mockQuery, updatedAt: new Date() };
   await view.rerender(<CaptureContextScreen />);

@@ -88,7 +88,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
       </View> : <>
         <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Search museums" placeholder="Museum or city" value={query} maxLength={LIMITS.searchMax}
           onChangeText={setQuery} autoCorrect={false} style={styles.input} returnKeyType="search" />
-        {searching ? <VisitMessage loading>Searching museums…</VisitMessage> : searchError ? <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>{searchError}</VisitMessage>
+        {searching ? <VisitMessage loading skeleton="list">Searching museums…</VisitMessage> : searchError ? <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>{searchError}</VisitMessage>
           : query.trim().length < 2 ? <Text style={styles.caption}>Enter at least two characters.</Text>
           : !venues.length ? <Text style={styles.caption}>No museums match. Try the city or a shorter name.</Text> : null}
         {venues.map((row) => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`${row.name}, ${venueLocation(row).location || row.name}`}

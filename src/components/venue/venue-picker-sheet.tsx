@@ -1,6 +1,7 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
@@ -62,7 +63,7 @@ export function VenuePickerSheet() {
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <ThemedText type={status === 'locating' && fontScale > 1.5 ? 'subtitle' : 'title'} style={status === 'locating' && styles.loadingTitle}>{title}</ThemedText>
-        {status === 'locating' && <ActivityIndicator color={Gallery.accent} accessibilityLabel="Locating your museum" />}
+        {status === 'locating' && <LoadingRing color={Gallery.accent} accessibilityLabel="Locating your museum" />}
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
         {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
         {options.map((option) => {
@@ -83,7 +84,7 @@ export function VenuePickerSheet() {
                 <ThemedText style={current && styles.selectedLabel}>{option.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{confirming ? 'Confirming…' : detail(option, current)}</ThemedText>
               </View>
-              {confirming && <ActivityIndicator color={Gallery.accent} />}
+              {confirming && <LoadingRing color={Gallery.accent} />}
             </Pressable>
           );
         })}
