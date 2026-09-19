@@ -22,6 +22,8 @@ const contribution = {
 };
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
+jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'ready', key: 'settings' }) }));
+jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockAccount?.linked ? { name: 'Alex', username: 'alex' } : undefined }) }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
@@ -59,11 +61,21 @@ beforeEach(async () => {
 
 it('shows grouped settings and opens the matching detail', async () => {
   await render(<SettingsScreen />);
-  for (const title of ['Preferences', 'Sharing', 'Your data', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Sign in to Artlog' })).toBeOnTheScreen();
+  expect(screen.queryByText('YA', { includeHiddenElements: true })).toBeNull();
+  for (const title of ['Settings', 'Your journal', 'Your data', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About', 'about']]) {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
   }
+});
+
+it('opens account management from the profile row', async () => {
+  mockAccount = { linked: true, deviceCount: 2 };
+  await render(<SettingsScreen />);
+  expect(screen.getByText('A', { includeHiddenElements: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: /Alex/ }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/settings-detail', params: { section: 'account' } });
 });
 
 it('keeps privacy and About details accessible', async () => {

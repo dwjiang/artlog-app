@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ConfidenceChip } from './confidence-chip';
 import { CornersOverlay } from './corners-overlay';
@@ -16,17 +16,18 @@ export type CardHeaderProps = {
   corners?: number[][];
   inputSize: number;
   kind: ResultKind;
+  onNotRight?: () => void;
 };
 
-export function CardHeader({ cropUri, artworkTitle, loading = false, corners, inputSize, kind }: CardHeaderProps) {
+export function CardHeader({ cropUri, artworkTitle, loading = false, corners, inputSize, kind, onNotRight }: CardHeaderProps) {
   const [size, setSize] = useState(0);
   const [failedUri, setFailedUri] = useState<string>();
   const available = cropUri && failedUri !== cropUri;
   return (
     <View style={styles.header}>
-      <View style={[styles.frame, { minHeight: size }]} onLayout={(event) => setSize(event.nativeEvent.layout.width)}>
+      <View style={styles.frame} onLayout={(event) => setSize(event.nativeEvent.layout.width)}>
       {available ? (
-        <Image source={cropUri} contentFit="contain" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
+        <Image source={cropUri} contentFit="cover" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
       ) : (
         <View style={styles.placeholder}>
           {loading ? <ActivityIndicator color={Colors.light.accent} /> : <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />}
@@ -34,17 +35,25 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
           {artworkTitle && <ThemedText themeColor="textSecondary" style={styles.placeholderText}>{artworkTitle}</ThemedText>}
         </View>
       )}
-      {available && size > 0 && <CornersOverlay corners={corners} inputSize={inputSize} size={size} />}
+      {available && size > 0 && <View pointerEvents="none" style={{ position: 'absolute', width: size, height: size, top: (size / 1.4 - size) / 2 }}>
+        <CornersOverlay corners={corners} inputSize={inputSize} size={size} />
+      </View>}
       </View>
-      <ConfidenceChip kind={kind} />
+      <View style={styles.status}><ConfidenceChip kind={kind} />
+        {onNotRight && <Pressable accessibilityRole="button" onPress={onNotRight} hitSlop={8} style={styles.correction}>
+          <ThemedText variant="secondary" themeColor="accent">Not right?</ThemedText>
+        </Pressable>}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { gap: Spacing.three },
-  frame: { width: '100%', justifyContent: 'center', overflow: 'hidden', backgroundColor: Colors.light.backgroundElement },
-  photo: { width: '100%', aspectRatio: 1 },
+  header: { gap: Spacing.one },
+  frame: { width: '100%', aspectRatio: 1.4, justifyContent: 'center', overflow: 'hidden', backgroundColor: Colors.light.backgroundElement },
+  photo: { width: '100%', height: '100%' },
+  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
+  correction: { minHeight: 32, justifyContent: 'center' },
   placeholder: { alignItems: 'center', padding: 20, gap: Spacing.two },
   placeholderIcon: { width: 32, height: 32 },
   placeholderText: { alignSelf: 'stretch', textAlign: 'center' },

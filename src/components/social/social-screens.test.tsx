@@ -23,13 +23,11 @@ jest.mock('expo-image', () => ({ Image: (props: object) => {
   const { View } = jest.requireActual('react-native'); return <View accessibilityRole="image" {...props} />;
 } }));
 jest.mock('expo-router', () => {
-  const { Pressable, Text, TextInput } = jest.requireActual('react-native');
+  const { Pressable, Text } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.View = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.Button = function ToolbarButton({ children, onPress, accessibilityLabel }: { children: string; onPress: () => void; accessibilityLabel: string }) { return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>; };
-  return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar,
-    SearchBar: ({ onChangeText }: { onChangeText: (event: { nativeEvent: { text: string } }) => void }) =>
-      <TextInput accessibilityLabel="Name or username" onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} /> } };
+  return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar, Screen: () => null } };
 });
 
 const visit: SharedVisit = { audience: 'friends',
@@ -101,7 +99,7 @@ it('waits for finished pagination before showing empty or caught-up copy and off
   expect(mockRefresh).toHaveBeenCalled();
 });
 
-it('debounces native header search for 300 ms and skips invalid searches', async () => {
+it('debounces people search for 300 ms and skips invalid searches', async () => {
   jest.useFakeTimers();
   await render(<PeopleScreen />);
   await fireEvent.changeText(screen.getByLabelText('Name or username'), 'alex');

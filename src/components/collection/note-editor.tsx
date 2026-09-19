@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Button, Host } from '@expo/ui/swift-ui';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
@@ -46,12 +47,12 @@ export function NoteHeading({ title, children }: { title: string; children?: Rea
 }
 
 // Saves on blur and when the screen closes mid-edit.
-export function NoteEditor({ savedLocalId }: { savedLocalId: string }) {
+export function NoteEditor({ savedLocalId, sharedOnWall }: { savedLocalId: string; sharedOnWall?: boolean }) {
   const owner = useLocalOwner();
-  return <WorkNoteEditor key={`${owner}:${savedLocalId}`} savedLocalId={savedLocalId} owner={owner} />;
+  return <WorkNoteEditor key={`${owner}:${savedLocalId}`} savedLocalId={savedLocalId} owner={owner} sharedOnWall={sharedOnWall} />;
 }
 
-function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: string }) {
+function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: string; owner: string; sharedOnWall?: boolean }) {
   const [draft, setDraft] = useState<string>();
   const [saveFailed, setSaveFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -101,8 +102,12 @@ function WorkNoteEditor({ savedLocalId, owner }: { savedLocalId: string; owner: 
       {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary" style={styles.body}>{NOTE_LENGTH_MESSAGE}</ThemedText>}
       </> : draft ? <ThemedText selectable style={styles.body}>{draft}</ThemedText>
         : <ThemedText themeColor="textSecondary" style={styles.body}>Keep a private note about this work.</ThemedText>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Image source={sharedOnWall ? 'sf:globe' : 'sf:lock'} tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
+        <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>{sharedOnWall === true ? 'Shared on your public wall' : sharedOnWall === false || !owner.startsWith('account:') ? 'Only you' : 'Private unless shared on your wall'}</ThemedText>
+      </View>
       {saveFailed ? (
-        <View style={styles.body}>
+        <View>
           <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
           <Host matchContents colorScheme="light">
             <Button label="Retry save" onPress={() => persist(latest.current)} />
@@ -117,10 +122,10 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.two },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   swatch: { width: 14, height: 14, backgroundColor: Gallery.highlight },
-  title: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600', color: Gallery.ink },
-  body: { marginLeft: 24 },
+  title: { flex: 1, fontFamily: Fonts.display, fontSize: 20, lineHeight: 24, color: Gallery.ink },
+  body: { fontSize: 15, lineHeight: 21 },
   input: {
-    marginLeft: 24, minHeight: 96, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement,
+    minHeight: 96, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: Colors.light.backgroundElement,
     color: Colors.light.text, fontFamily: Fonts.sans, fontSize: 17, lineHeight: 24, textAlignVertical: 'top',
   },
 });

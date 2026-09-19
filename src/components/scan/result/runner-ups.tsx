@@ -35,6 +35,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
             </ThemedText>
             {candidate.identityStatus === 'tentative' && <TentativeOriginNotice />}
           </View>
+          <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
         </Pressable>
       ))}
     </View>
@@ -42,8 +43,8 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
 }
 
 const styles = StyleSheet.create({
-  list: { gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  list: { gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   pressed: { opacity: 0.6 },
   thumbnail: { width: 56, height: 56, borderRadius: 2, backgroundColor: Colors.light.backgroundElement },
   placeholder: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },

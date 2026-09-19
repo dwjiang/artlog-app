@@ -7,7 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Gallery } from '@/constants/theme';
-import { constrainLayout, isLightWall, orderedPieces, wallBottom, type WallLayout, type WallPiece } from '@/lib/wall/wall-layout';
+import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from '@/lib/wall/wall-layout';
 import { WallArtwork } from './wall-artwork';
 
 export function WallGallery({ pieces, color, width, editing = false, onSelect, onMove, selectedId, onRemove, children }: {
@@ -15,17 +15,16 @@ export function WallGallery({ pieces, color, width, editing = false, onSelect, o
   onSelect: (piece: WallPiece) => void; onMove?: (id: string, layout: WallLayout) => void; children?: React.ReactNode;
 }) {
   const light = isLightWall(color);
-  const numbers = new Map(orderedPieces(pieces).map((piece, index) => [piece.localId, index + 1]));
   return <View style={{ width, minHeight: pieces.length ? 580 : 440, height: Math.max(440, wallBottom(pieces) * width + 85),
     backgroundColor: color }}>
-    {pieces.map((piece) => <Hanging key={piece.localId} piece={piece} number={numbers.get(piece.localId) ?? 0} width={width} editing={editing}
+    {pieces.map((piece) => <Hanging key={piece.localId} piece={piece} width={width} editing={editing}
       selected={selectedId === piece.localId} onRemove={onRemove} labelColor={light ? Gallery.ink : Gallery.paper} onSelect={onSelect} onMove={onMove} />)}
     {children}
   </View>;
 }
 
-function Hanging({ piece, number, width, editing, labelColor, onSelect, onMove, selected, onRemove }: {
-  piece: WallPiece; number: number; width: number; editing: boolean; labelColor: string; selected: boolean; onRemove?: (id: string) => void;
+function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected, onRemove }: {
+  piece: WallPiece; width: number; editing: boolean; labelColor: string; selected: boolean; onRemove?: (id: string) => void;
   onSelect: (piece: WallPiece) => void; onMove?: (id: string, layout: WallLayout) => void;
 }) {
   const offsetX = useSharedValue(0), offsetY = useSharedValue(0), dragging = useSharedValue(false);
@@ -61,13 +60,12 @@ function Hanging({ piece, number, width, editing, labelColor, onSelect, onMove, 
     zIndex: dragging.get() ? 101 : layout.layer, opacity: dragging.get() ? 0.92 : 1 }));
   const hanging = <Animated.View style={[{ position: 'absolute', left: layout.x * width, top: layout.y * width, width: layout.width * width }, motion]}>
       <Animated.View style={size}><Pressable accessibilityRole="button" accessibilityLabel={`${piece.artwork.title}, ${piece.artwork.artist}`}
-        accessibilityHint={editing ? 'Opens frame, size, and position controls. Hold and drag to move.' : 'Opens artwork details.'}
+        accessibilityHint={editing ? 'Select to change the frame or photo. Hold and drag to move; drag the corner handle to resize.' : 'Opens artwork details.'}
         onPress={() => onSelect(piece)}>
         <View style={{ outlineColor: Gallery.segmentSelection, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
           <WallArtwork piece={piece} width={layout.width * width} />
         </View>
         {layout.width * width >= 78 && <View style={styles.label}>
-          <View style={styles.badge}><Text allowFontScaling={false} style={styles.badgeText}>{String(number).padStart(2, '0')}</Text></View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>{piece.artwork.artist}</Text>
             <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>{piece.artwork.title}</Text>
@@ -94,8 +92,6 @@ function Hanging({ piece, number, width, editing, labelColor, onSelect, onMove, 
 
 const styles = StyleSheet.create({
   label: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 8 },
-  badge: { minWidth: 22, height: 22, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.segmentSelection },
-  badgeText: { fontSize: 11, fontWeight: '700', color: Gallery.ink },
   artist: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
   title: { fontSize: 12, lineHeight: 16 },
   editBadge: { position: 'absolute', top: -10, right: -10, width: 26, height: 26,

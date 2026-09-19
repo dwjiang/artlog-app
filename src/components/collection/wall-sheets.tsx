@@ -52,7 +52,7 @@ export function WallArtworkSheet({ piece, editing, disabled = false, color, onCh
       <WallArtworkSummary piece={piece} color={color} />
       {editing && <>
         <Text style={styles.sectionHeading}>Frame</Text>
-        <WallFramePicker value={piece.layout.frame} disabled={disabled} onChange={(frame) => change({ frame })} />
+        <WallFramePicker piece={piece} value={piece.layout.frame} disabled={disabled} onChange={(frame) => change({ frame })} />
         <View style={[styles.section, styles.controls]}>
           <Text style={styles.heading}>Size on the wall</Text>
           <WallSizeSlider key={`${piece.localId}:${piece.layout.width}`} width={piece.layout.width} disabled={disabled} onChange={(width) => change({ width })} />

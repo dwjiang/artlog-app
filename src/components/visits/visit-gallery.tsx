@@ -20,25 +20,25 @@ export function VisitGallerySearch({ value, onChangeText }: { value: string; onC
   </View>;
 }
 
-export function VisitGalleryArtwork({ title, artist, photoCount, aspectRatio = 1, children }: {
-  title: string; artist: string | null; photoCount: number; aspectRatio?: number;
+export function VisitGalleryArtwork({ title, artist, photoCount, aspectRatio = 1, stageAspect = 1.04, children }: {
+  title: string; artist: string | null; photoCount: number; aspectRatio?: number; stageAspect?: number;
   children: (imageWidth: number) => ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
   const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
-  const frameWidth = Math.min(stageWidth, stageWidth / 1.04 * ratio);
+  const frameWidth = Math.max(stageWidth, stageWidth / stageAspect * ratio);
   return <>
-    <View style={styles.stage} onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}>
+    <View style={[styles.stage, { aspectRatio: stageAspect }]} onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}>
       <WallFrame frame="none" width={frameWidth}>{children(Math.max(1, frameWidth - wallFrameInset('none', frameWidth) * 2))}</WallFrame>
       {photoCount !== 1 && <View style={styles.badge}>
         {photoCount > 1 && <Image source="sf:photo.on.rectangle" tintColor={Gallery.muted} style={{ width: 11, height: 11 }} />}
         <Text style={styles.badgeText}>{photoCount ? `${photoCount} photos` : 'No photos'}</Text>
       </View>}
     </View>
-    <Text style={styles.title}>{title}</Text>
     <Text style={styles.artist}>{artist || 'Artist unknown'}</Text>
+    <Text style={styles.title}>{title}</Text>
   </>;
 }
 
@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', bottom: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: Gallery.paper, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
   badgeText: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  title: { fontSize: 15, lineHeight: 22, color: Gallery.ink, marginTop: 9, marginHorizontal: 1 },
-  artist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2, marginHorizontal: 1 },
+  title: { fontSize: 13, lineHeight: 18, color: Gallery.ink, marginTop: 1, marginHorizontal: 1 },
+  artist: { fontSize: 13, lineHeight: 18, fontWeight: '700', color: Gallery.ink, marginTop: 6, marginHorizontal: 1 },
 });

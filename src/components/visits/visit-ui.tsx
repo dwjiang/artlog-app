@@ -41,7 +41,7 @@ export function ArtworkPreviews({ works, size = 42, limit = 5, overflow = false 
 }
 export const visitStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
-  content: { padding: 20, paddingBottom: 40, gap: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32, gap: 12 },
   section: { padding: 20, gap: 12 },
   title: { ...Typography.display, color: Gallery.ink },
   heading: { fontSize: 20, lineHeight: 26, fontWeight: '600', color: Gallery.ink },

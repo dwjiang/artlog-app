@@ -42,3 +42,16 @@ it('takes another verb for cards that save without a result', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
   expect(handlers.onSave).toHaveBeenCalledTimes(1);
 });
+
+it('offers label confirmation first for uncertain matches while retaining manual saving', async () => {
+  const view = await render(<SaveBar saveLabel="Save with these details" canSave saving={false} labelFirst {...handlers} />);
+  const buttons = screen.getAllByRole('button');
+  expect(buttons[0]).toHaveTextContent(LABEL_BUTTON);
+  await fireEvent.press(buttons[0]);
+  expect(handlers.onLabel).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole('button', { name: 'Save with these details' }));
+  expect(handlers.onSave).toHaveBeenCalledTimes(1);
+  await view.rerender(<SaveBar saveLabel="Save with these details" canSave saving labelFirst {...handlers} />);
+  expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save with these details' })).toBeDisabled();
+});

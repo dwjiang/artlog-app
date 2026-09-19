@@ -27,11 +27,11 @@ jest.mock('../artwork/display-media', () => ({ DisplayMedia: ({ label }: { label
 jest.mock('expo-router', () => {
   const React = jest.requireActual('react');
   return { router: { push: (...args: unknown[]) => mockPush(...args), replace: (...args: unknown[]) => mockReplace(...args), back: () => mockBack(), dismiss: () => mockDismiss() },
-    useLocalSearchParams: () => ({ visitId: 'visit' }), useSegments: () => ['visit-share', '[visitId]'],
+    useLocalSearchParams: () => ({ visitId: 'visit' }), useSegments: () => ['visit-share', '[visitId]'], useNavigation: () => ({ getState: () => undefined }),
     Stack: Object.assign(() => {
       const screens = jest.requireActual('./visit-share-flow');
       return React.createElement(mockPage === 'preview' ? screens.VisitSharePreviewScreen : mockPage === 'shared' ? screens.VisitSharedScreen : screens.VisitShareScreen);
-    }, { Screen: () => null }) };
+    }, { Screen: () => null, Toolbar: Object.assign(jest.requireActual('react-native').View, { View: jest.requireActual('react-native').View }) }) };
 });
 afterEach(() => dismissToast());
 beforeEach(() => {
@@ -112,13 +112,13 @@ it('renders the server preview in published order and stays on it when publishin
   await render(<VisitShareLayout />);
   expect(screen.getAllByRole('image').map((image) => image.props.children)).toEqual(['Haystacks', 'Water Lilies']);
   expect(screen.queryByText('PRIVATE REFLECTION')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Share with friends' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Publish visit' }));
   expect(mockBack).not.toHaveBeenCalled();
 });
 it('offers a refreshed preview after revision conflicts', async () => {
   mockPage = 'preview'; mockSharing.conflict = true; mockSharing.error = 'Refresh the preview.';
   await render(<VisitShareLayout />);
-  expect(screen.queryByRole('button', { name: 'Share with friends' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Publish visit' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Back to selection' })); expect(mockBack).toHaveBeenCalled();
 });
 it('reuses profile and sign-in entry points before offering sharing', async () => {
@@ -140,14 +140,18 @@ it('starts with Friends and explains public access before previewing', async () 
   expect(screen.getByText('Anyone can see this visit, its selected photos and reflection, including people without an account.')).toBeOnTheScreen();
 });
 
-it('names the public audience in the final sharing action', async () => {
+it('names the public audience before publishing and allows returning to selection', async () => {
   mockPage = 'preview';
   mockSharing.preview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as never,
     venue: { name: 'Museum', venueId: 'museum' as never }, visitedOn: '2024-02-29', reflection: '', artworks: [] };
   await render(<VisitShareLayout />);
-  expect(screen.getByText('Preview before sharing publicly')).toBeOnTheScreen();
-  expect(screen.getByText('Shared publicly')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Share publicly' }));
+  expect(screen.getByText('Only this will be shared')).toBeOnTheScreen();
+  expect(screen.getByText('Public')).toBeOnTheScreen();
+  expect(screen.getByText('This visit will appear on public Home, including for people without an account; your private journal stays private.')).toBeOnTheScreen();
+  expect(mockController.publish).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit selection' }));
+  expect(mockBack).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole('button', { name: 'Publish visit' }));
   expect(mockController.publish).toHaveBeenCalledTimes(1);
 });
 

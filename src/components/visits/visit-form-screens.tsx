@@ -6,7 +6,9 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, TextInput, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
-import { Gallery } from '@/constants/theme';
+import { Gallery, Typography } from '@/constants/theme';
+import { HighlightHeading } from '../highlight-heading';
+import { formatVisitDate } from '@/lib/journal/history';
 import { patchVisit, upsertVisit } from '@/db/repos/visits';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { venueLocation } from '@/lib/venue/venue-location';
@@ -74,8 +76,8 @@ function CreateForm({ savedId }: { savedId?: string }) {
     finally { if (session.isOwnerCurrent()) { submitting.current = false; setBusy(false); } }
   }
   return <>
-    <Stack.Toolbar placement="left"><Stack.Toolbar.Button onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
-    <Stack.Toolbar placement="right"><Stack.Toolbar.Button variant="done" disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
+    <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
+    <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
     <VisitPage>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep the visit.</Text>
       <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>
@@ -132,11 +134,15 @@ function ReflectionForm({ visit }: { visit: VisitSummary }) {
     finally { if (session.isOwnerCurrent()) { submitting.current = false; setBusy(false); } }
   }
   return <>
-    <Stack.Toolbar placement="left"><Stack.Toolbar.Button disabled={busy} onPress={() => router.back()}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
-    <Stack.Toolbar placement="right"><Stack.Toolbar.Button variant="done" disabled={busy} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
-    <VisitPage><Text style={[styles.title, { letterSpacing: -0.8 }]}>Just for you.</Text><Text style={styles.caption}>{visit.venueName}</Text>
+    <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy} onPress={() => router.back()}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
+    <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
+    <VisitPage><Text accessibilityRole="header" style={[Typography.pageTitle, { color: Gallery.ink }]}>Just for you.</Text>
+      <Text style={styles.caption}>{visit.venueName} · {formatVisitDate(visit.visitedOn)}</Text>
+      <HighlightHeading>What stayed with you?</HighlightHeading>
       <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Private reflection" value={reflection} onChangeText={setReflection} multiline maxLength={LIMITS.note}
-        editable={!busy} style={[styles.input, styles.reflection]} autoFocus />
+        placeholder="A detail, a feeling, a work you keep thinking about…" editable={!busy}
+        style={[styles.body, { minHeight: 160, paddingVertical: 12, borderTopWidth: 0.5, borderColor: Gallery.separator, textAlignVertical: 'top' }]} />
+      <Text style={[styles.caption, { fontVariant: ['tabular-nums'], paddingBottom: 16, borderBottomWidth: 0.5, borderColor: Gallery.separator }]}>{reflection.length.toLocaleString()} / {LIMITS.note.toLocaleString()}</Text>
       <Text style={styles.caption}>Only you can see this reflection. Sharing uses a separate reflection you write yourself.</Text>
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </VisitPage>

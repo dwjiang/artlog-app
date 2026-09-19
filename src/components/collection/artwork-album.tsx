@@ -34,9 +34,9 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
   } else if (page > lastPage) setPage(lastPage);
   const selectedPhoto = rows[Math.min(page, lastPage)];
   const imageHeight = selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
-    ? Math.max(44, (width - 40) / (ratios[selectedPhoto.localId] || 1)) : 180 * fontScale;
+    ? Math.max(44, Math.min((width - 40) * 0.56, (width - 40) / (ratios[selectedPhoto.localId] || 1))) : 180 * fontScale;
   const goTo = (next: number) => { setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion }); };
-  return <View style={{ gap: 16 }}>
+  return <View style={{ gap: 8 }}>
     {!rows.length && <Text accessibilityRole={photos.error ? 'alert' : undefined} style={styles.secondary}>{photos.error ? 'Photos couldn’t load. Close and reopen this artwork to try again.'
       : !photos.updatedAt ? 'Loading photos…' : scope === 'visit' ? 'No photos from this visit yet. View all photos or add one.' : 'No photos yet. Add a photo to this artwork.'}</Text>}
     {!!rows.length && <View style={{ marginHorizontal: -20 }}>
@@ -49,31 +49,42 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
           {photo.path && !failedPhotos[photo.path] ? <Image source={{ uri: captureFileUri(photo.path) }} accessibilityLabel={`${photo.kind} photo ${i + 1} of ${work.title}`}
             onError={() => setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))}
             onLoad={({ source }) => { if (source.width > 0 && source.height > 0) setRatios((previous) => ({ ...previous, [photo.localId]: source.width / source.height })); }}
-            style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <View style={{ minHeight: 180, backgroundColor: Gallery.fill, padding: 16, justifyContent: 'center' }}><Text style={styles.secondary}>{photo.path ? `Image unavailable · ${work.title}` : `Photo unavailable on this iPhone · ${work.title}`}</Text></View>}
+            style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ minHeight: 180, backgroundColor: Gallery.fill, padding: 16, justifyContent: 'center' }}><Text style={styles.secondary}>{photo.path ? `Image unavailable · ${work.title}` : `Photo unavailable on this iPhone · ${work.title}`}</Text></View>}
         </Pressable>
       </View>)}
     </ScrollView></View>}
-    {(rows.length > 1 || !!selectedPhoto?.caption || !!visitId) && <View style={styles.row}>
-      <Text selectable style={[styles.secondary, { flexShrink: 1 }]}>{selectedPhoto?.caption ?? ''}</Text>
-      {rows.length > 1 && <View style={styles.row}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Previous photo" disabled={page === 0} onPress={() => goTo(Math.max(0, page - 1))} style={[styles.arrow, page === 0 && { opacity: 0.4 }]}><Text style={styles.arrowText}>‹</Text></Pressable>
-        <Text style={[styles.secondary, { fontVariant: ['tabular-nums'] }]}>{Math.min(page + 1, rows.length)} / {rows.length}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Next photo" disabled={page >= rows.length - 1} onPress={() => goTo(Math.min(rows.length - 1, page + 1))} style={[styles.arrow, page >= rows.length - 1 && { opacity: 0.4 }]}><Text style={styles.arrowText}>›</Text></Pressable>
-      </View>}
+    {rows.length > 1 && <View style={styles.thumbnails}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ flex: 1 }}>
+        {rows.map((photo, index) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
+          accessibilityState={{ selected: index === page }} onPress={() => goTo(index)} style={[styles.thumbnail, index === page && { borderColor: Gallery.accent }]}>
+          {photo.path && !failedPhotos[photo.path] ? <Image source={{ uri: captureFileUri(photo.path) }} contentFit="cover" style={{ width: '100%', height: '100%' }} />
+            : <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />}
+        </Pressable>)}
+      </ScrollView>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={styles.secondary}>{rows.length} photos</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Previous photo" hitSlop={8} disabled={page === 0} onPress={() => goTo(Math.max(0, page - 1))} style={[styles.arrow, page === 0 && { opacity: 0.4 }]}><Text style={styles.arrowText}>‹</Text></Pressable>
+          <Text style={[styles.secondary, { fontVariant: ['tabular-nums'] }]}>{Math.min(page + 1, rows.length)} / {rows.length}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Next photo" hitSlop={8} disabled={page >= rows.length - 1} onPress={() => goTo(Math.min(rows.length - 1, page + 1))} style={[styles.arrow, page >= rows.length - 1 && { opacity: 0.4 }]}><Text style={styles.arrowText}>›</Text></Pressable>
+        </View>
+      </View>
     </View>}
+    {!!selectedPhoto?.caption && <Text selectable style={styles.secondary}>{selectedPhoto.caption}</Text>}
     {!!visitId && <NativeSegmentedPicker label="Photo scope" value={scope} onChange={(value) => { setScope(value); setPage(0); gallery.current?.scrollTo({ x: 0, animated: false }); }} options={[{ value: 'visit', label: 'This visit' }, { value: 'all', label: 'All photos' }]} />}
     <View style={{ gap: 4 }}>
-      <Text variant="display" accessibilityRole="header" selectable style={{ color: Gallery.ink }}>{work.artist || 'Artist unknown'}</Text>
+      <Text variant="display" accessibilityRole="header" selectable style={{ color: Gallery.ink, fontSize: 40, lineHeight: 46 }}>{work.artist || 'Artist unknown'}</Text>
       <Text selectable style={styles.title}>{work.title}{work.date ? `, ${work.date}` : ''}</Text>
       {!!work.medium && <Text selectable style={styles.medium}>{work.medium}</Text>}
     </View>
   </View>;
 }
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  thumbnails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  thumbnail: { width: 84, height: 54, padding: 3, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  arrow: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  arrow: { minWidth: 32, minHeight: 28, alignItems: 'center', justifyContent: 'center' },
   arrowText: { color: Gallery.ink, fontSize: 24 },
-  title: { fontSize: 20, lineHeight: 26, color: Gallery.ink },
+  title: { fontSize: 18, lineHeight: 22, color: Gallery.ink, fontWeight: '500' },
   medium: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
 });

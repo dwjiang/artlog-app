@@ -11,14 +11,16 @@ import type { PublicProfile, SharedArtwork, SharedVisit } from '@/lib/social/typ
 import { ProfileAvatar } from './profile-avatar';
 import { socialStyles } from './social-styles';
 
-export function ProfileIdentity({ profile, interactive = true }: { profile: PublicProfile; interactive?: boolean }) {
+export function ProfileIdentity({ profile, interactive = true, showChevron = false, friend = false }: { profile: PublicProfile; interactive?: boolean; showChevron?: boolean; friend?: boolean }) {
   const router = useRouter();
   const content = <>
-    <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={44} />
+    <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
     <View style={{ flex: 1, gap: 2 }}>
-      <Text style={styles.name}>{profile.name}</Text>
-      <Text style={socialStyles.caption}>@{profile.username} · {profile.publishedWallCount} artworks</Text>
+      <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
+      <Text style={socialStyles.caption}>@{profile.username}{!showChevron ? ` · ${profile.publishedWallCount} artworks` : ''}</Text>
     </View>
+    {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
+    {showChevron && <Text style={{ color: Gallery.muted }} accessible={false}>›</Text>}
   </>;
   return interactive ? <Pressable accessibilityRole="button" accessibilityLabel={`View ${profile.name}’s profile`}
     onPress={() => router.push({ pathname: '/profile/[profileId]', params: { profileId: profile.profileId } })}

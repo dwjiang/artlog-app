@@ -16,6 +16,15 @@ jest.mock('drizzle-orm/expo-sqlite', () => ({ useLiveQuery: (query: string) => (
 const work = { localId: 'work', owner: 'device:guest', title: 'Water Lilies', artist: 'Claude Monet' } as SavedWork;
 beforeEach(() => { jest.clearAllMocks(); mockPhotos = initialPhotos; mockPhotosUpdatedAt = undefined; mockPhotosError = undefined; });
 
+it('selects a thumbnail and edits that photo', async () => {
+  await render(<ArtworkAlbum work={work} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 3' }));
+  expect(screen.getByRole('button', { name: 'Show full photo 3', selected: true })).toBeOnTheScreen();
+  expect(screen.getByText('Museum view 3')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit full photo 3' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/photo-details', params: { savedId: 'work', photoId: 'photo-2' } });
+});
+
 it('keeps the selected photo caption and editing action together while browsing', async () => {
   await render(<ArtworkAlbum work={work} />);
   expect(screen.getByRole('header', { name: 'Claude Monet' })).toBeOnTheScreen();
