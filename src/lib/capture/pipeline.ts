@@ -5,6 +5,15 @@ import { errorMessage, isNetworkError } from '@/lib/network-error';
 import { roundVector } from './features';
 import type { CaptureDependencies, CaptureInput, CaptureOptions, CapturePayload, CaptureResult, CaptureTimings } from './stages';
 
+/** A visit sync slower than this sends the scan to the queue; the flusher finishes it. */
+export const VISIT_SYNC_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(task: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Visit sync timed out')), ms); });
+  return Promise.race([task, expiry]).finally(() => clearTimeout(timer));
+}
+
 export async function runCapture(
   input: CaptureInput,
   deps: CaptureDependencies,
@@ -54,6 +63,11 @@ export async function runCapture(
     };
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
+    if (online && payload.visitLocalId && !payload.visitId && payload.venueId && deps.resolveVisitId) {
+      payload.visitId = await withTimeout(deps.resolveVisitId(payload.visitLocalId, payload.venueId), VISIT_SYNC_TIMEOUT_MS)
+        .catch((error: unknown) => { console.warn('The visit has not synced yet; queuing the scan', error); return undefined; });
+      if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
+    }
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
     await presentationReady;
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');

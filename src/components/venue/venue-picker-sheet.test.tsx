@@ -3,102 +3,200 @@ import { Linking } from 'react-native';
 
 import { VenuePickerSheet } from './venue-picker-sheet';
 import type { VenueView } from '@/lib/venue/use-venue';
-import type { VenueOption } from '@/lib/venue/venue-reducer';
+import type { CurrentVisit, VenueOption } from '@/lib/venue/venue-reducer';
 jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 
 const mockBack = jest.fn();
+const mockReplace = jest.fn();
 const mockConfirm = jest.fn();
 const mockDismiss = jest.fn();
 const mockResolve = jest.fn();
+const mockEnd = jest.fn();
 let mockView: VenueView;
+let mockParams: { mode?: string } = {};
+let mockVisits: { localId: string; location: string; works: { localId: string; title: string; cropPath: null }[] }[] = [];
 
 jest.mock('@/components/collection/gallery-button');
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
+jest.mock('@/components/visits/visit-ui', () => ({ ArtworkPreviews: ({ works }: { works: unknown[] }) => { const { Text } = jest.requireActual('react-native'); return <Text>{works.length} previews</Text>; } }));
+jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ visits: mockVisits, loading: false }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, replace: mockReplace }), useLocalSearchParams: () => mockParams }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => mockView }));
 
 const seeded: VenueOption = { kind: 'seeded', venueId: 'id-met' as never, name: 'Metropolitan Museum of Art', distanceM: 42, website: 'https://www.metmuseum.org/' };
 const neighbour: VenueOption = { kind: 'seeded', venueId: 'id-neue' as never, name: 'Neue Galerie', distanceM: 310 };
 const poi: VenueOption = { kind: 'poi', name: 'Corner Gallery', lat: 1, lng: 2, distanceM: 1250, category: 'landmark' };
+const visit: CurrentVisit = { localId: 'visit-1', venueId: 'id-met' as never, venueName: 'Metropolitan Museum of Art', startedAt: Date.UTC(2026, 8, 18, 21, 10), visitedOn: '2026-09-18', timeZone: 'America/New_York' };
 
 beforeEach(() => {
   jest.resetAllMocks();
   mockConfirm.mockResolvedValue(undefined);
-  mockView = { status: 'choose', options: [seeded, neighbour], resolve: mockResolve, confirm: mockConfirm, dismiss: mockDismiss };
+  mockEnd.mockResolvedValue(undefined);
+  mockParams = {};
+  mockVisits = [];
+  mockView = { status: 'choose', options: [seeded, neighbour], resolve: mockResolve, confirm: mockConfirm, dismiss: mockDismiss, end: mockEnd };
 });
 
-it('lists the candidates with distances and confirms the tapped one before closing', async () => {
-  await render(<VenuePickerSheet />);
-  expect(screen.getByText('Looks like you’re at…')).toBeOnTheScreen();
-  expect(screen.getByText('40 m')).toBeOnTheScreen();
-  expect(screen.getByText('310 m')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Neue Galerie' }));
-  expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
-  expect(mockBack).toHaveBeenCalledTimes(1);
+describe('choosing a museum', () => {
+  it('pre-selects the nearest candidate and confirms it with one tap', async () => {
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: '2 museums nearby' })).toBeOnTheScreen();
+    expect(screen.getByText('40 m · nearest')).toBeOnTheScreen();
+    expect(screen.getByText('310 m')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Metropolitan Museum of Art' })).toBeSelected();
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' }));
+    expect(mockConfirm).toHaveBeenCalledWith(seeded, expect.any(AbortSignal));
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms another candidate after it is tapped', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Neue Galerie' }));
+    expect(screen.getByRole('button', { name: 'Neue Galerie' })).toBeSelected();
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Neue Galerie' }));
+    expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
+  });
+
+  it('asks "still here?" for a lone museum beyond the automatic radius', async () => {
+    mockView = { ...mockView, options: [{ ...seeded, distanceM: 300 }] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: 'Still at Metropolitan Museum of Art?' })).toBeOnTheScreen();
+    expect(screen.getByText('300 m')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' })).toBeOnTheScreen();
+  });
+
+  it('shows a place category for MapKit results and never calls them museums', async () => {
+    mockView = { ...mockView, status: 'none', options: [poi] };
+    const view = await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: 'Looks like you’re at…' })).toBeOnTheScreen();
+    expect(screen.getByText('1.3 km · landmark')).toBeOnTheScreen();
+    mockView = { ...mockView, options: [poi, { ...poi, name: 'Side Street Studio', distanceM: 1400 }] };
+    await view.rerender(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: 'Looks like you’re at…' })).toBeOnTheScreen();
+    expect(screen.getByText('1.3 km · landmark · nearest')).toBeOnTheScreen();
+  });
+
+  it('keeps the sheet open with the reason when confirmation fails', async () => {
+    mockConfirm.mockRejectedValue(new Error('rate_limited'));
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' }));
+    expect(screen.getByText('rate_limited')).toBeOnTheScreen();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('dismisses with "Not here" without confirming anything', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('explains an empty result and a denied permission with a way to Settings', async () => {
+    mockView = { ...mockView, status: 'none', options: [] };
+    const view = await render(<VenuePickerSheet />);
+    expect(screen.getByText('No museum nearby')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'OK' })).toBeOnTheScreen();
+    mockView = { ...mockView, status: 'denied', options: [] };
+    await view.rerender(<VenuePickerSheet />);
+    expect(screen.getByText('Location is off')).toBeOnTheScreen();
+    const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows progress while locating without a dismiss button', async () => {
+    mockView = { ...mockView, status: 'locating', options: [] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByText('Finding your museum…')).toHaveStyle({ textAlign: 'center' });
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it.each(['Not here', 'swipe'])('cancels a pending confirmation on %s without navigating again', async (method) => {
+    let finish!: () => void;
+    mockConfirm.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    const view = await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' }));
+    if (method === 'Not here') await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
+    await view.unmount();
+    const [, signal] = mockConfirm.mock.calls[0];
+    expect(signal.aborted).toBe(true);
+    await act(async () => { finish(); });
+    expect(mockBack).toHaveBeenCalledTimes(method === 'Not here' ? 1 : 0);
+  });
 });
 
-it('marks the current venue and shows a place category', async () => {
-  mockView = { ...mockView, status: 'resolved', venue: seeded, options: [seeded, poi] };
-  await render(<VenuePickerSheet />);
-  expect(screen.getByText('40 m · current')).toBeOnTheScreen();
-  expect(screen.getByText('1.3 km · landmark')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Metropolitan Museum of Art' })).toBeSelected();
-});
+describe('the open visit', () => {
+  beforeEach(() => {
+    mockView = { ...mockView, status: 'resolved', venue: seeded, visit, options: [seeded, neighbour] };
+    mockVisits = [{ localId: 'visit-1', location: 'New York, United States', works: [{ localId: 'w1', title: 'Water Lilies', cropPath: null }, { localId: 'w2', title: 'Irises', cropPath: null }] }];
+  });
 
-it('keeps the sheet open with the reason when confirmation fails', async () => {
-  mockConfirm.mockRejectedValue(new Error('rate_limited'));
-  await render(<VenuePickerSheet />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Neue Galerie' }));
-  expect(screen.getByText('rate_limited')).toBeOnTheScreen();
-  expect(mockBack).not.toHaveBeenCalled();
-});
+  it('shows the visit with its start time, place and artworks instead of the chooser', async () => {
+    await render(<VenuePickerSheet />);
+    expect(screen.getByText('Visiting now · since 5:10 PM')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Metropolitan Museum of Art' })).toBeOnTheScreen();
+    expect(screen.getByText('New York, United States · 2 artworks this visit')).toBeOnTheScreen();
+    expect(screen.getByText('2 previews')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Not here' })).toBeNull();
+  });
 
-it('dismisses with "Not here" without confirming anything', async () => {
-  await render(<VenuePickerSheet />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
-  expect(mockDismiss).toHaveBeenCalledTimes(1);
-  expect(mockConfirm).not.toHaveBeenCalled();
-  expect(mockBack).toHaveBeenCalledTimes(1);
-});
+  it('ends the visit and lands on its detail', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
+    expect(mockEnd).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
+  });
 
-it('explains an empty result and a denied permission with a way to Settings', async () => {
-  mockView = { ...mockView, status: 'none', options: [] };
-  const view = await render(<VenuePickerSheet />);
-  expect(screen.getByText('No museum nearby')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'OK' })).toBeOnTheScreen();
-  mockView = { ...mockView, status: 'denied', options: [] };
-  await view.rerender(<VenuePickerSheet />);
-  expect(screen.getByText('Location is off')).toBeOnTheScreen();
-  const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
-  await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
-  expect(open).toHaveBeenCalledTimes(1);
-});
+  it('keeps the sheet with the reason when ending fails', async () => {
+    mockEnd.mockRejectedValue(new Error('disk full'));
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('disk full');
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'End visit' })).toBeEnabled();
+  });
 
-it('shows progress while locating without a dismiss button', async () => {
-  mockView = { ...mockView, status: 'locating', options: [] };
-  await render(<VenuePickerSheet />);
-  expect(screen.getByText('Finding your museum…')).toHaveStyle({ textAlign: 'center' });
-  expect(screen.queryByRole('button')).toBeNull();
-});
+  it('opens the visit detail in place of the sheet', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Open visit' }));
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
+    expect(mockEnd).not.toHaveBeenCalled();
+  });
 
+  it('switches to the chooser on "Change museum" and back with "Keep current visit"', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Change museum' }));
+    expect(screen.getByRole('header', { name: '2 museums nearby' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Not here' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep current visit' }));
+    expect(screen.getByRole('button', { name: 'End visit' })).toBeOnTheScreen();
+    expect(mockDismiss).not.toHaveBeenCalled();
+  });
 
-it.each(['Not here', 'swipe'])('cancels a pending confirmation on %s without navigating again', async (method) => {
-  let finish!: () => void;
-  mockConfirm.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
-  const view = await render(<VenuePickerSheet />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Neue Galerie' }));
-  if (method === 'Not here') await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
-  await view.unmount();
-  const [, signal] = mockConfirm.mock.calls[0];
-  expect(signal.aborted).toBe(true);
-  await act(async () => { finish(); });
-  expect(mockBack).toHaveBeenCalledTimes(method === 'Not here' ? 1 : 0);
+  it('confirms a different museum from the chooser', async () => {
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Change museum' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Neue Galerie' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Neue Galerie' }));
+    expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the chooser for a paused visit when location is denied', async () => {
+    mockView = { ...mockView, status: 'denied', venue: undefined, options: [] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByText('Location is off')).toBeOnTheScreen();
+  });
+
+  it('lists the candidates for a prompt while the visit is paused elsewhere, and "Not here" dismisses without ending it', async () => {
+    mockParams = { mode: 'choose' };
+    mockView = { ...mockView, status: 'choose', venue: undefined, options: [{ ...seeded, venueId: 'id-guggenheim' as never, name: 'Guggenheim', distanceM: 120 }, neighbour] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: '2 museums nearby' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Keep current visit' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockEnd).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
 });

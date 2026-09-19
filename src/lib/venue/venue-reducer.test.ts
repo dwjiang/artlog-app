@@ -1,7 +1,7 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { VenueCandidate } from './resolve';
 import {
-  FIX_MAX_AGE_MS, initialVenueState, needsFix, venueContext, venueReducer, VISIT_RESUME_MS,
+  endedToday, FIX_MAX_AGE_MS, initialVenueState, needsFix, venueContext, venueReducer,
   type CurrentVisit, type PoiOption, type VenueState,
 } from './venue-reducer';
 
@@ -12,8 +12,8 @@ function candidate(name: string, distanceM: number): VenueCandidate {
   return { id: `id-${name}` as Id<'museums'>, key: `wikidata:${name}`, name, lat: 0, lng: 0, website: `https://${name}.example`, region: 'new-york', distanceM };
 }
 
-function visitAt(name: string, startedAt: number, remoteVisitId?: string): CurrentVisit {
-  return { localId: `local-${name}`, venueId: `id-${name}` as Id<'museums'>, venueName: name, startedAt, remoteVisitId: remoteVisitId as Id<'visits'> | undefined };
+function visitAt(name: string, startedAt: number, remoteVisitId?: string, visitedOn = '1970-01-01'): CurrentVisit {
+  return { localId: `local-${name}`, venueId: `id-${name}` as Id<'museums'>, venueName: name, startedAt, visitedOn, timeZone: 'UTC', remoteVisitId: remoteVisitId as Id<'visits'> | undefined };
 }
 
 function reduce(events: Parameters<typeof venueReducer>[1][], from: VenueState = initialVenueState): VenueState {
@@ -38,7 +38,7 @@ describe('resolving a fix', () => {
     expect(state.prompt).toBe(1);
   });
 
-  it('keeps a fresh visit at one of the ambiguous venues instead of asking again', () => {
+  it('keeps a same-day visit at one of the ambiguous venues instead of asking again', () => {
     const state = reduce([
       { type: 'hydrated', visit: visitAt('Neue', fix.at - 60_000, 'remote-neue') },
       { type: 'resolved', fix, resolution: { kind: 'choose', options: [candidate('Met', 90), candidate('Neue', 300)] } },
@@ -49,21 +49,25 @@ describe('resolving a fix', () => {
     expect(venueContext(state)).toEqual({ venueId: 'id-Neue', visitLocalId: 'local-Neue', visitId: 'remote-neue' });
   });
 
-  it('asks again when the visit at an ambiguous venue is older than the resume window', () => {
+  it('asks again when the visit at an ambiguous venue is from an earlier day', () => {
     const state = reduce([
-      { type: 'hydrated', visit: visitAt('Neue', fix.at - VISIT_RESUME_MS) },
+      { type: 'hydrated', visit: visitAt('Neue', fix.at - 60_000, undefined, '1969-12-31') },
       { type: 'resolved', fix, resolution: { kind: 'choose', options: [candidate('Met', 90), candidate('Neue', 300)] } },
     ]);
     expect(state.status).toBe('choose');
     expect(state.prompt).toBe(1);
   });
 
-  it('clears the visit and options when nothing seeded is nearby', () => {
+  it('pauses the visit when nothing seeded is nearby: no venue for scans, but the visit stays open', () => {
     const state = reduce([
       { type: 'hydrated', visit: visitAt('Met', fix.at - 1000) },
       { type: 'resolved', fix, resolution: { kind: 'none' } },
     ]);
-    expect(state).toMatchObject({ status: 'none', venue: undefined, visit: undefined, options: [], prompt: 0 });
+    expect(state).toMatchObject({ status: 'none', venue: undefined, options: [], prompt: 0 });
+    expect(state.visit?.localId).toBe('local-Met');
+    expect(venueContext(state)).toEqual({});
+    const back = venueReducer(state, { type: 'resolved', fix: { ...fix, at: fix.at + FIX_MAX_AGE_MS }, resolution: { kind: 'auto', venue: candidate('Met', 40), options: [candidate('Met', 40)] } });
+    expect(venueContext(back)).toEqual({ venueId: 'id-Met', visitLocalId: 'local-Met' });
   });
 
   it('keeps the last venue after a failed fix but reports the error', () => {
@@ -110,14 +114,18 @@ describe('nearby places', () => {
 describe('"Not here"', () => {
   const choose = reduce([{ type: 'hydrated', visit: visitAt('Old', fix.at - 1000) }, { type: 'resolved', fix, resolution: { kind: 'choose', options: [candidate('Met', 90), candidate('Neue', 300)] } }]);
 
-  it('ends the undecided visit and suppresses prompts within 400 m of the dismissal', () => {
+  it('keeps a visit paused elsewhere and suppresses prompts within 400 m of the dismissal', () => {
     const dismissed = venueReducer(choose, { type: 'dismissed' });
-    expect(dismissed.visit).toBeUndefined();
+    expect(dismissed.visit?.localId).toBe('local-Old');
     expect(dismissed.dismissedNear).toEqual(met);
     const nearby = { lat: met.lat + 0.002, lng: met.lng, at: fix.at + FIX_MAX_AGE_MS };
     const again = venueReducer(dismissed, { type: 'resolved', fix: nearby, resolution: { kind: 'choose', options: [candidate('Met', 90), candidate('Neue', 300)] } });
     expect(again.status).toBe('choose');
     expect(again.prompt).toBe(dismissed.prompt);
+    // The paused visit also survives its museum resolving automatically next to the dismissal.
+    const home = venueReducer(dismissed, { type: 'resolved', fix: nearby, resolution: { kind: 'auto', venue: candidate('Old', 40), options: [candidate('Old', 40)] } });
+    expect(home).toMatchObject({ status: 'none', venue: undefined });
+    expect(home.visit?.localId).toBe('local-Old');
     const farther = { lat: met.lat + 0.005, lng: met.lng, at: fix.at + FIX_MAX_AGE_MS };
     expect(venueReducer(dismissed, { type: 'resolved', fix: farther, resolution: { kind: 'choose', options: [candidate('A', 90), candidate('B', 300)] } }).prompt).toBe(dismissed.prompt + 1);
   });
@@ -163,5 +171,25 @@ describe('fix reuse', () => {
     expect(needsFix(resolved, fix.at + FIX_MAX_AGE_MS - 1)).toBe(false);
     expect(needsFix(resolved, fix.at + FIX_MAX_AGE_MS)).toBe(true);
     expect(needsFix(venueReducer(resolved, { type: 'backgrounded' }), fix.at + 1)).toBe(true);
+  });
+});
+
+describe('a visit ended by hand', () => {
+  const resolved = reduce([{ type: 'resolved', fix, resolution: { kind: 'auto', venue: candidate('Met', 40), options: [candidate('Met', 40)] } }, { type: 'visitStarted', visit: visitAt('Met', fix.at) }]);
+
+  it('is remembered for the rest of its day at that museum only', () => {
+    const ended = venueReducer(resolved, { type: 'visitEnded', localId: 'local-Met', manual: true });
+    expect(ended.visit).toBeUndefined();
+    expect(endedToday(ended, 'id-Met' as Id<'museums'>, fix.at + 60_000)).toBe(true);
+    expect(endedToday(ended, 'id-Neue' as Id<'museums'>, fix.at + 60_000)).toBe(false);
+    expect(endedToday(ended, 'id-Met' as Id<'museums'>, fix.at + 24 * 60 * 60 * 1000)).toBe(false);
+    expect(venueReducer(ended, { type: 'visitStarted', visit: visitAt('Met', fix.at + 1) }).ended).toBeUndefined();
+  });
+
+  it('is not remembered when the visit ended on its own, and is restored at launch', () => {
+    expect(venueReducer(resolved, { type: 'visitEnded', localId: 'local-Met' }).ended).toBeUndefined();
+    const restored = venueReducer(initialVenueState, { type: 'hydrated', ended: { venueId: 'id-Met' as Id<'museums'>, visitedOn: '1970-01-01', timeZone: 'UTC' } });
+    expect(endedToday(restored, 'id-Met' as Id<'museums'>, fix.at)).toBe(true);
+    expect(venueReducer(restored, { type: 'hydrated', visit: visitAt('Met', fix.at) }).ended).toBeUndefined();
   });
 });

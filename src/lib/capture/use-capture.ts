@@ -1,4 +1,3 @@
-import { resolveCaptureVisit } from './visit-context';
 import { useAction } from 'convex/react';
 import * as Haptics from 'expo-haptics';
 import type { ImageRef } from 'expo-image';
@@ -12,6 +11,7 @@ import { captureOwner, subscribeOwnerChange } from '@/lib/account/owner-store';
 import { api } from '../../../convex/_generated/api';
 import { venueIdAt } from '@/lib/venue/venue-db';
 import { resolveVenueForScan } from '@/lib/venue/use-venue';
+import { resolveScanVisit } from '@/lib/venue/visit-sync';
 import { CaptureController, type CaptureAttempt } from './capture-controller';
 import { captureOptions, defaultStages } from './default-stages';
 import { extractCaptureMeta } from './exif';
@@ -134,6 +134,7 @@ export function useCapture({ active = true, focused = true } = {}) {
           return identify({ ...payload, scope });
         },
         isOnline: () => online.current !== false,
+        resolveVisitId: resolveScanVisit,
       }, captureOptions);
       if (!current()) return;
       setTimings(result.timings);
@@ -164,7 +165,7 @@ export function useCapture({ active = true, focused = true } = {}) {
       const capturedAt = Date.now();
       const { filePath } = await takePhoto();
       return { photoUri: `file://${filePath}`, quad: attempt.quad, source: 'camera', capturedAt };
-    }, attempt, (input) => resolveCaptureVisit(() => resolveVenueForScan(input.capturedAt)));
+    }, attempt, (input) => resolveVenueForScan(input.capturedAt));
   }
 
   function captureManually(takePhoto: () => Promise<{ filePath: string }>) {
@@ -192,12 +193,12 @@ export function useCapture({ active = true, focused = true } = {}) {
       const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
       if (lat !== undefined && lng !== undefined) position = { lat, lng };
       return { photoUri: photo.uri, quad: null, source: 'library', capturedAt };
-    }, attempt, async () => resolveCaptureVisit(async () => ({
+    }, attempt, async () => ({
       venueId: position ? await venueIdAt(position).catch((error: unknown) => {
         console.warn('Could not resolve the venue of the imported photo', error);
         return undefined;
       }) : undefined,
-    })), previous ? () => {
+    }), previous ? () => {
       controller.fail(attempt, previousMessage!);
       setPresentation({ attempt, photoUri: previous.photoUri, source: 'library' });
     } : undefined);

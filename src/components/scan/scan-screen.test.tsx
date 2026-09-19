@@ -89,7 +89,7 @@ beforeEach(() => {
   mockPending = 0;
   mockVenueView = {
     status: 'resolved', venue: { kind: 'seeded', venueId: 'museum-1' as never, name: 'Legion of Honor' }, options: [],
-    resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(),
+    resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(), end: jest.fn(),
   };
   mockDetectorActive.length = 0;
   AppState.currentState = 'active';

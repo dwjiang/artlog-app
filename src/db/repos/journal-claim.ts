@@ -1,4 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
+import { parseSeenVisits, seenVisitsKey } from '../../lib/journal/visit-seen';
 import { db } from '../client';
 import { notes, pendingScans, savedWorks, settings, visits } from '../schema';
 
@@ -26,14 +27,23 @@ export async function claimLocalJournal(source: string, accountOwner: string, cl
     tx.update(savedWorks).set({ owner: accountOwner }).where(eq(savedWorks.owner, source)).run();
     tx.update(notes).set({ owner: accountOwner }).where(eq(notes.owner, source)).run();
     tx.update(pendingScans).set({ owner: accountOwner }).where(eq(pendingScans.owner, source)).run();
-    // Visit preferences follow the journal; an existing account preference on this device wins.
-    for (const preference of ['currentVisit', 'captureVisit']) {
+    // The open visit and today's hand-ended one follow the journal; an existing account value on this device wins.
+    for (const preference of ['currentVisit', 'endedVisit']) {
       const current = tx.select().from(settings).where(eq(settings.key, `${preference}:${source}`)).get();
       if (!current) continue;
-      const usable = ['auto', 'none'].includes(current.value) ||
-        !!tx.select().from(visits).where(and(eq(visits.owner, accountOwner), eq(visits.localId, current.value))).get();
-      if (usable) tx.insert(settings).values({ key: `${preference}:${accountOwner}`, value: current.value }).onConflictDoNothing().run();
+      if (tx.select().from(visits).where(and(eq(visits.owner, accountOwner), eq(visits.localId, current.value))).get()) {
+        tx.insert(settings).values({ key: `${preference}:${accountOwner}`, value: current.value }).onConflictDoNothing().run();
+      }
       tx.delete(settings).where(eq(settings.key, current.key)).run();
+    }
+    // Visits already opened stay seen for the account; they join whatever the account has seen on this device.
+    const seen = tx.select().from(settings).where(eq(settings.key, seenVisitsKey(source))).get();
+    if (seen) {
+      const target = seenVisitsKey(accountOwner);
+      const existing = tx.select().from(settings).where(eq(settings.key, target)).get()?.value;
+      const value = JSON.stringify([...new Set([...parseSeenVisits(existing), ...parseSeenVisits(seen.value)])]);
+      tx.insert(settings).values({ key: target, value }).onConflictDoUpdate({ target: settings.key, set: { value } }).run();
+      tx.delete(settings).where(eq(settings.key, seen.key)).run();
     }
     tx.insert(settings).values({ key, value: accountOwner }).onConflictDoUpdate({ target: settings.key, set: { value: accountOwner } }).run();
   });

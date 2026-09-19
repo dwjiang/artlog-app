@@ -62,6 +62,8 @@ export type CaptureDependencies = {
   orb: OrbExtractor;
   identify: (payload: CapturePayload) => Promise<IdentifyResponse>;
   isOnline: () => boolean;
+  /** Syncs a visit the server has not seen yet, so the first scan at a museum identifies now instead of queuing. */
+  resolveVisitId?: (visitLocalId: string, venueId: NonNullable<CapturePayload['venueId']>) => Promise<NonNullable<CapturePayload['visitId']>>;
   store: CaptureStore;
   /** Retain presentation images before enqueue moves their files. Visual errors must not fail capture. */
   onPrepared?: (painting: PreparedPainting) => Promise<void>;

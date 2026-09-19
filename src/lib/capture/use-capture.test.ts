@@ -17,7 +17,7 @@ const mockImageLoad = jest.fn();
 const mockRelease = jest.fn();
 let mockReachable: boolean | undefined = true;
 
-jest.mock('./visit-context', () => ({ resolveCaptureVisit: (fallback: () => Promise<unknown>) => fallback() }));
+jest.mock('@/lib/venue/visit-sync', () => ({ resolveScanVisit: jest.fn() }));
 jest.mock('convex/react', () => ({ useAction: () => mockIdentify }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-image', () => ({ Image: { loadAsync: (...args: unknown[]) => mockImageLoad(...args) } }));

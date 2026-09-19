@@ -70,9 +70,9 @@ describe('pickVenue', () => {
     expect(pickVenue([candidate('Met', 120)])).toEqual({ kind: 'auto', venue: candidate('Met', 120), options: [candidate('Met', 120)] });
   });
 
-  it('accepts the 150 m boundary and rejects just beyond it', () => {
+  it('accepts the 150 m boundary and asks "still here?" just beyond it', () => {
     expect(pickVenue([candidate('Met', 150)]).kind).toBe('auto');
-    expect(pickVenue([candidate('Met', 150.5)]).kind).toBe('none');
+    expect(pickVenue([candidate('Met', 150.5)])).toEqual({ kind: 'choose', options: [candidate('Met', 150.5)] });
   });
 
   it('asks when a second venue is within 400 m, even if the first is very close', () => {
@@ -89,9 +89,10 @@ describe('pickVenue', () => {
     expect(pickVenue([candidate('A', 200), candidate('B', 300), candidate('C', 380)]).kind).toBe('choose');
   });
 
-  it('finds nothing for an empty list or a single venue beyond 150 m', () => {
+  it('finds nothing for an empty list or a single venue beyond 400 m', () => {
     expect(pickVenue([])).toEqual({ kind: 'none' });
-    expect(pickVenue([candidate('Met', 300)])).toEqual({ kind: 'none' });
+    expect(pickVenue([candidate('Met', 401)])).toEqual({ kind: 'none' });
+    expect(pickVenue([candidate('Met', 300)])).toEqual({ kind: 'choose', options: [candidate('Met', 300)] });
   });
 });
 

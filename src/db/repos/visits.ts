@@ -36,6 +36,13 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
 export async function getVisit(localId: string, owner = getLocalOwner()) {
   return db.select().from(visits).where(and(eq(visits.owner, owner), eq(visits.localId, localId))).get();
 }
+/** When the visit's most recent artwork was saved, or undefined when nothing was saved on it. */
+export async function latestVisitActivity(localId: string, owner = getLocalOwner()): Promise<number | undefined> {
+  const row = db.select({ latest: sql<number | null>`max(${savedWorks.savedAt})` }).from(artworkEncounters)
+    .innerJoin(savedWorks, and(eq(savedWorks.owner, artworkEncounters.owner), eq(savedWorks.localId, artworkEncounters.savedLocalId)))
+    .where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.visitLocalId, localId), isNull(artworkEncounters.deletedAt), isNull(savedWorks.deletedAt))).get();
+  return row?.latest ?? undefined;
+}
 export async function patchVisit(localId: string, fields: Partial<Pick<Visit, 'visitedOn' | 'timeZone' | 'startedAt' | 'endedAt' | 'reflection'>>, owner = getLocalOwner()): Promise<void> {
   db.transaction((tx) => {
     const target = and(eq(visits.owner, owner), eq(visits.localId, localId));

@@ -4,8 +4,7 @@ import { claimLocalJournal } from './journal-claim';
 import * as saves from './saved-works';
 import * as visitRepo from './visits';
 import { getNote, setNote } from './notes';
-import { getSetting } from './settings';
-import { captureVisitKey, setCaptureVisit } from '../../lib/capture/visit-context';
+import { getSetting, setSetting } from './settings';
 import { anonymousOwner, initializeOwner, switchOwner } from '../../lib/account/owner-store';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
@@ -25,17 +24,36 @@ it('claims associations, notes, photos and tombstones atomically and safely repe
   expect(await getNote('save')).toMatchObject({ text: 'My note', owner: 'account:a' });
   expect(await visitRepo.getVisit('e7257140-7164-58eb-88ac-f010276ded02')).toMatchObject({ owner: 'account:a' });
 });
-it('carries the capture visit preference to the account unless the account already chose one', async () => {
+it('carries the open and hand-ended visits to the account unless the account already has them, and drops dangling ones', async () => {
   const source = anonymousOwner();
   await visitRepo.upsertVisit({ localId: 'e7257140-7164-58eb-88ac-f010276ded02', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
-  await setCaptureVisit('e7257140-7164-58eb-88ac-f010276ded02', source);
+  await visitRepo.upsertVisit({ localId: '0b1e4c8a-2d3f-4e5a-9b6c-7d8e9f0a1b2c', venueId: 'other' as never, venueName: 'Other', visitedOn: '2026-09-01', timeZone: 'UTC', startedAt: Date.UTC(2026, 8, 1, 10), endedAt: Date.UTC(2026, 8, 1, 12) });
+  await setSetting(`currentVisit:${source}`, 'e7257140-7164-58eb-88ac-f010276ded02');
+  await setSetting(`endedVisit:${source}`, '0b1e4c8a-2d3f-4e5a-9b6c-7d8e9f0a1b2c');
   await claimLocalJournal(source, 'account:a', 'claim');
-  expect(await getSetting(captureVisitKey('account:a'))).toBe('e7257140-7164-58eb-88ac-f010276ded02');
-  expect(await getSetting(captureVisitKey(source))).toBeUndefined();
-  await setCaptureVisit('none', source);
+  expect(await getSetting('currentVisit:account:a')).toBe('e7257140-7164-58eb-88ac-f010276ded02');
+  expect(await getSetting('endedVisit:account:a')).toBe('0b1e4c8a-2d3f-4e5a-9b6c-7d8e9f0a1b2c');
+  expect(await getSetting(`currentVisit:${source}`)).toBeUndefined();
+  expect(await getSetting(`endedVisit:${source}`)).toBeUndefined();
+  await setSetting(`currentVisit:${source}`, 'missing-visit');
+  await setSetting(`endedVisit:${source}`, 'missing-visit');
   await claimLocalJournal(source, 'account:a', 'again');
-  expect(await getSetting(captureVisitKey('account:a'))).toBe('e7257140-7164-58eb-88ac-f010276ded02');
-  expect(await getSetting(captureVisitKey(source))).toBeUndefined();
+  expect(await getSetting('currentVisit:account:a')).toBe('e7257140-7164-58eb-88ac-f010276ded02');
+  expect(await getSetting('endedVisit:account:a')).toBe('0b1e4c8a-2d3f-4e5a-9b6c-7d8e9f0a1b2c');
+  expect(await getSetting(`currentVisit:${source}`)).toBeUndefined();
+  expect(await getSetting(`endedVisit:${source}`)).toBeUndefined();
+});
+it('carries the seen visits to the account, merged with the ones the account already opened', async () => {
+  const source = anonymousOwner();
+  await setSetting(`seenVisits:${source}`, '["opened-anonymously","opened-twice"]');
+  await setSetting('seenVisits:account:a', '["opened-twice","opened-signed-in"]');
+  await claimLocalJournal(source, 'account:a', 'claim');
+  expect(JSON.parse((await getSetting('seenVisits:account:a'))!)).toEqual(['opened-twice', 'opened-signed-in', 'opened-anonymously']);
+  expect(await getSetting(`seenVisits:${source}`)).toBeUndefined();
+  await setSetting(`seenVisits:${source}`, 'not json');
+  await claimLocalJournal(source, 'account:b', 'again');
+  expect(JSON.parse((await getSetting('seenVisits:account:b'))!)).toEqual([]);
+  expect(await getSetting(`seenVisits:${source}`)).toBeUndefined();
 });
 it('hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them', async () => {
   await saves.insertSavedWork({ localId: 'save', title: 'A', artist: '', savedAt: 1 }, 'account:a');

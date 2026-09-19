@@ -60,14 +60,16 @@ export function rankCandidates(rows: VenueRow[], origin: Coordinate, radiusM: nu
 
 /**
  * `auto` when one venue is within 150 m and no other seeded venue is within 400 m; `choose` when two
- * or more are within 400 m; `none` otherwise. `candidates` must be the rows within 400 m, nearest first.
+ * or more are within 400 m, or when the only one is 150 to 400 m away and needs a "still here?";
+ * `none` when nothing seeded is within 400 m. `candidates` must be the rows within 400 m, nearest first.
  */
 export function pickVenue(candidates: VenueCandidate[]): VenueResolution {
   const options = candidates.filter((row) => row.distanceM <= CHOOSE_RADIUS_M);
   if (options.length >= 2) return { kind: 'choose', options };
   const [nearest] = options;
-  if (nearest && nearest.distanceM <= AUTO_RADIUS_M) return { kind: 'auto', venue: nearest, options };
-  return { kind: 'none' };
+  if (!nearest) return { kind: 'none' };
+  if (nearest.distanceM <= AUTO_RADIUS_M) return { kind: 'auto', venue: nearest, options };
+  return { kind: 'choose', options };
 }
 
 export function formatDistance(distanceM: number): string {
