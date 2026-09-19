@@ -9,7 +9,9 @@ it('lists title, artist and institution per row and reports the tapped candidate
   expect(screen.getByText('The Japanese Footbridge')).toBeOnTheScreen();
   expect(screen.getByText('Claude Monet · National Gallery of Art')).toBeOnTheScreen();
   expect(screen.getByText('Claude Monet · Art Institute of Chicago')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Haystacks, Claude Monet' }));
+  expect(screen.getByText('31% confidence')).toBeOnTheScreen();
+  expect(screen.getByText('12% confidence')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Haystacks, Claude Monet, 12% confidence' }));
   expect(onPick).toHaveBeenCalledWith(haystacks);
 });
 
