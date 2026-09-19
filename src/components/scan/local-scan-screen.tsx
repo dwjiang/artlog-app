@@ -1,7 +1,8 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -95,7 +96,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         {row && <CardHeader cropUri={captureFileUri(row.cropPath)} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
         {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
         {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
-          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
+          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
           : scanId ? keepForm && (
             <View style={styles.section}>

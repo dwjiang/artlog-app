@@ -14,6 +14,7 @@ import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import { WallFrame, wallFrameInset } from './wall-frame';
 import { WorkLink } from './work-link';
+import { ListSkeleton } from '@/components/loading-skeleton';
 
 type Work = ReturnType<typeof useCollectionData>['works'][number];
 type Row = { key: string; kind: 'element'; element: ReactElement } | { key: string; kind: 'artist'; title: string } | { key: string; kind: 'work'; work: Work };
@@ -31,14 +32,15 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   const rows: Row[] = [];
   if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
   if (summary) rows.push({ key: 'summary', kind: 'element', element: summary });
-  rows.push({ key: 'count', kind: 'element', element: <Text style={{ padding: 20, fontSize: 13, letterSpacing: 0.8, color: Gallery.muted }}>{works.length} ARTWORKS · BY ARTIST</Text> });
+  const initialLoading = loading && !error && !works.length;
+  if (!initialLoading) rows.push({ key: 'count', kind: 'element', element: <Text style={{ padding: 20, fontSize: 13, letterSpacing: 0.8, color: Gallery.muted }}>{works.length} ARTWORKS · BY ARTIST</Text> });
   for (const section of sections) {
     rows.push({ key: `artist:${section.key}`, kind: 'artist', title: section.title });
     for (const work of section.data) rows.push({ key: work.localId, kind: 'work', work });
   }
-  const empty = sections.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : loading ? 'Opening collection…' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
-    detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : loading ? undefined : works.length ? 'Try another title, artist, or place.' : 'Scan a painting to save your first artwork.'} loading={loading && !error}
-    action={error ? onRetry ? 'Try again' : undefined : loading ? undefined : works.length ? 'Clear search' : 'Scan artwork'}
+  const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} grouped /> : sections.length ? undefined : <SocialState title={error ? 'Couldn’t load your collection.' : works.length ? 'No artworks found.' : 'Your collection begins here.'}
+    detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : works.length ? 'Try another title, artist, or place.' : 'Scan a painting to save your first artwork.'}
+    action={error ? onRetry ? 'Try again' : undefined : works.length ? 'Clear search' : 'Scan artwork'}
     onAction={error ? onRetry : works.length ? onClearSearch : () => router.push('/scan')} />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"

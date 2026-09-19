@@ -25,7 +25,7 @@ jest.mock('expo-network', () => ({ getNetworkStateAsync: async () => ({ isConnec
 jest.mock('@/lib/wall/wall-transport', () => ({ createWallTransport: () => mockTransport }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
-jest.mock('react-native-reanimated', () => ({ isSharedValue: () => false, getUseOfValueInStyleWarning: () => '' }));
+jest.mock('react-native-reanimated', () => ({ __esModule: true, default: { View: jest.requireActual('react-native').View }, isSharedValue: () => false, getUseOfValueInStyleWarning: () => '' }));
 jest.mock('./wall-gallery', () => {
   const { View, Pressable, Text } = jest.requireActual('react-native');
   return {

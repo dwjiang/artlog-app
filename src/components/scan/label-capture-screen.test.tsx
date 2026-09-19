@@ -13,6 +13,7 @@ import { STEP_LABELS } from './label/progress-steps';
 import type { PendingScan } from '@/db/schema';
 import { LabelFlowError, type LabelStage } from '@/lib/label/flow';
 import { formStateFromFlow, setFieldValue, unlockField } from '@/lib/label/fields';
+jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 
 type CameraProps = { isActive: boolean; outputs: unknown[]; onStarted: () => void };
 type StageCallback = (stage: LabelStage) => void;

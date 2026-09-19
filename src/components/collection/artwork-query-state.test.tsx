@@ -30,7 +30,7 @@ it.each([
   ['identify artwork', () => <IdentifyArtworkScreen />, 'Artwork'],
 ] as const)('%s distinguishes an unfinished read, a missing item and a recoverable read failure', async (_name, content, item) => {
   const view = await render(content());
-  expect(screen.getByText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
+  expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
   expect(screen.queryByText(`${item} unavailable.`)).toBeNull();
   mockQuery = { data: [], updatedAt: new Date() };
   await view.rerender(content());
@@ -42,7 +42,7 @@ it.each([
   expect(screen.getByText(`Couldn’t load this ${item.toLowerCase()}.`)).toBeOnTheScreen();
   mockQuery = { data: [] };
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-  expect(screen.getByText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
+  expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
 });
 
 it('does not show a photo from a stale account or a different artwork', async () => {

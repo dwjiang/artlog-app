@@ -9,6 +9,16 @@ jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ dat
 
 beforeEach(() => { jest.clearAllMocks(); switchOwner(anonymousOwner()); });
 
+it('does not report zero artworks before collection counts load', async () => {
+  const view = await render(<CollectionHeader loading />);
+  expect(screen.getByRole('progressbar', { name: 'Loading collection counts' })).toBeOnTheScreen();
+  expect(screen.queryByText('0 artworks · 0 visits')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Settings' })).toBeOnTheScreen();
+  await view.rerender(<CollectionHeader artworkCount={3} visitCount={1} />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('3 artworks · 1 visit')).toBeOnTheScreen();
+});
+
 it('identifies the local collection without making its title a sign-in action', async () => {
   await render(<CollectionHeader />);
   expect(screen.getByText('Your collection')).toBeOnTheScreen();

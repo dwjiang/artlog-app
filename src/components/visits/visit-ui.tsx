@@ -1,5 +1,6 @@
+import { LoadingRing } from '@/components/loading-ring';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Image } from 'expo-image';
 import { Gallery, Typography } from '@/constants/theme';
@@ -7,10 +8,13 @@ import { GalleryButton } from '../collection/gallery-button';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import type { SavedWork } from '@/db/schema';
+import { ListSkeleton, VisitSkeleton } from '@/components/loading-skeleton';
 
-export function VisitMessage({ children, loading, action, onAction }: { children: ReactNode; loading?: boolean; action?: string; onAction?: () => void }) {
+export function VisitMessage({ children, loading, skeleton, action, onAction }: { children: ReactNode; loading?: boolean; skeleton?: 'list' | 'visit'; action?: string; onAction?: () => void }) {
+  if (loading && skeleton) return skeleton === 'visit' ? <VisitSkeleton label={typeof children === 'string' ? children : 'Loading visit…'} />
+    : <ListSkeleton label={typeof children === 'string' ? children : 'Loading visits…'} rows={3} />;
   return <View style={visitStyles.section}>
-    {loading && <ActivityIndicator accessibilityLabel="Loading visits" color={Gallery.accent} />}
+    {loading && <LoadingRing accessibilityLabel="Loading visits" color={Gallery.accent} />}
     <Text style={[visitStyles.body, loading && visitStyles.loadingMessage]}>{children}</Text>
     {action && onAction && <GalleryButton label={action} onPress={onAction} />}
   </View>;

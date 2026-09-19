@@ -31,7 +31,7 @@ it('keeps the selected photo caption and editing action together while browsing'
 it('waits for the photo read before showing an empty album and distinguishes a read failure', async () => {
   mockPhotos = [];
   const view = await render(<ArtworkAlbum work={work} />);
-  expect(screen.getByText('Loading photos…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Loading photos…')).toBeOnTheScreen();
   expect(screen.queryByText('No photos yet. Add a photo to this artwork.')).toBeNull();
   mockPhotosUpdatedAt = new Date();
   await view.rerender(<ArtworkAlbum work={work} />);

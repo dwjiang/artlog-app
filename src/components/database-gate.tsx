@@ -1,5 +1,6 @@
+import { LoadingRing } from '@/components/loading-ring';
 import type { PropsWithChildren } from 'react';
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,7 +20,7 @@ export function DatabaseGate({ children }: PropsWithChildren) {
     );
   }
   if (!success) return <ThemedView style={styles.gate}>
-    <ActivityIndicator accessibilityLabel="Opening your collection" color={Gallery.accent} />
+    <LoadingRing accessibilityLabel="Opening your collection" color={Gallery.accent} />
     <ThemedText accessibilityLiveRegion="polite" style={styles.loadingMessage}>Opening your collection…</ThemedText>
   </ThemedView>;
   return children;

@@ -1,6 +1,7 @@
+import { LoadingRing } from '@/components/loading-ring';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
@@ -30,7 +31,7 @@ export function SyncPrompt() {
   return <View style={styles.card}>
     <Text accessibilityRole="header" style={styles.title}>Keep your collection across devices</Text>
     <Text style={styles.detail}>Sign in to sync your saved art and visits. Your collection stays private.</Text>
-    {busy || dismissing ? <ActivityIndicator accessibilityLabel={busy ? 'Signing in…' : 'Saving preference…'} color={Gallery.accent} style={styles.appleButton} />
+    {busy || dismissing ? <LoadingRing accessibilityLabel={busy ? 'Signing in…' : 'Saving preference…'} color={Gallery.accent} style={styles.appleButton} />
       : <AppleAuthentication.AppleAuthenticationButton
         buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
         buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}

@@ -1,8 +1,9 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -148,7 +149,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
         />
         {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
         {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
-        {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
+        {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
         {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
         {view.kind === 'failed' && <>
           <FailedCard error={view.error} />

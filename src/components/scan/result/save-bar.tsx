@@ -29,7 +29,7 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
         </Pressable><GalleryButton label="Scan next artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
       ) : (
         <>
-          <GalleryButton label={saveLabel} variant="filled" fullWidth busy={saving} disabled={!canSave || saving} onPress={onSave} />
+          <GalleryButton label={saveLabel} variant="filled" fullWidth busy={saving} busyLabel="Saving…" disabled={!canSave || saving} onPress={onSave} />
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Shorten these details to save this work.</ThemedText>}
           {error && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{error}</ThemedText>}
           {onLabel && <GalleryButton label={LABEL_BUTTON} variant="outlined" fullWidth disabled={saving} onPress={onLabel} />}

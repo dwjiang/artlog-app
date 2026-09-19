@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { DEFAULT_WALL_COLOR, DEFAULT_THUMBNAIL_FRAME } from '@/shared/wall/defaults';
 import { randomUUID } from 'expo-crypto';
@@ -5,7 +6,7 @@ import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabInset, Gallery } from '@/constants/theme';
@@ -47,6 +48,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const selected = pieces.find((piece) => piece.localId === selectedId);
   const color = wall.draft?.color ?? DEFAULT_WALL_COLOR;
   const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
+  const opening = wall.loading && !wall.draft && !wall.error;
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
   const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((piece) => piece.saveLocalId === item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
@@ -125,14 +127,17 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
 
   return <GestureHandlerRootView style={styles.root}>
     <ScrollView ref={scroll} contentContainerStyle={{ flexGrow: 1 }} scrollEnabled={!wall.pending} stickyHeaderIndices={[header ? 1 : 0]}
-      refreshControl={wall.signedIn && !editing ? <RefreshControl refreshing={wall.loading} tintColor={Gallery.accent} onRefresh={() => { void wall.refresh(); }} /> : undefined}>
+      refreshControl={wall.signedIn && !editing ? <RefreshControl refreshing={wall.loading} tintColor="transparent" onRefresh={() => { void wall.refresh(); }} /> : undefined}>
     {header}
     <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{controls}
     <View style={styles.toolbar}>
       <GalleryButton label="All artworks" icon="chevron.down" iconPosition="trailing" tone="ink" disabled={blocked}
         onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
-      <GalleryButton label={editing ? 'Done' : 'Edit wall'} busy={wall.pending}
-        disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
+      <View style={styles.toolbarTrailing}>
+        {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
+        <GalleryButton label={editing ? 'Done' : 'Edit wall'} busy={wall.pending}
+          disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
+      </View>
     </View>
     </View>
     {editing && <Text style={styles.publicNotice}>Changes to your wall are public. They don’t create feed posts.</Text>}
@@ -158,10 +163,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{wall.loading ? 'Opening your wall…' : 'Your own little museum.'}</Text>
-            <Text style={[styles.emptyCaption, { color: wallInk }]}>{!wall.signedIn ? 'A place for the art that stays with you. Sign in to curate your public wall.'
-              : wall.profileRequired ? 'Create a profile, then choose the art you’d like to show.' : editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>
-            {wall.loading ? <ActivityIndicator color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
+            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Your own little museum.'}</Text>
+            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{!wall.signedIn ? 'A place for the art that stays with you. Sign in to curate your public wall.'
+              : wall.profileRequired ? 'Create a profile, then choose the art you’d like to show.' : editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
+            {opening ? <LoadingRing color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
               : wall.profileRequired ? <GalleryButton label="Create your wall" inverse={!isLightWall(color)} variant="filled" onPress={() => setProfile(true)} />
                 : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
@@ -185,7 +190,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             <WallFrame frame={DEFAULT_THUMBNAIL_FRAME} width={54}><SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))} title={item.snapshot.title} contain style={{ width: 54, height: 49 }} /></WallFrame>
             <Text style={{ fontSize: 13, color: Gallery.muted }}>{item.snapshot.artist}</Text>
           </Pressable>)}
-          {wall.loadingSelections ? <ActivityIndicator color={Gallery.accent} /> : wall.cursor !== null ? <GalleryButton label="More artworks" disabled={blocked} onPress={() => { void wall.loadSelections(); }} />
+          {wall.loadingSelections ? <LoadingRing color={Gallery.accent} /> : wall.cursor !== null ? <GalleryButton label="More artworks" disabled={blocked} onPress={() => { void wall.loadSelections(); }} />
             : !available.length ? <Text style={styles.caption}>{works.length ? 'Everything is on the wall.' : 'Save an artwork to add it to your wall.'}</Text> : null}
         </ScrollView>
       </>}
@@ -206,6 +211,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, minHeight: 52, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  toolbarTrailing: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   swatches: { alignItems: 'center', paddingHorizontal: 20, gap: 1, paddingBottom: 8 },
   error: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Gallery.fill },

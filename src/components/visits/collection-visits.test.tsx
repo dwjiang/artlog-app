@@ -31,6 +31,20 @@ it('shows loading instead of the globe until the view preference is read', async
   expect(screen.getByRole('button', { name: 'Globe' })).toBeDisabled();
 });
 
+it('holds visits behind the loading state until their places are read', async () => {
+  const unplaced = { ...visit, location: '', city: undefined, regionName: undefined, country: undefined };
+  const view = await render(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
+  expect(screen.getByRole('progressbar', { name: 'Loading your visits…' })).toBeOnTheScreen();
+  expect(screen.queryByText(/Location unavailable/)).toBeNull();
+  expect(screen.queryByText(/1 museum/)).toBeNull();
+  mockMode = 'globe';
+  await view.rerender(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
+  expect(screen.getByText('Loading your visits…')).toBeOnTheScreen();
+  expect(screen.queryByText('Globe canvas')).toBeNull();
+  await view.rerender(<CollectionVisits {...props} visits={[visit]} search="" />);
+  expect(screen.getByText('Globe canvas')).toBeOnTheScreen();
+});
+
 it('opens the Scan tab from the visits failure recovery action', async () => {
   await render(<CollectionVisits {...props} search="" error={new Error('Read failed')} />);
   await fireEvent.press(screen.getByRole('button', { name: 'Go to Scan' }));

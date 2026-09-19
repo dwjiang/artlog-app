@@ -21,7 +21,7 @@ export function FailedCard({ error, onRetry, retrying = false }: FailedCardProps
         <ThemedText type="subtitle" themeColor="error">{FAILED_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText>
       </View>
-      {onRetry && <GalleryButton label={RETRY_BUTTON} busy={retrying} disabled={retrying} variant="filled" fullWidth onPress={onRetry} />}
+      {onRetry && <GalleryButton label={RETRY_BUTTON} busy={retrying} busyLabel="Retrying…" disabled={retrying} variant="filled" fullWidth onPress={onRetry} />}
     </>
   );
 }

@@ -16,6 +16,7 @@ import { ProfileAvatar } from './profile-avatar';
 import { PageFooter, SocialGate, SocialState } from './social-state';
 import { socialStyles } from './social-styles';
 import { ThemedText as Text } from '@/components/themed-text';
+import { LoadingRing } from '@/components/loading-ring';
 
 type Media = SharedArtwork['artwork']['media'];
 type VisitAudience = SharedVisit['audience'];
@@ -47,8 +48,9 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
   return <FlatList key={columns} style={socialStyles.root} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic"
     data={items} keyExtractor={artworkId} numColumns={columns} columnWrapperStyle={columns === 2 ? styles.row : undefined}
     keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets
-    refreshControl={ready ? <RefreshControl refreshing={visit.refreshing} tintColor={Gallery.accent} onRefresh={visit.refresh} /> : undefined}
+    refreshControl={ready ? <RefreshControl refreshing={visit.refreshing} tintColor="transparent" onRefresh={visit.refresh} /> : undefined}
     ListHeaderComponent={ready && !unavailable && visit.first && author ? <>
+      {visit.refreshing && <LoadingRing accessibilityLabel="Refreshing visit" style={{ paddingVertical: 12 }} />}
       <SharedVisitHeading venue={visit.first.venue} visitedOn={visit.first.visitedOn} audience={visit.first.audience}
         owner={{ name: author.name, photoUrl: author.photoUrl, onPress: () => router.push({ pathname: '/profile/[profileId]', params: { profileId: author.profileId } }) }} />
       {!!visit.first.reflection && <Text selectable style={styles.reflection}>{visit.first.reflection}</Text>}
@@ -58,9 +60,9 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
     renderItem={({ item }) => <SharedArtworkTile title={item.artwork.title} artist={item.artwork.artist} photos={item.photos ?? []} token={session.token}
       onPress={() => router.push({ pathname: '/artwork', params: { kind: 'visit', postId, itemId: item.itemId } })} />}
     ListEmptyComponent={!ready ? <SocialGate session={session} /> : unavailable
-      ? <SocialState title="Visit unavailable." detail="This visit is no longer shared with you." /> : visit.done
+      ? <SocialState title="Visit unavailable." detail="This visit is no longer shared with you." /> : visit.done && !visit.loading && !visit.error
         ? <SharedEmpty query={query} onClear={() => setSearch('')} /> : null}
-    ListFooterComponent={ready && !unavailable ? <PageFooter {...visit} count={items.length} noun="artworks" /> : null}
+    ListFooterComponent={ready && !unavailable && !(visit.refreshing && items.length > 0 && !visit.error) ? <PageFooter {...visit} count={items.length} noun="artworks" skeleton="gallery" /> : null}
     onEndReached={ready ? visit.loadMore : undefined} onEndReachedThreshold={0.4} />;
 }
 

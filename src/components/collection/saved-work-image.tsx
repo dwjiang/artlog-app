@@ -5,12 +5,14 @@ import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle }
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { captureFileUri } from '@/lib/files/photos';
+import { ImageSkeleton } from '@/components/loading-skeleton';
 
 export function SavedWorkImage({ path, title, style, contain = false, syncing = false, onLoad }: {
   path: string | null; title: string; style: StyleProp<ViewStyle>; contain?: boolean; syncing?: boolean;
   onLoad?: (size: { width: number; height: number }) => void;
 }) {
   const [failedPath, setFailedPath] = useState<string>();
+  const [loadedPath, setLoadedPath] = useState<string>();
   const [size, setSize] = useState<{ width: number; height: number }>();
   const { fontScale } = useWindowDimensions();
   const frame = StyleSheet.flatten(style);
@@ -25,13 +27,14 @@ export function SavedWorkImage({ path, title, style, contain = false, syncing = 
       setSize((previous) => previous?.width === width && previous.height === height ? previous : { width, height });
     }}>
       {path && failedPath !== path ? <Image source={captureFileUri(path)} contentFit={contain ? 'contain' : 'cover'}
-        onLoad={({ source }) => { if (source.width > 0 && source.height > 0) onLoad?.(source); }}
+        onLoad={({ source }) => { setLoadedPath(path); if (source.width > 0 && source.height > 0) onLoad?.(source); }}
         onError={() => setFailedPath(path)}
         accessibilityLabel={`Your photo of ${title}`} style={StyleSheet.absoluteFill} />
         : <View accessible accessibilityRole="image" accessibilityLabel={`${title}: ${status.toLowerCase()}`} style={[StyleSheet.absoluteFill, styles.placeholder, compact && { padding: 0 }]}>
           <Image source="sf:photo" accessible={false} tintColor={Gallery.muted} style={{ width: compact ? 18 : 28, height: compact ? 18 : 28 }} />
           {!compact && <ThemedText accessible={false} variant="metadata" themeColor="textSecondary" style={{ textAlign: 'center' }}>{status}{!path && syncing ? '…' : ''}</ThemedText>}
         </View>}
+      {path && failedPath !== path && loadedPath !== path && <ImageSkeleton label={`Loading photo: ${title}`} style={StyleSheet.absoluteFill} />}
     </View>
   );
 }
