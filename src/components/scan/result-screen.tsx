@@ -27,13 +27,14 @@ import { TentativeOriginNotice } from './result/tentative-origin-notice';
 import { RunnerUps } from './result/runner-ups';
 import { LABEL_BUTTON, SaveBar } from './result/save-bar';
 import { FailedCard } from './states/failed-card';
+import { SaveAnywayForm } from './states/save-anyway-form';
 import { UnsupportedCard } from './states/unsupported-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { HighlightHeading } from '@/components/highlight-heading';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { Colors, Gallery, Spacing } from '@/constants/theme';
-import { markScanReviewed, selectCaptureForScan } from '@/db/repos/pending-scans';
+import { selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { captureFileUri } from '@/lib/files/photos';
 import { useMuseumSearch } from '@/lib/museum-search/use-museum-search';
@@ -66,7 +67,6 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const scan = useScan(scanId);
   const { data: captures, updatedAt: captureUpdatedAt, error: captureError } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
   const capture = captures.find((row) => row.owner === owner);
-  const captureStatus = capture?.status;
   const labelCapture = !!capture && isLabelCapture(capture);
   const [selection, setSelection] = useState<ResultSelection>({});
   const [hasEdits, setHasEdits] = useState(false);
@@ -81,12 +81,6 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   useEffect(() => {
     if (isActive && labelCapture) router.replace({ pathname: '/label/[scanId]', params: { scanId } });
   }, [isActive, labelCapture, router, scanId]);
-
-  useEffect(() => {
-    if (isActive && view.editable && captureStatus === 'identified') {
-      void markScanReviewed(scanId, owner).catch((error: unknown) => console.warn('Could not mark the scan reviewed', error));
-    }
-  }, [isActive, scanId, view.editable, captureStatus, owner]);
 
   function openLabel() {
     setSheet({ open: false });
@@ -145,12 +139,13 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   return (
     <ThemedView style={styles.container}>
       {showCard ? <ResultCard key={`${view.kind}:${view.primary?.objectId ?? 'none'}`} view={view} header={header} context={context} search={search}
-        onPick={pickRunnerUp} onEdit={() => setHasEdits(true)} onLabel={openLabel} {...saveProps} /> :
+        onPick={pickRunnerUp} onEdit={() => setHasEdits(true)} onLabel={openLabel}
+        savePhotoOnly={view.kind !== 'confident' && !hasEdits && !selection.chosenObjectId} onSavePhoto={() => { void save({ scanId, capture, draft: draftFromCandidate() }); }} {...saveProps} /> :
         <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
           {header}{context}
           {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
           {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
-          {view.kind === 'failed' && <><FailedCard error={view.error} /><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
+          {view.kind === 'failed' && <><FailedCard error={view.error} />{capture && <SaveAnywayForm {...saveProps} />}<GalleryButton label="Scan another artwork" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
           {search}
           {view.editable && view.kind !== 'confident' && <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={openLabel} />}
         </ScrollView>}
@@ -179,17 +174,21 @@ type ResultCardProps = {
   onPick: (candidate: ResultCandidate) => void;
   onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
+  onSavePhoto: () => void;
+  savePhotoOnly: boolean;
   onViewSaved: () => void;
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
-function ResultCard({ captureInput, view, saving, savedId, saveError, header, context, search, onLabel, onPick, onEdit, onSave, onViewSaved }: ResultCardProps) {
+function ResultCard({ captureInput, view, saving, savedId, saveError, header, context, search, onLabel, onPick, onEdit, onSave, onSavePhoto, savePhotoOnly, onViewSaved }: ResultCardProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
-  const [editingDetails, setEditingDetails] = useState(!view.primary);
+  const [editingDetails, setEditingDetails] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== 'confident' ? view.runnerUps : [];
-  const photos = useCapturePhotos(captureInput ? { ...captureInput, draft } : undefined, !editable);
+  const photos = useCapturePhotos(captureInput ? {
+    ...captureInput, view: savePhotoOnly ? undefined : captureInput.view, draft: savePhotoOnly ? draftFromCandidate() : draft,
+  } : undefined, !editable);
   return <>
     <Stack.Toolbar placement="right"><Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Scan options" tintColor={Gallery.ink} hidesSharedBackground>
       <Stack.Toolbar.MenuAction disabled={!editable} onPress={() => setEditingDetails((value) => !value)}>{editingDetails ? 'Done editing' : 'Edit details'}</Stack.Toolbar.MenuAction>
@@ -200,13 +199,14 @@ function ResultCard({ captureInput, view, saving, savedId, saveError, header, co
       <View style={styles.identity}>
         {draft.artist && <ThemedText type="title" style={{ fontSize: 40, lineHeight: 46 }}>{draft.artist}</ThemedText>}
         {!editingDetails && <>
-          <ThemedText style={styles.workTitle}>{draft.title || 'Untitled artwork'}</ThemedText>
+          <ThemedText style={styles.workTitle}>{draft.title || 'Artwork scan'}</ThemedText>
           {view.kind === 'confident' && !!draft.medium && <ThemedText variant="secondary" themeColor="textSecondary">{draft.medium}{draft.date ? ` · ${draft.date}` : ''}</ThemedText>}
           {view.kind === 'confident' && !draft.medium && !!draft.date && <ThemedText variant="secondary" themeColor="textSecondary">{draft.date}</ThemedText>}
         </>}
       </View>
       {view.kind === 'soft' && <ThemedText variant="secondary">This could be a match. Scan the wall label to confirm.</ThemedText>}
       {view.primary?.identityStatus === 'tentative' && <TentativeOriginNotice />}
+      {!editingDetails && view.kind !== 'confident' && <GalleryButton label="Add details (optional)" disabled={!editable} onPress={() => setEditingDetails(true)} />}
       {editingDetails && <FieldsForm draft={draft} editable={editable} onChange={(field, value) => {
         onEdit(); setDraft((current) => ({ ...current, [field]: value }));
       }} />}
@@ -220,9 +220,9 @@ function ResultCard({ captureInput, view, saving, savedId, saveError, header, co
       {search}
     </ScrollView>
     <View style={[styles.save, { paddingBottom: Math.max(12, bottom) }]}>
-      <SaveBar canSave={canSave(draft)} saving={saving} savedId={savedId} error={saveError}
-        saveLabel={view.kind === 'confident' ? 'Save to collection' : 'Save with these details'} labelFirst={view.kind !== 'confident'}
-        onSave={() => onSave(draft)} onLabel={onLabel} onViewSaved={onViewSaved} />
+      <SaveBar canSave={savePhotoOnly || canSave(draft)} saving={saving} savedId={savedId} error={saveError}
+        saveLabel={savePhotoOnly ? 'Save photo for later' : view.kind === 'confident' ? 'Save to collection' : 'Save with these details'} labelFirst={view.kind !== 'confident'}
+        onSave={() => savePhotoOnly ? onSavePhoto() : onSave(draft)} onLabel={onLabel} onViewSaved={onViewSaved} />
     </View>
   </>;
 }

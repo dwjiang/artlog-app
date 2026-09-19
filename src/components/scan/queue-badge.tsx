@@ -8,10 +8,10 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useQueue } from '@/lib/queue/use-queue';
 
 export function queueBadgeLabel(total: number): string {
-  return total === 1 ? '1 scan in queue' : `${total} scans in queue`;
+  return `Recent scans, ${total} ${total === 1 ? 'scan' : 'scans'}`;
 }
 
-/** Includes failed captures and completed results that still need review. */
+/** Includes viewed results until they are saved or discarded. */
 export function QueueBadge() {
   const router = useRouter();
   const { items } = useQueue();
@@ -24,8 +24,8 @@ export function QueueBadge() {
         onPress={() => router.push('/queue')}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        <Image source="sf:tray.and.arrow.up" style={styles.icon} tintColor={Colors.light.overlayText} />
-        <ThemedText type="smallBold" themeColor="overlayText">{String(items.length)}</ThemedText>
+        <Image source="sf:clock.arrow.circlepath" style={styles.icon} tintColor={Colors.light.overlayText} />
+        <ThemedText type="smallBold" themeColor="overlayText">Recent {items.length}</ThemedText>
       </Pressable>
     </GlassSurface>
   );

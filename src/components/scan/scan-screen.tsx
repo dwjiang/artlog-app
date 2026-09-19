@@ -14,7 +14,6 @@ import { DevTimings } from './dev-timings';
 import { OverlayCaption } from './overlay-caption';
 import { QueueBadge } from './queue-badge';
 import { VenuePill } from './venue-pill';
-import { CaptureDraftBanner } from './capture-draft-banner';
 import { GlassSurface } from '@/components/glass-surface';
 import { BottomTabInset, Colors, Gallery, Spacing } from '@/constants/theme';
 import { useCapture } from '@/lib/capture/use-capture';
@@ -85,7 +84,6 @@ export function ScanScreen() {
           <QueueBadge />
         </View>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
-          {!busy && <CaptureDraftBanner />}
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
             : busy ? <OverlayCaption>{phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'}</OverlayCaption>

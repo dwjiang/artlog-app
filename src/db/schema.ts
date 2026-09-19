@@ -121,7 +121,6 @@ export const pendingScans = sqliteTable(
     lastError: text(),
     scanId: text().$type<Id<'scans'>>(),
     createdAt: integer().notNull(),
-    reviewedAt: integer(),
   },
   (table) => [primaryKey({ columns: [table.owner, table.localId] }),
     foreignKey({ columns: [table.owner, table.visitLocalId], foreignColumns: [visits.owner, visits.localId] }).onUpdate('cascade'),

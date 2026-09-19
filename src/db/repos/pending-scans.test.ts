@@ -1,6 +1,8 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { NewPendingScan } from '../schema';
 import * as repo from './pending-scans';
+import { clearDeletedAlbumPhotoPath, saveArtworkSession } from './artwork-album';
+import { softDeleteSavedWork } from './saved-works';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
 
@@ -42,19 +44,35 @@ it('walks a row from queued through identifying to identified', async () => {
   expect((await repo.getCaptureForScan(scanId))?.localId).toBe('a');
   expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['a']);
   expect(await repo.listFlushable('model-v1')).toEqual([]);
-  await repo.markScanReviewed(scanId);
-  expect(await repo.pendingScansQuery()).toEqual([]);
-  expect(await repo.getCaptureForScan(scanId)).toMatchObject({ localId: 'a', reviewedAt: expect.any(Number) });
   await repo.deletePendingScan('a');
 });
 
-it('keeps failed and waiting captures even if their server card was opened', async () => {
+it('keeps failed and waiting captures that already reference a server scan', async () => {
   await enqueueAll(row('waiting', { scanId }), row('failed', { status: 'failed', scanId }));
-  await repo.markScanReviewed(scanId);
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['failed', 'waiting']);
-  expect((await repo.getPendingScan('failed'))?.reviewedAt).toBeNull();
+  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['waiting', 'failed']);
   await repo.deletePendingScan('waiting');
   await repo.deletePendingScan('failed');
+});
+
+it('shows recent unsaved captures newest first and keeps other owners out', async () => {
+  await enqueueAll(row('recent-old'), row('recent-new', { capturedAt: 200, status: 'identified', scanId }));
+  await repo.enqueuePendingScan(row('other-owner', { capturedAt: 300 }), 'device:other');
+  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(['recent-new', 'recent-old']);
+  await repo.deletePendingScan('recent-old');
+  await repo.deletePendingScan('recent-new');
+  await repo.deletePendingScan('other-owner', 'device:other');
+});
+
+it('removes a saved capture from recent scans even after its artwork and album photo are deleted', async () => {
+  const owner = 'device:test-installation';
+  await enqueueAll(row('saved-capture'));
+  saveArtworkSession('saved-work', { localId: 'saved-work', title: 'Study', artist: '', savedAt: 1, photoPath: 'photos/saved-capture.jpg', cropPath: 'crops/saved-capture.jpg' },
+    [{ localId: 'saved-capture', savedLocalId: 'saved-work', path: 'photos/saved-capture.jpg', kind: 'full', capturedAt: 1 }], undefined, owner);
+  expect(await repo.pendingScansQuery()).toEqual([]);
+  await softDeleteSavedWork('saved-work', 2, owner);
+  clearDeletedAlbumPhotoPath('saved-capture', owner);
+  expect(await repo.pendingScansQuery()).toEqual([]);
+  await repo.deletePendingScan('saved-capture');
 });
 
 it('counts attempts, gives up at the limit, and lets a manual retry start over', async () => {

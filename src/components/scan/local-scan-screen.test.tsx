@@ -97,6 +97,7 @@ it('keeps a manual draft on completion, then saves it before opening the result'
   await enqueuePendingScan(row('draft-completion', { status: 'queued' }));
   const alert = jest.spyOn(Alert, 'alert');
   await render(<LocalScanScreen localId="draft-completion" />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'Pond at dusk');
   await fireEvent.changeText(screen.getByLabelText('Artist'), 'My artist');
   await complete('draft-completion');
@@ -106,7 +107,7 @@ it('keeps a manual draft on completion, then saves it before opening the result'
   await fireEvent.press(screen.getByRole('button', { name: 'View result' }));
   expect(alert).toHaveBeenCalledWith('Discard your edits?', expect.any(String), expect.any(Array));
   expect(mockReplace).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Pond at dusk', artist: 'My artist' });
   await fireEvent.press(screen.getByRole('button', { name: 'View result' }));
@@ -123,9 +124,10 @@ it('finishes an in-flight save when identification completes and keeps the saved
     return save(input);
   });
   await render(<LocalScanScreen localId="saving-completion" />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My saved title');
-  await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
-  await screen.findByRole('button', { name: 'Save anyway', busy: true });
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
+  await screen.findByRole('button', { name: /^Save (to collection|photo for later)$/, busy: true });
   await complete('saving-completion');
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'View result' })).toBeDisabled();
@@ -140,6 +142,7 @@ it('opens a ready result after the user explicitly discards the draft', async ()
   await enqueuePendingScan(row('discard-completion', { status: 'queued' }));
   const alert = jest.spyOn(Alert, 'alert');
   await render(<LocalScanScreen localId="discard-completion" />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'Unsaved title');
   await complete('discard-completion');
   await fireEvent.press(screen.getByRole('button', { name: 'View result' }));
@@ -150,16 +153,26 @@ it('opens a ready result after the user explicitly discards the draft', async ()
   expect(mockReplace).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId: 'scan-discard-completion' } });
 });
 
-it('shows the queued capture as waiting for signal, sends the label offline and saves anyway with a typed title', async () => {
+it('saves a queued photo without asking for details', async () => {
+  await enqueuePendingScan(row('photo-only', { status: 'queued' }));
+  await render(<LocalScanScreen localId="photo-only" />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Save photo for later' }));
+  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Title')).toBeNull();
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Unidentified artwork', photoPath: 'photos/photo-only.jpg' });
+});
+
+it('shows the queued capture as waiting for signal, sends the label offline and saves with optional details', async () => {
   await render(<LocalScanScreen localId="cap-queued" />);
   expect(await screen.findByText(WAITING_TITLE)).toBeOnTheScreen();
   expect(screen.getByText(WAITING_LINE)).toBeOnTheScreen();
   expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/cap-queued.jpg' }]);
   await fireEvent.press(screen.getByRole('button', { name: LABEL_NOW }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: 'local-cap-queued', offline: '1' } });
-  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ })).toBeEnabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Pond at dusk');
-  await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(await getSavedWork(savedId)).toMatchObject({
@@ -196,7 +209,7 @@ it.each([
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.queryByText('Your result is ready')).toBeNull();
   expect(screen.queryByRole('button', { name: 'View result' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Save anyway' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: LABEL_NOW }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: `local-${localId}`, offline: '1' } });
 
@@ -211,10 +224,11 @@ it('saves a manual entry during an unsupported retry without presenting the old 
   await retryPendingScan(localId);
 
   await render(<LocalScanScreen localId={localId} />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My painting');
   expect(screen.getByText(WAITING_TITLE)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'View result' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save anyway' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My painting', scanId });
   expect(mockReplace).not.toHaveBeenCalled();

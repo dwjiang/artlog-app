@@ -108,7 +108,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
           : row.status === 'identified' ? null
           : <WaitingForSignalCard status={row.status} onLabel={openLabel} />}
         {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}
-        {row && (pending || keepForm) && <SaveAnywayForm {...saveProps} />}
+        {row && (pending || row.status === 'failed' || keepForm) && <SaveAnywayForm {...saveProps} />}
       </ScrollView>
     </ThemedView>
   );

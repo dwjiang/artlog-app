@@ -23,7 +23,7 @@ export function SaveBar({ saveLabel = 'Save to collection', canSave, saving, sav
   return (
     <View style={styles.bar}>
       {savedId ? (
-        <View style={{ gap: 12 }}><ThemedText type="title">Added to your collection.</ThemedText><Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
+        <View style={{ gap: 12 }}><ThemedText type="title">Saved to collection</ThemedText><Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
           <ThemedText themeColor="accent">View artwork</ThemedText>
         </Pressable><GalleryButton label="Scan next artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
       ) : (

@@ -105,6 +105,6 @@ it('keeps unresolved photos in the draft until the owner explicitly confirms the
   expect(screen.getByRole('button', { name: 'Save 1 photo' })).toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: 'Keep with this artwork' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
-  expect(await screen.findByText('Keep this moment.')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
   expect(selectArtworkPhotos('artwork').all()).toHaveLength(2);
 });

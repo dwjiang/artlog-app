@@ -10,7 +10,7 @@ function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): Pen
     owner: 'device:test-installation', localId, photoPath: `photos/${localId}.jpg`, cropPath: `crops/${localId}.jpg`,
     vector: [0.1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: 'v1',
     venueId: null, visitId: null, visitLocalId: null, capturedAt: 100, labelPhotoPath: null, qrUrl: null, status: 'queued',
-    attempts: 0, lastError: null, scanId: null, reviewedAt: null, createdAt: 100,
+    attempts: 0, lastError: null, scanId: null, createdAt: 100,
     attemptModelVersion: overrides.modelVersion ?? 'v1', ...overrides,
   };
 }
