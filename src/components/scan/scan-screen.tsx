@@ -14,7 +14,6 @@ import { DevTimings } from './dev-timings';
 import { OverlayCaption } from './overlay-caption';
 import { QueueBadge } from './queue-badge';
 import { VenuePill } from './venue-pill';
-import { CaptureContextButton } from './capture-context-button';
 import { CaptureDraftBanner } from './capture-draft-banner';
 import { GlassSurface } from '@/components/glass-surface';
 import { BottomTabInset, Colors, Gallery, Spacing } from '@/constants/theme';
@@ -87,7 +86,6 @@ export function ScanScreen() {
         </View>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           {!busy && <CaptureDraftBanner />}
-          <View style={styles.contextPill}><CaptureContextButton /></View>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
             : busy ? <OverlayCaption>{phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'}</OverlayCaption>
@@ -123,7 +121,6 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.content },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
-  contextPill: { alignSelf: 'flex-start', backgroundColor: Gallery.paper, borderRadius: 6, paddingHorizontal: Spacing.two },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shutter: { width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: 3, borderColor: Colors.light.overlayText, padding: 4 },
   shutterInner: { flex: 1, borderRadius: SHUTTER_SIZE / 2, backgroundColor: Colors.light.overlayText },

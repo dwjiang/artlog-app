@@ -1,13 +1,50 @@
+import { useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+
+import { VisitBar } from '@/components/visits/visit-bar';
 import { Gallery } from '@/constants/theme';
+import { useVenue } from '@/lib/venue/use-venue';
 
 export const unstable_settings = {
   anchor: '(home)',
 };
 
+function VisitAccessory() {
+  const placement = NativeTabs.BottomAccessory.usePlacement();
+  return <VisitBar compact={placement === 'inline'} />;
+}
+
+type RouteState = { index?: number; routes: { name: string; state?: RouteState }[] };
+
+/** The tab navigator's state, nested under expo-router's `__root` route and any wrapper above the tabs. */
+function findTabsState(state: RouteState | undefined): RouteState | undefined {
+  for (const route of state?.routes ?? []) {
+    if (route.name === '(tabs)') return route.state;
+    const nested = findTabsState(route.state);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+/** The selected tab, unchanged while a sheet or modal sits above the tabs. Reads the parent stack's state and follows its changes. */
+function useSelectedTab(): string | undefined {
+  const navigation = useNavigation();
+  const [tabs, setTabs] = useState(() => findTabsState(navigation.getState() as RouteState | undefined));
+  useEffect(() => navigation.addListener('state', (event) => {
+    setTabs(findTabsState((event.data as { state?: RouteState }).state));
+  }), [navigation]);
+  return tabs?.routes[tabs.index ?? 0]?.name;
+}
+
 export default function TabsLayout() {
+  const { visit } = useVenue();
+  const selectedTab = useSelectedTab();
+  // The camera has the venue pill; the bar there would crowd the shutter.
+  const showVisitBar = !!visit && selectedTab !== '(scan)';
   return (
     <NativeTabs tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
+      {showVisitBar && <NativeTabs.BottomAccessory><VisitAccessory /></NativeTabs.BottomAccessory>}
       <NativeTabs.Trigger name="(home)">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />

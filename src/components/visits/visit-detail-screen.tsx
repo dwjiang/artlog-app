@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, Typography } from '@/constants/theme';
@@ -7,6 +7,7 @@ import { HighlightHeading } from '../highlight-heading';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
 import { useVisits } from '@/lib/journal/use-visits';
+import { markVisitSeen } from '@/lib/journal/visit-seen';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { showToast } from '@/lib/ui/toast';
@@ -28,6 +29,8 @@ export function VisitDetailScreen() {
   return <VisitDetail key={`${owner}:${visitId}`} visit={visit} />;
 }
 function VisitDetail({ visit }: { visit: VisitSummary }) {
+  // Only a closed visit counts as seen; one viewed while open is still new once it closes on its own.
+  useEffect(() => { if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner); }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
   const { fontScale } = useWindowDimensions();

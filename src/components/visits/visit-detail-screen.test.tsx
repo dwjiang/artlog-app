@@ -8,7 +8,7 @@ import { VisitDetailScreen } from './visit-detail-screen';
 
 const mockVisit = {
   localId: 'visit', owner: 'device:test-installation', venueName: 'Museum',
-  visitedOn: '2024-02-29', location: 'New York', reflection: 'The afternoon light',
+  visitedOn: '2024-02-29', location: 'New York', reflection: 'The afternoon light', startedAt: 1, endedAt: 5,
   works: [{ localId: 'painting', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }],
 } as VisitSummary;
 let mockPublication: { status: string; audience: 'friends' | 'public' } | null = null;
@@ -19,9 +19,11 @@ jest.mock('@/lib/visits/use-visit-sharing', () => ({
   useVisitSharing: () => ({ controller: {}, token: null, acknowledged: mockPublication }),
 }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: () => null }));
+const mockMarkSeen = jest.fn();
+jest.mock('@/lib/journal/visit-seen', () => ({ markVisitSeen: (...args: unknown[]) => mockMarkSeen(...args) }));
 
 afterEach(() => jest.useRealTimers());
-beforeEach(() => { mockPublication = null; mockVisit.owner = 'device:test-installation'; });
+beforeEach(() => { mockPublication = null; mockVisit.owner = 'device:test-installation'; mockVisit.endedAt = 5; });
 
 it.each(['friends', 'public'] as const)('shows the %s audience on a published visit', async (audience) => {
   mockVisit.owner = 'account:test-account';
@@ -55,4 +57,13 @@ it('searches a small visit from the artwork search control and restores the grid
   expect(screen.getByText('No artworks match this search.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Hide artwork search' }));
   expect(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
+});
+
+it('marks a closed visit as seen once it is opened, but not one still in progress', async () => {
+  await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
+  expect(mockMarkSeen).toHaveBeenCalledWith('visit', 'device:test-installation');
+  mockMarkSeen.mockClear();
+  mockVisit.endedAt = null;
+  await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
+  expect(mockMarkSeen).not.toHaveBeenCalled();
 });

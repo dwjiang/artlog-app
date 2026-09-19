@@ -9,8 +9,6 @@ import { getPendingScan, enqueuePendingScan } from '@/db/repos/pending-scans';
 import { upsertVisit } from '@/db/repos/visits';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { readPhotoSession, updatePhotoSession } from '@/lib/capture/photo-draft';
-import { captureVisitKey } from '@/lib/capture/visit-context';
-import { getSetting } from '@/db/repos/settings';
 import { draftFromCandidate } from '@/lib/result/snapshot';
 
 const owner = 'device:test-installation';
@@ -90,8 +88,6 @@ it('saves an unsaved artwork and every added photo directly from the session', a
   await fireEvent.press(screen.getByRole('button', { name: 'Scan next artwork' }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/(scan)/scan');
-  // The draft's visit choice stays with the draft; the next scan keeps resolving its own visit.
-  expect(await getSetting(captureVisitKey(owner))).toBeUndefined();
 });
 
 it('names a chosen visit that has since been deleted instead of calling it the current visit', async () => {
