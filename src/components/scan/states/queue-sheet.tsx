@@ -1,10 +1,9 @@
 import { ListSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { QueueRow } from './queue-row';
-import { queueBadgeLabel } from '../queue-badge';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
@@ -12,14 +11,10 @@ import type { PendingScan } from '@/db/schema';
 import { retryPendingScan } from '@/lib/queue/queue';
 import { useQueue } from '@/lib/queue/use-queue';
 import { useLocalOwner } from '@/lib/account/owner-store';
+import { discardCapture } from '@/lib/capture/discard-capture';
 
-export const QUEUE_FOOTER = 'Waiting scans are identified in order when you’re back online.';
-export const QUEUE_EMPTY = 'No scans to review.';
-
-export function queueTitle(total: number): string {
-  if (total === 0) return 'Nothing is waiting';
-  return queueBadgeLabel(total);
-}
+export const QUEUE_FOOTER = 'Waiting scans continue when you’re back online.';
+export const QUEUE_EMPTY = 'Your next scan will appear here until you save or discard it.';
 
 export function QueueSheet() {
   const owner = useLocalOwner();
@@ -27,11 +22,32 @@ export function QueueSheet() {
 }
 
 function QueueContent() {
+  const owner = useLocalOwner();
   const router = useRouter();
   const { items, loading, error } = useQueue();
   const pending = useRef(new Set<string>());
   const [retrying, setRetrying] = useState<string[]>([]);
   const [retryError, setRetryError] = useState<string>();
+  const [discarding, setDiscarding] = useState<string[]>([]);
+  const [discardError, setDiscardError] = useState<string>();
+
+  function discard(item: PendingScan) {
+    Alert.alert('Discard this scan?', 'Its unsaved photos will be removed from this device.', [
+      { text: 'Keep scan', style: 'cancel' },
+      { text: 'Discard scan', style: 'destructive', onPress: () => {
+        if (pending.current.has(item.localId)) return;
+        pending.current.add(item.localId);
+        setDiscarding((ids) => [...ids, item.localId]);
+        setDiscardError(undefined);
+        void discardCapture(item.localId, owner)
+          .catch(() => setDiscardError('Couldn’t finish removing this scan. Try again.'))
+          .finally(() => {
+            pending.current.delete(item.localId);
+            setDiscarding((ids) => ids.filter((id) => id !== item.localId));
+          });
+      } },
+    ]);
+  }
 
   function open(item: PendingScan) {
     router.dismiss();
@@ -54,19 +70,23 @@ function QueueContent() {
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      <ThemedText type="title">{loading || error ? 'Your scans' : queueTitle(items.length)}</ThemedText>
+      <View style={styles.header}>
+        <ThemedText type="title" style={styles.title}>Recent scans</ThemedText>
+        <GalleryButton label="Close" onPress={() => router.dismiss()} />
+      </View>
+      {!error && (loading || items.length > 0) && <ThemedText themeColor="textSecondary">Your photos stay here until you save or discard.</ThemedText>}
       {loading && !error && !items.length && <ListSkeleton label="Loading scans…" rows={3} />}
       {error && <>
-        <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the scan queue. Close this sheet and reopen it to try again.</ThemedText>
-        <GalleryButton label="Close queue" variant="outlined" onPress={() => router.dismiss()} />
+        <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load recent scans. Close this sheet and reopen it to try again.</ThemedText>
       </>}
       {!loading && !error && items.length === 0 && <>
         <ThemedText themeColor="textSecondary">{QUEUE_EMPTY}</ThemedText>
         <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismiss(); router.navigate('/(tabs)/(scan)/scan'); }} />
       </>}
-      {items.map((item) => <QueueRow key={item.localId} item={item} onOpen={open} onRetry={retry} retrying={retrying.includes(item.localId)} />)}
+      {items.map((item) => <QueueRow key={item.localId} item={item} onOpen={open} onRetry={retry} onDiscard={discard} retrying={retrying.includes(item.localId)} discarding={discarding.includes(item.localId)} />)}
       {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}
-      <ThemedText type="small" themeColor="textSecondary">{QUEUE_FOOTER}</ThemedText>
+      {discardError && <ThemedText themeColor="error" accessibilityRole="alert">{discardError}</ThemedText>}
+      {items.some((item) => item.status === 'queued' || item.status === 'identifying') && <ThemedText type="small" themeColor="textSecondary">{QUEUE_FOOTER}</ThemedText>}
     </ScrollView>
   );
 }
@@ -74,4 +94,6 @@ function QueueContent() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, gap: Spacing.three },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  title: { flex: 1 },
 });

@@ -6,7 +6,8 @@ import { AppState, Text } from 'react-native';
 
 import { LocalScanScreen } from '@/components/scan/local-scan-screen';
 import { QueueSheet } from '@/components/scan/states/queue-sheet';
-jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => false }));
+jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => false, readPhotoSession: () => ({ photos: [] }) }));
+jest.mock('@/lib/capture/discard-capture', () => ({ discardCapture: jest.fn() }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
@@ -33,6 +34,7 @@ jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
     Host: View,
+    Icon: () => null,
     Button: ({ label, onPress }: { label: string; onPress: () => void }) => <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>,
     TextInput,
   };

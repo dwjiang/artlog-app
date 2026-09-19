@@ -1,9 +1,9 @@
-import { and, asc, eq, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import { getLocalOwner } from '../../lib/account/owner-store';
 import { db } from '../client';
-import { pendingScans, type NewPendingScan, type PendingScan, type PendingScanStatus } from '../schema';
+import { artworkPhotos, pendingScans, type NewPendingScan, type PendingScan, type PendingScanStatus } from '../schema';
 import { requireVisitMembership } from './visit-membership';
 
 export const MAX_IDENTIFY_ATTEMPTS = 5;
@@ -72,16 +72,12 @@ export async function retryPendingLabel(localId: string, owner = getLocalOwner()
   await db.update(pendingScans).set({ attempts: 0, lastError: null }).where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
-/** Unfinished captures and completed results the user has not seen, oldest first. */
+/** Viewing a scan does not save it. Album tombstones keep previously saved captures out too. */
 export function pendingScansQuery(owner = getLocalOwner()) {
-  return db.select().from(pendingScans)
-    .where(and(eq(pendingScans.owner, owner), or(inArray(pendingScans.status, ['queued', 'identifying', 'failed']), isNull(pendingScans.reviewedAt))))
-    .orderBy(asc(pendingScans.capturedAt), asc(pendingScans.localId));
-}
-
-export async function markScanReviewed(scanId: Id<'scans'>, owner = getLocalOwner()): Promise<void> {
-  await db.update(pendingScans).set({ reviewedAt: Date.now() })
-    .where(and(and(eq(pendingScans.owner, owner), eq(pendingScans.scanId, scanId)), eq(pendingScans.status, 'identified'), isNull(pendingScans.reviewedAt)));
+  return db.select(getTableColumns(pendingScans)).from(pendingScans)
+    .leftJoin(artworkPhotos, and(eq(artworkPhotos.owner, pendingScans.owner), eq(artworkPhotos.localId, pendingScans.localId)))
+    .where(and(eq(pendingScans.owner, owner), isNull(artworkPhotos.localId)))
+    .orderBy(desc(pendingScans.capturedAt), desc(pendingScans.localId));
 }
 
 /** Rows the flusher should send, oldest first; a model update gives failed rows another run. */

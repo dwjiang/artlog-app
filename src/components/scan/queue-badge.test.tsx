@@ -23,14 +23,14 @@ it('stays hidden while nothing waits for signal', async () => {
 it('counts every capture in the queue and opens it on tap', async () => {
   mockStatuses = ['queued', 'failed', 'identified'];
   await render(<QueueBadge />);
-  expect(screen.getByText('3')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: '3 scans in queue' }));
+  expect(screen.getByText('Recent 3')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Recent scans, 3 scans' }));
   expect(mockPush).toHaveBeenCalledWith('/queue');
 });
 
 it.each(['queued', 'failed', 'identified'] as const)('keeps a lone %s scan reachable', async (status) => {
   mockStatuses = [status];
   await render(<QueueBadge />);
-  await fireEvent.press(screen.getByRole('button', { name: '1 scan in queue' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Recent scans, 1 scan' }));
   expect(mockPush).toHaveBeenCalledWith('/queue');
 });

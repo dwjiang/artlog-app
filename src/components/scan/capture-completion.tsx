@@ -11,7 +11,7 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
   const router = useRouter();
   const content = <>
     <Image source="sf:checkmark.circle" style={{ width: 42, height: 42 }} tintColor={Gallery.success} />
-    <ThemedText type="title" style={styles.title}>Keep this moment.</ThemedText>
+    <ThemedText type="title" style={styles.title}>Saved to collection</ThemedText>
     <ThemedText style={styles.copy}>{completion.wasExisting ? 'Added to' : 'Saved as'} {completion.title}.</ThemedText>
     <ThemedText style={styles.copy}>1 artwork · {completion.photoPaths.length} new {completion.photoPaths.length === 1 ? 'photo' : 'photos'}</ThemedText>
     <View style={styles.photos}>{completion.photoPaths.slice(0, 3).map((path) => <Image key={path} source={{ uri: captureFileUri(path) }} contentFit="cover" style={styles.photo} accessibilityLabel="Saved photo preview" />)}</View>

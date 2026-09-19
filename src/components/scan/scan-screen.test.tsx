@@ -34,7 +34,6 @@ const mockDetectorActive: boolean[] = [];
 
 jest.mock('@/components/collection/gallery-button');
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('./capture-draft-banner', () => ({ CaptureDraftBanner: () => null }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return {
@@ -198,7 +197,7 @@ it('keeps the venue and queue controls', async () => {
   await render(<ScanScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
   expect(mockPush).toHaveBeenCalledWith('/venue-picker');
-  expect(screen.getByLabelText('2 scans in queue')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Recent scans, 2 scans')).toBeOnTheScreen();
 });
 
 it('shows corrective guidance and keeps detecting after a camera failure', async () => {
