@@ -16,7 +16,6 @@ export function runMuseumSearchForScan(input: {
   scanId: Id<'scans'>;
   localId: string;
   stored?: MuseumSearchDisplay;
-  retry?: boolean;
   canContinue: () => boolean;
   onStage: (stage: MuseumSearchStage) => void;
 }) {
@@ -26,7 +25,7 @@ export function runMuseumSearchForScan(input: {
   const task = (async () => {
     // The public subscription can lag an action finishing during navigation.
     const latest = input.stored ? undefined : await convex.query(api.scans.get, { scanId: input.scanId });
-    if (latest?.museumSearch?.stage === 'none' && !input.retry) {
+    if (latest?.museumSearch?.stage === 'none') {
       return { stage: 'none' as const, reason: latest.museumSearch.reason };
     }
     if (latest?.museumSearch?.stage === 'confirmed') {

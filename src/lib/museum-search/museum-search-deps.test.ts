@@ -20,7 +20,7 @@ beforeEach(() => {
   jest.mocked(runMuseumSearch).mockResolvedValue({ stage: 'none', reason: 'no_candidates' });
 });
 
-it('shares an in-flight search across remounts, then allows a manual retry', async () => {
+it('shares an in-flight search across remounts, then searches again on the next call', async () => {
   let finish!: (outcome: Awaited<ReturnType<typeof runMuseumSearch>>) => void;
   jest.mocked(runMuseumSearch).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   const input = { scanId: 'scan-1' as Id<'scans'>, localId: 'capture-1', canContinue: () => true, onStage: jest.fn() };
@@ -59,13 +59,11 @@ it('restores a freshly confirmed search without preparing or uploading a crop', 
   expect(convex.action).not.toHaveBeenCalled();
 });
 
-it('restores a freshly completed none result, while an explicit retry can search again', async () => {
+it('restores a freshly completed none result without searching again', async () => {
   jest.mocked(convex.query).mockResolvedValue({ museumSearch: { stage: 'none', reason: 'no_candidates', updatedAt: 1 } });
   const input = { scanId: 'scan-4' as Id<'scans'>, localId: 'capture-4', canContinue: () => true, onStage: jest.fn() };
   expect(await runMuseumSearchForScan(input)).toEqual({ stage: 'none', reason: 'no_candidates' });
   expect(runMuseumSearch).not.toHaveBeenCalled();
-  await runMuseumSearchForScan({ ...input, retry: true });
-  expect(runMuseumSearch).toHaveBeenCalledTimes(1);
 });
 
 it('restores an edited confirmation from the latest query without searching again', async () => {
