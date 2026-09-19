@@ -26,6 +26,7 @@ import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
 import { formStateFromFlow, unlockField } from '@/lib/label/fields';
+jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('../collection/gallery-button');
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
@@ -256,7 +257,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
 it('keeps the card usable while the prose is still being written, then fills it in', async () => {
   results.set('scans:get', confidentScanWithoutProse);
   await render(result());
-  expect(await screen.findByText('Writing about this work…')).toBeOnTheScreen();
+  expect(await screen.findByLabelText('Writing about this work…')).toBeOnTheScreen();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
   await publish({ ...confidentScanWithoutProse, docent: confidentScan.docent, factSheet: confidentScan.factSheet });
   expect(await screen.findByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();

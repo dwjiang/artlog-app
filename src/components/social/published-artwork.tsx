@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { socialStyles } from './social-styles';
 import { Gallery, Typography } from '@/constants/theme';
@@ -8,6 +8,7 @@ import type { WallFrame as Frame } from '@/lib/wall/wall-layout';
 import { WallFrame, wallFrameInset } from '../collection/wall-frame';
 import { DisplayMedia } from '../artwork/display-media';
 import { NoteHeading } from '../collection/note-editor';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { DocentSection, type DocentSectionProps } from '../scan/result/docent-section';
 
 export function PublishedArtwork({ artwork, photos, shared = false, frame = 'none', token, note, enrichment }: {
@@ -41,13 +42,7 @@ function PublishedArtworkGallery({ title, photos, frame, width, token }: {
 }) {
   const gallery = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => { if (active) setReduceMotion(enabled); });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => { active = false; subscription.remove(); };
-  }, []);
+  const reduceMotion = useReducedMotion();
   const goTo = (index: number) => {
     const next = Math.max(0, Math.min(photos.length - 1, index));
     setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });

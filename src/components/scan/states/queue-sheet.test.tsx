@@ -91,7 +91,7 @@ it('waits for the local query before showing an empty queue', async () => {
   mockItems = [];
   mockLoading = true;
   await render(<QueueSheet />);
-  expect(screen.getByText('Loading scans…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Loading scans…')).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
   expect(screen.queryByText('Nothing is waiting')).toBeNull();
 });

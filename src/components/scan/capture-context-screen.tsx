@@ -1,7 +1,9 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { GalleryButton } from '../collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
@@ -76,7 +78,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId?: 
         {detail && <ThemedText type="small" themeColor="textSecondary">{detail}</ThemedText>}
         {current && <ThemedText type="smallBold">Selected</ThemedText>}
       </View>
-      {pending === value && <ActivityIndicator color={Gallery.accent} accessibilityLabel="Saving visit choice" />}
+      {pending === value && <LoadingRing color={Gallery.accent} accessibilityLabel="Saving visit choice" />}
     </Pressable>;
   }
 
@@ -92,7 +94,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId?: 
     <GalleryButton label="Create a visit" icon="plus" disabled={pending !== undefined} onPress={() => router.push('/visit-create')} />
     <ThemedText type="subtitle">Your visits</ThemedText>
     {visits.error ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load your visits. Close this screen and reopen it to try again.</ThemedText>
-      : !visits.updatedAt ? <View style={styles.loading}><ActivityIndicator color={Gallery.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading visits…</ThemedText></View>
+      : !visits.updatedAt ? <ListSkeleton label="Loading visits…" rows={3} />
       : availableVisits.length === 0 && <ThemedText themeColor="textSecondary">No visits yet. Create a visit, or save this artwork without one.</ThemedText>}
     <View>{availableVisits.map((visit) => option(visit.localId, visit.venueName, formatVisitDate(visit.visitedOn)))}</View>
   </ScrollView>;
@@ -106,5 +108,4 @@ const styles = StyleSheet.create({
   selected: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
   selectedLabel: { fontWeight: '600' },
   pressed: { opacity: 0.7 },
-  loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

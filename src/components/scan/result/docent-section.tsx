@@ -6,6 +6,7 @@ import type { DocentSentence, FactChip } from '../../../../convex/lib/validators
 import { SourceChip } from './source-chip';
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
+import { ParagraphSkeleton } from '@/components/loading-skeleton';
 
 /** How long to wait before explaining that background information is unavailable. */
 export const DOCENT_WAIT_MS = 10_000;
@@ -35,7 +36,7 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
     <View style={styles.section}>
       {title ? <ThemedText type="subtitle">{title}</ThemedText> : null}
       {waiting ? (
-        <ThemedText themeColor="textSecondary">Writing about this work…</ThemedText>
+        <ParagraphSkeleton />
       ) : !docent?.length ? <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText> : (
         <View style={styles.prose}>
           {docent?.map((line, index) => {

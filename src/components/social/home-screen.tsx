@@ -11,6 +11,8 @@ import { useSocialSession } from '@/lib/social/use-social-session';
 import { PageFooter, SocialGate, SocialState } from './social-state';
 import { VisitCard } from './visit-card';
 import { GalleryIconButton } from '../collection/gallery-icon-button';
+import { FeedSkeleton, Ghost } from '@/components/loading-skeleton';
+import { LoadingRing } from '@/components/loading-ring';
 
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
@@ -28,7 +30,7 @@ export function HomeScreen() {
       data={ready ? feed.items : []} keyExtractor={visitId} initialNumToRender={4} maxToRenderPerBatch={4}
       renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
       refreshControl={ready ? <RefreshControl refreshing={feed.refreshing}
-        tintColor={Gallery.accent} onRefresh={feed.refresh} /> : undefined}
+        tintColor="transparent" onRefresh={feed.refresh} /> : undefined}
       ListHeaderComponent={<><View style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}>
         <Text variant={fontScale > 1.4 ? 'display' : 'wordmark'} accessibilityRole="header">Artlog</Text>
         <View style={styles.headerActions}>
@@ -36,13 +38,14 @@ export function HomeScreen() {
           <GalleryIconButton icon="magnifyingglass" label="Find people" onPress={() => router.push('/people')} />
           <GalleryIconButton icon="person.2" label="Friends" onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })} />
         </View>
-      </View>{ready && <View style={styles.heading}>
-        <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text>
+      </View>{(ready || session.status === 'loading') && <View style={styles.heading}>
+        {ready ? <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text> : <Ghost width={110} height={24} />}
+        {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
       </View>}</>}
-      ListEmptyComponent={!ready ? <SocialGate session={session} browsePublic /> : feed.done && !feed.error
+      ListEmptyComponent={!ready ? session.status === 'loading' ? <FeedSkeleton label="Getting things ready…" /> : <SocialGate session={session} browsePublic /> : feed.done && !feed.loading && !feed.error
         ? <SocialState title={guest ? "No public visits yet." : "A new view is on its way."} detail={guest ? "When someone shares a visit publicly, it will appear here. Explore public walls in the meantime." : "When your friends share a museum visit, it will appear here. Find someone whose eye you love."}
           action={guest ? "Browse public walls" : "Find people"} onAction={() => router.push('/people')} /> : null}
-      ListFooterComponent={ready ? <PageFooter {...feed} count={feed.items.length} /> : null}
+      ListFooterComponent={ready && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? <PageFooter {...feed} count={feed.items.length} skeleton="feed" /> : null}
       onEndReached={ready ? feed.loadMore : undefined} onEndReachedThreshold={0.4} />
   </>;
 }
@@ -51,6 +54,6 @@ const styles = StyleSheet.create({
   masthead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   mastheadLarge: { flexDirection: 'column', alignItems: 'flex-start' },
   headerActions: { flexDirection: 'row', gap: 8, alignSelf: 'flex-end', paddingBottom: 12 },
-  heading: { flexDirection: 'row', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 6 },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 6 },
   eyebrow: { backgroundColor: Gallery.highlight, paddingHorizontal: 6, paddingVertical: 3, color: Gallery.ink },
 });

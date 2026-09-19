@@ -1,7 +1,8 @@
+import { LoadingRing } from '@/components/loading-ring';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,7 +30,7 @@ export function SignInScreen({ context = 'account' }: { context?: SignInContext 
       </View>
       <Text style={styles.detail}>{copy.detail}</Text>
       <View style={styles.actions}>
-        {busy ? <ActivityIndicator accessibilityLabel="Signing in…" color={Gallery.accent} /> : available && ready
+        {busy ? <LoadingRing accessibilityLabel="Signing in…" color={Gallery.accent} /> : available && ready
           ? <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}

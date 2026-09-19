@@ -12,6 +12,7 @@ import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { VisitGlobe } from './visit-globe';
 import { VisitTimeline } from './visit-timeline';
 import { VisitMessage, VisitPrivacyNote, visitStyles as styles } from './visit-ui';
+import { ListSkeleton } from '@/components/loading-skeleton';
 
 export function CollectionVisits({ owner, visits, search, header, collectionControls, loading, error, clearSearch, onSearchChange }: {
   owner: string; visits: VisitSummary[]; search: string; header?: ReactElement; collectionControls?: ReactElement;
@@ -31,7 +32,10 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   </View></View>;
   let message: ReactElement | undefined;
   if (error) message = <VisitMessage action="Go to Scan" onAction={() => router.push('/scan')}>Your visits could not load. Reopen Collection to try again.</VisitMessage>;
-  else if (loading || !mode) message = <VisitMessage loading>Loading your visits…</VisitMessage>;
+  // `loading` also covers the venue metadata read, so visits never render without their places.
+  else if (!mode || loading) message = mode === 'list'
+    ? <ListSkeleton label="Loading your visits…" rows={3} />
+    : <VisitMessage loading>Loading your visits…</VisitMessage>;
   else if (!visits.length) message = <VisitMessage action="Add visit" onAction={() => router.push('/visit-create')}>Remember your first museum visit. You can add a visit without saving any artworks.</VisitMessage>;
   else if (mode === 'list' && !shown.length) message = <VisitMessage action="Clear search" onAction={clearSearch}>{searchTerm(search) === null
     ? 'Enter between 2 and 100 characters to search.' : `No visits match “${search.trim()}”.`}</VisitMessage>;
@@ -39,5 +43,5 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
     contentContainerStyle={{ paddingBottom: 30 }}>{header}{controls}{message ?? <VisitGlobe visits={visits} onList={() => changeMode('list')} />}<VisitPrivacyNote /></ScrollView>;
   // One list container for every search state keeps the search field mounted while typing.
   return <VisitTimeline visits={message ? [] : shown} header={header} controls={controls}
-    summary={<Text style={[styles.eyebrow, { padding: 18 }]}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>} empty={message} />;
+    summary={loading ? undefined : <Text style={[styles.eyebrow, { padding: 18 }]}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>} empty={message} />;
 }

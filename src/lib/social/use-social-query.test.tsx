@@ -43,7 +43,7 @@ it('gates requests and clears content when the account changes or becomes unavai
   expect(view.result.current.items).toEqual([]);
 });
 
-it('resets pagination and performs a fresh read on pull-to-refresh', async () => {
+it('keeps delivered pages on screen through a pull-to-refresh, then restarts from the first page', async () => {
   mockResults = { first: page('alex', 'next'), next: page('bea', null, true) };
   const view = await renderHook(() => useCursorPages(api.profiles.search, { query: 'art' }, 'account-a', select, identify));
   await act(() => view.result.current.loadMore());
@@ -51,15 +51,47 @@ it('resets pagination and performs a fresh read on pull-to-refresh', async () =>
   let finish!: () => void;
   mockHttpQuery.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
   await act(() => view.result.current.refresh());
-  expect(view.result.current.items).toEqual([]);
+  expect(view.result.current.items.map((profile) => profile.name)).toEqual(['alex', 'bea']);
+  expect(view.result.current.first).toEqual(page('alex', 'next'));
   expect(view.result.current.loading).toBe(true);
   expect(view.result.current.refreshing).toBe(true);
+  expect(view.result.current.canLoadMore).toBe(false);
   expect(mockRequests).toEqual({});
   expect(getFunctionName(mockHttpQuery.mock.calls[0][0])).toBe('profiles:search');
   expect(mockHttpQuery.mock.calls[0][1]).toEqual({ query: 'art', cursor: null, limit: 10 });
+  // The fresh subscription has not answered yet: the old pages stay up and the pull indicator stays engaged.
+  mockResults = {};
   await act(() => finish());
-  expect(view.result.current.refreshing).toBe(false);
   expect(Object.values(mockRequests).map((request) => request.args.cursor)).toEqual([null]);
+  expect(view.result.current.items.map((profile) => profile.name)).toEqual(['alex', 'bea']);
+  expect(view.result.current.refreshing).toBe(true);
+  mockResults = { first: page('cleo', null, true) };
+  await view.rerender(undefined);
+  expect(view.result.current.refreshing).toBe(false);
+  expect(view.result.current.loading).toBe(false);
+  expect(view.result.current.items.map((profile) => profile.name)).toEqual(['cleo']);
+});
+
+it('drops held pages when the fresh subscription answers with an error', async () => {
+  mockResults.first = page('alex', null, true);
+  mockHttpQuery.mockResolvedValue(undefined);
+  const view = await renderHook(() => useCursorPages(api.profiles.search, { query: 'art' }, 'account-a', select, identify));
+  mockResults.first = new ConvexError('Feed unavailable');
+  await act(() => view.result.current.refresh());
+  expect(view.result.current.items).toEqual([]);
+  expect(view.result.current.refreshing).toBe(false);
+  expect(view.result.current.error).toBeInstanceOf(ConvexError);
+});
+
+it('does not hold a failed read on screen while its retry is in flight', async () => {
+  mockResults.first = new ConvexError('Feed unavailable');
+  mockHttpQuery.mockImplementation(() => new Promise(() => {}));
+  const view = await renderHook(() => useCursorPages(api.profiles.search, { query: 'art' }, 'account-a', select, identify));
+  expect(view.result.current.error).toBeDefined();
+  await act(() => view.result.current.refresh());
+  expect(view.result.current.error).toBeUndefined();
+  expect(view.result.current.items).toEqual([]);
+  expect(view.result.current.loading).toBe(true);
 });
 
 it('drops dependent subscriptions when reactive pagination cursors change', async () => {

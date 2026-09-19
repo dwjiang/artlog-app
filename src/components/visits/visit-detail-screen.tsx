@@ -21,8 +21,8 @@ export function VisitDetailScreen() {
   const { visitId } = useLocalSearchParams<{ visitId: string }>();
   const { owner, visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
-  if (!visit) return <VisitPage><VisitMessage loading={loading} action="Back to Collection" onAction={() => router.back()}>
-    {loading ? 'Loading visit…' : error ? 'This visit could not load.' : 'This visit is unavailable for this account.'}
+  if (!visit) return <VisitPage><VisitMessage loading={loading && !error} skeleton="visit" action="Back to Collection" onAction={() => router.back()}>
+    {error ? 'This visit could not load.' : loading ? 'Loading visit…' : 'This visit is unavailable for this account.'}
   </VisitMessage></VisitPage>;
   return <VisitDetail key={`${owner}:${visitId}`} visit={visit} />;
 }

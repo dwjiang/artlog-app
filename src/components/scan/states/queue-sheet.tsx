@@ -1,6 +1,7 @@
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { QueueRow } from './queue-row';
 import { queueBadgeLabel } from '../queue-badge';
@@ -54,7 +55,7 @@ function QueueContent() {
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <ThemedText type="title">{loading || error ? 'Your scans' : queueTitle(items.length)}</ThemedText>
-      {loading && <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading scans…</ThemedText></View>}
+      {loading && !error && !items.length && <ListSkeleton label="Loading scans…" rows={3} />}
       {error && <>
         <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the scan queue. Close this sheet and reopen it to try again.</ThemedText>
         <GalleryButton label="Close queue" variant="outlined" onPress={() => router.dismiss()} />
@@ -73,5 +74,4 @@ function QueueContent() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, gap: Spacing.three },
-  loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

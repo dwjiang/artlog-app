@@ -1,5 +1,6 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
@@ -43,7 +44,7 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
           <View key={label} style={styles.row} accessibilityLabel={label} accessibilityState={{ checked: done, busy: active }}>
             <View style={styles.icon}>
               {done ? <Image source="sf:checkmark.circle.fill" tintColor={Colors.light.success} style={styles.glyph} />
-                : spinner ? <ActivityIndicator size="small" color={Colors.light.accent} />
+                : spinner ? <LoadingRing color={Colors.light.accent} />
                 : <View style={[styles.dot, active && styles.dotActive]} />}
             </View>
             <ThemedText style={{ flex: 1 }} themeColor={done || active ? 'text' : 'textSecondary'}>{label}</ThemedText>

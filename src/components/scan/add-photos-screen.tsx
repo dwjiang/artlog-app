@@ -186,7 +186,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     {photos.length >= 99 && <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>}
     {removed && <GalleryButton label="Photo removed · Undo" disabled={busy} onPress={() => { update([...photos, removed]); setRemoved(undefined); }} />}
     {error && <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</ThemedText>}
-    <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
+    <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} busyLabel="Saving…" disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
     <ThemedText style={[styles.hint, { textAlign: 'center' }]}>Only you can see these photos.</ThemedText>
   </ScrollView>;
 }

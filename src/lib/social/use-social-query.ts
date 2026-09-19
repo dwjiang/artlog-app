@@ -38,16 +38,24 @@ export function useCursorPages<Q extends Query, T>(query: Q, args: Omit<Function
     return requests;
   }, [enabled, key, name, serialized, current.cursors]);
   const results = useQueries(queries);
-  const pages = readCursorPages(current.cursors,
+  const live = readCursorPages(current.cursors,
     current.cursors.map((cursor, index) => {
-      const live = results[`${key}:${index}:${cursor}`];
-      return enabled ? live !== undefined ? live : retry.error : undefined;
+      const result = results[`${key}:${index}:${cursor}`];
+      return enabled ? result !== undefined ? result : retry.error : undefined;
     }), select, identify);
-  if (enabled && pages.validLength < current.cursors.length) {
-    setState({ ...current, cursors: current.cursors.slice(0, pages.validLength) });
+  if (enabled && live.validLength < current.cursors.length) {
+    setState({ ...current, cursors: current.cursors.slice(0, live.validLength) });
   }
-  return { ...pages, refreshing: retry.refreshing, loading: args !== 'skip' && (pages.loading || retry.refreshing),
-    refresh: () => { setState({ key, cursors: [null] }); retry.refresh(); },
+  // A refresh drops the live subscription so it resubscribes fresh; the pages delivered before it stay on screen
+  // until the new subscription answers, so a pull-to-refresh never blanks the list.
+  const [held, setHeld] = useState<{ key: string; pages: typeof live }>();
+  const stale = held !== undefined && (held.key !== key || args === 'skip' || live.first !== undefined || live.error !== undefined);
+  if (stale) setHeld(undefined);
+  const holding = held && !stale ? held.pages : undefined;
+  const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
+  const refreshing = retry.refreshing || holding !== undefined;
+  return { ...pages, refreshing, loading: args !== 'skip' && (pages.loading || refreshing),
+    refresh: () => { if (!refreshing && !live.error) setHeld({ key, pages: live }); setState({ key, cursors: [null] }); retry.refresh(); },
     loadMore: () => {
       if (enabled && pages.canLoadMore) setState((previous) => previous.key === key && !previous.cursors.includes(pages.next!)
         ? { ...previous, cursors: [...previous.cursors, pages.next!] } : previous);

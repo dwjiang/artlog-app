@@ -171,7 +171,7 @@ export function VisitShareScreen() {
         onChangeText={(reflection) => controller.edit({ reflection })} />
       <Text style={styles.fine}>{draft.reflection.length}/{LIMITS.sharedReflection} characters</Text>
       <PrivacyNote>Only selected photos from this visit are shared. Private notes, wall-label photos, and photos from other visits are not added automatically. Adding a photo later will not share it.</PrivacyNote>
-      <GalleryButton label={sharing.conflict ? 'Refresh preview' : 'Preview shared visit'} busy={sharing.busy} variant="filled" fullWidth
+      <GalleryButton label={sharing.conflict ? 'Refresh preview' : 'Preview shared visit'} busy={sharing.busy} busyLabel="Preparing preview…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.acknowledged?.removed} onPress={() => { void preview(); }} />
       <Text style={styles.fine}>The preview is not a limit. The full visit shows every artwork you select, ordered by highlights first.</Text>
     </View>} />;
@@ -192,7 +192,7 @@ export function VisitSharePreviewScreen() {
     artworks={ordered.map((item) => ({ key: item.saveLocalId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
     footer={<View style={share.confirm}>
       <ShareError sharing={sharing} />
-      <GalleryButton label={active ? 'Update shared visit' : isPublic ? 'Share publicly' : 'Share with friends'} busy={sharing.busy} variant="filled" fullWidth
+      <GalleryButton label={active ? 'Update shared visit' : isPublic ? 'Share publicly' : 'Share with friends'} busy={sharing.busy} busyLabel="Sharing…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.conflict} onPress={() => { void publish(); }} />
       <PrivacyNote>{`Preview highlights affect the feed card, not which artworks appear in this visit. ${isPublic
         ? 'This visit will appear on public Home, including for people without an account; your private journal stays private.'
