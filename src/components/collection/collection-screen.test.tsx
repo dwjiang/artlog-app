@@ -44,7 +44,7 @@ async function renderArchive() { await render(<AllArtworksScreen />); }
 
 it('opens the local artwork collection for guests without a sign-in gate', async () => {
   await render(<CollectionScreen />);
-  expect(await screen.findByText('Your collection begins here.')).toBeOnTheScreen();
+  expect(await screen.findByText('Your own little museum.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Artworks' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Visits' })).toBeOnTheScreen();
   expect(screen.queryByText('Collection wall')).toBeNull();
@@ -67,14 +67,14 @@ it('keeps the public wall as the account collection view', async () => {
 
 it('invites the first scan while the collection is empty', async () => {
   await renderArchive();
-  expect(await screen.findByText('Your collection begins here.')).toBeOnTheScreen();
-  expect(screen.getByText('Scan a painting to save your first artwork.')).toBeOnTheScreen();
+  expect(await screen.findByText('Your own little museum.')).toBeOnTheScreen();
+  expect(screen.getByText('Scan an artwork to start your collection.')).toBeOnTheScreen();
 });
 
 it('shows the first saved artwork without a sync prompt', async () => {
   switchOwner('device:first-save', 'scope-first-save');
   const empty = await render(<CollectionScreen />);
-  expect(await screen.findByText('Your collection begins here.')).toBeOnTheScreen();
+  expect(await screen.findByText('Your own little museum.')).toBeOnTheScreen();
   expect(screen.queryByText('Keep your collection across devices')).toBeNull();
   await empty.unmount();
   await act(async () => { await insertSavedWork({ localId: 'first-artwork', savedAt: 1, title: 'First artwork', artist: 'First artist' }); });

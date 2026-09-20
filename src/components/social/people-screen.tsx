@@ -15,6 +15,7 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { ProfileIdentity } from './visit-card';
 import { CollectionSearchField } from '../collection/collection-search-field';
 import { ListSkeleton } from '@/components/loading-skeleton';
+import { FriendsInvitation } from './friends-invitation';
 
 const searchPage = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
@@ -23,6 +24,7 @@ export function PeopleScreen() {
   const session = useSocialSession();
   const params = useLocalSearchParams<{ filter?: string }>();
   const [filter, setFilter] = useState<'all' | 'friends'>(params.filter === 'friends' ? 'friends' : 'all');
+  const guestFriends = filter === 'friends' && session.status === 'signed-out';
   const friends = useSocialQuery(api.profiles.friends, session.status === 'ready' ? {} : 'skip', session.key);
   const [text, setText] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -35,16 +37,16 @@ export function PeopleScreen() {
   return <>
     <Stack.Screen options={{ title: '' }} />
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
-      keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
+      keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={guestFriends ? [] : filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
       keyExtractor={profileId} renderItem={({ item }) => <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}><ProfileIdentity profile={item} showChevron friend={friends.data?.some((friend) => friend.profileId === item.profileId)} /></View>}
       ListHeaderComponent={<View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
         <Text variant="pageTitle" accessibilityRole="header">People</Text>
         {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Discover people and their little museums.</Text>}
-        <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />
+        {!guestFriends && <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
         <NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
-      ListEmptyComponent={filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : 'No friends found.'}
+      ListEmptyComponent={guestFriends ? <FriendsInvitation onExplore={() => { setText(''); setFilter('all'); }} /> : filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : 'No friends found.'}
         detail="Search All people to make a connection." action={friends.error ? 'Try again' : undefined} onAction={friends.refresh} /> : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
         : !text.trim() && (discovery.loading || discovery.error) ? null : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2"
           detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />

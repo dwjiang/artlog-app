@@ -1,5 +1,4 @@
 import { LoadingRing } from '@/components/loading-ring';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -8,35 +7,43 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { GalleryIconButton } from '@/components/collection/gallery-icon-button';
+import { ArtworkStrip } from '@/components/guest/artwork-preview';
 import { Gallery, Typography } from '@/constants/theme';
 import { signInContexts, type SignInContext } from '@/lib/account/sign-in-context';
 import { useAccount } from '@/lib/account/use-account';
+import { useLocalOwner } from '@/lib/account/owner-store';
+import { AppleSignInAction } from './apple-sign-in-action';
 
-export function SignInScreen({ context = 'account' }: { context?: SignInContext }) {
-  const { account, available, busy, error, ready, signInWithApple } = useAccount();
+export function SignInScreen({ context = 'account', visitId }: { context?: SignInContext; visitId?: string }) {
+  const state = useAccount();
+  const { account, busy } = state;
+  const owner = useLocalOwner();
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, height } = useWindowDimensions();
   const copy = signInContexts[context];
-  useEffect(() => { if (account?.linked && !busy) router.back(); }, [account?.linked, busy, router]);
+  const initialDetent = height < 760 ? 0.8 : context === 'visit' ? 0.5 : 0.62;
+  const continuingVisit = context === 'visit' && !!visitId;
+  const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
+  useEffect(() => {
+    if (!account?.linked || busy || waitingForJournal) return;
+    if (continuingVisit) router.replace({ pathname: '/visit-share/[visitId]', params: { visitId } });
+    else router.back();
+  }, [account?.linked, busy, continuingVisit, router, visitId, waitingForJournal]);
 
   return <>
-    <Stack.Screen options={{ gestureEnabled: !busy, sheetAllowedDetents: fontScale > 1.3 ? [1] : [0.45, 1] }} />
+    <Stack.Screen options={{ gestureEnabled: !busy, sheetAllowedDetents: fontScale > 1.3 ? [1] : [initialDetent, 1] }} />
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[styles.content, { paddingBottom: Math.max(20, bottom) }]}>
-      <View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.title}>{copy.title}</Text>
+      <View style={styles.preview}>
+        <View style={styles.artworks}><ArtworkStrip /></View>
         <GalleryIconButton label="Close sign-in" icon="xmark" disabled={busy} onPress={() => router.back()} />
       </View>
+      <Text accessibilityRole="header" style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: '100%' }]}>{copy.title}</Text>
       <Text style={styles.detail}>{copy.detail}</Text>
       <View style={styles.actions}>
-        {busy ? <LoadingRing accessibilityLabel="Signing in…" color={Gallery.accent} /> : available && ready
-          ? <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={10} style={styles.appleButton} onPress={() => { void signInWithApple(); }} />
-          : <Text style={styles.footnote}>{!ready ? 'Connecting to your account…' : 'Apple sign-in is unavailable on this device.'}</Text>}
-        {error && <Text selectable accessibilityRole="alert" style={styles.error}>{error}</Text>}
+        {waitingForJournal && !busy ? <View style={styles.preparing}><LoadingRing accessibilityLabel="Preparing your visit…" color={Gallery.accent} />
+          <Text variant="metadata" themeColor="textSecondary">Preparing your visit…</Text></View> : <AppleSignInAction state={state} />}
         <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
       </View>
     </ScrollView>
@@ -45,12 +52,11 @@ export function SignInScreen({ context = 'account' }: { context?: SignInContext 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, gap: 12 },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { ...Typography.display, flex: 1, color: Gallery.ink },
-  detail: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
-  actions: { gap: 12, paddingTop: 12 },
-  appleButton: { width: '100%', height: 50 },
-  footnote: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: 'center' },
-  error: { fontSize: 14, lineHeight: 20, color: Gallery.destructive },
+  content: { paddingHorizontal: 20, paddingTop: 24, gap: 12, maxWidth: 520, width: '100%', alignSelf: 'center' },
+  preview: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
+  artworks: { flex: 1 },
+  title: { ...Typography.display, fontSize: 36, lineHeight: 42, maxWidth: 300, color: Gallery.ink },
+  detail: { ...Typography.body, color: Gallery.muted },
+  actions: { gap: 8, paddingTop: 8 },
+  preparing: { minHeight: 50, alignItems: 'center', gap: 8 },
 });

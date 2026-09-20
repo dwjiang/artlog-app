@@ -19,10 +19,20 @@ export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = f
   const guest = !useLocalOwner().startsWith('account:');
   const { data: profile } = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const edit = () => router.push(profile ? '/edit-profile' : session.status === 'profile-required' ? '/create-profile' : signInRoute('wall'));
-  const status = guest ? 'Saved on this iPhone' : profile ? `@${profile.username}`
+  const status = profile ? `@${profile.username}`
     : session.status === 'offline' ? 'Offline · saved on this iPhone' : session.status === 'profile-required' ? 'Create a profile to share your wall'
       : session.status === 'error' ? 'Profile unavailable' : 'Opening your profile…';
   const counts = `${artworkCount} ${artworkCount === 1 ? 'artwork' : 'artworks'} · ${visitCount} ${visitCount === 1 ? 'visit' : 'visits'}`;
+  if (guest) return <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, gap: 4 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      <Text variant="display" accessibilityRole="header" accessibilityLabel="Your collection"
+        style={{ flex: 1, fontSize: accessibilityLayout ? 32 : 40, lineHeight: accessibilityLayout ? 38 : 46 }}>Your{'\n'}collection</Text>
+      {artworkCount > 0 && <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />}
+      <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push('/settings')} />
+    </View>
+    {loading ? <LoadingSkeleton label="Loading collection counts"><Ghost width={150} style={{ marginTop: 5 }} /></LoadingSkeleton>
+      : artworkCount + visitCount > 0 && <Text variant="metadata" themeColor="textSecondary">{counts}</Text>}
+  </View>;
   const identity = <>
     <ProfileAvatar name={profile?.name ?? 'Your collection'} photoUrl={profile?.photoUrl} size={accessibilityLayout ? 56 : 76} />
     <View style={{ flex: accessibilityLayout ? undefined : 1, minWidth: 0, gap: 2 }}>
@@ -36,8 +46,7 @@ export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = f
     alignItems: accessibilityLayout ? 'flex-start' as const : 'center' as const, gap: 14, minHeight: 48 };
   return <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, backgroundColor: Gallery.paper }}>
     <View style={{ flexDirection: stacked ? 'column' : 'row', alignItems: stacked ? 'stretch' : 'flex-start', gap: 8 }}>
-      {guest ? <View style={identityStyle}>{identity}</View>
-        : <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit} style={identityStyle}>{identity}</Pressable>}
+      <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit} style={identityStyle}>{identity}</Pressable>
       <View style={{ flexDirection: 'row', gap: 4, alignSelf: stacked ? 'flex-end' : 'flex-start' }}>
         <GalleryIconButton label={profile ? 'Share your profile' : 'Share your wall'} icon="square.and.arrow.up" onPress={() => profile ? router.push({ pathname: '/share-profile', params: { profileId: profile.profileId } }) : edit()} />
         <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push('/settings')} />

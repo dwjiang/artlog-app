@@ -7,11 +7,11 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-it('lets a new visitor start exploring without an account connection', async () => {
+it('lets a new visitor skip sign-in and start exploring', async () => {
   await render(<WelcomeScreen />);
   expect(screen.getByRole('header', { name: 'Welcome to Artlog' })).toBeOnTheScreen();
   expect(screen.getByText('Remember the art that stays with you.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Start exploring' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore without an account' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockReplace).not.toHaveBeenCalled();
 });

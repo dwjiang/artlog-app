@@ -16,7 +16,7 @@ let mockTimings: CaptureTimings | undefined;
 let mockMessage: string | undefined;
 let mockPending = 0;
 let mockVenueView: VenueView;
-let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void };
+let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onError: () => void };
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
@@ -139,6 +139,37 @@ it('takes a still only when the controller accepts a detection', async () => {
   expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   expect(mockCapture).not.toHaveBeenCalled();
+});
+
+it('announces camera startup errors, keeps import available, and clears the error on recovery', async () => {
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onError());
+  expect(screen.getByRole('alert')).toHaveTextContent('Could not start the camera. You can import a photo.');
+  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Import' }));
+  expect(mockImport).toHaveBeenCalledTimes(1);
+
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByText('Point at an artwork. Hold steady to scan.')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeEnabled();
+});
+
+it('hides camera startup errors while an imported photo is processing or needs a retry', async () => {
+  const view = await render(<ScanScreen />);
+  await act(() => mockCameraProps.onError());
+
+  mockState = { phase: 'processing', occupied: true, source: 'library' };
+  await view.rerender(<ScanScreen />);
+  expect(screen.queryByText('Could not start the camera. You can import a photo.')).toBeNull();
+  expect(screen.getByText('Preparing painting…')).toBeOnTheScreen();
+
+  mockState = { phase: 'retry', occupied: false, source: 'library' };
+  mockMessage = 'Fit all corners';
+  await view.rerender(<ScanScreen />);
+  expect(screen.queryByText('Could not start the camera. You can import a photo.')).toBeNull();
+  expect(screen.getByRole('alert')).toHaveTextContent('Fit all corners');
+  expect(screen.getByRole('button', { name: 'Choose another photo' })).toBeEnabled();
 });
 
 it('keeps the shutter as a manual fallback once the camera is ready', async () => {

@@ -32,6 +32,21 @@ afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 beforeEach(() => { mockPublication = null; mockVisit.owner = 'device:test-installation'; mockVisit.endedAt = 5; mockVisit.visibility = 'public'; mockVisit.syncedAt = null;
   mockLoad.mockClear(); mockFlush.mockReset().mockResolvedValue(undefined); switchOwner(mockVisit.owner); });
 
+it('opens sign-in directly above a guest visit and preserves the visit when dismissed', async () => {
+  const navigation = renderRouter({
+    _layout: () => <Stack />,
+    'journal/[visitId]': VisitDetailScreen,
+    'sign-in': () => <Text>Share your museum visit.</Text>,
+  }, { initialUrl: '/journal/visit' });
+  await navigation;
+  await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
+  await waitFor(() => expect(navigation.getPathname()).toBe('/sign-in'));
+  expect(navigation.getSearchParams()).toMatchObject({ context: 'visit', visitId: 'visit' });
+  await act(() => router.back());
+  expect(navigation.getPathname()).toBe('/journal/visit');
+  expect(screen.getByDisplayValue('The afternoon light')).toBeOnTheScreen();
+});
+
 it('shows Public on a published visit', async () => {
   mockVisit.owner = 'account:test-account';
   mockPublication = { status: 'active', audience: 'public' };
@@ -111,6 +126,7 @@ it('marks a closed visit as seen once it is opened, but not one still in progres
 });
 
 it('defaults to Public before publishing and opens the preview only from Save visit', async () => {
+  mockVisit.owner = 'account:test-account';
   const navigation = renderRouter({
     _layout: () => <Stack />,
     'journal/[visitId]': VisitDetailScreen,
@@ -199,6 +215,7 @@ it('hides the bottom actions while editing and restores them after the keyboard 
 });
 
 it('saves pending notes before opening the Save visit flow', async () => {
+  mockVisit.owner = 'account:test-account';
   const save = jest.spyOn(visits, 'patchVisit').mockResolvedValue(undefined);
   const navigation = renderRouter({
     _layout: () => <Stack />,

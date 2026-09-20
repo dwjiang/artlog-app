@@ -4,6 +4,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, Typography } from '@/constants/theme';
 import { captureOwner, useOwnerGeneration } from '@/lib/account/owner-store';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { formatVisitDate } from '@/lib/journal/history';
 import { useVisits } from '@/lib/journal/use-visits';
 import { markVisitSeen } from '@/lib/journal/visit-seen';
@@ -47,7 +48,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const isPublic = visit.visibility === 'public';
   const active = isPublic && sharing.acknowledged?.status === 'active';
   const pendingPrivate = signedIn && !isPublic && visit.syncedAt === null;
-  const openSharing = () => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } });
+  const openSharing = () => router.push(signedIn ? { pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } } : signInRoute('visit', visit.localId));
   async function changeVisibility(next: 'public' | 'private' = isPublic ? 'private' : 'public') {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;

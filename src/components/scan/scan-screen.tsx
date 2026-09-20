@@ -79,15 +79,19 @@ export function ScanScreen() {
       </CameraPermission>
       {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
       <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
-        <View pointerEvents="box-none" style={styles.topRow} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
-          <VenuePill />
-          <QueueBadge />
+        <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
+          <View pointerEvents="box-none" style={styles.topRow}>
+            <VenuePill />
+            <QueueBadge />
+          </View>
+          {cameraError && !message && !busy && <View accessible accessibilityRole="alert">
+            <OverlayCaption>{cameraError}</OverlayCaption>
+          </View>}
         </View>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
             : busy ? <OverlayCaption>{phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'}</OverlayCaption>
-            : cameraError ? <OverlayCaption>{cameraError}</OverlayCaption>
             : cameraReady && <OverlayCaption>Point at an artwork. Hold steady to scan.</OverlayCaption>}
           {failedImport ? <Host matchContents colorScheme="light">
             <Row spacing={Spacing.three}>
@@ -117,6 +121,7 @@ export function ScanScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Gallery.paper },
   overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.content },
+  top: { gap: Spacing.three },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

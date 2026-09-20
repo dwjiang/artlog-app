@@ -14,6 +14,17 @@ jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: () => null 
 const visit = { localId: 'v', venueId: 'm', venueName: 'Museum', visitedOn: '2024-02-29', location: 'Paris', works: [] } as unknown as VisitSummary;
 const props = { owner: 'a', visits: [visit], header: <View />, loading: false, clearSearch: jest.fn(), onSearchChange: jest.fn() };
 beforeEach(() => { mockMode = 'list'; });
+
+it.each(['list', 'globe'] as const)('offers one first-visit action before there is content for the %s view', async (mode) => {
+  mockMode = mode;
+  await render(<CollectionVisits {...props} visits={[]} search="" />);
+  expect(screen.getByRole('header', { name: 'Keep the whole visit.' })).toBeOnTheScreen();
+  expect(screen.getAllByRole('button', { name: 'Add visit' })).toHaveLength(1);
+  expect(screen.queryByLabelText('Search your visits')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Globe' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
+  expect(router.push).toHaveBeenCalledWith('/visit-create');
+});
 it('keeps the search field mounted through too-short, unmatched and matched queries', async () => {
   const view = await render(<CollectionVisits {...props} search="" />);
   const field = screen.getByLabelText('Search your visits');

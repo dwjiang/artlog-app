@@ -40,7 +40,7 @@ export default function RootLayout() {
               })} />
             <Stack.Screen name="all-artworks" options={{ title: '', headerBackTitle: 'Collection' }} />
             <Stack.Screen name="label/[scanId]" options={{ title: 'Label' }} />
-            <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45, 1], sheetGrabberVisible: true, headerShown: false }} />
+            <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.62, 1], sheetGrabberVisible: true, headerShown: false }} />
             <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
             <Stack.Screen name="settings" options={{ title: '', headerBackTitle: 'Collection' }} />

@@ -62,6 +62,10 @@ function ShareError({ sharing }: { sharing: Sharing }) {
 function PrivacyNote({ children }: { children: string }) {
   return <View style={{ flexDirection: 'row', gap: 7 }}><VisitSymbol name="lock" size={13} color={Gallery.muted} /><Text style={[styles.fine, { flex: 1 }]}>{children}</Text></View>;
 }
+function GuestVisitSignIn({ visitId }: { visitId: string }) {
+  useEffect(() => { router.replace(signInRoute('visit', visitId)); }, [visitId]);
+  return <VisitPage><VisitMessage loading>Opening sign-in…</VisitMessage></VisitPage>;
+}
 export function VisitShareScreen() {
   const { sharing, visit } = useShareFlow();
   const [photoWorkId, setPhotoWorkId] = useState<string>();
@@ -70,8 +74,7 @@ export function VisitShareScreen() {
   const { controller, draft } = sharing;
   if (visit.visibility === 'private') return <VisitPage><SocialState title="This visit is private." detail="Make it Public on the visit page before publishing."
     action="Back to visit" onAction={() => router.dismiss()} /></VisitPage>;
-  if (!visit.owner.startsWith('account:')) return <VisitPage><SocialState title="Share a visit." detail="Sign in to publish this visit." icon="person.2"
-    action="Sign in" onAction={() => router.push(signInRoute('visit'))} /></VisitPage>;
+  if (!visit.owner.startsWith('account:')) return <GuestVisitSignIn visitId={visit.localId} />;
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so people can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to publish this visit.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
   if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
