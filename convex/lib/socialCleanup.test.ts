@@ -31,7 +31,7 @@ it('revokes immediately, purges social references in batches, and deletes files 
     await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({ data: { code: 'not_found' } });
     expect(await t.run((ctx) => ctx.db.system.get('_storage', storageId))).not.toBeNull();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    for (const table of ['sharedVisits', 'sharedVisitItems', 'wallItems', 'walls', 'friendships', 'blocks', 'mediaAssets', 'collections', 'visits', 'leaderboardScores', 'leaderboardCredits'] as const) {
+    for (const table of ['sharedVisits', 'sharedVisitItems', 'wallItems', 'walls', 'friendships', 'blocks', 'mediaAssets', 'collections', 'visits', 'leaderboardScores'] as const) {
       expect(await t.run((ctx) => ctx.db.query(table).collect())).toEqual([]);
     }
     expect(await t.run((ctx) => ctx.db.get(a.profileId))).toBeNull();

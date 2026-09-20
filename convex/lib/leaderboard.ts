@@ -1,8 +1,8 @@
-import type { Id, Doc } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
-import type { JournalOwner } from '../../shared/journal/contracts';
+import type { JournalOwner, JournalSave } from '../../shared/journal/contracts';
 
-async function increment(ctx: MutationCtx, accountId: Id<'accounts'>, metric: 'visits' | 'contributions', day: string, amount: number) {
+async function increment(ctx: MutationCtx, accountId: Id<'accounts'>, metric: 'visits' | 'artworks', day: string, amount: number) {
   for (const period of ['all', day.slice(0, 7)]) {
     const score = await ctx.db.query('leaderboardScores').withIndex('by_account_metric_period', (q) => q.eq('accountId', accountId).eq('metric', metric).eq('period', period)).unique();
     if (score) await ctx.db.patch(score._id, { score: Math.max(0, score.score + amount) });
@@ -15,14 +15,19 @@ export async function recordVisitScore(ctx: MutationCtx, owner: JournalOwner, ve
   if (previousDay && !(await onDay(previousDay)).length) await increment(ctx, owner.accountId, 'visits', previousDay, -1);
   if ((await onDay(day)).length === 1) await increment(ctx, owner.accountId, 'visits', day, 1);
 }
-export async function recordContributionScore(ctx: MutationCtx, row: Doc<'contributions'>, objectId: Id<'objects'>, acceptedAt: number) {
-  const device = await ctx.db.get(row.deviceId);
-  if (!device?.accountId) return;
-  const accountId = device.accountId;
-  if (row.creditedAccountId && row.creditedAccountId !== accountId) return;
-  if (!row.creditedAccountId) await ctx.db.patch(row._id, { creditedAccountId: accountId });
-  const prior = await ctx.db.query('leaderboardCredits').withIndex('by_account_object', (q) => q.eq('accountId', accountId).eq('objectId', objectId)).unique();
-  if (prior) return;
-  await ctx.db.insert('leaderboardCredits', { accountId, objectId, acceptedAt });
-  await increment(ctx, accountId, 'contributions', new Date(acceptedAt).toISOString().slice(0, 10), 1);
+export async function recordArtworkScore(ctx: MutationCtx, owner: JournalOwner, save: JournalSave, previous?: JournalSave | null) {
+  if (owner.kind !== 'account') return;
+  if (previous && previous.deletedAt === save.deletedAt) return;
+  // The save is already persisted. Two rows suffice to find the earliest other live entry.
+  const matches = save.artworkId ? await ctx.db.query('collections')
+    .withIndex('by_owner_artwork_savedAt', (q) => q.eq('owner', owner).eq('artworkId', save.artworkId).eq('deletedAt', undefined)).take(2) : [];
+  const other = matches.find((row) => row.localId !== save.localId);
+  const firstMonth = (row?: JournalSave | null) => {
+    const dates = [other, row].flatMap((entry) => entry && entry.deletedAt === undefined ? [entry.savedAt] : []);
+    return dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 7) : undefined;
+  };
+  const before = firstMonth(previous), after = firstMonth(save);
+  if (before === after) return;
+  if (before) await increment(ctx, owner.accountId, 'artworks', before, -1);
+  if (after) await increment(ctx, owner.accountId, 'artworks', after, 1);
 }

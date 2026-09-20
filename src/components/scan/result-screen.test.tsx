@@ -53,7 +53,7 @@ jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of
 jest.mock('@/lib/attested-write', () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
 jest.mock('@/lib/museum-search/museum-search-deps', () => ({ runMuseumSearchForScan: jest.fn() }));
-jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t share this work right now' }));
+jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t save to the shared index right now' }));
 jest.mock('expo-network', () => ({ useNetworkState: () => mockNetwork }));
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockSaveMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
@@ -632,7 +632,7 @@ it.each(['no_venue_site', 'venue_opted_out'])('hides museum search when the back
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
-it('keeps a stored confirmation available offline after revocation and shares only after contribution consent', async () => {
+it('keeps a stored confirmation available offline after search revocation and shares automatically on save', async () => {
   await setMuseumSearchConsent('declined');
   mockNetwork.isInternetReachable = false;
   results.set('scans:get', { ...missScan, museumSearch: confirmed, labelFlow: verified });
@@ -640,14 +640,12 @@ it('keeps a stored confirmation available offline after revocation and shares on
   await render(result());
   expect(await screen.findByText("Found on the museum's site")).toBeOnTheScreen();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  expect(await screen.findByText('Share this work with other visitors?')).toBeOnTheScreen();
   expect(contributeLabel).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
   await waitFor(() => expect(contributeLabel).toHaveBeenCalledWith(expect.objectContaining({
     scanId: SCAN_ID, museumSearchUpdatedAt: confirmed.updatedAt, state: expect.objectContaining({ title: expect.objectContaining({ value: 'Blue painting', locked: true, evidence: 'tavily+image' }) }),
   })));
-  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
 });
 
 it('keeps the label available when a stored museum confirmation failed moderation', async () => {
@@ -712,25 +710,23 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   const value = field === 'title' ? 'My blue painting' : '1900';
   if (field === 'title') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   await fireEvent.changeText(screen.getByLabelText(label), value);
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
     ...verified, updatedAt: 3, sourceUrl: field === 'title' ? undefined : verified.sourceUrl,
     fields: { ...verified.fields, [field]: { value, evidence: 'ocr', locked: false } },
   } });
-  expect(screen.getByRole('button', { name: 'Add to the shared index', busy: true })).toBeDisabled();
+  expect(screen.getByText('Saving to the shared index…')).toBeOnTheScreen();
   expect(screen.getByLabelText(label).props.defaultValue).toBe(value);
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index', busy: true }));
+  expect(screen.queryByRole('button', { name: 'Retry saving to the shared index' })).toBeNull();
   expect(contributeLabel).toHaveBeenCalledTimes(1);
   await act(async () => { fail(new Error('Upload failed')); });
-  expect(await screen.findByText('Couldn’t share this work right now')).toBeOnTheScreen();
+  expect(await screen.findByText('Couldn’t save to the shared index right now. Your artwork is saved to your collection.')).toBeOnTheScreen();
   expect(screen.getByText('Edited by you')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  expect(await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 
@@ -773,9 +769,8 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
   await screen.findByLabelText('Title');
   if (edit !== 'date') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   if (edit !== 'unlock') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   if (edit !== 'unlock') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
@@ -783,16 +778,15 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
     fields: { ...verified.fields, [edit]: { value: submitted[edit].value, evidence: 'ocr', locked: false } },
   } });
   await act(async () => { fail(new Error('Upload failed')); });
-  await screen.findByText('Couldn’t share this work right now');
+  await screen.findByText('Couldn’t save to the shared index right now. Your artwork is saved to your collection.');
   await view.unmount();
   await render(result());
   expect(await screen.findByText('Edited by you')).toBeOnTheScreen();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe(submitted.title.value);
   expect(screen.getByLabelText('Date').props.defaultValue).toBe(submitted.date.value);
   jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'tentative' });
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByText('Shared as a tentative match for other visitors at this museum.');
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.');
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 

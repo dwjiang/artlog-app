@@ -7,7 +7,6 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
 
 import { LABEL_PROMPT, LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE, QUEUED_ONLINE_MESSAGE } from './label-capture-screen';
-import { CONSENT_TITLE } from './label/consent-sheet';
 import { SHARE_BUTTON } from './label/label-actions';
 import { STEP_LABELS } from './label/progress-steps';
 import type { PendingScan } from '@/db/schema';
@@ -49,7 +48,6 @@ jest.mock('@/components/collection/gallery-button');
 jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => mockLabelOnly }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
-jest.mock('@/lib/settings/use-sharing-default', () => ({ useSharingDefault: () => true }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
   return {
@@ -88,6 +86,7 @@ jest.mock('@/lib/capture/use-qr-scanner', () => ({
     return enabled ? { kind: 'qr-output' } : undefined;
   },
 }));
+jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/db/repos/pending-scans', () => ({
   MAX_LABEL_ATTEMPTS: 5,
   setLabelPhoto: (...args: unknown[]) => mockSetLabelPhoto(...args),
@@ -106,7 +105,10 @@ jest.mock('@/lib/label/contribute', () => ({
   contributionErrorMessage: (error: Error) => `mapped: ${error.message}`,
 }));
 jest.mock('@/lib/label/crop', () => ({ removeFile: (uri: string) => mockRemove(uri) }));
-jest.mock('@/lib/result/save', () => ({ saveResult: (input: unknown) => mockSave(input) }));
+jest.mock('@/lib/result/save', () => ({ saveResult: async (input: { contribution?: unknown }) => {
+  const result = await mockSave(input);
+  return { ...result, contribution: input.contribution ? jest.requireActual('@/lib/label/share-saved-label').shareSavedLabel(input.contribution, result.localId) : undefined };
+}, saveErrorMessage: () => 'Couldn’t save. Try again.' }));
 
 const scanId = 'scan-1' as Id<'scans'>;
 const capture = {
@@ -199,21 +201,15 @@ it('reads a shot online, shows the stages, then locks the verified fields with t
   expect(mockHaptic).toHaveBeenCalledWith('success');
 });
 
-it('shares only after consent: Share uploads and contributes, Not now sends nothing', async () => {
+it('automatically shares the confirmed work after saving without another prompt', async () => {
   await start();
   await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
-  await fireEvent.press(await screen.findByRole('button', { name: SHARE_BUTTON }));
-  expect(screen.getByText(CONSENT_TITLE)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
   expect(mockContribute).not.toHaveBeenCalled();
-  expect(screen.queryByText(CONSENT_TITLE)).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: SHARE_BUTTON }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
-  expect(mockContribute).toHaveBeenCalledWith({
-    scanId, capture,
+  await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
+  expect(mockContribute).toHaveBeenCalledWith({ scanId, capture,
     state: expect.objectContaining({ title: expect.objectContaining({ value: 'Water Lilies', locked: true }) }),
   });
-  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.getByLabelText('Date').props.editable).toBe(false);
 });
@@ -222,10 +218,13 @@ it('surfaces a sharing failure and lets the user try again', async () => {
   mockContribute.mockRejectedValue(new Error('boom'));
   await start();
   await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
-  await fireEvent.press(await screen.findByRole('button', { name: SHARE_BUTTON }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
-  expect(await screen.findByText('mapped: boom')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: SHARE_BUTTON })).toBeEnabled();
+  await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
+  expect(await screen.findByText('mapped: boom. Your artwork is saved to your collection.')).toBeOnTheScreen();
+  mockContribute.mockResolvedValue({ contributionId: 'contrib-1', status: 'tentative' });
+  await fireEvent.press(screen.getByRole('button', { name: SHARE_BUTTON }));
+  expect(mockSave).toHaveBeenCalledTimes(1);
+  expect(mockContribute).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
 });
 
 it('saves the label result without a suggestion, then links to the collection', async () => {
@@ -233,6 +232,7 @@ it('saves the label result without a suggestion, then links to the collection', 
   await fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
   expect(mockSave).toHaveBeenCalledWith({
+    contribution: expect.objectContaining({ scanId, capture }),
     scanId, capture, view: { kind: 'unidentified', runnerUps: [], editable: true },
     draft: { title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: '', institution: '' },
   });
@@ -354,7 +354,7 @@ it('opens a persisted verified label without taking or reading another photo', a
   expect(mockRun).not.toHaveBeenCalled();
   expect(mockPhoto).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
-  expect(screen.getByRole('button', { name: SHARE_BUTTON })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
 });
 
 it('opens the form when a queued local scan finishes and preserves edits across subscription updates', async () => {
@@ -462,19 +462,12 @@ it('locks input until the picker is dismissed and releases it after cancellation
   expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
 });
 
-it('can add the missing artist and share after saving a title-only label', async () => {
+it('saves a title-only label without sharing incomplete details', async () => {
   mockScan = { labelFlow: { ...verified, fields: { title: verified.fields.title } } };
   await start();
   await fireEvent.press(await screen.findByRole('button', { name: 'Save to collection' }));
-  expect(screen.getByLabelText('Artist')).toHaveProp('editable', true);
-  await fireEvent.changeText(screen.getByLabelText('Artist'), 'Claude Monet');
-  await fireEvent.press(screen.getByRole('button', { name: SHARE_BUTTON }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
-  expect(mockContribute).toHaveBeenCalledWith(expect.objectContaining({
-    state: expect.objectContaining({ artist: expect.objectContaining({ value: 'Claude Monet' }) }),
-  }));
-  expect(mockSave).toHaveBeenCalledTimes(1);
-  expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ artist: '' }) }));
+  expect(mockContribute).not.toHaveBeenCalled();
+  expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ contribution: undefined, draft: expect.objectContaining({ artist: '' }) }));
 });
 
 it('restores the original values and unlocks from a persisted sharing draft', async () => {
@@ -484,8 +477,7 @@ it('restores the original values and unlocks from a persisted sharing draft', as
   await start();
   expect(await screen.findAllByText('Edited by you')).toHaveLength(2);
   expect(screen.getByLabelText('Title')).toHaveProp('editable', true);
-  await fireEvent.press(screen.getByRole('button', { name: SHARE_BUTTON }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
   expect(mockContribute).toHaveBeenCalledWith(expect.objectContaining({ state: draft }));
 });
 
@@ -496,7 +488,7 @@ it('waits for persisted edits and offers a retry if they cannot be loaded', asyn
   expect(await screen.findByText('Couldn’t load your label edits. Try again.')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-  expect(await screen.findByRole('button', { name: SHARE_BUTTON })).toBeEnabled();
+  expect(await screen.findByRole('button', { name: 'Save to collection' })).toBeEnabled();
 });
 
 

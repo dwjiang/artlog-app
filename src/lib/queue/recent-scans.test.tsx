@@ -9,6 +9,7 @@ import { useQueue } from './use-queue';
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('convex/react', () => ({ useConvexAuth: () => ({ isAuthenticated: false }) }));
 jest.mock('./queue', () => ({ startQueueFlusher: jest.fn() }));
+jest.mock('@/lib/label/share-saved-label', () => ({ startPendingShareFlusher: jest.fn() }));
 
 const listeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
 const owner = 'device:test-installation';

@@ -1,4 +1,4 @@
-import { BottomSheet, RNHostView, Switch } from '@expo/ui';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useRef, useState } from 'react';
@@ -9,30 +9,12 @@ import { GroupedFooter, GroupedSection, NavigationRow } from '@/components/group
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
-import { setSharingDefault } from '@/lib/settings/sharing';
-import { useSharingDefault } from '@/lib/settings/use-sharing-default';
 
-export const SHARING_SETTING = 'Offer to share confirmed labels';
 export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
 
 export function SharingSection({ contributions, onOpenContributions }: { contributions: Contribution[] | undefined; onOpenContributions: () => void }) {
-  const enabled = useSharingDefault();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string>();
-
-  async function change(value: boolean) {
-    setSaving(true); setError(undefined);
-    try { await setSharingDefault(value); }
-    catch { setError("Couldn't save your choice. Try again."); }
-    finally { setSaving(false); }
-  }
-
   return <>
-    <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'You choose whether to share each work. No account needed.'}</GroupedFooter>}>
-      <Switch label={SHARING_SETTING} value={enabled === true} disabled={enabled === undefined || saving}
-        onValueChange={(value) => { void change(value); }} />
-    </GroupedSection>
-    <GroupedSection>
+    <GroupedSection footer={<GroupedFooter>Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos stay private. No account needed.</GroupedFooter>}>
       <NavigationRow label={`My contributions (${contributions?.length ?? '…'})`} onPress={onOpenContributions} />
     </GroupedSection>
   </>;

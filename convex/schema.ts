@@ -95,7 +95,7 @@ export default defineSchema({
     imageRef: v.optional(v.string()),
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
-    // The contributor's consented crop: the card thumbnail for `source: user` works.
+    // The contributor's artwork crop: the card thumbnail for `source: user` works.
     thumbnailStorageId: v.optional(v.id('_storage')),
     confirmCount: v.number(),
     rejectCount: v.number(),
@@ -291,7 +291,6 @@ export default defineSchema({
     status: contributionStatus,
     rejectedReason: v.optional(contributionRejectedReason),
     indexedObjectId: v.optional(v.id('objects')),
-    acceptedAt: v.optional(v.number()), creditedAccountId: v.optional(v.id('accounts')),
     createdAt: v.number(),
   })
     .index('by_deviceId', ['deviceId'])
@@ -489,6 +488,7 @@ export default defineSchema({
     updatedAt: v.number(), updatedBy: v.id('devices'), changeVersion: v.number(),
   }).index('by_owner_localId', ['owner', 'localId'])
     .index('by_owner_savedAt', ['owner', 'deletedAt', 'savedAt', 'localId'])
+    .index('by_owner_artwork_savedAt', ['owner', 'artworkId', 'deletedAt', 'savedAt'])
     .index('by_owner_changeVersion', ['owner', 'changeVersion'])
     .index('by_visitId', ['visitId'])
     .index('by_cropStorageId_deletedAt', ['cropStorageId', 'deletedAt']),
@@ -511,10 +511,8 @@ export default defineSchema({
 
   leaderboardScores: defineTable({ accountId: v.id('accounts'), metric: leaderboardMetric, period: v.string(), score: v.number() })
     .index('by_account_metric_period', ['accountId', 'metric', 'period']),
-  leaderboardCredits: defineTable({ accountId: v.id('accounts'), objectId: v.id('objects'), acceptedAt: v.number() })
-    .index('by_account_object', ['accountId', 'objectId']),
   profiles: defineTable({
-    leaderboardVisibility: v.optional(leaderboardVisibility),
+    leaderboardVisibility,
     removal: v.optional(removal),
     accountId: v.id('accounts'), username: v.string(), name: v.string(), bio: v.optional(v.string()),
     photoStorageId: v.optional(v.id('_storage')),

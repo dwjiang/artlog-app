@@ -28,7 +28,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
   const [draft, setDraft] = useState<LeaderboardVisibility>();
   const [pending, setPending] = useState(false), [error, setError] = useState<string>();
   const saving = useRef(false);
-  const value = draft ?? preference.data ?? 'off';
+  const value = draft ?? preference.data ?? 'global';
   async function save() {
     if (saving.current || preference.data === undefined) return;
     saving.current = true; setPending(true); setError(undefined);
@@ -63,12 +63,12 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     </> : <SocialGate session={session} context="leaderboards" />}
     <View style={{ padding: 16, backgroundColor: Gallery.fill, borderRadius: 12, gap: 10 }}>
       <Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '600' }}>Totals only. Not your visit history.</Text>
-      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and accepted contributions, for this month and all time. Existing activity counts too, including private visits.</Text>
+      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and saved artworks, for this month and all time. Existing activity counts too, including private visits.</Text>
       <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Museum names, visit dates, your globe, private notes, and artworks outside your wall stay private. Your public wall and visit-sharing choices don’t change.</Text>
     </View>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
     {session.status === 'ready' && <GalleryButton label="Save participation" fullWidth variant="filled"
       busy={pending} disabled={preference.data === undefined} onPress={() => { void save(); }} />}
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>Participation starts off. You can switch it off at any time to leave both boards.</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>Participation starts on Friends & Global. You can choose Friends only or switch it off at any time to leave both boards.</Text>
   </LeaderboardSheet>;
 }

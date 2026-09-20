@@ -14,11 +14,9 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { LabelFieldName, LabelFlowDisplay } from '../../../convex/lib/validators';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
-import type { CaptureCompletion } from '@/lib/capture/completion';
 import { CapturePhotosButton } from './capture-photos-button';
 import { CaptureContextButton } from './capture-context-button';
 import { CameraPermission } from './camera-permission';
-import { ConsentSheet } from './label/consent-sheet';
 import { LabelActions } from './label/label-actions';
 import { LabelViewfinder } from './label/label-viewfinder';
 import { ProgressSteps } from './label/progress-steps';
@@ -33,7 +31,6 @@ import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
 import { MAX_LABEL_ATTEMPTS, setLabelPhoto, setQrUrl } from '@/db/repos/pending-scans';
 import { useQrScanner } from '@/lib/capture/use-qr-scanner';
 import { persistLabelPhoto } from '@/lib/files/photos';
-import { contributeLabel, contributionErrorMessage, type ContributionOutcome } from '@/lib/label/contribute';
 import { removeFile } from '@/lib/label/crop';
 import { canSaveLabel, canShareLabel, setFieldValue, unlockField } from '@/lib/label/fields';
 import { LabelFlowError, type LabelStage } from '@/lib/label/flow';
@@ -42,7 +39,7 @@ import { useLabelCapture } from '@/lib/label/use-label-capture';
 import { useLabelForm } from '@/lib/label/use-label-form';
 import { isTransientError } from '@/lib/network-error';
 import { discardPendingLabel, flushQueue, retryPendingLabel } from '@/lib/queue/queue';
-import { saveErrorMessage, saveResult } from '@/lib/result/save';
+import { useSaveResult } from '@/lib/result/use-save-result';
 import type { ResultViewState } from '@/lib/result/state';
 import { useScan } from '@/lib/result/use-scan';
 
@@ -88,14 +85,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
   const labelOnly = !!capture && isLabelCapture(capture);
-  const [saving, setSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string>();
-  const [completion, setCompletion] = useState<CaptureCompletion>();
-  const [saveError, setSaveError] = useState<string>();
-  const [consentOpen, setConsentOpen] = useState(false);
-  const [sharing, setSharing] = useState(false);
-  const [shared, setShared] = useState<ContributionOutcome>();
-  const [shareError, setShareError] = useState<string>();
+  const { saving, savedId, completion, error: saveError, save, sharing, shared, shareError, retrySharing } = useSaveResult();
   const mounted = useRef(true);
   const inFlight = useRef(false);
 
@@ -243,51 +233,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     }
   }
 
-  async function save() {
-    if (!form || !remoteScanId) return;
-    if (!capture) {
-      setSaveError('Your photo of this scan isn’t on this phone, so it can’t be saved.');
-      return;
-    }
-    setSaving(true);
-    setSaveError(undefined);
-    try {
-      const { localId: saved, completion } = await saveResult({
-        scanId: remoteScanId, capture, view: LABEL_VIEW,
-        draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' },
-      });
-      setSavedId(saved);
-      setCompletion(completion);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (error) {
-      console.warn('Could not save the work', error);
-      setSaveError(saveErrorMessage(error));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function share() {
-    setConsentOpen(false);
-    if (!form || !remoteScanId || phase.kind !== 'review' || labelOnly) return;
-    if (!capture) {
-      setShareError('Your photo of this scan isn’t on this phone, so it can’t be shared.');
-      return;
-    }
-    setSharing(true);
-    setShareError(undefined);
-    try {
-      const result = await contributeLabel({ scanId: remoteScanId, capture, state: form });
-      setShared(result);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (error) {
-      console.warn('Could not share the work', error);
-      setShareError(contributionErrorMessage(error));
-    } finally {
-      setSharing(false);
-    }
-  }
-
   function onChange(name: LabelFieldName, value: string) {
     setForm((current) => current && setFieldValue(current, name, value));
   }
@@ -362,7 +307,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   }
 
   if (phase.kind === 'review' && form) {
-    const editable = !saving && !sharing && !shared;
+    const editable = !saving && !sharing && !savedId;
+    const contribution = capture && capture.venueId && remoteScanId && !labelOnly && canShareLabel(form)
+      ? { scanId: remoteScanId, capture, state: form } : undefined;
+    const input = { scanId: remoteScanId, capture, view: LABEL_VIEW, contribution,
+      draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' } };
     return (
       <ThemedView style={styles.container}>
         <ScrollView
@@ -376,12 +325,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} onUnlock={onUnlock} />
           {capture && !savedId && <>
             <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />
-            <CapturePhotosButton disabled={saving} input={{ scanId: remoteScanId, capture, view: LABEL_VIEW, draft: { title: form.title.value, artist: form.artist.value, date: form.date.value, medium: form.medium.value, institution: '' } }} />
+            <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
           </>}
           <LabelActions
-            allowContribution={!labelOnly}
+            allowContribution={!!contribution}
             canSave={canSaveLabel(form)}
-            canShare={canShareLabel(form)}
             saving={saving}
             sharing={sharing}
             savedId={savedId}
@@ -389,12 +337,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
             shared={shared}
             saveError={saveError}
             shareError={shareError}
-            onSave={() => { void save(); }}
-            onShare={() => setConsentOpen(true)}
+            onSave={() => { void save(input); }}
+            onShare={() => { void retrySharing(); }}
             onViewSaved={() => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } })}
           />
         </ScrollView>
-        <ConsentSheet open={consentOpen} onShare={() => { void share(); }} onDismiss={() => setConsentOpen(false)} />
       </ThemedView>
     );
   }

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 import { ThemedText } from '@/components/themed-text';
-import { Gallery } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { extractCaptureMeta } from '@/lib/capture/exif';
 import { clearPhotoDraft, readPhotoDraft, readPhotoSession, writePhotoDraft, type DraftPhoto } from '@/lib/capture/photo-draft';
@@ -23,7 +23,8 @@ import { CaptureContextButton } from './capture-context-button';
 import { CaptureCompletion } from './capture-completion';
 import type { CaptureCompletion as Completion } from '@/lib/capture/completion';
 import { formatVisitDate } from '@/lib/journal/history';
-import { saveResult } from '@/lib/result/save';
+import { useSaveResult } from '@/lib/result/use-save-result';
+import { ContributionStatus, SHARING_NOTICE } from './label/label-actions';
 import { CameraPermission } from './camera-permission';
 import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
@@ -38,7 +39,9 @@ export function AddPhotosScreen() {
 function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { draftId: string; title?: string; savedId?: string; visitId?: string; objectId?: string; owner: string }) {
   const { fontScale } = useWindowDimensions();
   const [photos, setPhotos] = useState(() => readPhotoDraft(owner, draftId));
-  const [completion, setCompletion] = useState<Completion>();
+  const [albumCompletion, setCompletion] = useState<Completion>();
+  const newArtwork = useSaveResult();
+  const completion = albumCompletion ?? newArtwork.completion;
   const [kind, setKind] = useState<PhotoKind>('detail');
   const [selected, setSelected] = useState<string | undefined>(() => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? '');
   const [removed, setRemoved] = useState<DraftPhoto>();
@@ -117,8 +120,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
         if (!input) throw new Error('Capture unavailable');
         const capture = await getPendingScan(input.capture.localId, owner);
         if (!capture || !session.isOwnerCurrent()) throw new Error('Capture unavailable');
-        const result = await saveResult({ ...input, capture });
-        if (session.isOwnerCurrent()) setCompletion(result.completion);
+        await newArtwork.save({ ...input, capture, contribution: input.contribution ? { ...input.contribution, capture } : undefined });
       }
     } catch { setError('Could not save the photos. Your draft is still here.'); }
     finally { busyRef.current = false; setBusy(false); }
@@ -140,8 +142,14 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
       update(photos.filter((row) => row.localId !== photo.localId)); setSelected(undefined);
     } catch { setError('Could not save this photo separately. Your draft is still here.'); } finally { busyRef.current = false; setBusy(false); }
   }
-  if (completion) return <CaptureCompletion completion={completion} />;
+  if (completion) return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+    <CaptureCompletion completion={completion} inline sharedToIndex={newArtwork.shared?.status === 'tentative'} />
+    <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}>
+      <ContributionStatus sharing={newArtwork.sharing} shared={newArtwork.shared} shareError={newArtwork.shareError} onShare={() => { void newArtwork.retrySharing(); }} />
+    </View>
+  </ScrollView>;
   const photoCount = photos.length + (savedId ? 0 : 1);
+  const shares = !savedId && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return <ScrollView style={styles.screen} contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
     <Stack.Screen options={{ title: 'Add photos' }} />
     <View style={styles.target}><ThemedText type="smallBold" style={styles.eyebrow}>ADDING PHOTOS TO</ThemedText><ThemedText type="title" style={styles.title}>{title || 'Unidentified artwork'}</ThemedText>
@@ -185,9 +193,9 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     </ScrollView>
     {photos.length >= 99 && <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>}
     {removed && <GalleryButton label="Photo removed · Undo" disabled={busy} onPress={() => { update([...photos, removed]); setRemoved(undefined); }} />}
-    {error && <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</ThemedText>}
+    {(error || newArtwork.error) && <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error || newArtwork.error}</ThemedText>}
     <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} busyLabel="Saving…" disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
-    <ThemedText style={[styles.hint, { textAlign: 'center' }]}>Only you can see these photos.</ThemedText>
+    <ThemedText style={[styles.hint, { textAlign: 'center' }]}>{shares ? SHARING_NOTICE : 'Only you can see these photos.'}</ThemedText>
   </ScrollView>;
 }
 const styles = StyleSheet.create({
