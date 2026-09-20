@@ -14,13 +14,10 @@ export function VisitKeepsake() {
       <View style={[styles.ticket, { width: size * 0.72, height: size * 0.39, top: size * 0.22 }]}>
         <View style={styles.ticketMain}>
           <Image source="sf:star" tintColor={Gallery.accent} style={styles.star} accessible={false} />
-          <Text allowFontScaling={false} style={[Typography.section, { fontSize: size * 0.075, lineHeight: size * 0.085 }]}>YOUR{'\n'}NEXT VISIT</Text>
+          <Text allowFontScaling={false} style={[Typography.section, { color: Gallery.accent, fontSize: size * 0.075, lineHeight: size * 0.085 }]}>YOUR{'\n'}NEXT VISIT</Text>
           <View style={styles.rule} />
         </View>
         <View style={styles.stub}><Text allowFontScaling={false} style={styles.admit}>ADMIT ONE</Text></View>
-      </View>
-      <View style={[styles.label, { bottom: size * 0.07, right: size * 0.01 }]}>
-        <Text allowFontScaling={false} style={styles.labelText}>The Met</Text>
       </View>
     </View>
   </View>;
@@ -37,6 +34,4 @@ const styles = StyleSheet.create({
   rule: { height: 1, backgroundColor: Gallery.accent, width: '90%' },
   stub: { width: 35, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#BCB5A9' },
   admit: { width: 80, fontSize: 10, lineHeight: 14, letterSpacing: 1.5, color: Gallery.muted, transform: [{ rotate: '-90deg' }] },
-  label: { position: 'absolute', paddingHorizontal: 18, paddingVertical: 8, backgroundColor: Gallery.highlight, transform: [{ rotate: '-9deg' }], boxShadow: '0 2px 5px rgba(17,17,17,0.1)' },
-  labelText: { fontSize: 13, lineHeight: 18, color: Gallery.ink },
 });

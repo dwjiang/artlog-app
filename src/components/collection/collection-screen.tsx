@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gallery } from '@/constants/theme';
@@ -18,6 +19,12 @@ export function CollectionScreen() {
 function CollectionSession() {
   const [attempt, setAttempt] = useState(0);
   const [mode, setMode] = useState<'collection' | 'visits'>('collection');
+  const { view } = useLocalSearchParams<{ view?: string }>();
+  useFocusEffect(useCallback(() => {
+    if (view !== 'wall' && view !== 'visits') return;
+    setMode(view === 'wall' ? 'collection' : 'visits');
+    router.setParams({ view: undefined });
+  }, [view]));
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
   const [artworkSearch, setArtworkSearch] = useState('');

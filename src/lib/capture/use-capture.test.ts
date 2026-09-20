@@ -5,6 +5,8 @@ import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { useCapture } from './use-capture';
 import type { CaptureDependencies, CaptureInput, CapturePayload, CaptureResult, PreparedPainting, Quad } from './stages';
 
+const mockVisit = jest.fn();
+jest.mock('@/db/repos/visits', () => ({ getVisit: (...args: unknown[]) => mockVisit(...args) }));
 const mockIdentify = jest.fn();
 const mockPush = jest.fn();
 const mockPipeline = jest.fn();
@@ -305,4 +307,30 @@ it('ignores the shutter while a capture is already running', async () => {
   expect(takePhoto).toHaveBeenCalledTimes(1);
   expect(mockWarning).toHaveBeenCalledTimes(1);
   await act(async () => { complete({ kind: 'queued', localId: 'id', timings: { total: 1 } }); await pending; });
+});
+
+
+it.each(['camera', 'library'] as const)('keeps the explicitly selected visit when capturing from %s', async (source) => {
+  mockVisit.mockResolvedValue({ localId: 'chosen-visit', venueId: 'chosen-museum', remoteVisitId: 'remote-visit' });
+  mockResolveVenue.mockResolvedValue({ visitLocalId: 'another-visit', venueId: 'another-museum' });
+  mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///library.jpg' }] });
+  const hook = await renderHook(() => useCapture({ visitLocalId: 'chosen-visit' }));
+  await act(async () => {
+    if (source === 'library') await hook.result.current.importPhoto();
+    else await hook.result.current.captureManually(async () => ({ filePath: '/photo.jpg' }));
+  });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ visitLocalId: 'chosen-visit', venueId: 'chosen-museum', visitId: 'remote-visit', source });
+  expect(mockResolveVenue).not.toHaveBeenCalled();
+});
+
+it('reports an unavailable visit before taking the photo instead of assigning the scan elsewhere', async () => {
+  mockVisit.mockResolvedValue(undefined);
+  const onVisitUnavailable = jest.fn(), takePhoto = jest.fn(async () => ({ filePath: '/photo.jpg' }));
+  const hook = await renderHook(() => useCapture({ visitLocalId: 'missing-visit', onVisitUnavailable }));
+  await act(async () => { await hook.result.current.captureManually(takePhoto); });
+  expect(takePhoto).not.toHaveBeenCalled();
+  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(onVisitUnavailable).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.state.message).toContain('This visit is no longer available.');
+  expect(hook.result.current.state.rearm).toBe('shutter');
 });

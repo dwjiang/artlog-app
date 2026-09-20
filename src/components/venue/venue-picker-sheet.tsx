@@ -1,3 +1,5 @@
+import { EmptyState } from '../empty-state';
+import { EmptyMap } from '../empty-state-art';
 import { LoadingRing } from '@/components/loading-ring';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -122,10 +124,23 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
     router.back();
   }
 
+  const empty = !options.length && !error && (status === 'none' || status === 'denied');
+  if (empty) return <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
+    <EmptyState inset={false} title={status === 'denied' ? 'A place for this moment.' : 'Art turns up everywhere.'}
+      detail={status === 'denied' ? 'Allow location in Settings to find museums nearby, or keep exploring without it.' : 'No museum found nearby. You can still save the art in front of you.'}
+      visual={<EmptyMap />}>
+      {status === 'denied' && <GalleryButton label="Open Settings" variant="filled" fullWidth onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
+      {keepVisit ? <GalleryButton label="Keep current visit" variant="filled" fullWidth onPress={keepVisit} />
+        : <GalleryButton label="Continue without a museum" variant={status === 'denied' ? 'text' : 'filled'} fullWidth onPress={notHere} />}
+      <GalleryButton label="Add a visit manually" fullWidth onPress={() => router.replace('/visit-create')} />
+    </EmptyState>
+    {failure && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure}</ThemedText>}
+  </ScrollView>;
+
   const single = options.length === 1 ? options[0] : undefined;
   const title = status === 'locating' ? 'Finding your museum…'
     : status === 'denied' ? 'Location is off'
-    : options.length === 0 ? 'No museum nearby'
+    : options.length === 0 ? error ? 'Couldn’t find nearby museums.' : 'Finding your museum…'
     : options.some((option) => option.kind === 'poi') ? 'Looks like you’re at…'
     : single ? `Still at ${single.name}?`
     : `${options.length} museums nearby`;
@@ -135,7 +150,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       ? 'The nearest one is selected. Scans are matched against the museum you confirm.'
       : single
         ? 'Scans are matched against the museum you confirm.'
-        : status === 'locating' ? undefined : 'Nothing seeded or on the map is within a few hundred metres. Scans still search the whole index.';
+        : status === 'locating' ? undefined : 'You can keep scanning without a museum.';
 
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (

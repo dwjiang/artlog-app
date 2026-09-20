@@ -1,3 +1,4 @@
+import { EmptyState } from '../empty-state';
 import { Stack, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -57,7 +58,7 @@ export function ProfileScreen({ profileId, preview = false }: { profileId: strin
         : wall.data ? <PublicWallView wall={wall.data} arrangedBy={person.name.split(' ')[0]} onSelect={(item) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: item.itemId } })} /> : <SocialState title="Opening wall…" loading />
         : !canReadVisits ? <SocialState title="Visits aren’t available here." detail={preview ? 'This preview shows your public wall.' : 'Shared visits aren’t available for this profile.'} icon="lock" />
           : <View>{visits.items.map((visit) => <Pressable key={visit.postId} accessibilityRole="button" accessibilityLabel={`Visit to ${visit.venue.name}`} onPress={() => router.push({ pathname: '/visit/[postId]', params: { postId: visit.postId } })} style={{ padding: 20, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator, gap: 7 }}><Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '500' }}>{visit.venue.name}</Text><Text style={socialStyles.caption}>{formatVisitDate(visit.visitedOn)} · {visit.artworkCount ?? visit.artworks.page.length} artworks · Public</Text></Pressable>)}
-            {visits.done && !visits.items.length && !visits.error && <SocialState title="No shared visits yet." detail="When they share a museum visit, it will appear here." />}
+            {visits.done && !visits.loading && !visits.items.length && !visits.error && <EmptyState title="No shared visits yet." detail={`When ${person.name.split(' ')[0]} shares a museum visit, it will appear here.`} />}
             <PageFooter {...visits} count={visits.items.length} />
           </View>}
     </ScrollView>

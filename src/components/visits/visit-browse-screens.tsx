@@ -1,3 +1,5 @@
+import { EmptyState, EmptySymbol } from '../empty-state';
+import { GalleryButton } from '../collection/gallery-button';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -12,9 +14,11 @@ export function VisitPlaceScreen() {
   const { visits, loading, error } = useVisits();
   const matches = visitsAtPlace(visits, placeKey);
   return <><Stack.Screen options={{ title: name || 'Visits by museum' }} />
-    {error || !matches.length ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
-      {error ? 'Visits could not load.' : loading ? 'Loading visits…' : 'No visits are available here.'}
-    </VisitMessage></VisitPage> : <VisitTimeline visits={matches} groupByMuseum />}</>;
+    {error || loading ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
+      {error ? 'Visits could not load.' : 'Loading visits…'}
+    </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="A place still to discover." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
+      <GalleryButton label="Back to Collection" onPress={() => router.back()} />
+    </EmptyState></VisitPage> : <VisitTimeline visits={matches} groupByMuseum />}</>;
 }
 export function VisitGlobeScreen() {
   const owner = useLocalOwner();

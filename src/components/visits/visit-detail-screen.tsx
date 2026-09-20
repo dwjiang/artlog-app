@@ -1,3 +1,4 @@
+import { SearchEmptyState } from '../empty-state';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -96,7 +97,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
           <View style={styles.sectionLabel}>
             <Text accessibilityRole="header" style={detail.sectionTitle}>{visit.works.length} {visit.works.length === 1 ? 'artwork' : 'artworks'} saved</Text>
           </View>
-          <VisitGallerySearch value={search} onChangeText={setSearch} />
+          {visit.works.length > 0 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: 13, rowGap: 20, paddingTop: 4 }}>
             {filtered.map((work) => {
               const album = photos.data.filter((photo) => photo.owner === visit.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId);
@@ -106,8 +107,11 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
               </WorkLink>;
             })}
           </View>
-          {!filtered.length && !!search && <GalleryButton label="Clear search" onPress={() => setSearch('')} />}
-          {!filtered.length && <Text style={[styles.caption, { paddingVertical: 22 }]}>{search ? 'No artworks match this search.' : 'No artworks saved on this visit. The memory still belongs here.'}</Text>}
+          {!filtered.length && (search.trim() ? <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." onClear={() => setSearch('')} />
+            : <View style={{ paddingVertical: 22, gap: 8, alignItems: 'flex-start' }}>
+              <Text style={styles.caption}>No artworks linked to this visit yet.</Text>
+              <GalleryButton label="Link artwork" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />
+            </View>)}
         </View>
       </VisitPage>
       <VisitActionBar isPublic={isPublic} pendingPrivate={pendingPrivate} changingVisibility={changingVisibility} sharingBusy={sharing.busy}

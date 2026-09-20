@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { getFunctionName as mockFunctionName } from 'convex/server';
 import { PublicNotesScreen } from './public-notes-screen';
-const mockSetDraft = jest.fn(), mockPublish = jest.fn(), mockGallery = jest.fn(), mockToast = jest.fn();
+const mockSetDraft = jest.fn(), mockPublish = jest.fn(), mockGallery = jest.fn(), mockToast = jest.fn(), mockNavigate = jest.fn(), mockDismissAll = jest.fn();
 const layout = { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: 'gilt' };
 const media = { kind: 'placeholder', width: 1, height: 1 };
 const mockWall = {
@@ -19,9 +19,10 @@ jest.mock('expo-router', () => {
   Toolbar.Button = function ToolbarButton({ children, onPress, disabled }: { children: string; onPress: () => void; disabled?: boolean }) {
     return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable>;
   };
-  return { router: { push: jest.fn() }, Stack: { Toolbar } };
+  return { router: { push: jest.fn(), navigate: (...args: unknown[]) => mockNavigate(...args), dismissAll: () => mockDismissAll() }, Stack: { Toolbar } };
 });
-jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
+let mockOverride: { acknowledged?: typeof mockWall.acknowledged } = {};
+jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({ ...mockWall, ...mockOverride }) }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'reader' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: (query: Parameters<typeof mockFunctionName>[0]) => ({
   data: mockFunctionName(query) === 'profiles:getPublic' ? { name: 'Reader', username: 'reader', publishedWallCount: 2 } : undefined,
@@ -33,7 +34,7 @@ jest.mock('../collection/wall-gallery', () => ({ WallGallery: (props: { pieces: 
 } }));
 jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 jest.mock('expo-image', () => ({ Image: (props: object) => { const { View } = jest.requireActual('react-native'); return <View {...props} />; } }));
-beforeEach(() => { jest.clearAllMocks(); mockWall.noteDraft = []; });
+beforeEach(() => { jest.clearAllMocks(); mockWall.noteDraft = []; mockOverride = {}; });
 async function openWall() {
   await fireEvent.press(screen.getByRole('button', { name: 'Preview' }));
   await fireEvent(screen.getByLabelText('Public collection wall'), 'layout', { nativeEvent: { layout: { width: 390 } } });
@@ -74,4 +75,18 @@ it('applies unsaved choices in preview, keeps them on return, and publishes only
   await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
   expect(mockPublish).toHaveBeenCalledTimes(1);
   expect(mockToast).toHaveBeenCalledWith('Your note choices are saved.');
+});
+
+it('waits for the first wall read, then invites a note from the wall when none can be shared', async () => {
+  mockOverride = { acknowledged: undefined };
+  const view = await render(<PublicNotesScreen />);
+  expect(screen.getByText('Opening your notes…')).toBeOnTheScreen();
+  expect(screen.queryByText('Let them in on what you noticed.')).toBeNull();
+  mockOverride = { acknowledged: { ...mockWall.acknowledged, items: [] } };
+  await view.rerender(<PublicNotesScreen />);
+  expect(screen.getByText('Let them in on what you noticed.')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Go to your wall' }));
+  expect(mockDismissAll).toHaveBeenCalledTimes(1);
+  expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/collection', params: { view: 'wall' } });
 });

@@ -41,14 +41,14 @@ it('waits for the photo read before showing an empty album and distinguishes a r
   mockPhotos = [];
   const view = await render(<ArtworkAlbum work={work} />);
   expect(screen.getByLabelText('Loading photos…')).toBeOnTheScreen();
-  expect(screen.queryByText('No photos yet. Add a photo to this artwork.')).toBeNull();
+  expect(screen.queryByText('Keep your point of view.')).toBeNull();
   mockPhotosUpdatedAt = new Date();
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.getByText('No photos yet. Add a photo to this artwork.')).toBeOnTheScreen();
+  expect(screen.getByText('Keep your point of view.')).toBeOnTheScreen();
   mockPhotosError = new Error('Read failed');
   await view.rerender(<ArtworkAlbum work={work} />);
   expect(screen.getByRole('alert')).toHaveTextContent(/Photos couldn’t load\./);
-  expect(screen.queryByText('No photos yet. Add a photo to this artwork.')).toBeNull();
+  expect(screen.queryByText('Keep your point of view.')).toBeNull();
 });
 
 it('moves to the last remaining photo after photos are deleted, so Previous works on its first tap', async () => {
@@ -92,4 +92,22 @@ it('opens the wall photo that was tapped after the album loads', async () => {
 it('falls back to the first available photo if the requested photo was removed', async () => {
   await render(<ArtworkAlbum work={work} photoId="removed" />);
   expect(screen.getByText('1 / 4')).toBeOnTheScreen();
+});
+
+
+it('adds photos to the displayed artwork from an empty album', async () => {
+  mockPhotos = []; mockPhotosUpdatedAt = new Date();
+  await render(<ArtworkAlbum work={work} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Add photos' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/add-photos', params: { draftId: 'saved:work', savedId: 'work', title: 'Water Lilies', visitId: undefined } });
+});
+
+it('keeps the selected visit for new photos and offers the complete album', async () => {
+  mockPhotosUpdatedAt = new Date();
+  await render(<ArtworkAlbum work={work} visitId="visit-a" />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Add photos' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/add-photos', params: { draftId: 'saved:work', savedId: 'work', title: 'Water Lilies', visitId: 'visit-a' } });
+  await fireEvent.press(screen.getByRole('button', { name: 'View all photos' }));
+  expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
+  expect(screen.queryByText('No photos from this visit yet.')).toBeNull();
 });

@@ -49,7 +49,7 @@ it('offers search at five artworks and matches titles or artists without case or
   expect(screen.getByRole('button', { name: 'View Still Life' })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'View Water Lilies' })).toBeNull();
   await fireEvent.changeText(search, 'no match');
-  expect(screen.getByText('No artworks match this search.')).toBeOnTheScreen();
+  expect(screen.getByText('No artworks found.')).toBeOnTheScreen();
   mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 4 }, items: works.slice(0, 4) }));
   await view.rerender(<VisitScreen postId="post-b" />);
   expect(screen.queryByLabelText('Search visit artworks')).toBeNull();
@@ -61,16 +61,16 @@ it('searches later pages and waits until all pages arrive before declaring no ma
   mockLoadMore.mockClear();
   await fireEvent.changeText(screen.getByLabelText('Search visit artworks'), 'Starry');
   expect(mockLoadMore).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText('No artworks match this search.')).toBeNull();
+  expect(screen.queryByText('No artworks found.')).toBeNull();
   mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 6 }, done: false, loading: true }));
   await view.rerender(<VisitScreen postId="post-a" />);
   expect(screen.getByLabelText('Loading artworks…')).toBeOnTheScreen();
-  expect(screen.queryByText('No artworks match this search.')).toBeNull();
+  expect(screen.queryByText('No artworks found.')).toBeNull();
   mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 6 }, items: [...works, artwork('f', 'Starry Night', 'Vincent van Gogh')] }));
   await view.rerender(<VisitScreen postId="post-a" />);
   await fireEvent.press(screen.getByRole('button', { name: 'View Starry Night' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/artwork', params: { kind: 'visit', postId: 'post-a', itemId: 'f' } });
-  expect(screen.queryByText('No artworks match this search.')).toBeNull();
+  expect(screen.queryByText('No artworks found.')).toBeNull();
 });
 
 it('distinguishes a visit without photos from a visit without artworks', async () => {
@@ -81,6 +81,6 @@ it('distinguishes a visit without photos from a visit without artworks', async (
   expect(screen.getByText('No photos')).toBeOnTheScreen();
   mockPages.mockReturnValue(pages({ items: [], first: { ...visit, artworkCount: 0 } }));
   await view.rerender(<VisitScreen postId="post-a" />);
-  expect(screen.getByText('A visit worth remembering.')).toBeOnTheScreen();
+  expect(screen.queryByText('A visit worth remembering.')).toBeNull();
   expect(screen.getByText('This visit was shared without artworks.')).toBeOnTheScreen();
 });

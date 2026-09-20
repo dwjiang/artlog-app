@@ -79,10 +79,10 @@ it('names the open visit as the one happening now', async () => {
 it('distinguishes loading visits from an empty collection', async () => {
   const view = await render(<CaptureContextScreen />);
   expect(screen.getByLabelText('Loading visits…')).toBeOnTheScreen();
-  expect(screen.queryByText('No visits yet. Create a visit, or save this artwork without one.')).toBeNull();
+  expect(screen.queryByText('Keep the day, too.')).toBeNull();
   mockQuery = { ...mockQuery, updatedAt: new Date() };
   await view.rerender(<CaptureContextScreen />);
-  expect(screen.getByText('No visits yet. Create a visit, or save this artwork without one.')).toBeOnTheScreen();
+  expect(screen.getByText('Keep the day, too.')).toBeOnTheScreen();
 });
 
 it('preserves the current choice when saving the new choice fails', async () => {
@@ -95,9 +95,10 @@ it('preserves the current choice when saving the new choice fails', async () => 
   expect(mockBack).not.toHaveBeenCalled();
 });
 
-it('shows a query failure without claiming there are no visits', async () => {
+it('shows a query failure without claiming there are no visits, and still offers a new visit', async () => {
   mockQuery.error = new Error('Read failed');
   await render(<CaptureContextScreen />);
   expect(screen.getByRole('alert')).toHaveTextContent(/Couldn’t load your visits\./);
-  expect(screen.queryByText('No visits yet. Create a visit, or save this artwork without one.')).toBeNull();
+  expect(screen.queryByText('Keep the day, too.')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Create a visit' })).toBeOnTheScreen();
 });

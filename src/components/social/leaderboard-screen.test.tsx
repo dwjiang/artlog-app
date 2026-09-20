@@ -4,7 +4,9 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { SocialSession } from '@/lib/social/use-social-session';
 import { LeaderboardScreen } from './leaderboard-screen';
 
-const mockPush = jest.fn(), mockChange = jest.fn(), mockRefresh = jest.fn(), mockQuery = jest.fn();
+jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ ready: true, available: false, busy: false }) }));
+
+const mockPush = jest.fn(), mockDismissAll = jest.fn(), mockChange = jest.fn(), mockRefresh = jest.fn(), mockQuery = jest.fn();
 const mockSession = { status: 'signed-out' as SocialSession['status'], key: 'guest', profileId: undefined as Id<'profiles'> | undefined };
 let mockVisibility = 'off';
 let mockRows = [{ profile: { profileId: 'global-person', name: 'Ada', username: 'ada', publishedWallCount: 2 }, rank: 1, score: 4 }];
@@ -27,7 +29,7 @@ jest.mock('@expo/ui/swift-ui', () => {
       <Pressable accessibilityRole="button" accessibilityLabel={`Choose ${child.props.children}`} onPress={() => onSelectionChange(child.props.modifiers.find((modifier) => modifier.$type === 'tag')?.tag ?? '')}><Text>{child.props.children}</Text></Pressable>)}</View>,
   };
 });
-jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) },
+jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args), navigate: (...args: unknown[]) => mockPush(...args), dismissAll: () => mockDismissAll() },
   useRouter: () => ({ push: mockPush }),
   Stack: { Screen: () => null, Toolbar: Object.assign(() => null, { Button: () => null }) },
 }));
@@ -53,8 +55,8 @@ beforeEach(() => {
 
 it('lets a guest move from the Friends prompt to Global rankings and open a public profile', async () => {
   await render(<LeaderboardScreen />);
-  expect(screen.getByText('Your friends, when you’re ready.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Browse Global' }));
+  expect(screen.getByText('A little friendly inspiration.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore Global' }));
   expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', { audience: 'global', metric: 'visits', period: 'month' });
   const row = screen.getByRole('button', { name: 'Rank 1, Ada, 4 visits. Open public profile.' });
   await fireEvent.press(row);
@@ -120,4 +122,21 @@ it('keeps a failed participation change available for retry', async () => {
   expect(screen.getByRole('alert')).toHaveTextContent('Could not save participation. Try again.');
   await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
   expect(mockChange).toHaveBeenLastCalledWith({ visibility: 'global' });
+});
+
+
+it('offers creation for the selected metric while preserving actual participation', async () => {
+  mockSession.status = 'ready'; mockVisibility = 'global'; mockRows = [];
+  mockSettings.set('leaderboard-choice', JSON.stringify({ audience: 'global', metric: 'visits', period: 'month' }));
+  await render(<LeaderboardScreen />);
+  expect(await screen.findByText('Participating on Global')).toBeOnTheScreen();
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add visit' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/visit-create');
+  expect(screen.queryByText('LOGGED VISITS')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Choose Artworks' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
+  expect(mockDismissAll).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenLastCalledWith('/scan');
+  await fireEvent.press(screen.getByRole('button', { name: 'Choose All time' }));
+  expect(screen.queryByText('The month is yours to start.')).toBeNull();
 });

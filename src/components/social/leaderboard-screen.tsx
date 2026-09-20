@@ -1,3 +1,7 @@
+import { AppleSignInAction } from '../account/apple-sign-in-action';
+import { useAccount } from '@/lib/account/use-account';
+import { EmptyState } from '../empty-state';
+import { EmptyPodium } from '../empty-state-art';
 import { router, Stack } from 'expo-router';
 import { useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -66,11 +70,11 @@ export function LeaderboardScreen() {
             options={[{ value: 'month', label: 'This month' }, { value: 'all', label: 'All time' }]} />
         </View>
         <View style={styles.subline}><Text style={styles.caption}>{periodLabel}</Text></View>
-        <View style={styles.tableHeading} accessibilityElementsHidden>
+        {rows.length > 0 && <View style={styles.tableHeading} accessibilityElementsHidden>
           <Text style={[styles.columnLabel, { width: 25 }]}>#</Text>
           <Text style={[styles.columnLabel, { flex: 1 }]}>{audience === 'friends' ? 'FRIENDS' : 'PEOPLE'}</Text>
           <Text style={styles.columnLabel}>{metric === 'visits' ? 'LOGGED VISITS' : 'ARTWORKS'}</Text>
-        </View>
+        </View>}
     </View>}
       data={rows} keyExtractor={(row) => row.profile.profileId}
       viewabilityConfig={viewabilityConfig}
@@ -92,20 +96,25 @@ export function LeaderboardScreen() {
           <Text style={styles.score}>{item.score}</Text>
         </Pressable>;
       }}
-      ListEmptyComponent={!canBrowse ? guest ? <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
-        <SocialState title="Your friends, when you’re ready." detail="A profile is needed to connect with friends. You can browse Global without joining." icon="person.2"
-          action="Browse Global" onAction={() => filter({ audience: 'global' })} />
-        <GalleryButton label={session.status === 'profile-required' ? 'Create your profile' : 'Sign in to connect'}
-          onPress={() => router.push(session.status === 'profile-required' ? '/create-profile' : signInRoute('leaderboards'))} />
-      </View> : <SocialGate session={session} />
+      ListEmptyComponent={!canBrowse ? guest ? <EmptyState title="A little friendly inspiration." detail="Connect with friends to see what they’ve been discovering." visual={<EmptyPodium />}>
+        {session.status === 'signed-out' ? <LeaderboardSignIn /> : <GalleryButton label="Create your profile" variant="filled" fullWidth onPress={() => router.push('/create-profile')} />}
+        <GalleryButton label="Explore Global" fullWidth onPress={() => filter({ audience: 'global' })} />
+      </EmptyState> : <SocialGate session={session} />
         : board.loading && !board.error ? <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
-            : <SocialState title={audience === 'friends' ? 'No participating friends yet.' : 'No Global participants yet.'}
-              detail={audience === 'friends' ? 'Friends appear here unless they switch participation off.' : 'Profiles appear here by default unless participation is set to Friends only or Off.'}
-              action={audience === 'friends' ? 'Find people' : undefined} onAction={() => router.push('/people')} />}
+            : board.data ? <EmptyState title={audience === 'friends' ? 'A little friendly inspiration.' : period === 'month' ? 'The month is yours to start.' : 'A little inspiration starts here.'}
+              detail={audience === 'friends' ? 'No friends on this board yet. Find your people and share the inspiration.' : metric === 'visits' ? 'No visits on this board yet. Log a museum visit to get started.' : 'No artworks on this board yet. Scan an artwork to get started.'} visual={<EmptyPodium />}>
+              <GalleryButton label={audience === 'friends' ? 'Find people' : metric === 'visits' ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth
+                onPress={() => {
+                  if (audience === 'friends') router.push('/people');
+                  else if (metric === 'visits') router.push('/visit-create');
+                  else { router.dismissAll(); router.navigate('/scan'); }
+                }} />
+              {audience === 'friends' && <GalleryButton label="Explore Global" fullWidth onPress={() => filter({ audience: 'global' })} />}
+            </EmptyState> : null}
       ListFooterComponent={<View style={styles.explainer}>
         {preferenceError && <Text accessibilityRole="alert" style={styles.caption}>{preferenceError}</Text>}
-        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Each identified artwork counts once per person. Unidentified entries count separately. Extra photos and encounters don’t add to the total.'}</Text>
+        {rows.length > 0 && <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Each identified artwork counts once per person. Unidentified entries count separately. Extra photos and encounters don’t add to the total.'}</Text>}
       </View>} />
     <View style={[styles.footer, largeText && { flexDirection: 'column', alignItems: 'stretch' }, { paddingBottom: Math.max(14, bottom) }]}>
       {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on the board</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
@@ -114,12 +123,17 @@ export function LeaderboardScreen() {
           onPress={() => list.current?.scrollToIndex({ index: rows.indexOf(mine), animated: true })}>
           <Text style={styles.position}>#{mine.rank}</Text><View><Text style={styles.footerTitle}>Your position ↓</Text><Text style={styles.caption}>{mine.score} {unit}{mine.score === 1 ? '' : 's'}</Text></View>
         </Pressable>
-        : <View style={{ flex: 1 }}><Text style={styles.footerTitle}>{visibility === 'friends' ? 'Friends only' : 'Not participating'}</Text>
-          <Text style={styles.caption}>{visibility === 'friends' ? 'You’re not listed on Global.' : 'Browse without sharing your totals.'}</Text></View>}
+        : <View style={{ flex: 1 }}><Text style={styles.footerTitle}>{visibility === 'global' ? 'Participating on Global' : visibility === 'friends' ? 'Friends only' : 'Not participating'}</Text>
+          <Text style={styles.caption}>{visibility === 'global' ? 'Your totals can appear on Global.' : visibility === 'friends' ? 'Your totals are shared with friends.' : 'Browse without sharing your totals.'}</Text></View>}
       <GalleryButton label={visibility === 'off' ? 'Join' : 'Manage'} variant="outlined" onPress={manageParticipation} />
     </View>
     {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
   </View>;
+}
+
+function LeaderboardSignIn() {
+  const account = useAccount();
+  return <AppleSignInAction state={account} />;
 }
 
 const styles = StyleSheet.create({

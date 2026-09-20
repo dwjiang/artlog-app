@@ -1,3 +1,5 @@
+import { SocialInvitation } from './social-invitation';
+import { GalleryButton } from '../collection/gallery-button';
 import { WelcomePrompt } from '../account/welcome-prompt';
 import { socialStyles } from './social-styles';
 import { useRouter } from 'expo-router';
@@ -8,7 +10,7 @@ import { Gallery } from '@/constants/theme';
 import type { SharedVisit } from '@/lib/social/types';
 import { useCursorPages } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
-import { PageFooter, SocialGate, SocialState } from './social-state';
+import { PageFooter, SocialGate } from './social-state';
 import { VisitCard } from './visit-card';
 import { GalleryIconButton } from '../collection/gallery-icon-button';
 import { FeedSkeleton, Ghost } from '@/components/loading-skeleton';
@@ -43,8 +45,11 @@ export function HomeScreen() {
         {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
       </View>}</>}
       ListEmptyComponent={!ready ? session.status === 'loading' ? <FeedSkeleton label="Getting things ready…" /> : <SocialGate session={session} browsePublic /> : feed.done && !feed.loading && !feed.error
-        ? <SocialState title={guest ? "No public visits yet." : "A new view is on its way."} detail={guest ? "When someone shares a visit publicly, it will appear here. Explore public walls in the meantime." : "When your friends share a museum visit, it will appear here. Find someone whose eye you love."}
-          action={guest ? "Browse public walls" : "Find people"} onAction={() => router.push('/people')} /> : null}
+        ? <SocialInvitation title={guest ? 'Discover a\ndifferent view.' : 'See what your\nfriends see.'}
+          detail={guest ? 'No public visits yet. Explore people’s art collections while you wait.' : 'Museum visits from your friends will appear here. Find someone to get started.'}>
+          <GalleryButton label={guest ? 'Explore public walls' : 'Find people'} variant="filled" fullWidth onPress={() => router.push('/people')} />
+          <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate('/scan')} />
+        </SocialInvitation> : null}
       ListFooterComponent={ready && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? <PageFooter {...feed} count={feed.items.length} skeleton="feed" /> : null}
       onEndReached={ready ? feed.loadMore : undefined} onEndReachedThreshold={0.4} />
   </>;

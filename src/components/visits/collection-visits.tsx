@@ -1,3 +1,4 @@
+import { SearchEmptyState } from '../empty-state';
 import type { ReactElement } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
@@ -23,7 +24,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   const { fontScale } = useWindowDimensions();
   const counts = visitCounts(visits);
   const shown = searchVisitSummaries(visits, search);
-  if (!loading && !error && !visits.length) return <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
+  if (!loading && !error && !visits.length && !search.trim()) return <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
     {header}{collectionControls}<CollectionEmptyState kind="visits" />
   </ScrollView>;
   const controls = <View style={{ backgroundColor: Gallery.paper }}>{collectionControls}<View style={{ paddingHorizontal: 20, paddingTop: 4, gap: 12, paddingBottom: 10 }}>
@@ -40,8 +41,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   else if (!mode || loading) message = mode === 'list'
     ? <ListSkeleton label="Loading your visits…" rows={3} />
     : <VisitMessage loading>Loading your visits…</VisitMessage>;
-  else if (mode === 'list' && !shown.length) message = <VisitMessage action="Clear search" onAction={clearSearch}>{searchTerm(search) === null
-    ? 'Enter between 2 and 100 characters to search.' : `No visits match “${search.trim()}”.`}</VisitMessage>;
+  else if (mode === 'list' && !shown.length) message = <SearchEmptyState title="No visits found." detail={searchTerm(search) === null ? 'Enter between 2 and 100 characters to search.' : 'Try a museum, city, or date.'} onClear={clearSearch} />;
   if (mode !== 'list') return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" stickyHeaderIndices={fontScale < 1.5 ? [header ? 1 : 0] : undefined}
     contentContainerStyle={{ paddingBottom: 30 }}>{header}{controls}{message ?? <VisitGlobe visits={visits} onList={() => changeMode('list')} />}<VisitPrivacyNote /></ScrollView>;
   // One list container for every search state keeps the search field mounted while typing.

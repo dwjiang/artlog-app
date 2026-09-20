@@ -1,3 +1,5 @@
+import { EmptyState } from '../empty-state';
+import { LoadingRing } from '../loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Image } from 'expo-image';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -17,13 +19,14 @@ export function useArtworkEncounters(work: SavedWork) {
   const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
   const visits = useLiveQuery(listVisits(work.owner), [work.owner]);
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
-  return visits.data.filter((visit) => visit.owner === work.owner).flatMap((visit) => {
+  const rows = visits.data.filter((visit) => visit.owner === work.owner).flatMap((visit) => {
     const encounter = encounters.data.find((row) => row.owner === work.owner && row.savedLocalId === work.localId && row.visitLocalId === visit.localId && row.deletedAt === null);
     return encounter ? [{ visit, note: encounter.note, photoCount: photos.data.filter((photo) => photo.owner === work.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId).length }] : [];
   });
+  return { encounters: rows, loading: !visits.updatedAt || !encounters.updatedAt, error: visits.error ?? encounters.error };
 }
 
-type Encounter = ReturnType<typeof useArtworkEncounters>[number];
+type Encounter = ReturnType<typeof useArtworkEncounters>['encounters'][number];
 
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
   const [editing, setEditing] = useState(false), [note, setNote] = useState(''), [error, setError] = useState<string>();
@@ -48,7 +51,7 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
 }
 
 /** One row per visit the artwork was seen on, each opening that visit in the journal. */
-export function ArtworkEncounterList({ work, encounters, visitId }: { work: SavedWork; encounters: Encounter[]; visitId?: string }) {
+export function ArtworkEncounterList({ work, encounters, visitId, loading, loadError }: { work: SavedWork; encounters: Encounter[]; visitId?: string; loading?: boolean; loadError?: Error }) {
   const [error, setError] = useState<string>();
   const current = encounters.find(({ visit }) => visit.localId === visitId);
   return <View>
@@ -59,7 +62,11 @@ export function ArtworkEncounterList({ work, encounters, visitId }: { work: Save
       <Text style={styles.visitName} numberOfLines={2}>{visit.venueName} <Text style={styles.visitDate}>· {formatVisitDate(visit.visitedOn)}</Text></Text>
       <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
     </Pressable>)}
-    {!encounters.length && <Text style={[styles.caption, { paddingVertical: 14 }]}>Saved without a visit. You can link one anytime.</Text>}
+    {!encounters.length && (loadError ? <Text accessibilityRole="alert" style={styles.caption}>Visits couldn’t load. Close and reopen this artwork to try again.</Text>
+      : loading ? <LoadingRing accessibilityLabel="Loading artwork visits…" />
+        : <EmptyState compact title="Where did you meet?" detail="This artwork was saved without a visit. Link one to remember where you saw it.">
+          <GalleryButton label="Link a visit" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })} />
+        </EmptyState>)}
     {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [
       { text: 'Cancel', style: 'cancel' }, { text: 'Unlink', onPress: () => {
         try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/saved/[savedId]', params: { savedId: work.localId } }); }

@@ -37,10 +37,10 @@ export function ArtworkStrip() {
   </View>;
 }
 
-export function ArtworkMedallions() {
+export function ArtworkMedallions({ expanded = false }: { expanded?: boolean }) {
   return <View accessibilityElementsHidden style={styles.medallions}>
-    {[introArtworks.pearl, introArtworks.lilies].map((artwork, index) => <Image key={artwork.title} source={artwork.source}
-      accessible={false} contentFit="cover" style={[styles.medallion, index > 0 && { marginLeft: -12 }]} />)}
+    {(expanded ? Object.values(introArtworks) : [introArtworks.pearl, introArtworks.lilies]).map((artwork, index) => <Image key={artwork.title} source={artwork.source}
+      accessible={false} contentFit="cover" style={[styles.medallion, expanded && { width: 82, height: 82, borderRadius: 41 }, index > 0 && { marginLeft: -12 }]} />)}
   </View>;
 }
 

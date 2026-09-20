@@ -12,11 +12,12 @@ export function CollectionEmptyState({ kind }: { kind: 'artworks' | 'visits' }) 
   return <View style={styles.root}>
     {visits ? <VisitKeepsake /> : <ArtworkCollage />}
     <View style={styles.copy}>
-      <Text variant="display" accessibilityRole="header" style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: '100%' }]}>{visits ? 'Keep the whole visit.' : 'Your own little museum.'}</Text>
-      <Text themeColor="textSecondary">{visits ? 'Save the museum, the art, and what stayed with you.' : 'Scan an artwork to start your collection.'}</Text>
+      <Text variant="display" accessibilityRole="header" style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: '100%' }]}>{visits ? 'Keep the\nwhole visit.' : 'Your own\nlittle museum.'}</Text>
+      <Text themeColor="textSecondary">{visits ? 'The museum, the art, the little details. Give your next visit a place to live.' : 'Keep the art that stays with you. Scan a painting to save your first piece.'}</Text>
     </View>
     <GalleryButton label={visits ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth
       onPress={() => visits ? router.push('/visit-create') : router.navigate('/scan')} />
+    <Text variant="metadata" themeColor="textSecondary">{visits ? 'Your visits stay private until you share them.' : 'No account needed to start.'}</Text>
   </View>;
 }
 

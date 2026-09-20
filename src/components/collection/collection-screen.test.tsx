@@ -14,6 +14,7 @@ jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
 const mockHrefs: unknown[] = [];
+let mockParams: { view?: string } = {};
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../visits/globe-canvas', () => ({ GlobeCanvas: () => null }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
@@ -23,7 +24,9 @@ jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file
 jest.mock('expo-router', () => {
   const { Pressable, TextInput, View, Text } = jest.requireActual('react-native');
   return {
-    router: { push: jest.fn() }, useFocusEffect: () => {},
+    router: { push: jest.fn(), setParams: (params: { view?: string }) => { mockParams = params; } },
+    useLocalSearchParams: () => mockParams,
+    useFocusEffect: (callback: () => void) => jest.requireActual('react').useEffect(callback, [callback]),
     Link: ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
       mockHrefs.push(href);
       return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
@@ -55,7 +58,7 @@ it('opens the local artwork collection for guests without a sign-in gate', async
 const venueId = 'museum-1' as Id<'museums'>;
 const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Search your visits/);
 
-beforeEach(() => { mockHrefs.length = 0; switchOwner(anonymousOwner(), 'scope-anonymous'); });
+beforeEach(() => { mockParams = {}; mockHrefs.length = 0; switchOwner(anonymousOwner(), 'scope-anonymous'); });
 
 it('keeps the public wall as the account collection view', async () => {
   switchOwner('account:a', 'scope-a');
@@ -68,7 +71,7 @@ it('keeps the public wall as the account collection view', async () => {
 it('invites the first scan while the collection is empty', async () => {
   await renderArchive();
   expect(await screen.findByText('Your own little museum.')).toBeOnTheScreen();
-  expect(screen.getByText('Scan an artwork to start your collection.')).toBeOnTheScreen();
+  expect(screen.getByText('Keep the art that stays with you. Scan a painting to save your first piece.')).toBeOnTheScreen();
 });
 
 it('shows the first saved artwork without a sync prompt', async () => {
@@ -176,7 +179,7 @@ it('shows empty visits and calendar month groups, and searches them by country o
   await fireEvent.changeText(search(), '2024-02-29');
   expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
   await fireEvent.changeText(search(), 'missing');
-  expect(screen.getByText('No visits match “missing”.')).toBeOnTheScreen();
+  expect(screen.getByText('No visits found.')).toBeOnTheScreen();
 });
 it('shows the A–Z collection in artist order', async () => {
   switchOwner(anonymousOwner(), 'scope-anonymous');
@@ -186,4 +189,19 @@ it('shows the A–Z collection in artist order', async () => {
   expect(screen.getAllByRole('button', { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
     '100% Cotton, Anon', 'Water Lilies, Claude Monet', 'Untitled, Unknown',
   ]);
+});
+
+
+it('opens the requested collection section even after another section was selected', async () => {
+  switchOwner('account:section', 'scope-section');
+  const view = await render(<CollectionScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
+  expect(screen.getByRole('button', { name: 'Visits' })).toBeSelected();
+  mockParams = { view: 'wall' };
+  await view.rerender(<CollectionScreen />);
+  expect(screen.getByRole('button', { name: 'Wall' })).toBeSelected();
+  expect(mockParams.view).toBeUndefined();
+  mockParams = { view: 'visits' };
+  await view.rerender(<CollectionScreen />);
+  expect(screen.getByRole('button', { name: 'Visits' })).toBeSelected();
 });

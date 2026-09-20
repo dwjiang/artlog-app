@@ -29,6 +29,10 @@ const mockSelectionHaptic = jest.fn();
 const mockImpactHaptic = jest.fn();
 const mockObserve = jest.fn();
 const mockResolveVenue = jest.fn();
+const mockSetParams = jest.fn();
+let mockParams: { visitId?: string } = {};
+let mockTabsListener: ((event: { data: { state: { index: number; routes: { name: string }[] } } }) => void) | undefined;
+let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: 'frame-output' };
 const mockDetectorActive: boolean[] = [];
 
@@ -44,7 +48,13 @@ jest.mock('@expo/ui', () => {
     ),
   };
 });
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }), useNavigation: () => ({ addListener: () => () => {} }) }));
+jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => ({ push: mockPush }), useNavigation: () => ({
+  addListener: () => () => {}, setParams: (...args: unknown[]) => mockSetParams(...args),
+  getParent: () => ({ addListener: (_event: string, listener: typeof mockTabsListener) => { mockTabsListener = listener; return () => { mockTabsListener = undefined; }; } }),
+}) }));
+jest.mock('./capture-visit-pill', () => ({ CaptureVisitPill: ({ visitId }: { visitId: string }) => {
+  const { Text } = jest.requireActual('react-native'); return <Text>Adding to {visitId}</Text>;
+} }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('expo-haptics', () => ({
@@ -59,10 +69,13 @@ jest.mock('react-native-vision-camera', () => ({
   Camera: (props: typeof mockCameraProps): ReactNode => { mockCameraProps = props; return null; },
 }));
 jest.mock('@/lib/capture/use-capture', () => ({
-  useCapture: () => ({
-    state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve },
-    captureManually: mockCapture, captureAutomatically: mockCaptureAutomatically, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage,
-  }),
+  useCapture: (options: { onVisitUnavailable?: () => void }) => {
+    mockVisitUnavailable = options.onVisitUnavailable;
+    return {
+      state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve },
+      captureManually: mockCapture, captureAutomatically: mockCaptureAutomatically, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage,
+    };
+  },
 }));
 jest.mock('@/lib/venue/use-venue', () => ({ resolveVenueForScan: () => mockResolveVenue(), useVenue: () => mockVenueView }));
 jest.mock('@/lib/queue/use-queue', () => ({ useQueue: () => ({ pending: mockPending, items: Array.from({ length: mockPending }, () => ({ status: 'queued' })) }) }));
@@ -80,6 +93,8 @@ beforeEach(() => {
   jest.spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled').mockResolvedValue(false);
   jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockFocused = true;
+  mockParams = {};
+  mockTabsListener = undefined;
   mockGranted = true;
   mockCanRequest = false;
   mockState = { phase: 'searching', occupied: false };
@@ -268,4 +283,25 @@ it('shows the stage breakdown of the last capture in development', async () => {
   mockTimings = { warp: 273.4, triage: 8.6, embed: 480.2, orb: 11.7, identify: 38.1, total: 812.0 };
   await render(<ScanScreen />);
   expect(screen.getByText('Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38')).toBeOnTheScreen();
+});
+
+it('keeps a chosen visit through sheets above the tab and drops it at the result or on a tab change', async () => {
+  mockParams = { visitId: 'paris' };
+  const view = await render(<ScanScreen />);
+  expect(screen.getByText('Adding to paris')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Legion of Honor' })).toBeNull();
+  mockFocused = false;
+  await view.rerender(<ScanScreen />);
+  expect(mockSetParams).not.toHaveBeenCalled();
+  await act(async () => mockTabsListener?.({ data: { state: { index: 1, routes: [{ name: '(home)' }, { name: '(scan)' }, { name: '(collection)' }] } } }));
+  expect(mockSetParams).not.toHaveBeenCalled();
+  await act(async () => mockTabsListener?.({ data: { state: { index: 2, routes: [{ name: '(home)' }, { name: '(scan)' }, { name: '(collection)' }] } } }));
+  expect(mockSetParams).toHaveBeenCalledWith({ visitId: undefined });
+  mockSetParams.mockClear(); mockFocused = true;
+  mockState = { phase: 'result', occupied: true };
+  await view.rerender(<ScanScreen />);
+  expect(mockSetParams).toHaveBeenCalledWith({ visitId: undefined });
+  mockSetParams.mockClear();
+  mockVisitUnavailable?.();
+  expect(mockSetParams).toHaveBeenCalledWith({ visitId: undefined });
 });

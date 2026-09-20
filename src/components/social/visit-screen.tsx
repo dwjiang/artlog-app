@@ -1,3 +1,4 @@
+import { SearchEmptyState } from '../empty-state';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, type ReactElement } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -11,7 +12,6 @@ import { useCursorPages } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { DisplayMedia } from '../artwork/display-media';
 import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from '../visits/visit-gallery';
-import { GalleryButton } from '../collection/gallery-button';
 import { VisitSymbol } from '../visits/visit-ui';
 import { ProfileAvatar } from './profile-avatar';
 import { PageFooter, SocialGate, SocialState } from './social-state';
@@ -91,9 +91,8 @@ function SharedCountHeading({ label }: { label: string }) {
 }
 
 function SharedEmpty({ query, onClear }: { query: string; onClear: () => void }) {
-  return query ? <View style={styles.empty}><Text style={styles.emptySearch}>No artworks match this search.</Text><GalleryButton label="Clear search" onPress={onClear} /></View>
-    : <View style={styles.empty}><Text style={styles.emptyTitle}>A visit worth remembering.</Text>
-      <Text style={styles.meta}>This visit was shared without artworks.</Text></View>;
+  return query ? <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." onClear={onClear} />
+    : <View style={styles.empty}><Text style={styles.meta}>This visit was shared without artworks.</Text></View>;
 }
 
 /** One artwork in a shared visit: the first selected photo, a photo-count badge, title, and artist. */
@@ -161,8 +160,6 @@ const styles = StyleSheet.create({
   banner: { paddingVertical: 6, marginHorizontal: -20, marginBottom: 16, backgroundColor: Gallery.highlight, alignItems: 'center' },
   bannerTitle: { ...Typography.section, fontSize: 16, lineHeight: 22, color: Gallery.ink },
   previewFooter: { paddingHorizontal: 20, borderTopWidth: 0.5, borderColor: Gallery.separator, backgroundColor: Gallery.paper },
-  emptySearch: { paddingVertical: 30, paddingHorizontal: 15, textAlign: 'center', fontSize: 13, lineHeight: 20, color: Gallery.muted },
   empty: { gap: 7, paddingVertical: 24 },
-  emptyTitle: { fontSize: 14, fontWeight: '500', color: Gallery.ink },
   photoPlaceholder: { color: Gallery.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', padding: 5 },
 });

@@ -110,11 +110,11 @@ describe('choosing a museum', () => {
   it('explains an empty result and a denied permission with a way to Settings', async () => {
     mockView = { ...mockView, status: 'none', options: [] };
     const view = await render(<VenuePickerSheet />);
-    expect(screen.getByText('No museum nearby')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'OK' })).toBeOnTheScreen();
+    expect(screen.getByText('Art turns up everywhere.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Continue without a museum' })).toBeOnTheScreen();
     mockView = { ...mockView, status: 'denied', options: [] };
     await view.rerender(<VenuePickerSheet />);
-    expect(screen.getByText('Location is off')).toBeOnTheScreen();
+    expect(screen.getByText('A place for this moment.')).toBeOnTheScreen();
     const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
     await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
     expect(open).toHaveBeenCalledTimes(1);
@@ -201,7 +201,7 @@ describe('the open visit', () => {
   it('shows the chooser for a paused visit when location is denied', async () => {
     mockView = { ...mockView, status: 'denied', venue: undefined, options: [] };
     await render(<VenuePickerSheet />);
-    expect(screen.getByText('Location is off')).toBeOnTheScreen();
+    expect(screen.getByText('A place for this moment.')).toBeOnTheScreen();
   });
 
   it('lists the candidates for a prompt while the visit is paused elsewhere, and "Not here" dismisses without ending it', async () => {

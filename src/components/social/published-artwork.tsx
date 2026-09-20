@@ -1,3 +1,4 @@
+import { EmptySymbol } from '../empty-state';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -47,7 +48,7 @@ function PublishedArtworkGallery({ title, photos, frame, width, token }: {
     const next = Math.max(0, Math.min(photos.length - 1, index));
     setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
   };
-  if (!photos.length) return <View style={styles.emptyGallery}><Text style={styles.caption}>No photos shared for this artwork.</Text></View>;
+  if (!photos.length) return <View style={styles.emptyGallery}><EmptySymbol name="photo" /><Text style={styles.caption}>No photos shared for this artwork.</Text></View>;
   return <View>
     <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false} accessibilityLabel="Artwork photos"
       onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.max(0, Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width))))}>
@@ -83,5 +84,5 @@ const styles = StyleSheet.create({
   medium: { color: Gallery.muted, fontSize: 15, lineHeight: 22 },
   note: { ...socialStyles.body, textAlign: 'left', color: Gallery.ink, marginLeft: 24 },
   caption: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  emptyGallery: { minHeight: 160, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill },
+  emptyGallery: { gap: 12, minHeight: 180, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill },
 });
