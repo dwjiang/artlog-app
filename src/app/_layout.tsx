@@ -60,7 +60,6 @@ export default function RootLayout() {
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
             <Stack.Screen name="artwork" options={{ title: '' }} />
             <Stack.Screen name="visit-create" options={{ ...visitSheet, title: 'Add visit' }} />
-            <Stack.Screen name="visit-reflection" options={{ title: 'Reflection', headerTintColor: Gallery.accent }} />
             <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
             <Stack.Screen name="visit-globe" options={{ presentation: 'modal', title: 'Your world', headerTintColor: Gallery.accent }} />
             <Stack.Screen

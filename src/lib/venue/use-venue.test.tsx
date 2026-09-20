@@ -259,7 +259,7 @@ it('moves to a new visit when a later fix resolves a different venue', async () 
 });
 
 it('restores an open visit and resumes it instead of starting another local one', async () => {
-  mockVisits.set('existing', { owner: 'device:test-installation', localId: 'existing', venueId: 'id-met' as Id<'museums'>, venueName: 'Metropolitan Museum of Art', startedAt: mockNow - 10 * 60 * 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockVisits.set('existing', { visibility: 'public' as const, owner: 'device:test-installation', localId: 'existing', venueId: 'id-met' as Id<'museums'>, venueName: 'Metropolitan Museum of Art', startedAt: mockNow - 10 * 60 * 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
   mockSettings.set('currentVisit:device:test-installation', 'existing');
   mockNearest.mockResolvedValue([metRow]);
   await controller.hydrate();
@@ -273,7 +273,7 @@ it('restores an open visit and resumes it instead of starting another local one'
 
 it('closes a visit from an earlier day at launch, ending it with its last saved artwork', async () => {
   const startedAt = mockNow - 5 * 60 * 60 * 1000;
-  mockVisits.set('stale', { owner: 'device:test-installation', localId: 'stale', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt, endedAt: null, remoteVisitId: 'remote-old' as Id<'visits'>, visitedOn: '1969-12-31', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockVisits.set('stale', { visibility: 'public' as const, owner: 'device:test-installation', localId: 'stale', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt, endedAt: null, remoteVisitId: 'remote-old' as Id<'visits'>, visitedOn: '1969-12-31', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
   mockSettings.set('currentVisit:device:test-installation', 'stale');
   mockActivity = mockNow - 60 * 60 * 1000;
   await controller.hydrate();
@@ -284,7 +284,7 @@ it('closes a visit from an earlier day at launch, ending it with its last saved 
 
 it('closes an earlier day\'s visit with no artworks at its start time', async () => {
   const startedAt = mockNow - 5 * 60 * 60 * 1000;
-  mockVisits.set('empty', { owner: 'device:test-installation', localId: 'empty', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt, endedAt: null, remoteVisitId: null, visitedOn: '1969-12-31', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockVisits.set('empty', { visibility: 'public' as const, owner: 'device:test-installation', localId: 'empty', venueId: 'id-met' as Id<'museums'>, venueName: 'Met', startedAt, endedAt: null, remoteVisitId: null, visitedOn: '1969-12-31', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
   mockSettings.set('currentVisit:device:test-installation', 'empty');
   await controller.hydrate();
   expect(mockVisits.get('empty')).toMatchObject({ endedAt: startedAt });
@@ -374,7 +374,7 @@ it('starts the server visit later when the session was not ready at resolution',
 });
 
 it('"Not here" keeps a visit paused elsewhere and does not reopen the sheet nearby', async () => {
-  mockVisits.set('old', { owner: 'device:test-installation', localId: 'old', venueId: 'id-old' as Id<'museums'>, venueName: 'Old', startedAt: mockNow - 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
+  mockVisits.set('old', { visibility: 'public' as const, owner: 'device:test-installation', localId: 'old', venueId: 'id-old' as Id<'museums'>, venueName: 'Old', startedAt: mockNow - 1000, endedAt: null, remoteVisitId: null, visitedOn: '1970-01-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 });
   mockSettings.set('currentVisit:device:test-installation', 'old');
   mockNearest.mockResolvedValue([metRow, neueRow]);
   await act(async () => { await render(<VenueResolver controller={controller} />); });

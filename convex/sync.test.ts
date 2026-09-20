@@ -10,7 +10,7 @@ const save = () => ({ localId: crypto.randomUUID(), snapshot: { title: 'Water Li
 async function fixture() {
   const t = harness(), user = await seedDevice(t), other = await seedDevice(t);
   const venueId = await t.run(seedMuseum);
-  const visit = { localId: crypto.randomUUID(), venueId, visitedOn: '2026-09-01', timeZone: 'UTC' };
+  const visit = { visibility: 'public' as const, localId: crypto.randomUUID(), venueId, visitedOn: '2026-09-01', timeZone: 'UTC' };
   const sync = async (device = user, input: Partial<FunctionArgs<typeof api.sync.syncJournal>> = {}) => {
     const { scope } = await device.as.query(api.accounts.me, {});
     return device.as.mutation(api.sync.syncJournal, { scope, since: 0, visits: [], saves: [], ...input });

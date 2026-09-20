@@ -3,10 +3,10 @@ import { ConvexError } from 'convex/values';
 import { createVisitSharingController } from './visit-sharing-controller';
 import type { SharePreview, ShareState, VisitSharingTransport } from './visit-sharing-transport';
 import { captureOwner, subscribeOwner, switchOwner } from '../account/owner-store';
-const initial: ShareState = { audience: 'friends', status: 'private', postId: null, removed: false, reflection: '', saveLocalIds: [], revision: 0 };
-const preview: SharePreview = { audience: 'friends', author: { name: 'Reader', username: 'reader' } as SharePreview['author'], venue: { venueId: 'museum' as never, name: 'Museum' },
+const initial: ShareState = { audience: 'public', status: 'private', postId: null, removed: false, reflection: '', saveLocalIds: [], revision: 0 };
+const preview: SharePreview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as SharePreview['author'], venue: { venueId: 'museum' as never, name: 'Museum' },
   visitedOn: '2024-02-29', reflection: 'For friends', artworks: [] };
-const transport = { getState: jest.fn(), preview: jest.fn(), publish: jest.fn(), get: jest.fn(), unshare: jest.fn() } satisfies VisitSharingTransport;
+const transport = { getState: jest.fn(), preview: jest.fn(), publish: jest.fn(), get: jest.fn() } satisfies VisitSharingTransport;
 const flush = jest.fn();
 let controller: ReturnType<typeof createVisitSharingController>;
 let ids: string[];
@@ -16,18 +16,19 @@ beforeEach(() => {
   ids = Array.from({ length: 60 }, (_, i) => `save-${i}`);
   transport.getState.mockResolvedValue(initial); transport.preview.mockResolvedValue(preview);
   transport.publish.mockResolvedValue({ ...initial, status: 'active', postId: 'post', revision: 1 });
-  transport.unshare.mockResolvedValue({ ...initial, revision: 2 }); flush.mockResolvedValue(undefined);
+  flush.mockResolvedValue(undefined);
   controller = createVisitSharingController({ visitLocalId: 'visit', saveLocalIds: () => ids, transport, flush,
     capture: () => ({ ...captureOwner(), token: 'token' }), subscribeOwner }); controller.connect();
 });
 afterEach(() => controller.dispose());
-it('selects at most 50 artworks, starts with no shared reflection, and allows zero', async () => {
+it('selects at most 50 artworks, uses the saved public notes, and allows zero', async () => {
+  transport.getState.mockResolvedValue({ ...initial, reflection: 'For friends' });
   await controller.load();
   expect(controller.getSnapshot().draft?.saveLocalIds).toHaveLength(50);
-  expect(controller.getSnapshot().draft?.reflection).toBe('');
-  controller.edit({ saveLocalIds: [], reflection: 'For friends' });
+  expect(controller.getSnapshot().draft?.reflection).toBe('For friends');
+  controller.edit({ saveLocalIds: [] });
   await controller.preview(); await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith({ audience: 'friends', visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0, photoSelections: [], highlightLocalIds: [] }, expect.anything());
+  expect(transport.publish).toHaveBeenCalledWith({ audience: 'public', visitLocalId: 'visit', saveLocalIds: [], reflection: 'For friends', revision: 0, photoSelections: [], highlightLocalIds: [] }, expect.anything());
 });
 it('flushes before every request and sends no request when sync fails', async () => {
   flush.mockRejectedValueOnce(new Error('offline'));
@@ -36,21 +37,32 @@ it('flushes before every request and sends no request when sync fails', async ()
   const load = controller.load(); expect(transport.getState).not.toHaveBeenCalled(); gate.resolve(); await load;
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
+it('invalidates a preview when the saved note changes without a publication revision change', async () => {
+  await controller.load(); await controller.preview();
+  transport.getState.mockResolvedValueOnce({ ...initial, reflection: 'Changed on another device' });
+  await controller.load();
+  expect(controller.getSnapshot().preview).toBeNull();
+  expect(controller.getSnapshot().draft?.reflection).toBe('Changed on another device');
+  expect(await controller.publish()).toBe(false);
+  expect(transport.publish).not.toHaveBeenCalled();
+});
 it('preserves selection and reflection on network failure', async () => {
-  await controller.load(); controller.edit({ saveLocalIds: ['save-2'], reflection: 'My draft' }); await controller.preview();
+  transport.getState.mockResolvedValue({ ...initial, reflection: 'My draft' });
+  await controller.load(); controller.edit({ saveLocalIds: ['save-2'] }); await controller.preview();
   transport.publish.mockRejectedValueOnce(new Error('Network request failed'));
   expect(await controller.publish()).toBe(false);
   expect(controller.getSnapshot()).toMatchObject({ draft: { saveLocalIds: ['save-2'], reflection: 'My draft' } });
   expect(controller.getSnapshot().preview).not.toBeNull();
 });
-it('requires a fresh preview after a conflict while preserving the draft', async () => {
-  await controller.load(); controller.edit({ saveLocalIds: [], reflection: 'Keep this' }); await controller.preview();
+it('refreshes visit notes after a conflict while preserving the selected artworks', async () => {
+  transport.getState.mockResolvedValue({ ...initial, reflection: 'Keep this' });
+  await controller.load(); controller.edit({ saveLocalIds: [] }); await controller.preview();
   transport.publish.mockRejectedValueOnce(new ConvexError({ code: 'conflict' })); await controller.publish();
   expect(controller.getSnapshot()).toMatchObject({ conflict: true, preview: null });
   await controller.publish(); expect(transport.publish).toHaveBeenCalledTimes(1);
   transport.getState.mockResolvedValueOnce({ ...initial, revision: 7, reflection: 'Other device' });
   await controller.preview(); await controller.publish();
-  expect(transport.publish).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 7, reflection: 'Keep this' }), expect.anything());
+  expect(transport.publish).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 7, reflection: 'Other device', saveLocalIds: [] }), expect.anything());
 });
 it('aborts and clears private state on account changes and discards a late mutation acknowledgement', async () => {
   await controller.load(); await controller.preview();
@@ -64,19 +76,20 @@ it('aborts and clears private state on account changes and discards a late mutat
   expect(controller.getSnapshot()).toMatchObject({ acknowledged: null, draft: null, preview: null, busy: false });
 });
 it('blocks publishing an edited selection until another preview is ready', async () => {
-  await controller.load(); await controller.preview(); controller.edit({ reflection: 'changed' });
+  await controller.load(); await controller.preview(); controller.edit({ saveLocalIds: ['save-1'] });
   expect(await controller.publish()).toBe(false); expect(transport.publish).not.toHaveBeenCalled();
   controller.edit({ saveLocalIds: ['foreign-save'] });
   expect(controller.getSnapshot().draft?.saveLocalIds).not.toContain('foreign-save');
 });
-it('loads an existing share for editing and waits for acknowledged unsharing', async () => {
+it('loads an existing share for editing and waits for an acknowledged publish', async () => {
   transport.getState.mockResolvedValue({ ...initial, postId: 'post', status: 'active', saveLocalIds: ['save-1'], reflection: 'Already shared', revision: 3 });
   await controller.load(); expect(controller.getSnapshot().draft).toMatchObject({ saveLocalIds: ['save-1'], reflection: 'Already shared', revision: 3 });
-  const gate = deferred<ShareState>(); transport.unshare.mockReturnValueOnce(gate.promise);
-  const request = controller.unshare(); await Promise.resolve();
-  expect(controller.getSnapshot().acknowledged?.status).toBe('active');
-  gate.resolve({ ...initial, revision: 4 }); await request;
-  expect(controller.getSnapshot().acknowledged?.status).toBe('private');
+  await controller.preview();
+  const gate = deferred<ShareState>(); transport.publish.mockReturnValueOnce(gate.promise);
+  const request = controller.publish(); await Promise.resolve();
+  expect(controller.getSnapshot().acknowledged?.revision).toBe(3);
+  gate.resolve({ ...initial, postId: 'post', status: 'active', saveLocalIds: ['save-1'], reflection: 'Already shared', revision: 4 }); await request;
+  expect(controller.getSnapshot().acknowledged?.revision).toBe(4);
 });
 it('surfaces profile requirements and refuses anonymous sharing', async () => {
   transport.getState.mockRejectedValueOnce(new ConvexError({ code: 'profile_required' })); await controller.load();
@@ -91,11 +104,11 @@ it('reads all artwork pages of a shared visit', async () => {
   expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual(['one', 'two']);
 });
 
-it('defaults to friends and requires a fresh preview when the audience changes', async () => {
+it('keeps publishing public and requires a fresh preview when the selection changes', async () => {
   await controller.load();
-  expect(controller.getSnapshot().draft?.audience).toBe('friends');
+  expect(controller.getSnapshot().draft?.audience).toBe('public');
   await controller.preview();
-  controller.edit({ audience: 'public' });
+  controller.edit({ saveLocalIds: [] });
   expect(controller.getSnapshot().preview).toBeNull();
   expect(await controller.publish()).toBe(false);
   await controller.preview();

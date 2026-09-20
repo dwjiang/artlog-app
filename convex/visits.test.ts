@@ -6,7 +6,7 @@ import { harness } from './test.helpers';
 async function fixture() {
   const t = harness(), user = await seedDevice(t);
   const venueId = await t.run(seedMuseum);
-  const visit = { localId: crypto.randomUUID(), venueId, visitedOn: '2026-09-01', timeZone: 'America/Los_Angeles', startedAt: Date.parse('2026-09-01T20:00:00Z') };
+  const visit = { visibility: 'public' as const, localId: crypto.randomUUID(), venueId, visitedOn: '2026-09-01', timeZone: 'America/Los_Angeles', startedAt: Date.parse('2026-09-01T20:00:00Z') };
   const upsert = (overrides = {}) => user.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit: { ...visit, ...overrides } });
   return { t, user, visit, upsert };
 }

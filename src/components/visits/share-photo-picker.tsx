@@ -15,8 +15,8 @@ export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: 
   const { data } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [work.localId, visitId, work.owner]);
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
     <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
-    <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Photos for friends</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>{work.title}{'\n'}Choose the photos your friends can see. New photos stay private until you select them.</Text>
+    <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Public photos</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>{work.title}{'\n'}Choose the photos anyone can see once you publish. New photos stay private until you select them.</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {data.filter((row) => row.owner === work.owner).map((photo) => <Pressable key={photo.localId} accessibilityRole="checkbox"
         accessibilityLabel={`Share ${photo.kind} photo${photo.caption ? `: ${photo.caption}` : ''}`} accessibilityState={{ checked: selected.includes(photo.localId) }}

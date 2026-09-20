@@ -204,7 +204,7 @@ it('deduplicates museum days and moves backdated totals to the visit’s month',
   const t = harness(), a = await socialUser(t, 'Ada'), venueId = await t.run(seedMuseum);
   await a.as.mutation(api.leaderboards.setPreference, { visibility: 'global' });
   const month = new Date().toISOString().slice(0, 7), day = `${month}-01`;
-  const first = { localId: crypto.randomUUID(), venueId, visitedOn: day, timeZone: 'UTC', reflection: 'PRIVATE reflection' };
+  const first = { visibility: 'public' as const, localId: crypto.randomUUID(), venueId, visitedOn: day, timeZone: 'UTC', reflection: 'PRIVATE reflection' };
   const second = { ...first, localId: crypto.randomUUID() };
   const upsert = (visit: typeof first) => a.as.mutation(api.visits.upsertJournal, { scope: a.scope, visit });
   await upsert(first); await upsert(second); await upsert(first);

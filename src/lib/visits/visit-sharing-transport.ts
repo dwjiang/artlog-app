@@ -17,7 +17,6 @@ export function createVisitSharingTransport(url: string, fetcher: typeof globalT
     preview: (args: ShareSelection, context: RequestContext) => client(context).query(api.sharedVisits.preview, args),
     publish: (args: ShareSelection, context: RequestContext) => client(context).mutation(api.sharedVisits.publish, args, { skipQueue: true }),
     get: (args: FunctionArgs<typeof api.sharedVisits.get>, context: RequestContext) => client(context).query(api.sharedVisits.get, args),
-    unshare: (args: FunctionArgs<typeof api.sharedVisits.unshare>, context: RequestContext) => client(context).mutation(api.sharedVisits.unshare, args, { skipQueue: true }),
   };
 }
 export type VisitSharingTransport = ReturnType<typeof createVisitSharingTransport>;

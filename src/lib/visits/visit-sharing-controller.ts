@@ -57,17 +57,17 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     }
   }
   function accept(acknowledged: ShareState, preserveDraft = true) {
+    const preview = state.draft?.reflection !== acknowledged.reflection || state.draft?.revision !== acknowledged.revision ? null : state.preview;
     const available = new Set(saveLocalIds());
     const previous = preserveDraft ? state.draft : null;
     const draft = previous ? { ...previous, saveLocalIds: previous.saveLocalIds.filter((id) => available.has(id)), revision: acknowledged.revision }
       : { visitLocalId, audience: acknowledged.audience, revision: acknowledged.revision,
         saveLocalIds: (acknowledged.postId ? acknowledged.saveLocalIds.filter((id) => available.has(id)) : [...available]).slice(0, LIMITS.selectedSaves),
-        reflection: acknowledged.postId ? acknowledged.reflection : '',
         photoSelections: acknowledged.postId ? acknowledged.photoSelections ?? [] : photoSelections().filter((row) => [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId)),
         highlightLocalIds: acknowledged.postId ? acknowledged.highlightLocalIds ?? [] : [...available].slice(0, 3) };
     draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
     draft.highlightLocalIds = draft.highlightLocalIds?.filter((id) => draft.saveLocalIds.includes(id));
-    emit({ acknowledged, draft, profileRequired: false });
+    emit({ acknowledged, draft: { ...draft, reflection: acknowledged.reflection }, preview, profileRequired: false });
   }
   return {
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -76,14 +76,13 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     dispose() { disposed = true; abort?.abort(); unsubscribe?.(); unsubscribe = undefined; state = empty(); },
     load: () => run(async (context, current) => {
       const result = await transport.getState({ visitLocalId }, context);
-      if (current()) { if (state.acknowledged?.revision !== result.revision) emit({ preview: null }); accept(result); }
+      if (current()) accept(result);
     }),
-    edit(patch: Partial<Pick<ShareSelection, 'audience' | 'reflection' | 'saveLocalIds' | 'photoSelections' | 'highlightLocalIds'>>) {
+    edit(patch: Partial<Pick<ShareSelection, 'saveLocalIds' | 'photoSelections' | 'highlightLocalIds'>>) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;
       if (selected && (selected.length > LIMITS.selectedSaves || new Set(selected).size !== selected.length || selected.some((id) => !available.has(id)))) return;
-      if (patch.reflection !== undefined && patch.reflection.length > LIMITS.sharedReflection) return;
       const draft = { ...state.draft, ...patch };
       if (selected) for (const id of selected) if (!state.draft.saveLocalIds.includes(id) && !draft.photoSelections?.some((row) => row.saveLocalId === id)) {
         const defaults = photoSelections().find((row) => row.saveLocalId === id);
@@ -107,14 +106,6 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       return run(async (context, current) => {
         const result = await transport.publish(draft, context);
         if (current()) { accept(result, false); emit({ preview: null }); }
-      });
-    },
-    unshare: () => {
-      if (!state.acknowledged) return Promise.resolve(false);
-      const revision = state.acknowledged.revision;
-      return run(async (context, current) => {
-        const result = await transport.unshare({ visitLocalId, revision }, context);
-        if (current()) { accept(result); emit({ preview: null, shared: null, conflict: false }); }
       });
     },
     view: () => run(async (context, current) => {

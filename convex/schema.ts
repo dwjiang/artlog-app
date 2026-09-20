@@ -541,7 +541,6 @@ export default defineSchema({
     publishedAt: v.number(), updatedAt: v.number(), publicationRevision: v.number(),
   }).index('by_postId', ['postId']).index('by_profile_visit', ['profileId', 'visitLocalId'])
     .index('by_audience_status_history', ['audience', 'status', 'visitedOn', 'postId'])
-    .index('by_profile_audience_status_history', ['profileId', 'audience', 'status', 'visitedOn', 'postId'])
     .index('by_profile_status_history', ['profileId', 'status', 'visitedOn', 'postId']).index('by_visitId', ['visitId']),
   sharedVisitItems: defineTable({
     publicationId: v.id('sharedVisits'), saveId: v.id('collections'), saveLocalId: v.string(), position: v.number(),

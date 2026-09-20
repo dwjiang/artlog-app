@@ -18,7 +18,7 @@ export async function socialVisit(t: Harness, user: Awaited<ReturnType<typeof so
   return t.run(async (ctx) => {
     const owner = { kind: 'account' as const, accountId: user.accountId };
     const venueId = await seedMuseum(ctx);
-    const visitId = await seedJournalVisit(ctx, user.deviceId, venueId, { owner, visitedOn, reflection: 'PRIVATE REFLECTION' });
+    const visitId = await seedJournalVisit(ctx, user.deviceId, venueId, { owner, visitedOn, reflection: '' });
     const visit = (await ctx.db.get(visitId))!;
     const saves = [];
     for (let i = 0; i < count; i++) {
@@ -28,8 +28,14 @@ export async function socialVisit(t: Harness, user: Awaited<ReturnType<typeof so
         updatedAt: 1, updatedBy: user.deviceId, changeVersion: i + 2 });
       saves.push({ id, localId });
     }
-    return { visit, saves, selection: { audience: 'friends' as const, visitLocalId: visit.localId, saveLocalIds: saves.map((s) => s.localId), reflection: '', revision: 0 } };
+    return { visit, saves, selection: { audience: 'public' as const, visitLocalId: visit.localId, saveLocalIds: saves.map((s) => s.localId), reflection: '', revision: 0 } };
   });
+}
+/** Saves the visit again through the journal with a new visibility, as a device does, and returns the owner's publication state. */
+export async function setVisitVisibility(t: Harness, user: Pick<SocialUser, 'as' | 'scope'>, visitId: Id<'visits'>, visibility: 'public' | 'private') {
+  const { localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } = (await t.run((ctx) => ctx.db.get(visitId)))!;
+  await user.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit: { visibility, localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } });
+  return user.as.query(api.sharedVisits.getState, { visitLocalId: localId });
 }
 export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {
   const state = await a.as.query(api.friendships.getState, { profileId: b.profileId });

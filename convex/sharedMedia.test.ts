@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { ActionCtx } from './_generated/server';
 import { harness } from './test.helpers';
-import { befriend, socialDerivative, socialUser, socialVisit } from './lib/socialTestFixtures';
+import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from './lib/socialTestFixtures';
 import { serveSharedMedia } from './sharedMedia';
 
 async function fixture() {
@@ -37,11 +37,9 @@ it('displays eligible draft media only to the owner without publishing or exposi
   expect(denied.status).toBe(404); expect(denied.headers.get('Cache-Control')).toBe('private, no-store');
   expect(await t.run((ctx) => ctx.db.query('sharedVisits').collect())).toEqual([]);
 });
-it('rechecks friendship, publication, selection, and media eligibility on every protected request', async () => {
+it('serves public media without friendship and rechecks publication, selection, and media eligibility', async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();
   const context = await publish();
-  expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
-  await befriend(a, b);
   expect((await serveSharedMedia(transport(b), context)).status).toBe(200);
   await t.run((ctx) => ctx.db.patch(asset.id, { revokedAt: 1 }));
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
@@ -62,7 +60,7 @@ it('denies an owner-photo pointer and a publication revoked during the storage f
   await t.run((ctx) => ctx.db.delete(pointer));
   const response = await serveSharedMedia({ ...transport(b), storage: { get: async (id: typeof asset.storageId) => {
     const blob = await transport(b).storage.get(id);
-    await a.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: 1 });
+    await setVisitVisibility(t, a, draft.visit._id, 'private');
     return blob;
   } } }, context);
   expect(response.status).toBe(404);

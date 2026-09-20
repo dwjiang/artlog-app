@@ -17,7 +17,7 @@ const artwork = (id: string, title: string, artist = 'Claude Monet'): SharedArtw
 });
 const works = [artwork('a', 'Water Lilies'), artwork('b', 'The Dance', 'Henri Matisse'), artwork('c', 'Still Life', 'Paul Cézanne'),
   artwork('d', 'Haystacks'), artwork('e', 'The Garden')];
-const visit: SharedVisit = { audience: 'friends',
+const visit: SharedVisit = { audience: 'public',
   postId: 'post-a', author: { profileId: 'alex' as never, name: 'Alex Chen', username: 'alex', publishedWallCount: 0 },
   venue: { venueId: 'museum' as never, name: 'Musée d’Orsay', city: 'Paris' }, visitedOn: '2026-09-12',
   reflection: 'The small details always win.', publishedAt: 1, revision: 1, artworkCount: 5,
@@ -30,7 +30,7 @@ beforeEach(() => { jest.clearAllMocks(); mockPages.mockReturnValue(pages()); });
 
 it('shows the shared status, owner, place, reflection, and full artwork count', async () => {
   await render(<VisitScreen postId="post-a" />);
-  expect(screen.getByText('Friends')).toBeOnTheScreen();
+  expect(screen.getByText('Public')).toBeOnTheScreen();
   expect(screen.getByText('Musée d’Orsay')).toBeOnTheScreen();
   expect(screen.getByText(/September 12, 2026.*Paris/s)).toBeOnTheScreen();
   expect(screen.getByText('The small details always win.')).toBeOnTheScreen();
