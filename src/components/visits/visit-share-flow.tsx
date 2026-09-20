@@ -1,10 +1,9 @@
 import { GalleryBackToolbar } from '../gallery-back-toolbar';
-import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { SharePhotoPicker } from './share-photo-picker';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { createContext, use, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, NavigationTheme } from '@/constants/theme';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
@@ -49,7 +48,7 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
   return <ShareContext value={{ sharing, visit }}>
     <View style={{ flex: 1 }}>
       <Stack screenOptions={NavigationTheme}>
-        <Stack.Screen name="index" options={{ title: 'Share visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
+        <Stack.Screen name="index" options={{ title: 'Save visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
         <Stack.Screen name="preview" options={{ title: 'Preview', headerBackTitle: 'Edit' }} />
         <Stack.Screen name="shared" options={{ title: 'Shared visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
       </Stack>
@@ -69,10 +68,12 @@ export function VisitShareScreen() {
   const [creatingProfile, setCreatingProfile] = useState(false);
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   const { controller, draft } = sharing;
-  if (!visit.owner.startsWith('account:')) return <VisitPage><SocialState title="Share a visit." detail="Sign in to share visits with friends." icon="person.2"
+  if (visit.visibility === 'private') return <VisitPage><SocialState title="This visit is private." detail="Make it Public on the visit page before publishing."
+    action="Back to visit" onAction={() => router.dismiss()} /></VisitPage>;
+  if (!visit.owner.startsWith('account:')) return <VisitPage><SocialState title="Share a visit." detail="Sign in to publish this visit." icon="person.2"
     action="Sign in" onAction={() => router.push(signInRoute('visit'))} /></VisitPage>;
-  if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so friends can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
-    : <VisitPage><Text style={styles.body}>Create a profile to share visits with friends.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
+  if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so people can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
+    : <VisitPage><Text style={styles.body}>Create a profile to publish this visit.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
   if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
   const photoWork = visit.works.find((work) => work.localId === photoWorkId);
   if (photoWork) return <SharePhotoPicker work={photoWork} visitId={visit.localId} selected={draft.photoSelections?.find((row) => row.saveLocalId === photoWork.localId)?.photoLocalIds ?? []}
@@ -110,18 +111,12 @@ export function VisitShareScreen() {
     keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}
     ListHeaderComponent={<View style={{ gap: 18 }}>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what travels.</Text>
-      <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · {draft.audience === 'public' ? 'public' : 'friends only'}</Text>
+      <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · Public</Text>
       {active && <View style={styles.card}>
-        <Text style={styles.body}>{sharing.acknowledged?.audience === 'public' ? 'Shared publicly' : 'Shared with friends'}</Text>
+        <Text style={styles.body}>Public</Text>
         <GalleryButton label="View shared visit" disabled={sharing.busy} onPress={() => router.push({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })} />
-        <GalleryButton label="Stop sharing" destructive disabled={sharing.busy} onPress={() => Alert.alert('Stop sharing this visit?', 'This visit will no longer be shared with anyone.',
-          [{ text: 'Cancel', style: 'cancel' }, { text: 'Stop sharing', style: 'destructive', onPress: () => { void controller.unshare().then((done) => { if (done) showToast('Visit is private again.'); }); } }])} />
       </View>}
-      <NativeSegmentedPicker label="Who can see this visit" disabled={sharing.busy || sharing.acknowledged?.removed} value={draft.audience} onChange={(audience) => controller.edit({ audience })}
-        options={[{ value: 'friends', label: 'Friends' }, { value: 'public', label: 'Public' }]} />
-      <Text style={styles.caption}>{draft.audience === 'public'
-        ? 'Anyone can see this visit, its selected photos and reflection, including people without an account.'
-        : 'Only your connected friends can see this visit.'}</Text>
+      <Text style={styles.caption}>Publishing makes this visit, its selected photos and notes public, including to people without an account.</Text>
       {sharing.acknowledged?.removed ? <Text style={styles.error}>This share is no longer available.</Text> : <>
         <View style={styles.sectionLabel}><Text style={share.sectionTitle}>Feed preview</Text><Text style={styles.fine}>Up to 3 highlights</Text></View>
         <View style={share.lead}>
@@ -166,12 +161,10 @@ export function VisitShareScreen() {
       </View>;
     }}
     ListFooterComponent={<View style={{ gap: 12, paddingTop: 8 }}>
-      <Text style={styles.caption}>A shared reflection (optional)</Text>
-      <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Shared reflection" placeholder="What stayed with you?" value={draft.reflection}
-        multiline maxLength={LIMITS.sharedReflection} editable={!sharing.busy} style={[styles.input, styles.reflection]}
-        onChangeText={(reflection) => controller.edit({ reflection })} />
-      <Text style={styles.fine}>{draft.reflection.length}/{LIMITS.sharedReflection} characters</Text>
-      <PrivacyNote>Only selected photos from this visit are shared. Private notes, wall-label photos, and photos from other visits are not added automatically. Adding a photo later will not share it.</PrivacyNote>
+      <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
+      {draft.reflection ? <Text selectable style={styles.body}>{draft.reflection}</Text> : <Text style={styles.caption}>No notes added.</Text>}
+      <Text style={styles.fine}>Notes follow the visit’s visibility. Edit them on the visit page.</Text>
+      <PrivacyNote>Only selected photos from this visit are shared. Artwork notes, wall-label photos, and photos from other visits are not added automatically. Adding a photo later will not share it.</PrivacyNote>
       <GalleryButton label={sharing.conflict ? 'Refresh preview' : 'Preview shared visit'} busy={sharing.busy} busyLabel="Preparing preview…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.acknowledged?.removed} onPress={() => { void preview(); }} />
       <Text style={styles.fine}>The preview is not a limit. The full visit shows every artwork you select, ordered by highlights first.</Text>
@@ -180,17 +173,17 @@ export function VisitShareScreen() {
 export function VisitSharePreviewScreen() {
   const { sharing } = useShareFlow();
   const { preview, controller } = sharing;
-  const active = sharing.acknowledged?.status === 'active', isPublic = preview?.audience === 'public';
+  const active = sharing.acknowledged?.status === 'active';
   async function publish() {
-    if (await controller.publish()) { showToast(active ? 'Shared visit updated.' : isPublic ? 'Visit shared publicly.' : 'Visit shared with friends.'); router.back(); }
+    if (await controller.publish()) { showToast(active ? 'Shared visit updated.' : 'Visit shared publicly.'); router.back(); }
   }
   if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
-  // The server previews in selection order but publishes highlights first; show friends' order.
+  // Match the published order, with highlights first.
   const highlights = sharing.draft?.highlightLocalIds ?? [];
   const ordered = [...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)), ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId))];
-  return <><GalleryBackToolbar /><SharedVisitProjection banner={{ title: 'Only this will be shared', copy: 'Only these artworks, selected photos, and this reflection. No other visits or private notes.' }}
-    note={isPublic ? 'This visit will appear on public Home, including for people without an account; your private journal stays private.' : 'Only your friends can see it; your private journal stays private.'}
-    author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} reflection={preview.reflection} token={sharing.token} audience={preview.audience}
+  return <><GalleryBackToolbar /><SharedVisitProjection banner={{ title: 'Only this will be shared', copy: 'These artworks, selected photos, and visit notes. Other visits and artwork notes stay private.' }}
+    note="This visit will appear on public Home, including for people without an account; your private journal stays private."
+    author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} reflection={preview.reflection} token={sharing.token}
     artworks={ordered.map((item) => ({ key: item.saveLocalId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
     footer={<View style={share.confirm}>
       <ShareError sharing={sharing} />
@@ -204,7 +197,7 @@ export function VisitSharedScreen() {
   const { controller, shared } = sharing;
   const signedIn = visit.owner.startsWith('account:');
   useEffect(() => { if (signedIn) void controller.view(); }, [controller, signedIn]);
-  if (!signedIn) return <VisitPage><SocialState title="Share a visit." detail="Sign in to share visits with friends." icon="person.2"
+  if (!signedIn) return <VisitPage><SocialState title="Share a visit." detail="Sign in to publish this visit." icon="person.2"
     action="Sign in" onAction={() => router.push(signInRoute('visit'))} /></VisitPage>;
   if (sharing.profileRequired) return <VisitPage><VisitMessage action="Back to selection" onAction={() => router.replace({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>
     Create a profile before sharing this visit.
@@ -217,8 +210,8 @@ export function VisitSharedScreen() {
     </VisitMessage>
     {!unavailable && <ShareError sharing={sharing} />}
   </VisitPage>;
-  return <SharedVisitProjection banner={{ title: shared.audience === 'public' ? 'What anyone can see' : 'What friends can see', copy: 'Only these artworks, selected photos, and this reflection. No other visits or private notes.' }}
-    author={shared.author} venue={shared.venue} visitedOn={shared.visitedOn} audience={shared.audience} reflection={shared.reflection} token={sharing.token}
+  return <SharedVisitProjection banner={{ title: 'What anyone can see', copy: 'These artworks, selected photos, and visit notes. Other visits and artwork notes stay private.' }}
+    author={shared.author} venue={shared.venue} visitedOn={shared.visitedOn} reflection={shared.reflection} token={sharing.token}
     artworks={shared.artworks.page.map((item) => ({ key: item.itemId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
     footer={<ShareError sharing={sharing} />} />;
 }

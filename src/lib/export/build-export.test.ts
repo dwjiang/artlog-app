@@ -7,14 +7,14 @@ const work: SavedWork = {
   visitLocalId: 'visit-1', objectId: null, artworkId: null, scanId: null, photoPath: 'photos/full.jpg', cropStorageId: null, cropPath: 'photos/crop.jpg',
   syncedAt: 456, syncedBy: null, revision: 3, deletedAt: null,
 };
-const visit: Visit = { localId: 'visit-1', venueId: 'museum-1' as Visit['venueId'], venueName: 'The Met', startedAt: 100, endedAt: null, remoteVisitId: null, owner: 'device:test-installation', visitedOn: '2026-09-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 };
+const visit: Visit = { visibility: 'public' as const, localId: 'visit-1', venueId: 'museum-1' as Visit['venueId'], venueName: 'The Met', startedAt: 100, endedAt: null, remoteVisitId: null, owner: 'device:test-installation', visitedOn: '2026-09-01', timeZone: 'UTC', reflection: null, syncedAt: null, syncedBy: null, revision: 0 };
 const note: Note = { owner: 'device:test-installation', savedLocalId: 'work-1', text: 'Look at the reflections', updatedAt: 456 };
 
 it('exports a versioned metadata snapshot and joins notes by local work ID', () => {
   const result = buildExport({ works: [work], visits: [visit], notes: [note] });
   expect(result).toEqual({
     version: 1, exportedAt: expect.any(String),
-    visits: [{ localId: 'visit-1', venueId: 'museum-1', venueName: 'The Met', visitedOn: '2026-09-01', timeZone: 'UTC', reflection: null, startedAt: 100, endedAt: null }],
+    visits: [{ visibility: 'public' as const, localId: 'visit-1', venueId: 'museum-1', venueName: 'The Met', visitedOn: '2026-09-01', timeZone: 'UTC', reflection: null, startedAt: 100, endedAt: null }],
     works: [{ localId: 'work-1', title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas',
       institution: 'The Met', venue: 'The Met', gallery: '819', savedAt: 123, note: note.text, objectId: null, artworkId: null }],
   });

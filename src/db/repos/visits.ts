@@ -18,7 +18,7 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
     }
     const existing = tx.select().from(visits).where(and(eq(visits.owner, owner), eq(visits.localId, visit.localId))).get();
     if (existing && existing.venueId !== visit.venueId) throw new ConvexError({ code: 'invalid_visit' });
-    const fields = { ...visitInput(visit), venueName: visit.venueName, reflection: visit.reflection ?? null,
+    const fields = { ...visitInput({ ...visit, visibility: visit.visibility ?? existing?.visibility }), venueName: visit.venueName, reflection: visit.reflection ?? null,
       startedAt: visit.startedAt ?? null, endedAt: visit.endedAt ?? null };
     if (!existing || Object.entries(fields).some(([key, value]) => existing[key as keyof Visit] !== value)) {
       tx.insert(visits).values({ ...fields, owner }).onConflictDoUpdate({ target: [visits.owner, visits.localId],
@@ -43,7 +43,8 @@ export async function latestVisitActivity(localId: string, owner = getLocalOwner
     .where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.visitLocalId, localId), isNull(artworkEncounters.deletedAt), isNull(savedWorks.deletedAt))).get();
   return row?.latest ?? undefined;
 }
-export async function patchVisit(localId: string, fields: Partial<Pick<Visit, 'visitedOn' | 'timeZone' | 'startedAt' | 'endedAt' | 'reflection'>>, owner = getLocalOwner()): Promise<void> {
+/** `sync: false` leaves the edit pending for the next sync request instead of scheduling one now. */
+export async function patchVisit(localId: string, fields: Partial<Pick<Visit, 'visitedOn' | 'timeZone' | 'startedAt' | 'endedAt' | 'reflection' | 'visibility'>>, owner = getLocalOwner(), { sync = true } = {}): Promise<void> {
   db.transaction((tx) => {
     const target = and(eq(visits.owner, owner), eq(visits.localId, localId));
     const existing = tx.select().from(visits).where(target).get();
@@ -52,7 +53,7 @@ export async function patchVisit(localId: string, fields: Partial<Pick<Visit, 'v
     validateVisit(visitInput(merged));
     tx.update(visits).set({ ...fields, syncedAt: null, revision: sql`${visits.revision} + 1` }).where(target).run();
   });
-  requestCollectionSync();
+  if (sync) requestCollectionSync();
 }
 export function listUnsyncedVisits(owner = getLocalOwner()) {
   return db.select().from(visits).where(and(eq(visits.owner, owner), isNull(visits.syncedAt)))
@@ -81,7 +82,7 @@ export async function upsertVisitsFromRemote(rows: Doc<'visits'>[], owner = getL
       if (existing && (existing.syncedAt === null || existing.syncedAt > row.updatedAt ||
         (existing.syncedAt === row.updatedAt && (existing.syncedBy ?? '') > row.updatedBy))) continue;
       const fields = { owner, localId: row.localId, venueId: row.venueId, venueName: row.venueName,
-        visitedOn: row.visitedOn, timeZone: row.timeZone, reflection: row.reflection ?? null,
+        visibility: row.visibility, visitedOn: row.visitedOn, timeZone: row.timeZone, reflection: row.reflection ?? null,
         startedAt: row.startedAt ?? null, endedAt: row.endedAt ?? null, remoteVisitId: row._id, syncedAt: row.updatedAt, syncedBy: row.updatedBy };
       tx.insert(visits).values(fields).onConflictDoUpdate({ target: [visits.owner, visits.localId], set: fields }).run();
     }

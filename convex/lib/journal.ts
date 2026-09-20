@@ -19,9 +19,10 @@ export async function upsertJournalVisit(ctx: MutationCtx, owner: JournalOwner, 
     owner, venueName: venue.name, updatedAt: Math.max(Date.now(), (existing?.updatedAt ?? 0) + 1), updatedBy: deviceId, changeVersion: await nextChangeVersion(ctx, owner) };
   const id = existing?._id ?? await ctx.db.insert('visits', fields);
   if (existing) await ctx.db.patch(id, fields);
-  if (existing && existing.visitedOn !== input.visitedOn) {
+  if (existing && (existing.visitedOn !== input.visitedOn || (input.visibility === 'private' && existing.visibility !== input.visibility))) {
     const publication = await ctx.db.query('sharedVisits').withIndex('by_visitId', (q) => q.eq('visitId', id)).unique();
     if (publication) await ctx.db.patch(publication._id, { visitedOn: input.visitedOn,
+      ...(input.visibility === 'private' ? { status: 'private' as const } : {}),
       publicationRevision: publication.publicationRevision + 1, updatedAt: Date.now() });
   }
   await recordVisitScore(ctx, owner, input.venueId, input.visitedOn, existing?.visitedOn);

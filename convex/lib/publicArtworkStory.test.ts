@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { api } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
 import { harness, type Harness } from '../test.helpers';
-import { befriend, socialUser, socialVisit } from './socialTestFixtures';
+import { setVisitVisibility, socialUser, socialVisit } from './socialTestFixtures';
 import { wallFixture } from './wallFixtures';
 
 const source = { id: 'museum', sourceUrl: 'https://museum.example/work', sourceLabel: 'Museum' };
@@ -40,17 +40,16 @@ it.each([{ retiredAt: 1 }, { identityStatus: 'tentative' as const }, { factSheet
   },
 );
 
-it('enforces shared-visit friendship and revocation before returning stories', async () => {
+it('returns public visit stories without friendship and revokes access when made private', async () => {
   const t = harness(), owner = await socialUser(t), reader = await socialUser(t), draft = await socialVisit(t, owner, 1);
   await addStory(t, draft.saves[0].id);
   const publication = await owner.as.mutation(api.sharedVisits.publish, draft.selection), postId = publication.postId!;
   const post = await owner.as.query(api.sharedVisits.get, { postId }), itemId = post.artworks.page[0].itemId;
   expect(post.artworks.page[0]).not.toHaveProperty('enrichment');
-  await expect(reader.as.query(api.sharedVisits.getArtwork, { postId, itemId })).rejects.toMatchObject({ data: { code: 'not_found' } });
-  await befriend(owner, reader);
+  expect((await t.query(api.sharedVisits.getArtwork, { postId, itemId })).enrichment).toEqual(enrichment);
   const detail = await reader.as.query(api.sharedVisits.getArtwork, { postId, itemId });
   expect(detail.enrichment).toEqual(enrichment);
   expect(JSON.stringify(detail)).not.toMatch(/PRIVATE|Internal fact|Unsupported claim|sourceScore|artworkId/);
-  await owner.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: publication.revision });
+  await setVisitVisibility(t, owner, draft.visit._id, 'private');
   await expect(reader.as.query(api.sharedVisits.getArtwork, { postId, itemId })).rejects.toMatchObject({ data: { code: 'not_found' } });
 });

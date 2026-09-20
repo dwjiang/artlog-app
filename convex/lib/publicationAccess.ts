@@ -54,24 +54,15 @@ export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<'wallItems'
     !sameOwner(save.owner, { kind: 'account', accountId: profile.accountId })) throw new ConvexError({ code: 'not_found' });
   return { item, profile, save };
 }
-export async function canReadProfilePosts(ctx: ReadCtx, authorId: Id<'profiles'>, viewerId: Id<'profiles'>) {
-  const author = await activeProfile(ctx, authorId);
-  if (!author || !await activeProfile(ctx, viewerId)) return false;
-  if (authorId === viewerId) return true;
-  const { edge, block, reverseBlock } = await relationshipSnapshot(ctx, authorId, viewerId);
-  return edge?.state === 'accepted' && !block?.active && !reverseBlock?.active;
-}
 export async function readablePublication(ctx: ReadCtx, publication: Doc<'sharedVisits'>, viewerId?: Id<'profiles'>) {
   if (publication.status !== 'active' || publication.removal) return null;
-  if (publication.audience === 'friends') {
-    if (!viewerId || !await canReadProfilePosts(ctx, publication.profileId, viewerId)) return null;
-  } else if (viewerId && viewerId !== publication.profileId) {
+  if (viewerId && viewerId !== publication.profileId) {
     const { block, reverseBlock } = await relationshipSnapshot(ctx, publication.profileId, viewerId);
     if (block?.active || reverseBlock?.active) return null;
   }
   const profile = await activeProfile(ctx, publication.profileId);
   const visit = await ctx.db.get(publication.visitId);
-  if (!profile || !visit || visit.localId !== publication.visitLocalId ||
+  if (!profile || !visit || visit.visibility !== 'public' || visit.localId !== publication.visitLocalId ||
     !sameOwner(visit.owner, { kind: 'account', accountId: profile.accountId })) return null;
   return { publication, profile, visit };
 }

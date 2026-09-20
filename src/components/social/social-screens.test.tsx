@@ -30,7 +30,7 @@ jest.mock('expo-router', () => {
   return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar, Screen: () => null } };
 });
 
-const visit: SharedVisit = { audience: 'friends',
+const visit: SharedVisit = { audience: 'public',
   postId: 'post-a', author: { profileId: 'alex' as never, name: 'Alex Chen', username: 'alex', publishedWallCount: 0 },
   venue: { venueId: 'museum' as never, name: 'Museum of Modern Art' }, visitedOn: '2026-09-12',
   reflection: 'I kept coming back to the blue.', publishedAt: 1, revision: 1,

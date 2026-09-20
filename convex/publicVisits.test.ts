@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { harness } from './test.helpers';
-import { befriend, socialDerivative, socialUser, socialVisit } from './lib/socialTestFixtures';
+import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from './lib/socialTestFixtures';
 
 const notFound = { data: { code: 'not_found' } };
 
-it('exposes only explicitly public visits and revokes public detail and artwork access when switched to friends', async () => {
+it('exposes only published visits and revokes detail, artwork, and media access when made private', async () => {
   const t = harness(), author = await socialUser(t), friend = await socialUser(t);
   const privateVisit = await socialVisit(t, author), publicVisit = await socialVisit(t, author);
-  await author.as.mutation(api.sharedVisits.publish, privateVisit.selection);
+  await setVisitVisibility(t, author, privateVisit.visit._id, 'private');
   const media = await socialDerivative(t, author, publicVisit.saves[0].id);
   const published = await author.as.mutation(api.sharedVisits.publish, { ...publicVisit.selection, audience: 'public' });
   const feed = await t.query(api.sharedVisits.listPublic, {});
@@ -21,13 +21,13 @@ it('exposes only explicitly public visits and revokes public detail and artwork 
   expect(await t.query(internal.sharedMedia.authorize, { context })).toBe(media.storageId);
   expect((await t.query(api.sharedVisits.listByProfile, { profileId: author.profileId })).page.map((item) => item.postId)).toEqual([post.postId]);
   expect(await t.query(api.sharedVisits.getArtwork, { postId: post.postId, itemId })).toMatchObject({ itemId });
-  await author.as.mutation(api.sharedVisits.publish, { ...publicVisit.selection, audience: 'friends', revision: 1 });
+  await setVisitVisibility(t, author, publicVisit.visit._id, 'private');
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   await expect(t.query(internal.sharedMedia.authorize, { context })).rejects.toMatchObject(notFound);
   await expect(t.query(api.sharedVisits.get, { postId: post.postId })).rejects.toMatchObject(notFound);
   await expect(t.query(api.sharedVisits.getArtwork, { postId: post.postId, itemId })).rejects.toMatchObject(notFound);
   await befriend(author, friend);
-  expect(await friend.as.query(api.sharedVisits.get, { postId: post.postId })).toMatchObject({ audience: 'friends' });
+  await expect(friend.as.query(api.sharedVisits.get, { postId: post.postId })).rejects.toMatchObject(notFound);
 });
 
 it('paginates public visits with tied dates, filters blocked authors, and honors unsharing', async () => {
@@ -50,22 +50,30 @@ it('paginates public visits with tied dates, filters blocked authors, and honors
     .toEqual({ page: [], cursor: null, isDone: true });
   const draft = await socialVisit(t, author);
   const state = await author.as.mutation(api.sharedVisits.publish, { ...draft.selection, audience: 'public' });
-  await author.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: 1 });
+  await setVisitVisibility(t, author, draft.visit._id, 'private');
   await expect(t.query(api.sharedVisits.get, { postId: state.postId! })).rejects.toMatchObject(notFound);
 });
 
-it('does not reveal friends-only history through public profile pagination cursors', async () => {
+it('does not reveal private history through public profile pagination cursors', async () => {
   const t = harness(), author = await socialUser(t), draft = await socialVisit(t, author, 0);
-  await author.as.mutation(api.sharedVisits.publish, draft.selection);
+  await setVisitVisibility(t, author, draft.visit._id, 'private');
   await t.run(async (ctx) => {
     for (let i = 0; i < 55; i++) {
       const localId = crypto.randomUUID();
       const { _id: _visitId, _creationTime: _created, ...visit } = draft.visit;
       const visitId = await ctx.db.insert('visits', { ...visit, localId });
       await ctx.db.insert('sharedVisits', { profileId: author.profileId, postId: crypto.randomUUID(), visitId, visitLocalId: localId,
-        visitedOn: draft.visit.visitedOn, audience: 'friends', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 1 });
+        visitedOn: draft.visit.visitedOn, audience: 'public', status: 'private', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 1 });
     }
   });
   expect(await t.query(api.sharedVisits.listByProfile, { profileId: author.profileId, limit: 1 }))
     .toEqual({ page: [], cursor: null, isDone: true });
+});
+
+it('rejects Friends-only preview and publication requests', async () => {
+  const t = harness(), owner = await socialUser(t), draft = await socialVisit(t, owner);
+  const input = { ...draft.selection, audience: 'friends' as never };
+  await expect(owner.as.query(api.sharedVisits.preview, input)).rejects.toThrow();
+  await expect(owner.as.mutation(api.sharedVisits.publish, input)).rejects.toThrow();
+  expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
 });

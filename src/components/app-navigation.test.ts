@@ -31,7 +31,7 @@ describe('App navigation', () => {
     });
   });
 
-  it.each(['settings', 'people', 'create-profile', 'artwork', 'venue-picker', 'queue', 'visit-create', 'visit-reflection', 'visit-globe'])('keeps the tabs underneath a directly opened %s', (sheet) => {
+  it.each(['settings', 'people', 'create-profile', 'artwork', 'venue-picker', 'queue', 'visit-create', 'visit-globe'])('keeps the tabs underneath a directly opened %s', (sheet) => {
     const root = getRootState(`/${sheet}`);
     expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', sheet]);
     expect(root?.index).toBe(1);

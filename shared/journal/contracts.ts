@@ -11,7 +11,9 @@ export const sameOwner = (a: JournalOwner, b: JournalOwner): boolean => ownerKey
 export const journalSnapshot = v.object({
   title: v.string(), artist: v.string(), date: v.optional(v.string()), medium: v.optional(v.string()), institution: v.optional(v.string()),
 });
+export const visitVisibility = v.union(v.literal('public'), v.literal('private'));
 export const journalVisit = v.object({
+  visibility: visitVisibility,
   localId: v.string(), venueId: v.id('museums'), visitedOn: v.string(), timeZone: v.string(),
   startedAt: v.optional(v.number()), endedAt: v.optional(v.number()), reflection: v.optional(v.string()),
 });
@@ -32,7 +34,7 @@ export function pagination(input: { cursor?: string | null; limit?: number }) {
   return { numItems: limit, cursor: input.cursor ?? null };
 }
 export function validateVisit(visit: JournalVisit, now = Date.now()): void {
-  if (!isUuid(visit.localId) || !isCalendarDate(visit.visitedOn) || !isTimeZone(visit.timeZone) ||
+  if ((visit.visibility !== 'public' && visit.visibility !== 'private') || !isUuid(visit.localId) || !isCalendarDate(visit.visitedOn) || !isTimeZone(visit.timeZone) ||
     visit.visitedOn > calendarDate(now, visit.timeZone) || (visit.reflection?.length ?? 0) > LIMITS.note ||
     (visit.startedAt !== undefined && (!isTimestamp(visit.startedAt) || calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn)) ||
     (visit.endedAt !== undefined && (!isTimestamp(visit.endedAt) || visit.startedAt === undefined || visit.endedAt < visit.startedAt))) {

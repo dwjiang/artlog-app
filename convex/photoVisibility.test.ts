@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { api } from './_generated/api';
 import { harness } from './test.helpers';
-import { socialUser, socialVisit } from './lib/socialTestFixtures';
+import { setVisitVisibility, socialUser, socialVisit } from './lib/socialTestFixtures';
 
 async function fixture() {
   const t = harness(), owner = await socialUser(t), outsider = await socialUser(t);
@@ -27,11 +27,11 @@ it('reports published placements and shared visits for each photo, without treat
 });
 
 it('stops counting unpublished visits and removed wall placements', async () => {
-  const { owner, visit, photos, args, items } = await fixture();
+  const { t, owner, visit, photos, args, items } = await fixture();
   const wall = await owner.as.mutation(api.walls.setLayout, { scope: owner.scope, revision: 0, color: '#45524B', items });
-  const post = await owner.as.mutation(api.sharedVisits.publish, { ...visit.selection, photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }] });
+  await owner.as.mutation(api.sharedVisits.publish, { ...visit.selection, photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }] });
   await owner.as.mutation(api.walls.setLayout, { scope: owner.scope, revision: wall.revision, color: '#45524B', items: [] });
-  await owner.as.mutation(api.sharedVisits.unshare, { visitLocalId: visit.visit.localId, revision: post.revision });
+  await setVisitVisibility(t, owner, visit.visit._id, 'private');
   expect((await owner.as.query(api.photoVisibility.forArtwork, args)).every((photo) => photo.wallPlacements === 0 && photo.sharedVisits === 0)).toBe(true);
 });
 

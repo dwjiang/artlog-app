@@ -5,7 +5,6 @@ import { api, internal } from './_generated/api';
 import { harness } from './test.helpers';
 import { wallFixture } from './lib/wallFixtures';
 import { seedArtworkWithObject, seedContribution, seedMuseum, seedScan } from './lib/testFactories';
-import { canonicalPair } from './lib/friendships';
 import { projectSharedVisitCard } from './lib/projections';
 import { resolveDisplayAsset } from './lib/displayMedia';
 
@@ -221,19 +220,18 @@ it('delegates shared access to the social guard, never falls back to wall access
   const postId = crypto.randomUUID();
   const shared = await f.t.run(async (ctx) => {
     const visitLocalId = crypto.randomUUID();
-    const visitId = await ctx.db.insert('visits', { localId: visitLocalId, owner: { kind: 'account', accountId: f.a.accountId },
+    const visitId = await ctx.db.insert('visits', { visibility: 'public' as const, localId: visitLocalId, owner: { kind: 'account', accountId: f.a.accountId },
       venueId: f.venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: f.a.deviceId, changeVersion: 1 });
     await ctx.db.patch(f.a.saveId, { visitLocalId, visitId, venueId: f.venueId });
-    const publicationId = await ctx.db.insert('sharedVisits', { audience: 'friends', postId, profileId: f.a.profile.profileId, visitId, visitLocalId,
-      visitedOn: '2026-09-01', status: 'active', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
+    const publicationId = await ctx.db.insert('sharedVisits', { audience: 'public', postId, profileId: f.a.profile.profileId, visitId, visitLocalId,
+      visitedOn: '2026-09-01', status: 'private', reflection: '', publishedAt: 1, updatedAt: 1, publicationRevision: 0 });
     return ctx.db.insert('sharedVisitItems', { publicationId, saveId: f.a.saveId, saveLocalId: f.a.saveLocalId, position: 0 });
   });
   const path = `/display-media?kind=sharedVisit&itemId=${shared}&postId=${postId}`;
   expect((await viewer.as.fetch(path)).status).toBe(404);
   expect((await f.t.fetch(f.path)).status).toBe(200);
   await f.t.run(async (ctx) => {
-    const [firstProfileId, secondProfileId] = canonicalPair(f.a.profile.profileId, viewer.profile.profileId);
-    await ctx.db.insert('friendships', { firstProfileId, secondProfileId, requesterId: firstProfileId, state: 'accepted', revision: 1, updatedAt: 1 });
+    await ctx.db.patch((await ctx.db.get(shared))!.publicationId, { status: 'active' });
     await ctx.db.patch(f.itemId, { noteVisible: true });
   });
   expect((await viewer.as.fetch(path)).status).toBe(200);
