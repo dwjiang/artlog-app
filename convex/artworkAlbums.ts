@@ -1,3 +1,4 @@
+import { recordArtworkScore } from './lib/leaderboard';
 import { invalidateDeletedSave } from './lib/publicationAccess';
 import { ConvexError, v } from 'convex/values';
 import { albumEncounter, albumPhoto, validateAlbumEncounter, validateAlbumPhoto } from '../shared/collection/album';
@@ -102,6 +103,7 @@ export const merge = mutation({
       }
       await ctx.db.patch(target._id, { note: note || undefined, updatedAt: Date.now(), updatedBy: device._id, changeVersion: await nextChangeVersion(ctx, owner) });
       await ctx.db.patch(source._id, { deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id, changeVersion: await nextChangeVersion(ctx, owner) });
+      await recordArtworkScore(ctx, owner, { ...source, deletedAt: Date.now() }, source);
       await invalidateDeletedSave(ctx, (await ctx.db.get(source._id))!);
     }
     return { saves: [(await ctx.db.get(source._id))!, (await ctx.db.get(target._id))!],

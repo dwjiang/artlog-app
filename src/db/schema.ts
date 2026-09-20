@@ -16,6 +16,7 @@ const bytes = customType<{ data: ArrayBuffer; driverData: Uint8Array }>({
 // File columns are relative to Paths.document; src/lib/files/photos.ts resolves their current URIs.
 
 export const visits = sqliteTable('visits', {
+  visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('public'),
   owner: text().notNull(),
   localId: text().notNull(),
   venueId: text().$type<Id<'museums'>>().notNull(),

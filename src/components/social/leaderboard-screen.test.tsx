@@ -65,30 +65,16 @@ it('lets a guest move from the Friends prompt to Global rankings and open a publ
 it('changes category and period independently using the dropdowns', async () => {
   mockSession.status = 'ready';
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Choose Helpful contributions' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Choose Artworks' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Choose All time' }));
-  expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', { audience: 'friends', metric: 'contributions', period: 'all' });
-  expect(mockSettings.get('leaderboard-choice')).toBe('{"audience":"friends","metric":"contributions","period":"all"}');
+  expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', { audience: 'friends', metric: 'artworks', period: 'all' });
+  expect(mockSettings.get('leaderboard-choice')).toBe('{"audience":"friends","metric":"artworks","period":"all"}');
+  expect(screen.getByRole('button', { name: 'Rank 1, Ada, 4 artworks. Open public profile.' })).toBeOnTheScreen();
 });
 
-it('explains ranking rules and offers participation management from that view', async () => {
-  mockSession.status = 'ready';
+it('opens sign-in when a guest joins the leaderboard', async () => {
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'How rankings work' }));
-  expect(screen.getByRole('header', { name: 'Periods and ties' })).toBeOnTheScreen();
-  expect(screen.getByText(/1, 2, 2, 4/)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
-  await act(() => mockSheetDismiss?.());
-  expect(screen.getByRole('header', { name: 'Participation' })).toBeOnTheScreen();
-  expect(screen.getByText('Totals only. Not your visit history.')).toBeOnTheScreen();
-});
-
-it('finishes dismissing ranking rules before opening the guest sign-in sheet', async () => {
-  await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'How rankings work' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
-  expect(mockPush).not.toHaveBeenCalled();
-  await act(() => mockSheetDismiss?.());
+  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'leaderboards' } });
   expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull();
 });

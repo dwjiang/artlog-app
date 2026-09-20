@@ -2,7 +2,6 @@ import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { ScanResult } from '@/lib/result/state';
-import { getMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
 import { museumSearchMessage, type MuseumSearchOutcome, type MuseumSearchStage } from './flow';
 import { runMuseumSearchForScan } from './museum-search-deps';
@@ -15,7 +14,6 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   const network = useNetworkState();
   const online = network.isInternetReachable === true;
   const [phase, setPhase] = useState<Phase>({ stage: 'idle' });
-  const [consentOpen, setConsentOpen] = useState(false);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const inFlight = useRef(false);
   const attempted = useRef(false);
@@ -31,7 +29,7 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     return () => { mounted.current = false; canRun.current = false; };
   }, []);
 
-  const run = useCallback(async (retry = false) => {
+  const run = useCallback(async () => {
     if (!scan || !canRun.current || inFlight.current || stored?.stage === 'confirmed') return;
     inFlight.current = true;
     attempted.current = true;
@@ -39,7 +37,6 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     try {
       const result = await runMuseumSearchForScan({
         scanId: scan.scanId, localId: scan.localId,
-        retry,
         stored: stored?.stage === 'candidates' || stored?.stage === 'exhibitions' ? stored : undefined,
         canContinue: () => mounted.current && canRun.current,
         onStage: (progress) => { if (mounted.current) setPhase({ stage: 'running', progress }); },
@@ -75,14 +72,6 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     return () => { current = false; };
   }, [scan, stored, restoreAttempt]);
 
-  async function requestSearch() {
-    if (!canRun.current || inFlight.current) return;
-    const current = await getMuseumSearchConsent().catch(() => undefined);
-    if (!mounted.current || !canRun.current) return;
-    if (current === 'unset') setConsentOpen(true);
-    if (current === 'granted') void run(true);
-  }
-
   // Keep the accepted result as the review's edit baseline; sharing re-verifies labelFlow in place.
   const flow = phase.stage === 'done' ? phase.flow : undefined;
   const restoring = stored?.stage === 'confirmed' && phase.stage === 'idle';
@@ -101,11 +90,6 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     progress: phase.stage === 'running' ? phase.progress : undefined,
     message: reason === undefined ? undefined : museumSearchMessage(reason),
     visible: available && !hidden && (consent !== 'declined' || !!flow || restoring || restoreError),
-    canSearch: consent !== undefined && consent !== 'declined' && online && active && stored?.stage !== 'confirmed',
-    consentOpen,
-    requestSearch: () => { void requestSearch(); },
-    dismissConsent: () => setConsentOpen(false),
-    acceptConsent: () => { setConsentOpen(false); void run(true); },
   };
 }
 

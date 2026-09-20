@@ -28,7 +28,7 @@ import { isVenueOptedOut } from './lib/venueOptOut';
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
 export const DUPLICATE_COSINE = 0.995;
-// The phone resizes the consented crop to ≤ 256 px JPEG; anything larger is not a crop.
+// The phone resizes the contribution crop to ≤ 256 px JPEG; anything larger is not a crop.
 export const MAX_CROP_BYTES = 200 * 1024;
 const CROP_CONTENT_TYPE = 'image/jpeg';
 const MAX_LISTED = 200;
@@ -247,10 +247,10 @@ export const commit = internalMutation({
 export const contribute = action({
   args: {
     scanId: v.id('scans'), descriptors: v.bytes(), keypoints: v.bytes(), fields: submittedFields,
-    cropStorageId: v.id('_storage'), consent: v.literal(true), nonce: v.string(), assertionBase64: v.string(),
+    cropStorageId: v.id('_storage'), nonce: v.string(), assertionBase64: v.string(),
   },
   returns: contributionResult,
-  handler: async (ctx, { consent: _consent, ...args }): Promise<ContributionResult> => {
+  handler: async (ctx, args): Promise<ContributionResult> => {
     const keypointCount = decodeQuery(args.descriptors, args.keypoints).count;
     const { nonce, assertionBase64, descriptors, keypoints, ...submission } = args;
     const authorization = await ctx.runMutation(internal.contributions.authorize, {

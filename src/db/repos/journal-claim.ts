@@ -13,7 +13,7 @@ export async function claimLocalJournal(source: string, accountOwner: string, cl
         WHERE source.owner = ${source} AND target.owner = ${accountOwner} LIMIT 1`);
       if (collision) throw new Error('Journal ownership collision');
     }
-    for (const draftKind of ['labelDraft', 'photoDraft']) {
+    for (const draftKind of ['labelDraft', 'photoDraft', 'pendingShare']) {
       const prefix = `${draftKind}:${source}:`;
       const drafts = tx.select().from(settings).where(sql`substr(${settings.key}, 1, ${prefix.length}) = ${prefix}`).all();
       for (const draft of drafts) {

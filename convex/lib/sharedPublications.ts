@@ -39,6 +39,8 @@ export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: st
 export async function selectedSaves(ctx: QueryCtx, owner: JournalOwner, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
   validateSelection(input);
   const visit = await ownedVisit(ctx, owner, input.visitLocalId);
+  if (visit.visibility === 'private') throw new ConvexError({ code: 'visit_private' });
+  if (input.reflection !== (visit.reflection ?? '')) throw new ConvexError({ code: 'conflict' });
   const saves = [];
   for (const localId of input.saveLocalIds) {
     if (!await readHeadroom(ctx, SAVE_READ_RESERVE)) throw new ConvexError({ code: 'invalid_post' });
@@ -58,11 +60,11 @@ export async function header(ctx: QueryCtx, publication: Doc<'sharedVisits'>, pr
   return { audience: publication.audience, artworkCount: (await publicationItems(ctx, publication._id)).length, postId: publication.postId, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName, ...(venue?.city ? { city: venue.city } : {}) },
     visitedOn: publication.visitedOn, reflection: publication.reflection, publishedAt: publication.publishedAt, revision: publication.publicationRevision };
 }
-export async function stateForPublication(ctx: QueryCtx, publication: Doc<'sharedVisits'> | null): Promise<Infer<typeof publicationState>> {
+export async function stateForPublication(ctx: QueryCtx, publication: Doc<'sharedVisits'> | null, visit: Doc<'visits'>): Promise<Infer<typeof publicationState>> {
   const items = publication ? await publicationItems(ctx, publication._id) : [];
-  return { audience: publication?.audience ?? 'friends', photoSelections: items.filter((item) => item.photoLocalIds?.length).map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
+  return { audience: publication?.audience ?? 'public', photoSelections: items.filter((item) => item.photoLocalIds?.length).map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
     highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId), postId: publication?.postId ?? null, status: publication?.status ?? 'private', removed: !!publication?.removal,
-    reflection: publication?.reflection ?? '', revision: publication?.publicationRevision ?? 0,
+    reflection: (visit.reflection ?? ''), revision: publication?.publicationRevision ?? 0,
     saveLocalIds: items.map((item) => item.saveLocalId) };
 }
 export function checkPublicationRevision(observed: number, current: number) {
@@ -130,8 +132,6 @@ type HistoryTail = IndexRange & { eq(field: 'visitedOn', value: string): { lt(fi
 export type HistoryStream = (bound: (tail: HistoryTail) => IndexRange) => Query<NamedTableInfo<DataModel, 'sharedVisits'>>;
 export const profileHistory = (ctx: QueryCtx, profileId: Id<'profiles'>): HistoryStream => (bound) =>
   ctx.db.query('sharedVisits').withIndex('by_profile_status_history', (q) => bound(q.eq('profileId', profileId).eq('status', 'active')));
-export const publicProfileHistory = (ctx: QueryCtx, profileId: Id<'profiles'>): HistoryStream => (bound) =>
-  ctx.db.query('sharedVisits').withIndex('by_profile_audience_status_history', (q) => bound(q.eq('profileId', profileId).eq('audience', 'public').eq('status', 'active')));
 export const publicHistory = (ctx: QueryCtx): HistoryStream => (bound) =>
   ctx.db.query('sharedVisits').withIndex('by_audience_status_history', (q) => bound(q.eq('audience', 'public').eq('status', 'active')));
 export async function historyHead(stream: HistoryStream, before: HistoryKey | null) {

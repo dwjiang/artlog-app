@@ -1,4 +1,4 @@
-import { recordVisitScore } from './leaderboard';
+import { recordArtworkScore, recordVisitScore } from './leaderboard';
 import { ConvexError } from 'convex/values';
 import { type JournalOwner, type JournalSave, type JournalVisit, validateSave, validateVisit } from '../../shared/journal/contracts';
 import type { Doc, Id } from '../_generated/dataModel';
@@ -19,9 +19,10 @@ export async function upsertJournalVisit(ctx: MutationCtx, owner: JournalOwner, 
     owner, venueName: venue.name, updatedAt: Math.max(Date.now(), (existing?.updatedAt ?? 0) + 1), updatedBy: deviceId, changeVersion: await nextChangeVersion(ctx, owner) };
   const id = existing?._id ?? await ctx.db.insert('visits', fields);
   if (existing) await ctx.db.patch(id, fields);
-  if (existing && existing.visitedOn !== input.visitedOn) {
+  if (existing && (existing.visitedOn !== input.visitedOn || (input.visibility === 'private' && existing.visibility !== input.visibility))) {
     const publication = await ctx.db.query('sharedVisits').withIndex('by_visitId', (q) => q.eq('visitId', id)).unique();
     if (publication) await ctx.db.patch(publication._id, { visitedOn: input.visitedOn,
+      ...(input.visibility === 'private' ? { status: 'private' as const } : {}),
       publicationRevision: publication.publicationRevision + 1, updatedAt: Date.now() });
   }
   await recordVisitScore(ctx, owner, input.venueId, input.visitedOn, existing?.visitedOn);
@@ -37,14 +38,17 @@ export async function upsertJournalSave(ctx: MutationCtx, owner: JournalOwner, d
   }
   if (existing?.deletedAt !== undefined) return existing;
   if (input.venueId && !await ctx.db.get(input.venueId)) throw new ConvexError({ code: 'invalid_venue' });
-  if (input.objectId && !await ctx.db.get(input.objectId)) throw new ConvexError({ code: 'invalid_object' });
+  const object = input.objectId ? await ctx.db.get(input.objectId) : null;
+  if (input.objectId && !object) throw new ConvexError({ code: 'invalid_object' });
   if (input.artworkId && !await ctx.db.get(input.artworkId)) throw new ConvexError({ code: 'invalid_artwork' });
+  if (object && input.artworkId && object.artworkId !== input.artworkId) throw new ConvexError({ code: 'invalid_artwork' });
   if (existing && JSON.stringify(existing.snapshot) === JSON.stringify(input.snapshot) && existing.note === input.note && existing.deletedAt === input.deletedAt) return existing;
   const stamps = { updatedAt: Math.max(Date.now(), (existing?.updatedAt ?? 0) + 1), updatedBy: deviceId, changeVersion: await nextChangeVersion(ctx, owner) };
-  const id = existing?._id ?? await ctx.db.insert('collections', { ...input, owner, visitId: visit?._id, ...stamps });
+  const id = existing?._id ?? await ctx.db.insert('collections', { ...input, artworkId: object?.artworkId ?? input.artworkId, owner, visitId: visit?._id, ...stamps });
   if (existing) await ctx.db.patch(id, { snapshot: input.snapshot, note: input.note, deletedAt: input.deletedAt, ...stamps });
   if (!existing && visit) await ctx.db.insert('artworkEncounters', { owner, savedLocalId: input.localId, saveId: id, visitLocalId: visit.localId, visitId: visit._id, deletedAt: input.deletedAt, updatedAt: stamps.updatedAt, changeVersion: await nextChangeVersion(ctx, owner) });
   const row = (await ctx.db.get(id))!;
+  await recordArtworkScore(ctx, owner, row, existing);
   if (row.deletedAt !== undefined) await invalidateDeletedSave(ctx, row);
   else if (!row.note?.trim()) await clearEmptyNoteVisibility(ctx, row._id);
   return row;

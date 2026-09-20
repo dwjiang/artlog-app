@@ -7,7 +7,7 @@ export const publicProfile = v.object({
 export const frame = v.union(...(['gilt', 'baroque', 'walnut', 'oak', 'black', 'white', 'mat', 'none'] as const).map(v.literal));
 export const wallLayout = v.object({ x: v.number(), y: v.number(), width: v.number(), layer: v.number(), frame });
 export const relationshipState = v.union(v.literal('none'), v.literal('pending'), v.literal('accepted'));
-export const visitAudience = v.union(v.literal('friends'), v.literal('public'));
+export const visitAudience = v.literal('public');
 export const publicationStatus = v.union(v.literal('private'), v.literal('active'));
 export const sharedVisitMediaContext = v.object({ kind: v.literal('sharedVisit'), postId: v.string(), itemId: v.id('sharedVisitItems'), photoLocalId: v.optional(v.string()) });
 export const wallItemMediaContext = v.object({ kind: v.literal('wallItem'), itemId: v.id('wallItems'), photoLocalId: v.optional(v.string()) });
@@ -51,6 +51,7 @@ export const reportEvidence = v.union(
 export const reportDecision = v.union(v.literal('dismiss'), v.literal('remove'));
 export const reportReview = v.object({ operator: v.string(), decision: reportDecision, reason: v.string(), reviewedAt: v.number() });
 export const sharedPhotoSelection = v.object({ saveLocalId: v.string(), photoLocalIds: v.array(v.string()) });
+// The text is a preview snapshot, checked against the visit before publishing.
 export const sharedSelection = v.object({ audience: visitAudience, saveLocalIds: v.array(v.string()), reflection: v.string(), revision: v.number(),
   photoSelections: v.optional(v.array(sharedPhotoSelection)), highlightLocalIds: v.optional(v.array(v.string())) });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
@@ -99,8 +100,8 @@ export function validateMediaContext(input: Infer<typeof mediaContext>): void {
   }
 }
 export function validateSelection(input: Infer<typeof sharedSelection>): void {
-  if (input.saveLocalIds.length > LIMITS.selectedSaves || new Set(input.saveLocalIds).size !== input.saveLocalIds.length ||
-    input.saveLocalIds.some((id) => !isUuid(id)) || input.reflection.length > LIMITS.sharedReflection || !isRevision(input.revision)) {
+  if (input.audience !== 'public' || input.saveLocalIds.length > LIMITS.selectedSaves || new Set(input.saveLocalIds).size !== input.saveLocalIds.length ||
+    input.saveLocalIds.some((id) => !isUuid(id)) || input.reflection.length > LIMITS.note || !isRevision(input.revision)) {
     throw new ConvexError({ code: 'invalid_post' });
   }
   if ((input.highlightLocalIds?.length ?? 0) > 3 || new Set(input.highlightLocalIds).size !== (input.highlightLocalIds?.length ?? 0) ||

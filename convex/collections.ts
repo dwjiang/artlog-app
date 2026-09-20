@@ -9,6 +9,7 @@ import { upsertJournalSave } from './lib/journal';
 import { invalidateDeletedSave } from './lib/publicationAccess';
 import schema from './schema';
 import { limitDevice } from './lib/rateLimits';
+import { recordArtworkScore } from './lib/leaderboard';
 import { snapshotFields } from './lib/validators';
 
 const suggestion = v.object({ title: v.string(), artist: v.string() });
@@ -83,7 +84,9 @@ export const remove = mutation({
     if (row.deletedAt === undefined) {
       await ctx.db.patch(row._id, { deletedAt: Date.now(), updatedAt: Date.now(), updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner) });
-      await invalidateDeletedSave(ctx, (await ctx.db.get(row._id))!);
+      const deleted = (await ctx.db.get(row._id))!;
+      await recordArtworkScore(ctx, owner, deleted, row);
+      await invalidateDeletedSave(ctx, deleted);
     }
     return null;
   },

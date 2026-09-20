@@ -1,7 +1,7 @@
 import { filterVisits, formatVisitDate, groupHistoryByMonth, summarizeJournal, type JournalVisit } from './history';
 import { pageRows } from './query';
 import { sortWorksByArtist } from '../collection/search';
-const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisit => ({ owner: 'account:me', localId,
+const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisit => ({ visibility: 'public' as const, owner: 'account:me', localId,
   venueId: 'museum' as never, venueName: 'Musée d’Orsay', visitedOn: '2024-02-29', timeZone: 'Pacific/Kiritimati',
   city: 'París', country: 'FR', cityKey: 'wikidata:Q90', startedAt: null, endedAt: null, reflection: null,
   remoteVisitId: null, syncedAt: null, syncedBy: null, revision: 0, ...fields });

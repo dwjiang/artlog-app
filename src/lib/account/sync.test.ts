@@ -8,7 +8,7 @@ import { syncJournal, type SyncContext, type SyncDependencies } from './sync';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 const context: SyncContext = { scope: 'scope', owner: getLocalOwner(), deviceId: 'a' as Id<'devices'>, accountId: null };
-const remoteVisit: Doc<'visits'> = { _id: 'visit' as never, _creationTime: 1, owner: { kind: 'device', deviceId: context.deviceId },
+const remoteVisit: Doc<'visits'> = { visibility: 'public' as const, _id: 'visit' as never, _creationTime: 1, owner: { kind: 'device', deviceId: context.deviceId },
   localId: 'bece7508-7d6f-56b8-82ea-f78d7ddf19de', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
   updatedAt: 2, updatedBy: context.deviceId, changeVersion: 1 };
 const remote: Doc<'collections'> = {
@@ -60,7 +60,7 @@ it('discards in-flight responses after account changes', async () => {
   expect(await saves.listSavedWorks()).toEqual([]); expect(await visits.listVisits()).toEqual([]); expect(checkpoint).toBeUndefined();
 });
 it('sends empty visits before save batches and leaves hidden account work suspended', async () => {
-  await visits.upsertVisit({ localId: '82c19918-521d-5d4c-a310-5c5a6b02f7d1', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
+  await visits.upsertVisit({ visibility: 'public' as const, localId: '82c19918-521d-5d4c-a310-5c5a6b02f7d1', venueId: 'museum' as never, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC' });
   await db.insert(savedWorks).values(Array.from({ length: 70 }, (_, i) => ({ owner: context.owner, localId: `local-${i}`, title: 'Painting', artist: '', savedAt: i })));
   await saves.insertSavedWork({ localId: 'hidden', title: 'Hidden', artist: '', savedAt: 0 }, 'account:hidden');
   await syncJournal(deps, context);

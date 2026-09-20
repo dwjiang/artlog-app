@@ -15,11 +15,11 @@ it('restores every filter after reopening the board', async () => {
   jest.mocked(setSetting).mockImplementation(async (_key, value) => { saved = value; });
   const first = await renderHook(useLeaderboardChoice);
   await act(() => first.result.current.changeChoice({ audience: 'global' }));
-  await act(() => first.result.current.changeChoice({ metric: 'contributions' }));
+  await act(() => first.result.current.changeChoice({ metric: 'artworks' }));
   await act(() => first.result.current.changeChoice({ period: 'all' }));
   await first.unmount();
   const reopened = await renderHook(useLeaderboardChoice);
-  await waitFor(() => expect(reopened.result.current.choice).toEqual({ audience: 'global', metric: 'contributions', period: 'all' }));
+  await waitFor(() => expect(reopened.result.current.choice).toEqual({ audience: 'global', metric: 'artworks', period: 'all' }));
 });
 
 it('does not overwrite a new choice with a delayed stored value', async () => {

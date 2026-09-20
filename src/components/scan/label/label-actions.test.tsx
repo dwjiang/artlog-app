@@ -23,27 +23,32 @@ const handlers = { onSave: jest.fn(), onShare: jest.fn(), onViewSaved: jest.fn()
 const contributionId = 'contrib-1' as Id<'contributions'>;
 beforeEach(() => jest.clearAllMocks());
 
-it('offers saving and sharing, each gated on its required fields', async () => {
-  const view = await render(<LabelActions canSave canShare={false} saving={false} sharing={false} {...handlers} />);
+it('explains automatic sharing before saving and gates saving on a title', async () => {
+  const view = await render(<LabelActions canSave saving={false} sharing={false} {...handlers} />);
+  expect(screen.getByText(/Also saves the confirmed label/)).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
   expect(handlers.onSave).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole('button', { name: SHARE_BUTTON })).toBeDisabled();
-  expect(screen.getByText('A title and an artist are needed to share.')).toBeOnTheScreen();
-  await view.rerender(<LabelActions canSave={false} canShare saving={false} sharing={false} {...handlers} />);
+  await view.rerender(<LabelActions canSave={false} saving={false} sharing={false} {...handlers} />);
   expect(screen.getByRole('button', { name: 'Save to collection' })).toBeDisabled();
-  expect(screen.getByText('Add a title to save this work.')).toBeOnTheScreen();
+});
+
+it('keeps a saved artwork available and offers retry after sharing fails', async () => {
+  await render(<LabelActions canSave saving={false} sharing={false} savedId="saved-1" shareError="No connection" {...handlers} />);
+  expect(screen.getByRole('link', { name: 'Saved · View in collection' })).toBeEnabled();
+  expect(screen.getByRole('alert')).toHaveTextContent(/Your artwork is saved/);
   await fireEvent.press(screen.getByRole('button', { name: SHARE_BUTTON }));
   expect(handlers.onShare).toHaveBeenCalledTimes(1);
 });
 
 it('replaces the buttons with the saved link and the contribution outcome', async () => {
   await render(
-    <LabelActions canSave canShare saving={false} sharing={false} savedId="saved-1" shared={{ contributionId, status: 'tentative' }} shareError="stale" {...handlers} />,
+    <LabelActions canSave saving={false} sharing={false} savedId="saved-1" shared={{ contributionId, status: 'tentative' }} {...handlers} />,
   );
   expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.queryByText('stale')).toBeNull();
-  expect(screen.getByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  expect(screen.getByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Saved · View in collection' }));
   expect(handlers.onViewSaved).toHaveBeenCalledTimes(1);
 });

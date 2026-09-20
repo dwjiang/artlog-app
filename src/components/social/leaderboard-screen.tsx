@@ -14,7 +14,6 @@ import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { ChoiceMenu } from '../choice-menu';
 import { LeaderboardParticipation, PARTICIPATION_LABELS } from './leaderboard-participation';
-import { LeaderboardRules } from './leaderboard-rules';
 import { ProfileAvatar } from './profile-avatar';
 import { SocialGate, SocialState } from './social-state';
 import { ListSkeleton } from '@/components/loading-skeleton';
@@ -32,20 +31,20 @@ export function LeaderboardScreen() {
   const guest = session.status === 'signed-out' || session.status === 'profile-required';
   const canBrowse = ready || (audience === 'global' && guest);
   const board = useSocialQuery(api.leaderboards.list, canBrowse ? choice : 'skip', session.key);
-  const [sheet, setSheet] = useState<'rules' | 'participation'>();
+  const [participationOpen, setParticipationOpen] = useState(false);
   const [ownVisible, setOwnVisible] = useState(false);
   const list = useRef<FlatList<BoardRow>>(null);
   const { bottom } = useSafeAreaInsets();
   function manageParticipation() {
     if (guest) {
-      setSheet(undefined);
+      setParticipationOpen(false);
       router.push(session.status === 'signed-out' ? signInRoute('leaderboards') : '/create-profile');
-    } else setSheet('participation');
+    } else setParticipationOpen(true);
   }
   const rows = board.data?.rows ?? [];
   const mine = rows.find((row) => row.profile.profileId === session.profileId);
   const visibility = board.data?.visibility ?? 'off';
-  const unit = metric === 'visits' ? 'visit' : 'contribution';
+  const unit = metric === 'visits' ? 'visit' : 'artwork';
   const filter = (update: Partial<LeaderboardChoice>) => {
     changeChoice(update); setOwnVisible(false); list.current?.scrollToOffset({ offset: 0, animated: false });
   };
@@ -55,9 +54,6 @@ export function LeaderboardScreen() {
     : `Through ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
   return <View style={styles.root}>
     <Stack.Screen options={{ title: '', headerLargeTitle: false }} />
-    <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button icon="info.circle" accessibilityLabel="How rankings work" tintColor={Gallery.muted} hidesSharedBackground onPress={() => setSheet('rules')}>How rankings work</Stack.Toolbar.Button>
-    </Stack.Toolbar>
     <FlatList ref={list} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}
       ListHeaderComponent={<View style={styles.filters}>
         <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>Leaderboards</Text>
@@ -65,7 +61,7 @@ export function LeaderboardScreen() {
           options={[{ value: 'friends', label: 'Friends' }, { value: 'global', label: 'Global' }]} />
         <View style={[styles.filterRow, largeText && { flexDirection: 'column' }]}>
           <ChoiceMenu label="Ranking category" value={metric} grow={1.55} onChange={(value) => filter({ metric: value })}
-            options={[{ value: 'visits', label: 'Museum visits' }, { value: 'contributions', label: 'Helpful contributions' }]} />
+            options={[{ value: 'visits', label: 'Museum visits' }, { value: 'artworks', label: 'Artworks' }]} />
           <ChoiceMenu label="Time period" value={period} onChange={(value) => filter({ period: value })}
             options={[{ value: 'month', label: 'This month' }, { value: 'all', label: 'All time' }]} />
         </View>
@@ -73,7 +69,7 @@ export function LeaderboardScreen() {
         <View style={styles.tableHeading} accessibilityElementsHidden>
           <Text style={[styles.columnLabel, { width: 25 }]}>#</Text>
           <Text style={[styles.columnLabel, { flex: 1 }]}>{audience === 'friends' ? 'FRIENDS' : 'PEOPLE'}</Text>
-          <Text style={styles.columnLabel}>{metric === 'visits' ? 'LOGGED VISITS' : 'ACCEPTED'}</Text>
+          <Text style={styles.columnLabel}>{metric === 'visits' ? 'LOGGED VISITS' : 'ARTWORKS'}</Text>
         </View>
     </View>}
       data={rows} keyExtractor={(row) => row.profile.profileId}
@@ -105,12 +101,11 @@ export function LeaderboardScreen() {
         : board.loading && !board.error ? <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
             : <SocialState title={audience === 'friends' ? 'No participating friends yet.' : 'No Global participants yet.'}
-              detail={audience === 'friends' ? 'Only friends who choose to join appear here. Everyone else stays off the board.' : 'People who choose Friends & Global will appear here.'}
+              detail={audience === 'friends' ? 'Friends appear here unless they switch participation off.' : 'Profiles appear here by default unless participation is set to Friends only or Off.'}
               action={audience === 'friends' ? 'Find people' : undefined} onAction={() => router.push('/people')} />}
       ListFooterComponent={<View style={styles.explainer}>
         {preferenceError && <Text accessibilityRole="alert" style={styles.caption}>{preferenceError}</Text>}
-        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Distinct identification records accepted in this period. No points for duplicate or pending submissions.'}</Text>
-        <GalleryButton label="How rankings work" icon="chevron.right" iconPosition="trailing" onPress={() => setSheet('rules')} />
+        <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Each identified artwork counts once per person. Unidentified entries count separately. Extra photos and encounters don’t add to the total.'}</Text>
       </View>} />
     <View style={[styles.footer, largeText && { flexDirection: 'column', alignItems: 'stretch' }, { paddingBottom: Math.max(14, bottom) }]}>
       {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on the board</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
@@ -123,8 +118,7 @@ export function LeaderboardScreen() {
           <Text style={styles.caption}>{visibility === 'friends' ? 'You’re not listed on Global.' : 'Browse without sharing your totals.'}</Text></View>}
       <GalleryButton label={visibility === 'off' ? 'Join' : 'Manage'} variant="outlined" onPress={manageParticipation} />
     </View>
-    {sheet === 'rules' && <LeaderboardRules onDismiss={() => setSheet(undefined)} onParticipation={manageParticipation} />}
-    {sheet === 'participation' && <LeaderboardParticipation onDismiss={() => setSheet(undefined)} />}
+    {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
   </View>;
 }
 

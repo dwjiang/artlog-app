@@ -5,11 +5,11 @@ import { dismissToast } from '@/lib/ui/toast';
 import type { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { VisitShareLayout } from './visit-share-flow';
 const mockPush = jest.fn(), mockBack = jest.fn(), mockDismiss = jest.fn(), mockReplace = jest.fn();
-const mockController = { load: jest.fn(), edit: jest.fn(), preview: jest.fn(), publish: jest.fn(), unshare: jest.fn(), view: jest.fn() };
+const mockController = { load: jest.fn(), edit: jest.fn(), preview: jest.fn(), publish: jest.fn(), view: jest.fn() };
 let mockPage: 'index' | 'preview' | 'shared' = 'index';
 let mockSharing: ReturnType<typeof useVisitSharing>;
 let mockPhotos: ArtworkPhoto[] = [];
-const mockVisit = { localId: 'visit', owner: 'account:a', venueName: 'Museum', visitedOn: '2024-02-29', reflection: 'PRIVATE REFLECTION',
+const mockVisit = { visibility: 'public', localId: 'visit', owner: 'account:a', venueName: 'Museum', visitedOn: '2024-02-29', reflection: 'PRIVATE REFLECTION',
   works: [{ localId: 'save', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }] } as VisitSummary;
 jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
@@ -35,10 +35,10 @@ jest.mock('expo-router', () => {
 });
 afterEach(() => dismissToast());
 beforeEach(() => {
-  jest.clearAllMocks(); mockPage = 'index'; mockVisit.owner = 'account:a'; mockPhotos = [];
+  jest.clearAllMocks(); mockPage = 'index'; mockVisit.owner = 'account:a'; mockVisit.visibility = 'public'; mockPhotos = [];
   mockVisit.works = [{ localId: 'save', title: 'Water Lilies', artist: 'Claude Monet', cropPath: null }] as VisitSummary['works'];
-  mockSharing = { acknowledged: { audience: 'friends', postId: null, status: 'private', removed: false, revision: 0, saveLocalIds: [], reflection: '' },
-    draft: { audience: 'friends', visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
+  mockSharing = { acknowledged: { audience: 'public', postId: null, status: 'private', removed: false, revision: 0, saveLocalIds: [], reflection: '' },
+    draft: { audience: 'public', visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
     profileRequired: false, conflict: false, busy: false, controller: mockController, token: 'token' } as unknown as ReturnType<typeof useVisitSharing>;
 });
 it('uses the explicitly selected visit photo in the feed preview, including an explicitly selected label', async () => {
@@ -65,12 +65,13 @@ it('does not use another owner, visit, artwork, deleted, or unselected photo for
   expect(screen.getByText('Water Lilies: no selected photo')).toBeOnTheScreen();
   expect(screen.queryByText('Water Lilies: must-stay-private.jpg')).toBeNull();
 });
-it('shows selection and an independent shared reflection without exposing the private reflection', async () => {
+it('includes visit notes and offers no separate shared-note editor', async () => {
+  mockSharing.draft!.reflection = 'A visit memory';
   await render(<VisitShareLayout />);
   expect(screen.queryByText('PRIVATE REFLECTION')).toBeNull();
-  expect(screen.getByLabelText('Shared reflection')).toHaveProp('value', '');
-  await fireEvent.changeText(screen.getByLabelText('Shared reflection'), 'For friends');
-  expect(mockController.edit).toHaveBeenCalledWith({ reflection: 'For friends' });
+  expect(screen.getByText('A visit memory')).toBeOnTheScreen();
+  expect(screen.getByText('Notes follow the visit’s visibility. Edit them on the visit page.')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Shared reflection')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Deselect all' }));
   expect(mockController.edit).toHaveBeenCalledWith({ saveLocalIds: [] });
 });
@@ -81,12 +82,21 @@ it('opens the native preview route only after a successful preview response', as
   await fireEvent.press(screen.getByRole('button', { name: 'Preview shared visit' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-share/[visitId]/preview', params: { visitId: 'visit' } });
 });
+it('includes the saved notes without a second writing field', async () => {
+  mockSharing.draft!.reflection = 'Remember the light';
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('Remember the light')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Shared reflection')).toBeNull();
+  expect(mockController.publish).not.toHaveBeenCalled();
+});
 it('lets an artwork tile change the shared selection without changing the reflection', async () => {
+  mockSharing.draft!.reflection = 'A visit memory';
   await render(<VisitShareLayout />);
   const choice = screen.getByRole('checkbox', { name: 'Share Water Lilies', checked: true });
   await fireEvent.press(choice);
   expect(mockController.edit).toHaveBeenCalledWith({ saveLocalIds: [] });
-  expect(screen.getByLabelText('Shared reflection')).toHaveProp('value', '');
+  expect(screen.getByText('A visit memory')).toBeOnTheScreen();
+  expect(screen.getByText('Notes follow the visit’s visibility. Edit them on the visit page.')).toBeOnTheScreen();
 });
 it('explains the highlight limit inside the sheet, where the root toast layer is covered', async () => {
   const works = ['a', 'b', 'c', 'd'].map((id) => ({ localId: id, title: `Work ${id}`, artist: '', cropPath: null }));
@@ -104,7 +114,7 @@ it('renders the server preview in published order and stays on it when publishin
   mockPage = 'preview';
   const media = { kind: 'placeholder', width: 1, height: 1 } as const;
   mockSharing.draft = { ...mockSharing.draft!, saveLocalIds: ['save', 'lead'], highlightLocalIds: ['lead'] };
-  mockSharing.preview = { audience: 'friends', author: { name: 'Reader', username: 'reader' } as never, venue: { name: 'Museum', venueId: 'museum' as never },
+  mockSharing.preview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as never, venue: { name: 'Museum', venueId: 'museum' as never },
     visitedOn: '2024-02-29', reflection: 'Shared reflection only', artworks: [
       { saveLocalId: 'save', artwork: { title: 'Water Lilies', artist: 'Monet', media }, photos: [media] },
       { saveLocalId: 'lead', artwork: { title: 'Haystacks', artist: 'Monet', media }, photos: [media] }] };
@@ -130,14 +140,12 @@ it('reuses profile and sign-in entry points before offering sharing', async () =
   expect(mockReplace).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'visit', visitId: 'visit' } });
 });
 
-it('starts with Friends and explains public access before previewing', async () => {
-  const view = await render(<VisitShareLayout />);
-  expect(screen.getByRole('button', { name: 'Friends' })).toBeSelected();
-  await fireEvent.press(screen.getByRole('button', { name: 'Public' }));
-  expect(mockController.edit).toHaveBeenCalledWith({ audience: 'public' });
-  mockSharing.draft!.audience = 'public';
-  await view.rerender(<VisitShareLayout />);
-  expect(screen.getByText('Anyone can see this visit, its selected photos and reflection, including people without an account.')).toBeOnTheScreen();
+it('publishes publicly without a Friends-only option', async () => {
+  await render(<VisitShareLayout />);
+  expect(screen.queryByRole('button', { name: 'Friends' })).toBeNull();
+  expect(screen.queryByLabelText('Who can see this visit')).toBeNull();
+  expect(screen.getByText('Publishing makes this visit, its selected photos and notes public, including to people without an account.')).toBeOnTheScreen();
+  expect(mockController.publish).not.toHaveBeenCalled();
 });
 
 it('names the public audience before publishing and allows returning to selection', async () => {
@@ -179,4 +187,12 @@ it('keeps shared-version errors retryable after loading ends', async () => {
   mockController.view.mockClear();
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
   expect(mockController.view).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a Private visit out of the publishing flow', async () => {
+  mockVisit.visibility = 'private';
+  await render(<VisitShareLayout />);
+  expect(screen.getByText('This visit is private.')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
+  expect(mockController.publish).not.toHaveBeenCalled();
 });

@@ -113,6 +113,6 @@ export async function seedContribution(
 
 export async function seedJournalVisit(ctx: MutationCtx, deviceId: Id<'devices'>, venueId: Id<'museums'>, overrides: Partial<Omit<Doc<'visits'>, '_id' | '_creationTime'>> = {}) {
   return ctx.db.insert('visits', { owner: { kind: 'device', deviceId }, localId: crypto.randomUUID(),
-    venueId, venueName: 'Test Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
+    visibility: 'public', venueId, venueName: 'Test Museum', visitedOn: '2026-09-01', timeZone: 'UTC',
     updatedAt: 1, updatedBy: deviceId, changeVersion: 1, ...overrides });
 }

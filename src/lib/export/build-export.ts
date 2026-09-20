@@ -5,7 +5,7 @@ export function buildExport({ works, visits, notes }: { works: SavedWork[]; visi
   return {
     version: 1 as const,
     exportedAt: new Date().toISOString(),
-    visits: visits.map(({ localId, venueId, venueName, visitedOn, timeZone, reflection, startedAt, endedAt }) => ({ localId, venueId, venueName, visitedOn, timeZone, reflection, startedAt, endedAt })),
+    visits: visits.map(({ localId, venueId, venueName, visitedOn, timeZone, visibility, reflection, startedAt, endedAt }) => ({ localId, venueId, venueName, visitedOn, timeZone, visibility, reflection, startedAt, endedAt })),
     works: works.filter((work) => work.deletedAt === null).map((work) => ({
       localId: work.localId, title: work.title, artist: work.artist, date: work.date, medium: work.medium,
       institution: work.institution, venue: work.venueName, gallery: work.gallery, savedAt: work.savedAt,

@@ -10,8 +10,11 @@ import { toResultViewState } from './state';
 import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from '@/components/scan/result/__fixtures__/scan';
 import { getSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
+import { contributeLabel } from '@/lib/label/contribute';
+import { formStateFromFlow } from '@/lib/label/fields';
 
 const mockMutation = jest.fn();
+jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t save to the shared index right now' }));
 const mockVenueName = jest.fn();
 let mockUuid = 0;
 
@@ -29,6 +32,37 @@ const capture = {
   photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
   venueId: 'museum-met' as never, visitId: null, visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76',
 };
+const contribution = { scanId: SCAN_ID, capture: { ...capture, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) },
+  state: formStateFromFlow({ stage: 'verified', moderation: 'clear', evidence: ['ocr'], warnings: [], updatedAt: 1,
+    fields: { title: { value: 'Water Lilies', evidence: 'ocr', locked: false }, artist: { value: 'Claude Monet', evidence: 'ocr', locked: false } } }) };
+
+it('automatically shares a confirmed label after the artwork is saved locally', async () => {
+  jest.mocked(contributeLabel).mockImplementation(async () => {
+    expect(await getSavedWork(`uuid-${mockUuid}`)).toBeDefined();
+    return { contributionId: 'contribution-1' as never, status: 'tentative' };
+  });
+  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  expect(await result.contribution).toEqual({ result: { contributionId: 'contribution-1', status: 'tentative' } });
+  expect(contributeLabel).toHaveBeenCalledWith(contribution);
+});
+
+it('preserves the saved artwork when automatic contribution sharing fails', async () => {
+  jest.mocked(contributeLabel).mockRejectedValue(new Error('offline'));
+  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  expect(await result.contribution).toEqual({ error: 'Couldn’t save to the shared index right now' });
+  expect(await getSavedWork(result.localId)).toMatchObject({ title: 'Water Lilies' });
+});
+
+it('does not share if saving fails or the capture moves to a different visit context', async () => {
+  writePhotoDraft(capture.owner, capture.photoPath, [{ localId: 'review-photo', path: 'photo.jpg', kind: 'full', capturedAt: 1, review: 'conflict' }]);
+  await expect(saveResult({ capture, draft: draftFromCandidate(lilies), contribution })).rejects.toThrow('Review your added photos');
+  expect(contributeLabel).not.toHaveBeenCalled();
+  writePhotoDraft(capture.owner, capture.photoPath, []);
+  updatePhotoSession(capture.owner, capture.photoPath, { visitLocalId: null });
+  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  expect(result.contribution).toBeUndefined();
+  expect(contributeLabel).not.toHaveBeenCalled();
+});
 
 beforeAll(async () => {
   await upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1 });

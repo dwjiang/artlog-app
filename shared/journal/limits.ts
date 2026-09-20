@@ -4,7 +4,7 @@ export const LIMITS = {
   page: 20, maxPage: 50, batchRecords: 50, batchBytes: 512 * 1024, cursorBytes: 8 * 1024,
   note: 20_000, snapshot: 10_000, name: 60, bio: 160, usernameMin: 3, usernameMax: 30,
   searchMin: 2, searchMax: 100, wallItems: 100, selectedSaves: 50, friends: 200,
-  sharedReflection: 1200, city: 120, reportReason: 120, reportDetails: 2000,
+  city: 120, reportReason: 120, reportDetails: 2000,
 } as const;
 
 export function utf8Bytes(value: unknown): number {

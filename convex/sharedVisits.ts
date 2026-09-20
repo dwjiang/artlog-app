@@ -1,28 +1,28 @@
 import { selectedPhotoMedia } from './lib/albumMedia';
 import { ConvexError, v } from 'convex/values';
 import { pageArgs, pagination } from '../shared/journal/contracts';
-import { isRevision, isUuid, LIMITS, utf8Bytes } from '../shared/journal/limits';
+import { isUuid, LIMITS, utf8Bytes } from '../shared/journal/limits';
 import { visitAudience, displayMedia, publicArtwork, publicProfile, sharedSelection, sharedVisitCard } from '../shared/social/contracts';
 import { mutation, query, type QueryCtx } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
 import { activeProfile, optionalProfile, requireProfile } from './lib/ownership';
 import { projectArtwork, projectProfile } from './lib/projections';
 import { acceptedRelationships, relationshipSnapshot } from './lib/friendships';
-import { canReadProfilePosts, readablePublication, requireSharedVisit, requireSharedVisitItem } from './lib/publicationAccess';
+import { readablePublication, requireSharedVisit, requireSharedVisitItem } from './lib/publicationAccess';
 import { limitKey } from './lib/rateLimits';
 import { resolveDisplayAsset } from './lib/displayMedia';
 import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
 import { checkPublicationRevision, compareHistory, header, historyCursor, historyHead, type HistoryStream, ownedVisit, PAGE_ARTWORKS, PAGE_BYTES,
   parseHistoryCursor, profileHistory, projectArtworkPage, publicationForVisit, publicationItems, publicationState, publicationView, publicHistory,
-  publicProfileHistory, readHeadroom, SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
+  readHeadroom, SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
 
 const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
 export const getState = query({
   args: { visitLocalId: v.string() }, returns: publicationState,
   handler: async (ctx, { visitLocalId }) => {
     const { profile, owner } = await requireProfile(ctx);
-    await ownedVisit(ctx, owner, visitLocalId);
-    return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId));
+    const visit = await ownedVisit(ctx, owner, visitLocalId);
+    return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId), visit);
   },
 });
 // Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit.
@@ -51,7 +51,7 @@ export const preview = query({
       artworks.push({ saveLocalId: save.localId, artwork: photos.length ? { ...artwork, media: photos[0] } : artwork, ...(photos.length ? { photos } : {}) });
     }
     return { audience: input.audience, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
-      reflection: input.reflection, artworks };
+      reflection: visit.reflection ?? '', artworks };
   },
 });
 export const publish = mutation({
@@ -63,7 +63,7 @@ export const publish = mutation({
     checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
     const { visit, saves } = await selectedSaves(ctx, owner, input);
     await limitKey(ctx, 'publishVisit', accountId);
-    const fields = { audience: input.audience, status: 'active' as const, reflection: input.reflection, visitedOn: visit.visitedOn,
+    const fields = { audience: input.audience, status: 'active' as const, reflection: visit.reflection ?? '', visitedOn: visit.visitedOn,
       publicationRevision: input.revision + 1, updatedAt: Date.now(), publishedAt: publication?.publishedAt || Date.now() };
     const publicationId = publication?._id ?? await ctx.db.insert('sharedVisits', { ...fields,
       profileId: profile._id, postId: crypto.randomUUID(), visitId: visit._id, visitLocalId: visit.localId });
@@ -79,25 +79,7 @@ export const publish = mutation({
       if (item) await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
       else await ctx.db.insert('sharedVisitItems', { publicationId, saveId: save._id, saveLocalId: save.localId, position, photoLocalIds, highlighted });
     }
-    return stateForPublication(ctx, (await ctx.db.get(publicationId))!);
-  },
-});
-export const unshare = mutation({
-  args: { visitLocalId: v.string(), revision: v.number() }, returns: publicationState,
-  handler: async (ctx, { visitLocalId, revision }) => {
-    const { owner, profile } = await requireProfile(ctx);
-    const visit = await ownedVisit(ctx, owner, visitLocalId);
-    const publication = await publicationForVisit(ctx, profile._id, visitLocalId);
-    if (!isRevision(revision)) throw new ConvexError({ code: 'invalid_post' });
-    if (publication?.status === 'private') return stateForPublication(ctx, publication);
-    checkPublicationRevision(revision, publication?.publicationRevision ?? 0);
-    // Even an unshared draft needs a tombstone to reject a delayed first publish.
-    const publicationId = publication?._id ?? await ctx.db.insert('sharedVisits', {
-      postId: crypto.randomUUID(), profileId: profile._id, visitId: visit._id, visitLocalId, visitedOn: visit.visitedOn,
-      audience: 'friends', status: 'private', reflection: '', publishedAt: 0, updatedAt: Date.now(), publicationRevision: revision + 1,
-    });
-    if (publication) await ctx.db.patch(publicationId, { status: 'private', publicationRevision: revision + 1, updatedAt: Date.now() });
-    return stateForPublication(ctx, (await ctx.db.get(publicationId))!);
+    return stateForPublication(ctx, (await ctx.db.get(publicationId))!, visit);
   },
 });
 export const get = query({
@@ -173,8 +155,6 @@ export const listByProfile = query({
       const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
       if (block?.active || reverseBlock?.active) return { page: [], cursor: null, isDone: true };
     }
-    const publicOnly = !viewer || !await canReadProfilePosts(ctx, input.profileId, viewer._id);
-    const stream = publicOnly ? publicProfileHistory(ctx, input.profileId) : profileHistory(ctx, input.profileId);
-    return historyPage(ctx, viewer?._id, [stream], `profile:${viewer?._id ?? 'guest'}:${input.profileId}:${publicOnly ? 'public' : 'friends'}`, input);
+    return historyPage(ctx, viewer?._id, [profileHistory(ctx, input.profileId)], `profile:${viewer?._id ?? 'guest'}:${input.profileId}`, input);
   },
 });

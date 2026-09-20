@@ -149,7 +149,7 @@ it('purges the deleted account’s journal, photos and sync state in batches', a
     const stored = await ctx.storage.store(new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
     await ctx.db.insert('journalSyncState', { owner, version: 70 });
     for (let i = 0; i < 5; i++) {
-      await ctx.db.insert('visits', { owner, localId: crypto.randomUUID(), venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 1 });
+      await ctx.db.insert('visits', { visibility: 'public' as const, owner, localId: crypto.randomUUID(), venueId, venueName: 'Museum', visitedOn: '2026-09-01', timeZone: 'UTC', updatedAt: 1, updatedBy: a.deviceId, changeVersion: i + 1 });
     }
     for (let i = 0; i < 60; i++) {
       await ctx.db.insert('collections', { owner, localId: crypto.randomUUID(), snapshot: { title: 'Work', artist: '' }, savedAt: 1,

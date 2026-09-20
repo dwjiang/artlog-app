@@ -14,6 +14,8 @@ import { getVisit } from '@/db/repos/visits';
 import type { PendingScan } from '@/db/schema';
 import { convex } from '@/lib/convex-client';
 import { venueNameById } from '@/lib/venue/venue-db';
+import type { ContributeInput } from '../label/contribute';
+import { shareSavedLabel, type ContributionAttempt } from '../label/share-saved-label';
 import { buildSnapshot, type SnapshotDraft } from './snapshot';
 import type { ResultViewState } from './state';
 
@@ -24,6 +26,7 @@ export type SaveResultInput = {
   /** Absent when the card names no work (queued or unsupported); the snapshot is then whatever the user typed. */
   view?: ResultViewState;
   draft: SnapshotDraft;
+  contribution?: ContributeInput;
 };
 
 export type SaveResultOutcome = {
@@ -31,6 +34,7 @@ export type SaveResultOutcome = {
   completion: CaptureCompletion;
   /** Failed uploads stay queued for collection sync; the local save remains usable. */
   synced: Promise<void>;
+  contribution?: Promise<ContributionAttempt>;
 };
 
 const ACTIONABLE = new Set(['Review your added photos before saving.', 'Choose an available visit before saving.']);
@@ -40,7 +44,7 @@ export function saveErrorMessage(cause: unknown): string {
 }
 
 /** Saves locally first, then mirrors the row to the collection on the server. */
-export async function saveResult({ scanId, capture, view, draft }: SaveResultInput): Promise<SaveResultOutcome> {
+export async function saveResult({ scanId, capture, view, draft, contribution }: SaveResultInput): Promise<SaveResultOutcome> {
   const current = captureOwner();
   if (capture.owner !== current.owner) throw new Error('Journal owner changed');
   const { snapshot, suggested } = buildSnapshot(draft, view);
@@ -95,6 +99,7 @@ export async function saveResult({ scanId, capture, view, draft }: SaveResultInp
     });
     if (current.isCurrent()) await markSynced([{ ...acknowledgement, localId, revision: 0 }], current.owner);
   })().catch((error: unknown) => { console.warn('Could not sync the saved work; it stays on the phone', error); }).finally(requestCollectionSync);
-  return { localId, synced, completion: { savedId: localId, title: existing?.title ?? snapshot.title, wasExisting: !!existing,
+  return { localId, synced, contribution: contribution && !contextChanged ? shareSavedLabel(contribution, localId) : undefined,
+    completion: { savedId: localId, title: existing?.title ?? snapshot.title, wasExisting: !!existing,
     photoPaths: additional.map((photo) => photo.path), visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : 'No visit · Collection only' } };
 }

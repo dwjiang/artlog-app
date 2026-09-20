@@ -1,0 +1,1 @@
+ALTER TABLE `visits` ADD `visibility` text DEFAULT 'public' NOT NULL;

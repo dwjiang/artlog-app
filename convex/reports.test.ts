@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { harness, signIn } from './test.helpers';
-import { befriend, socialUser, socialVisit } from './lib/socialTestFixtures';
+import { befriend, setVisitVisibility, socialUser, socialVisit } from './lib/socialTestFixtures';
 import { seedDevice } from './lib/testFactories';
 import { requirePublicWallItem } from './lib/publicationAccess';
 
@@ -18,15 +18,14 @@ it('accepts public reports from registered devices, deduplicates account reporte
   await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: stranger.accountId }));
   expect(await sibling.as.mutation(api.reports.submit, { target, reason: 'Spam' })).toBe(first);
   const draft = await socialVisit(t, author);
+  await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: 'Public evidence' }));
   const post = await author.as.mutation(api.sharedVisits.publish, { ...draft.selection, reflection: 'Public evidence' });
   const sharedTarget = { kind: 'sharedVisit' as const, postId: post.postId! };
-  await expect(stranger.as.mutation(api.reports.submit, { target: sharedTarget, reason: 'Abuse' })).rejects.toMatchObject({ data: { code: 'not_found' } });
-  await befriend(author, stranger);
   const reportId = await stranger.as.mutation(api.reports.submit, { target: sharedTarget, reason: 'Abuse' });
   const report = await t.query(internal.review.getReport, { reportId });
   expect(report?.evidence).toEqual({ kind: 'sharedVisit', profileId: author.profileId, postId: post.postId, reflection: 'Public evidence' });
   expect(JSON.stringify(report?.evidence)).not.toMatch(/PRIVATE|visitId|saveId|accountId|storage/);
-  await author.as.mutation(api.sharedVisits.unshare, { visitLocalId: draft.visit.localId, revision: 1 });
+  await setVisitVisibility(t, author, draft.visit._id, 'private');
   await expect(stranger.as.mutation(api.reports.submit, { target: sharedTarget, reason: 'Abuse' })).rejects.toMatchObject({ data: { code: 'not_found' } });
   expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual(report?.evidence);
 });
@@ -45,7 +44,7 @@ it('records operator decisions and permanently removes a publication without cha
   const state = await a.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId });
   expect(state).toMatchObject({ removed: true, status: 'private', revision: 2 });
   await expect(a.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision: state.revision })).rejects.toMatchObject({ data: { code: 'not_found' } });
-  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe('PRIVATE REFLECTION');
+  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe(draft.visit.reflection);
   expect((await t.run((ctx) => ctx.db.get(draft.saves[0].id)))?.note).toBe('PRIVATE NOTE');
   await expect(t.mutation(internal.review.decideReport, { ...decision, decision: 'dismiss' })).rejects.toMatchObject({ data: { code: 'conflict' } });
 });

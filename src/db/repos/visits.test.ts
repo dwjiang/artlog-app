@@ -2,6 +2,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { db } from '../client';
 import { artworkEncounters, artworkPhotos, savedWorks, visits } from '../schema';
 import * as repo from './visits';
+import { onCollectionChange } from '../../lib/account/sync-events';
 
 jest.mock('../client', () => ({ db: jest.requireActual('../test-db').createTestDatabase() }));
 const venueId = 'museum-1' as Id<'museums'>;
@@ -46,14 +47,37 @@ it('keeps edits made during sync pending until their own revision is acknowledge
   await repo.markVisitsSynced([{ localId: first, revision: 0, visitId: 'remote' as never, updatedAt: 10, updatedBy: 'device' as never }]);
   expect(await repo.getVisit(first)).toMatchObject({ reflection: 'newer', syncedAt: null, remoteVisitId: 'remote' });
 });
+it('leaves a sync: false patch pending without requesting a sync', async () => {
+  const requests = jest.fn();
+  const unsubscribe = onCollectionChange(requests);
+  try {
+    await repo.upsertVisit(visit);
+    requests.mockClear();
+    await repo.patchVisit(first, { reflection: 'pause' }, undefined, { sync: false });
+    expect(await repo.getVisit(first)).toMatchObject({ reflection: 'pause', syncedAt: null });
+    expect(requests).not.toHaveBeenCalled();
+    await repo.patchVisit(first, { reflection: 'blur' });
+    expect(requests).toHaveBeenCalledTimes(1);
+  } finally { unsubscribe(); }
+});
 it('accepts a remote visit the server stamped after this device crossed local midnight', async () => {
   jest.useFakeTimers().setSystemTime(Date.parse('2024-02-29T23:59:50Z'));
   try {
-    await repo.upsertVisitsFromRemote([{ _id: 'remote' as never, _creationTime: 1, owner: { kind: 'device', deviceId: 'device' as never },
+    await repo.upsertVisitsFromRemote([{ visibility: 'public' as const, _id: 'remote' as never, _creationTime: 1, owner: { kind: 'device', deviceId: 'device' as never },
       localId: first, venueId, venueName: 'Museum', visitedOn: '2024-03-01', timeZone: 'UTC',
       updatedAt: Date.parse('2024-03-01T00:00:10Z'), updatedBy: 'device' as never, changeVersion: 1 }]);
     expect(await repo.getVisit(first)).toMatchObject({ visitedOn: '2024-03-01', remoteVisitId: 'remote' });
   } finally {
     jest.useRealTimers();
   }
+});
+
+it('defaults new visits to Public and preserves an explicit Private choice across later saves', async () => {
+  await repo.upsertVisit(visit);
+  expect(await repo.getVisit(first)).toMatchObject({ visibility: 'public' });
+  await repo.patchVisit(first, { visibility: 'private' });
+  await repo.upsertVisit({ ...visit, reflection: 'A later note' });
+  expect(await repo.getVisit(first)).toMatchObject({ visibility: 'private', reflection: 'A later note' });
+  await repo.upsertVisit({ ...visit, localId: second });
+  expect(await repo.getVisit(second)).toMatchObject({ visibility: 'public' });
 });

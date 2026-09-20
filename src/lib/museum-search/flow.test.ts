@@ -106,7 +106,7 @@ it('turns provider errors into a reason the card can display', async () => {
 });
 
 it.each([
-  ['feature_off', 'Museum search is paused right now'], ['rate_limited', 'Try again in a minute'],
+  ['feature_off', 'Museum search is paused right now'], ['rate_limited', 'Too many museum searches right now'],
   ['spend_cap', 'Museum search is paused for today'], ['cap', 'Museum search is paused for today'],
   ['no_candidates', "Not on the museum's site — point at the label"], ['no_match', "Not on the museum's site — point at the label"],
   ['no_venue_site', undefined], ['venue_opted_out', undefined], ['model_error', "Couldn't search right now"],

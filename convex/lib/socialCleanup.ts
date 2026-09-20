@@ -5,9 +5,8 @@ import { deleteUnreferencedPhoto } from './collectionPhotos';
 const BATCH = 50;
 export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts'>): Promise<boolean> {
   const scores = await ctx.db.query('leaderboardScores').withIndex('by_account_metric_period', (q) => q.eq('accountId', accountId)).take(BATCH);
-  const credits = await ctx.db.query('leaderboardCredits').withIndex('by_account_object', (q) => q.eq('accountId', accountId)).take(BATCH);
-  if (scores.length || credits.length) {
-    for (const row of [...scores, ...credits]) await ctx.db.delete(row._id);
+  if (scores.length) {
+    for (const row of scores) await ctx.db.delete(row._id);
     return true;
   }
   const reporter = { kind: 'account' as const, accountId };
