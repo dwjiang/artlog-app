@@ -13,6 +13,7 @@ import { VisitGlobe } from './visit-globe';
 import { VisitTimeline } from './visit-timeline';
 import { VisitMessage, VisitPrivacyNote, visitStyles as styles } from './visit-ui';
 import { ListSkeleton } from '@/components/loading-skeleton';
+import { CollectionEmptyState } from '@/components/guest/collection-empty-state';
 
 export function CollectionVisits({ owner, visits, search, header, collectionControls, loading, error, clearSearch, onSearchChange }: {
   owner: string; visits: VisitSummary[]; search: string; header?: ReactElement; collectionControls?: ReactElement;
@@ -22,6 +23,9 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   const { fontScale } = useWindowDimensions();
   const counts = visitCounts(visits);
   const shown = searchVisitSummaries(visits, search);
+  if (!loading && !error && !visits.length) return <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
+    {header}{collectionControls}<CollectionEmptyState kind="visits" />
+  </ScrollView>;
   const controls = <View style={{ backgroundColor: Gallery.paper }}>{collectionControls}<View style={{ paddingHorizontal: 20, paddingTop: 4, gap: 12, paddingBottom: 10 }}>
     <View style={{ flexDirection: fontScale > 1.5 ? 'column' : 'row', alignItems: fontScale > 1.5 ? 'stretch' : 'center', justifyContent: 'space-between', gap: 8 }}>
       <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'list', label: 'List', icon: 'list.bullet' }, { value: 'globe', label: 'Globe', icon: 'globe' }]} />
@@ -36,7 +40,6 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   else if (!mode || loading) message = mode === 'list'
     ? <ListSkeleton label="Loading your visits…" rows={3} />
     : <VisitMessage loading>Loading your visits…</VisitMessage>;
-  else if (!visits.length) message = <VisitMessage action="Add visit" onAction={() => router.push('/visit-create')}>Remember your first museum visit. You can add a visit without saving any artworks.</VisitMessage>;
   else if (mode === 'list' && !shown.length) message = <VisitMessage action="Clear search" onAction={clearSearch}>{searchTerm(search) === null
     ? 'Enter between 2 and 100 characters to search.' : `No visits match “${search.trim()}”.`}</VisitMessage>;
   if (mode !== 'list') return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" stickyHeaderIndices={fontScale < 1.5 ? [header ? 1 : 0] : undefined}

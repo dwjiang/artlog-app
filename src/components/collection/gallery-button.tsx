@@ -1,5 +1,5 @@
 import { Button, Host, Icon, Row, Text as NativeText } from '@expo/ui';
-import { accessibilityLabel as accessibilityLabelModifier, accessibilityValue, buttonStyle, contentShape, fixedSize, font, frame, opacity, shapes, tint } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel as accessibilityLabelModifier, accessibilityValue, buttonStyle, contentShape, fixedSize, font, frame, multilineTextAlignment, opacity, shapes, tint } from '@expo/ui/swift-ui/modifiers';
 import { type ComponentProps, useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery, Radius, Spacing } from '@/constants/theme';
@@ -27,7 +27,8 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
   // The row lets the inner view hug the native button so the overlay covers only it, while a centered parent can still center the whole row.
   return <View style={{ flexDirection: 'row', maxWidth: '100%', ...(expand ? { width: '100%' } : {}) }}>
     <View style={{ maxWidth: '100%', ...(expand ? { flex: 1 } : {}) }}>
-    <Host key={fontScale} matchContents={expand ? { vertical: true } : true} colorScheme="light" seedColor={accent}
+    {/* The enclosing screen handles insets; native safe areas would displace labels as the button scrolls. */}
+    <Host key={fontScale} matchContents={expand ? { vertical: true } : true} ignoreSafeArea="all" colorScheme="light" seedColor={accent}
       style={{ maxWidth: '100%', borderRadius: Radius.button, backgroundColor: variant === 'filled' ? accent : 'transparent',
         borderWidth: variant === 'outlined' ? 1 : 0, borderColor: accent, opacity: disabled && !busy ? 0.5 : 1, ...(expand ? { width: '100%' } : {}) }}>
     <Button onPress={onPress} disabled={disabled || busy} variant={variant}
@@ -37,7 +38,7 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
         buttonStyle('plain'), tint(accent)]}>
         <Row spacing={Spacing.two} alignment="center" modifiers={[frame({ minHeight: 44, minWidth: 44, ...(expand ? { maxWidth: Infinity } : {}) }), contentShape(shapes.rectangle()), opacity(busy ? 0 : 1)]}>
           {icon && iconPosition === 'leading' && <Icon name={icon} size={17} color={foreground} />}
-          <NativeText textStyle={{ color: foreground }} modifiers={[font({ textStyle: 'body', weight: variant === 'filled' ? 'semibold' : 'regular' }), fixedSize({ horizontal: false, vertical: true })]}>{label}</NativeText>
+          <NativeText textStyle={{ color: foreground }} modifiers={[font({ textStyle: 'body', weight: variant === 'filled' ? 'semibold' : 'regular' }), fixedSize({ horizontal: false, vertical: true }), multilineTextAlignment('center')]}>{label}</NativeText>
           {icon && iconPosition === 'trailing' && <Icon name={icon} size={17} color={foreground} />}
         </Row>
     </Button>

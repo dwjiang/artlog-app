@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { SignInScreen } from './sign-in-screen';
 
-const mockBack = jest.fn(), mockSignIn = jest.fn();
-const mockRouter = { back: mockBack };
-let mockAccount = { account: { linked: false }, available: true, busy: false, error: undefined as string | undefined, ready: true, signInWithApple: mockSignIn };
+const mockBack = jest.fn(), mockReplace = jest.fn(), mockSignIn = jest.fn();
+const mockRouter = { back: mockBack, replace: mockReplace };
+let mockOwner = 'device:guest';
+let mockAccount = { account: { linked: false, accountId: 'account-a' }, available: true, busy: false, error: undefined as string | undefined, ready: true, signInWithApple: mockSignIn };
+jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => mockOwner }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@/lib/account/use-account', () => ({ useAccount: () => mockAccount }));
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: () => null } }));
@@ -16,7 +18,8 @@ jest.mock('expo-apple-authentication', () => ({
 }));
 beforeEach(() => {
   jest.clearAllMocks();
-  mockAccount = { ...mockAccount, account: { linked: false }, busy: false, ready: true, available: true, error: undefined };
+  mockOwner = 'device:guest';
+  mockAccount = { ...mockAccount, account: { linked: false, accountId: 'account-a' }, busy: false, ready: true, available: true, error: undefined };
 });
 it('shows context, starts Apple sign-in, and lets a guest dismiss', async () => {
   await render(<SignInScreen context="wall" />);
@@ -31,7 +34,7 @@ it('keeps sign-in errors retryable and closes only after linking finishes', asyn
   mockAccount.error = 'Couldn’t update your account.';
   const view = await render(<SignInScreen />);
   expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t update your account.');
-  mockAccount = { ...mockAccount, busy: true, account: { linked: true } };
+  mockAccount = { ...mockAccount, busy: true, account: { linked: true, accountId: 'account-a' } };
   await view.rerender(<SignInScreen />);
   expect(screen.getByRole('button', { name: 'Not now' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Sign in with Apple' })).toBeNull();
@@ -51,4 +54,17 @@ it('explains unavailable sign-in without preventing dismissal', async () => {
   await render(<SignInScreen />);
   expect(screen.getByText('Apple sign-in is unavailable on this device.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Not now' })).toBeEnabled();
+});
+
+it('continues to the visit editor only after the linked account has its local journal', async () => {
+  const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
+  expect(screen.getByRole('header', { name: 'Share your museum visit.' })).toBeOnTheScreen();
+  mockAccount.account.linked = true;
+  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
+  expect(screen.getByText('Preparing your visit…')).toBeOnTheScreen();
+  expect(mockReplace).not.toHaveBeenCalled();
+  mockOwner = 'account:account-a';
+  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/visit-share/[visitId]', params: { visitId: 'museum-visit' } });
+  expect(mockBack).not.toHaveBeenCalled();
 });

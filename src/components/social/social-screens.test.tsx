@@ -10,6 +10,15 @@ import { ArtworkScreen } from './artwork-screen';
 import { VisitArtworks } from './visit-card';
 
 const mockPush = jest.fn(), mockRefresh = jest.fn(), mockLoadMore = jest.fn(), mockPages = jest.fn(), mockQuery = jest.fn();
+const mockSignIn = jest.fn();
+jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ ready: true, available: true, busy: false, signInWithApple: mockSignIn }) }));
+jest.mock('expo-apple-authentication', () => ({
+  AppleAuthenticationButtonType: { SIGN_IN: 0 }, AppleAuthenticationButtonStyle: { BLACK: 0 },
+  AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => {
+    const { Pressable, Text } = jest.requireActual('react-native');
+    return <Pressable accessibilityRole="button" onPress={onPress}><Text>Sign in with Apple</Text></Pressable>;
+  },
+}));
 let mockSession: SocialSession;
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => mockSession }));
 jest.mock('@/lib/social/use-social-query', () => ({ useCursorPages: (...args: unknown[]) => mockPages(...args),
@@ -220,6 +229,23 @@ it('offers public walls while the public visit feed is empty', async () => {
   expect(screen.getByText('No public visits yet.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Browse public walls' }));
   expect(mockPush).toHaveBeenCalledWith('/people');
+});
+
+it('shows an initial-avatar example for guest Friends and keeps public discovery one tap away', async () => {
+  mockSession = { ...mockSession, status: 'signed-out', token: null };
+  await render(<PeopleScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
+  expect(screen.getByText('EXAMPLE')).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'See art through their eyes.' })).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Name or username')).toBeNull();
+  for (const initial of ['A', 'J', 'S']) expect(screen.getByText(initial, { includeHiddenElements: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
+  expect(mockSignIn).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore people' }));
+  expect(screen.getByRole('button', { name: 'All people' })).toBeSelected();
+  expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
+  expect(screen.queryByText('EXAMPLE')).toBeNull();
 });
 
 it('shows the artwork count and omits an empty art stage for a reflection-only visit', async () => {

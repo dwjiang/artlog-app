@@ -127,7 +127,7 @@ it('reuses profile and sign-in entry points before offering sharing', async () =
   expect(screen.getByRole('button', { name: 'Create profile' })).toBeOnTheScreen();
   mockVisit.owner = 'device:guest'; await view.rerender(<VisitShareLayout />);
   await waitFor(() => expect(screen.queryByLabelText('Shared reflection')).toBeNull());
-  expect(screen.getByText('Sign in to share visits with friends.')).toBeOnTheScreen();
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'visit', visitId: 'visit' } });
 });
 
 it('starts with Friends and explains public access before previewing', async () => {

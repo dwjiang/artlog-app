@@ -25,6 +25,21 @@ jest.mock('@/lib/journal/visit-seen', () => ({ markVisitSeen: (...args: unknown[
 afterEach(() => jest.useRealTimers());
 beforeEach(() => { mockPublication = null; mockVisit.owner = 'device:test-installation'; mockVisit.endedAt = 5; });
 
+it('opens sign-in directly above a guest visit and preserves the visit when dismissed', async () => {
+  const navigation = renderRouter({
+    _layout: () => <Stack />,
+    'journal/[visitId]': VisitDetailScreen,
+    'sign-in': () => <Text>Share your museum visit.</Text>,
+  }, { initialUrl: '/journal/visit' });
+  await navigation;
+  await fireEvent.press(screen.getByRole('button', { name: 'Share visit' }));
+  await waitFor(() => expect(navigation.getPathname()).toBe('/sign-in'));
+  expect(navigation.getSearchParams()).toMatchObject({ context: 'visit', visitId: 'visit' });
+  await act(() => router.back());
+  expect(navigation.getPathname()).toBe('/journal/visit');
+  expect(screen.getByText('The afternoon light')).toBeOnTheScreen();
+});
+
 it.each(['friends', 'public'] as const)('shows the %s audience on a published visit', async (audience) => {
   mockVisit.owner = 'account:test-account';
   mockPublication = { status: 'active', audience };

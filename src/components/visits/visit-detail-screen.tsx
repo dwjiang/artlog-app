@@ -5,6 +5,7 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, Typography } from '@/constants/theme';
 import { HighlightHeading } from '../highlight-heading';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { formatVisitDate } from '@/lib/journal/history';
 import { useVisits } from '@/lib/journal/use-visits';
 import { markVisitSeen } from '@/lib/journal/visit-seen';
@@ -46,7 +47,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const status = !signedIn || sharing.profileRequired ? null
     : sharing.error ? 'Sharing status unavailable' : active ? sharing.acknowledged?.audience === 'public' ? 'Shared publicly' : 'Shared with friends'
       : sharing.acknowledged ? null : 'Checking sharing status…';
-  const openSharing = () => router.push({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } });
+  const openSharing = () => router.push(signedIn ? { pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } } : signInRoute('visit', visit.localId));
   function stopSharing() {
     Alert.alert('Stop sharing this visit?', 'Friends will no longer be able to see this visit.', [
       { text: 'Cancel', style: 'cancel' },

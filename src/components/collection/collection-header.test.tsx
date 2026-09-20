@@ -22,15 +22,22 @@ it('does not report zero artworks before collection counts load', async () => {
 it('identifies the local collection without making its title a sign-in action', async () => {
   await render(<CollectionHeader />);
   expect(screen.getByText('Your collection')).toBeOnTheScreen();
-  expect(screen.getByText('Saved on this iPhone')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Edit your profile' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Settings' }));
   expect(mockPush).toHaveBeenCalledWith('/settings');
 });
 
 it('asks for sign-in only when the guest chooses to share a wall', async () => {
-  await render(<CollectionHeader />);
+  await render(<CollectionHeader artworkCount={1} />);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Share your wall' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'wall' } });
+});
+
+it('keeps an empty guest collection focused on starting and settings', async () => {
+  await render(<CollectionHeader />);
+  expect(screen.queryByText('0 artworks · 0 visits')).toBeNull();
+  expect(screen.queryByText('YC', { includeHiddenElements: true })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Share your wall' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Settings' })).toBeEnabled();
 });

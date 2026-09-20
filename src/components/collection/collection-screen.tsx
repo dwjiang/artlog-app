@@ -42,9 +42,9 @@ function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch
   return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
       {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={header}
-        controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}<View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
+        controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}{data.works.length > 0 && <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
           <CollectionSearchField value={artworkSearch} label="Search your artworks" placeholder="Title, artist, date or place" onChange={setArtworkSearch} onClear={() => setArtworkSearch('')} />
-        </View></View>} />
+        </View>}</View>} />
         : <CollectionWall works={data.works} hiddenIds={data.hiddenIds} onEditingChange={setEditing} header={header} controls={controls} />}
     </View>
     <View style={{ flex: 1, display: mode === 'visits' ? 'flex' : 'none' }}>

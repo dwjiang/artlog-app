@@ -61,9 +61,9 @@ beforeEach(async () => {
 
 it('shows grouped settings and opens the matching detail', async () => {
   await render(<SettingsScreen />);
-  expect(screen.getByRole('button', { name: 'Sign in to Artlog' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Sign in with Apple' })).toBeOnTheScreen();
   expect(screen.queryByText('YA', { includeHiddenElements: true })).toBeNull();
-  for (const title of ['Settings', 'Your journal', 'Your data', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
+  for (const title of ['Settings', 'Your journal', 'Artlog', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About', 'about']]) {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
@@ -135,12 +135,13 @@ it('keeps withdrawal retryable when the network fails', async () => {
   expect(screen.getByText('Withdrawn')).toBeOnTheScreen();
 });
 
-it('opens the shared sign-in sheet from the account row', async () => {
+it('starts Apple sign-in directly while keeping the guest journal available', async () => {
   await render(<SettingsScreen />);
-  expect(screen.getByText('Using Artlog without an account')).toBeOnTheScreen();
+  expect(screen.getByText('Your journal is saved on this iPhone.')).toBeOnTheScreen();
   expect(screen.queryByText(/sync across devices/i)).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
+  await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
+  expect(mockSignIn).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('shows account details and controls without device counts or sync copy', async () => {
