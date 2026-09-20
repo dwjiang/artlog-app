@@ -1,12 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { SettingsDetailScreen } from './settings-detail-screen';
 import { SettingsScreen } from './settings-screen';
-import { SHARING_SETTING } from './sharing-section';
 import { PRIVACY_COPY } from './privacy-section';
-import { LabelActions, SHARE_BUTTON } from '@/components/scan/label/label-actions';
-import { getSharingDefault, setSharingDefault } from '@/lib/settings/sharing';
 import { setSetting } from '@/db/repos/settings';
 
 const mockPush = jest.fn();
@@ -56,7 +53,6 @@ jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPu
 beforeEach(async () => {
   jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false;
   mockWithdraw.mockResolvedValue(null);
-  await setSharingDefault(true);
 });
 
 it('shows grouped settings and opens the matching detail', async () => {
@@ -86,32 +82,12 @@ it('keeps privacy and About details accessible', async () => {
   for (const label of ['Privacy policy', 'Terms', 'Send feedback', 'Source code']) expect(screen.getByRole('button', { name: label })).toBeOnTheScreen();
 });
 
-it('persists sharing off and hides the offer when returning to a label review', async () => {
-  const settings = await render(<SettingsDetailScreen section="contributions" />);
-  const toggle = screen.getByRole('switch', { name: SHARING_SETTING });
-  await waitFor(() => expect(toggle).toBeChecked());
-  await fireEvent.press(toggle);
-  await waitFor(() => expect(toggle).not.toBeChecked());
-  expect(await getSharingDefault()).toBe(false);
-  await settings.unmount();
-  const review = await render(<LabelActions canSave canShare saving={false} sharing={false} onSave={jest.fn()} onShare={jest.fn()} onViewSaved={jest.fn()} />);
-  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeEnabled();
-  await review.unmount();
+it('shares confirmed works automatically even when an old local preference was off', async () => {
+  await setSetting('sharing-default', 'false');
   await render(<SettingsDetailScreen section="contributions" />);
-  await waitFor(() => expect(screen.getByRole('switch', { name: SHARING_SETTING })).toBeEnabled());
-  expect(screen.getByRole('switch', { name: SHARING_SETTING })).not.toBeChecked();
-});
-
-it('updates a mounted label review when sharing is reenabled', async () => {
-  await setSharingDefault(false);
-  await render(<><SettingsDetailScreen section="contributions" /><LabelActions canSave canShare saving={false} sharing={false} onSave={jest.fn()} onShare={jest.fn()} onViewSaved={jest.fn()} /></>);
-  const toggle = screen.getByRole('switch', { name: SHARING_SETTING });
-  await waitFor(() => expect(toggle).toBeEnabled());
-  expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
-  await fireEvent.press(toggle);
-  expect(await screen.findByRole('button', { name: SHARE_BUTTON })).toBeEnabled();
-  expect(await getSharingDefault()).toBe(true);
+  expect(screen.queryByRole('switch')).toBeNull();
+  expect(screen.getByText(/Saving a confirmed work shares/)).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'My contributions (1)' })).toBeEnabled();
 });
 
 it('opens contributions and withdraws the selected work', async () => {
@@ -138,26 +114,26 @@ it('keeps withdrawal retryable when the network fails', async () => {
 it('opens the shared sign-in sheet from the account row', async () => {
   await render(<SettingsScreen />);
   expect(screen.getByText('Using Artlog without an account')).toBeOnTheScreen();
-  expect(screen.getByText('Saved on this iPhone. Sign in to sync across devices or share with friends.')).toBeOnTheScreen();
+  expect(screen.queryByText(/sync across devices/i)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: /Sign in to Artlog/ }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
-it('shows linked devices and preserves sign-out and account deletion controls', async () => {
+it('shows account details and controls without device counts or sync copy', async () => {
   mockAccount = { linked: true, deviceCount: 2, email: 'visitor@example.com' };
   await render(<SettingsDetailScreen section="account" />);
-  expect(screen.getByText('2 devices')).toBeOnTheScreen();
+  expect(screen.queryByText('Devices')).toBeNull();
+  expect(screen.queryByText(/devices|sync privately/i)).toBeNull();
   expect(screen.getByText('visitor@example.com')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Delete account' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
   expect(mockSignOut).toHaveBeenCalledTimes(1);
 });
 
-it('keeps local choices available before device registration completes', async () => {
+it('shows pending contributions before device registration completes', async () => {
   mockReady = false;
   await setSetting('sharing-default', 'false');
   await render(<SettingsDetailScreen section="contributions" />);
-  await waitFor(() => expect(screen.getByRole('switch', { name: SHARING_SETTING })).toBeEnabled());
   await fireEvent.press(screen.getByRole('button', { name: 'My contributions (…)' }));
   expect(screen.getByText('Connecting…')).toBeOnTheScreen();
 });

@@ -8,17 +8,11 @@ import { CollectionScreen } from './collection-screen';
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
-import { removeSetting } from '@/db/repos/settings';
 
 jest.mock('./collection-header', () => ({ CollectionHeader: () => null }));
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({ signedIn: false, draft: null }) }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
-jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ account: { linked: false }, available: true, ready: true }) }));
-jest.mock('expo-apple-authentication', () => ({
-  AppleAuthenticationButtonType: { SIGN_IN: 0 }, AppleAuthenticationButtonStyle: { BLACK: 0 },
-  AppleAuthenticationButton: () => null,
-}));
 const mockHrefs: unknown[] = [];
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../visits/globe-canvas', () => ({ GlobeCanvas: () => null }));
@@ -61,7 +55,7 @@ it('opens the local artwork collection for guests without a sign-in gate', async
 const venueId = 'museum-1' as Id<'museums'>;
 const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Search your visits/);
 
-beforeEach(async () => { mockHrefs.length = 0; switchOwner(anonymousOwner(), 'scope-anonymous'); await removeSetting('sync-prompt-dismissed'); });
+beforeEach(() => { mockHrefs.length = 0; switchOwner(anonymousOwner(), 'scope-anonymous'); });
 
 it('keeps the public wall as the account collection view', async () => {
   switchOwner('account:a', 'scope-a');
@@ -77,7 +71,7 @@ it('invites the first scan while the collection is empty', async () => {
   expect(screen.getByText('Scan a painting to save your first artwork.')).toBeOnTheScreen();
 });
 
-it('offers sync on returning after the first save and keeps the artwork accessible', async () => {
+it('shows the first saved artwork without a sync prompt', async () => {
   switchOwner('device:first-save', 'scope-first-save');
   const empty = await render(<CollectionScreen />);
   expect(await screen.findByText('Your collection begins here.')).toBeOnTheScreen();
@@ -85,10 +79,9 @@ it('offers sync on returning after the first save and keeps the artwork accessib
   await empty.unmount();
   await act(async () => { await insertSavedWork({ localId: 'first-artwork', savedAt: 1, title: 'First artwork', artist: 'First artist' }); });
   await render(<CollectionScreen />);
-  expect(await screen.findByText('Keep your collection across devices')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'First artwork, First artist' })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
-  expect(screen.getByRole('button', { name: 'First artwork, First artist' })).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'First artwork, First artist' })).toBeOnTheScreen();
+  expect(screen.queryByText('Keep your collection across devices')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
 });
 
 describe('with saved works', () => {
@@ -129,7 +122,7 @@ describe('with saved works', () => {
   it('shows saved art directly for guests and retains artwork search across visit browsing', async () => {
     await render(<CollectionScreen />);
     expect(await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
-    expect(await screen.findByText('Keep your collection across devices')).toBeOnTheScreen();
+    expect(screen.queryByText('Keep your collection across devices')).toBeNull();
     await fireEvent.changeText(search(), 'Monet');
     expect(screen.queryByText('100% Cotton')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));

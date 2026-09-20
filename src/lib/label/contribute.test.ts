@@ -89,7 +89,7 @@ it('uploads the 256 px crop, signs the exact fields and contributes the capture�
   expect(mockSign).toHaveBeenCalledWith(contributionPayload({ scanId, cropStorageId: 'st-1', fields: submitted }));
   expect(mockAction).toHaveBeenCalledWith('contributions:contribute', {
     scanId, descriptors: capture.descriptors, keypoints: capture.keypoints, fields: submitted, cropStorageId: 'st-1',
-    consent: true, nonce: 'nonce-1', assertionBase64: 'sig',
+    nonce: 'nonce-1', assertionBase64: 'sig',
   });
   expect(mockMutation).toHaveBeenCalledWith('feedback:resolveRejection', { feedbackId, resolution: { kind: 'label', contributionId: 'contrib-1' } });
   expect(mockRemove).toHaveBeenCalledWith('file:///cache/crop-256.jpg');
@@ -178,11 +178,11 @@ it('keeps museum sharing edits tied to their confirmation before verification re
 
 it.each([
   [new ConvexError({ code: 'rate_limited' }), 'Try again in a minute'],
-  [new ConvexError({ code: 'field_mismatch', field: 'title' }), 'Verify the label again before sharing'],
-  [new ConvexError({ code: 'invalid_scan' }), 'This scan isn’t tied to a museum, so it can’t be shared'],
-  [new Error('Network request failed'), 'No connection — try sharing when you’re back online'],
-  [new Error('This device can’t share contributions yet'), 'This device can’t share contributions yet'],
-  [new ConvexError({ code: 'contribution_busy' }), 'Couldn’t share this work right now'],
+  [new ConvexError({ code: 'field_mismatch', field: 'title' }), 'Verify the label again to save it to the shared index'],
+  [new ConvexError({ code: 'invalid_scan' }), 'This scan isn’t tied to a museum, so it can’t be saved to the shared index'],
+  [new Error('Network request failed'), 'No connection — it will be saved to the shared index when you’re back online'],
+  [new Error('This device can’t share contributions yet'), 'This device can’t save to the shared index yet'],
+  [new ConvexError({ code: 'contribution_busy' }), 'Couldn’t save to the shared index right now'],
 ])('maps %s to a sharing message', (error, message) => {
   expect(contributionErrorMessage(error)).toBe(message);
 });

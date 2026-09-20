@@ -14,6 +14,6 @@ export function CreateProfileScreen() {
   if (session.status !== 'profile-required') return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
     <SocialGate session={session} />
   </ScrollView>;
-  return <ProfileForm key={session.key} introduction="A name for your place in Artlog. Find friends, follow their visits, and share your eye for art."
+  return <ProfileForm key={session.key} introduction="Find friends and share your eye for art. Your profile starts on Friends & Global leaderboards with visit and artwork totals. You can change participation in Settings."
     onCreated={() => { session.refresh(); router.back(); }} />;
 }

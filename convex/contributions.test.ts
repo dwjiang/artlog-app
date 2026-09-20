@@ -61,7 +61,7 @@ async function fixture(flow: LabelFlow | null = verifiedFlow(), withVenue = true
   const sign = async (as = user.as) => ({
     nonce: (await as.mutation(api.devices.createChallenge, { purpose: 'assert' })).nonce, assertionBase64: 'AAAA',
   });
-  const args = { scanId, ...features, fields, cropStorageId, consent: true as const };
+  const args = { scanId, ...features, fields, cropStorageId };
   const contribute = async (overrides: Partial<typeof args> = {}) =>
     user.as.action(api.contributions.contribute, { ...args, ...overrides, ...(await sign()) });
   const rows = () => t.run((ctx) => ctx.db.query('contributions').collect());
@@ -318,7 +318,7 @@ describe('contribute', () => {
     const signed = await sign();
     await user.as.mutation(internal.contributions.authorize, { scanId, cropStorageId, fields, ...signed });
     const first = await contribute();
-    const { consent: _consent, descriptors, keypoints, ...submission } = args;
+    const { descriptors, keypoints, ...submission } = args;
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
     const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
     await expect(user.as.mutation(internal.contributions.commit, {
@@ -347,7 +347,7 @@ describe('contribute', () => {
     const otherScan = await t.run((ctx) => seedScan(ctx, { deviceId: other.deviceId, venueId, vector: testVector(0.95), labelFlow: verifiedFlow() }));
     const { nonce } = await other.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
     expect(await other.as.action(api.contributions.contribute, {
-      scanId: otherScan, ...features, fields, cropStorageId: await storeCrop(t), consent: true, nonce, assertionBase64: 'AAAA',
+      scanId: otherScan, ...features, fields, cropStorageId: await storeCrop(t), nonce, assertionBase64: 'AAAA',
     })).toMatchObject({ status: 'tentative' });
     expect((await rows()).map((row) => row.status)).toEqual(['tentative', 'rejected', 'tentative', 'tentative']);
   });
@@ -383,7 +383,7 @@ describe('contribute', () => {
     await user.as.mutation(internal.contributions.authorize, {
       scanId: args.scanId, cropStorageId: args.cropStorageId, fields, ...(await sign()),
     });
-    const { consent: _consent, descriptors, keypoints, ...submission } = args;
+    const { descriptors, keypoints, ...submission } = args;
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
     const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
     await expect(user.as.mutation(internal.contributions.commit, {
@@ -401,7 +401,7 @@ describe('contribute', () => {
     const scanId = await t.run((ctx) => seedScan(ctx, { deviceId, venueId, labelFlow: verifiedFlow() }));
     const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
     await expect(user.as.action(api.contributions.contribute, {
-      scanId, ...features, fields, cropStorageId: await storeCrop(t), consent: true, nonce, assertionBase64: 'AAAA',
+      scanId, ...features, fields, cropStorageId: await storeCrop(t), nonce, assertionBase64: 'AAAA',
     })).rejects.toMatchObject({ data: { code: 'device_not_attested' } });
     expect(await t.run((ctx) => ctx.db.query('contributions').collect())).toEqual([]);
   });
@@ -440,7 +440,7 @@ async function shareAs(t: Harness, venueId: Id<'museums'>, options: {
   const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: 'assert' });
   const submitted = Object.fromEntries(Object.entries(flow.fields).map(([name, field]) => [name, { value: field!.value, edited: false }])) as typeof fields;
   const result = await user.as.action(api.contributions.contribute, { scanId, ...features, fields: submitted,
-    cropStorageId, consent: true, nonce, assertionBase64: 'AAAA' });
+    cropStorageId, nonce, assertionBase64: 'AAAA' });
   const row = (await t.run(ctx => ctx.db.get(result.contributionId)))!;
   return { ...result, row, user, scanId, cropStorageId };
 }

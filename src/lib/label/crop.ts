@@ -7,7 +7,7 @@ export const LABEL_PHOTO_FALLBACK_LONG_SIDE = 1280;
 export const LABEL_PHOTO_QUALITY = 0.8;
 /** convex/label.ts rejects larger decoded images. */
 export const MAX_LABEL_PHOTO_BYTES = 1_500_000;
-/** The consented crop becomes the next visitor's thumbnail; contributions.ts caps it at 200 KB. */
+/** The contribution crop becomes the next visitor's thumbnail; contributions.ts caps it at 200 KB. */
 export const CONTRIBUTION_CROP_SIZE = 256;
 export const CONTRIBUTION_CROP_QUALITY = 0.85;
 
@@ -59,7 +59,7 @@ export async function prepareMuseumSearchCrop(uri: string): Promise<string> {
   throw new Error('image_too_large');
 }
 
-/** The consented crop for upload: the letterboxed square at 256 px, JPEG 0.85, written to the cache; the caller removes it. */
+/** The contribution crop for upload: the letterboxed square at 256 px, JPEG 0.85, written to the cache; the caller removes it. */
 export async function resizeCropForContribution(cropUri: string): Promise<ImageResult> {
   const image = await renderWithin(cropUri, CONTRIBUTION_CROP_SIZE);
   return image.saveAsync({ format: SaveFormat.JPEG, compress: CONTRIBUTION_CROP_QUALITY });

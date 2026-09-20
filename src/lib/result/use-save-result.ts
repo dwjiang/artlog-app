@@ -3,6 +3,8 @@ import type { CaptureCompletion } from '../capture/completion';
 import { useRef, useState } from 'react';
 
 import { saveErrorMessage, saveResult, type SaveResultInput } from './save';
+import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from '../label/contribute';
+import { shareSavedLabel, type ContributionAttempt } from '../label/share-saved-label';
 
 export type SaveInput = Omit<SaveResultInput, 'capture'> & { capture?: SaveResultInput['capture'] };
 
@@ -13,6 +15,31 @@ export function useSaveResult() {
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string>();
   const [error, setError] = useState<string>();
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState<ContributionOutcome>();
+  const [shareError, setShareError] = useState<string>();
+  const retry = useRef<{ input: ContributeInput; savedLocalId: string } | undefined>(undefined);
+  const sharingNow = useRef(false);
+
+  async function trackContribution(attempt: Promise<ContributionAttempt>) {
+    sharingNow.current = true;
+    setSharing(true); setShareError(undefined);
+    try {
+      const outcome = await attempt;
+      setShared(outcome.result); setShareError(outcome.error);
+    } catch (cause) {
+      console.warn('Could not save the work to the shared index', cause);
+      setShareError(contributionErrorMessage(cause));
+    } finally {
+      sharingNow.current = false;
+      setSharing(false);
+    }
+  }
+
+  async function retrySharing() {
+    if (!retry.current || sharingNow.current) return;
+    await trackContribution(shareSavedLabel(retry.current.input, retry.current.savedLocalId));
+  }
 
   async function save({ capture, ...input }: SaveInput): Promise<void> {
     if (inFlight.current) return;
@@ -24,9 +51,13 @@ export function useSaveResult() {
     setSaving(true);
     setError(undefined);
     try {
-      const { localId, completion } = await saveResult({ ...input, capture });
+      const { localId, completion, contribution } = await saveResult({ ...input, capture });
       setSavedId(localId);
       setCompletion(completion);
+      if (contribution && input.contribution) {
+        retry.current = { input: input.contribution, savedLocalId: localId };
+        void trackContribution(contribution);
+      }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (cause) {
       console.warn('Could not save the work', cause);
@@ -37,5 +68,5 @@ export function useSaveResult() {
     }
   }
 
-  return { saving, savedId, completion, error, save };
+  return { saving, savedId, completion, error, save, sharing, shared, shareError, retrySharing };
 }

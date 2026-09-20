@@ -87,7 +87,7 @@
     "ios": "expo run:ios",
     "preios": "npm run model:check",
     "lint": "expo lint .",
-    "test": "npm run test:app && npm run test:convex && npm run test:model",
+    "test": "npm run test:app && npm run test:convex && npm run test:model && npm run test:conductor",
     "test:app": "jest",
     "test:convex": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
@@ -95,6 +95,7 @@
     "nitrogen": "cd modules/vision-rect && nitrogen",
     "model:check": "node --experimental-strip-types scripts/model/check-model.mts",
     "test:model": "node --experimental-strip-types --test scripts/model/*.test.mts",
+    "test:conductor": "node --experimental-strip-types --test .conductor/*.test.mts",
     "eas-build-pre-install": "npm run model:check"
   },
   "jest": {

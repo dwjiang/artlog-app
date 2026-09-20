@@ -29,6 +29,7 @@ jest.mock('drizzle-orm/expo-sqlite', () => ({
 jest.mock('@/db/repos/pending-scans', () => ({ selectPendingScan: jest.fn(), pendingScansQuery: jest.fn() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
+jest.mock('@/lib/label/share-saved-label', () => ({ startPendingShareFlusher: jest.fn() }));
 jest.mock('@/lib/result/use-save-result', () => ({ useSaveResult: () => ({ saving: false, save: jest.fn() }) }));
 jest.mock('@expo/ui', () => {
   const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');

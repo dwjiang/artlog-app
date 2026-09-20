@@ -21,7 +21,7 @@ export const create = mutation({
       throw new ConvexError({ code: 'username_taken' });
     }
     const profileId = await ctx.db.insert('profiles', { accountId, username: input.username, ...fields,
-      searchText: normalizeSearch(`${input.username} ${fields.name}`), active: true, publishedWallCount: 0,
+      searchText: normalizeSearch(`${input.username} ${fields.name}`), active: true, publishedWallCount: 0, leaderboardVisibility: 'global',
       createdAt: Date.now(), updatedAt: Date.now() });
     return projectProfile(ctx, (await ctx.db.get(profileId))!);
   },

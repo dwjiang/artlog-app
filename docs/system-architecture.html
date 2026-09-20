@@ -184,7 +184,7 @@
       <ul>
         <li><strong>Public surface (36 functions):</strong> <code>identify</code>; label flow (<code>fetchQr</code>, <code>readLabel</code>, <code>verifyLabel</code>); museum-site search; contributions; feedback; collections, sync, visits; devices, accounts; venue confirmation; the live <code>scans.get</code> subscription; <code>venueTable.latest</code>; <code>health.ping</code>.</li>
         <li><strong>Internal (99):</strong> docent and "Right now" generation, the promotion cron, revert cascades, placement review, checklists, ingest and export for the Python jobs, review queues.</li>
-        <li><strong>Data:</strong> 25 tables; one vector index (<code>vectors.by_vector</code>, 1,536-d, filtered by <code>modelVersion</code>); file storage for ORB descriptor files, private collection photos, consented crops and the venue table.</li>
+        <li><strong>Data:</strong> 25 tables; one vector index (<code>vectors.by_vector</code>, 1,536-d, filtered by <code>modelVersion</code>); file storage for ORB descriptor files, private collection photos, shared crops and the venue table.</li>
         <li><strong>Controls:</strong> <code>@convex-dev/rate-limiter</code> per device, atomic daily spend reservations, three feature flags, App Attest verification (a Node action for attestation, WebCrypto for assertions).</li>
       </ul>
     </div>
@@ -384,7 +384,7 @@
         </ul></div>
         <div><h4>System does</h4><ul>
           <li>The card subscribes to <code>scans.get</code>; docent sentences, the fact sheet, "Right now", label-flow and museum-search state all arrive through that one document. The local row is marked reviewed.</li>
-          <li>Thumbnails: a contributor's consented crop from file storage, else a hotlinked source image, only for public-domain works.</li>
+          <li>Thumbnails: a contributor's shared crop from file storage, else a hotlinked source image, only for public-domain works.</li>
           <li>"Not right?" signs a rejection with App Attest and calls <code>feedback.rejectMatch</code> (3 per work per day per device): the scan's vector and candidate signals become a labeled hard negative; at 20+ rejections and a 30% reject ratio the object is flagged and gets a 0.2 rejection penalty (capped at 0.8). The current lr-v2 coefficient for this signal is zero, so the recorded penalty does not change its score.</li>
           <li>Picking a runner-up resolves the rejection and, when the visitor's venue disagrees with the object's placement, files a <strong>placement proposal</strong>. Reading the label resolves it with the contribution; a label naming the rejected work undoes the rejection.</li>
         </ul></div>
@@ -415,7 +415,7 @@
         <div><h4>Visitor sees</h4><ul>
           <li>A label viewfinder ("Not in our index yet — point at the label"), QR detection ("Found a QR code"), a shutter and an import button.</li>
           <li>Progress steps: QR or read → verify → image check. Then a form: verified fields locked with an evidence badge (museum page, QR, Wikidata, museum search, confirmed image), the rest editable; unlocking a field marks it user-edited.</li>
-          <li>Save, and a Share button that opens a consent sheet.</li>
+          <li>Save to collection, automatically sharing eligible confirmed labels and a small artwork crop.</li>
         </ul></div>
         <div><h4>System does</h4><ul>
           <li><strong>QR:</strong> <code>label.fetchQr</code> accepts only URLs on the venue's own hosts, fetches the page politely and extracts fields from JSON-LD and meta tags (evidence <code>qr</code>).</li>
@@ -428,19 +428,19 @@
     </div>
 
     <div class="step">
-      <div class="step-head"><span class="num"></span><h3>Share the work into the shared index</h3><span class="when">opt-in, no account; promoted by the cron</span></div>
+      <div class="step-head"><span class="num"></span><h3>Share the work into the shared index</h3><span class="when">automatic on save, no account</span></div>
       <div class="cols">
         <div><h4>Visitor sees</h4><ul>
-          <li>A consent sheet explaining what leaves the phone: the fingerprint, the verified fields and a small crop of their own photo (≤256 px) that becomes the card thumbnail for the next visitor.</li>
-          <li>A status after sharing: private, pending, promoted, or rejected as a duplicate. Contributions are listed in Settings → Sharing, each withdrawable.</li>
+          <li>A notice before saving explains what is shared with the index: the fingerprint, the verified fields and a small crop of their own photo (≤256 px) that becomes the card thumbnail for the next visitor.</li>
+          <li>A status after sharing: tentative or rejected as a duplicate. A share that fails without a connection waits on the phone and is retried on reconnect or foreground, unless the artwork is deleted first; other failures offer a retry while the artwork remains saved. Contributions are listed in Settings → Contributions, each withdrawable.</li>
         </ul></div>
         <div><h4>System does</h4><ul>
           <li>The phone re-verifies edited fields, resizes the crop to a JPEG ≤200 KB, uploads it to Convex file storage, signs the payload with App Attest and calls <code>contributions.contribute</code>.</li>
-          <li>The action authorizes the write in one transaction (attested, 20/h per device, label flow verified and clear), stores the ORB features as a file, then checks for replays: a vector within 0.995 cosine of an indexed work or of this device's earlier contributions at the venue is rejected as a duplicate. Otherwise a <code>private</code> contribution row is committed with the verified fields, evidence kinds, source page and any Wikidata ID.</li>
-          <li>The promotion cron (<a href="#background">section 05</a>) turns it into an object once the evidence is strong or another device agrees.</li>
+          <li>The action authorizes the write in one transaction (attested, 20/h per device, label flow verified and clear), stores the ORB features as a file, then checks for replays: a vector within 0.995 cosine of an indexed work or of this device's earlier contributions at the venue is rejected as a duplicate. Otherwise a <code>tentative</code> contribution is committed with the verified fields, evidence kinds, source page and any Wikidata ID.</li>
+          <li>Publishing creates or joins a tentative shared entry at the museum.</li>
         </ul></div>
       </div>
-      <div class="code-line">Code: <code>src/lib/label/contribute.ts</code>, <code>src/components/scan/label/consent-sheet.tsx</code>, <code>convex/contributions.ts</code>, <code>convex/lib/orbStorage.ts</code>, <code>shared/attestation/attested-payloads.ts</code></div>
+      <div class="code-line">Code: <code>src/lib/label/contribute.ts</code>, <code>src/lib/label/share-saved-label.ts</code>, <code>convex/contributions.ts</code>, <code>convex/lib/orbStorage.ts</code>, <code>shared/attestation/attested-payloads.ts</code></div>
     </div>
 
     <div class="step">
@@ -475,7 +475,7 @@
       <div class="step-head"><span class="num"></span><h3>Settings</h3><span class="when">account optional, sync only</span></div>
       <div class="cols">
         <div><h4>Visitor sees</h4><ul>
-          <li><strong>Sharing:</strong> the default for the consent sheet and the list of contributions with withdraw. <strong>Account:</strong> Sign in with Apple, sign out, delete account. <strong>Export:</strong> the collection as JSON through the share sheet. <strong>Privacy:</strong> the museum-search consent toggle and the privacy copy. <strong>About:</strong> version, model version, backend health, source link. Dev builds add capture timings, an App Attest check, the calibration export and an ORB parity check.</li>
+          <li><strong>Contributions:</strong> automatic sharing details and the list of contributions with withdraw. <strong>Account:</strong> Sign in with Apple, sign out, delete account. <strong>Export:</strong> the collection as JSON through the share sheet. <strong>Privacy:</strong> the museum-search consent toggle and the privacy copy. <strong>About:</strong> version, model version, backend health, source link. Dev builds add capture timings, an App Attest check, the calibration export and an ORB parity check.</li>
         </ul></div>
         <div><h4>System does</h4><ul>
           <li>Apple sign-in: the native identity token is verified in a Convex credentials provider (issuer, audience <code>app.artlog.ios</code>, nonce, Apple JWKS) and recorded on the device; <code>accounts.linkAccount</code> (attested) links the device to the Apple user, up to 20 devices, and trust weight becomes the maximum across them. An account only widens the sync scope; scanning, saving and contributing never need one.</li>
@@ -561,7 +561,7 @@
     <tr>
       <td><span class="pill cron">cron</span> every 10 min, also <code>npx convex run promotion:run</code></td>
       <td><code>promotion.run</code></td>
-      <td><strong>Contributions:</strong> up to 200 <code>private</code> rows per run, grouped by venue. For each, a pool of private and pending rows with the same normalized title + artist and model version. <code>evaluate</code> promotes on <em>strong evidence</em> (accession, QR or a phone-confirmed museum image, with unedited title and artist) or on <em>agreement</em> (another device at the same venue, cosine between 0.9 and 0.999, trust weights summing to ≥1.0; a new device is 0.5, confirmed devices 1.0). <code>apply</code> re-runs the rule transactionally and inserts the object (<code>user:&lt;contribution&gt;</code>), a placement (source <code>contribution</code>, confidence 0.7), one <code>user</code> vector per backer, the reference descriptors from the contributor's ORB file, and the consented crop as thumbnail; partners beyond 8 are appended by chained <code>appendPartners</code> mutations. Rows that cannot promote become <code>pending</code>.<br><strong>Multi-view vectors:</strong> rejections resolved to a runner-up become a second <code>user_scan</code> vector for that object once two devices agree at the venue within 90 days, unless a stored view is within 0.995 cosine. A cursor in <code>promotionState</code> makes runs resumable and prevents an overlapping manual run from rewinding.</td>
+      <td><strong>Contributions:</strong> up to 200 <code>private</code> rows per run, grouped by venue. For each, a pool of private and pending rows with the same normalized title + artist and model version. <code>evaluate</code> promotes on <em>strong evidence</em> (accession, QR or a phone-confirmed museum image, with unedited title and artist) or on <em>agreement</em> (another device at the same venue, cosine between 0.9 and 0.999, trust weights summing to ≥1.0; a new device is 0.5, confirmed devices 1.0). <code>apply</code> re-runs the rule transactionally and inserts the object (<code>user:&lt;contribution&gt;</code>), a placement (source <code>contribution</code>, confidence 0.7), one <code>user</code> vector per backer, the reference descriptors from the contributor's ORB file, and the shared crop as thumbnail; partners beyond 8 are appended by chained <code>appendPartners</code> mutations. Rows that cannot promote become <code>pending</code>.<br><strong>Multi-view vectors:</strong> rejections resolved to a runner-up become a second <code>user_scan</code> vector for that object once two devices agree at the venue within 90 days, unless a stored view is within 0.995 cosine. A cursor in <code>promotionState</code> makes runs resumable and prevents an overlapping manual run from rewinding.</td>
       <td>opt-outs and takedowns block; banned devices excluded; counters in <code>ingestCounters</code> updated</td>
     </tr>
     <tr>
@@ -729,7 +729,7 @@ npm run model:check</pre>
       <li><code>visits</code> and <code>visitStarts</code> venue sessions with the last confident gallery; <code>collections</code> immutable snapshots plus notes and deletions per device.</li>
     </ul></div>
     <div class="card"><h4>Shared-index inputs</h4><ul>
-      <li><code>contributions</code> vector, ORB file, consented crop, verified fields with evidence kinds, source page, status (private → pending → promoted, or rejected).</li>
+      <li><code>contributions</code> vector, ORB file, shared crop, verified fields with evidence kinds, source page, status (private → pending → promoted, or rejected).</li>
       <li><code>feedback</code> rejections with the scan's signals, resolution (unresolved, runner-up, label, false rejection) and multi-view bookkeeping.</li>
       <li><code>placementProposals</code> evidence scans and devices, readiness, reviewer decision, promotion record.</li>
       <li><code>promotionState</code> the multi-view cursor.</li>
@@ -746,10 +746,10 @@ npm run model:check</pre>
   <h3>Files, on the phone and in Convex storage</h3>
   <div class="tablewrap"><table>
     <tr><th>Where</th><th>What</th><th>Lifetime</th></tr>
-    <tr><td>Phone, SQLite (<code>src/db/schema.ts</code>)</td><td><code>visits</code>, <code>savedWorks</code> (immutable snapshot + photo and crop paths/storage IDs + sync revision), <code>notes</code>, <code>pendingScans</code> (vector, ORB bytes, status, attempts, label photo, QR URL), <code>settings</code> (consent, sharing default, checkpoints)</td><td>until the user deletes; scans until saved or dismissed</td></tr>
+    <tr><td>Phone, SQLite (<code>src/db/schema.ts</code>)</td><td><code>visits</code>, <code>savedWorks</code> (immutable snapshot + photo and crop paths/storage IDs + sync revision), <code>notes</code>, <code>pendingScans</code> (vector, ORB bytes, status, attempts, label photo, QR URL), <code>settings</code> (museum-search consent, checkpoints)</td><td>until the user deletes; scans until saved or dismissed</td></tr>
     <tr><td>Phone, document directory</td><td>full photos and 512 px crops per capture; label photos while queued; staged venue table</td><td>with their rows</td></tr>
     <tr><td>Phone, bundle</td><td><code>assets/venues.db</code>; the CoreML model (~114 MB compiled) inside <code>modules/coreml-embed/ios/Models/</code>, committed through Git LFS and validated before builds</td><td>per build; venue table replaced by downloads</td></tr>
-    <tr><td>Convex file storage</td><td>ORB descriptor files (one per reference, shared between corpus and contributions), private collection photos/crops (JPEG ≤10 MB each), consented contribution crops (JPEG ≤200 KB), published venue tables (≤10 MB)</td><td>deleted when unreferenced; crops deleted on withdrawal or revert</td></tr>
+    <tr><td>Convex file storage</td><td>ORB descriptor files (one per reference, shared between corpus and contributions), private collection photos/crops (JPEG ≤10 MB each), shared contribution crops (JPEG ≤200 KB), published venue tables (≤10 MB)</td><td>deleted when unreferenced; crops deleted on withdrawal or revert</td></tr>
     <tr><td>Operator Mac, durable data under <code>/Users/dwjiang/Documents/Artlog Data/</code></td><td>retained <code>jobs/scratch/</code> and <code>jobs/out/</code> trees: metadata, feature shards, merged corpus, packages, checkpoints and audits; shard images are deleted after embedding</td><td>outside Git; shared across checkouts via explicit paths or local links. Inventory: <code>docs/operations/corpus.md</code></td></tr>
   </table></div>
   <p class="small muted">The full generated table inventory, with every field and index, is in the <a href="#appendix">appendix</a>.</p>
@@ -765,13 +765,13 @@ npm run model:check</pre>
     <tr><td>Museum-site search (consented)</td><td>scan id for exhibition search; base64 JPEG crop only if description search runs; candidate identifiers for confirmation</td><td>Tavily on venue hosts returns up to 3 exhibition candidates; confirmation fetches the matched page and can use Lightning for its caption. Description fallback uses Kimi and fetches up to 3 object pages; the phone downloads and verifies candidate images</td><td>candidate page URLs and fields on the scan; the crop is not stored or logged</td></tr>
     <tr><td>Label read</td><td>the label photo as base64 (≤1.5 MB)</td><td>Kimi (read), Lightning (moderation)</td><td>the structured reading on the scan; the photo is not stored or logged</td></tr>
     <tr><td>Label verify</td><td>the edited field values</td><td>the venue's accession page, Wikidata, one museum-scoped Tavily search, Lightning (moderation)</td><td>verified fields with evidence, source URL, image URLs</td></tr>
-    <tr><td>Contribute (consented)</td><td>ORB features, verified fields, a ≤256 px crop, an App Attest assertion</td><td>none</td><td>the contribution; after promotion the crop is the work's thumbnail. Withdrawable</td></tr>
+    <tr><td>Contribute (on save)</td><td>ORB features, verified fields, a ≤256 px crop, an App Attest assertion</td><td>none</td><td>the contribution; after promotion the crop is the work's thumbnail. Withdrawable</td></tr>
     <tr><td>Not right? / pick a runner-up</td><td>scan id, object id, assertion</td><td>none</td><td>a feedback row with the scan's signals</td></tr>
     <tr><td>Save / collection sync</td><td>snapshot fields, venue and visit ids, note, deletion; private JPEG photos and crops when saving</td><td>none</td><td>the collection row per device with photo/crop storage IDs; authenticated file access and local downloads for offline viewing</td></tr>
     <tr><td>Sign in with Apple (optional)</td><td>the Apple identity token and nonce; an assertion to link</td><td>Apple JWKS</td><td>the account with linked devices; sync scope only</td></tr>
     <tr><td>Export</td><td>nothing</td><td>none</td><td>a JSON file shared from the phone</td></tr>
   </table></div>
-  <p class="small muted">Copyright: embeddings, descriptors and page links are stored for every work; a thumbnail is hotlinked only for public-domain works and never copied; no museum image is stored; private saved photos and crops are stored separately from the shared index; the consented contribution crop is the image shared with other visitors (implementation: <code>convex/scans.ts</code>, <code>convex/contributions.ts</code>, <code>convex/collectionPhotos.ts</code>, <code>convex/lib/venueFetch.ts</code>).</p>
+  <p class="small muted">Copyright: embeddings, descriptors and page links are stored for every work; a thumbnail is hotlinked only for public-domain works and never copied; no museum image is stored; private saved photos and crops are stored separately from the shared index; the shared contribution crop is the image shared with other visitors (implementation: <code>convex/scans.ts</code>, <code>convex/contributions.ts</code>, <code>convex/collectionPhotos.ts</code>, <code>convex/lib/venueFetch.ts</code>).</p>
 </section>
 
 <section id="config">

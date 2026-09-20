@@ -10,6 +10,8 @@ import { upsertVisit } from '@/db/repos/visits';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
 import { readPhotoSession, updatePhotoSession } from '@/lib/capture/photo-draft';
 import { draftFromCandidate } from '@/lib/result/snapshot';
+import { contributeLabel } from '@/lib/label/contribute';
+import { formStateFromFlow } from '@/lib/label/fields';
 
 const owner = 'device:test-installation';
 let mockParams: { draftId: string; title?: string; savedId?: string; visitId?: string };
@@ -30,6 +32,7 @@ jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, disa
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>;
 } }));
 jest.mock('@/lib/capture/check-album-photo', () => ({ checkAlbumPhoto: jest.fn() }));
+jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Index save failed' }));
 jest.mock('@/lib/account/photo-transfer', () => ({ removePhotoFile: jest.fn() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
 jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {} }));
@@ -97,6 +100,29 @@ it('names a chosen visit that has since been deleted instead of calling it the c
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the photos. Your draft is still here.');
   expect(selectArtworkPhotos('artwork').all().map((photo) => photo.path)).toEqual(['original.jpg']);
+});
+
+it('reloads scan bytes from storage for automatic sharing and retries without saving twice', async () => {
+  const descriptors = new Uint8Array([1, 2, 3]).buffer, keypoints = new Uint8Array([4, 5]).buffer;
+  await enqueuePendingScan({ localId: 'capture', photoPath: 'capture.jpg', cropPath: 'crop.jpg', capturedAt: 1, status: 'identified',
+    scanId: 'scan-1' as never, venueId: 'museum-met' as never, modelVersion: 'm', attemptModelVersion: 'm', vector: [], descriptors, keypoints, createdAt: 1 });
+  const capture = (await getPendingScan('capture'))!;
+  const state = formStateFromFlow({ stage: 'verified', moderation: 'clear', evidence: ['ocr'], warnings: [], updatedAt: 1,
+    fields: { title: { value: 'Water Lilies', evidence: 'ocr', locked: false }, artist: { value: 'Claude Monet', evidence: 'ocr', locked: false } } });
+  mockParams = { draftId: capture.photoPath, title: 'Water Lilies' };
+  updatePhotoSession(owner, capture.photoPath, { saveInput: { capture, draft: { ...draftFromCandidate(), title: 'Water Lilies' },
+    contribution: { scanId: 'scan-1' as never, capture, state } } });
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error('offline'));
+  await render(<AddPhotosScreen />);
+  expect(screen.getByText(/Also saves the confirmed label/)).toBeOnTheScreen();
+  expect(screen.queryByText('Only you can see these photos.')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
+  expect(await screen.findByText('Index save failed. Your artwork is saved to your collection.')).toBeOnTheScreen();
+  expect(contributeLabel).toHaveBeenCalledWith(expect.objectContaining({ capture: expect.objectContaining({ descriptors, keypoints }) }));
+  jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as never, status: 'tentative' });
+  await fireEvent.press(screen.getByRole('button', { name: 'Retry saving to the shared index' }));
+  expect(await screen.findByText('An artwork crop was saved to the shared index. Your wall and shared visits haven’t changed.')).toBeOnTheScreen();
+  expect(selectArtworkPhotos('saved-new').all()).toHaveLength(1);
 });
 
 it('keeps unresolved photos in the draft until the owner explicitly confirms them', async () => {

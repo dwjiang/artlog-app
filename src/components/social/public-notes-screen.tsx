@@ -30,7 +30,7 @@ export function PublicNotesScreen() {
     try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
     catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
-  const gate = !wall.signedIn ? <SocialState title="Sign in to share notes." detail="Your collection notes stay private on this device." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
+  const gate = !wall.signedIn ? <SocialState title="Sign in to share notes." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
       : wall.loading ? <SocialState title="Opening your notes…" loading /> : null;
   if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.gate}>{gate}</ScrollView>;

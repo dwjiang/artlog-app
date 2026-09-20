@@ -11,7 +11,6 @@ import type { Id } from '../../../convex/_generated/dataModel';
 
 import { ResultScreen } from './result-screen';
 import { LABEL_BUTTON } from './result/save-bar';
-import { MUSEUM_SEARCH_BUTTON } from './result/museum-search-section';
 import {
   bridge, confidentScan, confidentScanWithoutProse, failedScan, haystacks, lilies, missScan, SCAN_ID, softScan, unsupportedScan,
 } from './result/__fixtures__/scan';
@@ -21,7 +20,7 @@ import * as visits from '@/db/repos/visits';
 import { resolveWithLabel } from '@/lib/result/feedback';
 import { runMuseumSearchForScan } from '@/lib/museum-search/museum-search-deps';
 import { candidates, confirmed, verified } from '@/lib/museum-search/__fixtures__/search';
-import { getMuseumSearchConsent, setMuseumSearchConsent } from '@/lib/settings/museum-search';
+import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
 import * as labelDrafts from '@/lib/label/draft';
@@ -53,7 +52,7 @@ jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of
 jest.mock('@/lib/attested-write', () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
 jest.mock('@/lib/museum-search/museum-search-deps', () => ({ runMuseumSearchForScan: jest.fn() }));
-jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t share this work right now' }));
+jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t save to the shared index right now' }));
 jest.mock('expo-network', () => ({ useNetworkState: () => mockNetwork }));
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockSaveMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
@@ -239,10 +238,11 @@ it('shows a soft match as a maybe with the suggestions and the label button', as
   results.set('scans:get', softScan);
   await render(result());
   expect(await screen.findByText('Maybe')).toBeOnTheScreen();
+  expect(screen.getByText('12% confidence')).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
   expect(screen.getByText('Other possibilities')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.queryByText('About this work')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: LABEL_BUTTON }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
@@ -252,12 +252,14 @@ it('keeps optional details hidden on an unidentified card and offers every candi
   results.set('scans:get', missScan);
   await render(result());
   expect(await screen.findByText('Unidentified')).toBeOnTheScreen();
+  expect(screen.getByText('20% confidence')).toBeOnTheScreen();
+  expect(screen.getByText('31% confidence')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Title')).toBeNull();
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('');
   expect(screen.getByLabelText('Artist').props.defaultValue).toBe('');
-  expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ })).toBeEnabled();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Not right?' })).toBeNull();
@@ -279,7 +281,7 @@ it.each([softScan, missScan, failedScan])('saves a $outcome scan as a photo with
 it('saves a runner-up picked on a soft card with its object instead of a bare photo', async () => {
   results.set('scans:get', softScan);
   await render(result());
-  await fireEvent.press(await screen.findByRole('button', { name: 'Haystacks, Claude Monet' }));
+  await fireEvent.press(await screen.findByRole('button', { name: /^Haystacks, Claude Monet/ }));
   expect(screen.queryByRole('button', { name: 'Save photo for later' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Save with these details' }));
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
@@ -290,10 +292,12 @@ it('saves a runner-up picked on a soft card with its object instead of a bare ph
 it('fills the fields from a suggestion picked on a soft card without sending feedback', async () => {
   results.set('scans:get', softScan);
   await render(result());
-  await fireEvent.press(await screen.findByRole('button', { name: 'Haystacks, Claude Monet' }));
+  await fireEvent.press(await screen.findByRole('button', { name: /^Haystacks, Claude Monet/ }));
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('Haystacks');
   expect(screen.getByText('Maybe')).toBeOnTheScreen();
+  expect(screen.queryByText('12% confidence')).toBeNull();
+  expect(screen.getByText('62% confidence')).toBeOnTheScreen();
   expect(client.mutation).not.toHaveBeenCalled();
 });
 
@@ -322,12 +326,12 @@ it.each([softScan, missScan])('removes match choices after saving a $outcome car
   await render(result());
   await openDetails();
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My painting');
-  expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ }));
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(screen.queryByText('Other possibilities')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Haystacks, Claude Monet' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeNull();
   expect(screen.getByText(`Saved as ${(await getSavedWork(savedId))?.title}.`)).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
@@ -378,7 +382,7 @@ it('unlocks the draft and match choices after a local save fails so the user can
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Haystacks, Claude Monet' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ }));
   await openDetails();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'My haystacks');
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ }));
@@ -396,7 +400,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   expect(mockSign).toHaveBeenCalledWith(JSON.stringify({ objectId: lilies.objectId, operation: 'rejectMatch', scanId: SCAN_ID }));
   expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID, objectId: lilies.objectId, nonce: 'nonce-1', assertionBase64: '' });
 
-  await fireEvent.press(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ }));
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(2));
   expect(getFunctionName(jest.mocked(client.mutation).mock.calls[1][0])).toBe('feedback:resolveRejection');
   expect(jest.mocked(client.mutation).mock.calls[1][1]).toEqual({ feedbackId: 'fb-1', resolution: { kind: 'runner_up', objectId: bridge.objectId } });
@@ -405,7 +409,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
   expect(screen.queryByText('About this work')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeNull();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
 });
@@ -416,7 +420,7 @@ it('routes to the label from the sheet and keeps the choices when feedback canno
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
   expect(await screen.findByText('This device can’t send feedback yet.')).toBeOnTheScreen();
   expect(client.mutation).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Haystacks, Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
   expect(screen.queryByLabelText('Not right sheet')).toBeNull();
@@ -507,37 +511,19 @@ it('explains an invalid scan link without exposing server details and offers a w
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
-it('offers museum search only on soft or missed cards with a venue and consent not declined', async () => {
+it('searches soft or missed cards only with a venue and granted consent, never prompting for consent on the card', async () => {
   results.set('scans:get', softScan);
   const view = await render(result());
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeOnTheScreen();
-  await publish({ ...missScan, venueId: undefined });
-  expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull();
-  await publish(missScan);
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeOnTheScreen();
+  await screen.findByText('Maybe');
+  expect(screen.queryByText("Search this museum's collection?")).toBeNull();
   await act(async () => { await setMuseumSearchConsent('declined'); });
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
+  await view.rerender(result());
+  await publish({ ...missScan, venueId: undefined });
+  await act(async () => { await setMuseumSearchConsent('granted'); });
   await view.rerender(result());
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
-});
-
-it('requires first-use consent, keeps Not now temporary, and grants before starting the flow', async () => {
-  results.set('scans:get', missScan);
-  await render(result());
-  await fireEvent.press(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  expect(await screen.findByText("Search this museum's collection?")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
-  expect(await getMuseumSearchConsent()).toBe('unset');
-  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  jest.mocked(runMuseumSearchForScan).mockImplementation(async () => {
-    expect(await getMuseumSearchConsent()).toBe('granted');
-    return { stage: 'none', reason: 'no_candidates' };
-  });
-  await fireEvent.press(await screen.findByRole('button', { name: 'Search' }));
+  await publish(missScan);
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
-  expect(await screen.findByText("Not on the museum's site — point at the label")).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -562,7 +548,8 @@ it('waits for connectivity before automatically searching', async () => {
   mockNetwork.isInternetReachable = false;
   results.set('scans:get', missScan);
   const view = await render(result());
-  expect(await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeDisabled();
+  await screen.findByRole('button', { name: LABEL_BUTTON });
+  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   mockNetwork.isInternetReachable = true;
   await view.rerender(result());
@@ -607,18 +594,17 @@ it.each([
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
-it('rechecks consent after returning from Settings and prevents a stale manual action', async () => {
+it('starts automatic search after consent is granted in Settings', async () => {
   results.set('scans:get', missScan);
   const view = await render(result());
-  const staleButton = await screen.findByRole('button', { name: MUSEUM_SEARCH_BUTTON });
+  await screen.findByRole('button', { name: LABEL_BUTTON });
+  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   mockFocused = false;
   await view.rerender(result());
-  await setMuseumSearchConsent('declined');
+  await setMuseumSearchConsent('granted');
   mockFocused = true;
   await view.rerender(result());
-  await fireEvent.press(staleButton);
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
-  expect(runMuseumSearchForScan).not.toHaveBeenCalled();
+  await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -628,11 +614,11 @@ it.each(['no_venue_site', 'venue_opted_out'])('hides museum search when the back
   jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason });
   await render(result());
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Searching the museum's collection…")).toBeNull());
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
-it('keeps a stored confirmation available offline after revocation and shares only after contribution consent', async () => {
+it('keeps a stored confirmation available offline after search revocation and shares automatically on save', async () => {
   await setMuseumSearchConsent('declined');
   mockNetwork.isInternetReachable = false;
   results.set('scans:get', { ...missScan, museumSearch: confirmed, labelFlow: verified });
@@ -640,14 +626,12 @@ it('keeps a stored confirmation available offline after revocation and shares on
   await render(result());
   expect(await screen.findByText("Found on the museum's site")).toBeOnTheScreen();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  expect(await screen.findByText('Share this work with other visitors?')).toBeOnTheScreen();
   expect(contributeLabel).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Share' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
   await waitFor(() => expect(contributeLabel).toHaveBeenCalledWith(expect.objectContaining({
     scanId: SCAN_ID, museumSearchUpdatedAt: confirmed.updatedAt, state: expect.objectContaining({ title: expect.objectContaining({ value: 'Blue painting', locked: true, evidence: 'tavily+image' }) }),
   })));
-  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
 });
 
 it('keeps the label available when a stored museum confirmation failed moderation', async () => {
@@ -656,7 +640,6 @@ it('keeps the label available when a stored museum confirmation failed moderatio
   await render(result());
   expect(await screen.findByText("Couldn't search right now")).toBeOnTheScreen();
   expect(screen.queryByText("Found on the museum's site")).toBeNull();
-  expect(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeDisabled();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
 });
@@ -712,25 +695,23 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   const value = field === 'title' ? 'My blue painting' : '1900';
   if (field === 'title') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   await fireEvent.changeText(screen.getByLabelText(label), value);
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
     ...verified, updatedAt: 3, sourceUrl: field === 'title' ? undefined : verified.sourceUrl,
     fields: { ...verified.fields, [field]: { value, evidence: 'ocr', locked: false } },
   } });
-  expect(screen.getByRole('button', { name: 'Add to the shared index', busy: true })).toBeDisabled();
+  expect(screen.getByText('Saving to the shared index…')).toBeOnTheScreen();
   expect(screen.getByLabelText(label).props.defaultValue).toBe(value);
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index', busy: true }));
+  expect(screen.queryByRole('button', { name: 'Retry saving to the shared index' })).toBeNull();
   expect(contributeLabel).toHaveBeenCalledTimes(1);
   await act(async () => { fail(new Error('Upload failed')); });
-  expect(await screen.findByText('Couldn’t share this work right now')).toBeOnTheScreen();
+  expect(await screen.findByText('Couldn’t save to the shared index right now. Your artwork is saved to your collection.')).toBeOnTheScreen();
   expect(screen.getByText('Edited by you')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  expect(await screen.findByText('Shared as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  expect(await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 
@@ -738,9 +719,9 @@ it('keeps museum search unavailable after picking a runner-up on a confident sca
   await setMuseumSearchConsent('granted');
   await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ }));
   await screen.findByText('Maybe');
-  expect(screen.queryByRole('button', { name: MUSEUM_SEARCH_BUTTON })).toBeNull();
+  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
@@ -773,9 +754,8 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
   await screen.findByLabelText('Title');
   if (edit !== 'date') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   if (edit !== 'unlock') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByRole('button', { name: 'Add to the shared index', busy: true });
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   if (edit !== 'unlock') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
@@ -783,16 +763,15 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
     fields: { ...verified.fields, [edit]: { value: submitted[edit].value, evidence: 'ocr', locked: false } },
   } });
   await act(async () => { fail(new Error('Upload failed')); });
-  await screen.findByText('Couldn’t share this work right now');
+  await screen.findByText('Couldn’t save to the shared index right now. Your artwork is saved to your collection.');
   await view.unmount();
   await render(result());
   expect(await screen.findByText('Edited by you')).toBeOnTheScreen();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe(submitted.title.value);
   expect(screen.getByLabelText('Date').props.defaultValue).toBe(submitted.date.value);
   jest.mocked(contributeLabel).mockResolvedValue({ contributionId: 'contribution-1' as Id<'contributions'>, status: 'tentative' });
-  await fireEvent.press(screen.getByRole('button', { name: 'Add to the shared index' }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Share' }));
-  await screen.findByText('Shared as a tentative match for other visitors at this museum.');
+  await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
+  await screen.findByText('Saved to the shared index as a tentative match for other visitors at this museum.');
   expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
 });
 
@@ -828,7 +807,7 @@ it('keeps a chosen runner-up when the background museum search confirms', async 
   jest.mocked(runMuseumSearchForScan).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   await render(result());
   await screen.findByText("Searching the museum's collection…");
-  await fireEvent.press(screen.getByRole('button', { name: 'Haystacks, Claude Monet' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ }));
   await act(async () => { finish({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
   await publish({ ...softScan, museumSearch: confirmed, labelFlow: verified });
   await openDetails();
@@ -881,7 +860,7 @@ it('reopens a completed label review from a scan without a museum result', async
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
 });
 
-it('keeps a tentative visitor suggestion visible until museum search is requested', async () => {
+it('keeps a tentative visitor suggestion visible without starting museum search', async () => {
   await setMuseumSearchConsent('granted');
   results.set('scans:get', { ...softScan, best: { ...softScan.best!, identityStatus: 'tentative' },
     runnerUps: [{ ...haystacks, identityStatus: 'tentative' }] });
@@ -895,8 +874,6 @@ it('keeps a tentative visitor suggestion visible until museum search is requeste
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ })).toBeEnabled();
   expect(screen.queryByText('About this work')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: MUSEUM_SEARCH_BUTTON }));
-  await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
 });
 
 it('saves edited tentative metadata without implying confirmation', async () => {

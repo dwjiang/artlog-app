@@ -47,6 +47,8 @@ it('opens saved artwork from a visit and returns to its private notes', async ()
     'saved/[savedId]': () => <Text>Saved painting</Text>,
   }, { initialUrl: '/journal/visit' });
   await navigation;
+  expect(screen.queryByText(/Private on this device/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Save visit' })).toBeOnTheScreen();
   expect(screen.getByDisplayValue('The afternoon light')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/saved/painting'));

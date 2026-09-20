@@ -23,7 +23,7 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
     }} />
     <GalleryButton label="View artwork" fullWidth onPress={() => router.navigate({ pathname: '/saved/[savedId]', params: { savedId: completion.savedId } })} />
     {onViewResult && <GalleryButton label="View result" fullWidth onPress={onViewResult} />}
-    <ThemedText type="small" style={styles.note}>{sharedToIndex ? 'An artwork crop was shared with the index.' : 'New photos are private.'} Your wall and shared visits haven’t changed.</ThemedText>
+    <ThemedText type="small" style={styles.note}>{sharedToIndex ? 'An artwork crop was saved to the shared index.' : 'New photos are private.'} Your wall and shared visits haven’t changed.</ThemedText>
   </>;
   return inline ? <View style={styles.content}>{content}</View> : <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>{content}</ScrollView>;
 }

@@ -6,6 +6,7 @@ import { useEffect, useReducer } from 'react';
 import { useLocalOwner, useOwnerGeneration } from '@/lib/account/owner-store';
 import { pendingScansQuery } from '@/db/repos/pending-scans';
 import type { PendingScan } from '@/db/schema';
+import { startPendingShareFlusher } from '@/lib/label/share-saved-label';
 import { startQueueFlusher } from './queue';
 
 export type QueueState = { pending: number; items: PendingScan[]; loading: boolean; error?: Error };
@@ -26,11 +27,15 @@ export function useQueue(): QueueState {
   return { pending: data.filter((row) => row.status === 'queued' || row.status === 'identifying').length, items: data, loading: !updatedAt && !error, error };
 }
 
-/** Runs the flusher once the anonymous session exists; identify rejects callers before that. */
+/** Runs the flushers once the anonymous session exists; identify and contribute reject callers before that. */
 export function useQueueFlusher(): void {
   const generation = useOwnerGeneration();
   const { isAuthenticated } = useConvexAuth();
-  useEffect(() => (isAuthenticated ? startQueueFlusher() : undefined), [isAuthenticated, generation]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const stopQueue = startQueueFlusher(), stopShares = startPendingShareFlusher();
+    return () => { stopQueue(); stopShares(); };
+  }, [isAuthenticated, generation]);
 }
 
 export function QueueFlusher(): null {

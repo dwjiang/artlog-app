@@ -55,6 +55,13 @@ it('carries the seen visits to the account, merged with the ones the account alr
   expect(JSON.parse((await getSetting('seenVisits:account:b'))!)).toEqual([]);
   expect(await getSetting(`seenVisits:${source}`)).toBeUndefined();
 });
+it('carries queued index shares to the account with their captures', async () => {
+  const source = anonymousOwner();
+  await setSetting(`pendingShare:${source}:scan-1`, '{"scanId":"scan-1","captureLocalId":"capture"}');
+  await claimLocalJournal(source, 'account:a', 'claim');
+  expect(await getSetting('pendingShare:account:a:scan-1')).toBe('{"scanId":"scan-1","captureLocalId":"capture"}');
+  expect(await getSetting(`pendingShare:${source}:scan-1`)).toBeUndefined();
+});
 it('hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them', async () => {
   await saves.insertSavedWork({ localId: 'save', title: 'A', artist: '', savedAt: 1 }, 'account:a');
   switchOwner('account:a'); await setNote('save', 'A note');

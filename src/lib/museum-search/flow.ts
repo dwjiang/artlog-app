@@ -25,7 +25,7 @@ export function museumSearchMessage(reason: string): string | undefined {
   switch (reason) {
     case 'no_venue_site': case 'venue_opted_out': return undefined;
     case 'feature_off': return 'Museum search is paused right now';
-    case 'rate_limited': return 'Try again in a minute';
+    case 'rate_limited': return 'Too many museum searches right now';
     case 'spend_cap': case 'cap': return 'Museum search is paused for today';
     case 'no_candidates': case 'no_match': return "Not on the museum's site — point at the label";
     case 'identity_unresolved': return 'Found a matching image, but couldn’t verify its title and artist. Point at the label.';
