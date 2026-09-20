@@ -7,7 +7,7 @@ the painting with NVIDIA's C-RADIOv3-B, one versioned index on Convex returns ca
 descriptors and a homography verify them, and a small calibrator decides whether to say
 *confident*, *soft* or *unidentified*. When a work is not in the index, the app searches the
 museum's own site (with consent) or reads the wall label, verifies what it read against the
-museum's records or Wikidata and, with the visitor's consent, adds the work to a shared index so
+museum's records or Wikidata and, when the visitor saves the confirmed work, adds it to a shared index so
 the next visitor gets an instant match. Nemotron on Nebius Token Factory writes the cited
 "about this work" text once per artwork; Tavily finds museum-site evidence and fact-sheet
 sources. A scan taken with no signal waits on the phone and is identified when the connection
@@ -347,11 +347,11 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
   Apple's [MapKit search service](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/EnablingSearch/EnablingSearch.html).
   Confirming a returned place sends that place's name, coordinates and optional website to
   Convex to register the venue; the device's GPS fix is not sent to Convex.
-- **Three images can leave the phone, each at the visitor's request:** the label photo (read by
+- **Three images can leave the phone, each after a visitor action:** the label photo (read by
   the vision model, not retained), the artwork crop for museum-site search (after a one-time
-  consent that Settings can revoke; not stored), and a contribution crop of at most 256 px the
-  visitor chooses to share, the only image the system keeps, as the card thumbnail for the next
-  visitor.
+  consent that Settings can revoke; not stored), and a contribution crop of at most 256 px shared
+  automatically when a confirmed work is saved and withdrawable in Settings, the only image the
+  system keeps, as the card thumbnail for the next visitor.
 - **Identity is the device:** an App Attest key Apple binds to one install on one iPhone.
   Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
   device and stay private until promoted. Sign in with Apple is optional and only syncs the

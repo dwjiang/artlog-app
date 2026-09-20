@@ -6,12 +6,12 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
 import { GalleryButton } from '../collection/gallery-button';
 
-export function LeaderboardSheet({ title, children, onDismiss, dismissLabel = 'Done', dismissDisabled = false, isPresented = true }: {
-  title: string; children: ReactNode; onDismiss: () => void; dismissLabel?: string; dismissDisabled?: boolean; isPresented?: boolean;
+export function LeaderboardSheet({ title, children, onDismiss, dismissLabel = 'Done', dismissDisabled = false }: {
+  title: string; children: ReactNode; onDismiss: () => void; dismissLabel?: string; dismissDisabled?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const [open, setOpen] = useState(true);
-  return <Host style={{ position: 'absolute' }} pointerEvents="none"><BottomSheet isPresented={isPresented && open}
+  return <Host style={{ position: 'absolute' }} pointerEvents="none"><BottomSheet isPresented={open}
     onIsPresentedChange={setOpen} onDismiss={onDismiss}>
     <VStack spacing={0} modifiers={[presentationDetents(['large']), presentationDragIndicator('visible'), presentationBackground(Gallery.paper)]}>
       <RNHostView matchContents>

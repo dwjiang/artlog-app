@@ -167,7 +167,7 @@ it('merges 200 friend streams under transaction limits and honors short-page cur
     const postIds = [];
     for (let i = 0; i < LIMITS.friends; i++) {
       const accountId = await ctx.db.insert('accounts', { appleUserId: `stress-${i}`, deviceIds: [], createdAt: 1 });
-      const profileId = await ctx.db.insert('profiles', { accountId, username: `stress-${i}`, name: 'Friend', searchText: 'friend', active: true,
+      const profileId = await ctx.db.insert('profiles', { accountId, username: `stress-${i}`, name: 'Friend', searchText: 'friend', active: true, leaderboardVisibility: 'global',
         publishedWallCount: 0, createdAt: 1, updatedAt: 1 });
       const owner = { kind: 'account' as const, accountId }, visitLocalId = crypto.randomUUID(), postId = crypto.randomUUID();
       const visitId = await ctx.db.insert('visits', { owner, localId: visitLocalId, venueId, venueName: 'Museum', visitedOn: '2026-09-01',

@@ -50,7 +50,7 @@ it('enforces the 200-friend cap for both participants and concurrent acceptances
   await t.run(async (ctx) => {
     for (let i = 0; i < 199; i++) {
       const accountId = await ctx.db.insert('accounts', { appleUserId: `cap-${i}`, deviceIds: [], createdAt: 1 });
-      const other = await ctx.db.insert('profiles', { accountId, username: `cap-${i}`, name: 'Friend', searchText: 'friend', active: true, publishedWallCount: 0, createdAt: 1, updatedAt: 1 });
+      const other = await ctx.db.insert('profiles', { accountId, username: `cap-${i}`, name: 'Friend', searchText: 'friend', active: true, publishedWallCount: 0, leaderboardVisibility: 'global', createdAt: 1, updatedAt: 1 });
       const [firstProfileId, secondProfileId] = canonicalPair(a.profileId, other);
       await ctx.db.insert('friendships', { firstProfileId, secondProfileId, requesterId: a.profileId, state: 'accepted', revision: 2, updatedAt: 1 });
     }

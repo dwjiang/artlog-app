@@ -34,7 +34,7 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<'_s
   return storageId;
 }
 
-/** The fingerprint, the label fields and the consented crop leave the phone; the full photo never does. */
+// The shared index receives the fingerprint, label fields, and a small crop, never the full photo.
 export async function contributeLabel({ scanId, capture, state, museumSearchUpdatedAt }: ContributeInput): Promise<ContributionOutcome> {
   if (isLabelCapture(capture)) throw new Error('An artwork photo is required to contribute to the shared index');
   const fields = toSubmittedFields(state);
@@ -52,7 +52,7 @@ export async function contributeLabel({ scanId, capture, state, museumSearchUpda
     const signed = await signPayload(contributionPayload({ scanId, cropStorageId, fields }));
     if (!signed) throw new Error('This device can’t share contributions yet');
     const result = await convex.action(api.contributions.contribute, {
-      scanId, descriptors: capture.descriptors, keypoints: capture.keypoints, fields, cropStorageId, consent: true,
+      scanId, descriptors: capture.descriptors, keypoints: capture.keypoints, fields, cropStorageId,
       nonce: signed.nonce, assertionBase64: signed.assertionBase64,
     });
     resolveWithLabel(convex, scanId, result.contributionId);
@@ -63,13 +63,13 @@ export async function contributeLabel({ scanId, capture, state, museumSearchUpda
 }
 
 export function contributionErrorMessage(error: unknown): string {
-  if (isNetworkError(error)) return 'No connection — try sharing when you’re back online';
+  if (isNetworkError(error)) return 'No connection — it will be saved to the shared index when you’re back online';
   switch (errorMessage(error)) {
     case 'rate_limited': return 'Try again in a minute';
     case 'label_unverified':
-    case 'field_mismatch': return 'Verify the label again before sharing';
-    case 'invalid_scan': return 'This scan isn’t tied to a museum, so it can’t be shared';
-    case 'This device can’t share contributions yet': return 'This device can’t share contributions yet';
-    default: return 'Couldn’t share this work right now';
+    case 'field_mismatch': return 'Verify the label again to save it to the shared index';
+    case 'invalid_scan': return 'This scan isn’t tied to a museum, so it can’t be saved to the shared index';
+    case 'This device can’t share contributions yet': return 'This device can’t save to the shared index yet';
+    default: return 'Couldn’t save to the shared index right now';
   }
 }
