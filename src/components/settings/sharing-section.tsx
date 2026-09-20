@@ -1,3 +1,6 @@
+import { router } from 'expo-router';
+import { EmptyState } from '../empty-state';
+import { EmptyPaper } from '../empty-state-art';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import { useMutation } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
@@ -27,9 +30,12 @@ export function ContributionsSheet({ open, onDismiss, contributions }: { open: b
         contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
         ListHeaderComponent={<View style={{ gap: Spacing.three }}>
           <ThemedText type="subtitle" accessibilityRole="header">My contributions</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>
+          {!!contributions?.length && <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>}
         </View>}
-        ListEmptyComponent={<ThemedText>{contributions === undefined ? 'Connecting…' : 'No contributions yet.'}</ThemedText>}
+        ListEmptyComponent={contributions === undefined ? <ThemedText>Connecting…</ThemedText> : <EmptyState inset={false} title="Help the next person see more."
+          detail="Save a confirmed artwork to share its label details and a small artwork crop with the index." visual={<EmptyPaper kind="label" />} footnote="Your full photos stay private. No account needed.">
+          <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { onDismiss(); router.dismissAll(); router.navigate('/scan'); }} />
+        </EmptyState>}
         ListFooterComponent={<GalleryButton label="Done" onPress={onDismiss} />} />
     </RNHostView>
   </BottomSheet>;

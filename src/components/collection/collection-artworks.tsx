@@ -1,3 +1,4 @@
+import { SearchEmptyState } from '../empty-state';
 import { DEFAULT_THUMBNAIL_FRAME } from '@/shared/wall/defaults';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -48,9 +49,9 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
     for (const work of [...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId))) rows.push({ key: work.localId, kind: 'work', work });
   }
   const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} /> : filtered.length ? undefined
-    : !error && !works.length ? <CollectionEmptyState kind="artworks" /> : <SocialState title={error ? 'Couldn’t load your collection.' : 'No artworks found.'}
-      detail={error ? 'Your saved collection is still on this iPhone. Try opening it again.' : 'Try another title, artist, or place.'}
-      action={error ? onRetry ? 'Try again' : undefined : 'Clear search'} onAction={error ? onRetry : onClearSearch} />;
+    : error ? <SocialState title="Couldn’t load your collection." detail="Your saved collection is still on this iPhone. Try opening it again." action={onRetry ? 'Try again' : undefined} onAction={onRetry} />
+      : search.trim() ? <SearchEmptyState title="No artworks found." detail="Try another title, artist, or place." onClear={() => onClearSearch?.()} />
+        : <CollectionEmptyState kind="artworks" />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={empty}

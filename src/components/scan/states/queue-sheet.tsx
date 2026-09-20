@@ -1,3 +1,4 @@
+import { EmptyState, EmptySymbol } from '@/components/empty-state';
 import { ListSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -14,7 +15,7 @@ import { useLocalOwner } from '@/lib/account/owner-store';
 import { discardCapture } from '@/lib/capture/discard-capture';
 
 export const QUEUE_FOOTER = 'Waiting scans continue when you’re back online.';
-export const QUEUE_EMPTY = 'Your next scan will appear here until you save or discard it.';
+export const QUEUE_EMPTY = 'Scan an artwork or its wall label. Your recent scans will appear here.';
 
 export function QueueSheet() {
   const owner = useLocalOwner();
@@ -79,10 +80,9 @@ function QueueContent() {
       {error && <>
         <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load recent scans. Close this sheet and reopen it to try again.</ThemedText>
       </>}
-      {!loading && !error && items.length === 0 && <>
-        <ThemedText themeColor="textSecondary">{QUEUE_EMPTY}</ThemedText>
+      {!loading && !error && items.length === 0 && <EmptyState inset={false} title="A fresh pair of eyes." detail={QUEUE_EMPTY} visual={<EmptySymbol name="camera" />}>
         <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismiss(); router.navigate('/(tabs)/(scan)/scan'); }} />
-      </>}
+      </EmptyState>}
       {items.map((item) => <QueueRow key={item.localId} item={item} onOpen={open} onRetry={retry} onDiscard={discard} retrying={retrying.includes(item.localId)} discarding={discarding.includes(item.localId)} />)}
       {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}
       {discardError && <ThemedText themeColor="error" accessibilityRole="alert">{discardError}</ThemedText>}

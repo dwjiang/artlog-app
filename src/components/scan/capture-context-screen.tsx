@@ -1,3 +1,4 @@
+import { EmptyState } from '../empty-state';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -29,6 +30,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
   });
   const [error, setError] = useState<string>();
   const availableVisits = visits.data.filter((visit) => visit.owner === owner);
+  const noVisits = !!visits.updatedAt && !visits.error && availableVisits.length === 0;
 
   function choose(value: string) {
     try {
@@ -58,11 +60,13 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
     <ThemedText themeColor="textSecondary">Only this artwork changes. The next scan joins the visit you are at.</ThemedText>
     {error && <ThemedText themeColor="error" accessibilityRole="alert">{error}</ThemedText>}
     <View>{option('none', 'No visit · Save artwork only')}</View>
-    <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} />
-    <ThemedText type="subtitle">Your visits</ThemedText>
+    {!noVisits && <>
+      <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} />
+      <ThemedText type="subtitle">Your visits</ThemedText>
+    </>}
     {visits.error ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load your visits. Close this screen and reopen it to try again.</ThemedText>
       : !visits.updatedAt ? <ListSkeleton label="Loading visits…" rows={3} />
-      : availableVisits.length === 0 && <ThemedText themeColor="textSecondary">No visits yet. Create a visit, or save this artwork without one.</ThemedText>}
+      : noVisits && <EmptyState compact title="Keep the day, too." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} /></EmptyState>}
     <View>{availableVisits.map((visit) => option(visit.localId, visit.venueName, open?.localId === visit.localId ? 'Visiting now' : formatVisitDate(visit.visitedOn)))}</View>
   </ScrollView>;
 }

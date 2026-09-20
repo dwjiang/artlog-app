@@ -1,5 +1,8 @@
+import { SocialInvitation } from './social-invitation';
+import { GalleryButton } from '../collection/gallery-button';
+import { SearchEmptyState } from '../empty-state';
 import { socialStyles } from './social-styles';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
@@ -34,6 +37,8 @@ export function PeopleScreen() {
   const results = useCursorPages(api.profiles.search, searching ? { query: query! } : 'skip',
     session.key, searchPage, profileId);
   const discovery = useCursorPages(api.profiles.discover, !text.trim() && !session.offline ? {} : 'skip', session.key, searchPage, profileId);
+  const emptyFriends = filter === 'friends' && session.status === 'ready' && !friends.loading && !friends.error && friends.data?.length === 0 && !text.trim();
+  const explore = () => { setText(''); setFilter('all'); };
   return <>
     <Stack.Screen options={{ title: '' }} />
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
@@ -42,17 +47,25 @@ export function PeopleScreen() {
       ListHeaderComponent={<View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
         <Text variant="pageTitle" accessibilityRole="header">People</Text>
         {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Discover people and their little museums.</Text>}
-        {!guestFriends && <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
+        {!guestFriends && !emptyFriends && <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
         <NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
         options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
-      ListEmptyComponent={guestFriends ? <FriendsInvitation onExplore={() => { setText(''); setFilter('all'); }} /> : filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} /> : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar /> : <SocialState title={friends.error ? 'Couldn’t load your friends.' : 'No friends found.'}
-        detail="Search All people to make a connection." action={friends.error ? 'Try again' : undefined} onAction={friends.refresh} /> : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
-        : !text.trim() && (discovery.loading || discovery.error) ? null : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2"
-          detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
-          : text !== debounced ? <ListSkeleton label="Searching…" avatar />
-            : results.done && !results.loading && !results.error ? <SocialState title="No people found." detail="Try another name or username." /> : null}
-      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
+      ListEmptyComponent={guestFriends ? <FriendsInvitation onExplore={explore} />
+        : filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} />
+          : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar />
+            : friends.error ? <SocialState title="Couldn’t load your friends." action="Try again" onAction={friends.refresh} />
+              : emptyFriends ? <SocialInvitation title={'Find your\nart people.'} detail="Search by name or username to add your first friend.">
+                <GalleryButton label="Find people" variant="filled" fullWidth onPress={explore} />
+              </SocialInvitation> : text.trim() ? <SearchEmptyState title="No friends found." detail="Try another name or username." onClear={() => setText('')} /> : null
+        : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
+          : !text.trim() ? discovery.done && !discovery.loading && !discovery.error ? <SocialInvitation title={'A community\nin the making.'} detail="Public profiles will appear here. In the meantime, keep discovering art.">
+            <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/scan'); }} />
+          </SocialInvitation> : null
+            : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2" detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
+              : text !== debounced ? <ListSkeleton label="Searching…" avatar />
+                : results.done && !results.loading && !results.error ? <SearchEmptyState title="No people found." detail="Try another name or username." onClear={() => setText('')} /> : null}
+      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? discovery.items.length > 0 ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : null : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
       onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
   </>;
 }

@@ -1,6 +1,7 @@
+import { CaptureVisitPill } from './capture-visit-pill';
 import { Button, Host, Row } from '@expo/ui';
 import { Image } from 'expo-image';
-import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
+import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import type { ParamListBase } from 'expo-router/react-navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,6 +25,7 @@ const SHUTTER_SIZE = 72;
 
 export function ScanScreen() {
   const isFocused = useIsFocused();
+  const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
@@ -37,8 +39,17 @@ export function ScanScreen() {
   }), [top, bottom, controls]);
   const active = isFocused && appState === 'active';
   const photoOutput = usePhotoOutput({ containerFormat: 'jpeg', quality: 1 });
-  const capture = useCapture({ active, focused: isFocused });
+  const capture = useCapture({ active, focused: isFocused, visitLocalId: visitId, onVisitUnavailable: () => navigation.setParams({ visitId: undefined }) });
   const { phase, occupied, source, message, rearm } = capture.state;
+  // A visit chosen in link-artwork covers one capture: it ends at the result or when another tab is selected.
+  // Sheets and the visit's own screen sit above the tab and keep it.
+  useEffect(() => { if (visitId && phase === 'result') navigation.setParams({ visitId: undefined }); }, [navigation, phase, visitId]);
+  useEffect(() => {
+    if (!visitId) return;
+    return navigation.getParent()?.addListener('state', ({ data }) => {
+      if (data.state.routes[data.state.index]?.name !== '(scan)') navigation.setParams({ visitId: undefined });
+    });
+  }, [navigation, visitId]);
   const searching = !occupied && (phase === 'searching' || (phase === 'retry' && source !== 'library'));
   const detecting = active && cameraReady && searching;
   const frameOutput = useRectDetector(detecting, (detection) => {
@@ -81,7 +92,7 @@ export function ScanScreen() {
       <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
           <View pointerEvents="box-none" style={styles.topRow}>
-            <VenuePill />
+            {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
             <QueueBadge />
           </View>
           {cameraError && !message && !busy && <View accessible accessibilityRole="alert">

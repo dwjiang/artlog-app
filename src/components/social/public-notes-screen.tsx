@@ -1,3 +1,6 @@
+import { EmptyState } from '../empty-state';
+import { EmptyPaper } from '../empty-state-art';
+import { GalleryButton } from '../collection/gallery-button';
 import { Switch, Text } from '@expo/ui';
 import { Text as SwiftText } from '@expo/ui/swift-ui';
 import { font, foregroundStyle, italic } from '@expo/ui/swift-ui/modifiers';
@@ -32,7 +35,7 @@ export function PublicNotesScreen() {
   }
   const gate = !wall.signedIn ? <SocialState title="Sign in to share notes." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
-      : wall.loading ? <SocialState title="Opening your notes…" loading /> : null;
+      : wall.loading || (!wall.acknowledged && !wall.error) ? <SocialState title="Opening your notes…" loading /> : null;
   if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.gate}>{gate}</ScrollView>;
   // The header keeps only direct Toolbar.Button children, so no fragments here.
   const toolbar = <Stack.Toolbar placement="right">
@@ -48,6 +51,12 @@ export function PublicNotesScreen() {
     </ScrollView>
   </>;
   const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
+  if (!eligible.length && !wall.error) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+    <EmptyState title="Let them in on what you noticed." detail="Add a private note to an artwork on your wall. After it syncs, you can choose whether to show it here."
+      visual={<EmptyPaper kind="note" />} footnote="Notes stay private unless you choose to share them.">
+      <GalleryButton label="Go to your wall" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate({ pathname: '/collection', params: { view: 'wall' } }); }} />
+    </EmptyState>
+  </ScrollView>;
   return <>{toolbar}
     <GroupedList>
       <GroupedSection footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
@@ -60,7 +69,6 @@ export function PublicNotesScreen() {
         {item.privateNote ? <SwiftText modifiers={[font({ textStyle: 'body' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
         <Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} />
       </GroupedSection>)}
-      {!eligible.length ? <GroupedSection><Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: 'subheadline' })]}>Add a note to an artwork on your wall. It will appear here after syncing.</Text></GroupedSection> : null}
     </GroupedList>
   </>;
 }

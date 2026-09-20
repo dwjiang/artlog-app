@@ -154,7 +154,7 @@ it('renders the artwork enrichment when the backend has it', async () => {
 it('skips the enrichment query for a work saved without an artwork', async () => {
   await render(detail('plain'));
   expect(await screen.findByText('Untitled')).toBeOnTheScreen();
-  expect(screen.getByText('Saved without a visit. You can link one anytime.')).toBeOnTheScreen();
+  expect(screen.getByText('Where did you meet?')).toBeOnTheScreen();
   expect(screen.queryByText('About this work')).toBeNull();
   expect(client.watchQuery).not.toHaveBeenCalled();
 });

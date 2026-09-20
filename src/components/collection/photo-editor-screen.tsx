@@ -1,3 +1,4 @@
+import { EmptyState } from '../empty-state';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
@@ -51,7 +52,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     {moving && <View style={{ gap: 8 }}><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your artworks. Close and reopen this photo to try again.</Text>
         : !works.updatedAt && !destinations.length ? <Text style={{ color: Gallery.muted }}>Loading artworks…</Text>
-        : !destinations.length ? <Text style={{ color: Gallery.muted }}>No other artworks yet. Save another artwork before moving this photo.</Text> : null}
+        : !destinations.length ? <EmptyState compact title="One artwork so far." detail="Save another artwork before moving this photo. Your photo and edits can stay here."><GalleryButton label="Keep it here" onPress={() => setMoving(false)} /></EmptyState> : null}
       {destinations.map((work) => <GalleryButton key={work.localId} label={work.title} onPress={() => {
         execute({ savedLocalId: work.localId, kind, caption });
       }} />)}</View>}

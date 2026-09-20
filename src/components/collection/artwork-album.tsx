@@ -1,3 +1,5 @@
+import { EmptyState, EmptySymbol } from '../empty-state';
+import { GalleryButton } from './gallery-button';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
@@ -33,8 +35,9 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
     ? Math.max(44, Math.min((width - 40) * 0.56, (width - 40) / (ratios[selectedPhoto.localId] || 1))) : 180 * fontScale;
   const goTo = (next: number) => { setPage(next); gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion }); };
   return <View style={{ gap: 8 }}>
-    {!rows.length && !photos.updatedAt && !photos.error ? <ImageSkeleton label="Loading photos…" style={{ width: '100%', aspectRatio: 1 / 0.56 }} /> : !rows.length && <Text accessibilityRole={photos.error ? 'alert' : undefined} style={styles.secondary}>{photos.error ? 'Photos couldn’t load. Close and reopen this artwork to try again.'
-      : scope === 'visit' ? 'No photos from this visit yet. View all photos or add one.' : 'No photos yet. Add a photo to this artwork.'}</Text>}
+    {!rows.length && !photos.updatedAt && !photos.error ? <ImageSkeleton label="Loading photos…" style={{ width: '100%', aspectRatio: 1 / 0.56 }} />
+      : !rows.length && (photos.error ? <Text accessibilityRole="alert" style={styles.secondary}>Photos couldn’t load. Close and reopen this artwork to try again.</Text>
+        : <View style={{ minHeight: 160, backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}><EmptySymbol name="photo" /></View>)}
     {!!rows.length && <View style={{ marginHorizontal: -20 }}>
     <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
       style={{ height: imageHeight }}
@@ -73,6 +76,11 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
       <Text selectable style={styles.title}>{work.title}{work.date ? `, ${work.date}` : ''}</Text>
       {!!work.medium && <Text selectable style={styles.medium}>{work.medium}</Text>}
     </View>
+    {!rows.length && !!photos.updatedAt && !photos.error && <EmptyState inset={false} title={scope === 'visit' ? 'No photos from this visit yet.' : 'Keep your point of view.'}
+      detail={scope === 'visit' ? 'Add a photo from this visit, or look through the rest of this artwork’s photos.' : 'The full painting, a tiny detail, its wall label. Keep the way you saw it.'}>
+      <GalleryButton label="Add photos" variant="filled" fullWidth onPress={() => router.push({ pathname: '/add-photos', params: { draftId: `saved:${work.localId}`, savedId: work.localId, title: work.title, visitId: scope === 'visit' ? visitId : undefined } })} />
+      {scope === 'visit' && <GalleryButton label="View all photos" onPress={() => { setScope('all'); setPage(0); }} />}
+    </EmptyState>}
   </View>;
 }
 const styles = StyleSheet.create({

@@ -1,3 +1,4 @@
+import { getVisit } from '@/db/repos/visits';
 import { useAction } from 'convex/react';
 import * as Haptics from 'expo-haptics';
 import type { ImageRef } from 'expo-image';
@@ -30,7 +31,10 @@ export type CapturePresentation = {
 type Completed = { attempt: CaptureAttempt; result: Exclude<CaptureResult, { kind: 'retake' }> };
 type VenueContext = Pick<CaptureInput, 'venueId' | 'visitId' | 'visitLocalId'>;
 
-export function useCapture({ active = true, focused = true } = {}) {
+/** `visitLocalId` pins every capture to that visit; `onVisitUnavailable` runs when it no longer exists so the caller can drop it. */
+export function useCapture({ active = true, focused = true, visitLocalId, onVisitUnavailable }: {
+  active?: boolean; focused?: boolean; visitLocalId?: string; onVisitUnavailable?: () => void;
+} = {}) {
   const identify = useAction(api.identify.identify);
   const network = useNetworkState();
   const online = useRef(network.isInternetReachable);
@@ -107,6 +111,14 @@ export function useCapture({ active = true, focused = true } = {}) {
     pendingResult.current = undefined;
     setTimings(undefined);
     try {
+      // A chosen visit is checked before the photo is taken, so a missing one costs no shutter press.
+      let chosen: VenueContext | undefined;
+      if (visitLocalId) {
+        const visit = await getVisit(visitLocalId, owner.owner);
+        if (!current()) return;
+        if (!visit) { onVisitUnavailable?.(); throw new Error('This visit is no longer available. Scan again to continue without it.'); }
+        chosen = { visitLocalId: visit.localId, venueId: visit.venueId, visitId: visit.remoteVisitId ?? undefined };
+      }
       const input = await getInput();
       if (!current()) return;
       if (!input) { (onCancel ?? reset)(); return; }
@@ -118,7 +130,7 @@ export function useCapture({ active = true, focused = true } = {}) {
         if (current() && photo && images.current === retained) setPresentation((value) => value && { ...value, photo });
         return photo;
       });
-      const context = await resolveContext?.(input);
+      const context = chosen ?? await resolveContext?.(input);
       if (!current()) return;
       const result = await runCapture({ ...input, ...context }, {
         ...defaultStages,

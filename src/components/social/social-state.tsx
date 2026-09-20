@@ -1,3 +1,4 @@
+import { SocialInvitation } from './social-invitation';
 import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -26,15 +27,15 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
 export function SocialGate({ session, browsePublic = false, context = 'friends' }: { session: SocialSession; browsePublic?: boolean; context?: SignInContext }) {
   const router = useRouter();
   if (session.status === 'ready') return null;
-  if (session.status === 'signed-out') return <View style={socialStyles.gate}>
-    <SocialState title="Art is better together." detail="See the museum visits and artworks your friends share." icon="person.2"
-      action="Sign in" onAction={() => router.push(signInRoute(context))} />
-    {browsePublic && <GalleryButton label="Browse public walls" variant="outlined" onPress={() => router.push('/people')} />}
-  </View>;
-  if (session.status === 'profile-required') return <View style={socialStyles.section}><SocialState title="Make yourself at home."
-    detail="Create your public profile to find friends and follow their museum visits." icon="person.crop.circle.badge.plus"
-    action="Create your profile" onAction={() => router.push('/create-profile')} />
-    {browsePublic && <GalleryButton label="Browse public walls" variant="outlined" onPress={() => router.push('/people')} />}</View>;
+  if (session.status === 'signed-out') return <SocialInvitation title={'Find your\nart people.'} detail="Connect with friends to see their museum visits and the art they love.">
+    <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
+    {browsePublic && <GalleryButton label="Explore people" fullWidth onPress={() => router.push('/people')} />}
+  </SocialInvitation>;
+  if (session.status === 'profile-required') return <SocialInvitation title="Make yourself at home."
+    detail="Create your public profile to find friends and follow their museum visits.">
+    <GalleryButton label="Create your profile" variant="filled" fullWidth onPress={() => router.push('/create-profile')} />
+    {browsePublic && <GalleryButton label="Explore people" fullWidth onPress={() => router.push('/people')} />}
+  </SocialInvitation>;
   if (session.status === 'offline') return <SocialState title="You’re offline."
     detail="Connect to see the latest shared visits. Your saved collection is still here." icon="wifi.slash" />;
   if (session.status === 'error') return <SocialState title="Couldn’t load your account."

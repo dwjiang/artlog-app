@@ -36,7 +36,7 @@ function SavedWorkQuery({ owner, savedId, visitId, photoId, onRetry }: SavedWork
 function Divider() { return <View style={styles.divider} />; }
 function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
   const router = useRouter(), wall = useCollectionWall([work]);
-  const encounters = useArtworkEncounters(work);
+  const { encounters, loading: loadingEncounters, error: encounterError } = useArtworkEncounters(work);
   const currentEncounter = encounters.find(({ visit }) => visit.localId === visitId);
   const { data: photos } = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
   const wallPhoto = photos.find((photo) => photo.kind !== 'label') ?? photos[0];
@@ -57,7 +57,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
       <Divider />
-      <ArtworkEncounterList work={work} encounters={encounters} visitId={currentEncounter?.visit.localId} />
+      <ArtworkEncounterList work={work} encounters={encounters} loading={loadingEncounters} loadError={encounterError} visitId={currentEncounter?.visit.localId} />
       <Divider />
       <NoteEditor savedLocalId={work.localId} sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)} />
       {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}

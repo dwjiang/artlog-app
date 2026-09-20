@@ -9,7 +9,7 @@ import { VisitScreen } from './visit-screen';
 import { ArtworkScreen } from './artwork-screen';
 import { VisitArtworks } from './visit-card';
 
-const mockPush = jest.fn(), mockRefresh = jest.fn(), mockLoadMore = jest.fn(), mockPages = jest.fn(), mockQuery = jest.fn();
+const mockPush = jest.fn(), mockDismissAll = jest.fn(), mockRefresh = jest.fn(), mockLoadMore = jest.fn(), mockPages = jest.fn(), mockQuery = jest.fn();
 const mockSignIn = jest.fn();
 jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ ready: true, available: true, busy: false, signInWithApple: mockSignIn }) }));
 jest.mock('expo-apple-authentication', () => ({
@@ -36,7 +36,7 @@ jest.mock('expo-router', () => {
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.View = ({ children }: { children: React.ReactNode }) => children;
   Toolbar.Button = function ToolbarButton({ children, onPress, accessibilityLabel }: { children: string; onPress: () => void; accessibilityLabel: string }) { return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>; };
-  return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush }), Stack: { Toolbar, Screen: () => null } };
+  return { useLocalSearchParams: () => ({}), useRouter: () => ({ push: mockPush, navigate: mockPush }), router: { push: (...args: unknown[]) => mockPush(...args), navigate: (...args: unknown[]) => mockPush(...args), dismissAll: () => mockDismissAll() }, Stack: { Toolbar, Screen: () => null } };
 });
 
 const visit: SharedVisit = { audience: 'public',
@@ -85,7 +85,7 @@ it('keeps Home navigation available through ghosts, loaded content, and paginati
   const view = await render(<HomeScreen />);
   expect(screen.getByRole('progressbar', { name: 'Loading visits…' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Find people' })).toBeOnTheScreen();
-  expect(screen.queryByText('A new view is on its way.')).toBeNull();
+  expect(screen.queryByText('See what your friends see.')).toBeNull();
   mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
   await view.rerender(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
@@ -131,7 +131,7 @@ it('waits for finished pagination before showing empty or caught-up copy and off
   mockPages.mockReturnValue(pages({ done: false, canLoadMore: true }));
   const view = await render(<HomeScreen />);
   expect(screen.queryByText('You’re all caught up.')).toBeNull();
-  expect(screen.queryByText('A new view is on its way.')).toBeNull();
+  expect(screen.queryByText('See what your friends see.')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'More visits' }));
   expect(mockLoadMore).toHaveBeenCalled();
   mockPages.mockReturnValue(pages({ items: [visit], done: true }));
@@ -226,19 +226,19 @@ it('loads public visits for guests and opens their details without signing in', 
 it('offers public walls while the public visit feed is empty', async () => {
   mockSession = { ...mockSession, status: 'signed-out' };
   await render(<HomeScreen />);
-  expect(screen.getByText('No public visits yet.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Browse public walls' }));
+  expect(screen.getByText('Discover a different view.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore public walls' }));
   expect(mockPush).toHaveBeenCalledWith('/people');
 });
 
-it('shows an initial-avatar example for guest Friends and keeps public discovery one tap away', async () => {
+it('shows a direct invitation for guest Friends and keeps public discovery one tap away', async () => {
   mockSession = { ...mockSession, status: 'signed-out', token: null };
   await render(<PeopleScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
-  expect(screen.getByText('EXAMPLE')).toBeOnTheScreen();
-  expect(screen.getByRole('header', { name: 'See art through their eyes.' })).toBeOnTheScreen();
+  expect(screen.queryByText('EXAMPLE')).toBeNull();
+  expect(screen.getByRole('header', { name: 'Find your art people.' })).toBeOnTheScreen();
   expect(screen.queryByLabelText('Name or username')).toBeNull();
-  for (const initial of ['A', 'J', 'S']) expect(screen.getByText(initial, { includeHiddenElements: true })).toBeOnTheScreen();
+  expect(screen.queryByText('An afternoon of art')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
@@ -271,4 +271,31 @@ it.each(['wall', 'visit'])('renders sourced artwork stories in %s details', asyn
   expect(screen.getByText('About this work')).toBeOnTheScreen();
   expect(screen.getByText('Painted beside the garden.')).toBeOnTheScreen();
   expect(screen.getByText('Museum source')).toBeOnTheScreen();
+});
+
+
+it('waits for completed discovery before inviting a first scan', async () => {
+  mockPages.mockReturnValue(pages({ loading: true, done: false }));
+  const view = await render(<PeopleScreen />);
+  expect(screen.queryByText('A community in the making.')).toBeNull();
+  mockPages.mockReturnValue(pages({ error: new Error('Offline'), done: true }));
+  await view.rerender(<PeopleScreen />);
+  expect(screen.queryByText('A community in the making.')).toBeNull();
+  mockPages.mockReturnValue(pages());
+  await view.rerender(<PeopleScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
+  expect(mockDismissAll).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenLastCalledWith('/scan');
+});
+
+it('keeps discovery search available when a member has no friends', async () => {
+  mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
+  await render(<PeopleScreen />);
+  expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
+  expect(screen.getByText('Find your art people.')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Name or username')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
+  expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'All people' })).toBeSelected();
 });

@@ -49,6 +49,8 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const color = wall.draft?.color ?? DEFAULT_WALL_COLOR;
   const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const opening = wall.loading && !wall.draft && !wall.error;
+  const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
+  const hasSavedArt = works.some((work) => !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
   const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((piece) => piece.saveLocalId === item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
@@ -131,6 +133,21 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     {header}
     <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{controls}
     <View style={styles.toolbar}>
+      {blank ? <>
+        <GalleryButton label="0 on wall" icon="chevron.down" iconPosition="trailing" tone="ink" onPress={() => router.push('/all-artworks')} />
+        <View style={styles.toolbarTrailing}>
+          {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
+          <GalleryButton icon="plus" label={!wall.signedIn ? 'Sign in' : wall.profileRequired ? 'Create profile' : !wall.draft ? 'Load wall' : hasSavedArt ? 'Add artwork' : 'Scan artwork'}
+            onPress={() => {
+              if (!wall.signedIn) router.push(signInRoute('wall'));
+              else if (wall.profileRequired) setProfile(true);
+              else if (!wall.draft) void wall.refresh();
+              else if (!hasSavedArt) router.navigate('/scan');
+              else edit();
+            }} />
+        </View>
+      </> : <>
+
       <GalleryButton label="All artworks" icon="chevron.down" iconPosition="trailing" tone="ink" disabled={blocked}
         onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
       <View style={styles.toolbarTrailing}>
@@ -138,6 +155,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <GalleryButton label={editing ? 'Done' : 'Edit wall'} busy={wall.pending}
           disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
       </View>
+    </>}
     </View>
     </View>
     {editing && <Text style={styles.publicNotice}>Changes to your wall are public. They don’t create feed posts.</Text>}
@@ -155,7 +173,9 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <GalleryButton label="Retry saving" disabled={wall.pending} onPress={() => { void publish(); }} />
         <GalleryButton label="Discard unsaved change" disabled={wall.pending} onPress={discard} />
       </View> : <GalleryButton label="Try again" onPress={() => { void wall.refresh(); }} />}</View>}
-      <View accessibilityLabel="Collection wall" onLayout={(event) => { setWidth(event.nativeEvent.layout.width); wallTop.current = event.nativeEvent.layout.y; }}>
+      {blank ? <View accessible accessibilityRole="image" accessibilityLabel="Your blank gallery wall" style={[styles.blankWall, { backgroundColor: color === DEFAULT_WALL_COLOR ? '#EFEEE7' : color }]}>
+        <View style={styles.baseboard} /><View style={styles.floor} />
+      </View> : <View accessibilityLabel="Collection wall" onLayout={(event) => { setWidth(event.nativeEvent.layout.width); wallTop.current = event.nativeEvent.layout.y; }}>
         {width > 0 && <WallGallery pieces={pieces} color={color} width={width} editing={editing && !blocked}
           selectedId={selectedId} onRemove={remove} onMove={move} onSelect={(piece) => {
             if (editing) setSelectedId(piece.localId);
@@ -164,15 +184,13 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
           }}>
           {!count && <View style={styles.empty}>
             <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Your own little museum.'}</Text>
-            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{!wall.signedIn ? 'A place for the art that stays with you. Sign in to curate your public wall.'
-              : wall.profileRequired ? 'Create a profile, then choose the art you’d like to show.' : editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
-            {opening ? <LoadingRing color={wallInk} /> : !wall.signedIn ? <GalleryButton label="Sign in" inverse={!isLightWall(color)} variant="filled" onPress={() => router.push(signInRoute('wall'))} />
-              : wall.profileRequired ? <GalleryButton label="Create your wall" inverse={!isLightWall(color)} variant="filled" onPress={() => setProfile(true)} />
-                : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
+            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
+            {opening ? <LoadingRing color={wallInk} />
+              : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
         </WallGallery>}
-      </View>
-      {!editing && <Text style={styles.footer}>Your wall is public. Visits and private notes stay separate.</Text>}
+      </View>}
+      {!editing && !blank && <Text style={styles.footer}>Your wall is public. Visits and private notes stay separate.</Text>}
     </ScrollView>
     {editing && <View style={[styles.tray, { paddingBottom: BottomTabInset + insets.bottom }]}>
       {selected ? <>
@@ -215,6 +233,9 @@ const styles = StyleSheet.create({
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   swatches: { alignItems: 'center', paddingHorizontal: 20, gap: 1, paddingBottom: 8 },
   error: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Gallery.fill },
+  blankWall: { flex: 1, minHeight: 360, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  baseboard: { position: 'absolute', left: 0, right: 0, bottom: 108, height: 7, backgroundColor: '#E9E8E0', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#D4D3C9' },
+  floor: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 108, backgroundColor: '#E3E2D8', boxShadow: 'inset 0 3px 6px rgba(80,80,60,0.05)' },
   empty: { minHeight: 440, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 20 },
   emptyTitle: { textAlign: 'center' },
   emptyCaption: { fontSize: 14, lineHeight: 21, textAlign: 'center', maxWidth: 280, opacity: 0.85 },

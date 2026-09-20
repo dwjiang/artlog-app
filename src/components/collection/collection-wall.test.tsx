@@ -51,7 +51,7 @@ jest.mock('expo-router', () => {
   const { useEffect } = jest.requireActual('react');
   // Runs the effect while focused, as the real hook does, and keeps it so a test can bring the screen back into focus.
   const useFocusEffect = (effect: () => void) => { useEffect(() => { mockFocus = effect; effect(); }, [effect]); };
-  return { useFocusEffect, useRouter: () => ({ push: mockPush }), Stack: {
+  return { useFocusEffect, useRouter: () => ({ push: mockPush, navigate: mockPush }), Stack: {
     Toolbar: Object.assign(View, { Button: ({ children, hidden, disabled, onPress }: {
       children: ReactNode; hidden: boolean; disabled: boolean; onPress: () => void;
     }) => hidden ? null : <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable> }),
@@ -84,10 +84,9 @@ it('gives guests a sign-in action without requesting or publishing a wall', asyn
   mockToken = null; switchOwner('device:guest', 'guest-scope');
   const onEditingChange = jest.fn();
   await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
-  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'wall' } });
-  await fireEvent.press(screen.getByRole('button', { name: 'All artworks' }));
+  await fireEvent.press(screen.getByRole('button', { name: '0 on wall' }));
   expect(mockPush).toHaveBeenCalledWith('/all-artworks');
   expect(mockTransport.getMine).not.toHaveBeenCalled();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
@@ -276,9 +275,11 @@ it('cancels an in-flight save when its owner changes without retaining a stale w
   expect(context.signal.aborted).toBe(true);
   await act(async () => resolveSave({ ...published, revision: 4, color: '#6C2F2B' }));
   expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
   expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Retry saving' })).toBeNull();
+  // The screen remounts on an owner change in the app; here the editor is closed by hand to reach the guest wall.
+  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
 });
 
 it('saves the final size only after a slider drag ends', async () => {
@@ -309,7 +310,6 @@ it('saves an accessible slider adjustment without requiring a drag gesture', asy
 it('shows the empty wall instead of a spinner while the account scope is still missing', async () => {
   switchOwner('account:a');
   await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
-  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
   expect(screen.queryByText('Opening your wall…')).toBeNull();
   expect(screen.getByRole('button', { name: 'Load wall' })).toBeOnTheScreen();
   expect(mockTransport.getMine).not.toHaveBeenCalled();
@@ -347,8 +347,7 @@ it('does not reload the wall when only the auth token rotates', async () => {
 it('offers profile creation when the account has no public profile', async () => {
   mockTransport.getMine.mockRejectedValue(new ConvexError({ code: 'profile_required' }));
   await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
-  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393 } } });
-  expect(await screen.findByRole('button', { name: 'Create your wall' })).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'Create profile' })).toBeOnTheScreen();
 });
 
 it('clears a rendered wall immediately when its owner changes', async () => {
@@ -396,4 +395,27 @@ it('scrolls a newly hung artwork into view', async () => {
     expect((call?.[0] as { y: number }).y).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Sunflowers' })).toBeOnTheScreen();
   } finally { scrollTo.mockRestore(); }
+});
+
+it('shows a blank wall and opens Scan when there is no saved art', async () => {
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await render(<CollectionWall works={[]} />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Scan artwork' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/scan');
+  expect(screen.getByRole('image', { name: 'Your blank gallery wall' })).toBeOnTheScreen();
+  expect(screen.queryByText('Your own little museum.')).toBeNull();
+  let settle: (wall: OwnerWall) => void = () => {};
+  mockTransport.getMine.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+  await act(async () => { mockFocus?.(); });
+  expect(screen.getByLabelText('Refreshing wall')).toBeOnTheScreen();
+  await act(async () => { settle({ ...published, items: [] }); });
+  expect(screen.queryByLabelText('Refreshing wall')).toBeNull();
+});
+
+it('opens the editor from an empty wall when saved art is available', async () => {
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await render(<CollectionWall works={[{ localId: 'save-b' } as SavedWork]} />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Add artwork' }));
+  expect(await screen.findByRole('button', { name: 'Hang Sunflowers' })).toBeOnTheScreen();
+  expect(mockTransport.setLayout).not.toHaveBeenCalled();
 });

@@ -1,3 +1,6 @@
+import { EmptyState, SearchEmptyState } from '../empty-state';
+import { ArtworkCollage } from '../guest/artwork-preview';
+import { VisitKeepsake } from '../guest/visit-keepsake';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -42,8 +45,8 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
     <FlatList style={{ backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }} data={filtered} keyExtractor={(row) => row.id}
       ListHeaderComponent={<View style={{ gap: 10, paddingVertical: 14 }}>
-        <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.</Text>
-        {savedId && <GalleryButton label="Add a new visit" icon="plus" onPress={() => router.push({ pathname: '/visit-create', params: { savedId } })} />}
+        {rows.length > 0 && <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.</Text>}
+        {savedId && rows.length > 0 && <GalleryButton label="Add a new visit" icon="plus" onPress={() => router.push({ pathname: '/visit-create', params: { savedId } })} />}
         {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
       </View>}
       renderItem={({ item: row }) => {
@@ -61,10 +64,16 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
       }}
       ListEmptyComponent={query.error || encounters.error ? <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
         : !query.updatedAt && !rows.length ? <ListSkeleton label={savedId ? 'Loading visits…' : 'Loading artworks…'} />
-        : <SocialState title={search ? 'No matches.' : savedId ? 'No visits yet.' : 'No artworks yet.'}
-          detail={search ? 'Try another name.' : savedId ? 'Add a visit to link this artwork.' : 'Save an artwork before linking it to this visit.'}
-          action={search ? 'Clear search' : savedId ? undefined : 'Scan artwork'} onAction={search ? clearSearch : () => router.navigate('/scan')} />} />
-    <Stack.SearchBar ref={searchBar} placeholder={savedId ? 'Museum or visit date' : 'Title or artist'} hideWhenScrolling={false} autoCapitalize="none"
-      onChangeText={(event) => setSearch(event.nativeEvent.text)} onCancelButtonPress={() => setSearch('')} />
+        : search.trim() ? <SearchEmptyState title="No matches." detail={savedId ? 'Try a museum or visit date.' : 'Try another title or artist.'} onClear={clearSearch} />
+          : <EmptyState inset={false} title={savedId ? 'Give this artwork\na place in your day.' : 'Start with\none artwork.'}
+            detail={savedId ? 'Add a museum visit, then link this artwork to it.' : 'Scan an artwork to save it to this visit.'} visual={savedId ? <VisitKeepsake /> : <ArtworkCollage />}>
+            <GalleryButton label={savedId ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth onPress={() => {
+              if (savedId) router.push({ pathname: '/visit-create', params: { savedId } });
+              else { router.dismissAll(); router.navigate({ pathname: '/scan', params: { visitId } }); }
+            }} />
+            <GalleryButton label="Not now" fullWidth onPress={() => router.back()} />
+          </EmptyState>} />
+    {(rows.length > 0 || !!search.trim()) && <Stack.SearchBar ref={searchBar} placeholder={savedId ? 'Museum or visit date' : 'Title or artist'} hideWhenScrolling={false} autoCapitalize="none"
+      onChangeText={(event) => setSearch(event.nativeEvent.text)} onCancelButtonPress={() => setSearch('')} />}
   </>;
 }

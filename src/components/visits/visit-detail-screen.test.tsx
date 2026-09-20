@@ -109,7 +109,7 @@ it('shows search immediately and keeps it visible after clearing the filter', as
   expect(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
   await fireEvent.changeText(screen.getByLabelText('Search visit artworks'), 'unmatched');
   expect(screen.queryByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeNull();
-  expect(screen.getByText('No artworks match this search.')).toBeOnTheScreen();
+  expect(screen.getByText('No artworks found.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
   expect(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
   expect(screen.getByLabelText('Search visit artworks')).toHaveProp('value', '');

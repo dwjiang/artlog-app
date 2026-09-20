@@ -1,3 +1,4 @@
+import { SearchEmptyState } from '../empty-state';
 import { Host } from '@expo/ui';
 import { DatePicker } from '@expo/ui/swift-ui';
 import { datePickerStyle, tint } from '@expo/ui/swift-ui/modifiers';
@@ -86,7 +87,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
           onChangeText={setQuery} autoCorrect={false} style={styles.input} returnKeyType="search" />
         {searching ? <VisitMessage loading skeleton="list">Searching museums…</VisitMessage> : searchError ? <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>{searchError}</VisitMessage>
           : query.trim().length < 2 ? <Text style={styles.caption}>Enter at least two characters.</Text>
-          : !venues.length ? <Text style={styles.caption}>No museums match. Try the city or a shorter name.</Text> : null}
+          : !venues.length ? <SearchEmptyState title="No museums found." detail="Try the city or a shorter name." onClear={() => setQuery('')} /> : null}
         {venues.map((row) => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`${row.name}, ${venueLocation(row).location || row.name}`}
           style={styles.card} onPress={() => chooseVenue(row)}>
           <Text style={styles.body}>{row.name}</Text><Text style={styles.caption}>{venueLocation(row).location}</Text>
