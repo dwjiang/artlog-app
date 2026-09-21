@@ -83,7 +83,7 @@ it('saves an untouched confident card locally and passes the suggestion to the s
   expect(row).toMatchObject({
     title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art',
     venueId: 'museum-met', venueName: 'The Met', visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', gallery: 'Gallery 819',
-    objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
+    objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.preview.jpg',
   });
   await synced;
   expect(getFunctionName).toBeDefined();

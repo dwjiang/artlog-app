@@ -36,7 +36,7 @@ import { GalleryButton } from '@/components/collection/gallery-button';
 import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import { captureFileUri } from '@/lib/files/photos';
+import { captureFileUri, scanPreviewPath } from '@/lib/files/photos';
 import { useMuseumSearch } from '@/lib/museum-search/use-museum-search';
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
@@ -128,7 +128,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   if (completion) return <CaptureCompletion completion={completion} />;
 
   const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
-  const header = <CardHeader cropUri={capture ? captureFileUri(capture.cropPath) : undefined} artworkTitle={view.primary?.title}
+  const header = <CardHeader cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined} artworkTitle={view.primary?.title}
     loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>

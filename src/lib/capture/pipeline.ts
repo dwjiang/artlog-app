@@ -60,6 +60,7 @@ export async function runCapture(
       capturedAt: input.capturedAt,
       photoUri: input.photoUri,
       cropUri,
+      contentBounds: prepared.contentBounds,
     };
     if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     const online = deps.isOnline() && !!current.scope && current.isCurrent();

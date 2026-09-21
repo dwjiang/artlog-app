@@ -1,5 +1,8 @@
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
+
+import type { CropContentBounds } from '../../../modules/vision-rect/src';
 
 export type CaptureFiles = { photoPath: string; cropPath: string };
 export type CapturePaths = { photoPath?: string | null; cropPath?: string | null; labelPhotoPath?: string | null };
@@ -23,15 +26,32 @@ export function captureFileUri(path: string): string {
   return new File(Paths.document, path).uri;
 }
 
+// Each scan owns a model crop and a sibling preview containing only the artwork.
+export function scanPreviewPath(cropPath: string): string {
+  return cropPath.replace(/\.[^/.]+$/, '') + '.preview.jpg';
+}
+
 export async function persistArtworkPhoto(uri: string, localId: string): Promise<string> {
   return moveInto('artwork-photos', uri, localId);
 }
 
-/** Moves the full-frame photo and the crop out of the caches so they last until the scan is saved or dismissed. */
 export async function persistCapture(
-  { photoUri, cropUri, localId }: { photoUri: string; cropUri: string; localId: string },
+  { photoUri, cropUri, localId, contentBounds }: { photoUri: string; cropUri: string; localId: string; contentBounds: CropContentBounds },
 ): Promise<CaptureFiles> {
-  return { photoPath: await moveInto('photos', photoUri, localId), cropPath: await moveInto('crops', cropUri, localId) };
+  const context = ImageManipulator.manipulate(cropUri);
+  let image: ImageRef | undefined;
+  try {
+    const { x, y, width, height } = contentBounds;
+    image = await context.crop({ originX: x, originY: y, width, height }).renderAsync();
+    const preview = await image.saveAsync({ format: SaveFormat.JPEG, compress: 1 });
+    const photoPath = await moveInto('photos', photoUri, localId);
+    const cropPath = await moveInto('crops', cropUri, localId);
+    await new File(preview.uri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
+    return { photoPath, cropPath };
+  } finally {
+    image?.release();
+    context.release();
+  }
 }
 
 /** Keeps a label photo captured offline beside the scan until the queue reads it. */
@@ -40,7 +60,7 @@ export async function persistLabelPhoto({ photoUri, localId }: { photoUri: strin
 }
 
 export function deleteCapture(paths: CapturePaths): void {
-  for (const path of [paths.photoPath, paths.cropPath, paths.labelPhotoPath]) {
+  for (const path of [paths.photoPath, paths.cropPath, paths.cropPath && scanPreviewPath(paths.cropPath), paths.labelPhotoPath]) {
     if (!path) continue;
     const file = new File(captureFileUri(path));
     if (file.exists) file.delete();

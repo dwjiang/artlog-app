@@ -14,6 +14,7 @@ import { getVisit } from '@/db/repos/visits';
 import type { PendingScan } from '@/db/schema';
 import { convex } from '@/lib/convex-client';
 import { venueNameById } from '@/lib/venue/venue-db';
+import { scanPreviewPath } from '@/lib/files/photos';
 import type { ContributeInput } from '../label/contribute';
 import { shareSavedLabel, type ContributionAttempt } from '../label/share-saved-label';
 import { buildSnapshot, type SnapshotDraft } from './snapshot';
@@ -85,7 +86,7 @@ export async function saveResult({ scanId, capture, view, draft, contribution }:
   saveArtworkSession(localId, existing ? undefined : { localId, savedAt, ...snapshot,
     visitLocalId: visit?.localId, venueId, venueName, gallery: primary?.gallery,
     objectId: primary?.objectId, artworkId: primary?.artworkId, scanId,
-    photoPath: capture.photoPath, cropPath: capture.cropPath }, additional, visit?.localId, current.owner);
+    photoPath: capture.photoPath, cropPath: scanPreviewPath(capture.cropPath) }, additional, visit?.localId, current.owner);
   clearPhotoDraft(current.owner, capture.photoPath);
   const synced = (async () => {
     if (!current.scope || !current.isCurrent()) return;

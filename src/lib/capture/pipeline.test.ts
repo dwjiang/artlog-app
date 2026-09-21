@@ -207,7 +207,7 @@ it('starts preparation presentation concurrently but retains images before persi
   retained();
   expect(await pending).toMatchObject({ kind: 'sent' });
   expect(deps.identify).toHaveBeenCalledTimes(1);
-  expect(deps.store.enqueue.mock.calls[0][0]).not.toHaveProperty('contentBounds');
+  expect(deps.store.enqueue.mock.calls[0][0]).toHaveProperty('contentBounds', painting.contentBounds);
 });
 
 it('preserves recognition when presentation decoding fails', async () => {

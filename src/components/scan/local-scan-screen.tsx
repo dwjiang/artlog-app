@@ -20,7 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
 import { selectPendingScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import { captureFileUri } from '@/lib/files/photos';
+import { captureFileUri, scanPreviewPath } from '@/lib/files/photos';
 import { retryPendingScan } from '@/lib/queue/queue';
 import { useSaveResult } from '@/lib/result/use-save-result';
 
@@ -93,7 +93,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         keyboardDismissMode="interactive"
         contentContainerStyle={styles.content}
       >
-        {row && <CardHeader cropUri={captureFileUri(row.cropPath)} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
+        {row && <CardHeader cropUri={captureFileUri(scanPreviewPath(row.cropPath))} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
         {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
         {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
           : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
