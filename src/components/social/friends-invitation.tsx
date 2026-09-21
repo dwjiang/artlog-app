@@ -5,8 +5,8 @@ import { SocialInvitation } from './social-invitation';
 
 export function FriendsInvitation({ onExplore }: { onExplore: () => void }) {
   const account = useAccount();
-  return <SocialInvitation title={'Find your\nart people.'} detail="Connect with friends to see their museum visits and the art they love.">
+  return <SocialInvitation title={'Find your\nfriends.'} detail="Connect with friends to see their museum visits and the art they love.">
     <AppleSignInAction state={account} />
-    <GalleryButton label="Explore people" fullWidth onPress={onExplore} />
+    <GalleryButton label="Find friends" fullWidth onPress={onExplore} />
   </SocialInvitation>;
 }

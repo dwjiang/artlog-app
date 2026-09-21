@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Image } from 'expo-image';
-import { Gallery, Typography } from '@/constants/theme';
+import { Gallery, Radius, Typography } from '@/constants/theme';
 import { GalleryButton } from '../collection/gallery-button';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
@@ -52,7 +52,7 @@ export const visitStyles = StyleSheet.create({
   body: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
   loadingMessage: { textAlign: 'center' },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  card: { padding: 16, gap: 10, backgroundColor: Gallery.paper, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  card: { padding: 16, gap: 10, backgroundColor: Gallery.surface, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.card, borderColor: Gallery.softBorder },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   previews: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
   thumbnail: { backgroundColor: Gallery.fill, borderRadius: 2 },

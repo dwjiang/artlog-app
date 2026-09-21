@@ -5,7 +5,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { createContext, use, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
-import { Gallery, NavigationTheme } from '@/constants/theme';
+import { Gallery, NavigationTheme, Radius } from '@/constants/theme';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
@@ -48,7 +48,7 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
   return <ShareContext value={{ sharing, visit }}>
     <View style={{ flex: 1 }}>
       <Stack screenOptions={NavigationTheme}>
-        <Stack.Screen name="index" options={{ title: 'Save visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
+        <Stack.Screen name="index" options={{ title: 'Share visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
         <Stack.Screen name="preview" options={{ title: 'Preview', headerBackTitle: 'Edit' }} />
         <Stack.Screen name="shared" options={{ title: 'Shared visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
       </Stack>
@@ -113,7 +113,7 @@ export function VisitShareScreen() {
   return <FlatList data={visit.works} keyExtractor={(work) => work.localId} contentInsetAdjustmentBehavior="automatic"
     keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}
     ListHeaderComponent={<View style={{ gap: 18 }}>
-      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what travels.</Text>
+      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what to share.</Text>
       <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · Public</Text>
       {active && <View style={styles.card}>
         <Text style={styles.body}>Public</Text>
@@ -126,7 +126,7 @@ export function VisitShareScreen() {
           {lead.map((work) => <SavedWorkImage key={work.localId} contain path={previewPhotoPath(work.localId)} title={work.title} style={share.leadThumb} />)}
           <Text style={share.leadCopy}>{selected.size > 3 ? `+${selected.size - 3} more inside the visit` : selected.size ? 'Every selected artwork opens in the visit' : 'Select artworks to fill the feed card'}</Text>
         </View>
-        <Text style={styles.fine}>Tap a numbered circle to remove a highlight, then a star to choose another. Empty preview spots use the next selected artwork.</Text>
+        <Text style={styles.fine}>Star up to 3 artworks to lead your visit.</Text>
         <View style={styles.sectionLabel}><Text style={share.sectionTitle}>Shared artworks</Text>
           <Text style={styles.fine}>{selected.size}/{LIMITS.selectedSaves} selected</Text></View>
         <GalleryButton label="Deselect all" disabled={sharing.busy || !selected.size} onPress={() => controller.edit({ saveLocalIds: [] })} />
@@ -170,15 +170,14 @@ export function VisitShareScreen() {
       <PrivacyNote>Only selected photos from this visit are shared. Artwork notes, wall-label photos, and photos from other visits are not added automatically. Adding a photo later will not share it.</PrivacyNote>
       <GalleryButton label={sharing.conflict ? 'Refresh preview' : 'Preview shared visit'} busy={sharing.busy} busyLabel="Preparing preview…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.acknowledged?.removed} onPress={() => { void preview(); }} />
-      <Text style={styles.fine}>The preview is not a limit. The full visit shows every artwork you select, ordered by highlights first.</Text>
     </View>} />;
 }
 export function VisitSharePreviewScreen() {
-  const { sharing } = useShareFlow();
+  const { sharing, visit } = useShareFlow();
   const { preview, controller } = sharing;
   const active = sharing.acknowledged?.status === 'active';
   async function publish() {
-    if (await controller.publish()) { showToast(active ? 'Shared visit updated.' : 'Visit shared publicly.'); router.back(); }
+    if (await controller.publish()) { showToast(active ? 'Shared visit updated.' : 'Visit shared publicly.'); router.replace({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } }); }
   }
   if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
   // Match the published order, with highlights first.
@@ -224,11 +223,11 @@ const share = StyleSheet.create({
   lead: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 10, borderRadius: 9, backgroundColor: Gallery.fill },
   leadThumb: { width: 54, height: 54, borderRadius: 2, backgroundColor: Gallery.fill },
   leadCopy: { flex: 1, marginLeft: 'auto', textAlign: 'right', fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  item: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, borderRadius: 0, marginBottom: 16, overflow: 'hidden' },
+  item: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.softBorder, borderRadius: Radius.card, backgroundColor: Gallery.surface, marginBottom: 12, overflow: 'hidden' },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingTop: 9, paddingBottom: 5 },
   choice: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 44 },
-  thumb: { width: 44, height: 44, borderRadius: 2, backgroundColor: Gallery.fill },
-  itemTitle: { fontSize: 13, lineHeight: 18, color: Gallery.ink },
+  thumb: { width: 52, height: 60, borderRadius: 2, backgroundColor: Gallery.fill },
+  itemTitle: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: Gallery.ink },
   itemArtist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2 },
   highlight: { minWidth: 44, minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, alignItems: 'center', justifyContent: 'center' },
   highlightOn: { backgroundColor: Gallery.highlight, borderColor: Gallery.highlight },

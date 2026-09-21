@@ -28,7 +28,7 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       </Stack.Toolbar.MenuAction>
       <Stack.Toolbar.MenuAction onPress={() => router.push({ pathname: '/add-photos', params: { draftId: `saved:${work.localId}`, savedId: work.localId, title: work.title, visitId } })}>Add photos</Stack.Toolbar.MenuAction>
       <Stack.Toolbar.MenuAction onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })}>Link visit</Stack.Toolbar.MenuAction>
-      <Stack.Toolbar.MenuAction destructive onPress={() => { scheduleRemoval({ owner: work.owner, localId: work.localId, title: work.title }); router.back(); }}>Remove from collection</Stack.Toolbar.MenuAction>
+      <Stack.Toolbar.MenuAction icon="trash" destructive onPress={() => { scheduleRemoval({ owner: work.owner, localId: work.localId, title: work.title }); router.back(); }}>Remove from collection</Stack.Toolbar.MenuAction>
     </Stack.Toolbar.Menu>
   </Stack.Toolbar>;
 }

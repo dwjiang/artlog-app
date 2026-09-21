@@ -18,14 +18,14 @@ jest.mock('./globe-canvas', () => {
 const visit = (localId: string, venueId: string, city: string): VisitSummary => ({ localId, venueId, venueName: venueId, city, cityKey: city,
   visitedOn: '2024-02-29', coordinates: { latitude: 40, longitude: -73 }, works: [] } as unknown as VisitSummary);
 beforeEach(() => jest.clearAllMocks());
-it('renders one pin per museum and opens the selected place grouped by museum', async () => {
+it('renders one pin per museum and opens the selected museum’s visits', async () => {
   await render(<VisitGlobe visits={[visit('1', 'Met', 'New York'), visit('2', 'Met', 'New York'), visit('3', 'MoMA', 'New York'), visit('4', 'Louvre', 'Paris')]} onList={jest.fn()} />);
   expect(screen.getAllByRole('button', { name: /^Pin:/ })).toHaveLength(3);
-  expect(screen.getByText('2 museums · 3 visits')).toBeOnTheScreen();
+  expect(screen.getByText('2 visits · 0 artworks')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Pin: Louvre' }));
-  expect(screen.getByText('1 museum · 1 visit')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits here' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'Paris', name: 'Paris' } });
+  expect(screen.getByText('1 visit · 0 artworks')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits to Louvre' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'Paris', name: 'Louvre', venueId: 'Louvre' } });
 });
 it('supports menu selection without marker callbacks and provides globe zoom and reset', async () => {
   await render(<VisitGlobe visits={[visit('1', 'Met', 'New York'), visit('2', 'Louvre', 'Paris')]} onList={jest.fn()} />);
@@ -43,6 +43,6 @@ it('keeps visits without coordinates available through List', async () => {
 });
 it('dismisses the expanded modal into the museum visit browser', async () => {
   await render(<VisitGlobe visits={[visit('1', 'Met', 'New York')]} expanded onList={jest.fn()} />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits here' }));
-  expect(mockDismissTo).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'New York', name: 'New York' } });
+  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits to Met' }));
+  expect(mockDismissTo).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'New York', name: 'Met', venueId: 'Met' } });
 });

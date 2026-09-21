@@ -52,7 +52,7 @@ export function PublicNotesScreen() {
   </>;
   const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
   if (!eligible.length && !wall.error) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
-    <EmptyState title="Let them in on what you noticed." detail="Add a private note to an artwork on your wall. After it syncs, you can choose whether to show it here."
+    <EmptyState title="No notes to share yet." detail="Add a private note to an artwork on your wall. After it syncs, you can choose whether to show it here."
       visual={<EmptyPaper kind="note" />} footnote="Notes stay private unless you choose to share them.">
       <GalleryButton label="Go to your wall" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate({ pathname: '/collection', params: { view: 'wall' } }); }} />
     </EmptyState>

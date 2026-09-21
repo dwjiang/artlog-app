@@ -159,8 +159,10 @@ it('names the public audience before publishing and allows returning to selectio
   expect(mockController.publish).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit selection' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
+  mockController.publish.mockResolvedValueOnce(true);
   await fireEvent.press(screen.getByRole('button', { name: 'Publish visit' }));
   expect(mockController.publish).toHaveBeenCalledTimes(1);
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/visit-share/[visitId]/shared', params: { visitId: 'visit' } });
 });
 
 it('shows the sign-in gate for a guest opening the shared-version route', async () => {

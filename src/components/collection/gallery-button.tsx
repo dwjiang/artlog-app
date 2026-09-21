@@ -20,6 +20,7 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
   const expand = fullWidth ?? fontScale >= 1.5;
   const accent = destructive ? Gallery.destructive : inverse ? Gallery.surface : tone === 'ink' ? Gallery.ink : Gallery.accent;
   const foreground = variant === 'filled' ? inverse ? Gallery.ink : Gallery.surface : accent;
+  const minHeight = variant === 'filled' && expand ? 52 : 44;
   useEffect(() => {
     if (busy) AccessibilityInfo.announceForAccessibility(`${accessibilityLabel}. In progress.`);
   }, [busy, accessibilityLabel]);
@@ -30,13 +31,13 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
     {/* The enclosing screen handles insets; native safe areas would displace labels as the button scrolls. */}
     <Host key={fontScale} matchContents={expand ? { vertical: true } : true} ignoreSafeArea="all" colorScheme="light" seedColor={accent}
       style={{ maxWidth: '100%', borderRadius: Radius.button, backgroundColor: variant === 'filled' ? accent : 'transparent',
-        borderWidth: variant === 'outlined' ? 1 : 0, borderColor: accent, opacity: disabled && !busy ? 0.5 : 1, ...(expand ? { width: '100%' } : {}) }}>
+        borderWidth: variant === 'outlined' ? 1 : 0, borderColor: destructive ? Gallery.destructive : Gallery.accentBorder, opacity: disabled && !busy ? 0.5 : 1, ...(expand ? { width: '100%' } : {}) }}>
     <Button onPress={onPress} disabled={disabled || busy} variant={variant}
       style={{ paddingHorizontal: variant === 'text' ? 0 : Spacing.compact }}
       modifiers={[accessibilityLabelModifier(accessibilityLabel), accessibilityValue(busy ? busyLabel : ''),
-        frame({ minHeight: 44, ...(expand ? { maxWidth: Infinity } : {}) }),
+        frame({ minHeight, ...(expand ? { maxWidth: Infinity } : {}) }),
         buttonStyle('plain'), tint(accent)]}>
-        <Row spacing={Spacing.two} alignment="center" modifiers={[frame({ minHeight: 44, minWidth: 44, ...(expand ? { maxWidth: Infinity } : {}) }), contentShape(shapes.rectangle()), opacity(busy ? 0 : 1)]}>
+        <Row spacing={Spacing.two} alignment="center" modifiers={[frame({ minHeight, minWidth: 44, ...(expand ? { maxWidth: Infinity } : {}) }), contentShape(shapes.rectangle()), opacity(busy ? 0 : 1)]}>
           {icon && iconPosition === 'leading' && <Icon name={icon} size={17} color={foreground} />}
           <NativeText textStyle={{ color: foreground }} modifiers={[font({ textStyle: 'body', weight: variant === 'filled' ? 'semibold' : 'regular' }), fixedSize({ horizontal: false, vertical: true }), multilineTextAlignment('center')]}>{label}</NativeText>
           {icon && iconPosition === 'trailing' && <Icon name={icon} size={17} color={foreground} />}

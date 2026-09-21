@@ -10,15 +10,15 @@ import { VisitTimeline } from './visit-timeline';
 import { VisitMessage, VisitPage } from './visit-ui';
 
 export function VisitPlaceScreen() {
-  const { placeKey, name } = useLocalSearchParams<{ placeKey: string; name: string }>();
+  const { placeKey, name, venueId } = useLocalSearchParams<{ placeKey: string; name: string; venueId?: string }>();
   const { visits, loading, error } = useVisits();
-  const matches = visitsAtPlace(visits, placeKey);
+  const matches = visitsAtPlace(visits, placeKey).filter((visit) => !venueId || visit.venueId === venueId);
   return <><Stack.Screen options={{ title: name || 'Visits by museum' }} />
     {error || loading ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
       {error ? 'Visits could not load.' : 'Loading visits…'}
     </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="A place still to discover." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
       <GalleryButton label="Back to Collection" onPress={() => router.back()} />
-    </EmptyState></VisitPage> : <VisitTimeline visits={matches} groupByMuseum />}</>;
+    </EmptyState></VisitPage> : <VisitTimeline visits={matches} groupByMuseum={!venueId} />}</>;
 }
 export function VisitGlobeScreen() {
   const owner = useLocalOwner();

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { VisitBar } from '@/components/visits/visit-bar';
+import { TabBarVisibility } from '@/components/tab-bar-visibility';
 import { Gallery } from '@/constants/theme';
 import { useVenue } from '@/lib/venue/use-venue';
 
@@ -38,12 +39,14 @@ function useSelectedTab(): string | undefined {
 }
 
 export default function TabsLayout() {
+  const [hidden, setHidden] = useState(false);
   const { visit } = useVenue();
   const selectedTab = useSelectedTab();
   // The camera has the venue pill; the bar there would crowd the shutter.
-  const showVisitBar = !!visit && selectedTab !== '(scan)';
+  const showVisitBar = !!visit && selectedTab !== '(scan)' && !hidden;
   return (
-    <NativeTabs tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
+    <TabBarVisibility value={setHidden}>
+    <NativeTabs hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
       {showVisitBar && <NativeTabs.BottomAccessory><VisitAccessory /></NativeTabs.BottomAccessory>}
       <NativeTabs.Trigger name="(home)">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
@@ -60,5 +63,6 @@ export default function TabsLayout() {
         />
       </NativeTabs.Trigger>
     </NativeTabs>
+    </TabBarVisibility>
   );
 }

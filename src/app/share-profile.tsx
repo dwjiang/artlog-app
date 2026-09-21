@@ -1,9 +1,6 @@
-import { Stack, useRouter } from 'expo-router';
+import { GalleryBackToolbar } from '@/components/gallery-back-toolbar';
 import { ShareProfileScreen } from '@/components/social/share-profile-screen';
 
 export default function Route() {
-  const router = useRouter();
-  return <><ShareProfileScreen /><Stack.Toolbar placement="right">
-    <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
-  </Stack.Toolbar></>;
+  return <><GalleryBackToolbar /><ShareProfileScreen /></>;
 }

@@ -103,8 +103,8 @@ export function LeaderboardScreen() {
         : board.loading && !board.error ? <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
             : board.data ? <EmptyState title={audience === 'friends' ? 'A little friendly inspiration.' : period === 'month' ? 'The month is yours to start.' : 'A little inspiration starts here.'}
-              detail={audience === 'friends' ? 'No friends on this board yet. Find your people and share the inspiration.' : metric === 'visits' ? 'No visits on this board yet. Log a museum visit to get started.' : 'No artworks on this board yet. Scan an artwork to get started.'} visual={<EmptyPodium />}>
-              <GalleryButton label={audience === 'friends' ? 'Find people' : metric === 'visits' ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth
+              detail={audience === 'friends' ? 'No friends on this board yet. Find your friends and share the inspiration.' : metric === 'visits' ? 'No visits on this board yet. Log a museum visit to get started.' : 'No artworks on this board yet. Scan an artwork to get started.'} visual={<EmptyPodium />}>
+              <GalleryButton label={audience === 'friends' ? 'Find friends' : metric === 'visits' ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth
                 onPress={() => {
                   if (audience === 'friends') router.push('/people');
                   else if (metric === 'visits') router.push('/visit-create');

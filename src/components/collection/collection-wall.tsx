@@ -9,7 +9,8 @@ import type { ReactElement } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomTabInset, Gallery } from '@/constants/theme';
+import { Gallery, Radius } from '@/constants/theme';
+import { useHideTabBar } from '@/components/tab-bar-visibility';
 import type { SavedWork } from '@/db/schema';
 import { useCollectionWall } from '@/lib/wall/use-collection-wall';
 import { constrainLayout, isLightWall, nextWallLayout, removeWallPiece, type WallDraft, type WallLayout } from '@/lib/wall/wall-layout';
@@ -22,10 +23,9 @@ import { signInRoute } from '@/lib/account/sign-in-context';
 import { WallArtworkSheet } from './wall-sheets';
 import { WallProfileSheet } from './wall-profile-sheet';
 import { WallGallery } from './wall-gallery';
-import { WallFramePicker } from './wall-options';
 import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
-import { WallFrame } from './wall-frame';
+import { WallFrame, wallFrameInset } from './wall-frame';
 import { WallPhotoSheet } from './wall-photo-sheet';
 
 type CollectionWallProps = { works: SavedWork[]; hiddenIds?: string[]; onEditingChange?: (editing: boolean) => void; header?: ReactElement; controls?: ReactElement };
@@ -39,9 +39,12 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false), [width, setWidth] = useState(0);
+  useHideTabBar(editing);
+  const [viewportHeight, setViewportHeight] = useState(0), [canvasTop, setCanvasTop] = useState(0);
   const [profile, setProfile] = useState(false), [options, setOptions] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
-  const [photoPicker, setPhotoPicker] = useState<'choose' | 'duplicate'>();
+  // The photo sheet waits for the artwork sheet to finish dismissing: iOS drops a sheet presented while another animates out.
+  const [photoPicker, setPhotoPicker] = useState<{ kind: 'choose' | 'duplicate'; presented: boolean }>();
   const scroll = useRef<ScrollView>(null), wallTop = useRef(0), controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
   const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
@@ -52,7 +55,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
   const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
   const hasSavedArt = works.some((work) => !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
-  const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId) && !wall.draft?.items.some((piece) => piece.saveLocalId === item.localId));
+  const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave;
   useEffect(() => {
@@ -127,13 +130,19 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     return true;
   }
 
-  return <GestureHandlerRootView style={styles.root}>
-    <ScrollView ref={scroll} contentContainerStyle={{ flexGrow: 1 }} scrollEnabled={!wall.pending} stickyHeaderIndices={[header ? 1 : 0]}
+  function finishEditing() { changeEditing(false); setSelectedId(undefined); setOptions(false); }
+
+  return <GestureHandlerRootView style={[styles.root, { backgroundColor: color }]}>
+    <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} scrollEnabled={!wall.pending} stickyHeaderIndices={[header && !editing ? 1 : 0]}
+      onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
       refreshControl={wall.signedIn && !editing ? <RefreshControl refreshing={wall.loading} tintColor="transparent" onRefresh={() => { void wall.refresh(); }} /> : undefined}>
-    {header}
-    <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{controls}
+    {!editing && header}
+    <View onLayout={(event) => { controlsHeight.current = event.nativeEvent.layout.height; }} style={{ backgroundColor: Gallery.paper }}>{!editing && controls}
     <View style={styles.toolbar}>
-      {blank ? <>
+      {editing ? <>
+        <Text variant="section" accessibilityRole="header">Edit wall</Text>
+        <Text variant="metadata" themeColor="textSecondary">{wall.pending ? 'Saving…' : failedSave ? 'Not saved' : 'Changes saved'}</Text>
+      </> : blank ? <>
         <GalleryButton label="0 on wall" icon="chevron.down" iconPosition="trailing" tone="ink" onPress={() => router.push('/all-artworks')} />
         <View style={styles.toolbarTrailing}>
           {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
@@ -148,17 +157,16 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         </View>
       </> : <>
 
-      <GalleryButton label="All artworks" icon="chevron.down" iconPosition="trailing" tone="ink" disabled={blocked}
-        onPress={() => { changeEditing(false); setSelectedId(undefined); router.push('/all-artworks'); }} />
+      <GalleryButton label="Edit wall" icon="slider.horizontal.3" disabled={blocked || !wall.draft} onPress={edit} />
       <View style={styles.toolbarTrailing}>
         {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
-        <GalleryButton label={editing ? 'Done' : 'Edit wall'} busy={wall.pending}
-          disabled={blocked || (!editing && !wall.draft)} onPress={editing ? () => { changeEditing(false); setSelectedId(undefined); } : edit} />
+        <GalleryButton label="All artworks" icon="chevron.right" iconPosition="trailing" tone="ink" disabled={blocked}
+          onPress={() => router.push('/all-artworks')} />
       </View>
     </>}
     </View>
     </View>
-    {editing && <Text style={styles.publicNotice}>Changes to your wall are public. They don’t create feed posts.</Text>}
+    {editing && <Text style={styles.publicNotice}>Hold and drag to move. Drag a corner to resize.</Text>}
     {editing && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, minHeight: 52 }} contentContainerStyle={styles.swatches}>
       <Text style={styles.caption}>Wall color</Text>
       {Gallery.colors.map(({ name, value: swatchColor }) => <Pressable key={swatchColor} accessibilityRole="button" accessibilityLabel={`${name} wall`}
@@ -175,63 +183,77 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
       </View> : <GalleryButton label="Try again" onPress={() => { void wall.refresh(); }} />}</View>}
       {blank ? <View accessible accessibilityRole="image" accessibilityLabel="Your blank gallery wall" style={[styles.blankWall, { backgroundColor: color === DEFAULT_WALL_COLOR ? '#EFEEE7' : color }]}>
         <View style={styles.baseboard} /><View style={styles.floor} />
-      </View> : <View accessibilityLabel="Collection wall" onLayout={(event) => { setWidth(event.nativeEvent.layout.width); wallTop.current = event.nativeEvent.layout.y; }}>
-        {width > 0 && <WallGallery pieces={pieces} color={color} width={width} editing={editing && !blocked}
+      </View> : <View accessibilityLabel="Collection wall" style={{ flexGrow: 1 }} onLayout={(event) => { setWidth(event.nativeEvent.layout.width); wallTop.current = event.nativeEvent.layout.y; setCanvasTop(event.nativeEvent.layout.y); }}>
+        {width > 0 && <WallGallery pieces={pieces} color={color} width={width} minHeight={Math.max(280, viewportHeight - canvasTop)} editing={editing && !blocked}
           selectedId={selectedId} onRemove={remove} onMove={move} onSelect={(piece) => {
             if (editing) setSelectedId(piece.localId);
             else if (works.some((work) => work.localId === piece.saveLocalId)) router.push({ pathname: '/saved/[savedId]', params: { savedId: piece.saveLocalId!, photoId: piece.photoLocalId } });
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Your own little museum.'}</Text>
+            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Make room for your favorites.'}</Text>
             {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
             {opening ? <LoadingRing color={wallInk} />
               : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
         </WallGallery>}
       </View>}
-      {!editing && !blank && <Text style={styles.footer}>Your wall is public. Visits and private notes stay separate.</Text>}
+      {/* The root carries the wall color so bottom overscroll continues the wall; the header above it is paper, so top overscroll stays paper too. */}
+      <View pointerEvents="none" style={styles.topOverscroll} />
     </ScrollView>
-    {editing && <View style={[styles.tray, { paddingBottom: BottomTabInset + insets.bottom }]}>
-      {selected ? <>
-        <View style={styles.trayHeading}><GalleryButton label="All saved art" icon="chevron.left" onPress={() => setSelectedId(undefined)} />
-          <GalleryButton label="Size & position" onPress={() => setOptions(true)} disabled={blocked} /></View>
-        <Text style={[styles.caption, { paddingHorizontal: 20 }]}>Frame for {selected.artwork.title}</Text>
-        <WallFramePicker piece={selected} value={selected.layout.frame} disabled={blocked} onChange={(frame) => move(selected.localId, { ...selected.layout, frame })} />
-        <View style={styles.trayHeading}><GalleryButton label="Choose photo" icon="photo" disabled={blocked} onPress={() => setPhotoPicker('choose')} />
-          <GalleryButton label="Hang another photo" icon="plus" disabled={blocked || count >= LIMITS.wallItems} onPress={() => setPhotoPicker('duplicate')} /></View>
-      </> : <>
-        <Text style={[styles.caption, { paddingHorizontal: 20, paddingTop: 12 }]}>Not on the wall ({available.length})</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, padding: 18, alignItems: 'center' }}>
-          {available.map((item) => <Pressable key={item.localId} accessibilityRole="button" accessibilityLabel={`Hang ${item.snapshot.title}`}
-            disabled={blocked || count >= LIMITS.wallItems} onPress={() => { if (add(item.localId)) showToast('Selected image added to your wall. Other photos stay private.'); }} style={{ width: 66 * fontScale, alignItems: 'center', gap: 7 }}>
-            <WallFrame frame={DEFAULT_THUMBNAIL_FRAME} width={54}><SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))} title={item.snapshot.title} contain style={{ width: 54, height: 49 }} /></WallFrame>
-            <Text style={{ fontSize: 13, color: Gallery.muted }}>{item.snapshot.artist}</Text>
-          </Pressable>)}
+    {editing && <View style={[styles.tray, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <Text variant="metadata" style={styles.trayLabel}>Saved artworks · selected photos are public</Text>
+        <ScrollView horizontal accessibilityLabel="Saved artworks" showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artworkStrip}>
+          {available.map((item) => {
+            const placement = pieces.find((piece) => piece.saveLocalId === item.localId);
+            const isSelected = selected?.saveLocalId === item.localId;
+            const frame = placement?.layout.frame ?? DEFAULT_THUMBNAIL_FRAME;
+            const imageWidth = 88 - wallFrameInset(frame, 88) * 2;
+            const disabled = blocked || (!placement && count >= LIMITS.wallItems);
+            return <Pressable key={item.localId} accessibilityRole="button" accessibilityLabel={`${placement ? 'Select' : 'Hang'} ${item.snapshot.title}`}
+              accessibilityState={{ selected: isSelected, disabled }} disabled={disabled} onPress={() => {
+                if (placement) { setSelectedId(placement.localId); revealId.current = placement.localId; }
+                else if (add(item.localId)) showToast('Selected image added to your wall. Other photos stay private.');
+              }} style={[styles.artworkCard, { width: 140 * Math.min(fontScale, 1.5), borderColor: isSelected ? Gallery.accent : Gallery.softBorder, borderWidth: isSelected ? 2 : 1 }]}>
+              <View style={styles.artworkMat}><WallFrame frame={frame} width={88}>
+                <SavedWorkImage path={works.find((work) => work.localId === item.localId)?.cropPath ?? null} syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))} title={item.snapshot.title} contain style={{ width: imageWidth, height: 60 }} />
+              </WallFrame></View>
+              <Text numberOfLines={1} variant="metadata" style={{ fontWeight: '600' }}>{item.snapshot.title}</Text>
+              <Text numberOfLines={1} variant="metadata" themeColor="textSecondary">{item.snapshot.artist}</Text>
+            </Pressable>;
+          })}
           {wall.loadingSelections ? <LoadingRing color={Gallery.accent} /> : wall.cursor !== null ? <GalleryButton label="More artworks" disabled={blocked} onPress={() => { void wall.loadSelections(); }} />
-            : !available.length ? <Text style={styles.caption}>{works.length ? 'Everything is on the wall.' : 'Save an artwork to add it to your wall.'}</Text> : null}
+            : !available.length ? <Text style={styles.caption}>Save an artwork to add it to your wall.</Text> : null}
         </ScrollView>
-      </>}
+        <View style={styles.trayActions}>
+          <View style={{ flex: 1 }}><GalleryButton label="Frame & photo" icon="slider.horizontal.3" variant="outlined" fullWidth disabled={!selected || blocked} onPress={() => setOptions(true)} /></View>
+          <View style={{ flex: 1 }}><GalleryButton label="Done" variant="filled" fullWidth busy={wall.pending} disabled={blocked} onPress={finishEditing} /></View>
+        </View>
     </View>}
-    {photoPicker && selected?.saveLocalId && <WallPhotoSheet savedId={selected.saveLocalId} title={selected.artwork.title} photoId={selected.photoLocalId} duplicate={photoPicker === 'duplicate'}
+    {photoPicker?.presented && selected?.saveLocalId && <WallPhotoSheet savedId={selected.saveLocalId} title={selected.artwork.title} photoId={selected.photoLocalId} duplicate={photoPicker.kind === 'duplicate'}
       onDismiss={() => setPhotoPicker(undefined)} onConfirm={(photoLocalId) => {
-        if (photoPicker === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Another placement, still one artwork. Only this photo is public.'); }
+        if (photoPicker.kind === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Another placement, still one artwork. Only this photo is public.'); }
         else if (wall.draft && !blocked) {
           commit({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
           showToast('Wall photo updated. Other photos remain private.');
         }
         setPhotoPicker(undefined);
       }} />}
-    {options && selected && <WallArtworkSheet piece={selected} editing={editing} disabled={blocked} color={color} onDismiss={() => setOptions(false)} onChange={(layout) => move(selected.localId, layout)} onRemove={() => remove(selected.localId)} />}
+    {options && selected && <WallArtworkSheet piece={selected} editing={editing} disabled={blocked} color={color} presented={!photoPicker} onDismiss={() => setOptions(false)}
+      onDismissed={() => { setOptions(false); setPhotoPicker((picker) => picker && { ...picker, presented: true }); }}
+      onChange={(layout) => move(selected.localId, layout)} onRemove={() => remove(selected.localId)}
+      onChoosePhoto={selected.saveLocalId ? () => setPhotoPicker({ kind: 'choose', presented: false }) : undefined}
+      onDuplicatePhoto={selected.saveLocalId && count < LIMITS.wallItems ? () => setPhotoPicker({ kind: 'duplicate', presented: false }) : undefined} />}
     {profile && <WallProfileSheet onDismiss={() => setProfile(false)} onCreated={() => { setProfile(false); void wall.refresh(); }} />}
   </GestureHandlerRootView>;
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, minHeight: 52, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  topOverscroll: { position: 'absolute', left: 0, right: 0, bottom: '100%', height: 1000, backgroundColor: Gallery.paper },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, minHeight: 52 },
   toolbarTrailing: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  swatches: { alignItems: 'center', paddingHorizontal: 20, gap: 1, paddingBottom: 8 },
+  swatches: { alignItems: 'center', paddingHorizontal: 20, gap: 1, paddingBottom: 8, backgroundColor: Gallery.paper },
   error: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Gallery.fill },
   blankWall: { flex: 1, minHeight: 360, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
   baseboard: { position: 'absolute', left: 0, right: 0, bottom: 108, height: 7, backgroundColor: '#E9E8E0', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#D4D3C9' },
@@ -239,8 +261,12 @@ const styles = StyleSheet.create({
   empty: { minHeight: 440, padding: 32, alignItems: 'center', justifyContent: 'center', gap: 20 },
   emptyTitle: { textAlign: 'center' },
   emptyCaption: { fontSize: 14, lineHeight: 21, textAlign: 'center', maxWidth: 280, opacity: 0.85 },
-  footer: { fontSize: 13, lineHeight: 18, color: Gallery.muted, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30 },
-  publicNotice: { fontSize: 13, lineHeight: 18, color: Gallery.ink, backgroundColor: Gallery.segmentSelection, paddingHorizontal: 20, paddingVertical: 10 },
+  publicNotice: { fontSize: 12, lineHeight: 18, color: Gallery.muted, backgroundColor: Gallery.paper, paddingHorizontal: 20, paddingBottom: 8 },
   tray: { backgroundColor: Gallery.paper, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
   trayHeading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 12 },
+  trayLabel: { paddingHorizontal: 20, paddingTop: 12 },
+  artworkStrip: { gap: 8, paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center' },
+  artworkCard: { borderRadius: Radius.input, padding: 6, backgroundColor: Gallery.surface, gap: 2 },
+  artworkMat: { height: 68, backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
+  trayActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
 });

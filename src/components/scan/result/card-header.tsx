@@ -28,7 +28,7 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
     <View style={styles.header}>
       <View style={styles.frame} onLayout={(event) => setSize(event.nativeEvent.layout.width)}>
       {available ? (
-        <Image source={cropUri} contentFit="cover" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
+        <Image source={cropUri} contentFit="contain" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
       ) : loading ? <ImageSkeleton style={{ width: '100%', height: '100%' }} /> : (
         <View style={styles.placeholder}>
           <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />
@@ -36,8 +36,8 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
           {artworkTitle && <ThemedText themeColor="textSecondary" style={styles.placeholderText}>{artworkTitle}</ThemedText>}
         </View>
       )}
-      {available && size > 0 && <View pointerEvents="none" style={{ position: 'absolute', width: size, height: size, top: (size / 1.4 - size) / 2 }}>
-        <CornersOverlay corners={corners} inputSize={inputSize} size={size} />
+      {available && size > 0 && <View pointerEvents="none" style={{ position: 'absolute', width: size / 1.15, height: size / 1.15, top: 0, left: (size - size / 1.15) / 2 }}>
+        <CornersOverlay corners={corners} inputSize={inputSize} size={size / 1.15} />
       </View>}
       </View>
       <View style={styles.status}><ConfidenceChip kind={kind} />
@@ -51,10 +51,10 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
 
 const styles = StyleSheet.create({
   header: { gap: Spacing.one },
-  frame: { width: '100%', aspectRatio: 1.4, justifyContent: 'center', overflow: 'hidden', backgroundColor: Colors.light.backgroundElement },
+  frame: { width: '100%', aspectRatio: 1.15, justifyContent: 'center', overflow: 'hidden', backgroundColor: Colors.light.backgroundElement },
   photo: { width: '100%', height: '100%' },
-  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
-  correction: { minHeight: 32, justifyContent: 'center' },
+  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  correction: { minHeight: 44, justifyContent: 'center' },
   placeholder: { alignItems: 'center', padding: 20, gap: Spacing.two },
   placeholderIcon: { width: 32, height: 32 },
   placeholderText: { alignSelf: 'stretch', textAlign: 'center' },

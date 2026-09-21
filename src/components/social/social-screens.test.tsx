@@ -71,7 +71,7 @@ it('opens visits, authors, and people from Home', async () => {
   expect(screen.getByLabelText('September 12, 2026')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View Alex Chen’s profile' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/profile/[profileId]', params: { profileId: 'alex' } });
-  await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Find friends' }));
   expect(mockPush).toHaveBeenLastCalledWith('/people');
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/people', params: { filter: 'friends' } });
@@ -84,7 +84,7 @@ it('keeps Home navigation available through ghosts, loaded content, and paginati
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
   const view = await render(<HomeScreen />);
   expect(screen.getByRole('progressbar', { name: 'Loading visits…' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Find people' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Find friends' })).toBeOnTheScreen();
   expect(screen.queryByText('See what your friends see.')).toBeNull();
   mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
   await view.rerender(<HomeScreen />);
@@ -210,6 +210,42 @@ it('shows fewer previews rather than letting landscape photos overflow the card'
   expect(image.props.style.height).toBeGreaterThanOrEqual(100);
 });
 
+it('gives all selected photos in a visit the same height, including an unavailable photo', async () => {
+  const item = visit.artworks.page[0];
+  const photo = { kind: 'catalog' as const, url: 'https://example.com/full.jpg', sourceUrl: 'https://example.com/artwork', rights: 'public_domain' as const, width: 300, height: 400 };
+  await render(<VisitArtworks artworks={[{ ...item, photos: [photo, { ...photo, url: 'https://example.com/detail.jpg', width: 500, height: 300 }] }]} compact />);
+  await fireEvent(screen.getByTestId('visit-artworks'), 'layout', { nativeEvent: { layout: { width: 350 } } });
+  const full = screen.getByRole('image', { name: item.artwork.title });
+  const detail = screen.getByRole('image', { name: `${item.artwork.title}, photo 2` });
+  expect(full.props.style.height).toBe(detail.props.style.height);
+  await fireEvent(detail, 'error');
+  expect(screen.getByRole('image', { name: `${item.artwork.title}, photo 2: image unavailable` })).toHaveStyle({ height: full.props.style.height });
+});
+
+const highlightArtworks = () => {
+  const item = visit.artworks.page[0];
+  const photo = { kind: 'catalog' as const, url: 'https://example.com/full.jpg', sourceUrl: 'https://example.com/artwork', rights: 'public_domain' as const, width: 300, height: 400 };
+  return [
+    { ...item, photos: [photo, { ...photo, url: 'https://example.com/second.jpg' }, { ...photo, url: 'https://example.com/third.jpg' }] },
+    { ...item, itemId: 'art-b' as never, artwork: { ...item.artwork, title: 'Second highlight' } },
+    { ...item, itemId: 'art-c' as never, artwork: { ...item.artwork, title: 'Third highlight' } },
+  ];
+};
+
+it('keeps a feed slot for every leading artwork even when the first one has several photos', async () => {
+  await render(<VisitArtworks artworks={highlightArtworks()} compact />);
+  await fireEvent(screen.getByTestId('visit-artworks'), 'layout', { nativeEvent: { layout: { width: 350 } } });
+  for (const title of ['Blue afternoon', 'Second highlight', 'Third highlight']) expect(screen.getByRole('image', { name: title })).toBeOnTheScreen();
+  expect(screen.queryByRole('image', { name: 'Blue afternoon, photo 2' })).toBeNull();
+});
+
+it('fills spare feed slots with extra photos when fewer than three artworks lead the visit', async () => {
+  await render(<VisitArtworks artworks={highlightArtworks().slice(0, 2)} compact />);
+  await fireEvent(screen.getByTestId('visit-artworks'), 'layout', { nativeEvent: { layout: { width: 350 } } });
+  for (const title of ['Blue afternoon', 'Blue afternoon, photo 2', 'Second highlight']) expect(screen.getByRole('image', { name: title })).toBeOnTheScreen();
+  expect(screen.queryByRole('image', { name: 'Blue afternoon, photo 3' })).toBeNull();
+});
+
 it('loads public visits for guests and opens their details without signing in', async () => {
   mockSession = { ...mockSession, status: 'signed-out', token: null };
   mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: 'public' }] }));
@@ -236,14 +272,14 @@ it('shows a direct invitation for guest Friends and keeps public discovery one t
   await render(<PeopleScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
   expect(screen.queryByText('EXAMPLE')).toBeNull();
-  expect(screen.getByRole('header', { name: 'Find your art people.' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Find your friends.' })).toBeOnTheScreen();
   expect(screen.queryByLabelText('Name or username')).toBeNull();
   expect(screen.queryByText('An afternoon of art')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore people' }));
-  expect(screen.getByRole('button', { name: 'All people' })).toBeSelected();
+  await fireEvent.press(screen.getByRole('button', { name: 'Find friends' }));
+  expect(screen.getByRole('button', { name: 'Explore' })).toBeSelected();
   expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
   expect(screen.queryByText('EXAMPLE')).toBeNull();
 });
@@ -293,9 +329,9 @@ it('keeps discovery search available when a member has no friends', async () => 
   await render(<PeopleScreen />);
   expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
-  expect(screen.getByText('Find your art people.')).toBeOnTheScreen();
+  expect(screen.getByText('Find your friends.')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Name or username')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Find people' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Find friends' }));
   expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'All people' })).toBeSelected();
+  expect(screen.getByRole('button', { name: 'Explore' })).toBeSelected();
 });

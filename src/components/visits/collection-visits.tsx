@@ -29,7 +29,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   </ScrollView>;
   const controls = <View style={{ backgroundColor: Gallery.paper }}>{collectionControls}<View style={{ paddingHorizontal: 20, paddingTop: 4, gap: 12, paddingBottom: 10 }}>
     <View style={{ flexDirection: fontScale > 1.5 ? 'column' : 'row', alignItems: fontScale > 1.5 ? 'stretch' : 'center', justifyContent: 'space-between', gap: 8 }}>
-      <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'list', label: 'List', icon: 'list.bullet' }, { value: 'globe', label: 'Globe', icon: 'globe' }]} />
+      <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'globe', label: 'Globe', icon: 'globe' }, { value: 'list', label: 'List', icon: 'list.bullet' }]} />
       <GalleryButton label="Add visit" icon="plus" onPress={() => router.push('/visit-create')} />
     </View>
     {mode === 'list' && <CollectionSearchField value={search} label="Search your visits" onChange={onSearchChange} onClear={clearSearch} />}

@@ -43,6 +43,7 @@ export function VenuePill() {
         {active ? <View style={styles.dot} /> : <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
         <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>{label}</ThemedText>
         {active && <ThemedText type="small" themeColor="overlayText" style={styles.count}>· {works.length}</ThemedText>}
+        <Image source="sf:chevron.down" style={styles.chevron} tintColor={Colors.light.overlayText} accessible={false} />
       </Pressable>
     </GlassSurface>
   );
@@ -53,6 +54,7 @@ const styles = StyleSheet.create({
   content: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three },
   pressed: { opacity: 0.6 },
   icon: { width: 18, height: 18 },
+  chevron: { width: 12, height: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.highlight },
   label: { flexShrink: 1 },
   count: { opacity: 0.8 },

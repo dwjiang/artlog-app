@@ -101,6 +101,7 @@ it('chooses the photo before adding a second public placement and publishes on c
   await openWall();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Hang another photo' }));
   expect(screen.getByText(/This selected image will be visible on your public wall/)).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Hang selected photo' })).toBeDisabled();
@@ -121,7 +122,7 @@ it('saves removals and additions immediately and Done only exits the editor', as
   await openWall();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Take off wall' }));
   expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
@@ -182,9 +183,9 @@ it('saves each color, frame, and placement edit using the latest acknowledged re
   await fireEvent.press(screen.getByRole('button', { name: 'Burgundy wall' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Baroque' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
-  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Right' })).toBeEnabled());
   await fireEvent.press(screen.getByRole('button', { name: 'Right' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Right' })).toBeEnabled());
   await fireEvent.press(screen.getAllByRole('button', { name: 'Done' }).at(-1)!);
@@ -204,7 +205,7 @@ it('retains a failed edit until an explicit retry saves it', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent(/Your wall change was not saved/);
   expect(screen.getByRole('button', { name: 'Burgundy wall' })).toBeSelected();
   expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'All artworks' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Hang Sunflowers' })).toBeDisabled();
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole('button', { name: 'Retry saving' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
@@ -250,7 +251,7 @@ it('keeps editor controls visible and locked during a save', async () => {
   mockTransport.setLayout.mockImplementationOnce(() => new Promise<OwnerWall>((resolve) => { resolveSave = resolve; }));
   await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Right' }));
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('header', { name: 'Edit artwork' })).toBeOnTheScreen();
@@ -286,7 +287,7 @@ it('saves the final size only after a slider drag ends', async () => {
   await openWall();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   const slider = screen.getByRole('adjustable', { name: 'Artwork size' });
   await fireEvent(slider, 'editingChanged', true);
   await fireEvent(slider, 'valueChange', 0.5);
@@ -301,7 +302,7 @@ it('saves an accessible slider adjustment without requiring a drag gesture', asy
   await openWall();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
   await fireEvent.press(screen.getByRole('button', { name: 'The Milkmaid' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Size & position' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Frame & photo' }));
   await fireEvent(screen.getByRole('adjustable', { name: 'Artwork size' }), 'valueChange', 0.41);
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(mockTransport.setLayout).toHaveBeenCalledWith(expect.objectContaining({ items: [expect.objectContaining({ layout: expect.objectContaining({ width: 0.41 }) })] }), expect.anything());
@@ -395,6 +396,25 @@ it('scrolls a newly hung artwork into view', async () => {
     expect((call?.[0] as { y: number }).y).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Sunflowers' })).toBeOnTheScreen();
   } finally { scrollTo.mockRestore(); }
+});
+
+it('keeps the horizontal artwork selector available after selecting and hanging art', async () => {
+  mockTransport.listMine.mockResolvedValue({ page: [
+    { localId: 'save-a', snapshot: { title: 'The Milkmaid', artist: 'Johannes Vermeer' } },
+    { localId: 'save-b', snapshot: { title: 'Sunflowers', artist: 'Vincent van Gogh' } },
+  ], cursor: null, isDone: true });
+  await openWall();
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit wall' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Select The Milkmaid' }));
+  expect(screen.getByRole('button', { name: 'Select The Milkmaid' })).toBeSelected();
+  expect(screen.getByRole('button', { name: 'Hang Sunflowers' })).toBeOnTheScreen();
+  expect(mockTransport.setLayout).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Hang Sunflowers' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
+  expect(screen.getByRole('button', { name: 'Select Sunflowers' })).toBeSelected();
+  await fireEvent.press(screen.getByRole('button', { name: 'Select The Milkmaid' }));
+  expect(screen.getByRole('button', { name: 'Select The Milkmaid' })).toBeSelected();
+  expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
 });
 
 it('shows a blank wall and opens Scan when there is no saved art', async () => {

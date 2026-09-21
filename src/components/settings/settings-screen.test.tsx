@@ -14,12 +14,13 @@ const mockDelete = jest.fn();
 let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null = null;
 let mockReady = true;
 let mockBusy = false;
+let mockSessionStatus = 'ready';
 const contribution = {
   contributionId: 'contribution-1', status: 'tentative', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
 };
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
-jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'ready', key: 'settings' }) }));
+jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockAccount?.linked ? { name: 'Alex', username: 'alex' } : undefined }) }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui');
@@ -51,13 +52,13 @@ jest.mock('convex/react', () => ({
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) }, Stack: { Screen: () => null }, Link: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(async () => {
-  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false;
+  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false; mockSessionStatus = 'ready';
   mockWithdraw.mockResolvedValue(null);
 });
 
 it('shows grouped settings and opens the matching detail', async () => {
   await render(<SettingsScreen />);
-  expect(screen.getByRole('button', { name: 'Sign in with Apple' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
   expect(screen.queryByText('YA', { includeHiddenElements: true })).toBeNull();
   for (const title of ['Settings', 'Your journal', 'Artlog', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About', 'about']]) {
@@ -111,13 +112,13 @@ it('keeps withdrawal retryable when the network fails', async () => {
   expect(screen.getByText('Withdrawn')).toBeOnTheScreen();
 });
 
-it('starts Apple sign-in directly while keeping the guest journal available', async () => {
+it('opens contextual sign-in while keeping the guest journal available', async () => {
   await render(<SettingsScreen />);
-  expect(screen.getByText('Your journal is saved on this iPhone.')).toBeOnTheScreen();
+  expect(screen.getByText('Saved on this iPhone')).toBeOnTheScreen();
   expect(screen.queryByText(/sync across devices/i)).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
-  expect(mockSignIn).toHaveBeenCalledTimes(1);
-  expect(mockPush).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+  expect(mockSignIn).not.toHaveBeenCalled();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
 it('shows account details and controls without device counts or sync copy', async () => {
@@ -129,6 +130,17 @@ it('shows account details and controls without device counts or sync copy', asyn
   expect(screen.getByRole('button', { name: 'Delete account' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
   expect(mockSignOut).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole('button', { name: 'Edit profile' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/edit-profile');
+});
+
+it('offers profile creation from account settings when the account has no profile yet', async () => {
+  mockAccount = { linked: true, deviceCount: 1, email: 'visitor@example.com' };
+  mockSessionStatus = 'profile-required';
+  await render(<SettingsDetailScreen section="account" />);
+  expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Create profile' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/create-profile');
 });
 
 it('shows pending contributions before device registration completes', async () => {

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { WallGallery } from '../collection/wall-gallery';
-import { Gallery } from '@/constants/theme';
 import type { PublicProfile, PublicWall } from '@/lib/social/types';
 import { EmptyState } from '../empty-state';
 import { ProfileAvatar } from './profile-avatar';
@@ -13,9 +12,9 @@ import { socialStyles } from './social-styles';
 export function PublicProfileHeader({ person, actions, children, visitCount }: { person: PublicProfile; visitCount?: number; actions?: ReactNode; children?: ReactNode }) {
   return <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-      <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={96} />
+      <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={64} />
       <View style={{ flex: 1, gap: 4 }}>
-        <Text variant="display" style={{ color: Gallery.ink, fontSize: 44, lineHeight: 52 }}>{person.name}</Text>
+        <Text variant="display" accessibilityRole="header">{person.name}</Text>
         <Text style={socialStyles.caption}>@{person.username}</Text>
         <Text style={socialStyles.caption}>{person.publishedWallCount} {person.publishedWallCount === 1 ? 'artwork' : 'artworks'}{visitCount !== undefined ? ` · ${visitCount} ${visitCount === 1 ? 'visit' : 'visits'}` : ''}</Text>
       </View>

@@ -22,12 +22,11 @@ beforeEach(() => {
   mockWorks = [{ localId: 'a', title: 'Water Lilies', cropPath: 'a.jpg' }, { localId: 'b', title: 'Irises', cropPath: null }];
 });
 
-it('names the open visit with its artwork count and cover, and opens the visit sheet', async () => {
+it('names the open visit with its artwork count and opens its detail', async () => {
   await render(<VisitBar />);
-  expect(screen.getByText('Visiting now · 2 artworks')).toBeOnTheScreen();
-  expect(screen.getByText('Water Lilies cover')).toBeOnTheScreen();
+  expect(screen.getByText('Visiting now · 2 artworks saved')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Visiting Legion of Honor, 2 artworks' }));
-  expect(mockPush).toHaveBeenCalledWith('/venue-picker');
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
 
 it('ends the visit from the bar and opens its detail', async () => {
@@ -51,4 +50,15 @@ it('renders nothing without an open visit', async () => {
   mockVisit = undefined;
   await render(<VisitBar />);
   expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('keeps the visit available and offers another attempt if ending fails', async () => {
+  mockEnd.mockRejectedValueOnce(new Error('Could not save'));
+  await render(<VisitBar />);
+  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t end visit. Try again.');
+  expect(mockPush).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
+  expect(mockEnd).toHaveBeenCalledTimes(2);
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
