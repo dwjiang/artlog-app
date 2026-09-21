@@ -15,18 +15,18 @@ import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { getPoiSearch } from '../../../modules/poi-search/src';
 import { getSetting, removeSetting, setSetting } from '@/db/repos/settings';
-import { getVisit, latestVisitActivity, patchVisit, upsertVisit } from '@/db/repos/visits';
-import type { NewVisit } from '@/db/schema';
+import { findVisitOnDay, getVisit, latestVisitActivity, listOpenVisits, patchVisit, upsertVisit } from '@/db/repos/visits';
+import type { NewVisit, Visit } from '@/db/schema';
 import { signPayload } from '@/lib/attested-write';
 import { flushJournal } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
 import { refreshVenueTableInBackground } from './refresh';
-import { CHOOSE_RADIUS_M, pickVenue } from './resolve';
-import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates } from './venue-db';
+import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from './resolve';
+import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from './venue-db';
 import {
   endedToday, initialVenueState, isVisitToday, needsFix, venueContext, venueReducer,
-  type CurrentVisit, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
+  type CurrentVisit, type Fix, type PoiOption, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
 } from './venue-reducer';
 
 export const CURRENT_VISIT_SETTING = 'currentVisit';
@@ -43,25 +43,45 @@ export type VenueController = {
   getContext(): VenueContext;
   /** Restores the open visit from the local store; stale or ended visits are closed instead. */
   hydrate(): Promise<void>;
-  /** One-shot fix, table lookup and visit bookkeeping; reuses a fix younger than three minutes. */
+  /** One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit. */
   resolve(): Promise<VenueContext>;
-  /** The context a scan should carry: a fresh resolution when it is quick, else the last known one; a resolved venue always brings its visit. */
+  /** The context a scan carries: a fresh resolution when it is quick, else the last known one, with the open visit when the phone is at its museum. */
   resolveForScan(capturedAt: number): Promise<VenueContext>;
-  /** A tap in the sheet: seeded venues start a visit; MapKit places are confirmed on the server first. */
+  /** A tap in the sheet resolves that museum; MapKit places are confirmed on the server first. The visit starts with the first save. */
   confirm(option: VenueOption, signal?: AbortSignal): Promise<void>;
   dismiss(): void;
   /** Closes the open visit only while it is still `localId`; saving a stale end-visit review is otherwise a no-op. */
   end(localId: string): Promise<void>;
+  /** Whether a save at this museum joins or starts its visit unless the person chooses otherwise; false for the rest of the day after "End visit" there. */
+  visitByDefault(venueId: Id<'museums'>, at?: number): boolean;
+  /**
+   * The visit a save at this museum links to: the one on the books for the capture's day (today only while it is still
+   * open), stretched to cover the shutter, or a new one dated by the capture.
+   */
+  visitForSave(venueId: Id<'museums'>, capturedAt: number): Promise<CurrentVisit>;
   /** Flushes persisted visit starts and ends without blocking local resolution. */
   syncRemoteVisit(): Promise<void>;
   appStateChanged(status: AppStateStatus): void;
 };
 
-async function newVisit(venue: SeededOption, startedAt: number): Promise<CurrentVisit> {
-  const coordinates = await venueCoordinates(venue.venueId);
+async function venueDay(venueId: Id<'museums'>, at: number): Promise<Pick<CurrentVisit, 'timeZone' | 'visitedOn'>> {
+  const coordinates = await venueCoordinates(venueId);
   if (!coordinates) throw new Error('The museum coordinates are not available');
   const timeZone = tzLookup(coordinates.lat, coordinates.lng);
-  return { localId: randomUUID(), venueId: venue.venueId, venueName: venue.name, startedAt, timeZone, visitedOn: calendarDate(startedAt, timeZone) };
+  return { timeZone, visitedOn: calendarDate(at, timeZone) };
+}
+
+/**
+ * Links a save to a visit already on the books for its museum and day, stretching the visit to cover the shutter.
+ * Only a visit for today may stay `open`; one for an earlier day ends with its latest save.
+ */
+async function joinVisit(row: Visit, capturedAt: number, owner: string, open: boolean): Promise<CurrentVisit> {
+  const startedAt = row.startedAt === null ? capturedAt : Math.min(row.startedAt, capturedAt);
+  const latest = Math.max(row.startedAt ?? capturedAt, capturedAt);
+  const endedAt = row.endedAt === null ? (open ? null : latest) : Math.max(row.endedAt, latest);
+  const fields = { ...(startedAt !== row.startedAt ? { startedAt } : {}), ...(endedAt !== row.endedAt ? { endedAt } : {}) };
+  if (Object.keys(fields).length) await patchVisit(row.localId, fields, owner);
+  return currentVisit({ ...row, startedAt });
 }
 
 function visitRow(visit: CurrentVisit): NewVisit {
@@ -72,6 +92,28 @@ function visitRow(visit: CurrentVisit): NewVisit {
 function currentVisit(row: { localId: string; venueId: Id<'museums'>; venueName: string; startedAt: number; visitedOn: string; timeZone: string; remoteVisitId: Id<'visits'> | null }): CurrentVisit {
   return { localId: row.localId, venueId: row.venueId, venueName: row.venueName, startedAt: row.startedAt,
     visitedOn: row.visitedOn, timeZone: row.timeZone, remoteVisitId: row.remoteVisitId ?? undefined };
+}
+
+/**
+ * Creates the museum on the server for a MapKit place and adds it to the local table. Returns undefined once
+ * `wanted` says the caller moved on; the server row still exists and is harmless.
+ */
+export async function confirmPlace(option: PoiOption, wanted: () => boolean = () => true): Promise<VenueRow | undefined> {
+  const fields = { city: option.city, country: option.country, name: option.name, lat: option.lat, lng: option.lng, ...(option.website ? { website: option.website } : {}) };
+  const signed = await signPayload({ action: 'museums.confirmPoiVenue', ...fields });
+  if (!wanted()) return undefined;
+  if (!signed) throw new Error('This device cannot confirm a new venue');
+  const { venue } = await convex.mutation(api.museums.confirmPoiVenue, { ...fields, ...signed });
+  if (!wanted()) return undefined;
+  try {
+    const db = await openVenueDb();
+    if (!wanted()) return undefined;
+    await applyVenueMetadata(db, [venue]);
+  } catch (error) {
+    console.warn('Could not add the confirmed venue to the local table', error);
+  }
+  return { id: venue.id, key: venue.key, name: venue.name, lat: venue.lat, lng: venue.lng, website: venue.website ?? null,
+    region: venue.region, city: venue.city ?? null, cityKey: venue.cityKey ?? null, country: venue.country ?? null };
 }
 
 export function createVenueController(): VenueController {
@@ -102,9 +144,9 @@ export function createVenueController(): VenueController {
     }
   }
 
-  function updateLocally(task: () => Promise<void>): Promise<void> {
+  function updateLocally<T>(task: () => Promise<T>): Promise<T> {
     const next = localUpdate.then(task);
-    localUpdate = next.catch(() => {});
+    localUpdate = next.then(() => undefined, () => undefined);
     return next;
   }
 
@@ -129,40 +171,71 @@ export function createVenueController(): VenueController {
     return updateLocally(() => closeVisit(visit, now, owner, manual));
   }
 
-  function ensureVisit(venue: SeededOption, now: number, wanted: () => boolean, chosen?: VenueOption): Promise<void> {
+  /**
+   * Visits whose day ended without a save close with their last saved artwork, not at the next launch or fix.
+   * Every open row is swept, not only the current one: a save for another museum leaves its visit open but untracked.
+   * A row that will not close (a synced visit dated ahead of this clock, say) is skipped so it never blocks resolution.
+   */
+  async function closeStaleVisits(now: number, owner: string): Promise<void> {
+    for (const row of await listOpenVisits(owner)) {
+      if (row.startedAt === null || isVisitToday(row, now)) continue;
+      const visit = currentVisit({ ...row, startedAt: row.startedAt });
+      try {
+        const endedAt = Math.max(visit.startedAt, await latestVisitActivity(visit.localId, owner) ?? visit.startedAt);
+        await updateLocally(() => closeVisit(visit, endedAt, owner));
+      } catch (error) {
+        console.warn('Could not close the visit', visit.localId, error);
+      }
+    }
+  }
+
+  function visitByDefault(venueId: Id<'museums'>, at = Date.now()): boolean {
+    return !endedToday(state, venueId, at);
+  }
+
+  function visitForSave(venueId: Id<'museums'>, capturedAt: number): Promise<CurrentVisit> {
     const ownership = captureOwner();
-    const stillWanted = () => ownership.isCurrent() && wanted();
+    const owner = ownership.owner;
+    const checkOwner = () => { if (!ownership.isCurrent()) throw new Error('Journal owner changed'); };
     return updateLocally(async () => {
-      if (!stillWanted()) return;
+      checkOwner();
       const current = state.visit;
-      // A confirmed choice restarts a visit the person ended by hand; a location fix alone does not.
-      if (!current && !chosen && endedToday(state, venue.venueId, now)) return;
-      if (!current || current.venueId !== venue.venueId || !isVisitToday(current, now)) {
-        if (current) await closeVisit(current, now, ownership.owner);
-        if (!stillWanted()) return;
-        const visit = await newVisit(venue, now);
-        if (!stillWanted()) return;
-        await upsertVisit(visitRow(visit), ownership.owner);
-        await removeSetting(endedVisitKey(ownership.owner));
-        if (!stillWanted()) {
-          await closeVisit(visit, now, ownership.owner);
-          return;
-        }
-        await setSetting(currentVisitKey(ownership.owner), visit.localId);
-        if (!stillWanted()) {
-          await closeVisit(visit, now, ownership.owner);
-          return;
-        }
-        if (chosen) {
-          selectionRevision++;
-          dispatch({ type: 'chosen', option: venue, replaces: chosen });
-        }
-        dispatch({ type: 'visitStarted', visit });
-      } else if (chosen) {
-        selectionRevision++;
-        dispatch({ type: 'chosen', option: venue, replaces: chosen });
+      if (current && current.venueId === venueId && isVisitToday(current, capturedAt)) {
+        if (capturedAt >= current.startedAt) return current;
+        // The capture waited for its save: the visit began with this shutter.
+        await patchVisit(current.localId, { startedAt: capturedAt }, owner);
+        checkOwner();
+        const backdated = { ...current, startedAt: capturedAt };
+        if (state.visit?.localId === current.localId) dispatch({ type: 'visitStarted', visit: backdated });
+        return backdated;
+      }
+      const day = await venueDay(venueId, capturedAt);
+      checkOwner();
+      const today = isVisitToday(day, Date.now());
+      // Today a visit that ended (by hand, or for another museum) stays ended; an earlier day has only the visit it had.
+      const existing = await findVisitOnDay(venueId, day.visitedOn, owner, { open: today });
+      checkOwner();
+      let visit: CurrentVisit;
+      if (existing) {
+        visit = await joinVisit(existing, capturedAt, owner, today);
+      } else {
+        const name = state.venue?.venueId === venueId ? state.venue.name : await venueNameById(venueId);
+        checkOwner();
+        if (!name) throw new Error('The museum is not available');
+        visit = { localId: randomUUID(), venueId, venueName: name, startedAt: capturedAt, ...day };
+        // A visit for an earlier day is already over: it spans exactly the saves it gets.
+        await upsertVisit({ ...visitRow(visit), ...(today ? {} : { endedAt: capturedAt }) }, owner);
+      }
+      checkOwner();
+      // The visit opens now only for today's captures, and never over a visit open elsewhere unless the phone is back at this museum.
+      if (today && (!current || state.venue?.venueId === venueId)) {
+        if (current) await closeVisit(current, Date.now(), owner);
+        await removeSetting(endedVisitKey(owner));
+        await setSetting(currentVisitKey(owner), visit.localId);
+        if (ownership.isCurrent()) dispatch({ type: 'visitStarted', visit });
       }
       void syncRemoteVisit();
+      return visit;
     });
   }
 
@@ -197,16 +270,11 @@ export function createVenueController(): VenueController {
     if (endedId && !ended) await removeSetting(endedVisitKey(owner));
     if (row && row.startedAt !== null && row.endedAt === null && isVisitToday(row, now)) {
       dispatch({ type: 'hydrated', visit: currentVisit({ ...row, startedAt: row.startedAt }) });
-      return;
+    } else {
+      if (localId) await removeSetting(currentVisitKey(owner));
+      dispatch({ type: 'hydrated', ended });
     }
-    if (row && row.startedAt !== null && row.endedAt === null) {
-      // The day ended without the app open: the visit ends with its last saved artwork, not at the next launch.
-      const endedAt = Math.max(row.startedAt, await latestVisitActivity(row.localId, owner) ?? row.startedAt);
-      if (!ownership.isCurrent()) return;
-      await endVisit(currentVisit({ ...row, startedAt: row.startedAt }), endedAt);
-    }
-    if (localId) await removeSetting(currentVisitKey(owner));
-    dispatch({ type: 'hydrated', ended });
+    await closeStaleVisits(now, owner);
   }
 
   async function runResolve(): Promise<VenueContext> {
@@ -230,16 +298,9 @@ export function createVenueController(): VenueController {
       const resolution = pickVenue(await nearest(await openVenueDb(), fix, CHOOSE_RADIUS_M));
       if (!wanted()) return venueContext(state);
       if (__DEV__) console.debug('Venue resolved', resolution.kind, resolution.kind === 'none' ? '' : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`));
-      const before = state.visit;
       dispatch({ type: 'resolved', fix, resolution });
-      if (state.status === 'resolved' && state.venue) {
-        const venue = state.venue;
-        await ensureVisit(venue, fix.at, () => wanted() && state.venue?.venueId === venue.venueId);
-      } else if (state.status === 'none') {
-        // A dismissal nearby drops the visit in the reducer; leaving the radius only pauses it.
-        if (before && !state.visit) await endVisit(before, fix.at);
-        if (resolution.kind === 'none') await searchNearbyPlaces(fix);
-      }
+      await closeStaleVisits(fix.at, getLocalOwner());
+      if (state.status === 'none' && resolution.kind === 'none') await searchNearbyPlaces(fix);
       return venueContext(state);
     } catch (error) {
       if (!wanted()) return venueContext(state);
@@ -260,20 +321,8 @@ export function createVenueController(): VenueController {
     const timeout = new Promise<VenueContext>((settle) => {
       timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
     });
-    let context = await Promise.race([resolve(), timeout]).finally(() => clearTimeout(timer));
+    const context = await Promise.race([resolve(), timeout]).finally(() => clearTimeout(timer));
     if (!ownership.isCurrent()) throw new Error('Journal owner changed');
-    if (context.venueId && !context.visitLocalId) {
-      // The fix resolved but its visit bookkeeping is still queued or failed: finish it here so the
-      // scan joins the controller's visit instead of starting one it never tracks.
-      await localUpdate;
-      const venue = state.venue;
-      if (ownership.isCurrent() && venue && state.visit?.venueId !== venue.venueId) {
-        await ensureVisit(venue, Date.now(), () => state.venue?.venueId === venue.venueId)
-          .catch((error: unknown) => console.warn('Could not start the visit for the scan', error));
-      }
-      if (!ownership.isCurrent()) throw new Error('Journal owner changed');
-      context = venueContext(state);
-    }
     return prepareCaptureVisit(context, capturedAt);
   }
 
@@ -286,22 +335,17 @@ export function createVenueController(): VenueController {
     if (option.kind === 'seeded') {
       venue = option;
     } else {
-      const fields = { city: option.city, country: option.country, name: option.name, lat: option.lat, lng: option.lng, ...(option.website ? { website: option.website } : {}) };
-      const signed = await signPayload({ action: 'museums.confirmPoiVenue', ...fields });
-      if (!wanted()) return;
-      if (!signed) throw new Error('This device cannot confirm a new venue');
-      const { venueId, venue: confirmed } = await convex.mutation(api.museums.confirmPoiVenue, { ...fields, ...signed });
-      if (!wanted()) return;
-      try {
-        const db = await openVenueDb();
-        if (!wanted()) return;
-        await applyVenueMetadata(db, [confirmed]);
-      } catch (error) {
-        console.warn('Could not add the confirmed venue to the local table', error);
-      }
-      venue = { kind: 'seeded', venueId, name: confirmed.name, distanceM: option.distanceM, ...(confirmed.website ? { website: confirmed.website } : {}) };
+      const row = await confirmPlace(option, wanted);
+      if (!row) return;
+      venue = { kind: 'seeded', venueId: row.id, name: row.name, ...(option.distanceM === undefined ? {} : { distanceM: option.distanceM }), ...(row.website ? { website: row.website } : {}) };
     }
-    await ensureVisit(venue, Date.now(), wanted, option);
+    await updateLocally(async () => {
+      if (!wanted()) return;
+      if (state.ended?.venueId === venue.venueId) await removeSetting(endedVisitKey(ownership.owner));
+      if (!wanted()) return;
+      selectionRevision++;
+      dispatch({ type: 'chosen', option: venue, replaces: option });
+    });
   }
 
   function dismiss(): void {
@@ -332,6 +376,8 @@ export function createVenueController(): VenueController {
     confirm,
     dismiss,
     end,
+    visitByDefault,
+    visitForSave,
     syncRemoteVisit,
     appStateChanged(status) {
       if (status === 'background') dispatch({ type: 'backgrounded' });
@@ -346,6 +392,14 @@ export function resolveVenueForScan(capturedAt: number): Promise<VenueContext> {
   return venueController.resolveForScan(capturedAt);
 }
 
+export function visitByDefault(venueId: Id<'museums'>, at?: number): boolean {
+  return venueController.visitByDefault(venueId, at);
+}
+
+export function visitForSave(venueId: Id<'museums'>, capturedAt: number): Promise<CurrentVisit> {
+  return venueController.visitForSave(venueId, capturedAt);
+}
+
 export type VenueView = {
   status: VenueState['status'];
   venue?: SeededOption;
@@ -353,6 +407,8 @@ export type VenueView = {
   visit?: CurrentVisit;
   visitId?: VenueContext['visitId'];
   options: VenueOption[];
+  /** The last location fix, for searches that should look near the phone. */
+  fix?: Fix;
   error?: string;
   resolve: VenueController['resolve'];
   confirm: VenueController['confirm'];
@@ -364,7 +420,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
   return {
     status: snapshot.status, venue: snapshot.venue, visit: snapshot.visit, visitId: venueContext(snapshot).visitId, options: snapshot.options,
-    error: snapshot.error, resolve: controller.resolve, confirm: controller.confirm, dismiss: controller.dismiss, end: controller.end,
+    fix: snapshot.fix, error: snapshot.error, resolve: controller.resolve, confirm: controller.confirm, dismiss: controller.dismiss, end: controller.end,
   };
 }
 

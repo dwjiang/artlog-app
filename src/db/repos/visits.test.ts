@@ -81,3 +81,24 @@ it('defaults new visits to Public and preserves an explicit Private choice acros
   await repo.upsertVisit({ ...visit, localId: second });
   expect(await repo.getVisit(second)).toMatchObject({ visibility: 'public' });
 });
+it('finds the visit at a museum on a day, latest started first, and only open ones on request', async () => {
+  const noon = Date.parse('2024-02-29T12:00Z');
+  await repo.upsertVisit({ ...visit, startedAt: noon, endedAt: noon + 1 });
+  await repo.upsertVisit({ ...visit, localId: second, startedAt: noon + 2 });
+  await repo.upsertVisit({ ...visit, localId: '00000000-0000-4000-8000-000000000003', visitedOn: '2024-02-28' });
+  await repo.upsertVisit({ ...visit, localId: '00000000-0000-4000-8000-000000000004', venueId: 'museum-2' as Id<'museums'> });
+  expect((await repo.findVisitOnDay(venueId, '2024-02-29'))?.localId).toBe(second);
+  await repo.patchVisit(second, { endedAt: noon + 3 });
+  expect(await repo.findVisitOnDay(venueId, '2024-02-29', undefined, { open: true })).toBeUndefined();
+  expect((await repo.findVisitOnDay(venueId, '2024-02-29', 'account:other'))).toBeUndefined();
+  expect((await repo.findVisitOnDay(venueId, '2024-03-01'))).toBeUndefined();
+});
+it('lists open visits across museums and days, earliest first, skipping manual ones with no start', async () => {
+  const noon = Date.parse('2024-02-29T12:00Z');
+  await repo.upsertVisit({ ...visit, startedAt: noon, endedAt: noon + 1 });
+  await repo.upsertVisit({ ...visit, localId: second, startedAt: noon + 2 });
+  await repo.upsertVisit({ ...visit, localId: '00000000-0000-4000-8000-000000000003', visitedOn: '2024-02-28', startedAt: noon - 24 * 60 * 60 * 1000, venueId: 'museum-2' as Id<'museums'> });
+  await repo.upsertVisit({ ...visit, localId: '00000000-0000-4000-8000-000000000004' });
+  await repo.upsertVisit({ ...visit, localId: '00000000-0000-4000-8000-000000000005', startedAt: noon + 3 }, 'account:other');
+  expect((await repo.listOpenVisits()).map((row) => row.localId)).toEqual(['00000000-0000-4000-8000-000000000003', second]);
+});

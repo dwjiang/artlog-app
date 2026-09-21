@@ -150,3 +150,14 @@ it('replays confirmations after a device ban without altering private journal sn
   expect(await rows()).toEqual(before);
   vi.useRealTimers();
 });
+
+it('saves a scan identified before its museum visit existed into that visit and still confirms it, but not a scan from elsewhere', async () => {
+  const { t, user, venueId, work, save, object, rows } = await fixture();
+  const best = { objectId: work.objectId, artworkId: work.artworkId, probability: 0.95, identityStatus: 'established' as const };
+  const visitless = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId, best }));
+  const { collectionId } = await save({ scanId: visitless, localId: crypto.randomUUID() });
+  expect((await rows()).find((row) => row._id === collectionId)).toMatchObject({ scanId: visitless, venueId, visitLocalId: expect.any(String), confirmationRecorded: true });
+  expect(await object()).toMatchObject({ confirmCount: 1 });
+  const elsewhere = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, best }));
+  await expect(save({ scanId: elsewhere, localId: crypto.randomUUID() })).rejects.toMatchObject({ data: { code: 'not_found' } });
+});

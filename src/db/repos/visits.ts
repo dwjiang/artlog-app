@@ -1,5 +1,5 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import type { Doc } from '../../../convex/_generated/dataModel';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import type { Doc, Id } from '../../../convex/_generated/dataModel';
 import { ConvexError } from 'convex/values';
 import { validateVisit } from '../../../shared/journal/contracts';
 import { visitInput } from '../../lib/journal/visit-payload';
@@ -35,6 +35,15 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
 }
 export async function getVisit(localId: string, owner = getLocalOwner()) {
   return db.select().from(visits).where(and(eq(visits.owner, owner), eq(visits.localId, localId))).get();
+}
+/** The visit at the museum on that calendar day, the latest started first; `open` skips visits that have ended. */
+export async function findVisitOnDay(venueId: Id<'museums'>, visitedOn: string, owner = getLocalOwner(), { open = false } = {}) {
+  const day = and(eq(visits.owner, owner), eq(visits.venueId, venueId), eq(visits.visitedOn, visitedOn));
+  return db.select().from(visits).where(open ? and(day, isNull(visits.endedAt)) : day).orderBy(desc(visits.startedAt)).get();
+}
+/** Visits with a start and no end, from any day; the venue controller closes the ones whose day has passed. */
+export async function listOpenVisits(owner = getLocalOwner()) {
+  return db.select().from(visits).where(and(eq(visits.owner, owner), isNotNull(visits.startedAt), isNull(visits.endedAt))).orderBy(visits.startedAt).all();
 }
 /** When the visit's most recent artwork was saved, or undefined when nothing was saved on it. */
 export async function latestVisitActivity(localId: string, owner = getLocalOwner()): Promise<number | undefined> {

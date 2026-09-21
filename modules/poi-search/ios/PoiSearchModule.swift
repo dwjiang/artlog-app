@@ -18,5 +18,24 @@ public final class PoiSearchModule: Module {
         }
       }
     }
+
+    AsyncFunction("searchByName") { (query: String, lat: Double?, lng: Double?, promise: Promise) in
+      let name = query.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !name.isEmpty else {
+        promise.reject("bad_input", "The search needs a name")
+        return
+      }
+      var center: CLLocationCoordinate2D?
+      if let lat, let lng {
+        let candidate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        if CLLocationCoordinate2DIsValid(candidate) { center = candidate }
+      }
+      PoiSearcher.search(name: name, near: center) { result in
+        switch result {
+        case .success(let records): promise.resolve(records.map(\.dictionary))
+        case .failure(let error): promise.reject("search_failed", error.localizedDescription)
+        }
+      }
+    }
   }
 }

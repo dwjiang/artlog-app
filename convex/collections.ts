@@ -34,7 +34,8 @@ export const saveToCollection = mutation({
     const scan = args.scanId ? await ctx.db.get(args.scanId) : null;
     if (args.scanId) {
       if (!scan || scan.deviceId !== device._id) throw new ConvexError({ code: 'invalid_scan' });
-      if (scan.venueId !== saved.venueId || scan.visitId !== saved.visitId) throw new ConvexError({ code: 'not_found' });
+      // A scan identified before its museum's visit existed may be saved into that visit; any other context is a different save.
+      if (scan.venueId !== saved.venueId || (scan.visitId !== undefined && scan.visitId !== saved.visitId)) throw new ConvexError({ code: 'not_found' });
     }
     if (existing && (existing.confirmationRecorded || existing.deletedAt !== undefined)) return {
       collectionId: existing._id, updatedAt: existing.updatedAt, updatedBy: existing.updatedBy, deletedAt: existing.deletedAt,

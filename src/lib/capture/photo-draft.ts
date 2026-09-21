@@ -2,11 +2,14 @@ import { db } from '../../db/client';
 import { settings } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import type { PhotoKind } from '../../../shared/collection/album';
+import type { Id } from '../../../convex/_generated/dataModel';
 import { findArtworkPhoto } from '../../db/repos/artwork-album';
 import type { SaveResultInput } from '../result/save';
 
 export type DraftPhoto = { localId: string; path: string; kind: PhotoKind; capturedAt: number; caption?: string; review?: 'checking' | 'conflict' | 'uncertain'; recognized?: { title: string; artist: string; objectId: import('../../../convex/_generated/dataModel').Id<'objects'>; artworkId: import('../../../convex/_generated/dataModel').Id<'artworks'> } };
-export type PhotoSessionDraft = { photos: DraftPhoto[]; primaryKind?: PhotoKind; visitLocalId?: string | null; saveInput?: SaveResultInput };
+/** Where one capture saves: no visit, an existing visit, or the visit at a museum that starts or resumes with the save. */
+export type CaptureVisitChoice = { kind: 'none' } | { kind: 'visit'; localId: string } | { kind: 'venue'; venueId: Id<'museums'> };
+export type PhotoSessionDraft = { photos: DraftPhoto[]; primaryKind?: PhotoKind; visit?: CaptureVisitChoice; saveInput?: SaveResultInput };
 function key(owner: string, draftId: string) { return `photoDraft:${owner}:${draftId}`; }
 export function readPhotoSession(owner: string, draftId: string): PhotoSessionDraft {
   const value = db.select().from(settings).where(eq(settings.key, key(owner, draftId))).get()?.value;
