@@ -7,8 +7,6 @@ const mockCreate = jest.fn();
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'account:test', status: 'ready' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: true }) }));
 jest.mock('convex/react', () => ({ useMutation: () => mockCreate, useAction: () => jest.fn() }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('./wall-sheet', () => ({ WallSheet: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(() => jest.clearAllMocks());

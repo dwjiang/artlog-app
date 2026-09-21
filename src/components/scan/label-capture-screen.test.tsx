@@ -44,23 +44,9 @@ const mockHaptic = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 
-jest.mock('@/components/collection/gallery-button');
 jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => mockLabelOnly }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View, RNHostView: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children: ReactNode }) => isPresented ? <View accessibilityLabel="Consent sheet">{children}</View> : null,
-  };
-});
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockPush, replace: mockReplace, back: mockBack }) }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => true }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isInternetReachable: mockReachable }) }));

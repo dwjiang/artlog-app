@@ -3,19 +3,6 @@ import { Linking } from 'react-native';
 
 import { APP_STORE_URL, UPDATE_BUTTON, UPDATE_LINE, UPDATE_TITLE, UnsupportedCard } from './unsupported-card';
 
-jest.mock('@/components/collection/gallery-button');
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-  };
-});
 
 const handlers = { onSave: jest.fn(), onViewSaved: jest.fn() };
 let openURL: jest.SpyInstance;

@@ -18,7 +18,6 @@ let mockView: VenueView;
 let mockParams: { mode?: string } = {};
 let mockVisits: { localId: string; location: string; works: { localId: string; title: string; cropPath: null }[] }[] = [];
 
-jest.mock('@/components/collection/gallery-button');
 jest.mock('@/components/visits/visit-ui', () => ({ ArtworkPreviews: ({ works }: { works: unknown[] }) => { const { Text } = jest.requireActual('react-native'); return <Text>{works.length} previews</Text>; } }));
 jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ visits: mockVisits, loading: false }) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, replace: mockReplace }), useLocalSearchParams: () => mockParams }));

@@ -14,7 +14,6 @@ import { getSavedWork } from '@/db/repos/saved-works';
 import type { NewPendingScan } from '@/db/schema';
 import { FAILED_TITLE } from '@/lib/result/failure-copy';
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('../collection/gallery-button');
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 const mockPush = jest.fn();
@@ -52,18 +51,6 @@ jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
 }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View, RNHostView: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-  };
-});
 
 function row(localId: string, fields: Partial<NewPendingScan>): NewPendingScan {
   return {
@@ -138,7 +125,7 @@ it('finishes an in-flight save when identification completes and keeps the saved
   await fireEvent.press(await screen.findByRole('button', { name: 'Add details (optional)' }));
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'My saved title');
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
-  await screen.findByRole('button', { name: /^Save (to collection|photo for later)$/, busy: true });
+  await screen.findByRole('button', { name: /^Save (to collection|photo for later)$/, value: { text: 'Saving…' } });
   await complete('saving-completion');
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'View result' })).toBeDisabled();

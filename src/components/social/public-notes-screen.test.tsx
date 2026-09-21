@@ -10,8 +10,6 @@ const mockWall = {
     { itemId: 'b', layout: { ...layout, y: 1, layer: 1 }, artwork: { artist: 'Artist B', title: 'Two', media }, privateNote: 'An unselected secret', noteEligible: true, noteVisible: false },
   ] }, noteDraft: [] as { itemId: string; visible: boolean }[], repository: { setNoteDraft: mockSetDraft, publishNotes: mockPublish }, setError: jest.fn(),
 };
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('@/lib/ui/toast', () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
 jest.mock('expo-router', () => {
   const { Pressable, Text } = jest.requireActual('react-native');
@@ -33,7 +31,6 @@ jest.mock('../collection/wall-gallery', () => ({ WallGallery: (props: { pieces: 
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return <View>{props.pieces.map((piece) => <Pressable key={piece.localId} accessibilityRole="button" onPress={() => props.onSelect(piece)}><Text>{piece.artwork.title}</Text></Pressable>)}</View>;
 } }));
-jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 jest.mock('expo-image', () => ({ Image: (props: object) => { const { View } = jest.requireActual('react-native'); return <View {...props} />; } }));
 beforeEach(() => { jest.clearAllMocks(); mockWall.noteDraft = []; mockOverride = {}; });
 async function openWall() {

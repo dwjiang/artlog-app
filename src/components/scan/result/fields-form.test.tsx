@@ -4,15 +4,6 @@ import { FieldsForm } from './fields-form';
 import { draftFromCandidate } from '@/lib/result/snapshot';
 import { lilies } from './__fixtures__/scan';
 
-jest.mock('@expo/ui', () => {
-  const { TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-  };
-});
 
 it('pre-fills every field and reports edits by field', async () => {
   const onChange = jest.fn();

@@ -2,16 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { LABEL_BUTTON, SaveBar } from './save-bar';
 
-jest.mock('@/components/collection/gallery-button');
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
 
 const handlers = { onSave: jest.fn(), onLabel: jest.fn(), onViewSaved: jest.fn() };
 beforeEach(() => jest.clearAllMocks());
