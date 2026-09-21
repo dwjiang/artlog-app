@@ -21,7 +21,6 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 
 const STAGE_TEXT: Record<MuseumSearchStage, string> = {
   exhibitions: 'Looking up current exhibitions',
-  describe: 'Preparing your photo', search: 'Describing the painting and searching the site',
   check: 'Comparing the museum’s images on your phone', done: 'Image confirmed', none: 'Search finished',
 };
 

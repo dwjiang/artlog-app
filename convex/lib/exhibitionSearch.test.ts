@@ -11,7 +11,7 @@ describe('exhibition image candidates', () => {
         images: [{ url: 'https://museum.example/red.jpg' }, 'https://museum.example/blue.jpg'] }],
     });
     expect(exhibitionCandidates(response, ['museum.example'])).toEqual([{
-      sourceUrl: 'https://museum.example/exhibitions/colour', fields: {},
+      sourceUrl: 'https://museum.example/exhibitions/colour',
       exhibition: { title: 'A Century of Colour', content: 'Several artists.' },
       imageUrls: ['https://museum.example/red.jpg', 'https://museum.example/blue.jpg'],
     }]);

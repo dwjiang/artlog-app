@@ -26,6 +26,10 @@ namespace margelo::nitro::visionrect { struct RectPoint; }
 namespace margelo::nitro::visionrect { struct StillDetection; }
 // Forward declaration of `SubjectObservation` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
+// Forward declaration of `TextLine` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextLine; }
+// Forward declaration of `TextRecognition` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextRecognition; }
 
 // Include C++ defined types
 #include "CropContentBounds.hpp"
@@ -36,6 +40,8 @@ namespace margelo::nitro::visionrect { struct SubjectObservation; }
 #include "RectPoint.hpp"
 #include "StillDetection.hpp"
 #include "SubjectObservation.hpp"
+#include "TextLine.hpp"
+#include "TextRecognition.hpp"
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/Result.hpp>
 #include <VisionCamera/HybridFrameSpec.hpp>

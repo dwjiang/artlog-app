@@ -69,15 +69,22 @@ export async function listUnsynced(owner = getLocalOwner()) {
     .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.syncedAt))).orderBy(savedWorks.savedAt, savedWorks.localId).limit(50);
 }
 
-export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLocalOwner()): Promise<void> {
+/** Returns the local crop files a newer remote crop displaced; callers remove those no row still references. */
+export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLocalOwner()): Promise<string[]> {
+  const displaced: string[] = [];
   db.transaction((tx) => {
     for (const row of rows) {
       requireVisitMembership(owner, { ...row, visitId: undefined });
       const existing = tx.select().from(savedWorks).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).get();
       const newlyDeleted = existing?.deletedAt === null && row.deletedAt !== undefined;
       if (existing) {
-        tx.update(savedWorks).set({ cropStorageId: existing.cropStorageId ?? row.cropStorageId ?? null })
-          .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
+        const pendingCrop = !!existing.cropPath && !existing.cropStorageId;
+        if (!pendingCrop && row.cropStorageId && (row.photoUpdatedAt ?? 0) >= existing.photoUpdatedAt) {
+          const replaced = row.cropStorageId !== existing.cropStorageId;
+          if (replaced && existing.cropPath) displaced.push(existing.cropPath);
+          tx.update(savedWorks).set({ cropStorageId: row.cropStorageId, photoUpdatedAt: row.photoUpdatedAt ?? 0, ...(replaced ? { cropPath: null } : {}) })
+            .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId))).run();
+        }
         // Tombstones must survive even when a local edit is pending or a newer note arrived first.
         if (newlyDeleted) {
           tx.update(savedWorks).set({ deletedAt: row.deletedAt, syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
@@ -92,13 +99,14 @@ export async function upsertFromRemote(rows: Doc<'collections'>[], owner = getLo
         tx.insert(savedWorks).values({
           owner, localId: row.localId, visitLocalId: row.visitLocalId, ...row.snapshot, venueId: row.venueId, venueName: row.venueName, gallery: row.gallery,
           savedAt: row.savedAt, objectId: row.objectId, artworkId: row.artworkId,
-          photoPath: null, cropPath: null, syncedAt: row.updatedAt, syncedBy: row.updatedBy, deletedAt: row.deletedAt, cropStorageId: row.cropStorageId,
+          photoPath: null, cropPath: null, syncedAt: row.updatedAt, syncedBy: row.updatedBy, deletedAt: row.deletedAt, cropStorageId: row.cropStorageId, photoUpdatedAt: row.photoUpdatedAt ?? 0,
         }).run();
       }
       tx.insert(notes).values({ owner, savedLocalId: row.localId, text: row.note ?? '', updatedAt: row.updatedAt })
         .onConflictDoUpdate({ target: [notes.owner, notes.savedLocalId], set: { text: row.note ?? '', updatedAt: row.updatedAt } }).run();
     }
   });
+  return displaced;
 }
 
 export function listPhotoTransfers(owner = getLocalOwner()) {
@@ -108,10 +116,19 @@ export function listPhotoTransfers(owner = getLocalOwner()) {
   ))).orderBy(savedWorks.localId).limit(20);
 }
 
-export async function updatePhotoTransfer(localId: string, values: Partial<Pick<SavedWork, 'cropPath' | 'cropStorageId'>>, owner = getLocalOwner()): Promise<boolean> {
+export async function updatePhotoTransfer(localId: string, values: Partial<Pick<SavedWork, 'cropPath' | 'cropStorageId' | 'photoUpdatedAt'>>, owner = getLocalOwner(), expected?: Pick<SavedWork, 'cropPath' | 'cropStorageId'>): Promise<boolean> {
   const updated = await db.update(savedWorks).set(values)
-    .where(and(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)), isNull(savedWorks.deletedAt))).returning({ localId: savedWorks.localId });
+    .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId), isNull(savedWorks.deletedAt),
+      expected && (expected.cropPath === null ? isNull(savedWorks.cropPath) : eq(savedWorks.cropPath, expected.cropPath)),
+      expected && (expected.cropStorageId === null ? isNull(savedWorks.cropStorageId) : eq(savedWorks.cropStorageId, expected.cropStorageId)))).returning({ localId: savedWorks.localId });
   return updated.length > 0;
+}
+
+export function replaceSavedCrop(localId: string, cropPath: string, owner = getLocalOwner()) {
+  const work = selectSavedWork(localId, owner).get();
+  if (!work || work.deletedAt !== null) throw new Error('Artwork unavailable');
+  db.update(savedWorks).set({ cropPath, cropStorageId: null }).where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId))).run();
+  requestCollectionSync();
 }
 
 export function listDeletedPhotoFiles(owner = getLocalOwner()) {

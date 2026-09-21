@@ -638,6 +638,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "photoUpdatedAt": {
+          "name": "photoUpdatedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {

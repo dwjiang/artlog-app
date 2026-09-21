@@ -36,7 +36,8 @@ function fakeApi() {
   } satisfies LabelApi;
 }
 
-const encodePhoto = jest.fn(async (uri: string) => `base64-of-${uri}`);
+const lines = [{ text: 'Claude Monet', confidence: 1 }, { text: 'Water Lilies', confidence: 1 }];
+const readText = jest.fn(async () => lines);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -47,8 +48,9 @@ afterEach(() => jest.restoreAllMocks());
 it('reads the photo, verifies what was read and reports the stages in order', async () => {
   const api = fakeApi();
   const stages: LabelStage[] = [];
-  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, onStage: (stage) => stages.push(stage) });
-  expect(api.readLabel).toHaveBeenCalledWith({ scanId, imageBase64: 'base64-of-file:///tmp/label.jpg' });
+  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText, onStage: (stage) => stages.push(stage) });
+  expect(readText).toHaveBeenCalledWith('file:///tmp/label.jpg');
+  expect(api.readLabel).toHaveBeenCalledWith({ scanId, lines });
   expect(api.verifyLabel).toHaveBeenCalledTimes(1);
   expect(api.verifyLabel).toHaveBeenCalledWith({ scanId, fields: { title: 'Water Lilies', artist: 'Claude Monet' } });
   expect(api.fetchQr).not.toHaveBeenCalled();
@@ -59,10 +61,10 @@ it('reads the photo, verifies what was read and reports the stages in order', as
 it('a QR code fetches the museum page instead of reading', async () => {
   const api = fakeApi();
   const stages: LabelStage[] = [];
-  await runLabelFlow({ scanId, qrUrl: 'https://museum.example/qr/1', labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, onStage: (stage) => stages.push(stage) });
+  await runLabelFlow({ scanId, qrUrl: 'https://museum.example/qr/1', labelPhotoUri: 'file:///tmp/label.jpg', api, readText, onStage: (stage) => stages.push(stage) });
   expect(api.fetchQr).toHaveBeenCalledWith({ scanId, url: 'https://museum.example/qr/1' });
   expect(api.readLabel).not.toHaveBeenCalled();
-  expect(encodePhoto).not.toHaveBeenCalled();
+  expect(readText).not.toHaveBeenCalled();
   expect(api.verifyLabel).toHaveBeenCalledWith({ scanId, fields: { title: 'Water Lilies', artist: 'Claude Monet' } });
   expect(stages).toEqual(['qr', 'verify', 'done']);
 });
@@ -76,7 +78,7 @@ it.each([
   api.verifyLabel.mockResolvedValueOnce(verified).mockResolvedValueOnce(upgraded);
   const checkImages = jest.fn(async () => check);
   const stages: LabelStage[] = [];
-  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, checkImages, onStage: (stage) => stages.push(stage) });
+  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText, checkImages, onStage: (stage) => stages.push(stage) });
   expect(checkImages).toHaveBeenCalledWith(['https://museum.example/a.jpg', 'https://museum.example/b.jpg']);
   expect(api.verifyLabel).toHaveBeenCalledTimes(verifyCalls);
   expect(stages).toEqual(['read', 'verify', 'image-check', 'done']);
@@ -93,16 +95,16 @@ it('skips the image check without images or without the scan’s features and su
   const api = fakeApi();
   api.verifyLabel.mockResolvedValue(flow({ ...verified, imageUrls: undefined }));
   const checkImages = jest.fn(async () => null);
-  await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, checkImages });
+  await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText, checkImages });
   expect(checkImages).not.toHaveBeenCalled();
 
   api.verifyLabel.mockResolvedValue(verified);
   const stagesWithoutFeatures: LabelStage[] = [];
-  await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, onStage: (stage) => stagesWithoutFeatures.push(stage) });
+  await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText, onStage: (stage) => stagesWithoutFeatures.push(stage) });
   expect(stagesWithoutFeatures).toEqual(['read', 'verify', 'done']);
 
   const failing = jest.fn(async () => { throw new Error('download failed'); });
-  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto, checkImages: failing });
+  const result = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText, checkImages: failing });
   expect(result).toBe(verified);
   expect(console.warn).toHaveBeenCalledWith('Image check failed; keeping the text verification', expect.any(Error));
 });
@@ -110,11 +112,18 @@ it('skips the image check without images or without the scan’s features and su
 it('stops with the sharper-shot message when the reader found nothing', async () => {
   const api = fakeApi();
   api.readLabel.mockResolvedValue(flow({ stage: 'read', moderation: 'flagged' }));
-  await expect(runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto })).rejects.toMatchObject({
+  await expect(runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText })).rejects.toMatchObject({
     name: 'LabelFlowError', code: 'nothing_read', message: 'Couldn’t read the label — try a sharper shot',
   });
   expect(api.verifyLabel).not.toHaveBeenCalled();
-  await expect(runLabelFlow({ scanId, api, encodePhoto })).rejects.toMatchObject({ code: 'nothing_read' });
+  await expect(runLabelFlow({ scanId, api, readText })).rejects.toMatchObject({ code: 'nothing_read' });
+});
+
+it('sends nothing when the phone recognizes no text on the photo', async () => {
+  const api = fakeApi();
+  readText.mockResolvedValueOnce([]);
+  await expect(runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText })).rejects.toMatchObject({ code: 'nothing_read' });
+  expect(api.readLabel).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -127,7 +136,7 @@ it.each([
 ])('maps %s to a user message', async (error, code, message) => {
   const api = fakeApi();
   api.readLabel.mockRejectedValue(error);
-  const failure = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, encodePhoto }).catch((e: unknown) => e);
+  const failure = await runLabelFlow({ scanId, labelPhotoUri: 'file:///tmp/label.jpg', api, readText }).catch((e: unknown) => e);
   expect(failure).toBeInstanceOf(LabelFlowError);
   expect(failure).toMatchObject({ code, message, cause: error });
 });
@@ -143,7 +152,7 @@ it('rejects a moderated verification without reporting completion', async () => 
   const api = fakeApi();
   api.verifyLabel.mockResolvedValue(flow({ stage: 'verified', moderation: 'flagged' }));
   const stages: LabelStage[] = [];
-  await expect(runLabelFlow({ scanId, qrUrl: 'https://museum.example/qr/1', api, encodePhoto, onStage: (stage) => stages.push(stage) }))
+  await expect(runLabelFlow({ scanId, qrUrl: 'https://museum.example/qr/1', api, readText, onStage: (stage) => stages.push(stage) }))
     .rejects.toMatchObject({ code: 'label_flagged' });
   expect(stages).not.toContain('done');
 });

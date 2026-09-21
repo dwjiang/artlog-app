@@ -59,6 +59,25 @@ export interface LetterboxResult {
   meanColor: number[];
 }
 
+export interface TextLine {
+  text: string;
+  /** The recognizer's confidence in `text`, 0–1. */
+  confidence: number;
+  /** Bounds in normalized upright-image coordinates with a top-left origin. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TextRecognition {
+  /** Upright image size in pixels. */
+  width: number;
+  height: number;
+  /** Reading order: top to bottom, then left to right within a row. */
+  lines: TextLine[];
+}
+
 export interface VisionRect extends HybridObject<{ ios: 'swift' }> {
   /**
    * Runs rectangle detection on every `stride`-th call and returns `undefined` for the calls in between.
@@ -68,4 +87,6 @@ export interface VisionRect extends HybridObject<{ ios: 'swift' }> {
   /** Rectangle detection and subject lifting on a captured still or library photo. */
   detectStill(photoPath: string): Promise<StillDetection>;
   warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;
+  /** Reads printed text on a captured still or library photo with Apple Vision; nothing leaves the phone. */
+  recognizeText(photoPath: string): Promise<TextRecognition>;
 }

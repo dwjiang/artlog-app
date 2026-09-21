@@ -1,10 +1,11 @@
+import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -69,6 +70,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const capture = captures.find((row) => row.owner === owner);
   const labelCapture = !!capture && isLabelCapture(capture);
   const [selection, setSelection] = useState<ResultSelection>({});
+  const [editingCrop, setEditingCrop] = useState(false);
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
@@ -76,11 +78,18 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view = toResultViewState(scan, selection);
   const showMuseumSearch = !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
-  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch);
+  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch && !editingCrop);
 
   useEffect(() => {
     if (isActive && labelCapture) router.replace({ pathname: '/label/[scanId]', params: { scanId } });
   }, [isActive, labelCapture, router, scanId]);
+
+  function adjustCrop() {
+    if (hasEdits) Alert.alert('Adjust this crop?', 'Recognition will run again. Unsaved artwork details will be discarded.', [
+      { text: 'Keep editing', style: 'cancel' }, { text: 'Adjust crop', onPress: () => { setHasEdits(false); setEditingCrop(true); } },
+    ]);
+    else setEditingCrop(true);
+  }
 
   function openLabel() {
     setSheet({ open: false });
@@ -124,6 +133,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
     onViewSaved: () => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } }),
   };
 
+  if (editingCrop && capture) return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
   if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} />;
 
@@ -132,6 +142,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
     loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>
+    {capture && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />}
     {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
     {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
   </>;

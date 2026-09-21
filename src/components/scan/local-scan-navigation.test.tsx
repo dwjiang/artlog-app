@@ -6,6 +6,7 @@ import { AppState, Text } from 'react-native';
 
 import { LocalScanScreen } from '@/components/scan/local-scan-screen';
 import { QueueSheet } from '@/components/scan/states/queue-sheet';
+jest.mock('./scan-crop-editor', () => ({ ScanCropEditor: () => null }));
 jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => false, readPhotoSession: () => ({ photos: [] }) }));
 jest.mock('@/lib/capture/discard-capture', () => ({ discardCapture: jest.fn() }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));

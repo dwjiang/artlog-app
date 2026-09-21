@@ -35,6 +35,14 @@ export async function persistArtworkPhoto(uri: string, localId: string): Promise
   return moveInto('artwork-photos', uri, localId);
 }
 
+export function copyArtworkPhoto(uri: string, localId: string): string {
+  const directory = new Directory(Paths.document, 'artwork-photos');
+  directory.create({ intermediates: true, idempotent: true });
+  const path = `artwork-photos/${localId}${extension(uri)}`;
+  new File(uri).copy(new File(captureFileUri(path)));
+  return path;
+}
+
 export async function persistCapture(
   { photoUri, cropUri, localId, contentBounds }: { photoUri: string; cropUri: string; localId: string; contentBounds: CropContentBounds },
 ): Promise<CaptureFiles> {

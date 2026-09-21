@@ -49,6 +49,14 @@ namespace margelo::nitro::visionrect::bridge::swift {
     };
   }
   
+  // pragma MARK: std::function<void(const TextRecognition& /* result */)>
+  Func_void_TextRecognition create_Func_void_TextRecognition(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = VisionRect::Func_void_TextRecognition::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const TextRecognition& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
   // pragma MARK: std::shared_ptr<HybridVisionRectSpec>
   std::shared_ptr<HybridVisionRectSpec> create_std__shared_ptr_HybridVisionRectSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
     VisionRect::HybridVisionRectSpec_cxx swiftPart = VisionRect::HybridVisionRectSpec_cxx::fromUnsafe(swiftUnsafePointer);

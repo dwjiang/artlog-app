@@ -1,5 +1,5 @@
 import { Button, Host, Icon, Row, Text as NativeText } from '@expo/ui';
-import { accessibilityLabel, font, frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, contentShape, font, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { Children, Fragment, type ComponentProps, type ReactNode } from 'react';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
@@ -78,7 +78,7 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 function SettingsRow({ label, icon, onPress }: { label: string; icon: ComponentProps<typeof Icon>['name']; onPress: () => void }) {
   return <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
     <Button variant="text" onPress={onPress} modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}>
-      <Row spacing={16} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 54 })]}>
+      <Row spacing={16} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 54 }), contentShape(shapes.rectangle())]}>
         <Icon name={icon} size={22} color={Gallery.ink} />
         <NativeText textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'body' }), frame({ maxWidth: Infinity, alignment: 'leading' })]}>{label}</NativeText>
         <Icon name="chevron.right" size={13} color={Gallery.muted} />

@@ -25,7 +25,7 @@ it('shows the exact consent copy and persists the grant before starting any sear
   const onGranted = jest.fn();
   await render(<SearchConsentSheet open onGranted={onGranted} onDismiss={jest.fn()} />);
   expect(screen.getByText("Search this museum's collection?")).toBeOnTheScreen();
-  expect(screen.getByText("We'll search the museum's current exhibitions and compare its images with your photo on this phone. If we don't find a match, we'll send a copy of your photo to a vision model and search the museum's collection using its description. The photo isn't stored by this search. You can turn this off in Settings.")).toBeOnTheScreen();
+  expect(screen.getByText("We'll search the museum's current exhibitions and compare its images with your photo on this phone. Your photo stays on the phone; the search sends only the museum's name. You can turn this off in Settings.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
   expect(setMuseumSearchConsent).toHaveBeenCalledWith('granted');
   expect(onGranted).not.toHaveBeenCalled();

@@ -4,10 +4,13 @@
 //   swiftc -O -framework Vision -framework CoreImage \
 //     modules/vision-rect/ios/RectangleDetector.swift modules/vision-rect/ios/SubjectDetector.swift \
 //     modules/vision-rect/ios/StillAnalyzer.swift modules/vision-rect/ios/Letterbox.swift \
+//     modules/vision-rect/ios/TextRecognizer.swift \
 //     modules/vision-rect/scripts/mac-harness.swift -o /tmp/vision-rect-harness
 //   /tmp/vision-rect-harness analyze <image>... [--out <dir>]
 //     --out writes <name>-analysis.png (subject quads red, bounds dotted, rectangles blue) and <name>-crop.png (top subject warped)
 //   /tmp/vision-rect-harness letterbox <image> <size> <out.png> [--interp medium|low|high|none] [--quad x,y,x,y,x,y,x,y]
+//   /tmp/vision-rect-harness recognize-text <image>...
+//     one JSON line per image: the label reader's input (scripts/evals/token-factory/README.md, "label-ocr")
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -28,9 +31,10 @@ struct Harness {
 
   static func main() throws {
     let arguments = CommandLine.arguments
-    guard arguments.count >= 2 else { fail("usage: analyze <image>... [--out dir] | letterbox <image> <size> <out.png> [--interp q] [--quad 8 numbers]") }
+    guard arguments.count >= 2 else { fail("usage: analyze <image>... [--out dir] | letterbox <image> <size> <out.png> [--interp q] [--quad 8 numbers] | recognize-text <image>...") }
     switch arguments[1] {
     case "analyze": try analyze(Array(arguments.dropFirst(2)))
+    case "recognize-text": try recognizeText(Array(arguments.dropFirst(2)))
     case "letterbox": try letterbox(arguments)
     case "self-test": try testContentBounds()
     default: fail("unknown command \(arguments[1])")
@@ -69,6 +73,24 @@ struct Harness {
     let portrait = try Letterbox.letterbox(odd, orientation: .right, size: 4)
     guard portrait.contentBounds == CGRect(x: 0, y: 0, width: 3, height: 4) else { fail("Incorrect portrait bounds") }
     print("PASS: content pixels, mean-color padding, odd bounds, and all eight orientations")
+  }
+
+  static func recognizeText(_ paths: [String]) throws {
+    for path in paths {
+      let url = URL(fileURLWithPath: path)
+      let started = Date()
+      let result = try TextRecognizer.recognize(fileURL: url)
+      let elapsed = Date().timeIntervalSince(started) * 1000
+      print(json([
+        "file": url.lastPathComponent, "width": result.width, "height": result.height, "ms": (elapsed * 10).rounded() / 10,
+        "lines": result.lines.map { line in
+          [
+            "text": line.text, "confidence": round4(CGFloat(line.confidence)),
+            "x": round4(line.bounds.minX), "y": round4(line.bounds.minY), "width": round4(line.bounds.width), "height": round4(line.bounds.height),
+          ]
+        },
+      ]))
+    }
   }
 
   static func analyze(_ arguments: [String]) throws {

@@ -73,7 +73,7 @@ it('persists off as declined through a remount and keeps cancellation off', asyn
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
 });
 
-it('prevents any photo preparation or upload after revoking consent in Settings and returning to a scan', async () => {
+it('prevents any request after revoking consent in Settings and returning to a scan', async () => {
   await setMuseumSearchConsent('granted');
   const view = await render(<SettingsDetailScreen section="privacy" />);
   const toggle = screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING });
@@ -81,15 +81,13 @@ it('prevents any photo preparation or upload after revoking consent in Settings 
   await fireEvent.press(toggle);
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   await view.unmount();
-  const prepareCrop = jest.fn();
-  const searchMuseumSite = jest.fn();
+  const searchExhibitions = jest.fn();
   expect(await runMuseumSearch({
     scanId: 'scan-1' as import('../../../convex/_generated/dataModel').Id<'scans'>,
     localId: 'capture-1', inputSize: 512, canContinue: () => true,
-    getCapture: jest.fn(), prepareCrop,
-    api: { searchExhibitions: jest.fn(), searchMuseumSite, confirmSearchCandidate: jest.fn() },
+    getCapture: jest.fn(),
+    api: { searchExhibitions, confirmSearchCandidate: jest.fn() },
     images: { download: jest.fn(), letterbox: jest.fn(), embed: jest.fn(), extractOrb: jest.fn(), remove: jest.fn() },
   })).toEqual({ stage: 'cancelled' });
-  expect(prepareCrop).not.toHaveBeenCalled();
-  expect(searchMuseumSite).not.toHaveBeenCalled();
+  expect(searchExhibitions).not.toHaveBeenCalled();
 });

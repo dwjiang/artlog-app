@@ -57,6 +57,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
+      <GalleryButton label="Adjust crop" icon="crop" onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: work.localId } })} />
       <Divider />
       <ArtworkEncounterList work={work} encounters={encounters} loading={loadingEncounters} loadError={encounterError} visitId={currentEncounter?.visit.localId} />
       <Divider />

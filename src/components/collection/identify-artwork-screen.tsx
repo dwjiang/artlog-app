@@ -13,6 +13,7 @@ import type { SavedWork } from '@/db/schema';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { flushCollectionMedia } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
+import { removeUnreferencedPhotos } from '@/lib/files/unreferenced-photos';
 import { GalleryButton } from './gallery-button';
 import { ArtworkQueryState } from './artwork-query-state';
 
@@ -42,7 +43,7 @@ function Editor({ work }: { work: SavedWork }) {
       await flushCollectionMedia({ saveLocalIds: [work.localId, target.localId] }); if (!session.isCurrent()) return;
       const result = await convex.mutation(api.artworkAlbums.merge, { scope: session.scope, sourceLocalId: work.localId, targetLocalId: target.localId });
       if (!session.isCurrent()) return;
-      await upsertFromRemote(result.saves, session.owner); applyAlbum(result.photos, result.encounters, session.owner);
+      await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner)); applyAlbum(result.photos, result.encounters, session.owner);
       router.replace({ pathname: '/saved/[savedId]', params: { savedId: target.localId } });
     } catch { setError('Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.'); }
     finally { setBusy(false); }

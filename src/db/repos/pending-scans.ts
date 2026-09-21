@@ -61,7 +61,8 @@ export async function clearPendingLabel(localId: string, label: PendingLabel, ow
 
 export async function recordLabelFailure(localId: string, error: string, { countAttempt }: { countAttempt: boolean }, owner = getLocalOwner()) {
   const row = await getPendingScan(localId, owner);
-  if (!row) throw new Error(`Pending scan ${localId} not found`);
+  // Crop correction can replace the scan while its previous request is still in flight.
+  if (!row) return { status: 'failed' as const, attempts: 0 };
   const attempts = row.attempts + (countAttempt ? 1 : 0);
   await db.update(pendingScans).set({ attempts, lastError: error }).where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
   // This is the label task's retry status; identification remains complete.
@@ -110,7 +111,7 @@ export async function recordAttemptFailure(
   { countAttempt }: { countAttempt: boolean },
   owner = getLocalOwner()): Promise<{ status: PendingScanStatus; attempts: number }> {
   const row = await getPendingScan(localId, owner);
-  if (!row) throw new Error(`Pending scan ${localId} not found`);
+  if (!row) return { status: 'failed' as const, attempts: 0 };
   const attempts = row.attempts + (countAttempt ? 1 : 0);
   const status: PendingScanStatus = attempts >= MAX_IDENTIFY_ATTEMPTS ? 'failed' : 'queued';
   await db.update(pendingScans).set({ status, attempts, lastError: error }).where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));

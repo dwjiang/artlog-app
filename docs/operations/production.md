@@ -56,8 +56,7 @@ The [full corpus upload](../todos/production-upload/README.md) and
 | `DAILY_TOKEN_FACTORY_CALL_CAP` | `2000` |
 | `DAILY_TAVILY_CREDIT_CAP` | `20` |
 | `SITE_URL` | `https://admired-goldfinch-660.convex.site` |
-| `LABEL_VL_MODEL` | `moonshotai/Kimi-K2.6` |
-| `FACT_SHEET_MODEL` | `nvidia/nemotron-3-super-120b-a12b` |
+| `LABEL_MODEL`, `FACT_SHEET_MODEL` | `nvidia/nemotron-3-super-120b-a12b` |
 | `DOCENT_MODEL`, `MODERATION_MODEL` | `nvidia/Nemotron-3_5-Lightning` |
 
 Production has independent `JWT_PRIVATE_KEY` and `JWKS` plus provider credentials

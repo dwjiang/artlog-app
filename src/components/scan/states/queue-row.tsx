@@ -1,7 +1,7 @@
 import { LoadingRing } from '@/components/loading-ring';
 import { Host, Icon } from '@expo/ui';
 import { Button, Menu } from '@expo/ui/swift-ui';
-import { accessibilityLabel, buttonStyle, disabled, frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, buttonStyle, contentShape, disabled, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -62,7 +62,7 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
         )}
       </Pressable>
       <Host matchContents colorScheme="light">
-        <Menu label={<Icon name="ellipsis" size={20} color={Gallery.muted} modifiers={[frame({ width: 44, height: 44 })]} />}
+        <Menu label={<Icon name="ellipsis" size={20} color={Gallery.muted} modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]} />}
           modifiers={[accessibilityLabel(`Options for scan from ${when}`), buttonStyle('plain'), disabled(discarding || retrying)]}>
           <Button label="Resume" systemImage="arrow.right" onPress={() => onOpen(item)} />
           {item.status === 'failed' && <Button label={RETRY_ROW} systemImage="arrow.clockwise" modifiers={[disabled(retrying || discarding)]} onPress={() => onRetry(item)} />}
