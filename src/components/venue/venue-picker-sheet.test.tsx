@@ -72,18 +72,52 @@ describe('choosing a museum', () => {
     expect(nearest).toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth });
   });
 
-  it('asks "still here?" for a lone museum beyond the automatic radius', async () => {
+  it('confirms a lone museum directly without a redundant selection step', async () => {
     mockView = { ...mockView, options: [{ ...seeded, distanceM: 300 }] };
     await render(<VenuePickerSheet />);
-    expect(screen.getByRole('header', { name: 'Still at Metropolitan Museum of Art?' })).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Visiting here?' })).toBeOnTheScreen();
+    expect(screen.getAllByText(seeded.name)).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: seeded.name })).toBeNull();
     expect(screen.getByText('300 m')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Yes, I’m here' }));
+    expect(mockConfirm).toHaveBeenCalledWith(mockView.options[0], expect.any(AbortSignal));
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows retrying a failed single-place confirmation', async () => {
+    mockView = { ...mockView, options: [seeded] };
+    mockConfirm.mockRejectedValueOnce(new Error('Could not confirm the venue. Try again.'));
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Yes, I’m here' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not confirm the venue. Try again.');
+    expect(mockBack).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Yes, I’m here' }));
+    expect(mockConfirm).toHaveBeenCalledTimes(2);
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('can cancel a pending single-place confirmation without ending a paused visit', async () => {
+    mockParams = { mode: 'choose' };
+    mockView = { ...mockView, visit, options: [seeded] };
+    let finish!: () => void;
+    mockConfirm.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    await render(<VenuePickerSheet />);
+    const confirm = screen.getByRole('button', { name: 'Yes, I’m here' });
+    await fireEvent.press(confirm);
+    expect(confirm).toBeBusy();
+    expect(confirm).toBeDisabled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
+    expect(mockConfirm.mock.calls[0][1].aborted).toBe(true);
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockEnd).not.toHaveBeenCalled();
+    await act(async () => { finish(); });
+    expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
   it('shows a place category for MapKit results and never calls them museums', async () => {
     mockView = { ...mockView, status: 'none', options: [poi] };
     const view = await render(<VenuePickerSheet />);
-    expect(screen.getByRole('header', { name: 'Looks like you’re at…' })).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Visiting here?' })).toBeOnTheScreen();
     expect(screen.getByText('1.3 km · landmark')).toBeOnTheScreen();
     mockView = { ...mockView, options: [poi, { ...poi, name: 'Side Street Studio', distanceM: 1400 }] };
     await view.rerender(<VenuePickerSheet />);
