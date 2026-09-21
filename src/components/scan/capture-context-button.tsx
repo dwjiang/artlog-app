@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
@@ -17,7 +18,7 @@ export function captureVisitLabel(visit: Pick<Visit, 'venueName' | 'visitedOn' |
 
 /** The visit this capture will save to: the capture's own unless the draft overrides it. Tapping picks another for this shot only. */
 export function CaptureContextButton({ draftId, visitId, disabled }: { draftId: string; visitId?: string; disabled?: boolean }) {
-  const owner = useLocalOwner(), [label, setLabel] = useState('Loading visit…');
+  const owner = useLocalOwner(), [label, setLabel] = useState<string>();
   useFocusEffect(useCallback(() => {
     let active = true;
     async function load() {
@@ -29,11 +30,11 @@ export function CaptureContextButton({ draftId, visitId, disabled }: { draftId: 
     void load().catch(() => { if (active) setLabel('Visit unavailable'); });
     return () => { active = false; };
   }, [owner, draftId, visitId]));
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${label} · Change`} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled }} disabled={disabled}
+  return <Pressable accessibilityRole="button" accessibilityLabel={label ? `${label} · Change` : 'Loading visit…'} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled || !label, busy: !label }} disabled={disabled || !label}
     onPress={() => router.push({ pathname: '/capture-context', params: { draftId, visitId } })}
     style={({ pressed }) => [styles.chip, pressed && styles.pressed, disabled && styles.disabled]}>
     <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
-    <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>{label}</ThemedText>
+    {label ? <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>{label}</ThemedText> : <TextSkeleton label="Loading visit…" width={140} />}
     <Image source="sf:chevron.down" tintColor={Gallery.ink} style={styles.chevron} />
   </Pressable>;
 }

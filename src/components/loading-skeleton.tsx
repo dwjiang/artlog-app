@@ -27,6 +27,24 @@ export function ParagraphSkeleton({ label = 'Writing about this work…' }: { la
   </View></LoadingSkeleton>;
 }
 
+export function TextSkeleton({ label, width = 120, height = 14 }: { label: string; width?: DimensionValue; height?: number }) {
+  return <LoadingSkeleton label={label}><Ghost width={width} height={height} /></LoadingSkeleton>;
+}
+
+export function PhotoStripSkeleton({ label = 'Loading photos…' }: { label?: string }) {
+  return <LoadingSkeleton label={label}><View style={{ flexDirection: 'row', gap: 12 }}>
+    {[0, 1, 2].map((index) => <Ghost key={index} style={{ flex: 1, height: undefined, aspectRatio: 1 }} />)}
+  </View></LoadingSkeleton>;
+}
+
+export function FormSkeleton({ label }: { label: string }) {
+  return <LoadingSkeleton label={label}><View style={{ gap: 24 }}>
+    {[0, 1, 2].map((index) => <View key={index} style={{ gap: 10 }}>
+      <Ghost width="35%" /><Ghost height={48} />
+    </View>)}
+  </View></LoadingSkeleton>;
+}
+
 export function ImageSkeleton({ label = 'Loading photo…', style }: { label?: string; style?: StyleProp<ViewStyle> }) {
   return <LoadingSkeleton label={label} style={style} fill><Ghost style={{ height: '100%', minHeight: 1 }} /></LoadingSkeleton>;
 }

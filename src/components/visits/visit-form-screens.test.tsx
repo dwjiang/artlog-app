@@ -18,7 +18,7 @@ jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@exp
 jest.mock('expo-router', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return { router: { back: () => mockBack(), dismissTo: (...args: unknown[]) => mockDismissTo(...args) }, useLocalSearchParams: () => ({ savedId: mockSavedId }), Stack: {
-    Toolbar: Object.assign(View, { Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) =>
+    Toolbar: Object.assign(View, { View, Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) =>
       <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable> }),
   } };
 });

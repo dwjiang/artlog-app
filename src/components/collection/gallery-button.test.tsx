@@ -16,7 +16,7 @@ it('keeps its label and prevents duplicate activation while announcing progress'
   expect(screen.getByText('Save artwork')).toBeOnTheScreen();
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Saving…', { includeHiddenElements: true })).toBeOnTheScreen();
+  expect(screen.queryByText('Saving…', { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(announce).toHaveBeenCalledWith('Save artwork. In progress.');
 

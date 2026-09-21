@@ -21,7 +21,7 @@ it('shows the selected photo’s actual published visibility and updates after u
 });
 it('does not call a photo private before checking or while offline', async () => {
   const view = await render(<PhotoVisibility savedId="s" photoId="p" />);
-  expect(screen.getByText('Checking photo visibility…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Checking photo visibility…')).toBeOnTheScreen();
   mockSession.offline = true;
   await view.rerender(<PhotoVisibility savedId="s" photoId="p" />);
   expect(screen.getByText(/Photo visibility unavailable/)).toBeOnTheScreen();
@@ -41,7 +41,7 @@ it('clears the old account’s visibility while the owner or server scope change
   mockSession = { status: 'loading', key: 'b', offline: false };
   await view.rerender(<PhotoVisibility savedId="s" photoId="p" />);
   expect(mockQuery.mock.calls.at(-1)?.slice(1)).toEqual(['skip', 'b']);
-  expect(screen.getByText('Checking photo visibility…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Checking photo visibility…')).toBeOnTheScreen();
   expect(screen.queryByText(/public wall placement/)).toBeNull();
   mockScope = 'scope-b'; mockSession.status = 'ready'; mockResult = { data: [] };
   await view.rerender(<PhotoVisibility savedId="s" photoId="p" />);

@@ -1,3 +1,4 @@
+import { ParagraphSkeleton } from '@/components/loading-skeleton';
 import { Image } from 'expo-image';
 import { Button, Host } from '@expo/ui/swift-ui';
 import { useEffect, useRef, useState } from 'react';
@@ -55,6 +56,7 @@ export function NoteEditor({ savedLocalId, sharedOnWall }: { savedLocalId: strin
 function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: string; owner: string; sharedOnWall?: boolean }) {
   const [draft, setDraft] = useState<string>();
   const [saveFailed, setSaveFailed] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   const latest = useRef<NoteDraft>(undefined);
 
@@ -69,7 +71,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: s
       note.text = note.saved = row?.text ?? '';
       latest.current = note;
       setDraft(note.text);
-    }, (error: unknown) => console.warn('Note not loaded', error));
+    }, () => { if (active) setLoadFailed(true); });
     return () => {
       active = false;
       persist(note);
@@ -83,7 +85,8 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: s
         {editing ? <GalleryButton label="Done" accessibilityLabel="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
           : <GalleryButton label={draft ? 'Edit' : 'Add'} accessibilityLabel={draft ? 'Edit note' : 'Add note'} disabled={draft === undefined} onPress={() => setEditing(true)} />}
       </NoteHeading>
-      {editing ? <><TextInput
+      {loadFailed ? <ThemedText accessibilityRole="alert" themeColor="error">Your note could not load. Reopen this artwork to try again.</ThemedText>
+        : draft === undefined ? <ParagraphSkeleton label="Loading your note…" /> : editing ? <><TextInput
         accessibilityLabel="Notes"
         placeholder="What stayed with you?"
         placeholderTextColor={Colors.light.textSecondary}

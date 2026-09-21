@@ -1,3 +1,5 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { View } from 'react-native';
 import { Host, Icon, Row, Text as NativeText } from '@expo/ui';
 import { Menu, Button } from '@expo/ui/swift-ui';
@@ -38,8 +40,8 @@ export function FriendshipControls({ profileId, session }: { profileId: PublicPr
         label={labels[action]} disabled={busy} variant={action === 'request' || action === 'accept' ? 'filled' : 'outlined'}
         destructive={action === 'remove'} onPress={() => { void act(action); }} />)}
     </View>}
-    {busy && <Text style={socialStyles.caption}>Updating friendship…</Text>}
-    {!state && !error && <Text style={socialStyles.caption}>Loading friendship…</Text>}
+    {busy && <LoadingRing accessibilityLabel="Updating friendship…" />}
+    {!state && !error && <TextSkeleton label="Loading friendship…" width="100%" height={44} />}
     {error && <>
       <Text selectable accessibilityRole="alert" style={socialStyles.body}>{error}</Text>
       <GalleryButton label="Refresh friendship" disabled={busy} onPress={refresh} />

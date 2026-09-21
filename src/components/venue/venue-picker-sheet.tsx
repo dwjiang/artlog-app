@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { EmptyState } from '../empty-state';
 import { EmptyMap } from '../empty-state-art';
 import { LoadingRing } from '@/components/loading-ring';
@@ -50,7 +51,7 @@ export function VenuePickerSheet() {
 
 function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => void }) {
   const router = useRouter();
-  const { visits } = useVisits();
+  const { visits, loading, error } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
   const works = summary?.works ?? [];
   const sheetStyle = useSheetStyle();
@@ -63,7 +64,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>Visiting now · since {formatVisitStart(visit.startedAt, visit.timeZone)}</ThemedText>
       </View>
       <ThemedText type="title" accessibilityRole="header">{visit.venueName}</ThemedText>
-      <ThemedText themeColor="textSecondary">{summary?.location ? `${summary.location} · ${count}` : count}</ThemedText>
+      {loading && !error ? <TextSkeleton label="Loading visit artwork count" width={180} /> : <ThemedText themeColor="textSecondary">{error ? 'Artwork count unavailable' : summary?.location ? `${summary.location} · ${count}` : count}</ThemedText>}
       {works.length > 0 && <ArtworkPreviews works={works} overflow />}
       <GalleryButton label="End visit" variant="filled" fullWidth onPress={() => router.replace({ pathname: '/journal/[visitId]', params: { visitId: visit.localId, endVisit: 'true' } })} />
       <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
@@ -125,9 +126,9 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
   </ScrollView>;
 
   const single = options.length === 1 ? options[0] : undefined;
-  const title = status === 'locating' ? 'Finding your museum…'
-    : status === 'denied' ? 'Location is off'
-    : options.length === 0 ? error ? 'Couldn’t find nearby museums.' : 'Finding your museum…'
+  const locating = status === 'idle' || status === 'locating';
+  const title = status === 'denied' ? 'Location is off'
+    : options.length === 0 ? 'Couldn’t find nearby museums.'
     : single ? 'Visiting here?'
     : options.some((option) => option.kind === 'poi') ? 'Looks like you’re at…'
     : `${options.length} museums nearby`;
@@ -137,14 +138,14 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       ? 'The nearest one is selected. Scans are matched against the museum you confirm.'
       : single
         ? 'We’ll keep the art you scan together in this visit.'
-        : status === 'locating' ? undefined : 'You can keep scanning without a museum.';
+        : locating ? undefined : 'You can keep scanning without a museum.';
 
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
     <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, single && styles.confirmationContent]} bounces={false}>
       <View style={styles.heading}>
-        <ThemedText type={status === 'locating' && fontScale > 1.5 ? 'subtitle' : 'title'} accessibilityRole="header" style={status === 'locating' && styles.loadingTitle}>{title}</ThemedText>
-        {status === 'locating' && <LoadingRing color={Gallery.accent} accessibilityLabel="Locating your museum" />}
+        {!locating && <ThemedText type="title" accessibilityRole="header">{title}</ThemedText>}
+        {locating && <LoadingRing color={Gallery.accent} accessibilityLabel="Locating your museum" />}
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
       </View>
       {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
@@ -172,9 +173,9 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
           >
             <View style={styles.optionText}>
               <ThemedText style={isSelected && styles.selectedLabel}>{option.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{confirming ? 'Confirming…' : detail(option, index === 0 && options.length > 1)}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{detail(option, index === 0 && options.length > 1)}</ThemedText>
             </View>
-            {confirming && <LoadingRing color={Gallery.accent} />}
+            {confirming && <LoadingRing color={Gallery.accent} accessibilityLabel="Confirming…" />}
           </Pressable>
         );
       })}
@@ -197,7 +198,6 @@ const styles = StyleSheet.create({
   placeIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.highlight, borderRadius: Radius.card, borderCurve: 'continuous' },
   placeSymbol: { width: 26, height: 26 },
   actions: { gap: Spacing.two },
-  loadingTitle: { textAlign: 'center' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: 'uppercase' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.success },

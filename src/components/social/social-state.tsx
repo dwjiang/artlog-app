@@ -18,7 +18,7 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
   return <View style={socialStyles.state}>
     {loading ? <LoadingRing color={Gallery.accent} accessibilityLabel={title} />
       : <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={{ width: 40, height: 40 }} />}
-    <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>
+    {!loading && <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>}
     {detail && <Text selectable style={socialStyles.body}>{detail}</Text>}
     {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" />}
   </View>;

@@ -1,3 +1,5 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -59,11 +61,11 @@ function Editor({ work }: { work: SavedWork }) {
     <GalleryButton label="This is an artwork I already saved" disabled={busy} onPress={() => setChoosing(!choosing)} />
     {choosing && <View style={{ gap: 12 }}><Text style={{ color: Gallery.ink }}>Find saved artwork</Text><TextInput accessibilityLabel="Find saved artwork" placeholder="Search your collection" placeholderTextColor={Gallery.muted} keyboardAppearance="light" selectionColor={Gallery.accent} value={search} onChangeText={setSearch} editable={!busy} style={{ padding: 16, backgroundColor: Gallery.surface, color: Gallery.ink, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder }} />
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your collection. Close and reopen this artwork to try again.</Text>
-        : !works.updatedAt && !matches.length ? <Text style={{ color: Gallery.muted }}>Loading artworks…</Text>
+        : !works.updatedAt && !matches.length ? <ListSkeleton label="Loading artworks…" rows={3} />
         : !matches.length ? <Text style={{ color: Gallery.muted }}>{search ? 'No matching artworks. Try another title or artist.' : 'No other saved artworks to combine.'}</Text> : null}
       {matches.map((target) => <GalleryButton key={target.localId} label={`${target.title} · ${target.artist}`} disabled={busy} onPress={() => Alert.alert('Combine these artworks?', `Move all photos, visit links, and private notes into “${target.title}”. The duplicate artwork and its shared placements will be removed.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Combine artworks', onPress: () => { void merge(target); } }])} />)}
     </View>}
-    {busy && <Text accessibilityLiveRegion="polite" style={{ color: Gallery.muted }}>Combining artworks…</Text>}
+    {busy && <LoadingRing accessibilityLabel="Combining artworks…" />}
     </View>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
   </ScrollView>;

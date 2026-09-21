@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { Host, Icon } from '@expo/ui';
 import { Button, Menu } from '@expo/ui/swift-ui';
 import { accessibilityLabel, buttonStyle, disabled, frame } from '@expo/ui/swift-ui/modifiers';
@@ -53,7 +54,8 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>{title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{when} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</ThemedText>
-          <ThemedText type="small" themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : item.status === 'queued' ? 'warning' : 'textSecondary'}>{retrying ? 'Retrying…' : status}</ThemedText>
+          {retrying || item.status === 'identifying' || discarding ? <LoadingRing accessibilityLabel={discarding ? 'Discarding scan…' : retrying ? 'Retrying…' : status} style={{ alignSelf: 'flex-start' }} />
+            : <ThemedText type="small" themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : 'warning'}>{status}</ThemedText>}
         </View>
         {hasLabel && (
           <Image source="sf:tag" accessibilityLabel="Label attached" style={styles.labelIcon} tintColor={Colors.light.textSecondary} />
@@ -63,7 +65,7 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
         <Menu label={<Icon name="ellipsis" size={20} color={Gallery.muted} modifiers={[frame({ width: 44, height: 44 })]} />}
           modifiers={[accessibilityLabel(`Options for scan from ${when}`), buttonStyle('plain'), disabled(discarding || retrying)]}>
           <Button label="Resume" systemImage="arrow.right" onPress={() => onOpen(item)} />
-          {item.status === 'failed' && <Button label={retrying ? 'Retrying scan…' : RETRY_ROW} systemImage="arrow.clockwise" modifiers={[disabled(retrying || discarding)]} onPress={() => onRetry(item)} />}
+          {item.status === 'failed' && <Button label={RETRY_ROW} systemImage="arrow.clockwise" modifiers={[disabled(retrying || discarding)]} onPress={() => onRetry(item)} />}
           <Button label="Discard scan" systemImage="trash" role="destructive" onPress={() => onDiscard(item)} />
         </Menu>
       </Host>

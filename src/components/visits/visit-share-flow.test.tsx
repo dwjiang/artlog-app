@@ -41,6 +41,18 @@ beforeEach(() => {
     draft: { audience: 'public', visitLocalId: 'visit', revision: 0, saveLocalIds: ['save'], reflection: '' }, preview: null, shared: null,
     profileRequired: false, conflict: false, busy: false, controller: mockController, token: 'token' } as unknown as ReturnType<typeof useVisitSharing>;
 });
+it('shows visual progress before sharing starts and replaces a load failure with retry guidance', async () => {
+  mockSharing.draft = null;
+  const view = await render(<VisitShareLayout />);
+  expect(screen.getByRole('progressbar', { name: 'Preparing sharing…' })).toBeOnTheScreen();
+  expect(screen.queryByText('Preparing sharing…')).toBeNull();
+  mockSharing.error = 'Connection failed';
+  await view.rerender(<VisitShareLayout />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Sharing could not load.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+  expect(mockController.load).toHaveBeenCalledTimes(2);
+});
 it('uses the explicitly selected visit photo in the feed preview, including an explicitly selected label', async () => {
   mockVisit.works[0].cropPath = 'private-original.jpg';
   mockPhotos = [{ owner: 'account:a', localId: 'chosen-label', savedLocalId: 'save', visitLocalId: 'visit', path: 'selected-label.jpg', kind: 'label', deletedAt: null } as ArtworkPhoto];

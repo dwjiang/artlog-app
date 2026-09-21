@@ -1,4 +1,5 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { useNetworkState } from 'expo-network';
 import { StyleSheet, View } from 'react-native';
 import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -8,13 +9,18 @@ import type { useAccount } from '@/lib/account/use-account';
 type SignInState = Pick<ReturnType<typeof useAccount>, 'available' | 'busy' | 'error' | 'ready' | 'signInWithApple'>;
 
 export function AppleSignInAction({ state }: { state: SignInState }) {
+  const network = useNetworkState();
+  // Offline, the device never becomes ready, so say so instead of spinning until the sheet is dismissed.
+  const offline = network.isConnected === false || network.isInternetReachable === false;
   return <View style={styles.root}>
     {state.busy ? <View style={styles.progress}><LoadingRing accessibilityLabel="Signing in…" color={Gallery.accent} /></View>
       : state.available && state.ready ? <AppleAuthentication.AppleAuthenticationButton
         buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
         buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
         cornerRadius={8} style={styles.button} onPress={() => { void state.signInWithApple(); }} />
-        : <Text style={styles.footnote}>{!state.ready ? 'Connecting to your account…' : 'Apple sign-in is unavailable on this device.'}</Text>}
+        : !state.ready && offline ? <Text style={styles.footnote}>Connect to the internet to sign in.</Text>
+          : !state.ready ? <View style={styles.progress}><LoadingRing accessibilityLabel="Connecting to your account" /></View>
+            : <Text style={styles.footnote}>Apple sign-in is unavailable on this device.</Text>}
     {state.error && <Text selectable accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
   </View>;
 }

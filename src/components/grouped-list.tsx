@@ -1,8 +1,9 @@
 import { Button, Host, Icon, ListItem, Row, Text } from '@expo/ui';
 import { LabeledContent, List, Section } from '@expo/ui/swift-ui';
-import { background, buttonStyle, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, accessibilityValue, background, buttonStyle, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps, ReactNode } from 'react';
 import { Gallery } from '@/constants/theme';
+import { NativeLoadingRing } from './native-loading-ring';
 
 type IconName = ComponentProps<typeof Icon>['name'];
 
@@ -21,30 +22,31 @@ export function GroupedFooter({ children, tone = 'muted' }: { children: string; 
   return <Text modifiers={[font({ textStyle: 'footnote' })]} textStyle={{ color: tone === 'destructive' ? Gallery.destructive : Gallery.muted }}>{children}</Text>;
 }
 
-export function NavigationRow({ label, detail, value, onPress }: {
-  label: string; detail?: string; value?: string; onPress: () => void;
+export function NavigationRow({ label, detail, value, onPress, loading = false }: {
+  label: string; detail?: string; value?: string; onPress: () => void; loading?: boolean;
 }) {
   return <ListItem trailing={<Row spacing={8} alignment="center">
-      {value ? <Text modifiers={[font({ textStyle: 'subheadline' })]} textStyle={{ color: Gallery.muted }}>{value}</Text> : null}
+      {loading ? <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} /> : value ? <Text modifiers={[font({ textStyle: 'subheadline' })]} textStyle={{ color: Gallery.muted }}>{value}</Text> : null}
       <Icon name="chevron.right" size={13} color={Gallery.muted} />
     </Row>}
-    modifiers={[font({ textStyle: 'body' }), frame({ minHeight: 44 })]}
+    modifiers={[accessibilityLabel(label), accessibilityValue(loading ? 'Loading' : value ?? ''), font({ textStyle: 'body' }), frame({ minHeight: 44 })]}
     supportingText={detail ? <Text modifiers={[font({ textStyle: 'footnote' })]} textStyle={{ color: Gallery.muted }}>{detail}</Text> : undefined}
     onPress={onPress}>{label}</ListItem>;
 }
 
-export function ActionRow({ label, icon, onPress, disabled = false, destructive = false }: {
-  label: string; icon?: IconName; onPress: () => void; disabled?: boolean; destructive?: boolean;
+export function ActionRow({ label, icon, onPress, disabled = false, destructive = false, busy = false }: {
+  label: string; icon?: IconName; onPress: () => void; disabled?: boolean; destructive?: boolean; busy?: boolean;
 }) {
   const color = destructive ? Gallery.destructive : Gallery.accent;
-  return <Button variant="text" disabled={disabled} onPress={onPress} modifiers={[buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
+  return <Button variant="text" disabled={disabled || busy} onPress={onPress} modifiers={[accessibilityLabel(label), accessibilityValue(busy ? 'In progress' : ''), buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
     <Row spacing={12} alignment="center">
-      {icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
+      {busy ? <NativeLoadingRing label={`${label} in progress`} color={color} /> : icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
       <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color }}>{label}</Text>
     </Row>
   </Button>;
 }
 
-export function ValueRow({ label, value }: { label: string; value: string }) {
-  return <LabeledContent label={label} modifiers={[font({ textStyle: 'body' })]}><Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color: Gallery.muted }}>{value}</Text></LabeledContent>;
+export function ValueRow({ label, value, loading = false }: { label: string; value?: string; loading?: boolean }) {
+  return <LabeledContent label={label} modifiers={[font({ textStyle: 'body' })]}>{loading ? <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} />
+    : <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color: Gallery.muted }}>{value}</Text>}</LabeledContent>;
 }

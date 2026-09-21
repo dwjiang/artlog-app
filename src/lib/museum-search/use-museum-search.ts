@@ -10,7 +10,7 @@ import { restoreConfirmedMuseumFlow } from './restore';
 type Phase = MuseumSearchOutcome | { stage: 'idle' } | { stage: 'restore-error' } | { stage: 'running'; progress: MuseumSearchStage };
 
 export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
-  const consent = useMuseumSearchConsent(active);
+  const { consent } = useMuseumSearchConsent(active);
   const network = useNetworkState();
   const online = network.isInternetReachable === true;
   const [phase, setPhase] = useState<Phase>({ stage: 'idle' });

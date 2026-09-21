@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
@@ -80,7 +81,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
       </>}
       {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
         <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
-      {wall.pending && <Text accessibilityLiveRegion="polite" style={styles.caption}>Saving wall changes…</Text>}
+      {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
     </View>
   </ScrollView>;
 }

@@ -56,7 +56,8 @@ it('keeps the collection header and view controls mounted when switching between
 it('shows loading instead of the globe until the view preference is read', async () => {
   mockMode = undefined;
   await render(<CollectionVisits {...props} search="" />);
-  expect(screen.getByText('Loading your visits…')).toHaveStyle({ textAlign: 'center' });
+  expect(screen.getByRole('progressbar', { name: 'Loading your visits…' })).toBeOnTheScreen();
+  expect(screen.queryByText('Loading your visits…')).toBeNull();
   expect(screen.queryByText('Globe canvas')).toBeNull();
   expect(screen.getByRole('button', { name: 'Globe' })).toBeDisabled();
 });
@@ -69,7 +70,7 @@ it('holds visits behind the loading state until their places are read', async ()
   expect(screen.queryByText(/1 museum/)).toBeNull();
   mockMode = 'globe';
   await view.rerender(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
-  expect(screen.getByText('Loading your visits…')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Loading your visits…' })).toBeOnTheScreen();
   expect(screen.queryByText('Globe canvas')).toBeNull();
   await view.rerender(<CollectionVisits {...props} visits={[visit]} search="" />);
   expect(screen.getByText('Globe canvas')).toBeOnTheScreen();

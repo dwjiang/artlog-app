@@ -62,7 +62,7 @@ it('lists the waiting scans with their status, closes itself and opens the tappe
   await render(<QueueSheet />);
   expect(screen.getByText('Recent scans')).toBeOnTheScreen();
   expect(screen.getByText('Waiting for signal')).toBeOnTheScreen();
-  expect(screen.getByText('Identifying…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Identifying…')).toBeOnTheScreen();
   expect(screen.getByText(RETRY_ROW)).toBeOnTheScreen();
   expect(screen.getByText(QUEUE_FOOTER)).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
@@ -123,8 +123,8 @@ it('blocks duplicate retries and preserves the photo when a retry fails', async 
   mockRetry.mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail; }));
   await render(<QueueSheet />);
   await fireEvent.press(screen.getByRole('button', { name: RETRY_ROW }));
-  const pending = screen.getByRole('button', { name: 'Retrying scan…' });
-  expect(screen.getByText('Retrying…')).toBeOnTheScreen();
+  const pending = screen.getByRole('button', { name: RETRY_ROW });
+  expect(screen.getByLabelText('Retrying…')).toBeOnTheScreen();
   expect(pending).toBeDisabled();
   await fireEvent.press(pending);
   expect(mockRetry).toHaveBeenCalledTimes(1);

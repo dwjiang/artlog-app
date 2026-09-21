@@ -141,7 +141,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     <View style={styles.toolbar}>
       {editing ? <>
         <Text variant="section" accessibilityRole="header">Edit wall</Text>
-        <Text variant="metadata" themeColor="textSecondary">{wall.pending ? 'Saving…' : failedSave ? 'Not saved' : 'Changes saved'}</Text>
+        {!wall.pending && <Text variant="metadata" themeColor="textSecondary">{failedSave ? 'Not saved' : 'Changes saved'}</Text>}
       </> : blank ? <>
         <GalleryButton label="0 on wall" icon="chevron.down" iconPosition="trailing" tone="ink" onPress={() => router.push('/all-artworks')} />
         <View style={styles.toolbarTrailing}>
@@ -191,9 +191,9 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Make room for your favorites.'}</Text>
+            {!opening && <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>Make room for your favorites.</Text>}
             {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
-            {opening ? <LoadingRing color={wallInk} />
+            {opening ? <LoadingRing color={wallInk} accessibilityLabel="Opening your wall…" />
               : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
         </WallGallery>}

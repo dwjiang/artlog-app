@@ -77,7 +77,9 @@ export function VisitShareScreen() {
   if (!visit.owner.startsWith('account:')) return <GuestVisitSignIn visitId={visit.localId} />;
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so people can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to publish this visit.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
-  if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
+  if (!draft) return <VisitPage><VisitMessage loading={sharing.busy || !sharing.error} action="Try again" onAction={() => { void controller.load(); }}>
+    {sharing.error ? 'Sharing could not load.' : 'Preparing sharing…'}
+  </VisitMessage><ShareError sharing={sharing} /></VisitPage>;
   const photoWork = visit.works.find((work) => work.localId === photoWorkId);
   if (photoWork) return <SharePhotoPicker work={photoWork} visitId={visit.localId} selected={draft.photoSelections?.find((row) => row.saveLocalId === photoWork.localId)?.photoLocalIds ?? []}
     onDone={() => setPhotoWorkId(undefined)} onChange={(ids) => {

@@ -4,7 +4,6 @@ import { type ComponentProps, useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery, Radius, Spacing } from '@/constants/theme';
 import { LoadingRing } from '@/components/loading-ring';
-import { ThemedText } from '@/components/themed-text';
 
 export function GalleryButton({ label, accessibilityLabel = label, icon, iconPosition = 'leading', onPress, disabled, busy = false, busyLabel = 'Working…', variant = 'text', inverse = false, fullWidth, destructive = false, tone = 'accent' }: {
   label: string; accessibilityLabel?: string; icon?: ComponentProps<typeof Icon>['name']; onPress: () => void; disabled?: boolean; busy?: boolean;
@@ -49,7 +48,6 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
       style={[StyleSheet.absoluteFill, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two,
         borderRadius: Radius.button, backgroundColor: variant === 'filled' ? accent : undefined }]}>
       <LoadingRing color={foreground} accessible={false} />
-      {expand && <ThemedText variant="button" accessible={false} style={{ color: foreground, flexShrink: 1, textAlign: 'center' }}>{busyLabel}</ThemedText>}
     </View>}
     </View>
   </View>;

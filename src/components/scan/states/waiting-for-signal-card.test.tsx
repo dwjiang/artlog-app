@@ -30,7 +30,7 @@ it('says it is waiting for signal and asks for the label now', async () => {
 
 it('reads as identifying while the scan is in flight and keeps the label handy', async () => {
   await render(<WaitingForSignalCard status="identifying" {...handlers} />);
-  expect(screen.getByText(IDENTIFYING_TITLE)).toBeOnTheScreen();
+  expect(screen.getByLabelText(IDENTIFYING_TITLE)).toBeOnTheScreen();
   expect(screen.queryByText(WAITING_TITLE)).toBeNull();
   expect(screen.getByRole('button', { name: LABEL_NOW })).toBeOnTheScreen();
 });

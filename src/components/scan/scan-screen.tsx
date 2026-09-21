@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { CaptureVisitPill } from './capture-visit-pill';
 import { Button, Host, Row } from '@expo/ui';
 import { Image } from 'expo-image';
@@ -58,6 +59,7 @@ export function ScanScreen() {
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !['searching', 'retry'].includes(phase);
+  const cameraActive = active && (searching || (phase === 'capturing' && source === 'camera'));
   const failedImport = phase === 'retry' && source === 'library';
   const retryHint = failedImport ? undefined : rearm === 'shutter' ? 'Reframe the artwork and tap the shutter.' : 'Move the camera to reframe, then hold steady.';
   const shutterDisabled = busy || !active || !cameraReady;
@@ -74,13 +76,13 @@ export function ScanScreen() {
 
   return (
     <View style={styles.container} onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}>
-      <CameraPermission>
+      <CameraPermission loading={cameraActive && !cameraReady && !cameraError}>
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
           orientationSource="interface"
           resizeMode="cover"
-          isActive={active && (searching || (phase === 'capturing' && source === 'camera'))}
+          isActive={cameraActive}
           outputs={outputs}
           allowHapticsAndSystemSoundsPlayback
           onStarted={() => { setCameraReady(true); setCameraError(undefined); }}
@@ -102,7 +104,7 @@ export function ScanScreen() {
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
-            : busy ? <OverlayCaption>{phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'}</OverlayCaption>
+            : busy ? <OverlayCaption><LoadingRing accessibilityLabel={phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'} color={Colors.light.overlayText} /></OverlayCaption>
             : cameraReady && <OverlayCaption>Point at an artwork. Hold steady to scan.</OverlayCaption>}
           {failedImport ? <Host matchContents colorScheme="light">
             <Row spacing={Spacing.three}>

@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { SearchEmptyState } from '../empty-state';
 import { Host } from '@expo/ui';
 import { DatePicker } from '@expo/ui/swift-ui';
@@ -74,7 +75,8 @@ function CreateForm({ savedId }: { savedId?: string }) {
   }
   return <>
     <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
-    <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
+    <Stack.Toolbar placement="right">{busy ? <Stack.Toolbar.View hidesSharedBackground><LoadingRing accessibilityLabel="Saving visit…" style={{ width: 44, height: 44 }} /></Stack.Toolbar.View>
+      : <Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={!venue || !validDate} onPress={() => { void save(); }}>Save</Stack.Toolbar.Button>}</Stack.Toolbar>
     <VisitPage>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep this day.</Text>
       <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>

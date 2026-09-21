@@ -449,7 +449,7 @@ it('opens the label while the rejection challenge waits for network', async () =
 it('waits for the device before querying and shows the unsupported, failed and queued states', async () => {
   mockAuth.isAuthenticated = false;
   const view = await render(result());
-  expect(await screen.findByText('Identifying…')).toBeOnTheScreen();
+  expect(await screen.findByLabelText('Identifying…')).toBeOnTheScreen();
   expect(client.watchQuery).not.toHaveBeenCalled();
   mockAuth.isAuthenticated = true;
   results.set('scans:get', unsupportedScan);
@@ -533,7 +533,7 @@ it('automatically searches once while consented and online, leaving the label av
   let finish!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
   jest.mocked(runMuseumSearchForScan).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   const view = await render(result());
-  expect(await screen.findByText("Searching the museum's collection…")).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Searching the museum’s collection…")).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
   await act(async () => { finish({ stage: 'none', reason: 'no_match' }); });
   mockFocused = false;
@@ -549,7 +549,7 @@ it('waits for connectivity before automatically searching', async () => {
   results.set('scans:get', missScan);
   const view = await render(result());
   await screen.findByRole('button', { name: LABEL_BUTTON });
-  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
+  expect(screen.queryByLabelText("Searching the museum’s collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   mockNetwork.isInternetReachable = true;
   await view.rerender(result());
@@ -614,7 +614,7 @@ it.each(['no_venue_site', 'venue_opted_out'])('hides museum search when the back
   jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason });
   await render(result());
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(screen.queryByText("Searching the museum's collection…")).toBeNull());
+  await waitFor(() => expect(screen.queryByLabelText("Searching the museum’s collection…")).toBeNull());
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
 
@@ -656,7 +656,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
     finishSave = () => stage === 'failed' ? reject(new Error('Local read failed')) : resolve(visit);
   }));
   await render(result());
-  await screen.findByText("Searching the museum's collection…");
+  await screen.findByLabelText("Searching the museum’s collection…");
   await openDetails();
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ }));
   await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, busy: true });
@@ -696,14 +696,14 @@ it.each(['date', 'title'] as const)('keeps sharing progress and edited %s throug
   if (field === 'title') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   await fireEvent.changeText(screen.getByLabelText(label), value);
   await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
-  await screen.findByText('Saving to the shared index…');
+  await screen.findByLabelText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
     ...verified, updatedAt: 3, sourceUrl: field === 'title' ? undefined : verified.sourceUrl,
     fields: { ...verified.fields, [field]: { value, evidence: 'ocr', locked: false } },
   } });
-  expect(screen.getByText('Saving to the shared index…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Saving to the shared index…')).toBeOnTheScreen();
   expect(screen.getByLabelText(label).props.defaultValue).toBe(value);
   expect(screen.queryByRole('button', { name: 'Retry saving to the shared index' })).toBeNull();
   expect(contributeLabel).toHaveBeenCalledTimes(1);
@@ -721,7 +721,7 @@ it('keeps museum search unavailable after picking a runner-up on a confident sca
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
   await fireEvent.press(screen.getByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ }));
   await screen.findByText('Maybe');
-  expect(screen.queryByText("Searching the museum's collection…")).toBeNull();
+  expect(screen.queryByLabelText("Searching the museum’s collection…")).toBeNull();
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeEnabled();
 });
@@ -733,7 +733,7 @@ it.each(['Title', 'Institution'])('keeps edited %s when a background museum sear
   let finish!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
   jest.mocked(runMuseumSearchForScan).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   await render(result());
-  await screen.findByText("Searching the museum's collection…");
+  await screen.findByLabelText("Searching the museum’s collection…");
   await openDetails();
   await fireEvent.changeText(screen.getByLabelText(label), 'My own entry');
   await act(async () => { finish({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
@@ -755,7 +755,7 @@ it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after 
   if (edit !== 'date') await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
   if (edit !== 'unlock') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
   await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Save to collection' }));
-  await screen.findByText('Saving to the shared index…');
+  await screen.findByLabelText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
   if (edit !== 'unlock') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
@@ -806,7 +806,7 @@ it('keeps a chosen runner-up when the background museum search confirms', async 
   let finish!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
   jest.mocked(runMuseumSearchForScan).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
   await render(result());
-  await screen.findByText("Searching the museum's collection…");
+  await screen.findByLabelText("Searching the museum’s collection…");
   await fireEvent.press(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ }));
   await act(async () => { finish({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
   await publish({ ...softScan, museumSearch: confirmed, labelFlow: verified });

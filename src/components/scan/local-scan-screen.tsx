@@ -82,7 +82,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
     onDraftChange: setHasDraft,
   };
 
-  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
 
   return (
@@ -96,7 +96,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         {row && <CardHeader cropUri={captureFileUri(scanPreviewPath(row.cropPath))} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
         {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
         {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
-          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
+          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" /></View>
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
           : scanId ? keepForm && (
             <View style={styles.section}>

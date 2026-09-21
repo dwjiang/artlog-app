@@ -3,10 +3,10 @@ import { Pressable, Text, TextInput as RNTextInput, View } from 'react-native';
 
 export const Host = View;
 export const RNHostView = View;
-export function ListItem({ children, onPress, supportingText, modifiers }: ComponentProps<typeof import('@expo/ui').ListItem>) {
+export function ListItem({ children, onPress, supportingText, modifiers, leading, trailing }: ComponentProps<typeof import('@expo/ui').ListItem>) {
   const off = !!modifiers?.some((modifier) => modifier.$type === 'disabled' && modifier.disabled === true);
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: off }} disabled={off} onPress={onPress}>
-    <Text>{children}</Text>{supportingText && <Text>{supportingText}</Text>}</Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={modifiers?.find((modifier) => modifier.$type === 'accessibilityLabel')?.label as string | undefined} accessibilityState={{ disabled: off }} disabled={off} onPress={onPress}>
+    <View>{leading}</View><Text>{children}</Text>{supportingText && <Text>{supportingText}</Text>}<View>{trailing}</View></Pressable>;
 }
 export function Switch({ label, value, onValueChange, disabled }: ComponentProps<typeof import('@expo/ui').Switch>) {
   return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked: value, disabled: !!disabled }}

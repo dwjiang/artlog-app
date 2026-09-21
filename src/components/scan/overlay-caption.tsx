@@ -9,7 +9,7 @@ import { Spacing } from '@/constants/theme';
 export function OverlayCaption({ children, hint }: { children: ReactNode; hint?: string }) {
   return (
     <GlassSurface style={styles.caption}>
-      <ThemedText type="smallBold" themeColor="overlayText" style={styles.captionText}>{children}</ThemedText>
+      {typeof children === 'string' ? <ThemedText type="smallBold" themeColor="overlayText" style={styles.captionText}>{children}</ThemedText> : children}
       {hint && <ThemedText type="small" themeColor="overlayText" style={styles.captionText}>{hint}</ThemedText>}
     </GlassSurface>
   );
