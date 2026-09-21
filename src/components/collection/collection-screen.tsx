@@ -1,6 +1,7 @@
 import { useNetworkState } from 'expo-network';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useVenue } from '@/lib/venue/use-venue';
+import { activeVisit } from '@/lib/venue/venue-reducer';
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
@@ -44,14 +45,15 @@ function OwnedCollection({ mode, setMode, editing, setEditing, search, setSearch
 }) {
   const data = useCollectionData();
   const network = useNetworkState();
-  const activeVisit = useVenue().visit;
+  // The tab layout floats the visit bar only while the phone is at the visit's museum; pad for it on the same terms.
+  const visitBar = !!activeVisit(useVenue()) && !editing;
   const guest = !data.owner.startsWith('account:');
   const controls = <View style={{ paddingHorizontal: 20, paddingBottom: 12, backgroundColor: Gallery.paper }}>
       <NativeSegmentedPicker label="Collection view" value={mode} onChange={setMode} disabled={editing}
         options={[{ value: 'collection', label: guest ? 'Artworks' : 'Wall' }, { value: 'visits', label: 'Visits' }]} />
     </View>;
   const header = <><CollectionHeader loading={data.loading && !data.works.length && !data.visits.length && !data.error} artworkCount={data.works.length} visitCount={data.visits.length} />{network.isInternetReachable === false && <View style={{ marginHorizontal: 20, marginBottom: 12, padding: 12, borderRadius: 8, backgroundColor: Gallery.fill }}><Text style={{ color: Gallery.muted, fontSize: 13 }}>Offline · Your saved collection is available on this iPhone.</Text></View>}</>;
-  return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper, paddingBottom: activeVisit && !editing ? 80 : 0 }}>
+  return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Gallery.paper, paddingBottom: visitBar ? 80 : 0 }}>
     <View style={{ flex: 1, display: mode === 'collection' ? 'flex' : 'none' }}>
       {guest ? <CollectionArtworks {...data} search={artworkSearch} onClearSearch={() => setArtworkSearch('')} onRetry={onRetry} header={header}
         controls={<View style={{ backgroundColor: Gallery.paper }}>{controls}{data.works.length > 0 && <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>

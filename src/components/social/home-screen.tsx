@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { useVenue } from '@/lib/venue/use-venue';
+import { activeVisit } from '@/lib/venue/venue-reducer';
 import { SocialInvitation } from './social-invitation';
 import { GalleryButton } from '../collection/gallery-button';
 import { WelcomePrompt } from '../account/welcome-prompt';
@@ -25,7 +26,7 @@ const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
-  const { visit } = useVenue();
+  const visitBar = !!activeVisit(useVenue());
   const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const guest = session.status === 'signed-out';
@@ -34,7 +35,7 @@ export function HomeScreen() {
   const router = useRouter();
   return <>
     <WelcomePrompt />
-    <FlatList style={socialStyles.root} contentContainerStyle={[socialStyles.content, visit && { paddingBottom: 110 }]} contentInsetAdjustmentBehavior="automatic"
+    <FlatList style={socialStyles.root} contentContainerStyle={[socialStyles.content, visitBar && { paddingBottom: 110 }]} contentInsetAdjustmentBehavior="automatic"
       data={ready ? feed.items : []} keyExtractor={visitId} initialNumToRender={4} maxToRenderPerBatch={4}
       renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
       refreshControl={ready ? <RefreshControl refreshing={feed.refreshing}

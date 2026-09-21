@@ -1,7 +1,6 @@
-import tzLookup from '@photostructure/tz-lookup';
-import { calendarDate } from '../../../shared/journal/limits';
 import { socialErrorMessage } from '../../../shared/social/errors';
 import { prepareCaptureVisit } from '../journal/capture-visit';
+import { museumDay } from '../journal/visit-date';
 import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from '@/lib/account/owner-store';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { randomUUID } from 'expo-crypto';
@@ -26,7 +25,7 @@ import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from './resolve';
 import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from './venue-db';
 import {
   endedToday, initialVenueState, isVisitToday, needsFix, venueContext, venueReducer,
-  type CurrentVisit, type Fix, type PoiOption, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
+  type CurrentVisit, type Fix, type MuseumDay, type PoiOption, type SeededOption, type VenueContext, type VenueEvent, type VenueOption, type VenueState,
 } from './venue-reducer';
 
 export const CURRENT_VISIT_SETTING = 'currentVisit';
@@ -64,11 +63,10 @@ export type VenueController = {
   appStateChanged(status: AppStateStatus): void;
 };
 
-async function venueDay(venueId: Id<'museums'>, at: number): Promise<Pick<CurrentVisit, 'timeZone' | 'visitedOn'>> {
+async function venueDay(venueId: Id<'museums'>, at: number): Promise<MuseumDay> {
   const coordinates = await venueCoordinates(venueId);
   if (!coordinates) throw new Error('The museum coordinates are not available');
-  const timeZone = tzLookup(coordinates.lat, coordinates.lng);
-  return { timeZone, visitedOn: calendarDate(at, timeZone) };
+  return museumDay(coordinates, at);
 }
 
 /**
@@ -287,7 +285,8 @@ export function createVenueController(): VenueController {
 
   async function runResolve(): Promise<VenueContext> {
     void syncRemoteVisit();
-    if (state.venue?.manual && (!state.visit || isVisitToday(state.visit, Date.now()))) return venueContext(state);
+    // A museum picked by hand stands for the rest of its day there, visit or not; location takes over again the next day.
+    if (state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) return venueContext(state);
     if (!needsFix(state, Date.now())) return venueContext(state);
     const revision = selectionRevision;
     const wanted = () => revision === selectionRevision;

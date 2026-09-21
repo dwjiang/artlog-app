@@ -11,6 +11,7 @@ import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { countryName, formatVisitDate, groupHistoryByMonth } from '@/lib/journal/history';
 import { isVisitNew, useSeenVisits } from '@/lib/journal/visit-seen';
 import { useVenue } from '@/lib/venue/use-venue';
+import { activeVisit } from '@/lib/venue/venue-reducer';
 import { VisitPrivacyNote, VisitSymbol, visitStyles } from './visit-ui';
 
 export function VisitRow({ visit, shared = false, isNew = false, isOpen = false }: { visit: VisitSummary; shared?: boolean; isNew?: boolean; isOpen?: boolean }) {
@@ -52,7 +53,8 @@ export function VisitTimeline({ visits, header, controls, empty, groupByMuseum =
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === 'ready' ? {} : 'skip', session.key);
   const shared = new Set(sharing.data);
   const seen = useSeenVisits(useLocalOwner());
-  const open = useVenue().visit?.localId;
+  const venue = useVenue();
+  const open = venue.visit?.localId;
   const sections = groupByMuseum ? [...new Set(visits.map((visit) => visit.venueId))].map((id) => {
     const data = visits.filter((visit) => visit.venueId === id);
     return { key: id, title: data[0].venueName, data };
@@ -71,7 +73,7 @@ export function VisitTimeline({ visits, header, controls, empty, groupByMuseum =
     ListHeaderComponent={header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>}
     stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
     // Shorter content must still let the header scroll away without moving pinned controls.
-    contentContainerStyle={{ paddingBottom: open ? 110 : 30, minHeight: controls ? viewportHeight + headerHeight : undefined }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
+    contentContainerStyle={{ paddingBottom: activeVisit(venue) ? 110 : 30, minHeight: controls ? viewportHeight + headerHeight : undefined }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
     renderItem={({ item }) => item.kind === 'element' ? item.element : item.kind === 'month'
       ? <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{item.title}</Text>
       : <VisitRow visit={item.visit} shared={shared.has(item.visit.localId)} isNew={isVisitNew(item.visit, seen)} isOpen={item.visit.localId === open} />} />;

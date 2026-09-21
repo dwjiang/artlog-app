@@ -5,7 +5,10 @@ import { CHOOSE_RADIUS_M, haversineMeters, type Coordinate, type VenueCandidate,
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
 
-export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string; manual?: boolean };
+/** A calendar day in a museum's time zone; visits and hand-picked museums both live by it. */
+export type MuseumDay = Pick<CurrentVisit, 'visitedOn' | 'timeZone'>;
+/** `manual` is the museum day the sheet's search picked it on; the choice stands for the rest of that day without a location fix. */
+export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string; manual?: MuseumDay };
 export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM?: number; website?: string; city?: string; country?: string; category: string };
 export type VenueOption = SeededOption | PoiOption;
 
@@ -105,7 +108,8 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (!event.visit) return { ...state, visit: undefined, ended: event.ended };
       return {
         ...state, visit: event.visit, ended: undefined,
-        venue: { kind: 'seeded', venueId: event.visit.venueId, name: event.visit.venueName, manual: event.visit.manual },
+        venue: { kind: 'seeded', venueId: event.visit.venueId, name: event.visit.venueName,
+          ...(event.visit.manual ? { manual: { visitedOn: event.visit.visitedOn, timeZone: event.visit.timeZone } } : {}) },
       };
     case 'locating':
       return { ...state, status: 'locating', error: undefined };

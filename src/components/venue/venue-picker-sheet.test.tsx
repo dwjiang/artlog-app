@@ -67,6 +67,17 @@ describe('choosing a museum', () => {
     expect(mockDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('confirms a searched museum by hand for the museum’s current day', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 8, 19, 2, 30));
+    const { searchVenues } = jest.requireMock('@/lib/venue/search-venues');
+    searchVenues.mockResolvedValue([{ id: 'id-met', key: 'wikidata:Q160236', name: 'Metropolitan Museum of Art', lat: 40.7794, lng: -73.9633, website: null, region: 'new-york', city: 'New York', cityKey: 'new-york', country: 'US' }]);
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'Metropolitan');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Metropolitan Museum of Art' }));
+    expect(mockConfirm).toHaveBeenCalledWith({ kind: 'seeded', venueId: 'id-met', name: 'Metropolitan Museum of Art',
+      manual: { timeZone: 'America/New_York', visitedOn: '2026-09-18' } }, expect.any(AbortSignal));
+  });
+
   it('confirms a lone museum directly without a redundant selection step', async () => {
     mockView = { ...mockView, options: [{ ...seeded, distanceM: 300 }] };
     await render(<VenuePickerSheet />);

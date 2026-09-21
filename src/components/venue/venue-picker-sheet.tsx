@@ -1,4 +1,5 @@
 import { CollectionSearchField } from '../collection/collection-search-field';
+import { museumDay } from '@/lib/journal/visit-date';
 import { searchVenues } from '@/lib/venue/search-venues';
 import { venueLocation } from '@/lib/venue/venue-location';
 import type { VenueRow } from '@/lib/venue/resolve';
@@ -129,7 +130,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       : results?.query !== query ? <LoadingRing accessibilityLabel="Searching museums" />
         : results.error ? <ThemedText themeColor="error" accessibilityRole="alert">{results.error}</ThemedText>
           : !results.rows.length ? <EmptyState inset={false} title="No museums found." detail="Try the city or a shorter name." visual={<EmptyMap />} />
-            : results.rows.map((row) => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={row.name} disabled={!!busy} onPress={() => { void choose({ kind: 'seeded', venueId: row.id, name: row.name, manual: true }); }} style={styles.option}>
+            : results.rows.map((row) => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={row.name} disabled={!!busy} onPress={() => { void choose({ kind: 'seeded', venueId: row.id, name: row.name, manual: museumDay(row, Date.now()) }); }} style={styles.option}>
               <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} /><View style={styles.optionText}><ThemedText>{row.name}</ThemedText><ThemedText type="small" themeColor="textSecondary">{venueLocation(row).location}</ThemedText></View>{busy === row.id && <LoadingRing />}
             </Pressable>)
       : status === 'locating' ? <LoadingRing accessibilityLabel="Locating your museum" />

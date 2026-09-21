@@ -5,6 +5,7 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { calendarDate } from '../../../shared/journal/limits';
 import type { NewVisit, Visit } from '@/db/schema';
 import type { VenueCandidate } from './resolve';
+import { museumDay } from '@/lib/journal/visit-date';
 import { createVenueController, VenueResolver, type VenueController } from './use-venue';
 
 const mockRequestPermission = jest.fn();
@@ -99,6 +100,8 @@ const place = { name: 'Corner Gallery', lat: 40.78, lng: -73.96, website: 'https
 const CURRENT = 'currentVisit:device:test-installation';
 const ENDED = 'endedVisit:device:test-installation';
 const DAY = 24 * 60 * 60 * 1000;
+/** A museum picked from search on the museum's current day. */
+const byHand = () => museumDay(met, mockNow);
 
 let controller: VenueController;
 let appStateListener: ((state: AppStateStatus) => void) | undefined;
@@ -713,7 +716,7 @@ describe('the sheet', () => {
 it('keeps a searched museum through denied location, relaunch, and scans until the visit ends', async () => {
   mockRequestPermission.mockResolvedValue({ granted: false });
   const controller = createVenueController();
-  await controller.confirm({ kind: 'seeded', venueId: 'id-Met' as Id<'museums'>, name: 'Met', manual: true });
+  await controller.confirm({ kind: 'seeded', venueId: 'id-Met' as Id<'museums'>, name: 'Met', manual: byHand() });
   expect(controller.getState().visit).toBeUndefined();
   expect(await controller.resolve()).toEqual({ venueId: 'id-Met' });
   const visit = await controller.visitForSave('id-Met' as Id<'museums'>, mockNow);
@@ -727,6 +730,19 @@ it('keeps a searched museum through denied location, relaunch, and scans until t
   expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
 });
 
+it('lets location take over the day after a museum was picked from search without a visit', async () => {
+  mockRequestPermission.mockResolvedValue({ granted: false });
+  await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name, manual: byHand() });
+  expect(await controller.resolve()).toEqual({ venueId: metId });
+  expect(mockRequestPermission).not.toHaveBeenCalled();
+  mockNow += DAY;
+  mockRequestPermission.mockResolvedValue({ granted: true });
+  mockNearest.mockResolvedValue([{ ...neueRow, distanceM: 40 }]);
+  expect(await controller.resolve()).toEqual({ venueId: neueId });
+  expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+  expect(controller.getState().venue?.manual).toBeUndefined();
+});
+
 it('starts a museum visit privately until the owner chooses to share', async () => {
   await controller.confirm({ kind: 'seeded', venueId: metRow.id, name: metRow.name });
   expect(mockVisits.size).toBe(0);
@@ -736,9 +752,9 @@ it('starts a museum visit privately until the owner chooses to share', async () 
 
 
 it('keeps a manually selected museum when its first save closes the previous visit', async () => {
-  await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name, manual: true });
+  await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name, manual: byHand() });
   const previous = await controller.visitForSave(metId, mockNow);
-  await controller.confirm({ kind: 'seeded', venueId: neueId, name: neueRow.name, manual: true });
+  await controller.confirm({ kind: 'seeded', venueId: neueId, name: neueRow.name, manual: byHand() });
   expect(controller.getState().visit?.localId).toBe(previous.localId);
   const next = await controller.visitForSave(neueId, mockNow);
   expect(mockVisits.get(previous.localId)?.endedAt).not.toBeNull();
@@ -751,7 +767,7 @@ it('keeps a manually selected museum when its first save closes the previous vis
 it('keeps a searched museum across relaunch when its visit was already open', async () => {
   await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name });
   const visit = await controller.visitForSave(metId, mockNow);
-  await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name, manual: true });
+  await controller.confirm({ kind: 'seeded', venueId: metId, name: metRow.name, manual: byHand() });
   expect(mockVisits.size).toBe(1);
   mockRequestPermission.mockResolvedValue({ granted: false });
   const restored = createVenueController();
