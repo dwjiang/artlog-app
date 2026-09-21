@@ -1,35 +1,18 @@
-import { ConvexError, type Infer, v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { action, internalMutation, internalQuery } from './_generated/server';
 import { resolveFalseRejections } from './feedback';
-import { READ_TIMEOUT_MS, assertImageBase64, moderateVerifiedFields } from './label';
+import { moderateVerifiedFields } from './label';
 import { requireDeviceFromAction } from './lib/auth';
-import {
-  DESCRIBE_MAX_TOKENS,
-  DESCRIBE_PROMPT_VERSION,
-  DESCRIBE_SCHEMA,
-  DESCRIBE_SYSTEM_PROMPT,
-  DESCRIBE_USER_PROMPT,
-  parseDescription,
-  searchQuery,
-} from './lib/describePrompt';
 import { isEnabled } from './lib/flags';
 import { exhibitionCandidates } from './lib/exhibitionSearch';
 import { resolveExhibitionIdentity } from './lib/exhibitionIdentity';
-import {
-  FIELD_NAMES,
-  displayLabelFlow,
-  evidenceSummary,
-  imageCheckPasses,
-  labelField,
-  selectSearchCandidates,
-} from './lib/labelVerify';
+import { FIELD_NAMES, displayLabelFlow, evidenceSummary, imageCheckPasses, labelField } from './lib/labelVerify';
+import type { PageFields } from './lib/pageExtract';
 import { limitDevice } from './lib/rateLimits';
-import { reconcileSpend, reserveSpend } from './lib/spend';
 import { search } from './lib/tavily';
-import { chatJson } from './lib/tokenFactory';
 import {
   imageCheck,
   labelFlow,
@@ -46,11 +29,6 @@ import { venueHosts } from './lib/venueFetch';
 import { isVenueOptedOut } from './lib/venueOptOut';
 import schema from './schema';
 
-// One description and its single retry (tokenFactory.chatJson) plus one search credit.
-const MAX_DESCRIBE_CALLS = 2;
-const SEARCH_CREDITS = 1;
-const MAX_RESULTS = 5;
-
 type Retained = Exclude<MuseumSearchDisplay, { stage: 'none' }>;
 
 export const load = internalQuery({
@@ -66,28 +44,6 @@ export const load = internalQuery({
     if (!venue || !hosts.length) throw new ConvexError({ code: 'no_venue_site' });
     if (await isVenueOptedOut(ctx, venue)) throw new ConvexError({ code: 'venue_opted_out' });
     return { scan, hosts, venueName: venue.name };
-  },
-});
-
-const reservation = v.object({ tokenFactoryDay: v.string(), tavilyDay: v.string() });
-
-// One transaction for both providers: a cap on either leaves both counters unchanged.
-export const reserveSearchSpend = internalMutation({
-  args: {},
-  returns: reservation,
-  handler: async (ctx) => ({
-    tokenFactoryDay: await reserveSpend(ctx, 'tokenFactory', MAX_DESCRIBE_CALLS),
-    tavilyDay: await reserveSpend(ctx, 'tavily', SEARCH_CREDITS),
-  }),
-});
-
-export const settleSearchSpend = internalMutation({
-  args: { reservation, modelCalls: v.number(), searchCredits: v.number() },
-  returns: v.null(),
-  handler: async (ctx, { reservation: days, modelCalls, searchCredits }) => {
-    await reconcileSpend(ctx, 'tokenFactory', { day: days.tokenFactoryDay, reserved: MAX_DESCRIBE_CALLS, actual: modelCalls });
-    await reconcileSpend(ctx, 'tavily', { day: days.tavilyDay, reserved: SEARCH_CREDITS, actual: searchCredits });
-    return null;
   },
 });
 
@@ -119,75 +75,6 @@ export const write = internalMutation({
     if (scan.museumSearchRevision !== args.revision) throw new ConvexError({ code: 'search_superseded' });
     await ctx.db.patch(scan._id, { museumSearch: args.museumSearch, updatedAt: Date.now() });
     return null;
-  },
-});
-
-export const searchMuseumSite = action({
-  args: { scanId: v.id('scans'), imageBase64: v.string() },
-  returns: museumSearchDisplay,
-  handler: async (ctx, { scanId, imageBase64 }): Promise<MuseumSearchDisplay> => {
-    const device = await requireDeviceFromAction(ctx);
-    if (!isEnabled('museumSearch')) throw new ConvexError({ code: 'feature_off' });
-    const { scan, hosts } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
-    assertImageBase64(imageBase64);
-    await limitDevice(ctx, 'museumSearch', device._id);
-    const model = process.env.LABEL_VL_MODEL;
-    if (!model) throw new ConvexError({ code: 'model_unconfigured' });
-    const revision = await ctx.runMutation(internal.museumSearch.beginSearch, {
-      scanId, deviceId: device._id, generation: scan.generation,
-    });
-    const write = (museumSearch: MuseumSearchDisplay) => ctx.runMutation(internal.museumSearch.write, {
-      scanId, deviceId: device._id, generation: scan.generation, revision, museumSearch,
-    });
-    let days: Infer<typeof reservation>;
-    try {
-      days = await ctx.runMutation(internal.museumSearch.reserveSearchSpend, {});
-    } catch (error) {
-      if (!(error instanceof ConvexError) || error.data.code !== 'spend_cap') throw error;
-      const capped: MuseumSearchDisplay = { stage: 'none', reason: 'cap', updatedAt: Date.now() };
-      await write(capped);
-      return capped;
-    }
-    // Usage is undefined while a request is in flight, so an ambiguous timeout keeps its reservation.
-    let modelCalls: number | undefined;
-    let searchCredits: number | undefined = 0;
-    try {
-      let described;
-      try {
-        // The photo goes to the model and nowhere else: never stored, never logged. The description
-        // and artist guess only form the query; neither is written to the scan or the logs.
-        described = await chatJson({
-          model, system: DESCRIBE_SYSTEM_PROMPT, user: DESCRIBE_USER_PROMPT, imageBase64, schemaName: 'describe',
-          schema: DESCRIBE_SCHEMA, maxTokens: DESCRIBE_MAX_TOKENS, parse: parseDescription, timeoutMs: READ_TIMEOUT_MS,
-        });
-      } catch (error) {
-        if (error instanceof ConvexError && typeof error.data.calls === 'number') modelCalls = error.data.calls;
-        throw error;
-      }
-      modelCalls = described.calls;
-      searchCredits = undefined;
-      let response;
-      try {
-        response = await search({
-          query: searchQuery(described.value), includeDomains: hosts, includeImages: false, maxResults: MAX_RESULTS,
-        });
-      } catch (error) {
-        if (error instanceof ConvexError && error.data.code === 'search_unconfigured') searchCredits = 0;
-        throw error;
-      }
-      searchCredits = response.credits;
-      const candidates = await selectSearchCandidates(response, hosts);
-      const updatedAt = Date.now();
-      const state: MuseumSearchDisplay = candidates.length
-        ? { stage: 'candidates', candidates, promptVersion: DESCRIBE_PROMPT_VERSION, updatedAt }
-        : { stage: 'none', reason: 'no_candidates', promptVersion: DESCRIBE_PROMPT_VERSION, updatedAt };
-      await write(state);
-      return state;
-    } finally {
-      await ctx.runMutation(internal.museumSearch.settleSearchSpend, {
-        reservation: days, modelCalls: modelCalls ?? MAX_DESCRIBE_CALLS, searchCredits: searchCredits ?? SEARCH_CREDITS,
-      });
-    }
   },
 });
 
@@ -242,10 +129,10 @@ function retainedCandidate(
 
 // The museum's page names the work and the phone confirmed its image, so title and artist carry
 // `tavily+image`; the page's other fields carry `tavily`. All are locked.
-function candidateFields(candidate: SearchCandidate): LabelFields {
+function candidateFields(identity: PageFields): LabelFields {
   const fields: LabelFields = {};
   for (const name of FIELD_NAMES) {
-    const value = candidate.fields[name];
+    const value = identity[name];
     if (value) fields[name] = labelField(value, name === 'title' || name === 'artist' ? 'tavily+image' : 'tavily');
   }
   return fields;
@@ -254,8 +141,7 @@ function candidateFields(candidate: SearchCandidate): LabelFields {
 function confirmedFlow(candidate: SearchCandidate, imageUrl: string, fields: LabelFields, moderation: 'clear' | 'flagged'): LabelFlow {
   return {
     stage: 'verified', fields, evidence: evidenceSummary(fields), warnings: [], moderation,
-    sourceUrl: candidate.sourceUrl, imageUrls: [imageUrl], updatedAt: Date.now(),
-    ...(candidate.exhibition ? { identityImageUrl: imageUrl } : {}),
+    sourceUrl: candidate.sourceUrl, imageUrls: [imageUrl], identityImageUrl: imageUrl, updatedAt: Date.now(),
   };
 }
 
@@ -298,11 +184,7 @@ export const confirm = internalMutation({
       labelFlow: flow,
       // Confirming a retained candidate supersedes any search still in flight.
       museumSearchRevision: (scan.museumSearchRevision ?? 0) + 1,
-      museumSearch: {
-        stage: 'confirmed', candidates: retained.state.candidates,
-        ...('promptVersion' in retained.state ? { promptVersion: retained.state.promptVersion } : {}),
-        selected, updatedAt: flow.updatedAt,
-      },
+      museumSearch: { stage: 'confirmed', candidates: retained.state.candidates, selected, updatedAt: flow.updatedAt },
       updatedAt: Date.now(),
     });
     await resolveFalseRejections(ctx, scan, flow);
@@ -334,34 +216,30 @@ export const confirmSearchCandidate = action({
     const retained = retainedCandidate(scan.museumSearch, sourceUrl, check.url);
     if (!retained) throw new ConvexError({ code: 'unknown_candidate' });
     if (!imageCheckPasses(check)) throw new ConvexError({ code: 'image_mismatch' });
-    let candidate = retained.candidate;
-    if (candidate.exhibition) {
-      const previous = scan.labelFlow;
-      if (scan.museumSearch?.stage === 'confirmed' && previous?.stage === 'verified' &&
-        scan.museumSearch.selected.sourceUrl === sourceUrl && scan.museumSearch.selected.imageUrl === check.url &&
-        previous.sourceUrl === sourceUrl && previous.identityImageUrl === check.url) return displayLabelFlow(previous);
-      await limitDevice(ctx, 'labelVerify', device._id);
-      // A page fetch or model failure propagates: only a page that cannot name the image is terminal.
-      const identity = await resolveExhibitionIdentity(ctx, {
-        sourceUrl, imageUrl: check.url, exhibitionTitle: candidate.exhibition.title, hosts,
+    const { candidate } = retained;
+    const previous = scan.labelFlow;
+    if (scan.museumSearch?.stage === 'confirmed' && previous?.stage === 'verified' &&
+      scan.museumSearch.selected.sourceUrl === sourceUrl && scan.museumSearch.selected.imageUrl === check.url &&
+      previous.sourceUrl === sourceUrl && previous.identityImageUrl === check.url) return displayLabelFlow(previous);
+    await limitDevice(ctx, 'labelVerify', device._id);
+    // A page fetch or model failure propagates: only a page that cannot name the image is terminal.
+    const identity = await resolveExhibitionIdentity(ctx, {
+      sourceUrl, imageUrl: check.url, exhibitionTitle: candidate.exhibition.title, hosts,
+    });
+    if (!identity?.title || !identity.artist) {
+      await ctx.runMutation(internal.museumSearch.markUnresolved, {
+        scanId, deviceId: device._id, generation: scan.generation, sourceUrl, imageUrl: check.url,
       });
-      if (!identity?.title || !identity.artist) {
-        await ctx.runMutation(internal.museumSearch.markUnresolved, {
-          scanId, deviceId: device._id, generation: scan.generation, sourceUrl, imageUrl: check.url,
-        });
-        throw new ConvexError({ code: 'identity_unresolved' });
-      }
-      candidate = { ...candidate, fields: identity };
+      throw new ConvexError({ code: 'identity_unresolved' });
     }
-    const fields = candidateFields(candidate);
-    const clear = confirmedFlow(retained.candidate, check.url, fields, 'clear');
+    const fields = candidateFields(identity);
+    const clear = confirmedFlow(candidate, check.url, fields, 'clear');
     const stored = storedConfirmation(scan, clear);
     if (stored) return displayLabelFlow(stored);
-    if (!candidate.exhibition) await limitDevice(ctx, 'labelVerify', device._id);
     const moderation = await moderateVerifiedFields(ctx, fields, scan.labelFlow);
     return ctx.runMutation(internal.museumSearch.confirm, {
       scanId, deviceId: device._id, generation: scan.generation,
-      labelFlow: moderation === 'flagged' ? confirmedFlow(retained.candidate, check.url, {}, 'flagged') : clear,
+      labelFlow: moderation === 'flagged' ? confirmedFlow(candidate, check.url, {}, 'flagged') : clear,
     });
   },
 });

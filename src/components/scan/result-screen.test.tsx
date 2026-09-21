@@ -19,7 +19,7 @@ import { getSavedWork } from '@/db/repos/saved-works';
 import * as visits from '@/db/repos/visits';
 import { resolveWithLabel } from '@/lib/result/feedback';
 import { runMuseumSearchForScan } from '@/lib/museum-search/museum-search-deps';
-import { candidates, confirmed, verified } from '@/lib/museum-search/__fixtures__/search';
+import { confirmed, exhibitionCandidates, verified } from '@/lib/museum-search/__fixtures__/search';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { contributeLabel } from '@/lib/label/contribute';
 import { clearLabelDraft, saveLabelDraft } from '@/lib/label/draft';
@@ -108,7 +108,7 @@ beforeEach(async () => {
   mockNetwork.isInternetReachable = true;
   await setMuseumSearchConsent('unset');
   await clearLabelDraft(SCAN_ID);
-  jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason: 'no_candidates' });
+  jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason: 'no_match' });
   AppState.currentState = 'active';
   jest.spyOn(AppState, 'addEventListener').mockImplementation(() => ({ remove() {} }));
   databaseListeners.clear();
@@ -556,13 +556,13 @@ it('waits for connectivity before automatically searching', async () => {
   await waitFor(() => expect(runMuseumSearchForScan).toHaveBeenCalledTimes(1));
 });
 
-it('resumes stored candidates on remount and restores confirmed fields from the subscription', async () => {
+it('resumes stored exhibition candidates on remount and restores confirmed fields from the subscription', async () => {
   await setMuseumSearchConsent('granted');
-  results.set('scans:get', { ...missScan, museumSearch: candidates });
+  results.set('scans:get', { ...missScan, museumSearch: exhibitionCandidates });
   jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt });
   const view = await render(result());
   expect(await screen.findByText("Found on the museum's site")).toBeOnTheScreen();
-  expect(runMuseumSearchForScan).toHaveBeenCalledWith(expect.objectContaining({ stored: candidates }));
+  expect(runMuseumSearchForScan).toHaveBeenCalledWith(expect.objectContaining({ stored: exhibitionCandidates }));
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('Blue painting');
   expect(screen.getByLabelText('Title').props.editable).toBe(false);
   expect(screen.getAllByText('From the museum’s site')).toHaveLength(2);
@@ -584,7 +584,8 @@ it('resumes stored candidates on remount and restores confirmed fields from the 
 });
 
 it.each([
-  ['cap', 'Museum search is paused for today'], ['no_candidates', "Not on the museum's site — point at the label"],
+  ['cap', 'Museum search is paused for today'],
+  ['identity_unresolved', 'Found a matching image, but couldn’t verify its title and artist. Point at the label.'],
 ] as const)('restores stored %s without starting a flow', async (reason, message) => {
   await setMuseumSearchConsent('granted');
   results.set('scans:get', { ...missScan, museumSearch: { stage: 'none', reason, updatedAt: 1 } });
@@ -864,7 +865,7 @@ it('keeps a tentative visitor suggestion visible without starting museum search'
   await setMuseumSearchConsent('granted');
   results.set('scans:get', { ...softScan, best: { ...softScan.best!, identityStatus: 'tentative' },
     runnerUps: [{ ...haystacks, identityStatus: 'tentative' }] });
-  jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason: 'no_candidates' });
+  jest.mocked(runMuseumSearchForScan).mockResolvedValue({ stage: 'none', reason: 'no_match' });
   await render(result());
   expect(await screen.findByText('Maybe')).toBeOnTheScreen();
   expect(screen.getAllByText('Shared by a visitor. Label not independently confirmed.')).toHaveLength(2);

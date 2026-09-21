@@ -11,7 +11,6 @@ export type ChatJsonRequest<T> = {
   model: string;
   system: string;
   user: string;
-  imageBase64?: string;
   schemaName: string;
   schema: Record<string, unknown>;
   maxTokens: number;
@@ -22,10 +21,6 @@ export type ChatJsonRequest<T> = {
 // `calls` counts every request sent, including the retry, for spend reconciliation.
 export type ChatJsonResponse<T> = { value: T; calls: number };
 
-// Thinking is disabled through each model family's template parameter.
-function chatTemplateKwargs(model: string): Record<string, boolean> {
-  return /kimi/i.test(model) ? { thinking: false } : { enable_thinking: false };
-}
 
 export function retryDelayMs(retryAfter: string | null, now = Date.now()): number {
   if (retryAfter) {
@@ -66,10 +61,6 @@ function parseCompletion<T>(body: string, parse: (value: unknown) => T | null, c
 export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJsonResponse<T>> {
   const apiKey = process.env.NEBIUS_API_KEY;
   if (!apiKey) throw new ConvexError({ code: 'model_unconfigured', calls: 0 });
-  const userContent = request.imageBase64 === undefined ? request.user : [
-    { type: 'text', text: request.user },
-    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${request.imageBase64}` } },
-  ];
   const init: RequestInit = {
     method: 'POST',
     headers: {
@@ -78,11 +69,12 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
     },
     body: JSON.stringify({
       model: request.model,
-      messages: [{ role: 'system', content: request.system }, { role: 'user', content: userContent }],
+      messages: [{ role: 'system', content: request.system }, { role: 'user', content: request.user }],
       response_format: { type: 'json_schema', json_schema: { name: request.schemaName, strict: true, schema: request.schema } },
       temperature: 0,
       max_tokens: request.maxTokens,
-      chat_template_kwargs: chatTemplateKwargs(request.model),
+      // Nemotron's template parameter; thinking would eat the small output budgets.
+      chat_template_kwargs: { enable_thinking: false },
     }),
   };
   let calls = 0;

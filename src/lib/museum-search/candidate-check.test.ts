@@ -43,13 +43,13 @@ it('rejects a high-cosine image whose homography fails, then checks the next ima
   expect(images.remove).toHaveBeenCalledTimes(4);
 });
 
-it('checks at most three candidates and two images each', async () => {
+it('checks at most three candidates and six images each', async () => {
   const images = deps();
   images.embed.mockResolvedValue(Float32Array.from([0, 1]));
-  const many = Array.from({ length: 4 }, () => ({ ...candidate, imageUrls: [...candidate.imageUrls, 'https://museum.example/extra.jpg'] }));
+  const many = Array.from({ length: 4 }, () => ({ ...candidate, imageUrls: Array.from({ length: 8 }, (_, i) => `https://museum.example/${i}.jpg`) }));
   expect(await checkCandidates(many, scan, images, options)).toBeNull();
-  expect(images.download).toHaveBeenCalledTimes(6);
-  expect(images.remove).toHaveBeenCalledTimes(12);
+  expect(images.download).toHaveBeenCalledTimes(18);
+  expect(images.remove).toHaveBeenCalledTimes(36);
 });
 
 it('cleans a download when letterboxing fails and continues with the next image', async () => {
@@ -72,14 +72,9 @@ it('cleans downloaded files when native ORB extraction fails', async () => {
   expect(images.remove.mock.calls.flat()).toEqual(['file:///cache/blue.jpg', 'file:///cache/blue.jpg.box.jpg']);
 });
 
-it('can match a later artwork on an exhibition page and caps downloads at six per page', async () => {
+it('can match a later artwork on an exhibition page', async () => {
   const images = deps();
-  const exhibition = { ...candidate, exhibition: { title: 'Colour', content: '' },
-    imageUrls: Array.from({ length: 8 }, (_, i) => `https://museum.example/${i}.jpg`) };
+  const exhibition = { ...candidate, imageUrls: Array.from({ length: 8 }, (_, i) => `https://museum.example/${i}.jpg`) };
   images.embed.mockResolvedValueOnce(Float32Array.from([0, 1])).mockResolvedValueOnce(Float32Array.from([0, 1]));
   expect(await checkCandidates([exhibition], scan, images, options)).toMatchObject({ imageCheck: { url: exhibition.imageUrls[2] } });
-  images.download.mockClear();
-  images.embed.mockResolvedValue(Float32Array.from([0, 1]));
-  expect(await checkCandidates([exhibition], scan, images, options)).toBeNull();
-  expect(images.download).toHaveBeenCalledTimes(6);
 });

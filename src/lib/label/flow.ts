@@ -14,13 +14,15 @@ export type LabelApi = {
   verifyLabel(args: FunctionArgs<typeof api.label.verifyLabel>): Promise<LabelFlowDisplay>;
 };
 
+export type OcrLine = FunctionArgs<typeof api.label.readLabel>['lines'][number];
+
 export type LabelFlowInput = {
   scanId: Id<'scans'>;
   labelPhotoUri?: string;
   qrUrl?: string;
   api: LabelApi;
-  /** The photo as the reader takes it (crop.ts). */
-  encodePhoto(uri: string): Promise<string>;
+  /** The label's printed lines, read on the phone (label-ocr.ts); the photo itself never leaves the device. */
+  readText(uri: string): Promise<OcrLine[]>;
   /** The phone's verdict on the verifier's museum images; absent when the scan's features are not on this phone. */
   checkImages?(urls: string[]): Promise<ImageCheck | null>;
   onStage?(stage: LabelStage): void;
@@ -32,8 +34,7 @@ export const LABEL_ERROR_MESSAGES: Record<string, string> = {
   rate_limited: 'Try again in a minute',
   model_error: 'Couldn’t read the label — try a sharper shot',
   model_unconfigured: 'Couldn’t read the label — try a sharper shot',
-  bad_image: 'Couldn’t read the label — try a sharper shot',
-  image_too_large: 'Couldn’t read the label — try a sharper shot',
+  bad_lines: 'Couldn’t read the label — try a sharper shot',
   nothing_read: 'Couldn’t read the label — try a sharper shot',
   label_flagged: 'This label couldn’t be accepted — try another photo',
   qr_host_not_allowed: 'That QR code doesn’t point to the museum’s collection',
@@ -69,8 +70,9 @@ export function toLabelInput(fields: LabelFields): LabelInput {
 }
 
 /**
- * The label flow on the phone: a QR code fetches the museum's page, otherwise the photo is read;
- * the fields are verified, and a museum image the phone confirms upgrades the verification.
+ * The label flow on the phone: a QR code fetches the museum's page, otherwise the photo is read on the
+ * phone and its lines sorted into fields; the fields are verified, and a museum image the phone confirms
+ * upgrades the verification.
  */
 export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisplay> {
   const { scanId, api, onStage } = input;
@@ -81,7 +83,9 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
       flow = await api.fetchQr({ scanId, url: input.qrUrl });
     } else if (input.labelPhotoUri) {
       onStage?.('read');
-      flow = await api.readLabel({ scanId, imageBase64: await input.encodePhoto(input.labelPhotoUri) });
+      const lines = await input.readText(input.labelPhotoUri);
+      if (!lines.length) throw new LabelFlowError('nothing_read');
+      flow = await api.readLabel({ scanId, lines });
     } else {
       throw new LabelFlowError('nothing_read');
     }

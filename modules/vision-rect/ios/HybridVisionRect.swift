@@ -60,6 +60,22 @@ final class HybridVisionRect: HybridVisionRectSpec {
     }
   }
 
+  func recognizeText(photoPath: String) throws -> Promise<TextRecognition> {
+    return Promise.parallel(stillQueue) {
+      let recognized = try TextRecognizer.recognize(fileURL: URL(fileURLWithPath: photoPath))
+      return TextRecognition(
+        width: Double(recognized.width),
+        height: Double(recognized.height),
+        lines: recognized.lines.map { line in
+          TextLine(
+            text: line.text, confidence: Double(line.confidence),
+            x: Double(line.bounds.minX), y: Double(line.bounds.minY), width: Double(line.bounds.width), height: Double(line.bounds.height)
+          )
+        }
+      )
+    }
+  }
+
   private static func observation(_ rectangle: DetectedRectangle) -> RectObservation {
     return RectObservation(
       confidence: Double(rectangle.confidence),

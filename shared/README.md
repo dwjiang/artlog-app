@@ -9,6 +9,7 @@ and Python tooling (`scripts/data/`, `scripts/model/`). Each domain owns its fix
 | `calibrator/` | Feature parity fixtures and training-output contract | Convex, Python jobs |
 | `collection/` | Saved-collection limits | iOS, Convex |
 | `docent/` | Prose validation parity fixtures | Convex, Python jobs |
+| `label/` | Wall-label OCR payload bounds | iOS, Convex |
 | `model/` | Embedding model metadata, calibration URLs, letterbox reference | iOS, Convex, Python tooling |
 | `orb/` | Matching algorithms, wire format, and parity fixtures | iOS, Convex, Python jobs |
 | `sources/` | Source scores, regions, and checklist fixtures | Convex, Python jobs |

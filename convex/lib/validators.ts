@@ -212,22 +212,15 @@ export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
 export const imageCheck = v.object({ url: v.string(), cosine: v.number(), homographyValid: v.boolean() });
 export type ImageCheck = Infer<typeof imageCheck>;
 
+// An exhibition page from the venue's site whose images the phone checks; the page names the work at confirmation.
 export const searchCandidate = v.object({
   sourceUrl: v.string(),
-  exhibition: v.optional(v.object({ title: v.string(), content: v.string() })),
-  fields: v.object({
-    title: v.optional(v.string()),
-    artist: v.optional(v.string()),
-    date: v.optional(v.string()),
-    accession: v.optional(v.string()),
-    medium: v.optional(v.string()),
-    creditLine: v.optional(v.string()),
-  }),
+  exhibition: v.object({ title: v.string(), content: v.string() }),
   imageUrls: v.array(v.string()),
 });
 export type SearchCandidate = Infer<typeof searchCandidate>;
 
-// Museum-site search state on a scan. `promptVersion` is present whenever a description was attempted.
+// Museum-site search state on a scan.
 export const museumSearchDisplay = v.union(
   v.object({
     stage: v.literal('exhibitions'),
@@ -236,21 +229,13 @@ export const museumSearchDisplay = v.union(
   }),
   v.object({
     stage: v.literal('none'),
-    reason: v.union(v.literal('cap'), v.literal('no_candidates'), v.literal('identity_unresolved')),
-    promptVersion: v.optional(v.string()),
-    updatedAt: v.number(),
-  }),
-  v.object({
-    stage: v.literal('candidates'),
-    candidates: v.array(searchCandidate),
-    promptVersion: v.string(),
+    reason: v.union(v.literal('cap'), v.literal('identity_unresolved')),
     updatedAt: v.number(),
   }),
   v.object({
     stage: v.literal('confirmed'),
     candidates: v.array(searchCandidate),
     selected: v.object({ sourceUrl: v.string(), imageUrl: v.string() }),
-    promptVersion: v.optional(v.string()),
     updatedAt: v.number(),
   })
 );
