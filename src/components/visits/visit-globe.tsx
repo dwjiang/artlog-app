@@ -1,6 +1,6 @@
 import { Button, Host, Icon, Row } from '@expo/ui';
 import { Menu, Picker, Text as NativeText } from '@expo/ui/swift-ui';
-import { accessibilityLabel, font, foregroundStyle, pickerStyle, strokeBorder, tag } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, contentShape, font, foregroundStyle, frame, pickerStyle, shapes, strokeBorder, tag } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -45,7 +45,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
       <GlobeCanvas ref={globe} pins={pins} selectedId={selected.venueId} initialPin={initialPin} height={expanded ? Math.max(420, height * 0.65) : 337} onSelect={setSelectedId}
         initialCamera={session.camera} onCameraChange={(camera) => session.update({ camera })} onCluster={setClusterIds} />
       <Host matchContents style={styles.worldMenu} colorScheme="light">
-        <Menu label={<Row alignment="center" spacing={6}><NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>Your world</NativeText><Icon name="chevron.down" size={11} color={Gallery.muted} /></Row>}
+        <Menu label={<Row alignment="center" spacing={6} modifiers={[frame({ minHeight: 44 }), contentShape(shapes.rectangle())]}><NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>Your world</NativeText><Icon name="chevron.down" size={11} color={Gallery.muted} /></Row>}
           modifiers={[accessibilityLabel('Choose a visited museum')]}>
           <Picker label="Museums" selection={selected.venueId} onSelectionChange={select} modifiers={[pickerStyle('inline')]}>
             {museums.map((visit) => <NativeText key={visit.venueId} modifiers={[tag(visit.venueId)]}>{visit.venueName} · {placeIdentity(visit).name}</NativeText>)}
@@ -92,12 +92,13 @@ function GlobeButton({ label, icon, onPress }: { label: string; icon: ComponentP
       // Stroke the rounded shape; a style border is square and loses its corners when clipped.
       strokeBorder({ color: Gallery.separator, shape: 'roundedRectangle', cornerRadius: GLOBE_BUTTON_RADIUS, style: { lineWidth: 1 } })]}
       style={{ width: 44, height: 44, borderRadius: GLOBE_BUTTON_RADIUS, backgroundColor: Gallery.paper }}>
-      <Icon name={icon} size={14} color={Gallery.accent} />
+      <Icon name={icon} size={14} color={Gallery.accent} modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]} />
     </Button>
   </Host>;
 }
 const styles = StyleSheet.create({
-  worldMenu: { position: 'absolute', top: 9, left: 20 },
+  // The 44pt label centers its 16pt text, so the offset keeps the text where the 9pt inset put it.
+  worldMenu: { position: 'absolute', top: -5, left: 20 },
   expand: { position: 'absolute', top: 4, right: 18 },
   zoom: { position: 'absolute', left: 18, bottom: 13, flexDirection: 'row', gap: 5 },
   hint: { position: 'absolute', right: 18, bottom: 26, fontSize: 13, color: Gallery.muted },

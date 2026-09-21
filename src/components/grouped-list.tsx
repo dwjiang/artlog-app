@@ -1,6 +1,6 @@
 import { Button, Host, Icon, ListItem, Row, Text } from '@expo/ui';
 import { LabeledContent, List, Section } from '@expo/ui/swift-ui';
-import { background, buttonStyle, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
+import { background, buttonStyle, contentShape, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, shapes, tint } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps, ReactNode } from 'react';
 import { Gallery } from '@/constants/theme';
 
@@ -38,7 +38,7 @@ export function ActionRow({ label, icon, onPress, disabled = false, destructive 
 }) {
   const color = destructive ? Gallery.destructive : Gallery.accent;
   return <Button variant="text" disabled={disabled} onPress={onPress} modifiers={[buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
-    <Row spacing={12} alignment="center">
+    <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), contentShape(shapes.rectangle())]}>
       {icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
       <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color }}>{label}</Text>
     </Row>
