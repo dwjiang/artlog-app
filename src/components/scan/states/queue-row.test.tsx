@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { QueueRow, RETRY_ROW, queueStatusText } from './queue-row';
 import type { PendingScan } from '@/db/schema';
 
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 
 jest.mock('@/lib/capture/photo-draft', () => ({ readPhotoSession: () => ({ photos: [] }) }));
 

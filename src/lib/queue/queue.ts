@@ -11,7 +11,7 @@ import { extractFeatures, orb } from '@/lib/capture/features';
 import type { CaptureStore, IdentifyResponse } from '@/lib/capture/stages';
 import { convex } from '@/lib/convex-client';
 import { embedder } from '@/lib/embed/embedder';
-import { captureFileUri, persistCapture } from '@/lib/files/photos';
+import { captureFileUri, persistCapture, scanPreviewPath } from '@/lib/files/photos';
 import { runLabelFlowForScan } from '@/lib/label/label-deps';
 import { LabelFlowError } from '@/lib/label/flow';
 import { removeFile } from '@/lib/label/crop';
@@ -31,10 +31,11 @@ export const captureStore: CaptureStore = {
   async enqueue(payload, status) {
     const current = captureOwner();
     if (payload.owner !== current.owner) throw new Error('Journal owner changed');
-    const files = await persistCapture({ localId: payload.localId, photoUri: payload.photoUri, cropUri: payload.cropUri });
+    const files = await persistCapture({ localId: payload.localId, photoUri: payload.photoUri, cropUri: payload.cropUri, contentBounds: payload.contentBounds });
     if (!current.isOwnerCurrent()) {
       removeFile(captureFileUri(files.photoPath));
       removeFile(captureFileUri(files.cropPath));
+      removeFile(captureFileUri(scanPreviewPath(files.cropPath)));
       throw new Error('Journal owner changed');
     }
     await pending.enqueuePendingScan({

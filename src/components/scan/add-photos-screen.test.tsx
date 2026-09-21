@@ -34,7 +34,7 @@ jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, disa
 jest.mock('@/lib/capture/check-album-photo', () => ({ checkAlbumPhoto: jest.fn() }));
 jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Index save failed' }));
 jest.mock('@/lib/account/photo-transfer', () => ({ removePhotoFile: jest.fn() }));
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///${path}` }));
 jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {} }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => undefined }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: async () => ({ collectionId: 'remote', updatedAt: 1, updatedBy: 'device' }) } }));

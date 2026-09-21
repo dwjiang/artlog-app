@@ -8,9 +8,10 @@ import { CornersOverlay } from './corners-overlay';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import type { ResultKind } from '@/lib/result/state';
+import { previewGeometry } from '@/lib/capture/preview-geometry';
 
 export type CardHeaderProps = {
-  /** The user's own crop; the card never shows a museum image here. */
+  /** The user's unpadded artwork preview. */
   cropUri?: string;
   artworkTitle?: string;
   loading?: boolean;
@@ -21,14 +22,17 @@ export type CardHeaderProps = {
 };
 
 export function CardHeader({ cropUri, artworkTitle, loading = false, corners, inputSize, kind, onNotRight }: CardHeaderProps) {
-  const [size, setSize] = useState(0);
+  const [frame, setFrame] = useState({ width: 0, height: 0 });
+  const [preview, setPreview] = useState<{ uri: string; width: number; height: number }>();
   const [failedUri, setFailedUri] = useState<string>();
   const available = cropUri && failedUri !== cropUri;
+  const geometry = preview?.uri === cropUri && preview ? previewGeometry(preview, frame, inputSize) : null;
   return (
     <View style={styles.header}>
-      <View style={styles.frame} onLayout={(event) => setSize(event.nativeEvent.layout.width)}>
+      <View style={styles.frame} onLayout={({ nativeEvent: { layout } }) => setFrame({ width: layout.width, height: layout.height })}>
       {available ? (
-        <Image source={cropUri} contentFit="contain" accessibilityLabel="Your photo of this painting" style={styles.photo} onError={() => setFailedUri(cropUri)} />
+        <Image source={cropUri} contentFit="contain" accessibilityLabel="Your photo of this painting" style={styles.photo}
+          onLoad={({ source }) => setPreview({ uri: cropUri, width: source.width, height: source.height })} onError={() => setFailedUri(cropUri)} />
       ) : loading ? <ImageSkeleton style={{ width: '100%', height: '100%' }} /> : (
         <View style={styles.placeholder}>
           <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />
@@ -36,8 +40,8 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
           {artworkTitle && <ThemedText themeColor="textSecondary" style={styles.placeholderText}>{artworkTitle}</ThemedText>}
         </View>
       )}
-      {available && size > 0 && <View pointerEvents="none" style={{ position: 'absolute', width: size / 1.15, height: size / 1.15, top: 0, left: (size - size / 1.15) / 2 }}>
-        <CornersOverlay corners={corners} inputSize={inputSize} size={size / 1.15} />
+      {available && geometry && <View pointerEvents="none" style={[styles.overlay, geometry.artwork]}>
+        <View style={[styles.overlay, geometry.model]}><CornersOverlay corners={corners} inputSize={inputSize} size={geometry.model.width} /></View>
       </View>}
       </View>
       <View style={styles.status}><ConfidenceChip kind={kind} />
@@ -53,6 +57,7 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.one },
   frame: { width: '100%', aspectRatio: 1.15, justifyContent: 'center', overflow: 'hidden', backgroundColor: Colors.light.backgroundElement },
   photo: { width: '100%', height: '100%' },
+  overlay: { position: 'absolute', overflow: 'hidden' },
   status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   correction: { minHeight: 44, justifyContent: 'center' },
   placeholder: { alignItems: 'center', padding: 20, gap: Spacing.two },

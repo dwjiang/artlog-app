@@ -47,7 +47,7 @@ const listeners = new Set<() => void>();
 const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of Honor' }));
 jest.mock('@/lib/attested-write', () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
@@ -194,7 +194,7 @@ it.each([
   await identifiedCapture(localId);
   results.set('scans:get', scan);
   await render(result(localId));
-  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: `file:///documents/crops/${localId}.jpg` }]));
+  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: `file:///documents/crops/${localId}.preview.jpg` }]));
   expect(await inRecentScans(localId)).toBe(true);
 });
 
@@ -217,7 +217,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
   expect(screen.getByRole('button', { name: LABEL_BUTTON })).toBeOnTheScreen();
   expect(screen.queryByText('Other possibilities')).toBeNull();
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
-  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c1.jpg' }]));
+  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c1.preview.jpg' }]));
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
 });
 
@@ -308,7 +308,7 @@ it('saves an untouched confident card locally, tells the server the suggestion w
   const savedId = `saved-${mockUuid}`;
   expect(mockHaptic).toHaveBeenCalledWith('success');
   expect(await getSavedWork(savedId)).toMatchObject({
-    title: 'Water Lilies', artist: 'Claude Monet', scanId: SCAN_ID, objectId: lilies.objectId, cropPath: 'crops/c1.jpg', venueName: 'The Met',
+    title: 'Water Lilies', artist: 'Claude Monet', scanId: SCAN_ID, objectId: lilies.objectId, cropPath: 'crops/c1.preview.jpg', venueName: 'The Met',
   });
   await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({
     localId: savedId, scanId: SCAN_ID, objectId: lilies.objectId, visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76',
@@ -465,7 +465,7 @@ it('waits for the device before querying and shows the unsupported, failed and q
   expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   await view.rerender(result('local-capture-9'));
   expect(await screen.findByText('Waiting for signal')).toBeOnTheScreen();
-  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c9.jpg' }]));
+  await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c9.preview.jpg' }]));
 });
 
 it('saves an unsupported scan anyway with a typed title and keeps its scan id', async () => {
@@ -475,7 +475,7 @@ it('saves an unsupported scan anyway with a typed title and keeps its scan id', 
   await fireEvent.changeText(await screen.findByLabelText('Title'), 'Blue room');
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ }));
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
-  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue room', scanId: SCAN_ID, objectId: null, cropPath: 'crops/c1.jpg' });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Blue room', scanId: SCAN_ID, objectId: null, cropPath: 'crops/c1.preview.jpg' });
   await waitFor(() => expect(mockSaveMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: SCAN_ID, suggested: null })));
 });
 

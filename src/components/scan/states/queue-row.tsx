@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Gallery, Spacing } from '@/constants/theme';
 import type { PendingScan, PendingScanStatus } from '@/db/schema';
-import { captureFileUri } from '@/lib/files/photos';
+import { captureFileUri, scanPreviewPath } from '@/lib/files/photos';
 import { formatRelativeTime } from '@/lib/queue/relative-time';
 import { readPhotoSession } from '@/lib/capture/photo-draft';
 
@@ -49,7 +49,7 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
         accessibilityState={{ disabled: discarding, busy: discarding }}
         style={({ pressed }) => [styles.capture, pressed && styles.pressed]}
       >
-        <Image source={captureFileUri(item.cropPath)} contentFit="cover" style={styles.thumbnail} />
+        <Image source={captureFileUri(scanPreviewPath(item.cropPath))} contentFit="cover" style={styles.thumbnail} />
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>{title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{when} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</ThemedText>

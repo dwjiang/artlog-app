@@ -141,7 +141,7 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
           setPresentation({ attempt, photoUri: input.photoUri, source: input.source, photo, crop, painting });
           controller.revealing(attempt);
         },
-        identify: ({ cropUri: _cropUri, photoUri: _photoUri, visitLocalId: _visitLocalId, owner: _owner, scope, ...payload }) => {
+        identify: ({ cropUri: _cropUri, photoUri: _photoUri, contentBounds: _contentBounds, visitLocalId: _visitLocalId, owner: _owner, scope, ...payload }) => {
           if (!scope || !owner.isCurrent()) throw new Error('Journal owner changed');
           return identify({ ...payload, scope });
         },
