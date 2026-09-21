@@ -5,6 +5,8 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import { COLLECTION_PHOTO_LONG_SIDE, MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from '../../../shared/collection/photo-limits';
 import { captureFileUri } from '../files/photos';
 
+export type PhotoUpload = { storageId: Id<'_storage'>; photoUpdatedAt: number };
+
 function endpoint(scope: string, localId: string, kind: CollectionPhotoKind, photoId?: string): string {
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
   if (!site) throw new Error('EXPO_PUBLIC_CONVEX_SITE_URL is not configured');
@@ -18,7 +20,7 @@ function endpoint(scope: string, localId: string, kind: CollectionPhotoKind, pho
 
 export async function uploadCollectionPhoto(
   token: string, scope: string, localId: string, kind: CollectionPhotoKind, path: string, isCurrent = () => true, photoId?: string,
-): Promise<Id<'_storage'>> {
+): Promise<PhotoUpload> {
   const context = ImageManipulator.manipulate(captureFileUri(path));
   const source = await context.renderAsync();
   const longSide = kind === 'photo' ? COLLECTION_PHOTO_LONG_SIDE : 512;
@@ -39,9 +41,9 @@ export async function uploadCollectionPhoto(
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg', 'X-Photo-Width': String(rendered.width), 'X-Photo-Height': String(rendered.height) },
     });
     if (response.status !== 200) throw new Error(`Photo upload failed with HTTP ${response.status}`);
-    const result = JSON.parse(response.body) as { storageId?: Id<'_storage'> };
-    if (!result.storageId) throw new Error('Photo upload did not return a storage reference');
-    return result.storageId;
+    const result = JSON.parse(response.body) as PhotoUpload;
+    if (!result.storageId || !Number.isFinite(result.photoUpdatedAt)) throw new Error('Photo upload did not return a storage reference');
+    return result;
   } finally {
     if (file?.exists) file.delete();
     if (rendered !== source) rendered.release();

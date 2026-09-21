@@ -1,3 +1,4 @@
+import { NotePaper } from '../note-paper';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -10,13 +11,12 @@ import { GalleryButton } from '../collection/gallery-button';
 export function CaptureCompletion({ completion, onViewResult, inline = false, sharedToIndex = false }: { completion: Completion; onViewResult?: () => void; inline?: boolean; sharedToIndex?: boolean }) {
   const router = useRouter();
   const content = <>
-    <Image source="sf:checkmark.circle" style={{ width: 42, height: 42 }} tintColor={Gallery.success} />
-    <ThemedText type="title" style={styles.title}>Saved to collection</ThemedText>
-    <ThemedText style={styles.copy}>{completion.wasExisting ? 'Added to' : 'Saved as'} {completion.title}.</ThemedText>
-    <ThemedText style={styles.copy}>1 artwork · {completion.photoPaths.length} new {completion.photoPaths.length === 1 ? 'photo' : 'photos'}</ThemedText>
-    <View style={styles.photos}>{completion.photoPaths.slice(0, 3).map((path) => <Image key={path} source={{ uri: captureFileUri(path) }} contentFit="cover" style={styles.photo} accessibilityLabel="Saved photo preview" />)}</View>
+    {!!completion.photoPaths[0] && <Image source={{ uri: captureFileUri(completion.photoPaths[0]) }} contentFit="contain" style={{ width: '100%', height: 220, backgroundColor: Gallery.fill }} accessibilityLabel="Saved photo preview" />}
+    <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Gallery.highlight, padding: 6 }}><Image source="sf:checkmark" style={{ width: 14, height: 14 }} tintColor={Gallery.ink} /><ThemedText type="small">Saved to your collection</ThemedText></View>
+    <ThemedText type="title" style={styles.title}>A new piece of your museum.</ThemedText>
+    <ThemedText style={styles.copy}>{completion.title}</ThemedText>
     <ThemedText style={styles.copy}>{completion.visitLabel}</ThemedText>
-    <ThemedText type="small" style={styles.note}>{completion.wasExisting ? 'Your earlier photos and encounters are unchanged.' : 'All photos are saved to this artwork.'}</ThemedText>
+    <NotePaper label="Private note"><GalleryButton label="Add a private note" icon="square.and.pencil" fullWidth onPress={() => router.navigate({ pathname: '/saved/[savedId]', params: { savedId: completion.savedId, editNote: '1' } })} /></NotePaper>
     <GalleryButton label="Scan next artwork" icon="arrow.right" iconPosition="trailing" variant="filled" fullWidth onPress={() => {
       router.dismissAll();
       router.navigate('/(tabs)/(scan)/scan');
@@ -29,10 +29,8 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
 }
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 16 },
-  title: { textAlign: 'center' },
-  copy: { textAlign: 'center' },
+  content: { flexGrow: 1, padding: 20, gap: 16 },
+  title: { },
+  copy: { color: Gallery.muted },
   note: { color: Gallery.muted, textAlign: 'center' },
-  photos: { flexDirection: 'row', gap: 8, marginVertical: 12, width: '100%' },
-  photo: { flex: 1, height: 100, borderRadius: 2, backgroundColor: Gallery.fill },
 });

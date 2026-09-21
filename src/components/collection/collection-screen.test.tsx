@@ -9,6 +9,8 @@ import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { upsertVisit } from '@/db/repos/visits';
 
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
+jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({}) }));
 jest.mock('./collection-header', () => ({ CollectionHeader: () => null }));
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({ signedIn: false, draft: null }) }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
@@ -175,7 +177,7 @@ it('shows empty visits and calendar month groups, and searches them by country o
   await fireEvent.press(screen.getByRole('button', { name: 'List' }));
   expect(screen.getByText('February 2024')).toBeOnTheScreen();
   expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
-  expect(screen.getByText('Location unavailable · 0 artworks')).toBeOnTheScreen();
+  expect(screen.getByText(/Location unavailable · 0 artworks/)).toBeOnTheScreen();
   await fireEvent.changeText(search(), '2024-02-29');
   expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
   await fireEvent.changeText(search(), 'missing');

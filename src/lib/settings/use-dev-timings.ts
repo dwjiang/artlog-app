@@ -6,12 +6,13 @@ import { useScreenActive } from '@/hooks/use-screen-active';
 export function useDevTimings() {
   const active = useScreenActive();
   const [enabled, setEnabled] = useState<boolean>();
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!__DEV__ || !active) return;
     let current = true;
     void getSetting('dev-timings').then(
-      (value) => { if (current) setEnabled(value !== 'false'); },
-      () => { if (current) setEnabled(undefined); },
+      (value) => { if (current) { setEnabled(value !== 'false'); setFailed(false); } },
+      () => { if (current) { setEnabled(undefined); setFailed(true); } },
     );
     return () => { current = false; };
   }, [active]);
@@ -20,5 +21,5 @@ export function useDevTimings() {
     await setSetting('dev-timings', String(value));
     setEnabled(value);
   }
-  return { enabled, change };
+  return { enabled, failed, change };
 }

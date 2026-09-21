@@ -37,8 +37,8 @@ export function VisitGalleryArtwork({ title, artist, photoCount, aspectRatio = 1
         <Text style={styles.badgeText}>{photoCount ? `${photoCount} photos` : 'No photos'}</Text>
       </View>}
     </View>
-    <Text style={styles.artist}>{artist || 'Artist unknown'}</Text>
     <Text style={styles.title}>{title}</Text>
+    <Text style={styles.artist}>{artist || 'Artist unknown'}</Text>
   </>;
 }
 
@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', bottom: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: Gallery.paper, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
   badgeText: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  title: { fontSize: 13, lineHeight: 18, color: Gallery.ink, marginTop: 1, marginHorizontal: 1 },
-  artist: { fontSize: 13, lineHeight: 18, fontWeight: '700', color: Gallery.ink, marginTop: 6, marginHorizontal: 1 },
+  title: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: Gallery.ink, marginTop: 6, marginHorizontal: 1 },
+  artist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2, marginHorizontal: 1 },
 });

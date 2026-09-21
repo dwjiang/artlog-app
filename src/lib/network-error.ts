@@ -3,7 +3,7 @@ import { ConvexError } from 'convex/values';
 /** Transport failures: the request never reached the server or its reply never arrived. */
 export function isNetworkError(error: unknown): boolean {
   if (error instanceof ConvexError || !(error instanceof Error)) return false;
-  return /^(Network request failed|Failed to fetch|Load failed)$/i.test(error.message) ||
+  return /^(Network request failed|Network request timed out|Failed to fetch|Load failed|The Internet connection appears to be offline\.?)$/i.test(error.message) ||
     /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(error.message);
 }
 

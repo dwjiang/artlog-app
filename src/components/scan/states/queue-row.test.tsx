@@ -24,7 +24,7 @@ it.each([
 ] as const)('describes a %s row', async (status, text) => {
   expect(queueStatusText(status)).toBe(text);
   await render(<QueueRow item={{ ...row, status }} now={now} {...handlers} />);
-  expect(screen.getByText(text)).toBeOnTheScreen();
+  expect(status === 'identifying' ? screen.getByLabelText(text) : screen.getByText(text)).toBeOnTheScreen();
   expect(screen.getByText('5 min ago · 1 photo')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Label attached')).toBeNull();
 });

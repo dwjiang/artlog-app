@@ -39,8 +39,8 @@ it('navigates only the selected shared photos and preserves authenticated media 
   expect(photos.map((photo) => new URL(photo.props.source.uri).searchParams.get('photoLocalId'))).toEqual(['selected-a', 'selected-b']);
   expect(photos.every((photo) => photo.props.source.headers.Authorization === 'Bearer private-token')).toBe(true);
   expect(photos.every((photo) => photo.props.cachePolicy === 'none')).toBe(true);
-  expect(screen.getByText('Vincent van Gogh')).toBeOnTheScreen();
-  expect(screen.getByText('Starry Night, 1889')).toBeOnTheScreen();
+  expect(screen.getByText(/Vincent van Gogh/)).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Starry Night' })).toBeOnTheScreen();
 });
 
 it('resets the gallery when a shared photo is removed and hides it when the session becomes unavailable', async () => {

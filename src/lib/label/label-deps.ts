@@ -16,9 +16,10 @@ import { convex } from '@/lib/convex-client';
 import { embedder } from '@/lib/embed/embedder';
 import { filePath } from '@/lib/file-uri';
 import { extractOrb } from '@/lib/orb/extract';
-import { prepareLabelPhoto, removeFile } from './crop';
+import { removeFile } from './crop';
 import { clearLabelDraft } from './draft';
 import { runLabelFlow, type LabelApi, type LabelStage } from './flow';
+import { readLabelText } from './label-ocr';
 import { checkImages, type ImageCheckDeps } from './image-check';
 
 export type LabelSource = { labelPhotoUri?: string; qrUrl?: string };
@@ -82,7 +83,7 @@ export async function runLabelFlowForScan(
       readLabel: (args) => guard(() => labelApi.readLabel(args)),
       verifyLabel: (args) => guard(() => labelApi.verifyLabel(args)),
     }, onStage,
-    encodePhoto: async (uri) => (await prepareLabelPhoto(uri)).base64,
+    readText: readLabelText,
     checkImages: capture && !isLabelCapture(capture) ? imageCheckFor(capture) : undefined,
   });
 }

@@ -1,11 +1,15 @@
+import { NotePaper } from '../note-paper';
+import { setStringAsync } from 'expo-clipboard';
+import { patchVisit } from '@/db/repos/visits';
+import { VisitArtworks, VisitFeedCard } from '../social/visit-card';
 import { GalleryBackToolbar } from '../gallery-back-toolbar';
 import { SharePhotoPicker } from './share-photo-picker';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { createContext, use, useEffect, useState } from 'react';
+import { createContext, use, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
-import { Gallery, NavigationTheme, Radius } from '@/constants/theme';
+import { Gallery, NavigationTheme } from '@/constants/theme';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { useOwnerGeneration } from '@/lib/account/owner-store';
 import { formatVisitDate } from '@/lib/journal/history';
@@ -16,7 +20,6 @@ import { useVisitSharing } from '@/lib/visits/use-visit-sharing';
 import { LIMITS } from '@/shared/journal/limits';
 import { GalleryButton } from '../collection/gallery-button';
 import { SavedWorkImage } from '../collection/saved-work-image';
-import { cropSyncing } from '@/lib/account/photo-sync';
 import { ProfileForm } from '../social/profile-form';
 import { SocialState } from '../social/social-state';
 import { SharedVisitProjection } from '../social/visit-screen';
@@ -25,7 +28,9 @@ import { ToastLayer } from '../toast';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 type Sharing = ReturnType<typeof useVisitSharing>;
-const ShareContext = createContext<{ sharing: Sharing; visit: VisitSummary } | null>(null);
+type PublishedArtworks = NonNullable<Sharing['preview']>['artworks'];
+// Publishing clears the controller's preview, so the flow keeps the artworks it just published for the success screen.
+const ShareContext = createContext<{ sharing: Sharing; visit: VisitSummary; published?: PublishedArtworks; setPublished: (artworks: PublishedArtworks) => void } | null>(null);
 function useShareFlow() {
   const value = use(ShareContext);
   if (!value) throw new Error('Visit sharing requires a visit');
@@ -42,14 +47,16 @@ export function VisitShareLayout() {
 }
 function ShareProvider({ visit }: { visit: VisitSummary }) {
   const sharing = useVisitSharing(visit.localId, visit.works.map((work) => work.localId));
+  const [published, setPublished] = useState<PublishedArtworks>();
   const generation = useOwnerGeneration();
   const { controller, token } = sharing;
   useEffect(() => { if (visit.owner.startsWith('account:') && token) void controller.load(); }, [controller, token, generation, visit.owner]);
-  return <ShareContext value={{ sharing, visit }}>
+  return <ShareContext value={{ sharing, visit, published, setPublished }}>
     <View style={{ flex: 1 }}>
       <Stack screenOptions={NavigationTheme}>
         <Stack.Screen name="index" options={{ title: 'Share visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
         <Stack.Screen name="preview" options={{ title: 'Preview', headerBackTitle: 'Edit' }} />
+        <Stack.Screen name="success" options={{ title: 'Visit shared', headerBackVisible: false }} />
         <Stack.Screen name="shared" options={{ title: 'Shared visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
       </Stack>
       <ToastLayer offset={0} />
@@ -72,12 +79,12 @@ export function VisitShareScreen() {
   const [creatingProfile, setCreatingProfile] = useState(false);
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   const { controller, draft } = sharing;
-  if (visit.visibility === 'private') return <VisitPage><SocialState title="This visit is private." detail="Make it Public on the visit page before publishing."
-    action="Back to visit" onAction={() => router.dismiss()} /></VisitPage>;
   if (!visit.owner.startsWith('account:')) return <GuestVisitSignIn visitId={visit.localId} />;
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so people can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
     : <VisitPage><Text style={styles.body}>Create a profile to publish this visit.</Text><GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} /></VisitPage>;
-  if (!draft) return <VisitPage><VisitMessage loading={sharing.busy} action="Try again" onAction={() => { void controller.load(); }}>Preparing sharing…</VisitMessage><ShareError sharing={sharing} /></VisitPage>;
+  if (!draft) return <VisitPage><VisitMessage loading={sharing.busy || !sharing.error} action="Try again" onAction={() => { void controller.load(); }}>
+    {sharing.error ? 'Sharing could not load.' : 'Preparing sharing…'}
+  </VisitMessage><ShareError sharing={sharing} /></VisitPage>;
   const photoWork = visit.works.find((work) => work.localId === photoWorkId);
   if (photoWork) return <SharePhotoPicker work={photoWork} visitId={visit.localId} selected={draft.photoSelections?.find((row) => row.saveLocalId === photoWork.localId)?.photoLocalIds ?? []}
     onDone={() => setPhotoWorkId(undefined)} onChange={(ids) => {
@@ -85,8 +92,6 @@ export function VisitShareScreen() {
     }} />;
   const selected = new Set(draft.saveLocalIds);
   const highlights = (draft.highlightLocalIds ?? []).filter((id) => selected.has(id));
-  const lead = [...highlights, ...draft.saveLocalIds.filter((id) => !highlights.includes(id))].slice(0, 3)
-    .flatMap((id) => visit.works.filter((work) => work.localId === id));
   const active = sharing.acknowledged?.status === 'active';
   const photoTotal = (saveLocalId: string) => photos.data.filter((photo) => photo.savedLocalId === saveLocalId && photo.visitLocalId === visit.localId).length;
   function previewPhotoPath(saveLocalId: string) {
@@ -113,23 +118,17 @@ export function VisitShareScreen() {
   return <FlatList data={visit.works} keyExtractor={(work) => work.localId} contentInsetAdjustmentBehavior="automatic"
     keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}
     ListHeaderComponent={<View style={{ gap: 18 }}>
-      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what to share.</Text>
-      <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)} · Public</Text>
+      <Text style={share.step}>1 · Choose what to include</Text>
+      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what travels.</Text>
+      <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)}</Text>
       {active && <View style={styles.card}>
         <Text style={styles.body}>Public</Text>
         <GalleryButton label="View shared visit" disabled={sharing.busy} onPress={() => router.push({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })} />
       </View>}
-      <Text style={styles.caption}>Publishing makes this visit, its selected photos and notes public, including to people without an account.</Text>
+      <View style={share.notice}><Text style={styles.fine}>Only the selected photos and your visit notes will be published. Anyone can view a published visit.</Text></View>
       {sharing.acknowledged?.removed ? <Text style={styles.error}>This share is no longer available.</Text> : <>
-        <View style={styles.sectionLabel}><Text style={share.sectionTitle}>Feed preview</Text><Text style={styles.fine}>Up to 3 highlights</Text></View>
-        <View style={share.lead}>
-          {lead.map((work) => <SavedWorkImage key={work.localId} contain path={previewPhotoPath(work.localId)} title={work.title} style={share.leadThumb} />)}
-          <Text style={share.leadCopy}>{selected.size > 3 ? `+${selected.size - 3} more inside the visit` : selected.size ? 'Every selected artwork opens in the visit' : 'Select artworks to fill the feed card'}</Text>
-        </View>
-        <Text style={styles.fine}>Star up to 3 artworks to show on the feed card.</Text>
-        <View style={styles.sectionLabel}><Text style={share.sectionTitle}>Shared artworks</Text>
-          <Text style={styles.fine}>{selected.size}/{LIMITS.selectedSaves} selected</Text></View>
-        <GalleryButton label="Deselect all" disabled={sharing.busy || !selected.size} onPress={() => controller.edit({ saveLocalIds: [] })} />
+        <View style={styles.sectionLabel}><Text variant="section">Artworks</Text>
+          <Text style={[styles.fine, { color: Gallery.accent }]}>{selected.size} selected</Text></View>
         {!visit.works.length && <Text style={styles.caption}>You can share a visit with no artworks.</Text>}
       </>}
       <ShareError sharing={sharing} />
@@ -143,56 +142,98 @@ export function VisitShareScreen() {
         <View style={share.itemTop}>
           <Pressable accessibilityRole="checkbox" accessibilityLabel={`Share ${item.title}`} accessibilityState={{ checked: on, disabled: sharing.busy }}
             disabled={sharing.busy || (!on && selected.size >= LIMITS.selectedSaves)} onPress={() => toggleSelection(item.localId)} style={share.choice}>
-            <VisitSymbol name={on ? 'checkmark.circle.fill' : 'circle'} size={20} color={on ? Gallery.accent : Gallery.muted} />
-            <SavedWorkImage contain path={item.cropPath} syncing={cropSyncing(item)} title={item.title} style={share.thumb} />
+            <SavedWorkImage contain path={previewPhotoPath(item.localId)} title={item.title} style={share.thumb} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={share.itemTitle}>{item.title}</Text>
               <Text style={share.itemArtist}>{item.artist || 'Artist unknown'}</Text>
             </View>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${rank >= 0 ? 'Remove highlight' : 'Highlight'} ${item.title}`}
-            accessibilityState={{ selected: rank >= 0, disabled: !on || sharing.busy }} disabled={!on || sharing.busy} onPress={() => toggleHighlight(item.localId)}
-            style={[share.highlight, rank >= 0 && share.highlightOn, !on && { opacity: 0.3 }]}>
-            {rank >= 0 ? <Text style={share.highlightRank}>{rank + 1}</Text> : <VisitSymbol name="star" size={15} color={Gallery.muted} />}
+            <VisitSymbol name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? Gallery.accent : Gallery.muted} />
           </Pressable>
         </View>
         <View style={share.itemBottom}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${rank >= 0 ? 'Remove highlight' : 'Highlight'} ${item.title}`}
+            accessibilityState={{ selected: rank >= 0, disabled: !on || sharing.busy }} disabled={!on || sharing.busy} onPress={() => toggleHighlight(item.localId)}
+            style={[share.highlight, rank >= 0 && share.highlightOn, !on && { opacity: 0.3 }]}>
+            <VisitSymbol name={rank >= 0 ? 'star.fill' : 'star'} size={13} color={Gallery.ink} />
+            <Text style={share.highlightRank}>{rank >= 0 ? 'Feed highlight' : 'Highlight'}</Text>
+          </Pressable>
           <GalleryButton label={`${chosen} of ${total} ${total === 1 ? 'photo' : 'photos'}`} icon="chevron.right" iconPosition="trailing" disabled={!on || sharing.busy}
             onPress={() => setPhotoWorkId(item.localId)} />
-          <Text style={share.hint}>{on ? rank >= 0 ? 'Feed highlight' : 'Inside the visit' : 'Not shared'}</Text>
         </View>
       </View>;
     }}
     ListFooterComponent={<View style={{ gap: 12, paddingTop: 8 }}>
-      <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
-      {draft.reflection ? <Text selectable style={styles.body}>{draft.reflection}</Text> : <Text style={styles.caption}>No notes added.</Text>}
-      <Text style={styles.fine}>Notes follow the visit’s visibility. Edit them on the visit page.</Text>
+      <Text variant="section" accessibilityRole="header">Notes</Text>
+      {draft.reflection ? <NotePaper><Text selectable style={styles.body}>{draft.reflection}</Text></NotePaper> : <Text style={styles.caption}>No notes added.</Text>}
+      <Text style={styles.fine}>Your private artwork notes are not included.</Text>
       <PrivacyNote>Only selected photos from this visit are shared. Artwork notes, wall-label photos, and photos from other visits are not added automatically. Adding a photo later will not share it.</PrivacyNote>
       <GalleryButton label={sharing.conflict ? 'Refresh preview' : 'Preview shared visit'} busy={sharing.busy} busyLabel="Preparing preview…" variant="filled" fullWidth
         disabled={sharing.busy || sharing.acknowledged?.removed} onPress={() => { void preview(); }} />
     </View>} />;
 }
 export function VisitSharePreviewScreen() {
-  const { sharing, visit } = useShareFlow();
+  const { sharing, visit, setPublished } = useShareFlow();
   const { preview, controller } = sharing;
   const active = sharing.acknowledged?.status === 'active';
-  async function publish() {
-    if (await controller.publish()) { showToast(active ? 'Shared visit updated.' : 'Visit shared publicly.'); router.replace({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } }); }
-  }
+  const [publicationError, setPublicationError] = useState<string>();
+  const [publishing, setPublishing] = useState(false);
+  const submitting = useRef(false);
   if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
   // Match the published order, with highlights first.
   const highlights = sharing.draft?.highlightLocalIds ?? [];
   const ordered = [...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)), ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId))];
-  return <><GalleryBackToolbar /><SharedVisitProjection banner={{ title: 'Only this will be shared', copy: 'These artworks, selected photos, and visit notes. Other visits and artwork notes stay private.' }}
-    note="This visit will appear on public Home, including for people without an account; your private journal stays private."
-    author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} reflection={preview.reflection} token={sharing.token}
-    artworks={ordered.map((item) => ({ key: item.saveLocalId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
-    footer={<View style={share.confirm}>
-      <ShareError sharing={sharing} />
-      <GalleryButton label={active ? 'Update shared visit' : 'Publish visit'} busy={sharing.busy} busyLabel="Sharing…" variant="filled" fullWidth
-        disabled={sharing.busy || sharing.conflict} onPress={() => { void publish(); }} />
-      <GalleryButton label="Edit selection" fullWidth disabled={sharing.busy} onPress={() => router.back()} />
-    </View>} /></>;
+  async function publish() {
+    if (submitting.current) return;
+    submitting.current = true; setPublishing(true); setPublicationError(undefined);
+    // The server publishes only Public visits, so a private one is made public for the request and restored if publishing fails.
+    const wasPrivate = visit.visibility === 'private';
+    try {
+      if (wasPrivate) await patchVisit(visit.localId, { visibility: 'public' }, visit.owner);
+      if (await controller.publish()) { setPublished(ordered); router.replace({ pathname: '/visit-share/[visitId]/success', params: { visitId: visit.localId } }); return; }
+      if (wasPrivate) await patchVisit(visit.localId, { visibility: 'private' }, visit.owner);
+    } catch { setPublicationError('Your visit could not be published. Your selection is kept. Try again.'); }
+    finally { submitting.current = false; setPublishing(false); }
+  }
+  return <><GalleryBackToolbar /><VisitPage>
+    <Text style={{ alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 6, paddingVertical: 3 }}>2 · Review your visit</Text>
+    <VisitFeedCard author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} notes={preview.reflection}
+      artworks={ordered} artworkCount={ordered.length} token={sharing.token} inset={false} />
+    <PrivacyNote>Publishing makes these selected photos and visit notes public, including to people without an account. Your other visits and artwork notes stay private.</PrivacyNote>
+    <ShareError sharing={sharing} />
+    {publicationError && <Text style={styles.error} accessibilityRole="alert">{publicationError}</Text>}
+    <GalleryButton label={active ? 'Update shared visit' : 'Publish visit'} busy={publishing || sharing.busy} busyLabel="Sharing…" variant="filled" fullWidth
+      disabled={publishing || sharing.busy || sharing.conflict} onPress={() => { void publish(); }} />
+    <GalleryButton label="Edit selection" fullWidth disabled={publishing || sharing.busy} onPress={() => router.back()} />
+  </VisitPage></>;
+}
+
+function CopyVisitLink({ postId }: { postId: string }) {
+  const [error, setError] = useState<string>();
+  return <><GalleryButton label="Copy link" icon="link" fullWidth onPress={() => {
+    setError(undefined);
+    void setStringAsync(`artlog://visit/${encodeURIComponent(postId)}`).then((copied) => {
+      if (copied) showToast('Visit link copied.'); else setError('Couldn’t copy the link. Try again.');
+    }).catch(() => setError('Couldn’t copy the link. Try again.'));
+  }} />{error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}</>;
+}
+
+export function VisitShareSuccessScreen() {
+  const { sharing, visit, published } = useShareFlow();
+  const postId = sharing.acknowledged?.postId;
+  if (!postId || sharing.acknowledged?.status !== 'active') return <VisitPage><VisitMessage action="Back to selection" onAction={() => router.replace({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>This visit hasn’t been shared yet.</VisitMessage></VisitPage>;
+  const artworkCount = sharing.acknowledged.saveLocalIds.length;
+  return <VisitPage><View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Gallery.highlight, alignItems: 'center', justifyContent: 'center' }}><VisitSymbol name="checkmark" size={30} color={Gallery.ink} /></View>
+    <Text style={styles.title}>A day worth sharing.</Text>
+    <Text style={styles.caption}>Your {visit.venueName} visit is now public.</Text>
+    <View style={{ gap: 10, paddingBottom: 20 }}>
+      {!!published?.length && <VisitArtworks artworks={published} token={sharing.token} />}
+      <Text style={share.step}>Public</Text><Text variant="section">{visit.venueName}</Text>
+      <Text style={styles.caption}>{formatVisitDate(visit.visitedOn)} · {artworkCount} {artworkCount === 1 ? 'artwork' : 'artworks'}</Text>
+    </View>
+    <GalleryButton label="View shared visit" variant="filled" fullWidth onPress={() => router.replace({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })} />
+    {postId && <CopyVisitLink postId={postId} />}
+    <GalleryButton label="Done" fullWidth onPress={() => router.dismiss()} />
+  </VisitPage>;
 }
 export function VisitSharedScreen() {
   const { sharing, visit } = useShareFlow();
@@ -212,27 +253,23 @@ export function VisitSharedScreen() {
     </VisitMessage>
     {!unavailable && <ShareError sharing={sharing} />}
   </VisitPage>;
-  return <SharedVisitProjection banner={{ title: 'What anyone can see', copy: 'These artworks, selected photos, and visit notes. Other visits and artwork notes stay private.' }}
+  return <SharedVisitProjection postId={shared.postId}
     author={shared.author} venue={shared.venue} visitedOn={shared.visitedOn} reflection={shared.reflection} token={sharing.token}
     artworks={shared.artworks.page.map((item) => ({ key: item.itemId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
-    footer={<ShareError sharing={sharing} />} />;
+    footer={<><CopyVisitLink postId={shared.postId} /><ShareError sharing={sharing} /></>} />;
 }
 
 const share = StyleSheet.create({
-  sectionTitle: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: Gallery.ink },
-  lead: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 10, borderRadius: 9, backgroundColor: Gallery.fill },
-  leadThumb: { width: 54, height: 54, borderRadius: 2, backgroundColor: Gallery.fill },
-  leadCopy: { flex: 1, marginLeft: 'auto', textAlign: 'right', fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  item: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.softBorder, borderRadius: Radius.card, backgroundColor: Gallery.surface, marginBottom: 12, overflow: 'hidden' },
-  itemTop: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingTop: 9, paddingBottom: 5 },
-  choice: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 44 },
-  thumb: { width: 52, height: 60, borderRadius: 2, backgroundColor: Gallery.fill },
-  itemTitle: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: Gallery.ink },
+  step: { alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 7, paddingVertical: 5, fontSize: 12, color: Gallery.ink },
+  notice: { padding: 14, backgroundColor: '#F0F1E8', borderRadius: 8 },
+  item: { marginBottom: 18 },
+  itemTop: { paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  choice: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  thumb: { width: 56, height: 60, backgroundColor: Gallery.fill },
+  itemTitle: { fontSize: 16, lineHeight: 22, fontWeight: '600', color: Gallery.ink },
   itemArtist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2 },
-  highlight: { minWidth: 44, minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, alignItems: 'center', justifyContent: 'center' },
-  highlightOn: { backgroundColor: Gallery.highlight, borderColor: Gallery.highlight },
-  highlightRank: { fontSize: 13, fontWeight: '600', color: Gallery.ink },
-  itemBottom: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingLeft: 35, paddingRight: 12, paddingBottom: 4 },
-  hint: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: 'right' },
-  confirm: { gap: 4, paddingTop: 12 },
+  highlight: { minHeight: 44, paddingHorizontal: 8, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center' },
+  highlightOn: { backgroundColor: Gallery.highlight, borderRadius: 4 },
+  highlightRank: { fontSize: 12, fontWeight: '600', color: Gallery.ink },
+  itemBottom: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingTop: 8 },
 });

@@ -6,9 +6,9 @@ Identification is visual retrieval, not a language model guessing from pixels. T
 the painting with NVIDIA's C-RADIOv3-B, one versioned index on Convex returns candidates, ORB
 descriptors and a homography verify them, and a small calibrator decides whether to say
 *confident*, *soft* or *unidentified*. When a work is not in the index, the app searches the
-museum's own site (with consent) or reads the wall label, verifies what it read against the
-museum's records or Wikidata and, when the visitor saves the confirmed work, adds it to a shared index so
-the next visitor gets an instant match. Nemotron on Nebius Token Factory writes the cited
+museum's own site (with consent) or reads the wall label on the phone, verifies what it read against
+the museum's records or Wikidata and, when the visitor saves the confirmed work, adds it to a shared
+index so the next visitor gets an instant match. Nemotron on Nebius Token Factory writes the cited
 "about this work" text once per artwork; Tavily finds museum-site evidence and fact-sheet
 sources. A scan taken with no signal waits on the phone and is identified when the connection
 returns.
@@ -36,7 +36,7 @@ seconds.
 | Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
 | Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
 | Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
-| Label reading and artwork description | **Moonshot Kimi K2.6** (`moonshotai/Kimi-K2.6`, `LABEL_VL_MODEL`). Not an NVIDIA model: no NVIDIA vision endpoint was on Token Factory's public catalog on 2026-09-08 (Nemotron Nano Omni's public endpoint was retired 2026-08-31, Nano 2 VL on 2026-04-13). Kimi read title and artist correctly on 24 of 25 test labels ([model evaluation](docs/experiments/README.md#token-factory-models)) | `convex/label.ts`, `convex/museumSearch.ts`, prompts in `convex/lib/labelPrompt.ts` and `convex/lib/describePrompt.ts` | Token Factory, live on every label capture and every consented museum-site search |
+| Label reading | Apple Vision text recognition on the phone reads the wall label; **NVIDIA Nemotron 3 Super** (`LABEL_MODEL`) sorts the printed lines into title, artist, dates, medium, accession and credit line. Title and artist both correct on 21 of 25 test labels from the recognizer's lines (Mac harness, same Vision recognizer as the phone), against 24 of 25 for the retired vision model reading the photo; two of the four misses are OCR errors (`II` read as `I|`, a dropped accent) and two are labels naming several makers ([model evaluation](docs/experiments/README.md#token-factory-models)) | `modules/vision-rect/ios/TextRecognizer.swift`, `convex/label.ts`, prompt in `convex/lib/labelPrompt.ts` | OCR on the phone (median 121 ms on the Mac harness; not yet timed on an iPhone); the sort on Token Factory, live on every label capture. The label photo never leaves the phone |
 | Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output and thinking disabled; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
 | Nebius Serverless AI Jobs | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/experiments/README.md#batch-infrastructure)) | [archived probes](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/nebius-jobs) | **Not on any production path.** See the next paragraph |
 
@@ -46,9 +46,9 @@ the Wikimedia Commons download sets the wall clock, not GPU time, and the Common
 applies wherever the job runs ([scripts/data/README.md](scripts/data/README.md), "Index build"). No Nebius job
 has embedded, enriched or migrated the index; the only Nebius compute spent was three
 probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
-Convex, and what runs on Nebius is Token Factory, live, on every label read, every consented
-museum-site search, every moderation check and the first identification of every uncached
-artwork.
+Convex, and what runs on Nebius is Token Factory, live, on every label read, every museum-site
+image the page can only caption, every moderation check and the first identification of every
+uncached artwork. Every model on a live request path is an NVIDIA model.
 
 ## Tavily
 
@@ -59,7 +59,7 @@ does not depend on Tavily.
 
 | Call | Code | What it does |
 |---|---|---|
-| Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: first search the venue's current exhibitions with source-linked images. The phone checks up to six images on each of three pages by embedding and homography. A match is identified only from artwork metadata or a caption attached to that image; otherwise the visitor is asked for the label. If no image matches, a second search uses the vision model's painting description and checks individual object pages. One credit per search, at most two per attempt. `FLAG_MUSEUM_SEARCH`, on by default |
+| Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: one search of the venue's current exhibitions with source-linked images. The phone checks up to six images on each of three pages by embedding and homography. A match is identified only from artwork metadata or a caption attached to that image; otherwise, and when no image matches, the visitor is asked for the label. One credit per attempt. `FLAG_MUSEUM_SEARCH`, on by default |
 | Label verification | `convex/label.ts` | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default |
 | Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | On the first identification of an uncached artwork, results filtered by per-domain source scores (`shared/sources/source-scores.json`) become sources Nemotron 3 Super must cite |
 | "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/experiments/README.md#tavily-and-right-now) |
@@ -70,12 +70,13 @@ does not depend on Tavily.
                      ~20 KB per scan: vector + ORB descriptors, no pixels
  iPhone (Expo dev client) ────────────────────────────────▶ Convex (the whole request path)
    camera → subject crop → CoreML C-RADIOv3-B → ORB           identify: vector search → ORB/RANSAC → calibrator
+   wall label → Apple Vision OCR (text lines only leave)       label: Nemotron sorts lines → accession · Wikidata · Tavily
    venue table (SQLite, on device) · local collection         label · museumSearch · docent · rightNow actions
    App Attest key · offline scan queue  ◀── scans ────────    promotion cron · sync · rate limits · spend caps
                                           subscription             │                 │              │
                                                                    ▼                 ▼              ▼
                                                         Nebius Token Factory       Tavily      one page on the
-                                                        (Kimi, Nemotron)                       venue's own hosts
+                                                        (Nemotron)                             venue's own hosts
 
  Mac, batch, runs to completion (scripts/data/):
    seed venues → corpus metadata → download / drift check / embed → dedupe / hubs → push ──▶ Convex
@@ -156,7 +157,7 @@ Convex environment variables, set with `npx convex env set NAME value`
 | Variable | What it does |
 |---|---|
 | `NEBIUS_API_KEY` | Token Factory key for the label flow, museum-site search, moderation, fact sheets and docent prose |
-| `LABEL_VL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs: `moonshotai/Kimi-K2.6`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
+| `LABEL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs: `nvidia/nemotron-3-super-120b-a12b`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
 | `TAVILY_API_KEY` | Tavily key for the four calls above |
 | `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP` | Global daily spend caps; defaults are 2,000 calls and 20 credits |
 | `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH`, `FLAG_RIGHT_NOW` | `on` / `off` kill switches; "Right now" defaults off |
@@ -317,8 +318,8 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    to populate the cache. The app also generates and caches missing fact sheets and prose
    on the first identification of each artwork (`docent.ensure`).
 
-Measured per-call Token Factory costs at the 2026-09-08 list prices: Kimi label read about
-$0.002, Super fact sheet about $0.0012, Lightning docent call about $0.00007, Lightning
+Measured per-call Token Factory costs at the 2026-09-08 list prices: Super label sort about
+$0.0004, Super fact sheet about $0.0012, Lightning docent call about $0.00007, Lightning
 moderation call about $0.00001. Tavily: one credit per search. Nebius compute for the build: $0.
 
 ## Data sources and terms
@@ -347,11 +348,11 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
   Apple's [MapKit search service](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/EnablingSearch/EnablingSearch.html).
   Confirming a returned place sends that place's name, coordinates and optional website to
   Convex to register the venue; the device's GPS fix is not sent to Convex.
-- **Three images can leave the phone, each after a visitor action:** the label photo (read by
-  the vision model, not retained), the artwork crop for museum-site search (after a one-time
-  consent that Settings can revoke; not stored), and a contribution crop of at most 256 px shared
-  automatically when a confirmed work is saved and withdrawable in Settings, the only image the
-  system keeps, as the card thumbnail for the next visitor.
+- **One image can leave the phone, after a visitor action:** a contribution crop of at most
+  256 px shared automatically when a confirmed work is saved and withdrawable in Settings, the
+  only image the system keeps, as the card thumbnail for the next visitor. The label photo is
+  read on the phone and only its text lines are sent; museum-site search (after a one-time
+  consent that Settings can revoke) downloads the museum's images to the phone and uploads none.
 - **Identity is the device:** an App Attest key Apple binds to one install on one iPhone.
   Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
   device and stay private until promoted. Sign in with Apple is optional and only syncs the

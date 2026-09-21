@@ -18,6 +18,7 @@ export type SyncDependencies = Pick<typeof saves, 'listUnsynced' | 'markSynced' 
   getCheckpoint: () => Promise<string | undefined>;
   setCheckpoint: (value: string) => Promise<void>;
   sync: (args: SyncArgs) => Promise<SyncResult>;
+  removeUnreferencedPhotos: (paths: string[]) => Promise<void>;
 };
 export async function syncJournal(deps: SyncDependencies, context: SyncContext, isCurrent = () => true): Promise<void> {
   const stored = await deps.getCheckpoint();
@@ -63,7 +64,7 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
     if (!isCurrent()) return;
     await deps.upsertVisitsFromRemote(result.visits, context.owner);
     if (!isCurrent()) return;
-    await deps.upsertFromRemote(result.saves, context.owner);
+    await deps.removeUnreferencedPhotos(await deps.upsertFromRemote(result.saves, context.owner));
     if (!isCurrent()) return;
     checkpoint = result.checkpoint;
     await deps.setCheckpoint(String(checkpoint));

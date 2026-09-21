@@ -1,7 +1,7 @@
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { VenueCandidate } from './resolve';
 import {
-  endedToday, FIX_MAX_AGE_MS, initialVenueState, needsFix, venueContext, venueReducer,
+  activeVisit, endedToday, FIX_MAX_AGE_MS, initialVenueState, needsFix, venueContext, venueReducer,
   type CurrentVisit, type PoiOption, type VenueState,
 } from './venue-reducer';
 
@@ -157,6 +157,17 @@ describe('visits and the scan context', () => {
     expect(venueContext(initialVenueState)).toEqual({});
   });
 
+  it('is active only while the phone is at the visit museum, so the bar and pill stay quiet elsewhere', () => {
+    const visit = visitAt('Met', fix.at);
+    expect(activeVisit(venueReducer(resolved, { type: 'visitStarted', visit }))).toEqual(visit);
+    const away = reduce([{ type: 'visitStarted', visit }, { type: 'resolved', fix: { ...fix, at: fix.at + FIX_MAX_AGE_MS }, resolution: { kind: 'none' } }], resolved);
+    expect(away.visit).toEqual(visit);
+    expect(activeVisit(away)).toBeUndefined();
+    const elsewhere = venueReducer(away, { type: 'resolved', fix: { ...fix, at: fix.at + 2 * FIX_MAX_AGE_MS }, resolution: { kind: 'auto', venue: candidate('Neue', 30), options: [candidate('Neue', 30)] } });
+    expect(activeVisit(elsewhere)).toBeUndefined();
+    expect(venueContext(elsewhere)).toEqual({ venueId: 'id-Neue' });
+  });
+
   it('shows the hydrated visit as the venue before the first fix', () => {
     const state = reduce([{ type: 'hydrated', visit: visitAt('Met', fix.at, 'remote-1') }]);
     expect(state.status).toBe('idle');
@@ -184,6 +195,15 @@ describe('a visit ended by hand', () => {
     expect(endedToday(ended, 'id-Neue' as Id<'museums'>, fix.at + 60_000)).toBe(false);
     expect(endedToday(ended, 'id-Met' as Id<'museums'>, fix.at + 24 * 60 * 60 * 1000)).toBe(false);
     expect(venueReducer(ended, { type: 'visitStarted', visit: visitAt('Met', fix.at + 1) }).ended).toBeUndefined();
+  });
+
+  it('is forgotten when that museum is confirmed again, but not when another one is', () => {
+    const ended = venueReducer(resolved, { type: 'visitEnded', localId: 'local-Met', manual: true });
+    const met = ended.options[0];
+    expect(met.kind === 'seeded' && met.venueId).toBe('id-Met');
+    const neue = { kind: 'seeded' as const, venueId: 'id-Neue' as Id<'museums'>, name: 'Neue', distanceM: 300 };
+    expect(endedToday(venueReducer(ended, { type: 'chosen', option: neue, replaces: neue }), 'id-Met' as Id<'museums'>, fix.at)).toBe(true);
+    expect(venueReducer(ended, { type: 'chosen', option: met as typeof neue, replaces: met }).ended).toBeUndefined();
   });
 
   it('is not remembered when the visit ended on its own, and is restored at launch', () => {

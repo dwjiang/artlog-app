@@ -34,7 +34,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const visits = useCursorPages(api.sharedVisits.listByProfile, canReadVisits ? { profileId: profileId as Id<'profiles'> } : 'skip', session.key, visitPage, visitId);
   function changeTab(value: 'wall' | 'visits') { setTab(value); requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false })); }
   if (session.offline) return <SocialGate session={session} />;
-  if (!profileId || profile.data === null) return <SocialState title="Profile unavailable." detail="This public profile is no longer available." />;
+  if (!profileId || profile.data === null) return <SocialState action="Back to Home" onAction={() => { router.dismissAll(); router.navigate('/'); }} title="Profile unavailable." detail="This public profile is no longer available." />;
   if (profile.error) return <SocialState title="Couldn’t load this profile." detail={socialErrorMessage(profile.error) ?? 'Please try again.'} action="Try again" onAction={profile.refresh} />;
   if (!profile.data) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic"><ProfileSkeleton /></ScrollView>;
   const person = profile.data;
@@ -44,7 +44,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       onPress={() => router.push({ pathname: '/share-profile', params: { profileId: person.profileId } })}>Share</Stack.Toolbar.Button></Stack.Toolbar>
     <ScrollView ref={scroll} contentInsetAdjustmentBehavior="automatic" stickyHeaderIndices={[1]} scrollEventThrottle={100}
       onScroll={(event) => { offsets.current[tab] = event.nativeEvent.contentOffset.y; }} contentContainerStyle={{ paddingBottom: 30 }}>
-      <View><PublicProfileHeader person={person} visitCount={visits.done ? visits.items.length : undefined}
+      <View><PublicProfileHeader compact={tab === 'visits'} person={person} visitCount={visits.done ? visits.items.length : undefined}
         actions={session.profileId !== profileId ? <FriendshipControls key={`${session.key}:${profileId}`} profileId={person.profileId} session={session} /> : undefined}>
         {session.profileId === profileId && <GalleryButton label="Edit profile" variant="outlined" fullWidth onPress={() => router.push('/edit-profile')} />}
       </PublicProfileHeader></View>
@@ -55,7 +55,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       {tab === 'wall' ? wall.error ? <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
         : wall.data ? <PublicWallView wall={wall.data} arrangedBy={person.name.split(' ')[0]} onSelect={(item) => router.push({ pathname: '/artwork', params: { kind: 'wall', itemId: item.itemId } })} /> : <SocialState title="Opening wall…" loading />
         : !canReadVisits ? <SocialState title="Visits aren’t available here." detail="Shared visits aren’t available for this profile." icon="lock" />
-          : <View>{visits.items.map((visit) => <VisitCard key={visit.postId} visit={visit} token={session.token} showAuthor={false} />)}
+          : <View>{visits.items.map((visit) => <VisitCard key={visit.postId} visit={visit} token={session.token} />)}
             {visits.done && !visits.loading && !visits.items.length && !visits.error && <EmptyState title="No shared visits yet." detail={`When ${person.name.split(' ')[0]} shares a museum visit, it will appear here.`} />}
             <PageFooter {...visits} count={visits.items.length} />
           </View>}

@@ -21,12 +21,12 @@ export function PublishedArtwork({ artwork, photos, shared = false, frame = 'non
     <PublishedArtworkGallery key={`${width}:${JSON.stringify(photos)}`} title={artwork.title} photos={photos} frame={frame} width={width} token={token} />
     <View style={styles.details}>
       <View style={styles.museumLabel}>
-        <Text selectable accessibilityRole="header" style={styles.artist}>{artwork.artist || 'Artist unknown'}</Text>
-        <Text selectable style={styles.title}>{artwork.title}{artwork.date ? `, ${artwork.date}` : ''}</Text>
+        <Text selectable accessibilityRole="header" style={styles.artist}>{artwork.title}</Text>
+        <Text selectable style={styles.title}>{artwork.artist || 'Artist unknown'}{artwork.date ? `, ${artwork.date}` : ''}</Text>
         {!!artwork.medium && <Text selectable style={styles.medium}>{artwork.medium}</Text>}
       </View>
       {!!note && <><View style={styles.divider} /><View style={{ gap: 8 }}>
-        <NoteHeading title="Note" />
+        <NoteHeading title="Notes" />
         <Text selectable style={styles.note}>{note}</Text>
       </View></>}
       {enrichment && <><View style={styles.divider} /><DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" /></>}

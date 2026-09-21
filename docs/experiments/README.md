@@ -62,9 +62,25 @@ Evidence: [runtime measurements](https://github.com/dwjiang/artlog-app/tree/9693
 
 Kimi K2.6 achieved joint title/artist accuracy of 24/25 labels (96%); MiniCPM
 achieved 17/25. No NVIDIA vision endpoint was available on the public catalog
-in the September 8 snapshot, so label-reading claims must name Kimi. Nemotron
-3 Super was selected for fact sheets and Nemotron 3.5 Lightning for prose and
-moderation. Model IDs are in the [recorded production settings](../operations/production.md#recorded-production-configuration).
+in the September 8 snapshot. Nemotron 3 Super was selected for fact sheets and
+Nemotron 3.5 Lightning for prose and moderation. Model IDs are in the
+[recorded production settings](../operations/production.md#recorded-production-configuration).
+
+On 2026-09-21 the label flow moved to on-device OCR so that no non-NVIDIA model
+remains on a request path: Apple Vision reads the photo on the phone (median
+121 ms, 8 lines per label on the Mac harness, macOS 26.5.2) and a Nemotron model
+sorts the lines into fields (`label-ocr` suite, same 25 labels and scorer,
+system prompt copied from `convex/lib/labelPrompt.ts`). Nemotron 3 Super got
+title and artist both correct on 21/25 (title 24, artist 22; p50 1.45 s, p95
+2.55 s, $0.0004 per label); Nemotron 3.5 Lightning 11/25, rising to 20/25 once
+the server strips a trailing date from the title (`titleWithoutDate`), which
+Super needs on none. Super's four misses: two OCR errors (`Hiroshige II` read as
+`I|`, `Río` without its accent) and two labels naming several makers, where the
+accepted variants list a maker the model did not pick. Super is the production
+`LABEL_MODEL`. The painting-description round of museum-site search was removed
+rather than re-modelled ([todo](../todos/museum-search-description/README.md)).
+Evidence: `scripts/evals/token-factory/labels/ocr-lines.jsonl` and the
+`results/label-ocr-2026-09-21/` run (gitignored, rescore with `--score-only`).
 
 All 195 main-suite strict JSON-schema calls were schema-valid. Small output
 budgets needed thinking disabled. Schema validity and valid citation IDs did

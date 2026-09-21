@@ -59,7 +59,7 @@ export function ArtworkEncounterList({ work, encounters, visitId, loading, loadE
       accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
       onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId: visit.localId } })} style={styles.visit}>
       <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={{ width: 16, height: 16 }} accessible={false} />
-      <Text style={styles.visitName} numberOfLines={2}>{visit.venueName} <Text style={styles.visitDate}>· {formatVisitDate(visit.visitedOn)}</Text></Text>
+      <Text style={styles.visitName} numberOfLines={2}>{visit.venueName}</Text><Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
       <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
     </Pressable>)}
     {!encounters.length && (loadError ? <Text accessibilityRole="alert" style={styles.caption}>Visits couldn’t load. Close and reopen this artwork to try again.</Text>
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   note: { fontSize: 17, lineHeight: 25, color: Gallery.ink, marginLeft: 24 },
   input: { marginLeft: 24, minHeight: 96, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 17, textAlignVertical: 'top' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginLeft: 24 },
-  visit: { minHeight: 44, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  visit: { minHeight: 64, padding: 14, marginBottom: 8, borderRadius: 4, borderWidth: 1, borderColor: Gallery.softBorder, backgroundColor: Gallery.surface, flexDirection: 'row', alignItems: 'center', gap: 10 },
   visitName: { flex: 1, fontSize: 15, lineHeight: 20, color: Gallery.ink },
-  visitDate: { color: Gallery.muted },
+  visitDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
 });

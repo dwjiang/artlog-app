@@ -133,3 +133,44 @@ it('enforces shared selection, profile, and geography boundaries', () => {
   expect(() => validateGeography({ city: 'Reykjavík', country: 'IS' })).not.toThrow();
   for (const input of [{ city: 'x'.repeat(121) }, { country: 'ZZ' }, { country: 'usa' }]) expect(() => validateGeography(input)).toThrow();
 });
+
+it('checks username availability for an account without reserving it', async () => {
+  const { t, account } = await fixture();
+  const a = await account('availability-a'), b = await account('availability-b');
+  expect(await a.as.query(api.profiles.usernameAvailable, { username: 'available-name' })).toBe(true);
+  await b.as.mutation(api.profiles.create, { username: 'available-name', name: 'B' });
+  expect(await a.as.query(api.profiles.usernameAvailable, { username: 'available-name' })).toBe(false);
+  await expect(a.as.query(api.profiles.usernameAvailable, { username: 'Invalid_Name' })).rejects.toThrow();
+  await expect(t.query(api.profiles.usernameAvailable, { username: 'available-name' })).rejects.toThrow();
+});
+
+it('lists incoming requests only, removing accepted and blocked connections', async () => {
+  const { t, account } = await fixture();
+  const a = await account('requests-a'), b = await account('requests-b'), c = await account('requests-c');
+  const pa = await a.as.mutation(api.profiles.create, { name: 'A', username: 'requests-a' });
+  const pb = await b.as.mutation(api.profiles.create, { name: 'B', username: 'requests-b' });
+  const pc = await c.as.mutation(api.profiles.create, { name: 'C', username: 'requests-c' });
+  await b.as.mutation(api.friendships.request, { profileId: pa.profileId, revision: 0 });
+  await a.as.mutation(api.friendships.request, { profileId: pc.profileId, revision: 0 });
+  expect(await a.as.query(api.profiles.requests, {})).toEqual([{ ...pb, relationship: { state: 'pending', revision: 1, requesterId: pb.profileId, blocked: false, blockRevision: 0 } }]);
+  expect(await b.as.query(api.profiles.requests, {})).toEqual([]);
+  await a.as.mutation(api.friendships.accept, { profileId: pb.profileId, revision: 1 });
+  expect(await a.as.query(api.profiles.requests, {})).toEqual([]);
+  await c.as.mutation(api.friendships.block, { profileId: pa.profileId, revision: 1, blockRevision: 0 });
+  expect(await c.as.query(api.profiles.requests, {})).toEqual([]);
+  await expect(t.query(api.profiles.requests, {})).rejects.toThrow();
+});
+
+it('embeds the viewer’s relationship in browse lists and leaves guests without one', async () => {
+  const { t, account } = await fixture();
+  const a = await account('browse-a'), b = await account('browse-b');
+  const pa = await a.as.mutation(api.profiles.create, { name: 'A', username: 'browse-a' });
+  const pb = await b.as.mutation(api.profiles.create, { name: 'B', username: 'browse-b' });
+  await b.as.mutation(api.friendships.request, { profileId: pa.profileId, revision: 0 });
+  const seen = (page: { profileId: string; relationship?: object }[]) => Object.fromEntries(page.map((row) => [row.profileId, row.relationship]));
+  expect(seen((await a.as.query(api.profiles.discover, {})).page)).toEqual({
+    [pa.profileId]: undefined, [pb.profileId]: { state: 'pending', revision: 1, requesterId: pb.profileId, blocked: false, blockRevision: 0 },
+  });
+  expect(seen((await a.as.query(api.profiles.search, { query: 'browse' })).page)).toMatchObject({ [pb.profileId]: { state: 'pending' } });
+  expect(seen((await t.query(api.profiles.discover, {})).page)).toEqual({ [pa.profileId]: undefined, [pb.profileId]: undefined });
+});

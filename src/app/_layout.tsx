@@ -47,6 +47,7 @@ export default function RootLayout() {
             <Stack.Screen name="saved/[savedId]" options={{ title: '' }} />
             <Stack.Screen name="wall-display" options={{ title: '' }} />
             <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
+            <Stack.Screen name="adjust-crop" options={{ title: 'Adjust crop', gestureEnabled: false }} />
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
             <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
             <Stack.Screen name="leaderboards" options={{ title: 'Leaderboards' }} />

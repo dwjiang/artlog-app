@@ -1,3 +1,4 @@
+import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
@@ -26,26 +27,27 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 
 export const MISSING_TITLE = 'This scan isn’t on this phone anymore';
 
-export function LocalScanScreen({ localId }: { localId: string }) {
+export function LocalScanScreen({ localId, manual = false }: { localId: string; manual?: boolean }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
   const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   const row = data.find((row) => row.owner === owner);
-  const labelCapture = !!row?.photoPath && isLabelCapture(row);
+  const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
   const scanId = pending ? undefined : row?.scanId;
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
+  const [editingCrop, setEditingCrop] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string>();
   const retryPending = useRef(false);
-  const keepForm = hasDraft || saving || !!savedId;
+  const keepForm = manual || hasDraft || saving || !!savedId;
 
   useEffect(() => {
     if (isActive && labelCapture) { router.replace({ pathname: '/label/[scanId]', params: { scanId: `local-${localId}` } }); return; }
-    if (isActive && scanId && !keepForm) router.replace({ pathname: '/result/[scanId]', params: { scanId } });
-  }, [isActive, router, scanId, keepForm, labelCapture, localId]);
+    if (isActive && scanId && !keepForm && !editingCrop) router.replace({ pathname: '/result/[scanId]', params: { scanId } });
+  }, [isActive, router, scanId, keepForm, labelCapture, localId, editingCrop]);
 
   function openResult() {
     if (!scanId || saving) return;
@@ -82,7 +84,8 @@ export function LocalScanScreen({ localId }: { localId: string }) {
     onDraftChange: setHasDraft,
   };
 
-  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (editingCrop && row) return <ScanCropEditor capture={row} onCancel={() => setEditingCrop(false)} />;
+  if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
 
   return (
@@ -94,9 +97,15 @@ export function LocalScanScreen({ localId }: { localId: string }) {
         contentContainerStyle={styles.content}
       >
         {row && <CardHeader cropUri={captureFileUri(scanPreviewPath(row.cropPath))} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
-        {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
+        {row && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={() => {
+          if (hasDraft) Alert.alert('Adjust this crop?', 'Recognition will run again. Unsaved artwork details will be discarded.', [
+            { text: 'Keep editing', style: 'cancel' }, { text: 'Adjust crop', onPress: () => { setHasDraft(false); setEditingCrop(true); } },
+          ]);
+          else setEditingCrop(true);
+        }} />}
+        {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}
         {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
-          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Loading your scan…</ThemedText></View>
+          : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" /></View>
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>
           : scanId ? keepForm && (
             <View style={styles.section}>
@@ -108,7 +117,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
           : row.status === 'identified' ? null
           : <WaitingForSignalCard status={row.status} onLabel={openLabel} />}
         {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}
-        {row && (pending || row.status === 'failed' || keepForm) && <SaveAnywayForm {...saveProps} />}
+        {row && (pending || row.status === 'failed' || keepForm) && <SaveAnywayForm {...saveProps} initiallyEditing={manual} />}
       </ScrollView>
     </ThemedView>
   );

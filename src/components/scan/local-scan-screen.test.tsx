@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { upsertVisit } from '@/db/repos/visits';
 import * as SQLite from 'expo-sqlite';
 import { Alert, AppState } from 'react-native';
 
@@ -30,6 +31,16 @@ const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeList
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of Honor' }));
+// A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
+const mockVisitForSave = jest.fn();
+jest.mock('@/lib/venue/use-venue', () => ({ visitByDefault: () => true, visitForSave: (...args: unknown[]) => mockVisitForSave(...args) }));
+beforeEach(() => {
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = { localId: '4d0e6a2f-8b3c-4d9e-af10-2b3c4d5e6f70', venueId, venueName: 'Legion of Honor', startedAt: capturedAt, visitedOn: '1970-01-01', timeZone: 'UTC' };
+    await upsertVisit(visit);
+    return visit;
+  });
+});
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: (localId: string) => mockRetry(localId) }));
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
@@ -157,9 +168,19 @@ it('saves a queued photo without asking for details', async () => {
   await enqueuePendingScan(row('photo-only', { status: 'queued' }));
   await render(<LocalScanScreen localId="photo-only" />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Save photo for later' }));
-  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to your collection')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Unidentified artwork', photoPath: 'photos/photo-only.jpg' });
+});
+
+it('opens the detail fields at once when the person chose to enter details, even for a label capture', async () => {
+  await enqueuePendingScan(row('cap-manual', { status: 'queued', labelPhotoPath: 'labels/cap-manual.jpg' }));
+  await render(<LocalScanScreen localId="cap-manual" manual />);
+  expect(await screen.findByLabelText('Title')).toBeOnTheScreen();
+  expect(mockReplace).not.toHaveBeenCalled();
+  await fireEvent.changeText(screen.getByLabelText('Title'), 'My own entry');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My own entry' });
 });
 
 it('shows the queued capture as waiting for signal, sends the label offline and saves with optional details', async () => {
@@ -176,13 +197,13 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(await getSavedWork(savedId)).toMatchObject({
-    title: 'Pond at dusk', artist: '', cropPath: 'crops/cap-queued.preview.jpg', photoPath: 'photos/cap-queued.jpg', scanId: null, venueId: 'museum-legion', venueName: 'Legion of Honor',
+    title: 'Pond at dusk', artist: '', cropPath: 'crops/cap-queued.preview.jpg', photoPath: 'photos/cap-queued.jpg', scanId: null, venueId: 'museum-legion', venueName: 'Legion of Honor', visitLocalId: '4d0e6a2f-8b3c-4d9e-af10-2b3c4d5e6f70',
   });
   await waitFor(() => expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ localId: savedId, suggested: null })));
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();
   expect(mockHaptic).toHaveBeenCalledWith('success');
   expect(screen.queryByLabelText('Title')).toBeNull();
-  expect(screen.getByText('Saved as Pond at dusk.')).toBeOnTheScreen();
+  expect(screen.getByText('Pond at dusk')).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
   expect(mockReplace).not.toHaveBeenCalled();
@@ -190,7 +211,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
 
 it('reads as identifying while the flusher has the capture in flight', async () => {
   await render(<LocalScanScreen localId="cap-flight" />);
-  expect(await screen.findByText(IDENTIFYING_TITLE)).toBeOnTheScreen();
+  expect(await screen.findByLabelText(IDENTIFYING_TITLE)).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_NOW })).toBeOnTheScreen();
 });
 
@@ -205,7 +226,7 @@ it.each([
   if (status === 'identifying') await markIdentifying(localId);
 
   await render(<LocalScanScreen localId={localId} />);
-  expect(await screen.findByText(title)).toBeOnTheScreen();
+  expect(await (status === 'identifying' ? screen.findByLabelText(title) : screen.findByText(title))).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.queryByText('Your result is ready')).toBeNull();
   expect(screen.queryByRole('button', { name: 'View result' })).toBeNull();

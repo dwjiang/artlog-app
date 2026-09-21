@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { scheduleRemoval } from '@/lib/collection/pending-removals';
 import { getSavedWork, insertSavedWork } from '@/db/repos/saved-works';
@@ -24,8 +25,13 @@ beforeAll(async () => {
 beforeEach(() => jest.clearAllMocks());
 
 it('offers an undo window before deletion and returns to the collection', async () => {
+  const alert = jest.spyOn(Alert, 'alert');
   await render(<SavedWorkToolbar savedId="plain" />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Remove from collection' }));
+  expect(scheduleRemoval).not.toHaveBeenCalled();
+  const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === 'destructive');
+  expect(confirm).toBeDefined();
+  confirm?.onPress?.();
   expect(scheduleRemoval).toHaveBeenCalledWith(expect.objectContaining({ localId: 'plain', title: 'Untitled' }));
   expect((await getSavedWork('plain'))?.deletedAt).toBeNull();
   expect(mockBack).toHaveBeenCalledTimes(1);

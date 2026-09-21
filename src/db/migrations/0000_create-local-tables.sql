@@ -54,6 +54,7 @@ CREATE TABLE `savedWorks` (
 	`cropPath` text,
 	`photoStorageId` text,
 	`cropStorageId` text,
+	`photoUpdatedAt` integer DEFAULT 0 NOT NULL,
 	`syncedAt` integer,
 	`revision` integer DEFAULT 0 NOT NULL,
 	`syncedBy` text,

@@ -44,7 +44,7 @@ it('previews the selected artwork and offers all eight frames without preset siz
     expect(screen.getByRole('button', { name })).toBeOnTheScreen();
   }
   for (const name of ['S', 'M', 'L']) expect(screen.queryByRole('button', { name })).toBeNull();
-  expect(screen.getByText(/Drag its corner to resize/)).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Water Lilies' })).toBeOnTheScreen();
 });
 
 it('tells the owner when the artwork is not on the wall', async () => {

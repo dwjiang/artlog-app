@@ -21,12 +21,10 @@ export function DatabaseGate({ children }: PropsWithChildren) {
   }
   if (!success) return <ThemedView style={styles.gate}>
     <LoadingRing accessibilityLabel="Opening your collection" color={Gallery.accent} />
-    <ThemedText accessibilityLiveRegion="polite" style={styles.loadingMessage}>Opening your collection…</ThemedText>
   </ThemedView>;
   return children;
 }
 
 const styles = StyleSheet.create({
   gate: { flex: 1, justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
-  loadingMessage: { textAlign: 'center' },
 });

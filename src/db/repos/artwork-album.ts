@@ -40,6 +40,16 @@ export function linkArtworkVisit(savedLocalId: string, visitLocalId: string, own
   }).run();
   requestCollectionSync();
 }
+export function linkArtworksVisit(savedLocalIds: string[], visitLocalId: string, owner = getLocalOwner()) {
+  db.transaction(() => {
+    for (const id of new Set(savedLocalIds)) linkArtworkVisit(id, visitLocalId, owner);
+  });
+}
+export function linkArtworkVisits(savedLocalId: string, visitLocalIds: string[], owner = getLocalOwner()) {
+  db.transaction(() => {
+    for (const id of new Set(visitLocalIds)) linkArtworkVisit(savedLocalId, id, owner);
+  });
+}
 export function addArtworkPhoto(input: AlbumPhoto & { path: string }, owner = getLocalOwner()) {
   requireWork(input.savedLocalId, owner);
   if (input.visitLocalId) requireVisit(input.visitLocalId, owner);

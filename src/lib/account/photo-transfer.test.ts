@@ -37,12 +37,12 @@ beforeEach(() => {
   mockWidth = 4000; mockHeight = 3000; mockSize = 1000;
   process.env.EXPO_PUBLIC_CONVEX_SITE_URL = 'https://test.convex.site';
   mockSave.mockResolvedValue({ uri: 'file:///cache/encoded.jpg' });
-  mockUpload.mockResolvedValue({ status: 200, body: JSON.stringify({ storageId: 'photo-id' }) });
+  mockUpload.mockResolvedValue({ status: 200, body: JSON.stringify({ storageId: 'photo-id', photoUpdatedAt: 1 }) });
   mockDownload.mockResolvedValue({});
 });
 
 it('uploads a bounded JPEG copy with authentication while leaving the original file intact', async () => {
-  expect(await uploadCollectionPhoto('private-token', 'scope', 'save-1', 'photo', 'original.heic')).toBe('photo-id');
+  expect(await uploadCollectionPhoto('private-token', 'scope', 'save-1', 'photo', 'original.heic')).toEqual({ storageId: 'photo-id', photoUpdatedAt: 1 });
   expect(mockResize).toHaveBeenCalledWith({ width: 2560 });
   expect(mockSave).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.85 });
   expect(mockUpload).toHaveBeenCalledWith('file:///cache/encoded.jpg',

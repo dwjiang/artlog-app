@@ -60,11 +60,11 @@ it('discards only after confirmation and keeps the sheet usable after a failure'
 it('lists the waiting scans with their status, closes itself and opens the tapped card', async () => {
   mockItems = [row('old', 'queued', 40), row('mid', 'identifying', 3), row('bad', 'failed', 1)];
   await render(<QueueSheet />);
-  expect(screen.getByText('Recent scans')).toBeOnTheScreen();
+  expect(screen.getByText('Your scans')).toBeOnTheScreen();
   expect(screen.getByText('Waiting for signal')).toBeOnTheScreen();
-  expect(screen.getByText('Identifying…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Identifying…')).toBeOnTheScreen();
   expect(screen.getByText(RETRY_ROW)).toBeOnTheScreen();
-  expect(screen.getByText(QUEUE_FOOTER)).toBeOnTheScreen();
+  expect(screen.getByText(new RegExp(QUEUE_FOOTER.replace('.', '\\.')))).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Scan from 40 min ago, Waiting for signal' }));
   expect(mockDismiss).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ it('lists the waiting scans with their status, closes itself and opens the tappe
 it('retries a failed scan through the queue', async () => {
   mockItems = [row('bad', 'failed', 1)];
   await render(<QueueSheet />);
-  expect(screen.getByText('Recent scans')).toBeOnTheScreen();
+  expect(screen.getByText('Your scans')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: RETRY_ROW }));
   expect(mockRetry).toHaveBeenCalledWith('bad');
   expect(mockPush).not.toHaveBeenCalled();
@@ -83,7 +83,7 @@ it('retries a failed scan through the queue', async () => {
 it('says so once nothing is waiting', async () => {
   mockItems = [];
   await render(<QueueSheet />);
-  expect(screen.getByText('Recent scans')).toBeOnTheScreen();
+  expect(screen.getByText('Your scans')).toBeOnTheScreen();
   expect(screen.getByText(QUEUE_EMPTY)).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_FOOTER)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
@@ -95,7 +95,7 @@ it('says so once nothing is waiting', async () => {
 it('keeps a completed result available to open when nothing is waiting', async () => {
   mockItems = [{ ...row('ready', 'identified', 2), scanId: 'scan-ready' as never }];
   await render(<QueueSheet />);
-  expect(screen.getByText('Recent scans')).toBeOnTheScreen();
+  expect(screen.getByText('Your scans')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Scan from 2 min ago, Ready to save' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId: 'local-ready' } });
 });
@@ -106,7 +106,7 @@ it('waits for the local query before showing an empty queue', async () => {
   await render(<QueueSheet />);
   expect(screen.getByLabelText('Loading scans…')).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
-  expect(screen.getByText('Recent scans')).toBeOnTheScreen();
+  expect(screen.getByText('Your scans')).toBeOnTheScreen();
 });
 
 it('explains a failed query instead of showing an empty queue', async () => {
@@ -123,8 +123,8 @@ it('blocks duplicate retries and preserves the photo when a retry fails', async 
   mockRetry.mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail; }));
   await render(<QueueSheet />);
   await fireEvent.press(screen.getByRole('button', { name: RETRY_ROW }));
-  const pending = screen.getByRole('button', { name: 'Retrying scan…' });
-  expect(screen.getByText('Retrying…')).toBeOnTheScreen();
+  const pending = screen.getByRole('button', { name: RETRY_ROW });
+  expect(screen.getByLabelText('Retrying…')).toBeOnTheScreen();
   expect(pending).toBeDisabled();
   await fireEvent.press(pending);
   expect(mockRetry).toHaveBeenCalledTimes(1);

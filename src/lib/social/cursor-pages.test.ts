@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import { readCursorPages, type CursorPage } from './cursor-pages';
 
 type Item = { id: string; title?: string };
@@ -37,4 +38,16 @@ it('clears all content on an access error in any loaded page', () => {
 it('never exposes a downstream response before its preceding page loads', () => {
   expect(read([null, 'next'], [undefined, page(['stale'], null, true)]))
     .toMatchObject({ items: [], first: undefined, loading: true, done: false });
+});
+
+it('keeps already loaded rows when a later page fails because of the network', () => {
+  for (const message of ['Network request failed', 'Network request timed out']) {
+    expect(read([null, 'next'], [page(['loaded'], 'next'), new TypeError(message)]))
+      .toMatchObject({ items: [{ id: 'loaded' }], first: page(['loaded'], 'next'), done: false, error: expect.any(Error) });
+  }
+});
+
+it('hides loaded rows when a later page is refused by the server', () => {
+  expect(read([null, 'next'], [page(['loaded'], 'next'), new ConvexError({ code: 'not_found' })]))
+    .toMatchObject({ items: [], first: undefined, error: expect.any(Error) });
 });

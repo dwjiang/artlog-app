@@ -24,7 +24,7 @@ export function exhibitionCandidates(response: TavilySearchResponse, hosts: stri
     const imageUrls = [...new Set(images)].slice(0, MAX_EXHIBITION_IMAGES);
     if (!imageUrls.length) continue;
     candidates.push({
-      sourceUrl: page.href, fields: {}, imageUrls,
+      sourceUrl: page.href, imageUrls,
       exhibition: { title: result.title.slice(0, 500), content: result.content.slice(0, 6000) },
     });
     if (candidates.length === MAX_PAGES) break;

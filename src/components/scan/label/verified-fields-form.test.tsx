@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Alert, type AlertButton } from 'react-native';
 
 import type { LabelFlowDisplay } from '../../../../convex/lib/validators';
 
-import { UNLOCK_TITLE, unlockMessage, VerifiedFieldsForm } from './verified-fields-form';
-import { EDITED_LABEL, formStateFromFlow, unlockField } from '@/lib/label/fields';
+import { VerifiedFieldsForm } from './verified-fields-form';
+import { formStateFromFlow } from '@/lib/label/fields';
 
+jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
   const { TextInput, View } = jest.requireActual('react-native');
   return {
@@ -24,34 +24,15 @@ const flow: LabelFlowDisplay = {
     date: { value: '1990', evidence: 'weak', locked: false },
   },
 };
-const handlers = { onChange: jest.fn(), onUnlock: jest.fn() };
+const handlers = { onChange: jest.fn() };
 
 beforeEach(() => jest.clearAllMocks());
 afterEach(() => jest.restoreAllMocks());
 
-it('locks verified fields behind a confirmation that names the source', async () => {
-  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+it('lets verified fields be edited directly and reports each keystroke by field', async () => {
   await render(<VerifiedFieldsForm state={formStateFromFlow(flow)} warnings={flow.warnings} editable {...handlers} />);
-  expect(screen.getByLabelText('Title').props.editable).toBe(false);
-  expect(screen.getByLabelText('Date').props.editable).toBe(true);
-  expect(screen.getAllByText('From the museum’s site')).toHaveLength(2);
-  expect(screen.queryByRole('button', { name: 'Edit Date' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Edit Title' }));
-  expect(alert).toHaveBeenCalledWith(UNLOCK_TITLE, unlockMessage('the museum’s site'), expect.any(Array));
-  expect(unlockMessage('the museum’s site')).toBe('It was verified against the museum’s site; your shared entry will remain tentative, including any edits.');
-  const buttons = alert.mock.calls[0][2] as AlertButton[];
-  buttons.find((button) => button.text === 'Edit')?.onPress?.();
-  expect(handlers.onUnlock).toHaveBeenCalledWith('title');
-  expect(handlers.onChange).not.toHaveBeenCalled();
-});
-
-it('makes an unlocked field editable with the "Edited by you" badge and reports edits by field', async () => {
-  const state = unlockField(formStateFromFlow(flow), 'title');
-  await render(<VerifiedFieldsForm state={state} warnings={[]} editable {...handlers} />);
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
-  expect(screen.getByText(EDITED_LABEL)).toBeOnTheScreen();
-  expect(screen.getAllByText('From the museum’s site')).toHaveLength(1);
-  expect(screen.queryByRole('button', { name: 'Edit Title' })).toBeNull();
+  expect(screen.getByLabelText('Date').props.editable).toBe(true);
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
   expect(handlers.onChange).toHaveBeenCalledWith('title', 'Nymphéas');
 });
@@ -61,5 +42,16 @@ it('shows plausibility warnings and freezes everything when not editable', async
   expect(screen.getByRole('alert')).toHaveTextContent('The date is outside the artist’s lifespan — please check');
   expect(screen.getByLabelText('Date').props.editable).toBe(false);
   expect(screen.queryByRole('button', { name: 'Edit Title' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
   for (const label of ['Title', 'Artist', 'Date', 'Accession number', 'Medium', 'Credit line']) expect(screen.getByText(label)).toBeOnTheScreen();
+});
+
+it('keeps optional catalog details available without crowding the main review', async () => {
+  const state = formStateFromFlow({ ...flow, fields: { ...flow.fields, accession: { value: 'A-42', evidence: 'ocr', locked: false } } });
+  await render(<VerifiedFieldsForm state={state} warnings={[]} editable {...handlers} />);
+  expect(screen.queryByLabelText('Accession number')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'More details' }));
+  expect(screen.getByLabelText('Accession number').props.defaultValue).toBe('A-42');
+  await fireEvent.changeText(screen.getByLabelText('Accession number'), 'A-43');
+  expect(handlers.onChange).toHaveBeenCalledWith('accession', 'A-43');
 });

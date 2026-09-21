@@ -1,19 +1,23 @@
-import { Switch } from '@expo/ui';
+import { Host, Switch } from '@expo/ui';
 import { useState } from 'react';
 
-import { GroupedFooter, GroupedSection } from '@/components/grouped-list';
+import { View } from 'react-native';
+import { ThemedText } from '../themed-text';
+import { Gallery } from '@/constants/theme';
+import { LoadingRing } from '@/components/loading-ring';
 import { SEARCH_CONSENT_BODY } from '@/components/scan/result/search-consent-sheet';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
 
-export const MUSEUM_SEARCH_SETTING = 'Search museum sites with my photo';
+export const MUSEUM_SEARCH_SETTING = 'Search museum sites for my scans';
 
 /** Turning the switch on asks the owner to present the consent sheet; consent itself is stored by that sheet. */
 export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: () => void }) {
-  const consent = useMuseumSearchConsent(useScreenActive());
+  const { consent, failed } = useMuseumSearchConsent(useScreenActive());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
+  const footer = error ?? (failed ? "Couldn't read your choice. Reopen Settings to try again." : undefined);
 
   async function change(enabled: boolean) {
     setError(undefined);
@@ -28,8 +32,10 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
     }
   }
 
-  return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? SEARCH_CONSENT_BODY}</GroupedFooter>}>
-    <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
-      onValueChange={(value) => { void change(value); }} />
-  </GroupedSection>;
+  return <View style={{ padding: 16, gap: 10, backgroundColor: Gallery.fill, borderRadius: 8 }}><Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
+    {consent === undefined && !failed ? <LoadingRing accessibilityLabel={`Loading ${MUSEUM_SEARCH_SETTING.toLowerCase()}`} /> : <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={saving || failed}
+      onValueChange={(value) => { void change(value); }} />}
+  </Host><ThemedText type="small" themeColor="textSecondary">{SEARCH_CONSENT_BODY}</ThemedText>
+    {footer && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{footer}</ThemedText>}
+  </View>;
 }

@@ -1,3 +1,4 @@
+import { NotePaper } from '../note-paper';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { AppState, TextInput, View } from 'react-native';
@@ -9,7 +10,6 @@ import type { Visit } from '@/db/schema';
 import { LIMITS } from '@/shared/journal/limits';
 import { socialErrorMessage } from '@/shared/social/errors';
 import { GalleryButton } from '../collection/gallery-button';
-import { HighlightHeading } from '../highlight-heading';
 import { visitStyles as styles } from './visit-ui';
 
 type NotesVisit = Pick<Visit, 'localId' | 'owner' | 'reflection'>;
@@ -56,6 +56,7 @@ export function VisitNotes({ visit, ...props }: VisitNotesProps) {
 
 function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? '');
+  const [editing, setEditing] = useState(!autoSave);
   const [error, setError] = useState<string>();
   const latest = useRef<NoteDraft>({
     localId: visit.localId, owner: visit.owner, text: visit.reflection ?? '', savedText: visit.reflection ?? '', unsynced: false, focused: false,
@@ -79,9 +80,10 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
   }, [visit.reflection]);
 
   return <View>
-    <View style={styles.sectionLabel}><HighlightHeading>Notes</HighlightHeading></View>
-    <TextInput keyboardAppearance="light" selectionColor={Gallery.accent}
-      accessibilityLabel="Notes" value={draft} editable={editable}
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text variant="section" accessibilityRole="header">Notes</Text><GalleryButton label={editing ? 'Done' : draft ? 'Edit' : 'Add'} accessibilityLabel={editing ? 'Done editing note' : draft ? 'Edit note' : 'Add a note'} disabled={!editable} onPress={() => { if (editing && autoSave) void persist(latest.current); setEditing(!editing); }} /></View>
+    {editing ?
+    <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted}
+      accessibilityLabel="Notes" placeholder="What stayed with you?" value={draft} editable={editable}
       onFocus={() => { latest.current.focused = true; }}
       onChangeText={(text) => {
         const note = latest.current;
@@ -89,7 +91,7 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
         if (autoSave) note.timer = setTimeout(() => { void persist(note, false); }, 500);
       }}
       onBlur={() => { latest.current.focused = false; if (autoSave) void persist(latest.current); }}
-      multiline maxLength={LIMITS.note} style={[styles.input, styles.reflection]} />
+      autoFocus={autoSave} multiline maxLength={LIMITS.note} style={[styles.input, styles.reflection]} /> : <NotePaper><Text selectable style={{ color: draft ? Gallery.ink : Gallery.muted, fontSize: 16, lineHeight: 24 }}>{draft || 'What stayed with you?'}</Text></NotePaper>}
     {error && <View>
       <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
       {autoSave && <GalleryButton label="Retry save" onPress={() => { void persist(latest.current); }} />}

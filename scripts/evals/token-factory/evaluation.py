@@ -21,6 +21,8 @@ SCHEMAS = {
     suite: REPO_ROOT / "scripts" / "data" / "fixtures" / f"{suite}-schema.json"
     for suite in ("factsheet", "docent")
 }
+SCHEMAS["label-ocr"] = ROOT / "schemas" / "label.json"
+LABEL_SUITES = ("label", "label-ocr")
 FIELDS = [
     "title",
     "artist",
@@ -134,8 +136,25 @@ def client():
     )
 
 
-def messages_for(suite, fixture, schema, prompt):
-    if suite == "label":
+def ocr_lines(settings):
+    """The phone's reading of each label, keyed by file: one JSON line per photo from the
+    vision-rect Mac harness (`recognize-text`), the same recognizer the app runs on device."""
+    rows = [
+        json.loads(line)
+        for line in (ROOT / settings["ocr"]).read_text().splitlines()
+        if line.strip()
+    ]
+    return {row["file"]: row["lines"] for row in rows}
+
+
+def messages_for(suite, fixture, schema, prompt, ocr=None):
+    if suite == "label-ocr":
+        lines = [
+            {"text": line["text"], "confidence": line["confidence"]}
+            for line in ocr[fixture["file"]]
+        ]
+        content = json.dumps({"lines": lines, "schema": schema}, ensure_ascii=False)
+    elif suite == "label":
         image = (ROOT / "labels" / fixture["file"]).read_bytes()
         if hashlib.sha256(image).hexdigest() != fixture["sha256"]:
             raise ValueError("Label image hash differs from the manifest")
@@ -184,7 +203,7 @@ def summarize(suite, records, fixtures, repeats):
         if latencies
         else None,
     }
-    if suite == "label":
+    if suite in LABEL_SUITES:
         summary["fields"] = {}
         matches = {}
         for row in records:
@@ -312,6 +331,7 @@ def run(suite):
     prompt = (ROOT / "prompts" / f"{suite}.txt").read_text().strip()
     manifest = read_json(ROOT / settings["manifest"])
     fixtures = manifest["cases"][: args.limit]
+    ocr = ocr_lines(settings) if suite == "label-ocr" else None
     results = args.results_dir
     results.mkdir(parents=True, exist_ok=True)
     api = None if args.score_only else client()
@@ -336,6 +356,7 @@ def run(suite):
                 "schema": schema,
                 "prompt": prompt,
                 "manifest_sha256": digest(manifest),
+                **({"ocr_sha256": digest(ocr)} if ocr is not None else {}),
                 "max_tokens": settings["max_tokens"],
                 "temperature": 0,
                 "chat_template_kwargs": template,
@@ -360,7 +381,7 @@ def run(suite):
                             for row in report["records"]
                         ):
                             continue
-                        messages = messages_for(suite, fixture, schema, prompt)
+                        messages = messages_for(suite, fixture, schema, prompt, ocr)
                         response_format = {"type": args.mode}
                         if args.mode == "json_schema":
                             response_format["json_schema"] = {

@@ -11,7 +11,7 @@ it('saves Public without publishing and prevents publication while Private', asy
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   const privateVisit = await save('private');
   expect(privateVisit.visibility).toBe('private');
-  await expect(owner.as.query(api.sharedVisits.preview, draft.selection)).rejects.toMatchObject({ data: { code: 'visit_private' } });
+  await expect(owner.as.query(api.sharedVisits.preview, draft.selection)).resolves.toMatchObject({ visitedOn: privateVisit.visitedOn });
   await expect(owner.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({ data: { code: 'visit_private' } });
   await save('public');
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);

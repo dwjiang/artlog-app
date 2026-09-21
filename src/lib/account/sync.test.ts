@@ -23,7 +23,8 @@ const empty = { venues: [], acceptedVisits: [], acceptedSaves: [], visits: [], s
 beforeEach(async () => {
   await db.delete(notes); await db.delete(savedWorks); await db.delete(pendingScans); await db.delete(visitTable);
   checkpoint = undefined; api.mockReset();
-  deps = { ...saves, ...visits, applyVenues: jest.fn().mockResolvedValue(undefined), getCheckpoint: async () => checkpoint, setCheckpoint: async (value) => { checkpoint = value; }, sync: api };
+  deps = { ...saves, ...visits, applyVenues: jest.fn().mockResolvedValue(undefined), getCheckpoint: async () => checkpoint, setCheckpoint: async (value) => { checkpoint = value; }, sync: api,
+    removeUnreferencedPhotos: jest.fn().mockResolvedValue(undefined) };
   api.mockImplementation(async (args) => ({ ...empty,
     acceptedVisits: args.visits.map(({ localId }) => ({ localId, visitId: 'visit' as never, updatedAt: 20, updatedBy: context.deviceId })),
     acceptedSaves: args.saves.map(({ localId }) => ({ localId, updatedAt: 20, updatedBy: context.deviceId })),
@@ -86,4 +87,12 @@ it('rejects remote rows belonging to a different owner before applying data', as
   await expect(syncJournal(deps, context)).rejects.toThrow('not_found');
   expect(await visits.listVisits()).toEqual([]);
   expect(checkpoint).toBeUndefined();
+});
+
+it('removes the local crop file a newer remote crop displaced', async () => {
+  await saves.insertSavedWork({ localId: remote.localId, title: 'Local', artist: '', savedAt: 1, cropPath: 'crops/old.preview.jpg', cropStorageId: 'old' as Id<'_storage'>, syncedAt: 1 });
+  api.mockResolvedValueOnce({ ...empty, visits: [remoteVisit], saves: [{ ...remote, cropStorageId: 'new' as Id<'_storage'>, photoUpdatedAt: 5 }] });
+  await syncJournal(deps, context);
+  expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith(['crops/old.preview.jpg']);
+  expect(await saves.getSavedWork(remote.localId)).toMatchObject({ cropPath: null, cropStorageId: 'new' });
 });

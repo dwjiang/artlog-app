@@ -16,6 +16,7 @@ jest.mock('@/lib/ui/toast', () => ({ showToast: (...args: unknown[]) => mockToas
 jest.mock('expo-router', () => {
   const { Pressable, Text } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
+  Toolbar.View = Toolbar;
   Toolbar.Button = function ToolbarButton({ children, onPress, disabled }: { children: string; onPress: () => void; disabled?: boolean }) {
     return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable>;
   };
@@ -80,7 +81,7 @@ it('applies unsaved choices in preview, keeps them on return, and publishes only
 it('waits for the first wall read, then invites a note from the wall when none can be shared', async () => {
   mockOverride = { acknowledged: undefined };
   const view = await render(<PublicNotesScreen />);
-  expect(screen.getByText('Opening your notes…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Opening your notes…')).toBeOnTheScreen();
   expect(screen.queryByText('No notes to share yet.')).toBeNull();
   mockOverride = { acknowledged: { ...mockWall.acknowledged, items: [] } };
   await view.rerender(<PublicNotesScreen />);

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { socialStyles } from './social-styles';
 import { ArtworkSkeleton } from '@/components/loading-skeleton';
 import { ScrollView } from 'react-native';
@@ -24,7 +25,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
   const unavailable = invalid || data === null || convexErrorCode(result.error) === 'not_found';
   return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.content}>
     {session.offline || (shared && !sessionReady) ? <SocialGate session={session} />
-      : unavailable ? <SocialState title="Artwork unavailable." detail="This artwork is no longer shared." />
+      : unavailable ? <SocialState action="Back to Home" onAction={() => { router.dismissAll(); router.navigate('/'); }} title="Artwork unavailable." detail="This artwork is no longer shared." />
         : result.error ? <SocialState title="Couldn’t load this artwork." detail={socialErrorMessage(result.error) ?? 'Please try again.'}
           action="Try again" onAction={result.refresh} /> : !data ? <ArtworkSkeleton /> : <PublishedArtwork key={`${session.key}:${itemId}`}
           artwork={data.artwork} photos={shared ? visit.data?.photos ?? [] : [data.artwork.media]} shared={shared}

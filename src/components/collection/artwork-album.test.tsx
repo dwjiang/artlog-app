@@ -27,10 +27,10 @@ it('selects a thumbnail and edits that photo', async () => {
 
 it('keeps the selected photo caption and editing action together while browsing', async () => {
   await render(<ArtworkAlbum work={work} />);
-  expect(screen.getByRole('header', { name: 'Claude Monet' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Water Lilies' })).toBeOnTheScreen();
   expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
   expect(screen.queryByText('Museum view 2')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 2' }));
   expect(screen.queryByText('Museum view 1')).toBeNull();
   expect(screen.getByText('Museum view 2')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Edit full photo 2' }));
@@ -51,31 +51,31 @@ it('waits for the photo read before showing an empty album and distinguishes a r
   expect(screen.queryByText('No photos yet.')).toBeNull();
 });
 
-it('moves to the last remaining photo after photos are deleted, so Previous works on its first tap', async () => {
+it('moves to the last remaining photo after photos are deleted, and lets the first remaining thumbnail be selected', async () => {
   const view = await render(<ArtworkAlbum work={work} />);
-  for (let index = 0; index < 3; index++) await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
-  expect(screen.getByText('4 / 4')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 4' }));
+  expect(screen.getByRole('button', { name: 'Show full photo 4', selected: true })).toBeOnTheScreen();
   mockPhotos = initialPhotos.slice(0, 2);
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.getByText('2 / 2')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Show full photo 2', selected: true })).toBeOnTheScreen();
   expect(screen.getByText('Museum view 2')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
-  expect(screen.getByText('1 / 2')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 1' }));
+  expect(screen.getByRole('button', { name: 'Show full photo 1', selected: true })).toBeOnTheScreen();
   expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Previous photo' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Show full photo 1' })).toBeSelected();
 });
 
 it('resets the photo position when an emptied album receives a new photo', async () => {
   const view = await render(<ArtworkAlbum work={work} />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Next photo' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 2' }));
   mockPhotos = [];
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.queryByRole('button', { name: 'Previous photo' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Show \w+ photo/ })).toBeNull();
   mockPhotos = initialPhotos.slice(0, 1);
   await view.rerender(<ArtworkAlbum work={work} />);
   expect(screen.getByText('Museum view 1')).toBeOnTheScreen();
   expect(screen.queryByText('1 / 1')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Next photo' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Show full photo 2' })).toBeNull();
 });
 
 it('opens the wall photo that was tapped after the album loads', async () => {
@@ -83,15 +83,15 @@ it('opens the wall photo that was tapped after the album loads', async () => {
   const view = await render(<ArtworkAlbum work={work} photoId="photo-2" />);
   mockPhotos = initialPhotos;
   await view.rerender(<ArtworkAlbum work={work} photoId="photo-2" />);
-  expect(screen.getByText('3 / 4')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Show full photo 3', selected: true })).toBeOnTheScreen();
   expect(screen.getByText('Museum view 3')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Previous photo' }));
-  expect(screen.getByText('2 / 4')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 2' }));
+  expect(screen.getByRole('button', { name: 'Show full photo 2', selected: true })).toBeOnTheScreen();
 });
 
 it('falls back to the first available photo if the requested photo was removed', async () => {
   await render(<ArtworkAlbum work={work} photoId="removed" />);
-  expect(screen.getByText('1 / 4')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Show full photo 1', selected: true })).toBeOnTheScreen();
 });
 
 

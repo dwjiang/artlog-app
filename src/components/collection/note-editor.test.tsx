@@ -17,6 +17,27 @@ beforeEach(async () => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+it('holds a ghost until the saved note is read instead of showing the empty-note prompt', async () => {
+  const read = notes.getNote;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  jest.spyOn(notes, 'getNote').mockImplementationOnce(async (...args) => { await pending; return read(...args); });
+  await render(<NoteEditor savedLocalId="work" />);
+  expect(screen.getByRole('progressbar', { name: 'Loading your note…' })).toBeOnTheScreen();
+  expect(screen.queryByText('Keep a private note about this work.')).toBeNull();
+  await act(() => release());
+  expect(await screen.findByText('Original note')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+it('ends loading with an error if the note read fails', async () => {
+  jest.spyOn(notes, 'getNote').mockRejectedValueOnce(new Error('Read failed'));
+  await render(<NoteEditor savedLocalId="work" />);
+  expect(await screen.findByText('Your note could not load. Reopen this artwork to try again.')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.queryByText('Keep a private note about this work.')).toBeNull();
+});
+
 async function editNote() {
   const view = await render(<NoteEditor savedLocalId="work" />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Edit note' }));
@@ -29,12 +50,12 @@ it('keeps a failed draft visible and lets the user retry saving it', async () =>
   jest.spyOn(notes, 'setNote').mockRejectedValueOnce(new Error('SQLITE_BUSY'));
   const { input } = await editNote();
   await fireEvent(input, 'blur');
-  expect(await screen.findByText('Your note couldn’t be saved. Try again.')).toBeOnTheScreen();
+  expect(await screen.findByText('Couldn’t save. Your draft is still here.')).toBeOnTheScreen();
   expect(screen.getByDisplayValue('New note')).toBeOnTheScreen();
   expect(await notes.getNote('work')).toMatchObject({ text: 'Original note' });
   await fireEvent.press(screen.getByRole('button', { name: 'Retry save' }));
   await waitFor(async () => expect(await notes.getNote('work')).toMatchObject({ text: 'New note' }));
-  expect(screen.queryByText('Your note couldn’t be saved. Try again.')).toBeNull();
+  expect(screen.queryByText('Couldn’t save. Your draft is still here.')).toBeNull();
 });
 
 it.each(['blur', 'close'])('retries an unchanged failed draft on %s', async (event) => {
@@ -79,4 +100,12 @@ it('distinguishes a public wall note from a private note', async () => {
   expect(screen.queryByText('Only you')).toBeNull();
   await view.rerender(<NoteEditor savedLocalId="work" sharedOnWall={false} />);
   expect(screen.getByText('Only you')).toBeOnTheScreen();
+});
+
+it('opens Notes when an existing artwork screen receives a note-edit request', async () => {
+  const view = await render(<NoteEditor savedLocalId="work" />);
+  expect(await screen.findByRole('button', { name: 'Edit note' })).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Notes')).toBeNull();
+  await view.rerender(<NoteEditor savedLocalId="work" initiallyEditing />);
+  expect(await screen.findByDisplayValue('Original note')).toBeOnTheScreen();
 });
