@@ -49,7 +49,7 @@ export function HomeScreen() {
         </View>
       </View>{guest && !dismissedPrompt && <View style={{ marginHorizontal: 20, marginBottom: 16, paddingLeft: 12, paddingVertical: 6, backgroundColor: '#EEF2FF', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
-        <View style={{ flex: 1 }}><Text style={{ fontSize: 13, lineHeight: 19 }}>Your art journey can start here.</Text><Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>Sign in to connect with friends.</Text></View>
+        <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, color: Gallery.muted }}>Sign in to connect with friends.</Text>
         <GalleryButton label="Sign in" onPress={() => router.push(signInRoute('friends'))} />
         <GalleryIconButton label="Dismiss sign-in invitation" icon="xmark" onPress={() => setDismissedPrompt(true)} />
       </View>}{(ready || session.status === 'loading') && <View style={styles.heading}>

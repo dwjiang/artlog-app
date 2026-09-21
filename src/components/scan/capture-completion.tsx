@@ -13,7 +13,6 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
   const content = <>
     {!!completion.photoPaths[0] && <Image source={{ uri: captureFileUri(completion.photoPaths[0]) }} contentFit="contain" style={{ width: '100%', height: 220, backgroundColor: Gallery.fill }} accessibilityLabel="Saved photo preview" />}
     <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Gallery.highlight, padding: 6 }}><Image source="sf:checkmark" style={{ width: 14, height: 14 }} tintColor={Gallery.ink} /><ThemedText type="small">Saved to your collection</ThemedText></View>
-    <ThemedText type="title" style={styles.title}>A new piece of your museum.</ThemedText>
     <ThemedText style={styles.copy}>{completion.title}</ThemedText>
     <ThemedText style={styles.copy}>{completion.visitLabel}</ThemedText>
     <NotePaper label="Private note"><GalleryButton label="Add a private note" icon="square.and.pencil" fullWidth onPress={() => router.navigate({ pathname: '/saved/[savedId]', params: { savedId: completion.savedId, editNote: '1' } })} /></NotePaper>
@@ -30,7 +29,6 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
   content: { flexGrow: 1, padding: 20, gap: 16 },
-  title: { },
   copy: { color: Gallery.muted },
   note: { color: Gallery.muted, textAlign: 'center' },
 });

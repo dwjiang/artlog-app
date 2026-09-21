@@ -54,7 +54,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     <GalleryButton label="Save photo details" variant="filled" fullWidth onPress={() => execute({ kind, caption })} />
     <View style={{ borderWidth: 1, borderColor: Gallery.softBorder, borderRadius: 8, paddingHorizontal: 12 }}>
     <GalleryButton label="Move to another artwork" icon="arrow.right" onPress={() => setMoving(!moving)} />
-    {moving && <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}><Text variant="display">Where does this belong?</Text><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
+    {moving && <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your artworks. Close and reopen this photo to try again.</Text>
         : !works.updatedAt && !destinations.length ? <ListSkeleton label="Loading artworks…" rows={3} />
         : !destinations.length ? <EmptyState compact title="No other artworks available." detail="Save another artwork before moving this photo. Your photo and edits can stay here."><GalleryButton label="Keep it here" onPress={() => setMoving(false)} /></EmptyState> : null}

@@ -139,7 +139,6 @@ export function ScanScreen() {
         onDismissed={() => { setHelp(undefined); if (help === 'import') void capture.importPhoto(); }}>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 14 }}>
         <Image source={introArtworks.stars.source} contentFit="contain" style={{ width: '100%', height: 180, backgroundColor: Gallery.fill }} accessibilityLabel="Example of an artwork framed straight on" />
-        <ThemedText variant="display">Get the whole picture.</ThemedText>
         <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
         <ThemedText themeColor="textSecondary">Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.</ThemedText>
         <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />

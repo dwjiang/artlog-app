@@ -24,7 +24,7 @@ it('shows the runner-ups first and the label as the way out', async () => {
 
 it('goes straight to the label without runner-ups and surfaces a notice', async () => {
   await render(<NotRightSheet open runnerUps={[]} notice="This device can’t send feedback yet." {...handlers} />);
-  expect(screen.getByText('Not in our index yet')).toBeOnTheScreen();
+  expect(screen.getByText('No other matches found')).toBeOnTheScreen();
   expect(screen.getByText('This device can’t send feedback yet.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Scan the museum label' })).toBeOnTheScreen();
 });

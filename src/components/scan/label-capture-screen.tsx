@@ -312,7 +312,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           contentContainerStyle={styles.content}
         >
           <ThemedText type="small" style={{ alignSelf: 'flex-start', padding: 6, backgroundColor: '#EEF2FF', color: Gallery.accent }}>{phase.flow.sourceUrl ? 'Read from the museum page' : 'Read from your photo'}</ThemedText>
-          <ThemedText type="title">Look right?</ThemedText>
+          <ThemedText type="title">Review artwork details</ThemedText>
           <ThemedText themeColor="textSecondary">Check the details before saving. Edit anything that doesn’t look right.</ThemedText>
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
           <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} />
@@ -341,7 +341,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   const canCapture = active && cameraReady && !busy;
   return <ScrollView style={styles.camera} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: Math.max(20, bottom), gap: 18 }}>
-    <ThemedText type="title">The details are right here.</ThemedText>
     <ThemedText themeColor="textSecondary">Fill the frame with the museum label.</ThemedText>
     <CameraPermission compact onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
       <View style={{ height: 260, marginHorizontal: -20, backgroundColor: Gallery.fill }}>

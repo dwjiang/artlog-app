@@ -119,7 +119,6 @@ export function VisitShareScreen() {
     keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}
     ListHeaderComponent={<View style={{ gap: 18 }}>
       <Text style={share.step}>1 · Choose what to include</Text>
-      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Choose what travels.</Text>
       <Text style={styles.caption}>{visit.venueName}{'\n'}{formatVisitDate(visit.visitedOn)}</Text>
       {active && <View style={styles.card}>
         <Text style={styles.body}>Public</Text>
@@ -223,7 +222,6 @@ export function VisitShareSuccessScreen() {
   if (!postId || sharing.acknowledged?.status !== 'active') return <VisitPage><VisitMessage action="Back to selection" onAction={() => router.replace({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>This visit hasn’t been shared yet.</VisitMessage></VisitPage>;
   const artworkCount = sharing.acknowledged.saveLocalIds.length;
   return <VisitPage><View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Gallery.highlight, alignItems: 'center', justifyContent: 'center' }}><VisitSymbol name="checkmark" size={30} color={Gallery.ink} /></View>
-    <Text style={styles.title}>A day worth sharing.</Text>
     <Text style={styles.caption}>Your {visit.venueName} visit is now public.</Text>
     <View style={{ gap: 10, paddingBottom: 20 }}>
       {!!published?.length && <VisitArtworks artworks={published} token={sharing.token} />}

@@ -23,7 +23,6 @@ export function ContributionsScreen({ contributions, offline }: { contributions:
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" data={contributions ?? []} keyExtractor={(row) => row.contributionId}
         contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
         ListHeaderComponent={contributions?.length ? <View style={{ gap: Spacing.three }}>
-          <ThemedText type="title" accessibilityRole="header">Help the next person see more.</ThemedText>
           <ThemedText themeColor="textSecondary">Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos stay private. No account needed.</ThemedText>
           {!!contributions?.length && <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>}
         </View> : null}

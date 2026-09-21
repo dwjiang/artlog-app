@@ -34,7 +34,7 @@ export function PublicNotesScreen() {
     try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
     catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
-  const gate = !wall.signedIn ? <EmptyState title={'Your words,\nwhen you’re ready.'} detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
+  const gate = !wall.signedIn ? <EmptyState title="Sign in to manage public notes." detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
       : wall.loading || (!wall.acknowledged && !wall.error) ? <SocialState title="Opening your notes…" loading /> : null;
   if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}>{gate}</ScrollView>;

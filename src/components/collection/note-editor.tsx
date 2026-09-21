@@ -96,7 +96,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
         : draft === undefined ? <ParagraphSkeleton label="Loading your note…" /> : null}
       {editing && draft !== undefined && <WallSheet title="Notes" tall onDismiss={() => { persist(latest.current); setEditing(false); }}><ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingBottom: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}><SavedWorkImage path={work?.cropPath ?? null} title={work?.title ?? 'Artwork'} contain style={{ width: 44, height: 52 }} /><View style={{ flex: 1, gap: 3 }}><ThemedText variant="secondary" style={{ fontWeight: '600' }}>{work?.title}</ThemedText><ThemedText variant="metadata" themeColor="textSecondary">{work?.artist}</ThemedText></View></View>
-        <ThemedText variant="metadata" themeColor="textSecondary" style={{ letterSpacing: 1 }}>WHAT STAYED WITH YOU?</ThemedText>
+        <ThemedText variant="metadata" themeColor="textSecondary" style={{ letterSpacing: 1 }}>Private note</ThemedText>
         <TextInput autoFocus
         accessibilityLabel="Notes"
         placeholder="Add a note…"
@@ -118,7 +118,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
         <ThemedText themeColor="textSecondary">{saveFailed ? 'Couldn’t save. Your draft is still here.' : draft === savedText ? 'Saved on this iPhone' : 'Saves when you close'}</ThemedText>
         {saveFailed && <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />}
       </ScrollView></WallSheet>}
-      {draft !== undefined && <NotePaper label="Private note">
+      {draft !== undefined && <NotePaper label={sharedOnWall ? 'Public note' : 'Private note'}>
         {draft ? <ThemedText selectable style={styles.body}>{draft}</ThemedText>
           : <ThemedText themeColor="textSecondary" style={styles.body}>No note yet.</ThemedText>}
       </NotePaper>}

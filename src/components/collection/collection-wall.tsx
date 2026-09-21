@@ -245,7 +245,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     </View>}
     {picker && <WallSheet title="Choose artworks" tall onDismiss={() => setPicker(undefined)}>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
-        <Text variant="pageTitle">Hang what stays with you.</Text><Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
+        <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
         {available.map((item) => {
           const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
           const checked = hung || picker.includes(item.localId);

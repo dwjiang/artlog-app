@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
 // Product voice: an older client's scans wait for the update, which re-embeds the kept crop locally.
-export const UPDATE_TITLE = 'A newer way to see.';
+export const UPDATE_TITLE = 'Update required.';
 export const UPDATE_LINE = 'Update Artlog to identify this artwork. Your photo is saved on this iPhone and will be ready when you return.';
 export const UPDATE_BUTTON = 'Update the app';
 export const APP_STORE_URL = process.env.EXPO_PUBLIC_APP_STORE_URL ?? 'itms-beta://';

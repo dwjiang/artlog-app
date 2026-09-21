@@ -228,7 +228,7 @@ function ResultCard({ manual = false, captureInput, view, saving, savedId, saveE
     <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
       {header}
       <View style={styles.identity}>
-        <ThemedText type="title" style={{ fontSize: 36, lineHeight: 42 }}>{view.kind === 'soft' ? `Could this be ${draft.title}?` : draft.title || 'Still worth remembering.'}</ThemedText>
+        <ThemedText type="title" style={{ fontSize: 36, lineHeight: 42 }}>{view.kind === 'soft' ? `Could this be ${draft.title}?` : draft.title || 'Unidentified artwork'}</ThemedText>
         {!editingDetails && <>
           {view.kind !== 'soft' && <ThemedText style={styles.workTitle}>{draft.artist}{draft.date ? ` · ${draft.date}` : ''}</ThemedText>}
           {view.kind === 'confident' && <ThemedText variant="metadata" themeColor="textSecondary">{[draft.medium, draft.institution].filter(Boolean).join(' · ')}</ThemedText>}
@@ -247,7 +247,7 @@ function ResultCard({ manual = false, captureInput, view, saving, savedId, saveE
       {suggestions.length > 0 && <View style={styles.section}><HighlightHeading>Other possibilities</HighlightHeading><RunnerUps candidates={suggestions} onPick={onPick} /></View>}
       {view.kind !== 'confident' && context}
       {view.kind === 'confident' && <>
-        <DocentSection title="A closer look" docent={view.docent} factSheet={view.factSheet} pending={!view.docent?.length} />
+        <DocentSection title="About this work" docent={view.docent} factSheet={view.factSheet} pending={!view.docent?.length} />
         <RightNowSection rightNow={view.rightNow} />
         {context}
       </>}

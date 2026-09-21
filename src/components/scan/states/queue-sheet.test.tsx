@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 import { RETRY_ROW } from './queue-row';
-import { QUEUE_EMPTY, QUEUE_FOOTER, QueueSheet } from './queue-sheet';
+import { QUEUE_FOOTER, QueueSheet } from './queue-sheet';
 import type { PendingScan } from '@/db/schema';
 
 jest.mock('@/lib/capture/photo-draft', () => ({ readPhotoSession: () => ({ photos: [] }) }));
@@ -64,7 +64,7 @@ it('lists the waiting scans with their status, closes itself and opens the tappe
   expect(screen.getByLabelText('Identifying…')).toBeOnTheScreen();
   expect(screen.getByText(RETRY_ROW)).toBeOnTheScreen();
   expect(screen.getByText(new RegExp(QUEUE_FOOTER.replace('.', '\\.')))).toBeOnTheScreen();
-  expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
+  expect(screen.queryByText('No recent scans.')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Scan from 40 min ago, Waiting for signal' }));
   expect(mockDismiss).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId: 'local-old' } });
@@ -83,7 +83,7 @@ it('says so once nothing is waiting', async () => {
   mockItems = [];
   await render(<QueueSheet />);
   expect(screen.getByText('Your scans')).toBeOnTheScreen();
-  expect(screen.getByText(QUEUE_EMPTY)).toBeOnTheScreen();
+  expect(screen.getByText('No recent scans.')).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_FOOTER)).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
   expect(mockDismiss).toHaveBeenCalledTimes(1);
@@ -104,7 +104,7 @@ it('waits for the local query before showing an empty queue', async () => {
   mockLoading = true;
   await render(<QueueSheet />);
   expect(screen.getByLabelText('Loading scans…')).toBeOnTheScreen();
-  expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
+  expect(screen.queryByText('No recent scans.')).toBeNull();
   expect(screen.getByText('Your scans')).toBeOnTheScreen();
 });
 
@@ -113,7 +113,7 @@ it('explains a failed query instead of showing an empty queue', async () => {
   mockError = new Error('Database unavailable');
   await render(<QueueSheet />);
   expect(screen.getByRole('alert')).toHaveTextContent(/Couldn’t load recent scans\./);
-  expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
+  expect(screen.queryByText('No recent scans.')).toBeNull();
 });
 
 it('blocks duplicate retries and preserves the photo when a retry fails', async () => {

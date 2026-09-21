@@ -149,7 +149,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             })}
           </View>
           {!filtered.length && (search.trim() ? <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." onClear={() => setSearch('')} />
-            : <EmptyState inset={false} title="Bring the art into the story." detail="Link a saved artwork to this visit." visual={<EmptySymbol name="photo.on.rectangle" />}>
+            : <EmptyState inset={false} title="No artworks linked to this visit." detail="Link a saved artwork to this visit." visual={<EmptySymbol name="photo.on.rectangle" />}>
               <GalleryButton label="Link artwork" icon="plus" variant="filled" fullWidth onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />
             </EmptyState>)}
         </View>

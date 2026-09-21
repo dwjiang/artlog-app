@@ -157,7 +157,6 @@ afterEach(() => jest.restoreAllMocks());
 
 it('prompts for the label over the camera with the QR scanner running', async () => {
   await start();
-  expect(screen.getByText('The details are right here.')).toBeOnTheScreen();
   expect(screen.getByText('Fill the frame with the museum label.')).toBeOnTheScreen();
   expect(mockCameraProps.isActive).toBe(true);
   expect(mockCameraProps.outputs).toContainEqual({ kind: 'qr-output' });
@@ -175,7 +174,7 @@ it('reads a shot online, shows the stages, then locks the verified fields with t
   expect(screen.getByText('Reading the label')).toBeOnTheScreen();
   expect(screen.getByLabelText(STEP_LABELS.read).props.accessibilityState).toMatchObject({ busy: true });
   await flow.finish(verified);
-  expect(screen.getByText('Look right?')).toBeOnTheScreen();
+  expect(screen.getByText('Review artwork details')).toBeOnTheScreen();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('Water Lilies');
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
   expect(screen.getByLabelText('Date').props.editable).toBe(true);
@@ -481,11 +480,11 @@ it('opens the camera for an explicit capture intent despite a stored museum conf
   await start({ intent: 'capture' });
   expect(screen.getByRole('button', { name: 'Import a label photo' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Read label' })).toBeEnabled();
-  expect(screen.queryByText('Look right?')).toBeNull();
+  expect(screen.queryByText('Review artwork details')).toBeNull();
   const flow = deferFlow();
   await fireEvent.press(screen.getByRole('button', { name: 'Read label' }));
   await flow.finish(verified);
-  expect(screen.getByText('Look right?')).toBeOnTheScreen();
+  expect(screen.getByText('Review artwork details')).toBeOnTheScreen();
 });
 
 it('resumes a pending label before starting another capture', async () => {
@@ -504,7 +503,7 @@ it('keeps a label-first scan out of the shared artwork index', async () => {
   mockLabelOnly = true;
   mockScan = { labelFlow: verified };
   await render(<LabelCaptureScreen scanId={scanId} />);
-  expect(await screen.findByText('Look right?')).toBeOnTheScreen();
+  expect(await screen.findByText('Review artwork details')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Confirm & save' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(mockContribute).not.toHaveBeenCalled();
