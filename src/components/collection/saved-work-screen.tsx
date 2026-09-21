@@ -21,20 +21,20 @@ import { GalleryButton } from './gallery-button';
 import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from './artwork-encounters';
 import { ArtworkQueryState } from './artwork-query-state';
 
-export type SavedWorkScreenProps = { savedId: string; visitId?: string; photoId?: string };
-export function SavedWorkScreen({ savedId, visitId, photoId }: SavedWorkScreenProps) {
+export type SavedWorkScreenProps = { savedId: string; visitId?: string; photoId?: string; editNote?: boolean };
+export function SavedWorkScreen({ savedId, visitId, photoId, editNote }: SavedWorkScreenProps) {
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
-  return <SavedWorkQuery key={`${owner}:${savedId}:${attempt}`} owner={owner} savedId={savedId} visitId={visitId} photoId={photoId} onRetry={() => setAttempt((value) => value + 1)} />;
+  return <SavedWorkQuery key={`${owner}:${savedId}:${attempt}`} owner={owner} savedId={savedId} visitId={visitId} photoId={photoId} editNote={editNote} onRetry={() => setAttempt((value) => value + 1)} />;
 }
-function SavedWorkQuery({ owner, savedId, visitId, photoId, onRetry }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
+function SavedWorkQuery({ owner, savedId, visitId, photoId, editNote, onRetry }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
   const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
-  return work ? <SavedArtwork key={`${owner}:${savedId}:${visitId ?? ''}:${photoId ?? ''}`} work={work} visitId={visitId} photoId={photoId} />
+  return work ? <SavedArtwork key={`${owner}:${savedId}:${visitId ?? ''}:${photoId ?? ''}`} work={work} visitId={visitId} photoId={photoId} editNote={editNote} />
     : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
 }
 function Divider() { return <View style={styles.divider} />; }
-function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
+function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; visitId?: string; photoId?: string; editNote?: boolean }) {
   const router = useRouter(), wall = useCollectionWall([work]);
   const { encounters, loading: loadingEncounters, error: encounterError } = useArtworkEncounters(work);
   const currentEncounter = encounters.find(({ visit }) => visit.localId === visitId);
@@ -56,10 +56,11 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
+      {wall.signedIn && !work.syncedAt && <View style={{ padding: 14, gap: 12, backgroundColor: '#EEF2FF' }}><Text style={{ fontSize: 14, lineHeight: 21 }}>Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.</Text><Text variant="metadata">On your wall · Waiting for sync</Text><GalleryButton label="Keep exploring" onPress={() => router.back()} /></View>}
       <Divider />
       <ArtworkEncounterList work={work} encounters={encounters} loading={loadingEncounters} loadError={encounterError} visitId={currentEncounter?.visit.localId} />
       <Divider />
-      <NoteEditor savedLocalId={work.localId} sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)} />
+      <NoteEditor savedLocalId={work.localId} initiallyEditing={editNote} sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)} />
       {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
       {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
       {!!wall.draft && <>
@@ -68,7 +69,6 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
           <Switch label="On your wall" value={!!hung} onValueChange={toggleWall} disabled={wall.pending || !work.syncedAt || wallFull} />
         </Host>
         {wallFull && <Text style={styles.caption}>Your wall holds {LIMITS.wallItems} artworks. Take one off to hang this piece.</Text>}
-        {!work.syncedAt && <Text style={styles.caption}>This artwork can hang on your wall once it has synced.</Text>}
         {hung && <>
           <Divider />
           <Pressable accessibilityRole="button" accessibilityLabel="Wall display options" onPress={() => router.push({ pathname: '/wall-display', params: { savedId: work.localId } })} style={styles.row}>

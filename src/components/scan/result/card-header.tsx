@@ -40,11 +40,11 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
         <CornersOverlay corners={corners} inputSize={inputSize} size={size / 1.15} />
       </View>}
       </View>
-      <View style={styles.status}><ConfidenceChip kind={kind} />
+      {kind !== 'loading' && <View style={styles.status}><ConfidenceChip kind={kind} />
         {onNotRight && <Pressable accessibilityRole="button" onPress={onNotRight} hitSlop={8} style={styles.correction}>
           <ThemedText variant="secondary" themeColor="accent">Not right?</ThemedText>
         </Pressable>}
-      </View>
+      </View>}
     </View>
   );
 }

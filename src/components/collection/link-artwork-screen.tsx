@@ -4,11 +4,10 @@ import { VisitKeepsake } from '../guest/visit-keepsake';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import type { SearchBarCommands } from 'react-native-screens';
+import { useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
-import { linkArtworkVisit, selectArtworkEncounters } from '@/db/repos/artwork-album';
+import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from '@/db/repos/artwork-album';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -19,6 +18,8 @@ import { GalleryButton } from './gallery-button';
 import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import { SocialState } from '../social/social-state';
+import { CollectionSearchField } from './collection-search-field';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ListSkeleton } from '@/components/loading-skeleton';
 
 export function LinkArtworkScreen() {
@@ -33,18 +34,23 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const encounters = useLiveQuery(selectArtworkEncounters(owner), [owner]);
   const [error, setError] = useState<string>(), [search, setSearch] = useState('');
-  const searchBar = useRef<SearchBarCommands>(null);
-  const clearSearch = () => { searchBar.current?.clearText(); setSearch(''); };
+  const { bottom } = useSafeAreaInsets();
+  const [selected, setSelected] = useState<string[]>([]);
+  const destination = visits.data.find((visit) => visit.localId === visitId && visit.owner === owner);
+  const clearSearch = () => setSearch('');
   const rows = savedId ? visits.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.venueName, subtitle: formatVisitDate(row.visitedOn), path: null, syncing: false }))
     : works.data.filter((row) => row.owner === owner).map((row) => ({ id: row.localId, title: row.title, subtitle: row.artist, path: row.cropPath, syncing: cropSyncing(row) }));
   const filtered = rows.filter((row) => normalizeSearch(`${row.title} ${row.subtitle}`).includes(normalizeSearch(search)));
   const query = savedId ? visits : works;
+  const noun = savedId ? (selected.length === 1 ? 'visit' : 'visits') : (selected.length === 1 ? 'artwork' : 'artworks');
   if (!!savedId === !!visitId) return <View style={{ flex: 1, backgroundColor: Gallery.paper }}><SocialState title="Link unavailable." detail="Open an artwork or visit before linking." action="Go back" onAction={() => router.back()} /></View>;
   return <>
-    <Stack.Screen options={{ title: savedId ? 'Link a visit' : 'Link an artwork' }} />
+    <Stack.Screen options={{ title: savedId ? 'Link a visit' : 'Link artworks' }} />
     <FlatList style={{ backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }} data={filtered} keyExtractor={(row) => row.id}
       ListHeaderComponent={<View style={{ gap: 10, paddingVertical: 14 }}>
+        {!savedId && <><Text variant="pageTitle">Part of this visit.</Text><Text style={{ color: Gallery.muted }}>{destination ? `${destination.venueName} · ${formatVisitDate(destination.visitedOn)}` : 'Opening visit…'}</Text></>}
+        {rows.length > 0 && <CollectionSearchField value={search} label={savedId ? 'Search visits' : 'Search artworks'} showLabel={false} filled onChange={setSearch} onClear={clearSearch} />}
         {rows.length > 0 && <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.</Text>}
         {savedId && rows.length > 0 && <GalleryButton label="Add a new visit" icon="plus" onPress={() => router.push({ pathname: '/visit-create', params: { savedId } })} />}
         {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
@@ -52,20 +58,19 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
       renderItem={({ item: row }) => {
         const work = savedId ?? row.id, visit = visitId ?? row.id;
         const linked = encounters.data.some((entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit);
-        return <Pressable accessibilityRole="button" accessibilityLabel={`${linked ? 'Linked: ' : 'Link '}${row.title}`} disabled={linked}
+        return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: linked || selected.includes(row.id), disabled: linked }} accessibilityLabel={`${linked ? 'Linked: ' : 'Select '}${row.title}`} disabled={linked}
           onPress={() => {
-            try { linkArtworkVisit(work, visit, owner); showToast('Artwork linked. Add photos from this visit separately.'); router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId: work, visitId: visit } }); }
-            catch { setError('Could not link this visit. Try again.'); }
+            setSelected((ids) => ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id]);
           }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderColor: Gallery.separator }}>
           {!savedId && <SavedWorkImage path={row.path} syncing={row.syncing} title={row.title} contain style={{ width: 56, height: 56, borderRadius: 2 }} />}
           <View style={{ flex: 1, gap: 4 }}><Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>{row.title}</Text><Text style={{ fontSize: 13, color: Gallery.muted }}>{row.subtitle}{linked ? ' · Linked' : ''}</Text></View>
-          <Text style={{ color: Gallery.muted }}>{linked ? '✓' : '›'}</Text>
+          <Text style={{ color: Gallery.muted }}>{linked || selected.includes(row.id) ? '✓' : '○'}</Text>
         </Pressable>;
       }}
       ListEmptyComponent={query.error || encounters.error ? <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
         : !query.updatedAt && !rows.length ? <ListSkeleton label={savedId ? 'Loading visits…' : 'Loading artworks…'} />
         : search.trim() ? <SearchEmptyState title="No matches." detail={savedId ? 'Try a museum or visit date.' : 'Try another title or artist.'} onClear={clearSearch} />
-          : <EmptyState inset={false} title={savedId ? 'Give this artwork\na place in your day.' : 'Start with\none artwork.'}
+          : <EmptyState inset={false} title={savedId ? 'Give this artwork\na place in your day.' : 'Bring the art\ninto the story.'}
             detail={savedId ? 'Add a museum visit, then link this artwork to it.' : 'Scan an artwork to save it to this visit.'} visual={savedId ? <VisitKeepsake /> : <ArtworkCollage />}>
             <GalleryButton label={savedId ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth onPress={() => {
               if (savedId) router.push({ pathname: '/visit-create', params: { savedId } });
@@ -73,7 +78,16 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
             }} />
             <GalleryButton label="Not now" fullWidth onPress={() => router.back()} />
           </EmptyState>} />
-    {(rows.length > 0 || !!search.trim()) && <Stack.SearchBar ref={searchBar} placeholder={savedId ? 'Museum or visit date' : 'Title or artist'} hideWhenScrolling={false} autoCapitalize="none"
-      onChangeText={(event) => setSearch(event.nativeEvent.text)} onCancelButtonPress={() => setSearch('')} />}
+    {rows.length > 0 && <View style={{ padding: 20, paddingBottom: Math.max(bottom, 20), backgroundColor: Gallery.paper }}>
+      <GalleryButton label={`Link ${selected.length || ''} ${noun}`.replace('  ', ' ')} variant="filled" fullWidth disabled={!selected.length} onPress={() => {
+        try {
+          if (visitId) linkArtworksVisit(selected, visitId, owner);
+          else linkArtworkVisits(savedId!, selected, owner);
+          showToast(`${selected.length} ${noun} linked.`);
+          if (visitId) router.dismissTo({ pathname: '/journal/[visitId]', params: { visitId } });
+          else router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId: savedId! } });
+        } catch { setError('Could not link your selection. Try again.'); }
+      }} />
+    </View>}
   </>;
 }

@@ -157,7 +157,7 @@ it('saves a queued photo without asking for details', async () => {
   await enqueuePendingScan(row('photo-only', { status: 'queued' }));
   await render(<LocalScanScreen localId="photo-only" />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Save photo for later' }));
-  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to your collection')).toBeOnTheScreen();
   expect(screen.queryByLabelText('Title')).toBeNull();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Unidentified artwork', photoPath: 'photos/photo-only.jpg' });
 });
@@ -182,7 +182,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();
   expect(mockHaptic).toHaveBeenCalledWith('success');
   expect(screen.queryByLabelText('Title')).toBeNull();
-  expect(screen.getByText('Saved as Pond at dusk.')).toBeOnTheScreen();
+  expect(screen.getByText('Pond at dusk')).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId } });
   expect(mockReplace).not.toHaveBeenCalled();

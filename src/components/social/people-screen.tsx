@@ -1,3 +1,4 @@
+import { CompactFriendshipControls } from './friendship-controls';
 import { SocialInvitation } from './social-invitation';
 import { GalleryButton } from '../collection/gallery-button';
 import { SearchEmptyState } from '../empty-state';
@@ -29,6 +30,7 @@ export function PeopleScreen() {
   const [filter, setFilter] = useState<'all' | 'friends'>(params.filter === 'friends' ? 'friends' : 'all');
   const guestFriends = filter === 'friends' && session.status === 'signed-out';
   const friends = useSocialQuery(api.profiles.friends, session.status === 'ready' ? {} : 'skip', session.key);
+  const requests = useSocialQuery(api.profiles.requests, session.status === 'ready' ? {} : 'skip', session.key);
   const [text, setText] = useState('');
   const [debounced, setDebounced] = useState('');
   useEffect(() => { const timer = setTimeout(() => setDebounced(text), 300); return () => clearTimeout(timer); }, [text]);
@@ -43,13 +45,17 @@ export function PeopleScreen() {
     <Stack.Screen options={{ title: '' }} />
     <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={guestFriends ? [] : filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
-      keyExtractor={profileId} renderItem={({ item }) => <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}><ProfileIdentity profile={item} showChevron friend={friends.data?.some((friend) => friend.profileId === item.profileId)} /></View>}
+      keyExtractor={profileId} renderItem={({ item }) => <View style={{ paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1 }}><ProfileIdentity profile={item} /></View><CompactFriendshipControls onChanged={() => { friends.refresh(); requests.refresh(); }} profileId={item.profileId} session={session} friend={filter === 'friends' || friends.data?.some((friend) => friend.profileId === item.profileId)} /></View>}
       ListHeaderComponent={<View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
         <Text variant="pageTitle" accessibilityRole="header">Friends</Text>
         {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Find friends and explore their collections.</Text>}
-        {!guestFriends && !emptyFriends && <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
+        {!guestFriends && !emptyFriends && <CollectionSearchField filled label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
         <NativeSegmentedPicker label="Friends filter" value={filter} onChange={setFilter}
-        options={[{ value: 'all', label: 'Explore' }, { value: 'friends', label: 'Friends' }]} /></View>}
+        options={[{ value: 'all', label: 'Explore' }, { value: 'friends', label: 'Friends' }]} />
+        {filter === 'friends' && !!requests.data?.length && <View style={{ gap: 10 }}><Text variant="section">Requests <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text></Text>{requests.data.map((person) => <View key={person.profileId} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1 }}><ProfileIdentity profile={person} /></View><CompactFriendshipControls onChanged={() => { friends.refresh(); requests.refresh(); }} profileId={person.profileId} session={session} /></View>)}</View>}
+        {filter === 'friends' && !!friends.data?.length && <Text variant="section">Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text></Text>}
+        {filter === 'friends' && requests.error && <GalleryButton label="Retry friend requests" onPress={requests.refresh} />}
+        </View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
       ListEmptyComponent={guestFriends ? <FriendsInvitation onExplore={explore} />
         : filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} />
@@ -65,7 +71,7 @@ export function PeopleScreen() {
             : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2" detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
               : text !== debounced ? <ListSkeleton label="Searching…" avatar />
                 : results.done && !results.loading && !results.error ? <SearchEmptyState title="No friends found." detail="Try another name or username." onClear={() => setText('')} /> : null}
-      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? discovery.items.length > 0 ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : null : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
+      ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="friends" /> : !text.trim() ? discovery.done && !discovery.error ? discovery.items.length > 0 ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : null : <PageFooter {...discovery} count={discovery.items.length} noun="friends" /> : null : null}
       onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
   </>;
 }

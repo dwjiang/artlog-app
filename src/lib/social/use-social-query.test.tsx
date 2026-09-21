@@ -150,3 +150,15 @@ it('shows live data that arrives after a failed refresh instead of the stale err
   expect(single.result.current.error).toBeUndefined();
   expect(single.result.current.data).toBeNull();
 });
+
+it('keeps loaded rows visible while retrying a failed later page', async () => {
+  mockResults = { first: page('alex', 'next'), next: new TypeError('Network request failed') };
+  const view = await renderHook(() => useCursorPages(api.profiles.search, { query: 'art' }, 'account-a', select, identify));
+  await act(() => view.result.current.loadMore());
+  expect(view.result.current.items.map((profile) => profile.name)).toEqual(['alex']);
+  expect(view.result.current.error).toBeDefined();
+  mockHttpQuery.mockImplementation(() => new Promise(() => {}));
+  await act(() => view.result.current.refresh());
+  expect(view.result.current.items.map((profile) => profile.name)).toEqual(['alex']);
+  expect(view.result.current.loading).toBe(true);
+});

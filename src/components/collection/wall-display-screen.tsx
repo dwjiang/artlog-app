@@ -57,17 +57,18 @@ function WallDisplay({ work }: { work: SavedWork }) {
     catch { wall.setError('This note could not be shared. Refresh to review the latest synced note and try again.'); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-    <Text variant="pageTitle" accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: Gallery.ink }}>{work.title}</Text>
+
     {!wall.draft ? <Text style={styles.caption}>{wall.loading ? 'Opening your wall…' : 'Your wall is unavailable right now.'}</Text>
-      : !hung ? <Text style={styles.caption}>This artwork is not on your wall.</Text> : <>
+      : !hung ? <><Text variant="pageTitle" accessibilityRole="header">{work.title}</Text><Text style={styles.caption}>This artwork is not on your wall.</Text></> : <>
       {piece && <View accessible accessibilityRole="image" accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
         style={[styles.preview, { backgroundColor: wall.draft.color }]}>
         <WallArtwork piece={piece} width={Math.min(width - 88, 188 * wallAspect(piece))} />
       </View>}
-      <View style={styles.section}><Text style={styles.label}>FRAME</Text>
+    <Text variant="pageTitle" accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: Gallery.ink }}>{work.title}</Text>
+      <View style={styles.section}><Text style={styles.label}>Frame</Text>
         <WallFramePicker piece={piece} value={hung.layout.frame} disabled={wall.pending} onChange={(frame) => change({ frame })} />
-        <Text style={styles.caption}>Hold and drag on your wall to move. Drag its corner to resize.</Text></View>
-      <View style={styles.section}><Text style={styles.label}>WALL PHOTO</Text>
+</View>
+      <View style={styles.section}><Text style={styles.label}>Wall photo</Text>
         <View pointerEvents={wall.pending ? 'none' : 'auto'}><WallPhotoPicker compact savedId={work.localId} selectedId={hung.photoLocalId} onSelect={(photoLocalId) => change({ photoLocalId })} /></View>
         <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
         {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}</View>
@@ -87,6 +88,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingVertical: 4, gap: 12 },
   section: { gap: 8 },
   preview: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 4 },
-  label: { fontSize: 13, letterSpacing: 0.8, fontWeight: '600', color: Gallery.ink },
+  label: { fontSize: 16, fontWeight: '600', color: Gallery.ink },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
 });

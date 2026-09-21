@@ -55,7 +55,7 @@ export function useCursorPages<Q extends Query, T>(query: Q, args: Omit<Function
   const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
   const refreshing = retry.refreshing || holding !== undefined;
   return { ...pages, refreshing, loading: args !== 'skip' && (pages.loading || refreshing),
-    refresh: () => { if (!refreshing && !live.error) setHeld({ key, pages: live }); setState({ key, cursors: [null] }); retry.refresh(); },
+    refresh: () => { if (!refreshing && live.first !== undefined) setHeld({ key, pages: live }); setState({ key, cursors: [null] }); retry.refresh(); },
     loadMore: () => {
       if (enabled && pages.canLoadMore) setState((previous) => previous.key === key && !previous.cursors.includes(pages.next!)
         ? { ...previous, cursors: [...previous.cursors, pages.next!] } : previous);

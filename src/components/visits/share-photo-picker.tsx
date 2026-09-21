@@ -15,15 +15,15 @@ export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: 
   const { data } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [work.localId, visitId, work.owner]);
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
     <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
-    <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Public photos</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>{work.title}{'\n'}Choose the photos anyone can see once you publish. New photos stay private until you select them.</Text>
+    <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Choose photos</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>{work.title}{'\n'}{selected.length} of {data.length} photos selected</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {data.filter((row) => row.owner === work.owner).map((photo) => <Pressable key={photo.localId} accessibilityRole="checkbox"
         accessibilityLabel={`Share ${photo.kind} photo${photo.caption ? `: ${photo.caption}` : ''}`} accessibilityState={{ checked: selected.includes(photo.localId) }}
         onPress={() => onChange(selected.includes(photo.localId) ? selected.filter((id) => id !== photo.localId) : [...selected, photo.localId])}
         style={{ width: fontScale > 1.4 ? '100%' : '47%', borderRadius: 2, overflow: 'hidden', borderWidth: 2, borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.fill, backgroundColor: Gallery.fill, padding: 8, gap: 8 }}>
         <Image source={photo.path ? { uri: captureFileUri(photo.path) } : undefined} style={{ width: '100%', height: 155 }} contentFit="contain" />
-        <Text style={{ fontSize: 13, color: Gallery.ink }}>{selected.includes(photo.localId) ? '✓ ' : ''}{photo.kind === 'full' ? 'Full view' : photo.kind === 'detail' ? 'Detail' : 'Label'}</Text>
+        <Text style={{ fontSize: 13, color: Gallery.ink }}>{selected.includes(photo.localId) ? '✓ ' : ''}{photo.kind === 'full' ? 'Full artwork' : photo.kind === 'detail' ? 'Detail' : 'Museum label'}</Text>
         {!!photo.caption && <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>}
       </Pressable>)}
     </View>

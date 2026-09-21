@@ -5,7 +5,7 @@ import { CHOOSE_RADIUS_M, haversineMeters, type Coordinate, type VenueCandidate,
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
 
-export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string };
+export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string; manual?: boolean };
 export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM: number; website?: string; city?: string; country?: string; category: string };
 export type VenueOption = SeededOption | PoiOption;
 
@@ -18,6 +18,7 @@ export type CurrentVisit = {
   venueId: Id<'museums'>;
   venueName: string;
   startedAt: number;
+  manual?: boolean;
   /** The visit's calendar day in the museum's time zone; the visit resumes while today is that day. */
   visitedOn: string;
   timeZone: string;
@@ -99,16 +100,18 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (!event.visit) return { ...state, visit: undefined, ended: event.ended };
       return {
         ...state, visit: event.visit, ended: undefined,
-        venue: { kind: 'seeded', venueId: event.visit.venueId, name: event.visit.venueName },
+        venue: { kind: 'seeded', venueId: event.visit.venueId, name: event.visit.venueName, manual: event.visit.manual },
       };
     case 'locating':
       return { ...state, status: 'locating', error: undefined };
     case 'denied':
+      if (state.venue?.manual && state.visit) return { ...state, status: 'resolved', fix: undefined };
       return { ...state, status: 'denied', venue: undefined, visit: undefined, options: [], fix: undefined };
     case 'failed':
       return { ...state, status: state.venue ? 'resolved' : 'none', error: event.error };
     case 'resolved': {
       const { fix, resolution } = event;
+      if (state.venue?.manual && state.visit && isVisitToday(state.visit, fix.at)) return { ...state, status: 'resolved', fix, error: undefined };
       const base = { ...state, fix, error: undefined };
       if (resolution.kind === 'auto') {
         if (!promptAllowed(state, fix)) {
@@ -144,7 +147,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       const visit = state.visit;
       if (visit?.localId !== event.localId) return state;
       const ended = event.manual ? { venueId: visit.venueId, visitedOn: visit.visitedOn, timeZone: visit.timeZone } : state.ended;
-      return { ...state, visit: undefined, ended };
+      return { ...state, visit: undefined, ended, ...(state.venue?.manual ? { venue: undefined, status: 'none' as const } : {}) };
     }
     case 'remoteVisit':
       if (state.visit?.localId !== event.localId) return state;

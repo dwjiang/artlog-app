@@ -14,10 +14,14 @@ export function AccountSection() {
     <ActionRow label="Sign in to Artlog" icon="person.crop.circle" onPress={() => router.push(signInRoute('account'))} />
   </GroupedSection>;
   return <>
-    {account.email && <GroupedSection><ValueRow label="Apple ID" value={account.email} /></GroupedSection>}
+    {account.email && <GroupedSection footer={<GroupedFooter>Your account is connected with Apple.</GroupedFooter>}><ValueRow label="Apple ID" value={account.email} /></GroupedSection>}
     <GroupedSection footer={status}>
       <NavigationRow label={profileRequired ? 'Create profile' : 'Edit profile'} onPress={() => router.push(profileRequired ? '/create-profile' : '/edit-profile')} />
-      <ActionRow label="Sign out" icon="rectangle.portrait.and.arrow.right" disabled={busy} onPress={() => { void signOut(); }} />
+    </GroupedSection>
+    <GroupedSection>
+      <ActionRow label="Sign out" icon="rectangle.portrait.and.arrow.right" disabled={busy} onPress={() => Alert.alert('Sign out of Artlog?', 'Your saved artworks remain on this iPhone. Sign in again to share and connect.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => { void signOut(); } }])} />
+    </GroupedSection>
+    <GroupedSection>
       <ActionRow label="Delete account" icon="trash" destructive disabled={busy} onPress={() => Alert.alert(
         'Delete account?', 'This disconnects all your devices. Saved works stay on each phone.',
         [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete account', style: 'destructive', onPress: () => { void deleteAccount(); } }],

@@ -1,3 +1,4 @@
+import { SavedWorkImage } from '../collection/saved-work-image';
 import { checkAlbumPhoto } from '@/lib/capture/check-album-photo';
 import { getSavedWork, listSavedWorks } from '@/db/repos/saved-works';
 import { getPendingScan } from '@/db/repos/pending-scans';
@@ -38,6 +39,13 @@ export function AddPhotosScreen() {
 }
 function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { draftId: string; title?: string; savedId?: string; visitId?: string; objectId?: string; owner: string }) {
   const { fontScale } = useWindowDimensions();
+  const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
+  useEffect(() => {
+    let current = true;
+    if (savedId) void (async () => { try { const work = await getSavedWork(savedId, owner); if (current) setTarget(work); } catch {} })();
+    return () => { current = false; };
+  }, [savedId, owner]);
+  const input = readPhotoSession(owner, draftId).saveInput;
   const [photos, setPhotos] = useState(() => readPhotoDraft(owner, draftId));
   const [albumCompletion, setCompletion] = useState<Completion>();
   const newArtwork = useSaveResult();
@@ -152,18 +160,19 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
   const shares = !savedId && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return <ScrollView style={styles.screen} contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
     <Stack.Screen options={{ title: 'Add photos' }} />
-    <View style={styles.target}><ThemedText type="smallBold" style={styles.eyebrow}>ADDING PHOTOS TO</ThemedText><ThemedText type="title" style={styles.title}>{title || 'Unidentified artwork'}</ThemedText>
-      <ThemedText type="small" style={styles.hint}>Full views, details, and labels stay together.</ThemedText></View>
-    <CaptureContextButton draftId={draftId} visitId={visitId} disabled={busy} />
-    <View style={styles.camera}>
-      {currentPhoto ? <Image source={{ uri: captureFileUri(currentPhoto.path) }} style={StyleSheet.absoluteFill} contentFit="contain" /> : <CameraPermission>
-        <Camera style={StyleSheet.absoluteFill} device="back" outputs={[output]} isActive={active} resizeMode="cover" orientationSource="interface"
-          onStarted={() => setReady(true)} onStopped={() => setReady(false)} onError={() => setError('Camera unavailable. Add photos from your library.')} />
-      </CameraPermission>}
+    <View style={[styles.target, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+      <SavedWorkImage path={target?.cropPath ?? input?.capture.cropPath ?? null} title={target?.title ?? title ?? 'Artwork'} contain style={{ width: 48, height: 56, backgroundColor: Gallery.fill }} />
+      <View style={{ flex: 1, gap: 3 }}><ThemedText style={{ fontSize: 16, fontWeight: '600' }}>{target?.title || title || 'Unidentified artwork'}</ThemedText>
+        <ThemedText type="small" style={styles.hint}>{target?.artist || input?.draft.artist || 'Full views, details, and labels stay together.'}</ThemedText></View>
     </View>
+    <CaptureContextButton draftId={draftId} visitId={visitId} disabled={busy} />
     <NativeSegmentedPicker label={currentPhoto ? 'Photo type' : 'Next photo type'} value={currentPhoto?.kind ?? kind} disabled={busy}
       options={[{ value: 'full', label: 'Full view' }, { value: 'detail', label: 'Detail' }, { value: 'label', label: 'Label' }]}
       onChange={(value) => currentPhoto ? update(photos.map((photo) => photo.localId === currentPhoto.localId ? { ...photo, kind: value as PhotoKind } : photo)) : setKind(value as PhotoKind)} />
+    {currentPhoto ? <View style={styles.camera}><Image source={{ uri: captureFileUri(currentPhoto.path) }} style={StyleSheet.absoluteFill} contentFit="contain" /></View> : <CameraPermission compact>
+      <View style={styles.camera}><Camera style={StyleSheet.absoluteFill} device="back" outputs={[output]} isActive={active} resizeMode="cover" orientationSource="interface"
+        onStarted={() => setReady(true)} onStopped={() => setReady(false)} onError={() => setError('Camera unavailable. Add photos from your library.')} /></View>
+    </CameraPermission>}
     {currentPhoto ? <View style={{ gap: 4 }}>
       {!!currentPhoto.review && <View style={{ gap: 8, padding: 16, backgroundColor: Gallery.fill, borderLeftWidth: 3, borderLeftColor: Gallery.warning }}>
         <ThemedText themeColor="warning">{currentPhoto.review === 'checking' && busy ? 'Checking this photo…' : currentPhoto.review === 'conflict' ? `This looks like ${currentPhoto.recognized?.title ?? 'a different artwork'}.` : 'We couldn’t confirm that this is the same artwork.'}</ThemedText>
@@ -178,11 +187,10 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
           if (removed) removePhotoFile(removed.path);
           setRemoved(currentPhoto); update(photos.filter((photo) => photo.localId !== currentPhoto.localId)); setSelected(undefined);
         }} /></View>
-    </View> : <View style={[styles.row, fontScale >= 1.5 && styles.stacked]}>
-      <GalleryButton label="Library" icon="photo" disabled={busy || photos.length >= 99} onPress={() => { void acquire('library'); }} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Take photo" accessibilityState={{ disabled: !ready || busy || photos.length >= 99, busy }} disabled={!ready || busy || photos.length >= 99} onPress={() => { void acquire('camera'); }}
-        style={[styles.shutter, (!ready || busy) && { opacity: 0.4 }]}><View style={styles.shutterInner} /></Pressable>
-      <ThemedText type="small" style={styles.hint}>{photos.length} new {photos.length === 1 ? 'photo' : 'photos'}</ThemedText>
+    </View> : <View style={{ gap: 8 }}>
+      <GalleryButton label="Take photo" icon="camera" variant="filled" fullWidth disabled={!ready || busy || photos.length >= 99} onPress={() => { void acquire('camera'); }} />
+      <GalleryButton label="Import a photo" icon="photo" variant="outlined" fullWidth disabled={busy || photos.length >= 99} onPress={() => { void acquire('library'); }} />
+      {photos.length > 0 && <ThemedText type="small" style={styles.hint}>{photos.length} new {photos.length === 1 ? 'photo' : 'photos'}</ThemedText>}
     </View>}
     <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
       {photos.map((photo, i) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`} accessibilityState={{ selected: selected === photo.localId, disabled: busy }} disabled={busy} onPress={() => setSelected(photo.localId)}
@@ -194,7 +202,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     {photos.length >= 99 && <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>}
     {removed && <GalleryButton label="Photo removed · Undo" disabled={busy} onPress={() => { update([...photos, removed]); setRemoved(undefined); }} />}
     {(error || newArtwork.error) && <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error || newArtwork.error}</ThemedText>}
-    <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} busyLabel="Saving…" disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />
+    {photoCount > 0 && <GalleryButton label={`Save ${photoCount} ${photoCount === 1 ? 'photo' : 'photos'}`} variant="filled" fullWidth busy={busy} busyLabel="Saving…" disabled={busy || !photoCount || photos.some((photo) => !!photo.review)} onPress={() => { void done(); }} />}
     <ThemedText style={[styles.hint, { textAlign: 'center' }]}>{shares ? SHARING_NOTICE : 'Only you can see these photos.'}</ThemedText>
   </ScrollView>;
 }

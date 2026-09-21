@@ -1,3 +1,7 @@
+import { introArtworks } from '../guest/artwork-preview';
+import { GalleryButton } from '../collection/gallery-button';
+import { WallSheet } from '../collection/wall-sheet';
+import { ThemedText } from '../themed-text';
 import { CaptureVisitPill } from './capture-visit-pill';
 import { Button, Host, Row } from '@expo/ui';
 import { Image } from 'expo-image';
@@ -5,7 +9,7 @@ import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } f
 import { useIsFocused } from 'expo-router/react-navigation';
 import type { ParamListBase } from 'expo-router/react-navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
@@ -28,6 +32,7 @@ export function ScanScreen() {
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const [appState, setAppState] = useState(AppState.currentState);
+  const [help, setHelp] = useState<'open' | 'import'>();
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
   const [preview, setPreview] = useState({ width: 0, height: 0 });
@@ -51,7 +56,7 @@ export function ScanScreen() {
     });
   }, [navigation, visitId]);
   const searching = !occupied && (phase === 'searching' || (phase === 'retry' && source !== 'library'));
-  const detecting = active && cameraReady && searching;
+  const detecting = active && !help && cameraReady && searching;
   const frameOutput = useRectDetector(detecting, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     if (attempt) void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
@@ -74,21 +79,19 @@ export function ScanScreen() {
 
   return (
     <View style={styles.container} onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}>
-      <CameraPermission>
+      <CameraPermission onImport={() => { void capture.importPhoto(); }} notice={message}>
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
           orientationSource="interface"
           resizeMode="cover"
-          isActive={active && (searching || (phase === 'capturing' && source === 'camera'))}
+          isActive={active && !help && (searching || (phase === 'capturing' && source === 'camera'))}
           outputs={outputs}
           allowHapticsAndSystemSoundsPlayback
           onStarted={() => { setCameraReady(true); setCameraError(undefined); }}
           onStopped={() => setCameraReady(false)}
           onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
-      </CameraPermission>
-      {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
       <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
           <View pointerEvents="box-none" style={styles.topRow}>
@@ -121,10 +124,22 @@ export function ScanScreen() {
               disabled={shutterDisabled} accessibilityState={{ disabled: shutterDisabled, busy }}
               onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }}
               style={({ pressed }) => [styles.shutter, (pressed || shutterDisabled) && styles.dimmed]}><View style={styles.shutterInner} /></Pressable>
-            <View style={styles.controlsSpacer} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Camera tips" onPress={() => setHelp('open')} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}><Image source="sf:info.circle" tintColor={Colors.light.overlayText} style={{ width: 26, height: 26 }} /></Pressable>
           </View>}
         </View>
       </View>
+      </CameraPermission>
+      {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
+      {help && <WallSheet title="Camera tips" tall presented={help === 'open'} onDismiss={() => setHelp((current) => current === 'import' ? current : undefined)}
+        onDismissed={() => { setHelp(undefined); if (help === 'import') void capture.importPhoto(); }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 14 }}>
+        <Image source={introArtworks.stars.source} contentFit="contain" style={{ width: '100%', height: 180, backgroundColor: Gallery.fill }} accessibilityLabel="Example of an artwork framed straight on" />
+        <ThemedText variant="display">Get the whole picture.</ThemedText>
+        <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
+        <ThemedText themeColor="textSecondary">Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.</ThemedText>
+        <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
+        <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp('import')} />
+      </ScrollView></WallSheet>}
     </View>
   );
 }

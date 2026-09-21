@@ -37,23 +37,25 @@ async function notifyVisitChange() {
   await act(() => { for (const listener of mockDatabaseListeners) listener({ tableName: 'visits' }); });
 }
 
-it('starts ready to type and saves on blur without an Add, Edit, or Save action', async () => {
+it('opens notes for editing explicitly and keeps saved notes readable after returning', async () => {
   const view = await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   expect(input).toHaveProp('value', '');
-  expect(input).not.toHaveProp('autoFocus', true);
-  expect(screen.queryByRole('button', { name: /Add a note|Edit note|Save note|Cancel/ })).toBeNull();
+  expect(input).toHaveProp('autoFocus', true);
+  expect(screen.getByRole('button', { name: 'Done editing note' })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: /Public|Private/ })).toBeNull();
   await fireEvent.changeText(input, '  Remember the light  ');
   await fireEvent(input, 'blur');
   await waitFor(async () => expect(await visits.getVisit(localId)).toMatchObject({ reflection: 'Remember the light' }));
   await view.unmount();
   await render(<Notes />);
-  expect(await screen.findByDisplayValue('Remember the light')).toBeOnTheScreen();
+  expect(await screen.findByText('Remember the light')).toBeOnTheScreen();
 });
 
 it('autosaves after a typing pause without trimming the text under the cursor', async () => {
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   jest.useFakeTimers();
   await fireEvent(input, 'focus');
@@ -73,7 +75,8 @@ it('pushes a pause-saved note to sync only when the field blurs', async () => {
   const unsubscribe = onCollectionChange(requests);
   try {
     await render(<Notes />);
-    const input = await screen.findByLabelText('Notes');
+    await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
+  const input = await screen.findByLabelText('Notes');
     jest.useFakeTimers();
     await fireEvent(input, 'focus');
     await fireEvent.changeText(input, 'The light');
@@ -97,6 +100,7 @@ it('flushes the newest text when closing during an earlier save', async () => {
   const pending = new Promise<void>((resolve) => { finishWrite = resolve; });
   jest.spyOn(visits, 'patchVisit').mockImplementationOnce(async (...args) => { await pending; await write(...args); });
   const view = await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   await fireEvent.changeText(input, 'First draft');
   await fireEvent(input, 'blur');
@@ -112,6 +116,7 @@ it('saves when the app goes into the background', async () => {
     changeState = callback; return { remove: jest.fn() };
   });
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   await fireEvent.changeText(await screen.findByLabelText('Notes'), 'Before backgrounding');
   await act(() => changeState('background'));
   await waitFor(async () => expect(await visits.getVisit(localId)).toMatchObject({ reflection: 'Before backgrounding' }));
@@ -120,6 +125,7 @@ it('saves when the app goes into the background', async () => {
 it('removes a note when the field is cleared', async () => {
   await visits.upsertVisit({ ...draft, reflection: 'Saved memory' });
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   await fireEvent.changeText(input, '  \n ');
   await fireEvent(input, 'blur');
@@ -130,6 +136,7 @@ it('removes a note when the field is cleared', async () => {
 it('keeps a failed draft visible and retries without more typing', async () => {
   jest.spyOn(visits, 'patchVisit').mockRejectedValueOnce(new Error('Storage unavailable'));
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   await fireEvent.changeText(input, 'Keep this draft');
   await fireEvent(input, 'blur');
@@ -143,15 +150,17 @@ it('keeps a failed draft visible and retries without more typing', async () => {
 it('saves the previous owner’s draft only to their journal when switching accounts', async () => {
   await visits.upsertVisit({ ...draft, reflection: 'Other owner note' }, 'account:other');
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   await fireEvent.changeText(await screen.findByLabelText('Notes'), 'Original owner draft');
   await act(() => switchOwner('account:other', 'scope-other'));
-  expect(await screen.findByDisplayValue('Other owner note')).toBeOnTheScreen();
+  expect(await screen.findByText('Other owner note')).toBeOnTheScreen();
   await waitFor(async () => expect((await visits.getVisit(localId, anonymousOwner()))?.reflection).toBe('Original owner draft'));
   expect((await visits.getVisit(localId, 'account:other'))?.reflection).toBe('Other owner note');
 });
 
 it('accepts synced notes when idle and keeps an unsaved local draft during a refresh', async () => {
   await render(<Notes />);
+  await fireEvent.press(await screen.findByRole('button', { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText('Notes');
   await visits.patchVisit(localId, { reflection: 'From another device' });
   await notifyVisitChange();

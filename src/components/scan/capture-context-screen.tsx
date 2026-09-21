@@ -1,3 +1,4 @@
+import { VisitKeepsake } from '../guest/visit-keepsake';
 import { EmptyState } from '../empty-state';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -50,8 +51,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
       <View style={styles.optionText}>
         <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
         {detail && <ThemedText type="small" themeColor="textSecondary">{detail}</ThemedText>}
-        {current && <ThemedText type="smallBold">Selected</ThemedText>}
-      </View>
+      </View><ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>{current ? '✓' : '○'}</ThemedText>
     </Pressable>;
   }
 
@@ -59,15 +59,15 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
     <Stack.Screen options={{ title: 'Save this artwork to…' }} />
     <ThemedText themeColor="textSecondary">Only this artwork changes. The next scan joins the visit you are at.</ThemedText>
     {error && <ThemedText themeColor="error" accessibilityRole="alert">{error}</ThemedText>}
-    <View>{option('none', 'No visit · Save artwork only')}</View>
+    <View>{option('none', 'Artwork only')}</View>
     {!noVisits && <>
-      <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} />
       <ThemedText type="subtitle">Your visits</ThemedText>
     </>}
     {visits.error ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load your visits. Close this screen and reopen it to try again.</ThemedText>
       : !visits.updatedAt ? <ListSkeleton label="Loading visits…" rows={3} />
-      : noVisits && <EmptyState compact title="Keep the day, too." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} /></EmptyState>}
+      : noVisits && <EmptyState visual={<VisitKeepsake />} title="Keep the day, too." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" variant="filled" fullWidth onPress={() => router.push('/visit-create')} /><GalleryButton label="Save artwork only" fullWidth onPress={() => choose('none')} /></EmptyState>}
     <View>{availableVisits.map((visit) => option(visit.localId, visit.venueName, open?.localId === visit.localId ? 'Visiting now' : formatVisitDate(visit.visitedOn)))}</View>
+    {!noVisits && <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} />}
   </ScrollView>;
 }
 
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', padding: Spacing.three, gap: Spacing.two },
   unselected: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   optionText: { flex: 1, gap: Spacing.one },
-  selected: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
+  selected: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
   selectedLabel: { fontWeight: '600' },
   pressed: { opacity: 0.7 },
 });

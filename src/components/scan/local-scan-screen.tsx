@@ -26,13 +26,13 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 
 export const MISSING_TITLE = 'This scan isn’t on this phone anymore';
 
-export function LocalScanScreen({ localId }: { localId: string }) {
+export function LocalScanScreen({ localId, manual = false }: { localId: string; manual?: boolean }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
   const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   const row = data.find((row) => row.owner === owner);
-  const labelCapture = !!row?.photoPath && isLabelCapture(row);
+  const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
   const scanId = pending ? undefined : row?.scanId;
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
@@ -40,7 +40,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string>();
   const retryPending = useRef(false);
-  const keepForm = hasDraft || saving || !!savedId;
+  const keepForm = manual || hasDraft || saving || !!savedId;
 
   useEffect(() => {
     if (isActive && labelCapture) { router.replace({ pathname: '/label/[scanId]', params: { scanId: `local-${localId}` } }); return; }

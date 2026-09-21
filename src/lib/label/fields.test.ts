@@ -1,6 +1,6 @@
 import type { LabelFlowDisplay } from '../../../convex/lib/validators';
 import {
-  badgeFor, canSaveLabel, canShareLabel, differsFromFlow, EDITED_LABEL, formStateFromFlow, isEdited, setFieldValue,
+  canSaveLabel, canShareLabel, differsFromFlow, formStateFromFlow, isEdited, setFieldValue,
   toSubmittedFields, toVerifyInput, unlockField,
 } from './fields';
 
@@ -19,24 +19,20 @@ it('starts from the verifier’s values with their locks, leaving unread fields 
   expect(state.title).toEqual({ value: 'The Thinker', original: 'The Thinker', evidence: 'accession', locked: true, unlocked: false });
   expect(state.date).toMatchObject({ value: '1880', evidence: 'weak', locked: false });
   expect(state.accession).toEqual({ value: '', original: '', evidence: undefined, locked: false, unlocked: false });
-  expect(badgeFor(state.title)).toBe('From the museum’s records');
-  expect(badgeFor(state.artist)).toBe('Wikidata');
-  expect(badgeFor(state.date)).toBeNull();
-  expect(badgeFor(state.medium)).toBeNull();
+  expect(isEdited(state.title)).toBe(false);
+  expect(isEdited(state.date)).toBe(false);
 });
 
-it('unlocking downgrades a verified field to "Edited by you" even before a keystroke', () => {
+it('unlocking marks a verified field edited even before a keystroke', () => {
   const state = unlockField(formStateFromFlow(verified), 'title');
   expect(state.title).toMatchObject({ locked: false, unlocked: true, value: 'The Thinker' });
   expect(isEdited(state.title)).toBe(true);
-  expect(badgeFor(state.title)).toBe(EDITED_LABEL);
   expect(state.artist.locked).toBe(true);
 });
 
 it('typing over an unverified field marks it edited and reverting clears it', () => {
   let state = setFieldValue(formStateFromFlow(verified), 'medium', 'bronze, cast 1916');
   expect(isEdited(state.medium)).toBe(true);
-  expect(badgeFor(state.medium)).toBe(EDITED_LABEL);
   state = setFieldValue(state, 'medium', ' bronze ');
   expect(isEdited(state.medium)).toBe(false);
 });

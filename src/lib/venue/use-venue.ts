@@ -61,11 +61,11 @@ async function newVisit(venue: SeededOption, startedAt: number): Promise<Current
   const coordinates = await venueCoordinates(venue.venueId);
   if (!coordinates) throw new Error('The museum coordinates are not available');
   const timeZone = tzLookup(coordinates.lat, coordinates.lng);
-  return { localId: randomUUID(), venueId: venue.venueId, venueName: venue.name, startedAt, timeZone, visitedOn: calendarDate(startedAt, timeZone) };
+  return { localId: randomUUID(), venueId: venue.venueId, venueName: venue.name, manual: venue.manual, startedAt, timeZone, visitedOn: calendarDate(startedAt, timeZone) };
 }
 
 function visitRow(visit: CurrentVisit): NewVisit {
-  return { localId: visit.localId, venueId: visit.venueId, venueName: visit.venueName,
+  return { localId: visit.localId, venueId: visit.venueId, venueName: visit.venueName, visibility: 'private',
     startedAt: visit.startedAt, remoteVisitId: visit.remoteVisitId, timeZone: visit.timeZone, visitedOn: visit.visitedOn };
 }
 
@@ -87,6 +87,7 @@ export function createVenueController(): VenueController {
     for (const listener of listeners) listener();
   });
   const currentVisitKey = (owner = getLocalOwner()) => `${CURRENT_VISIT_SETTING}:${owner}`;
+  const manualVisitKey = (owner = getLocalOwner()) => `manualVisit:${owner}`;
   const endedVisitKey = (owner = getLocalOwner()) => `${ENDED_VISIT_SETTING}:${owner}`;
 
   async function syncRemoteVisit(): Promise<void> {
@@ -118,6 +119,7 @@ export function createVenueController(): VenueController {
   async function closeVisit(visit: CurrentVisit, now: number, owner = getLocalOwner(), manual = false): Promise<void> {
     await patchVisit(visit.localId, { endedAt: now }, owner);
     if ((await getSetting(currentVisitKey(owner))) === visit.localId) await removeSetting(currentVisitKey(owner));
+    if ((await getSetting(manualVisitKey(owner))) === visit.localId) await removeSetting(manualVisitKey(owner));
     if (manual) await setSetting(endedVisitKey(owner), visit.localId);
     if (owner !== getLocalOwner()) return;
     dispatch({ type: 'visitEnded', localId: visit.localId, manual });
@@ -149,6 +151,7 @@ export function createVenueController(): VenueController {
           return;
         }
         await setSetting(currentVisitKey(ownership.owner), visit.localId);
+        if (venue.manual) await setSetting(manualVisitKey(ownership.owner), visit.localId);
         if (!stillWanted()) {
           await closeVisit(visit, now, ownership.owner);
           return;
@@ -159,6 +162,7 @@ export function createVenueController(): VenueController {
         }
         dispatch({ type: 'visitStarted', visit });
       } else if (chosen) {
+        if (venue.manual) await setSetting(manualVisitKey(ownership.owner), current.localId);
         selectionRevision++;
         dispatch({ type: 'chosen', option: venue, replaces: chosen });
       }
@@ -196,7 +200,9 @@ export function createVenueController(): VenueController {
       ? { venueId: endedRow.venueId, visitedOn: endedRow.visitedOn, timeZone: endedRow.timeZone } : undefined;
     if (endedId && !ended) await removeSetting(endedVisitKey(owner));
     if (row && row.startedAt !== null && row.endedAt === null && isVisitToday(row, now)) {
-      dispatch({ type: 'hydrated', visit: currentVisit({ ...row, startedAt: row.startedAt }) });
+      const manual = (await getSetting(manualVisitKey(owner))) === row.localId;
+      if (!ownership.isCurrent()) return;
+      dispatch({ type: 'hydrated', visit: { ...currentVisit({ ...row, startedAt: row.startedAt }), manual } });
       return;
     }
     if (row && row.startedAt !== null && row.endedAt === null) {
@@ -211,6 +217,7 @@ export function createVenueController(): VenueController {
 
   async function runResolve(): Promise<VenueContext> {
     void syncRemoteVisit();
+    if (state.venue?.manual && state.visit && isVisitToday(state.visit, Date.now())) return venueContext(state);
     if (!needsFix(state, Date.now())) return venueContext(state);
     const revision = selectionRevision;
     const wanted = () => revision === selectionRevision;

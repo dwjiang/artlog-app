@@ -46,11 +46,11 @@ export function ListSkeleton({ label, rows = 4, avatar = false, grouped = false 
 export function FeedSkeleton({ label = 'Loading visits…' }: { label?: string }) {
   return <LoadingSkeleton label={label}>
     {[0, 1].map((index) => <View key={index} style={styles.card}>
-      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ghost width={52} height={52} round />
-        <View style={{ flex: 1, gap: 8 }}><Ghost width="52%" height={20} /><Ghost width="78%" height={17} /><Ghost width="40%" /></View>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ghost width={40} height={40} round />
+        <View style={{ flex: 1, gap: 8 }}><Ghost width="52%" height={17} /><Ghost width="40%" height={13} /></View>
       </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}><Ghost height={150} style={{ flex: 0.8 }} /><Ghost height={150} style={{ flex: 1.3 }} /><Ghost height={150} style={{ flex: 1 }} /></View>
-      <View style={{ gap: 9 }}><Ghost width="88%" /><Ghost width="65%" /></View>
+      <Ghost height={230} />
+      <View style={{ gap: 9 }}><Ghost width="88%" height={28} /><Ghost width="65%" height={15} /><Ghost width="35%" height={13} /></View>
     </View>)}
   </LoadingSkeleton>;
 }

@@ -1,3 +1,4 @@
+import { SavedWorkImage } from './saved-work-image';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -46,16 +47,10 @@ function Editor({ work }: { work: SavedWork }) {
     finally { setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 18 }}>
-    <Text variant="display" accessibilityRole="header" style={{ color: Gallery.ink }}>Give this artwork a name.</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Your photos and visits stay together as you learn more.</Text>
+    <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: '100%', height: 160, backgroundColor: Gallery.fill }} />
+    <Text variant="section" accessibilityRole="header">Artwork details</Text>
     {([{ label: 'Title', value: title, change: setTitle }, { label: 'Artist', value: artist, change: setArtist }, { label: 'Date', value: date, change: setDate }, { label: 'Medium', value: medium, change: setMedium }]).map((field) => <View key={field.label} style={{ gap: 8 }}><Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text><TextInput accessibilityLabel={field.label} value={field.value} onChangeText={field.change} onFocus={() => setFocusedField(field.label)} onBlur={() => setFocusedField(undefined)} maxLength={500} editable={!busy} selectionColor={Gallery.accent} keyboardAppearance="light" style={{ backgroundColor: Gallery.surface, color: Gallery.ink, fontSize: 17, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder }} /></View>)}
-    <GalleryButton label="Save artwork details" variant="filled" fullWidth disabled={busy} onPress={() => {
-      try { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }
-      catch { setError('Your artwork details could not be saved. Your edits are still here. Try again.'); }
-    }} />
     <View style={{ borderTopWidth: 1, borderColor: Gallery.separator, paddingTop: 24, gap: 8 }}>
-    <Text variant="section" accessibilityRole="header" style={{ color: Gallery.ink }}>Combine artworks</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>Already saved this artwork? Combine its photos and visits. An internet connection is required.</Text>
     <GalleryButton label="This is an artwork I already saved" disabled={busy} onPress={() => setChoosing(!choosing)} />
     {choosing && <View style={{ gap: 12 }}><Text style={{ color: Gallery.ink }}>Find saved artwork</Text><TextInput accessibilityLabel="Find saved artwork" placeholder="Search your collection" placeholderTextColor={Gallery.muted} keyboardAppearance="light" selectionColor={Gallery.accent} value={search} onChangeText={setSearch} editable={!busy} style={{ padding: 16, backgroundColor: Gallery.surface, color: Gallery.ink, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder }} />
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your collection. Close and reopen this artwork to try again.</Text>
@@ -65,6 +60,10 @@ function Editor({ work }: { work: SavedWork }) {
     </View>}
     {busy && <Text accessibilityLiveRegion="polite" style={{ color: Gallery.muted }}>Combining artworks…</Text>}
     </View>
+    <GalleryButton label="Save details" variant="filled" fullWidth disabled={busy} onPress={() => {
+      try { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }
+      catch { setError('Your artwork details could not be saved. Your edits are still here. Try again.'); }
+    }} />
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
   </ScrollView>;
 }

@@ -1,3 +1,5 @@
+import { isNetworkError } from '../network-error';
+
 export type CursorPage<T> = { page: T[]; cursor: string | null; isDone: boolean };
 
 // Only a continuous chain of current cursors may contribute visible content.
@@ -22,6 +24,8 @@ export function readCursorPages<T, R>(cursors: (string | null)[], results: (R | 
   const done = !loading && !error && last?.isDone === true;
   const next = last?.cursor;
   const canLoadMore = !loading && !error && !done && next != null && !cursors.slice(0, validLength).includes(next);
-  return { items: error ? [] : [...items.values()], first: error ? undefined : first,
+  // A transport failure does not revoke earlier pages; permission and server failures do.
+  const hideLoaded = !!error && !isNetworkError(error);
+  return { items: hideLoaded ? [] : [...items.values()], first: hideLoaded ? undefined : first,
     loading, error, done, next, canLoadMore, validLength };
 }

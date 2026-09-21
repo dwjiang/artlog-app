@@ -507,3 +507,23 @@ it('keeps the other same-name place available after confirming one branch', asyn
     expect.objectContaining({ kind: 'poi', name: place.name, lat: otherBranch.lat }),
   ]);
 });
+
+it('keeps a searched museum through denied location, relaunch, and scans until the visit ends', async () => {
+  mockRequestPermission.mockResolvedValue({ granted: false });
+  const controller = createVenueController();
+  await controller.confirm({ kind: 'seeded', venueId: 'id-Met' as Id<'museums'>, name: 'Met', manual: true });
+  const visit = controller.getState().visit!;
+  expect(await controller.resolve()).toMatchObject({ venueId: 'id-Met', visitLocalId: visit.localId });
+  expect(mockRequestPermission).not.toHaveBeenCalled();
+  const restored = createVenueController();
+  await restored.hydrate();
+  expect(await restored.resolve()).toMatchObject({ venueId: 'id-Met', visitLocalId: visit.localId });
+  await restored.end();
+  expect(restored.getContext()).toEqual({});
+  expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
+});
+
+it('starts a museum visit privately until the owner chooses to share', async () => {
+  await controller.confirm({ kind: 'seeded', venueId: metRow.id, name: metRow.name });
+  expect([...mockVisits.values()]).toEqual([expect.objectContaining({ visibility: 'private' })]);
+});

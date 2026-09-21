@@ -1,3 +1,4 @@
+import { venueMetadataForIds } from '@/lib/venue/venue-db';
 import { SearchEmptyState } from '../empty-state';
 import { Host } from '@expo/ui';
 import { DatePicker } from '@expo/ui/swift-ui';
@@ -22,16 +23,22 @@ import { VisitMessage, VisitPage, visitStyles as styles } from './visit-ui';
 
 export function VisitCreateScreen() {
   const owner = useLocalOwner();
-  const { savedId } = useLocalSearchParams<{ savedId?: string }>();
-  return <CreateForm key={`${owner}:${savedId ?? ''}`} savedId={savedId} />;
+  const { savedId, venueId } = useLocalSearchParams<{ savedId?: string; venueId?: string }>();
+  return <CreateForm key={`${owner}:${savedId ?? ''}:${venueId ?? ''}`} savedId={savedId} initialVenueId={venueId} />;
 }
-function CreateForm({ savedId }: { savedId?: string }) {
+function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenueId?: string }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ query: string; retry: number; rows: VenueRow[]; error?: string }>();
   const [venue, setVenue] = useState<VenueRow>();
-  const [retry, setRetry] = useState(0);
   const [now] = useState(Date.now);
   const [date, setDate] = useState(() => dateFromPicker(new Date(now)));
+  useEffect(() => {
+    if (!initialVenueId) return;
+    let active = true;
+    void venueMetadataForIds([initialVenueId]).then((rows) => { if (active && rows[0]) { setVenue(rows[0]); const museumToday = calendarDate(now, venueTimeZone(rows[0])); setDate((current) => current > museumToday ? museumToday : current); } }).catch(() => {});
+    return () => { active = false; };
+  }, [initialVenueId, now]);
+  const [retry, setRetry] = useState(0);
   const [reflection, setReflection] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState<string>();
   const submitting = useRef(false);
@@ -63,7 +70,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
     const session = captureOwner();
     submitting.current = true; setBusy(true); setError(undefined); Keyboard.dismiss();
     try {
-      await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, reflection: reflection.trim() || null }, session.owner, savedId);
+      await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, visibility: 'private', reflection: reflection.trim() || null }, session.owner, savedId);
       if (session.isOwnerCurrent()) {
         showToast(savedId ? 'New visit linked. Other photos are unchanged.' : 'Visit saved. Publish it when you’re ready.');
         if (savedId) router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId, visitId: localId } });
@@ -74,7 +81,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
   }
   return <>
     <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
-    <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
+
     <VisitPage>
       <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep this day.</Text>
       <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>
@@ -94,15 +101,16 @@ function CreateForm({ savedId }: { savedId?: string }) {
         </Pressable>)}
         {venues.length === MUSEUM_SEARCH_LIMIT && <Text style={styles.caption}>Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to narrow your search.</Text>}
       </>}
-      <Host matchContents={{ vertical: true }} colorScheme="light">
+      <View style={{ padding: 14, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, backgroundColor: Gallery.surface }}><Host matchContents={{ vertical: true }} colorScheme="light">
         <DatePicker title="Visit date" selection={pickerDate(date)} range={{ end: pickerDate(today) }} displayedComponents={['date']}
           onDateChange={(value) => setDate(dateFromPicker(value))} modifiers={[datePickerStyle('compact'), tint(Gallery.accent)]} />
-      </Host>
+      </Host></View>
       {!validDate && <Text accessibilityRole="alert" style={styles.error}>Choose today or an earlier date at this museum.</Text>}
       <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
       <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Notes" placeholder="What stayed with you? (optional)" value={reflection} onChangeText={setReflection}
         multiline maxLength={LIMITS.note} editable={!busy} style={[styles.input, styles.reflection]} />
-      <Text style={styles.caption}>Saved to your journal. Share it when you’re ready.</Text>
+      <Text style={styles.caption}>This visit starts private. You can choose to share it later.</Text>
+      <GalleryButton label="Add visit" variant="filled" fullWidth busy={busy} disabled={busy || !venue || !validDate} onPress={() => { void save(); }} />
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </VisitPage>
   </>;

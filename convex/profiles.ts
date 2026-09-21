@@ -74,3 +74,32 @@ export const discover = query({
     return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
   },
 });
+
+export const usernameAvailable = query({
+  args: { username: v.string() }, returns: v.boolean(),
+  handler: async (ctx, { username }) => {
+    await requireAccount(ctx);
+    validateProfile({ name: 'Availability', username });
+    return !await ctx.db.query('profiles').withIndex('by_username', (q) => q.eq('username', username)).unique();
+  },
+});
+
+export const requests = query({
+  args: {}, returns: v.array(publicProfile),
+  handler: async (ctx) => {
+    const { profile } = await requireProfile(ctx);
+    const edges = (await Promise.all([
+      ctx.db.query('friendships').withIndex('by_first_state', (q) => q.eq('firstProfileId', profile._id).eq('state', 'pending')).take(LIMITS.friends + 1),
+      ctx.db.query('friendships').withIndex('by_second_state', (q) => q.eq('secondProfileId', profile._id).eq('state', 'pending')).take(LIMITS.friends + 1),
+    ])).flat();
+    const requests = [];
+    for (const edge of edges) {
+      if (edge.requesterId === profile._id) continue;
+      const person = await activeProfile(ctx, edge.requesterId);
+      if (person && !(await findBlock(ctx, profile._id, person._id))?.active && !(await findBlock(ctx, person._id, profile._id))?.active) {
+        requests.push(await projectProfile(ctx, person));
+      }
+    }
+    return requests.sort((a, b) => a.name.localeCompare(b.name));
+  },
+});

@@ -64,7 +64,7 @@ it('retains an edited visit after leaving the session and saves only new photos 
   await render(<AddPhotosScreen />);
   expect(await screen.findByRole('button', { name: 'Other museum · 2 Sep 2026 · Change' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
-  expect(await screen.findByText('1 artwork · 1 new photo')).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'Add a private note' })).toBeOnTheScreen();
   expect(screen.getByText('Other museum · 2 Sep 2026')).toBeOnTheScreen();
   expect(screen.getAllByLabelText('Saved photo preview')).toHaveLength(1);
   expect(selectArtworkPhotos('artwork').all()).toEqual(expect.arrayContaining([
@@ -82,8 +82,8 @@ it('saves an unsaved artwork and every added photo directly from the session', a
   updatePhotoSession(owner, capture.photoPath, { visitLocalId: 'eaebe816-f46f-5312-a657-f92d1af2cb76', saveInput: { capture, draft: { ...draftFromCandidate(), title: 'My edited title' } }, photos: [{ localId: 'extra', path: 'extra.jpg', kind: 'detail', capturedAt: 2 }] });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Save 2 photos' }));
-  expect(await screen.findByText('Saved as My edited title.')).toBeOnTheScreen();
-  expect(screen.getByText('1 artwork · 2 new photos')).toBeOnTheScreen();
+  expect(await screen.findByText('My edited title')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Add a private note' })).toBeOnTheScreen();
   expect((await getSavedWork('saved-new'))?.title).toBe('My edited title');
   expect(selectArtworkPhotos('saved-new').all().map((photo) => photo.visitLocalId)).toEqual(['eaebe816-f46f-5312-a657-f92d1af2cb76', 'eaebe816-f46f-5312-a657-f92d1af2cb76']);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
@@ -131,6 +131,6 @@ it('keeps unresolved photos in the draft until the owner explicitly confirms the
   expect(screen.getByRole('button', { name: 'Save 1 photo' })).toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: 'Keep with this artwork' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
-  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to your collection')).toBeOnTheScreen();
   expect(selectArtworkPhotos('artwork').all()).toHaveLength(2);
 });

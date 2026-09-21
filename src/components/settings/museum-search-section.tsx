@@ -1,8 +1,9 @@
-import { Switch } from '@expo/ui';
+import { Host, Switch } from '@expo/ui';
 import { useState } from 'react';
 
-import { GroupedFooter, GroupedSection } from '@/components/grouped-list';
-import { SEARCH_CONSENT_BODY } from '@/components/scan/result/search-consent-sheet';
+import { View } from 'react-native';
+import { ThemedText } from '../themed-text';
+import { Gallery } from '@/constants/theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
@@ -28,8 +29,10 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
     }
   }
 
-  return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? SEARCH_CONSENT_BODY}</GroupedFooter>}>
+  return <View style={{ padding: 16, gap: 10, backgroundColor: Gallery.fill, borderRadius: 8 }}><Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
     <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={consent === undefined || saving}
       onValueChange={(value) => { void change(value); }} />
-  </GroupedSection>;
+  </Host><ThemedText type="small" themeColor="textSecondary">Use museum websites to help identify artworks. You’ll review what is shared before turning this on.</ThemedText>
+    {error && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{error}</ThemedText>}
+  </View>;
 }

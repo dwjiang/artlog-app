@@ -2,7 +2,6 @@ import { Button, Column, Host, Icon, Row, Text as NativeText } from '@expo/ui';
 import { font, accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useRef, useState } from 'react';
-import { View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
@@ -41,12 +40,12 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     finally { saving.current = false; setPending(false); }
   }
   return <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>
-    <Text style={{ color: Gallery.ink, fontSize: 15, lineHeight: 22 }}>Who can see your leaderboard activity?</Text>
+    <Text variant="pageTitle">Join in. On your terms.</Text><Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>Choose who can see your activity totals.</Text>
     {session.status === 'ready' ? <>
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
-        <Column spacing={10}>
-          {modes.map((mode) => <Button key={mode.value} variant="outlined" disabled={pending || preference.data === undefined}
-            onPress={() => setDraft(mode.value)} style={{ padding: 14, borderRadius: 12 }}
+        <Column spacing={0}>
+          {modes.map((mode) => <Button key={mode.value} variant="text" disabled={pending || preference.data === undefined}
+            onPress={() => setDraft(mode.value)} style={{ paddingVertical: 14 }}
             modifiers={[accessibilityLabel(PARTICIPATION_LABELS[mode.value]), accessibilityAddTraits(value === mode.value ? ['isSelected'] : []), frame({ maxWidth: Infinity })]}>
             <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
               <Icon name={value === mode.value ? 'largecircle.fill.circle' : 'circle'} size={20} color={Gallery.accent} />
@@ -61,14 +60,10 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
       {preference.loading && <SocialState title="Loading participation…" loading />}
       {preference.error && <SocialState title="Couldn’t load participation." action="Try again" onAction={preference.refresh} />}
     </> : <SocialGate session={session} context="leaderboards" />}
-    <View style={{ padding: 16, backgroundColor: Gallery.fill, borderRadius: 12, gap: 10 }}>
-      <Text style={{ color: Gallery.ink, fontSize: 14, fontWeight: '600' }}>Totals only. Not your visit history.</Text>
-      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Joining shows your name, username, photo, rank, and counts of logged visits and saved artworks, for this month and all time. Existing activity counts too, including private visits.</Text>
-      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>Museum names, visit dates, your globe, private notes, and artworks outside your wall stay private. Your public wall and visit-sharing choices don’t change.</Text>
-    </View>
+    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Only your name, photo and activity totals are shared. Museum names, visit dates, private notes and the rest of your collection stay private.</Text>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
     {session.status === 'ready' && <GalleryButton label="Save participation" fullWidth variant="filled"
       busy={pending} disabled={preference.data === undefined} onPress={() => { void save(); }} />}
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>Participation starts on Friends & Global. You can choose Friends only or switch it off at any time to leave both boards.</Text>
+
   </LeaderboardSheet>;
 }

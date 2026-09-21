@@ -29,6 +29,7 @@ export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = f
       {artworkCount > 0 && <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />}
       <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push('/settings')} />
     </View>
+    <Text variant="metadata" themeColor="textSecondary">Saved on this iPhone</Text>
     {loading ? <LoadingSkeleton label="Loading collection counts"><Ghost width={150} style={{ marginTop: 5 }} /></LoadingSkeleton>
       : artworkCount + visitCount > 0 && <Text variant="metadata" themeColor="textSecondary">{counts}</Text>}
   </View>;

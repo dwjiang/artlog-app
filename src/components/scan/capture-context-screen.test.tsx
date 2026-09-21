@@ -1,8 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
 
 import { CaptureContextScreen } from './capture-context-screen';
-import { Gallery } from '@/constants/theme';
 import type { PhotoSessionDraft } from '@/lib/capture/photo-draft';
 
 const mockBack = jest.fn();
@@ -39,34 +37,26 @@ it('marks the capture’s own visit until the draft overrides it', async () => {
   mockSession = { photos: [], visitLocalId: null };
   mockParams = { draftId: 'other.jpg', visitId: 'captured-visit' };
   await view.rerender(<CaptureContextScreen />);
-  expect(screen.getByRole('button', { name: 'No visit · Save artwork only', selected: true })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Artwork only', selected: true })).toBeOnTheScreen();
 });
 
 it('writes the choice to the draft only and closes', async () => {
   mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
   await render(<CaptureContextScreen />);
-  expect(screen.getByRole('button', { name: 'No visit · Save artwork only', selected: true })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Artwork only', selected: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Other museum · 1 Mar 2024' }));
   expect(mockUpdateSession).toHaveBeenCalledWith('owner', 'capture.jpg', { visitLocalId: 'other-visit' });
   expect(mockBack).toHaveBeenCalledTimes(1);
-  await fireEvent.press(screen.getByRole('button', { name: 'No visit · Save artwork only' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Artwork only' }));
   expect(mockUpdateSession).toHaveBeenLastCalledWith('owner', 'capture.jpg', { visitLocalId: null });
 });
 
-it.each([
-  ['No visit · Save artwork only', undefined],
-  ['Museum · 29 Feb 2024', 'captured-visit'],
-])('draws an even border around the selected "%s" option', async (name, visitId) => {
-  mockParams = { draftId: 'capture.jpg', visitId };
+it('places artwork only before museum visits and creation after them', async () => {
   mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
   await render(<CaptureContextScreen />);
-  const style = StyleSheet.flatten(screen.getByRole('button', { name, selected: true }).props.style);
-  for (const edge of ['Top', 'Right', 'Bottom', 'Left']) {
-    expect(style[`border${edge}Width`] ?? style.borderWidth).toBe(1);
-    expect(style[`border${edge}Color`] ?? style.borderColor).toBe(Gallery.ink);
-  }
-  expect(screen.getByRole('button', { name: 'Other museum · 1 Mar 2024' }))
-    .toHaveStyle({ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator });
+  const choices = screen.getAllByRole('button').map((button) => button.props.accessibilityLabel);
+  expect(choices.indexOf('Artwork only')).toBeLessThan(choices.indexOf('Museum · 29 Feb 2024'));
+  expect(screen.getByRole('button', { name: 'Create a visit' })).toBeOnTheScreen();
 });
 
 it('names the open visit as the one happening now', async () => {
@@ -91,7 +81,7 @@ it('preserves the current choice when saving the new choice fails', async () => 
   await render(<CaptureContextScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Museum · 29 Feb 2024' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(/Your previous selection is unchanged\./);
-  expect(screen.getByRole('button', { name: 'No visit · Save artwork only', selected: true })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Artwork only', selected: true })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });
 

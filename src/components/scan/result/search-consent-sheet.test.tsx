@@ -24,9 +24,11 @@ it('shows the exact consent copy and persists the grant before starting any sear
   jest.mocked(setMuseumSearchConsent).mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
   const onGranted = jest.fn();
   await render(<SearchConsentSheet open onGranted={onGranted} onDismiss={jest.fn()} />);
-  expect(screen.getByText("Search this museum's collection?")).toBeOnTheScreen();
-  expect(screen.getByText("We'll search the museum's current exhibitions and compare its images with your photo on this phone. If we don't find a match, we'll send a copy of your photo to a vision model and search the museum's collection using its description. The photo isn't stored by this search. You can turn this off in Settings.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
+  expect(screen.getByText("Look in the museum’s collection?")).toBeOnTheScreen();
+  expect(screen.getByText('We’ll search the museum’s current exhibitions and compare its images with your photo on this phone.')).toBeOnTheScreen();
+  expect(screen.getByText('If we don’t find a match, we’ll send a copy of your photo to a vision model and search the museum’s collection using its description.')).toBeOnTheScreen();
+  expect(screen.getByText('The photo isn’t stored by this search. You can turn this off in Settings.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Search this museum' }));
   expect(setMuseumSearchConsent).toHaveBeenCalledWith('granted');
   expect(onGranted).not.toHaveBeenCalled();
   await act(async () => { finish(); });
@@ -47,7 +49,7 @@ it('keeps the sheet open without uploading when persistence fails', async () => 
   jest.mocked(setMuseumSearchConsent).mockRejectedValue(new Error('disk full'));
   const onGranted = jest.fn();
   await render(<SearchConsentSheet open onGranted={onGranted} onDismiss={jest.fn()} />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Search this museum' }));
   await waitFor(() => expect(screen.getByText("Couldn't save your choice. Try again.")).toBeOnTheScreen());
   expect(onGranted).not.toHaveBeenCalled();
 });

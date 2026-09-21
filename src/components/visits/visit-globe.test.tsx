@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { VisitGlobe } from './visit-globe';
-const mockPush = jest.fn(), mockDismissTo = jest.fn(), mockFocus = jest.fn(), mockReset = jest.fn(), mockZoom = jest.fn();
+const mockPush = jest.fn(), mockDismissTo = jest.fn(), mockFocus = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args), dismissTo: (...args: unknown[]) => mockDismissTo(...args) } }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title }: { title: string }) => {
   const { Text } = jest.requireActual('react-native'); return <Text accessibilityRole="image">{title}</Text>;
@@ -11,7 +11,7 @@ jest.mock('./globe-canvas', () => {
   const React = jest.requireActual('react');
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return { GlobeCanvas: React.forwardRef(function MockGlobe({ pins, onSelect }: { pins: { id: string; label: string }[]; onSelect: (id: string) => void }, ref: unknown) {
-    React.useImperativeHandle(ref, () => ({ focus: mockFocus, reset: mockReset, zoom: mockZoom }));
+    React.useImperativeHandle(ref, () => ({ focus: mockFocus }));
     return <View>{pins.map((pin) => <Pressable accessibilityRole="button" key={pin.id} onPress={() => onSelect(pin.id)}><Text>Pin: {pin.id}</Text></Pressable>)}</View>;
   }) };
 });
@@ -27,14 +27,11 @@ it('renders one pin per museum and opens the selected museum’s visits', async 
   await fireEvent.press(screen.getByRole('button', { name: 'Explore visits to Louvre' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'Paris', name: 'Louvre', venueId: 'Louvre' } });
 });
-it('supports menu selection without marker callbacks and provides globe zoom and reset', async () => {
-  await render(<VisitGlobe visits={[visit('1', 'Met', 'New York'), visit('2', 'Louvre', 'Paris')]} onList={jest.fn()} />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Louvre · Paris' }));
-  expect(mockFocus).toHaveBeenCalledWith(expect.objectContaining({ id: 'Louvre' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Zoom in' }));
-  expect(mockZoom).toHaveBeenCalledWith(1.25);
-  await fireEvent.press(screen.getByRole('button', { name: 'Reset globe' }));
-  expect(mockReset).toHaveBeenCalled();
+it('offers a larger globe while keeping the selected museum visible', async () => {
+  await render(<VisitGlobe visits={[visit('1', 'Met', 'New York')]} onList={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Expand globe' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-globe', params: { venueId: 'Met' } });
+  expect(screen.getByRole('button', { name: 'Explore visits to Met' })).toBeOnTheScreen();
 });
 it('keeps visits without coordinates available through List', async () => {
   const onList = jest.fn();

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../../convex/_generated/api';
-import { Gallery, Typography } from '@/constants/theme';
+import { Fonts, Gallery, Typography } from '@/constants/theme';
 import { convexErrorCode } from '@/lib/network-error';
 import { visitDate } from '@/lib/social/presentation';
 import type { PublicProfile, SharedArtwork, SharedVisit } from '@/lib/social/types';
@@ -60,7 +60,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
     renderItem={({ item }) => <SharedArtworkTile title={item.artwork.title} artist={item.artwork.artist} photos={item.photos ?? []} token={session.token}
       onPress={() => router.push({ pathname: '/artwork', params: { kind: 'visit', postId, itemId: item.itemId } })} />}
     ListEmptyComponent={!ready ? <SocialGate session={session} /> : unavailable
-      ? <SocialState title="Visit unavailable." detail="This visit is no longer shared with you." /> : visit.done && !visit.loading && !visit.error
+      ? <SocialState action="Back to Home" onAction={() => { router.dismissAll(); router.navigate('/'); }} title="Visit unavailable." detail="This visit is no longer shared with you." /> : visit.done && !visit.loading && !visit.error
         ? <SharedEmpty query={query} onClear={() => setSearch('')} /> : null}
     ListFooterComponent={ready && !unavailable && !(visit.refreshing && items.length > 0 && !visit.error) ? <PageFooter {...visit} count={items.length} noun="artworks" skeleton="gallery" /> : null}
     onEndReached={ready ? visit.loadMore : undefined} onEndReachedThreshold={0.4} />;
@@ -70,7 +70,7 @@ export function SharedVisitHeading({ venue, visitedOn, owner }: {
   venue: { name: string; city?: string }; visitedOn: string; owner: { name: string; username?: string; photoUrl?: string; onPress?: () => void };
 }) {
   const identity = <>
-    <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} size={56} />
+    <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} size={40} />
     <View style={{ flex: 1 }}><Text style={styles.ownerText}>{owner.name}</Text>{owner.username && <Text style={styles.meta}>@{owner.username}</Text>}</View>
     {owner.onPress && <VisitSymbol name="chevron.right" size={12} />}
   </>;
@@ -96,13 +96,13 @@ function SharedEmpty({ query, onClear }: { query: string; onClear: () => void })
 }
 
 /** One artwork in a shared visit: the first selected photo, a photo-count badge, title, and artist. */
-export function SharedArtworkTile({ title, artist, photos, token, onPress, compact = false }: {
-  title: string; artist: string | null; photos: Media[]; token?: string | null; onPress?: () => void; compact?: boolean;
+export function SharedArtworkTile({ title, artist, photos, token, onPress }: {
+  title: string; artist: string | null; photos: Media[]; token?: string | null; onPress?: () => void;
 }) {
   const media = photos[0];
   const { fontScale } = useWindowDimensions();
-  const cardStyle = [styles.card, compact && { width: '31%' as const }, fontScale > 1.4 && { width: '100%' as const, marginBottom: 20 }];
-  const tile = <VisitGalleryArtwork stageAspect={compact ? 0.8 : 1.04} title={title} artist={artist} photoCount={photos.length} aspectRatio={media ? media.width / media.height : 1}>
+  const cardStyle = [styles.card, fontScale > 1.4 && { width: '100%' as const, marginBottom: 20 }];
+  const tile = <VisitGalleryArtwork stageAspect={1.04} title={title} artist={artist} photoCount={photos.length} aspectRatio={media ? media.width / media.height : 1}>
     {(width) => media ? <DisplayMedia media={media} label={title} token={token} width={width} />
       : <View style={{ width, height: width, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill }}>
         <Text style={styles.photoPlaceholder}>No photo shared</Text></View>}
@@ -115,29 +115,29 @@ export function SharedArtworkTile({ title, artist, photos, token, onPress, compa
 export type ProjectedArtwork = { key: string; title: string; artist: string | null; photos: Media[] };
 
 /** A complete shared visit the way its audience sees it, for previews and the owner's shared version. */
-export function SharedVisitProjection({ banner, author, venue, visitedOn, reflection, artworks, token, footer, note }: {
-  banner?: { title: string; copy: string }; author: Pick<PublicProfile, 'name' | 'photoUrl'> & Partial<Pick<PublicProfile, 'username'>>; venue: { name: string; city?: string }; visitedOn: string;
+export function SharedVisitProjection({ postId, author, venue, visitedOn, reflection, artworks, token, footer, note }: {
+  postId: string; author: Pick<PublicProfile, 'profileId' | 'name' | 'photoUrl' | 'username'>; venue: { name: string; city?: string }; visitedOn: string;
   reflection: string; artworks: ProjectedArtwork[]; token?: string | null; footer?: ReactElement; note?: string;
 }) {
   const [search, setSearch] = useState('');
   const { fontScale } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
-  const columns = fontScale > 1.4 ? 1 : 3;
+  const columns = fontScale > 1.4 ? 1 : 2;
+  const router = useRouter();
   const query = artworks.length >= 5 ? search.trim() : '';
   const items = artworks.filter((artwork) => matchesVisitSearch(artwork, query));
   return <View style={socialStyles.root}><FlatList key={columns} style={socialStyles.root} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic"
     data={items} keyExtractor={(artwork) => artwork.key} numColumns={columns} columnWrapperStyle={columns > 1 ? styles.row : undefined}
     keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
     ListHeaderComponent={<>
-      {banner && <View style={styles.banner}><Text style={styles.bannerTitle}>{banner.title}</Text></View>}
-      <SharedVisitHeading venue={venue} visitedOn={visitedOn} owner={author} />
+      <SharedVisitHeading venue={venue} visitedOn={visitedOn} owner={{ ...author, onPress: () => router.push({ pathname: '/profile/[profileId]', params: { profileId: author.profileId } }) }} />
       {!!reflection && <Text selectable style={styles.reflection}>{reflection}</Text>}
       <SharedCountHeading label={`${artworks.length} ${artworks.length === 1 ? 'artwork' : 'artworks'} shared`} />
       {artworks.length >= 5 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
     </>}
-    renderItem={({ item }) => <SharedArtworkTile compact title={item.title} artist={item.artist} photos={item.photos} token={token} />}
+    renderItem={({ item }) => <SharedArtworkTile title={item.title} artist={item.artist} photos={item.photos} token={token} onPress={() => router.push({ pathname: '/artwork', params: { kind: 'visit', postId, itemId: item.key } })} />}
     ListEmptyComponent={<SharedEmpty query={query} onClear={() => setSearch('')} />}
-    ListFooterComponent={<>{banner && <Text style={[styles.meta, { paddingTop: 12 }]}>{banner.copy}</Text>}{note && <Text style={[styles.meta, { paddingTop: 12 }]}>{note}</Text>}</>} />
+    ListFooterComponent={<>{note && <Text style={[styles.meta, { paddingTop: 12 }]}>{note}</Text>}</>} />
     {footer && <View style={[styles.previewFooter, { paddingBottom: Math.max(20, bottom) }]}>{footer}</View>}
   </View>;
 }
@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
   stampRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14 },
   status: { flexDirection: 'row', maxWidth: '100%', alignItems: 'center', gap: 5, borderWidth: 0.5, borderColor: Gallery.separator, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 4 },
   statusText: { flexShrink: 1, fontSize: 13, lineHeight: 18, fontWeight: '500', color: Gallery.ink },
-  owner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56 },
-  ownerText: { flexShrink: 1, ...Typography.section, fontSize: 24, lineHeight: 28, color: Gallery.ink },
+  owner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 },
+  ownerText: { flexShrink: 1, ...Typography.secondary, fontWeight: '600', color: Gallery.ink },
   museum: { ...Typography.pageTitle, color: Gallery.ink, marginBottom: 8 },
   meta: { fontSize: 13, lineHeight: 20, color: Gallery.muted },
-  reflection: { fontSize: 17, lineHeight: 24, letterSpacing: -0.15, color: Gallery.ink, marginBottom: 20 },
+  reflection: { fontFamily: Fonts.serif, fontSize: 26, lineHeight: 34, color: Gallery.ink, marginBottom: 20 },
   galleryHeader: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, marginTop: 2, paddingTop: 15, paddingBottom: 12 },
-  sectionTitle: { ...Typography.section, color: Gallery.ink },
+  sectionTitle: { ...Typography.section, color: Gallery.ink, alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 5 },
   banner: { paddingVertical: 6, marginHorizontal: -20, marginBottom: 16, backgroundColor: Gallery.highlight, alignItems: 'center' },
   bannerTitle: { ...Typography.section, fontSize: 16, lineHeight: 22, color: Gallery.ink },
   previewFooter: { paddingHorizontal: 20, borderTopWidth: 0.5, borderColor: Gallery.separator, backgroundColor: Gallery.paper },

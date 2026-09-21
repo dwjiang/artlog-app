@@ -41,7 +41,7 @@ export const preview = query({
     reflection: v.string(), artworks: v.array(v.object({ saveLocalId: v.string(), artwork: publicArtwork, photos: v.optional(v.array(displayMedia)) })) }),
   handler: async (ctx, input) => {
     const { profile, owner } = await requireProfile(ctx);
-    const { visit, saves } = await selectedSaves(ctx, owner, input);
+    const { visit, saves } = await selectedSaves(ctx, owner, input, true);
     const artworks = [];
     for (const save of saves) {
       if (!await readHeadroom(ctx, SAVE_READ_RESERVE)) throw new ConvexError({ code: 'invalid_post' });

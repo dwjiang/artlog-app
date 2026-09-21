@@ -256,6 +256,8 @@ it('loads public visits for guests and opens their details without signing in', 
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Dismiss sign-in invitation' }));
   expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
 });
 

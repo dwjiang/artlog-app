@@ -39,13 +39,6 @@ it('ends the visit from the bar and opens its detail', async () => {
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
 
-it('shows only the name when placed inline next to a minimized tab bar', async () => {
-  await render(<VisitBar compact />);
-  expect(screen.getByText('Legion of Honor')).toBeOnTheScreen();
-  expect(screen.queryByText(/Visiting now/)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'End visit' })).toBeNull();
-});
-
 it('renders nothing without an open visit', async () => {
   mockVisit = undefined;
   await render(<VisitBar />);

@@ -1,3 +1,4 @@
+import { showToast } from '../ui/toast';
 import { ConvexHttpClient } from 'convex/browser';
 import { fetch as expoFetch } from 'expo/fetch';
 import { useEffect, useRef, useState } from 'react';
@@ -33,7 +34,7 @@ export function useFriendship(profileId: Id<'profiles'>, session: SocialSession)
     setBusy(true); setError(undefined);
     try {
       const result = await client.mutation(api.friendships[action], { profileId, revision: state.revision }, { skipQueue: true });
-      if (current()) setConfirmed(result);
+      if (current()) { setConfirmed(result); if (action === 'accept') showToast('You’re now friends.'); return true; }
     } catch (cause) {
       if (!current()) return;
       if (convexErrorCode(cause) === 'conflict' || convexErrorCode(cause) === 'invalid_relationship') {

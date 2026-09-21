@@ -53,7 +53,7 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>{title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{when} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</ThemedText>
-          <ThemedText type="small" themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : item.status === 'queued' ? 'warning' : 'textSecondary'}>{retrying ? 'Retrying…' : status}</ThemedText>
+          <ThemedText type="small" style={{ alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 3, backgroundColor: item.status === 'identified' ? Gallery.highlight : Gallery.fill }} themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : item.status === 'queued' ? 'warning' : 'textSecondary'}>{retrying ? 'Retrying…' : status}</ThemedText>
         </View>
         {hasLabel && (
           <Image source="sf:tag" accessibilityLabel="Label attached" style={styles.labelIcon} tintColor={Colors.light.textSecondary} />

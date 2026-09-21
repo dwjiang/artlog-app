@@ -1,13 +1,13 @@
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
 import { GalleryButton } from '../collection/gallery-button';
-import { Switch, Text } from '@expo/ui';
-import { Text as SwiftText } from '@expo/ui/swift-ui';
-import { font, foregroundStyle, italic } from '@expo/ui/swift-ui/modifiers';
+import { Host, Switch } from '@expo/ui';
+import { ThemedText as Text } from '../themed-text';
+import { DisplayMedia } from '../artwork/display-media';
+import { NotePaper } from '../note-paper';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
-import { ActionRow, GroupedFooter, GroupedList, GroupedSection } from '@/components/grouped-list';
+import { ScrollView, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { showToast } from '@/lib/ui/toast';
@@ -33,10 +33,10 @@ export function PublicNotesScreen() {
     try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
     catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
-  const gate = !wall.signedIn ? <SocialState title="Sign in to share notes." icon="note.text" action="Sign in" onAction={() => router.push(signInRoute('wall'))} />
+  const gate = !wall.signedIn ? <EmptyState title={'Your words,\nwhen you’re ready.'} detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
       : wall.loading || (!wall.acknowledged && !wall.error) ? <SocialState title="Opening your notes…" loading /> : null;
-  if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={socialStyles.gate}>{gate}</ScrollView>;
+  if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}>{gate}</ScrollView>;
   // The header keeps only direct Toolbar.Button children, so no fragments here.
   const toolbar = <Stack.Toolbar placement="right">
     {preview ? <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(false)}>Edit</Stack.Toolbar.Button>
@@ -58,17 +58,18 @@ export function PublicNotesScreen() {
     </EmptyState>
   </ScrollView>;
   return <>{toolbar}
-    <GroupedList>
-      <GroupedSection footer={wall.error ? <GroupedFooter tone="destructive">{wall.error}</GroupedFooter> : undefined}>
-        <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline' })]}>{INTRO}</Text>
-        {wall.error ? <ActionRow label="Refresh notes" icon="arrow.clockwise" onPress={() => { void wall.refresh(); }} /> : null}
-      </GroupedSection>
-      {eligible.map((item) => <GroupedSection key={item.itemId}>
-        <SwiftText modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' }), foregroundStyle(Gallery.ink)]}>{item.artwork.artist}</SwiftText>
-        <SwiftText modifiers={[font({ textStyle: 'footnote' }), italic(), foregroundStyle(Gallery.muted)]}>{item.artwork.title}</SwiftText>
-        {item.privateNote ? <SwiftText modifiers={[font({ textStyle: 'body' }), foregroundStyle(Gallery.ink)]}>{item.privateNote}</SwiftText> : null}
-        <Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} />
-      </GroupedSection>)}
-    </GroupedList>
+    <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 22 }}>
+      <Text variant="display">Share your notes.</Text><Text themeColor="textSecondary">{INTRO}</Text>
+      {wall.error && <><Text themeColor="error" accessibilityRole="alert">{wall.error}</Text><GalleryButton label="Refresh notes" onPress={() => { void wall.refresh(); }} /></>}
+      {eligible.map((item) => <View key={item.itemId} style={{ gap: 12, paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <DisplayMedia media={item.artwork.media} label={item.artwork.title} width={48} height={56} />
+          <View style={{ flex: 1 }}><Text style={{ fontSize: 16, fontWeight: '600' }}>{item.artwork.title}</Text><Text type="small" themeColor="textSecondary">{item.artwork.artist}</Text></View>
+        </View>
+        {item.privateNote && <NotePaper><Text>{item.privateNote}</Text></NotePaper>}
+        <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}><Switch label="Show note on public wall" value={visible(item)} disabled={wall.pending || (!item.noteEligible && !item.noteVisible)} onValueChange={(value) => toggle(item, value)} /></Host>
+      </View>)}
+      <Text type="small" themeColor="textSecondary">Your notes stay private until you turn them on and save your choices.</Text>
+    </ScrollView>
   </>;
 }

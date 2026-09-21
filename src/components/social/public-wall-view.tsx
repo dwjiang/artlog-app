@@ -1,3 +1,6 @@
+import { router } from 'expo-router';
+import { GalleryButton } from '../collection/gallery-button';
+import { ArtworkCollage } from '../guest/artwork-preview';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -9,25 +12,28 @@ import { ProfileBio } from './profile-bio';
 import { ThemedText as Text } from '@/components/themed-text';
 import { socialStyles } from './social-styles';
 
-export function PublicProfileHeader({ person, actions, children, visitCount }: { person: PublicProfile; visitCount?: number; actions?: ReactNode; children?: ReactNode }) {
+export function PublicProfileHeader({ person, actions, children, visitCount, compact = false }: { compact?: boolean; person: PublicProfile; visitCount?: number; actions?: ReactNode; children?: ReactNode }) {
   return <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-      <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={64} />
+      <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={compact ? 44 : 64} />
       <View style={{ flex: 1, gap: 4 }}>
-        <Text variant="display" accessibilityRole="header">{person.name}</Text>
+        <Text variant={compact ? "section" : "display"} accessibilityRole="header">{person.name}</Text>
         <Text style={socialStyles.caption}>@{person.username}</Text>
-        <Text style={socialStyles.caption}>{person.publishedWallCount} {person.publishedWallCount === 1 ? 'artwork' : 'artworks'}{visitCount !== undefined ? ` · ${visitCount} ${visitCount === 1 ? 'visit' : 'visits'}` : ''}</Text>
+
       </View>
     </View>
-    <ProfileBio text={person.bio} />
-    {actions && <View>{actions}</View>}
-    {children}
+    {!compact && <><ProfileBio text={person.bio} /><View style={{ flexDirection: 'row', gap: 36 }}>
+      <View><Text variant="display">{person.publishedWallCount}</Text><Text style={socialStyles.caption}>artworks</Text></View>
+      {visitCount !== undefined && <View><Text variant="display">{visitCount}</Text><Text style={socialStyles.caption}>visits</Text></View>}
+    </View></>}
+    {!compact && actions && <View>{actions}</View>}
+    {!compact && children}
   </View>;
 }
 
 export function PublicWallView({ wall, arrangedBy, onSelect }: { wall: PublicWall; arrangedBy?: string; onSelect: (item: PublicWall['items'][number]) => void }) {
   const [width, setWidth] = useState(0);
-  if (!wall.items.length) return <EmptyState title="No artworks yet." detail={`${arrangedBy ?? 'This person'} hasn’t added any artworks to their wall.`} />;
+  if (!wall.items.length) return <EmptyState title="A wall in the making." detail={`${arrangedBy ?? 'This person'} hasn’t hung any artworks yet. Check back for a different point of view.`} visual={<ArtworkCollage />}><GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push('/people')} /></EmptyState>;
   return <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
     {width > 0 && <WallGallery width={width} color={wall.color}
       pieces={wall.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}

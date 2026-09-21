@@ -5,7 +5,7 @@ const radians = Math.PI / 180;
 
 export function globeGeometry(width: number, height: number, zoom: number) {
   'worklet';
-  return { cx: width / 2, cy: height / 2 - 4, radius: Math.min(width * (height >= 420 ? 0.46 : 0.395), height * 0.413) * zoom };
+  return { cx: width / 2, cy: height / 2 - 4, radius: Math.min(width * 0.445, height * 0.475) * zoom };
 }
 export function globeCamera(latitude: number, longitude: number): GlobeCamera {
   'worklet';

@@ -133,3 +133,30 @@ it('enforces shared selection, profile, and geography boundaries', () => {
   expect(() => validateGeography({ city: 'Reykjavík', country: 'IS' })).not.toThrow();
   for (const input of [{ city: 'x'.repeat(121) }, { country: 'ZZ' }, { country: 'usa' }]) expect(() => validateGeography(input)).toThrow();
 });
+
+it('checks username availability for an account without reserving it', async () => {
+  const { t, account } = await fixture();
+  const a = await account('availability-a'), b = await account('availability-b');
+  expect(await a.as.query(api.profiles.usernameAvailable, { username: 'available-name' })).toBe(true);
+  await b.as.mutation(api.profiles.create, { username: 'available-name', name: 'B' });
+  expect(await a.as.query(api.profiles.usernameAvailable, { username: 'available-name' })).toBe(false);
+  await expect(a.as.query(api.profiles.usernameAvailable, { username: 'Invalid_Name' })).rejects.toThrow();
+  await expect(t.query(api.profiles.usernameAvailable, { username: 'available-name' })).rejects.toThrow();
+});
+
+it('lists incoming requests only, removing accepted and blocked connections', async () => {
+  const { t, account } = await fixture();
+  const a = await account('requests-a'), b = await account('requests-b'), c = await account('requests-c');
+  const pa = await a.as.mutation(api.profiles.create, { name: 'A', username: 'requests-a' });
+  const pb = await b.as.mutation(api.profiles.create, { name: 'B', username: 'requests-b' });
+  const pc = await c.as.mutation(api.profiles.create, { name: 'C', username: 'requests-c' });
+  await b.as.mutation(api.friendships.request, { profileId: pa.profileId, revision: 0 });
+  await a.as.mutation(api.friendships.request, { profileId: pc.profileId, revision: 0 });
+  expect(await a.as.query(api.profiles.requests, {})).toEqual([pb]);
+  expect(await b.as.query(api.profiles.requests, {})).toEqual([]);
+  await a.as.mutation(api.friendships.accept, { profileId: pb.profileId, revision: 1 });
+  expect(await a.as.query(api.profiles.requests, {})).toEqual([]);
+  await c.as.mutation(api.friendships.block, { profileId: pa.profileId, revision: 1, blockRevision: 0 });
+  expect(await c.as.query(api.profiles.requests, {})).toEqual([]);
+  await expect(t.query(api.profiles.requests, {})).rejects.toThrow();
+});
