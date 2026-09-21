@@ -14,11 +14,9 @@ export type VerifiedFieldsFormProps = {
   warnings: LabelWarning[];
   editable: boolean;
   onChange: (name: LabelFieldName, value: string) => void;
-  onUnlock: (name: LabelFieldName) => void;
 };
 
-// A verified field keeps its evidence until its value actually diverges; the downgrade lands before the edited value.
-export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlock }: VerifiedFieldsFormProps) {
+export function VerifiedFieldsForm({ state, warnings, editable, onChange }: VerifiedFieldsFormProps) {
   const [more, setMore] = useState(false);
   const names: LabelFieldName[] = ['title', 'artist', 'date', 'medium', ...(more ? ['accession', 'creditLine'] as const : [])];
   return (
@@ -37,8 +35,8 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange, onUnlo
               <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
             </View>
             <View style={styles.inputRow}>
-              <FieldInput label={label} defaultValue={field.value} editable={editable} locked={false} style={styles.input}
-                autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'} onChangeText={(value) => { if (field.locked && value.trim() !== field.original) onUnlock(name); onChange(name, value); }} />
+              <FieldInput label={label} defaultValue={field.value} editable={editable} style={styles.input}
+                autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'} onChangeText={(value) => onChange(name, value)} />
             </View>
           </View>
         );

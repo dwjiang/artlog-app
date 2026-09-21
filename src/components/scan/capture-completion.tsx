@@ -33,6 +33,4 @@ const styles = StyleSheet.create({
   title: { },
   copy: { color: Gallery.muted },
   note: { color: Gallery.muted, textAlign: 'center' },
-  photos: { flexDirection: 'row', gap: 8, marginVertical: 12, width: '100%' },
-  photo: { flex: 1, height: 100, borderRadius: 2, backgroundColor: Gallery.fill },
 });

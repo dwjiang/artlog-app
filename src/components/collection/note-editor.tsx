@@ -137,7 +137,6 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
 const styles = StyleSheet.create({
   section: { gap: Spacing.two },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
-  swatch: { width: 14, height: 14, backgroundColor: Gallery.highlight },
   title: { flex: 1, fontFamily: Fonts.display, fontSize: 20, lineHeight: 24, color: Gallery.ink },
   body: { fontSize: 15, lineHeight: 21 },
   input: {

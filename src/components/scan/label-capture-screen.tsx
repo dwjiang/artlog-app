@@ -30,7 +30,7 @@ import { MAX_LABEL_ATTEMPTS, setLabelPhoto, setQrUrl } from '@/db/repos/pending-
 import { useQrScanner } from '@/lib/capture/use-qr-scanner';
 import { persistLabelPhoto } from '@/lib/files/photos';
 import { removeFile } from '@/lib/label/crop';
-import { canSaveLabel, canShareLabel, setFieldValue, unlockField } from '@/lib/label/fields';
+import { canSaveLabel, canShareLabel, setFieldValue } from '@/lib/label/fields';
 import { LabelFlowError, type LabelStage } from '@/lib/label/flow';
 import { runLabelFlowForScan, type LabelSource } from '@/lib/label/label-deps';
 import { useLabelCapture } from '@/lib/label/use-label-capture';
@@ -229,10 +229,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     setForm((current) => current && setFieldValue(current, name, value));
   }
 
-  function onUnlock(name: LabelFieldName) {
-    setForm((current) => current && unlockField(current, name));
-  }
-
   if (phase.kind === 'running') {
     return (
       <ThemedView style={styles.container}>
@@ -317,7 +313,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           <ThemedText type="title">Look right?</ThemedText>
           <ThemedText themeColor="textSecondary">Check the details before saving. Edit anything that doesn’t look right.</ThemedText>
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
-          <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} onUnlock={onUnlock} />
+          <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} />
           {capture && !savedId && <>
             <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />
             <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />

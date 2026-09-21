@@ -30,6 +30,18 @@ it('unlocking marks a verified field edited even before a keystroke', () => {
   expect(state.artist.locked).toBe(true);
 });
 
+it('typing over a verified field opens its lock and typing the verified value back restores it', () => {
+  const base = formStateFromFlow(verified);
+  const changed = setFieldValue(base, 'title', 'The Thinker, cast');
+  expect(changed.title).toMatchObject({ locked: false, unlocked: true });
+  expect(isEdited(changed.title)).toBe(true);
+  expect(toSubmittedFields(changed)?.title).toEqual({ value: 'The Thinker, cast', edited: true });
+  const restored = setFieldValue(changed, 'title', ' The Thinker ');
+  expect(restored.title).toMatchObject({ locked: true, unlocked: false, value: ' The Thinker ' });
+  expect(isEdited(restored.title)).toBe(false);
+  expect(toSubmittedFields(restored)?.title).toEqual({ value: 'The Thinker', edited: false });
+});
+
 it('typing over an unverified field marks it edited and reverting clears it', () => {
   let state = setFieldValue(formStateFromFlow(verified), 'medium', 'bronze, cast 1916');
   expect(isEdited(state.medium)).toBe(true);

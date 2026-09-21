@@ -48,8 +48,9 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   const [visibilityError, setVisibilityError] = useState<{ next: 'public' | 'private'; message: string }>();
   const isPublic = visit.visibility === 'public';
   const active = isPublic && sharing.acknowledged?.status === 'active';
-  const pendingPrivate = signedIn && !isPublic && visit.syncedAt === null;
-  const privacyPending = (pendingPrivate && sharing.acknowledged?.status === 'active') || visibilityError?.next === 'private' || (changingVisibility && isPublic);
+  // Visits start private, so an unsynced private row only means a pending change once a published version exists.
+  const pendingPrivate = signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === 'active';
+  const privacyPending = pendingPrivate || visibilityError?.next === 'private' || (changingVisibility && isPublic);
   const openSharing = () => router.push(signedIn ? { pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } } : signInRoute('visit', visit.localId));
   async function changeVisibility(next: 'public' | 'private' = isPublic ? 'private' : 'public') {
     const session = captureOwner();

@@ -162,6 +162,16 @@ it('saves a queued photo without asking for details', async () => {
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Unidentified artwork', photoPath: 'photos/photo-only.jpg' });
 });
 
+it('opens the detail fields at once when the person chose to enter details, even for a label capture', async () => {
+  await enqueuePendingScan(row('cap-manual', { status: 'queued', labelPhotoPath: 'labels/cap-manual.jpg' }));
+  await render(<LocalScanScreen localId="cap-manual" manual />);
+  expect(await screen.findByLabelText('Title')).toBeOnTheScreen();
+  expect(mockReplace).not.toHaveBeenCalled();
+  await fireEvent.changeText(screen.getByLabelText('Title'), 'My own entry');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'My own entry' });
+});
+
 it('shows the queued capture as waiting for signal, sends the label offline and saves with optional details', async () => {
   await render(<LocalScanScreen localId="cap-queued" />);
   expect(await screen.findByText(WAITING_TITLE)).toBeOnTheScreen();

@@ -53,9 +53,18 @@ it('renders a known friend row without a relationship query and lets a stranger 
   await render(<><CompactFriendshipControls profileId={'friend' as never} session={ready} friend /><CompactFriendshipControls profileId={'stranger' as never} session={ready} /></>);
   expect(screen.getByText('Friends')).toBeOnTheScreen();
   expect(mockUseFriendship).toHaveBeenCalledTimes(1);
-  expect(mockUseFriendship).toHaveBeenCalledWith('stranger', ready);
+  expect(mockUseFriendship).toHaveBeenCalledWith('stranger', ready, undefined);
   await fireEvent.press(screen.getByRole('button', { name: 'Add' }));
   expect(mockAct).toHaveBeenCalledWith('request');
+});
+
+it('hands a relationship the list already holds to the friendship hook', async () => {
+  const ready = { ...guest, status: 'ready' as const, profileId: 'me' as never };
+  const relationship = { data: { state: 'pending' as const, requesterId: 'me' as never, blocked: false, revision: 1, blockRevision: 0 }, refresh: jest.fn() };
+  mockState = relationship.data;
+  await render(<CompactFriendshipControls profileId={'asked' as never} session={ready} relationship={relationship} />);
+  expect(mockUseFriendship).toHaveBeenCalledWith('asked', ready, relationship);
+  expect(screen.getByRole('button', { name: 'Requested' })).toBeOnTheScreen();
 });
 
 it('refreshes friend lists only after accepting a request succeeds', async () => {

@@ -7,7 +7,7 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { friendshipActions } from '@/lib/social/presentation';
 import type { FriendshipAction, PublicProfile } from '@/lib/social/types';
-import { useFriendship } from '@/lib/social/use-friendship';
+import { useFriendship, type RelationshipSource } from '@/lib/social/use-friendship';
 import type { SocialSession } from '@/lib/social/use-social-session';
 import { socialStyles } from './social-styles';
 import { router } from 'expo-router';
@@ -21,16 +21,18 @@ const labels: Record<FriendshipAction, string> = {
  * The one-line control for list rows. A row the caller already knows is a friend renders without its own
  * relationship subscription, so the Friends list does not open one query per person.
  */
-export function CompactFriendshipControls({ profileId, session, friend = false, onChanged }: { onChanged?: () => void; profileId: PublicProfile['profileId']; session: SocialSession; friend?: boolean }) {
+export function CompactFriendshipControls({ profileId, session, friend = false, relationship, onChanged }: {
+  onChanged?: () => void; profileId: PublicProfile['profileId']; session: SocialSession; friend?: boolean; relationship?: RelationshipSource;
+}) {
   if (profileId === session.profileId) return null;
   if (friend) return <Text style={styles.friends}>Friends</Text>;
   if (session.status === 'signed-out' || session.status === 'profile-required') return <GalleryButton label="Add" variant="outlined" onPress={() => router.push(session.status === 'signed-out' ? signInRoute('friends') : '/create-profile')} />;
   if (session.status !== 'ready') return null;
-  return <CompactFriendshipAction profileId={profileId} session={session} onChanged={onChanged} />;
+  return <CompactFriendshipAction profileId={profileId} session={session} relationship={relationship} onChanged={onChanged} />;
 }
 
-function CompactFriendshipAction({ profileId, session, onChanged }: { onChanged?: () => void; profileId: PublicProfile['profileId']; session: SocialSession }) {
-  const { state, busy, error, act, refresh } = useFriendship(profileId, session);
+function CompactFriendshipAction({ profileId, session, relationship, onChanged }: { onChanged?: () => void; profileId: PublicProfile['profileId']; session: SocialSession; relationship?: RelationshipSource }) {
+  const { state, busy, error, act, refresh } = useFriendship(profileId, session, relationship);
   const action = state?.state === 'pending' ? state.requesterId === session.profileId ? 'cancel' : 'accept' : 'request';
   return <View style={{ alignItems: 'flex-end', maxWidth: 150 }}>
     {state?.state === 'accepted' ? <Text style={styles.friends}>Friends</Text> : <GalleryButton variant="outlined" label={action === 'accept' ? 'Accept' : action === 'cancel' ? 'Requested' : 'Add'} disabled={busy || !state || state.blocked} onPress={() => { void act(action).then((changed) => { if (changed) onChanged?.(); }); }} />}

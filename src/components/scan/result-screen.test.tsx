@@ -745,20 +745,21 @@ it.each(['Title', 'Institution'])('keeps edited %s when a background museum sear
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ [label.toLowerCase()]: 'My own entry' });
 });
 
-it.each(['title', 'date', 'unlock'] as const)('restores the sharing draft after a failed share and reopen (%s)', async (edit) => {
+it.each(['title', 'date', 'revert'] as const)('restores the sharing draft after a failed share and reopen (%s)', async (edit) => {
   results.set('scans:get', { ...missScan, museumSearch: confirmed, labelFlow: verified });
   let fail!: (error: Error) => void;
   jest.mocked(contributeLabel).mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
   jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => { buttons?.find((button) => button.text === 'Edit')?.onPress?.(); });
   const view = await render(result());
   await screen.findByLabelText('Title');
-  if (edit === 'unlock') await fireEvent.changeText(screen.getByLabelText('Title'), 'Blue painting');
-  if (edit !== 'unlock') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
+  if (edit === 'revert') { await fireEvent.changeText(screen.getByLabelText('Title'), 'Blue paintings'); await fireEvent.changeText(screen.getByLabelText('Title'), 'Blue painting'); }
+  if (edit !== 'revert') await fireEvent.changeText(screen.getByLabelText(edit === 'title' ? 'Title' : 'Date'), edit === 'title' ? 'My own title' : '1900');
   await fireEvent.press(screen.getByRole('button', { name: screen.queryByRole('button', { name: 'Retry saving to the shared index' }) ? 'Retry saving to the shared index' : 'Confirm & save' }));
   await screen.findByText('Saving to the shared index…');
   const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
+  if (edit === 'revert') expect(submitted.title).toMatchObject({ value: 'Blue painting', locked: true, unlocked: false });
   await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
-  if (edit !== 'unlock') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
+  if (edit !== 'revert') await publish({ ...missScan, museumSearch: confirmed, labelFlow: {
     ...verified, sourceUrl: edit === 'title' ? undefined : verified.sourceUrl, updatedAt: 3,
     fields: { ...verified.fields, [edit]: { value: submitted[edit].value, evidence: 'ocr', locked: false } },
   } });

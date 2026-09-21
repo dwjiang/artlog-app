@@ -11,9 +11,13 @@ import type { FriendshipAction, Relationship } from './types';
 import type { SocialSession } from './use-social-session';
 import { useSocialQuery } from './use-social-query';
 
-export function useFriendship(profileId: Id<'profiles'>, session: SocialSession) {
+/** A relationship the caller already holds (a browse page embeds one per row), so no per-person subscription opens. */
+export type RelationshipSource = { data: Relationship; refresh: () => void };
+
+export function useFriendship(profileId: Id<'profiles'>, session: SocialSession, source?: RelationshipSource) {
   const enabled = session.status === 'ready' && profileId !== session.profileId;
-  const query = useSocialQuery(api.friendships.getState, enabled ? { profileId } : 'skip', session.key);
+  const own = useSocialQuery(api.friendships.getState, enabled && !source ? { profileId } : 'skip', session.key);
+  const query = source ? { ...source, error: undefined } : own;
   const [confirmed, setConfirmed] = useState<Relationship>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();

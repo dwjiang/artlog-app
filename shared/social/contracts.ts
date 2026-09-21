@@ -7,6 +7,10 @@ export const publicProfile = v.object({
 export const frame = v.union(...(['gilt', 'baroque', 'walnut', 'oak', 'black', 'white', 'mat', 'none'] as const).map(v.literal));
 export const wallLayout = v.object({ x: v.number(), y: v.number(), width: v.number(), layer: v.number(), frame });
 export const relationshipState = v.union(v.literal('none'), v.literal('pending'), v.literal('accepted'));
+export const relationship = v.object({ state: relationshipState, revision: v.number(), requesterId: v.union(v.id('profiles'), v.null()),
+  blocked: v.boolean(), blockRevision: v.number() });
+/** A profile in a browse list, with the viewer's relationship to it when the viewer has a profile of their own. */
+export const browsedProfile = v.object({ ...publicProfile.fields, relationship: v.optional(relationship) });
 export const visitAudience = v.literal('public');
 export const publicationStatus = v.union(v.literal('private'), v.literal('active'));
 export const sharedVisitMediaContext = v.object({ kind: v.literal('sharedVisit'), postId: v.string(), itemId: v.id('sharedVisitItems'), photoLocalId: v.optional(v.string()) });

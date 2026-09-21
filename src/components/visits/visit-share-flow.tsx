@@ -28,7 +28,9 @@ import { ToastLayer } from '../toast';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
 
 type Sharing = ReturnType<typeof useVisitSharing>;
-const ShareContext = createContext<{ sharing: Sharing; visit: VisitSummary } | null>(null);
+type PublishedArtworks = NonNullable<Sharing['preview']>['artworks'];
+// Publishing clears the controller's preview, so the flow keeps the artworks it just published for the success screen.
+const ShareContext = createContext<{ sharing: Sharing; visit: VisitSummary; published?: PublishedArtworks; setPublished: (artworks: PublishedArtworks) => void } | null>(null);
 function useShareFlow() {
   const value = use(ShareContext);
   if (!value) throw new Error('Visit sharing requires a visit');
@@ -45,10 +47,11 @@ export function VisitShareLayout() {
 }
 function ShareProvider({ visit }: { visit: VisitSummary }) {
   const sharing = useVisitSharing(visit.localId, visit.works.map((work) => work.localId));
+  const [published, setPublished] = useState<PublishedArtworks>();
   const generation = useOwnerGeneration();
   const { controller, token } = sharing;
   useEffect(() => { if (visit.owner.startsWith('account:') && token) void controller.load(); }, [controller, token, generation, visit.owner]);
-  return <ShareContext value={{ sharing, visit }}>
+  return <ShareContext value={{ sharing, visit, published, setPublished }}>
     <View style={{ flex: 1 }}>
       <Stack screenOptions={NavigationTheme}>
         <Stack.Screen name="index" options={{ title: 'Share visit', headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} /> }} />
@@ -167,12 +170,16 @@ export function VisitShareScreen() {
     </View>} />;
 }
 export function VisitSharePreviewScreen() {
-  const { sharing, visit } = useShareFlow();
+  const { sharing, visit, setPublished } = useShareFlow();
   const { preview, controller } = sharing;
   const active = sharing.acknowledged?.status === 'active';
   const [publicationError, setPublicationError] = useState<string>();
   const [publishing, setPublishing] = useState(false);
   const submitting = useRef(false);
+  if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
+  // Match the published order, with highlights first.
+  const highlights = sharing.draft?.highlightLocalIds ?? [];
+  const ordered = [...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)), ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId))];
   async function publish() {
     if (submitting.current) return;
     submitting.current = true; setPublishing(true); setPublicationError(undefined);
@@ -180,15 +187,11 @@ export function VisitSharePreviewScreen() {
     const wasPrivate = visit.visibility === 'private';
     try {
       if (wasPrivate) await patchVisit(visit.localId, { visibility: 'public' }, visit.owner);
-      if (await controller.publish()) { router.replace({ pathname: '/visit-share/[visitId]/success', params: { visitId: visit.localId } }); return; }
+      if (await controller.publish()) { setPublished(ordered); router.replace({ pathname: '/visit-share/[visitId]/success', params: { visitId: visit.localId } }); return; }
       if (wasPrivate) await patchVisit(visit.localId, { visibility: 'private' }, visit.owner);
     } catch { setPublicationError('Your visit could not be published. Your selection is kept. Try again.'); }
     finally { submitting.current = false; setPublishing(false); }
   }
-  if (!preview) return <VisitPage><ShareError sharing={sharing} /><VisitMessage action="Back to selection" onAction={() => router.back()}>Refresh the preview before sharing.</VisitMessage></VisitPage>;
-  // Match the published order, with highlights first.
-  const highlights = sharing.draft?.highlightLocalIds ?? [];
-  const ordered = [...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)), ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId))];
   return <><GalleryBackToolbar /><VisitPage>
     <Text style={{ alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 6, paddingVertical: 3 }}>2 · Review your visit</Text>
     <VisitFeedCard author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} notes={preview.reflection}
@@ -213,7 +216,7 @@ function CopyVisitLink({ postId }: { postId: string }) {
 }
 
 export function VisitShareSuccessScreen() {
-  const { sharing, visit } = useShareFlow();
+  const { sharing, visit, published } = useShareFlow();
   const postId = sharing.acknowledged?.postId;
   if (!postId || sharing.acknowledged?.status !== 'active') return <VisitPage><VisitMessage action="Back to selection" onAction={() => router.replace({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>This visit hasn’t been shared yet.</VisitMessage></VisitPage>;
   const artworkCount = sharing.acknowledged.saveLocalIds.length;
@@ -221,7 +224,7 @@ export function VisitShareSuccessScreen() {
     <Text style={styles.title}>A day worth sharing.</Text>
     <Text style={styles.caption}>Your {visit.venueName} visit is now public.</Text>
     <View style={{ gap: 10, paddingBottom: 20 }}>
-      {!!sharing.preview?.artworks.length && <VisitArtworks artworks={sharing.preview.artworks} token={sharing.token} />}
+      {!!published?.length && <VisitArtworks artworks={published} token={sharing.token} />}
       <Text style={share.step}>Public</Text><Text variant="section">{visit.venueName}</Text>
       <Text style={styles.caption}>{formatVisitDate(visit.visitedOn)} · {artworkCount} {artworkCount === 1 ? 'artwork' : 'artworks'}</Text>
     </View>

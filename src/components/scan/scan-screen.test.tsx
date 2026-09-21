@@ -262,6 +262,16 @@ it('keeps the venue and queue controls', async () => {
   expect(screen.getByLabelText('Recent scans, 2 scans')).toBeOnTheScreen();
 });
 
+it('keeps the venue and queue entry points reachable without camera access', async () => {
+  mockGranted = false; mockCanRequest = false; mockPending = 1;
+  await render(<ScanScreen />);
+  expect(screen.getByRole('button', { name: 'Open Settings' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
+  expect(mockPush).toHaveBeenCalledWith('/venue-picker');
+  expect(screen.getByLabelText('Recent scans, 1 scan')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Scan artwork' })).toBeNull();
+});
+
 it('shows corrective guidance and keeps detecting after a camera failure', async () => {
   mockMessage = 'Dodge the glare';
   mockState = { phase: 'retry', source: 'camera', occupied: false, rearm: 'reframe' };

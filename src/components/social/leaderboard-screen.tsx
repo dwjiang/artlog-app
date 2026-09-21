@@ -108,10 +108,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   filters: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: Gallery.paper },
   filterRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
-  subline: { paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  tableHeading: { flexDirection: 'row', gap: 10, paddingTop: 11, paddingBottom: 9, alignItems: 'center' },
-  columnLabel: { fontSize: 13, letterSpacing: 1, color: Gallery.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 60, paddingVertical: 7, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
   ownRow: { backgroundColor: Gallery.highlight, borderRadius: 2, marginHorizontal: 18, paddingHorizontal: 12, marginVertical: 12, borderBottomWidth: 0 },
   rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
@@ -120,7 +117,4 @@ const styles = StyleSheet.create({
   score: { fontSize: 19, lineHeight: 25, fontWeight: '600', color: Gallery.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
   explainer: { paddingHorizontal: 20, paddingTop: 10, gap: 0 },
   explanation: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
-  footerTitle: { color: Gallery.ink, fontSize: 13, fontWeight: '500', lineHeight: 19 },
-  position: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: Gallery.highlight, color: Gallery.ink, borderRadius: 8, fontSize: 13, fontVariant: ['tabular-nums'] },
 });

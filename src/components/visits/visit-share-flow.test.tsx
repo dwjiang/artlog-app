@@ -229,6 +229,26 @@ it('shows success only for a published visit and copies its app link', async () 
   expect(mockDismiss).toHaveBeenCalledTimes(1);
 });
 
+it('shows the artworks it just published on the success screen after the controller clears its preview', async () => {
+  mockPage = 'preview';
+  const media = { kind: 'placeholder', width: 1, height: 1 } as const;
+  mockSharing.draft = { ...mockSharing.draft!, saveLocalIds: ['save', 'lead'], highlightLocalIds: ['lead'] };
+  mockSharing.preview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as never, venue: { name: 'Museum', venueId: 'museum' as never },
+    visitedOn: '2024-02-29', reflection: '', artworks: [
+      { saveLocalId: 'save', artwork: { title: 'Water Lilies', artist: 'Monet', media }, photos: [media] },
+      { saveLocalId: 'lead', artwork: { title: 'Haystacks', artist: 'Monet', media }, photos: [media] }] };
+  mockController.publish.mockResolvedValueOnce(true);
+  const view = await render(<VisitShareLayout />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Publish visit' }));
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/visit-share/[visitId]/success', params: { visitId: 'visit' } });
+  mockPage = 'success'; mockSharing.preview = null;
+  mockSharing.acknowledged = { ...mockSharing.acknowledged!, status: 'active', postId: 'published-post' as never, saveLocalIds: ['save', 'lead'] };
+  await view.rerender(<VisitShareLayout />);
+  await fireEvent(screen.getByTestId('visit-artworks'), 'layout', { nativeEvent: { layout: { width: 350, height: 220, x: 0, y: 0 } } });
+  expect(screen.getAllByRole('image').map((image) => image.props.children)).toEqual(['Haystacks', 'Water Lilies']);
+  expect(screen.getByText(/· 2 artworks$/)).toBeOnTheScreen();
+});
+
 it('does not claim success when the success route opens before publication', async () => {
   mockPage = 'success';
   await render(<VisitShareLayout />);

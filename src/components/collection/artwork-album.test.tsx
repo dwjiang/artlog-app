@@ -70,7 +70,7 @@ it('resets the photo position when an emptied album receives a new photo', async
   await fireEvent.press(screen.getByRole('button', { name: 'Show full photo 2' }));
   mockPhotos = [];
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.queryByRole('button', { name: 'Previous photo' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Show \w+ photo/ })).toBeNull();
   mockPhotos = initialPhotos.slice(0, 1);
   await view.rerender(<ArtworkAlbum work={work} />);
   expect(screen.getByText('Museum view 1')).toBeOnTheScreen();

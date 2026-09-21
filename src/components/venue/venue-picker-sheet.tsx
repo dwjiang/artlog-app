@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { ArtworkPreviews } from '@/components/visits/visit-ui';
-import { Colors, Gallery, Radius, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { useVisits } from '@/lib/journal/use-visits';
 import { formatVisitStart } from '@/lib/journal/use-visit-works';
 import { formatDistance } from '@/lib/venue/resolve';
@@ -161,20 +161,10 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
 const styles = StyleSheet.create({
   container: { flexGrow: 0, backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, gap: Spacing.three },
-  confirmationContent: { paddingTop: Spacing.five, gap: Spacing.four },
-  heading: { gap: Spacing.two },
-  placeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, backgroundColor: Gallery.fill, borderRadius: Radius.card, borderCurve: 'continuous' },
-  placeIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.highlight, borderRadius: Radius.card, borderCurve: 'continuous' },
-  placeSymbol: { width: 26, height: 26 },
-  actions: { gap: Spacing.two },
-  loadingTitle: { textAlign: 'center' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: 'uppercase' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.success },
   option: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three },
   unselectedOption: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
-  selectedOption: { backgroundColor: Gallery.highlight, borderWidth: 1, borderColor: Gallery.ink },
-  pressedOption: { opacity: 0.6 },
   optionText: { flex: 1, gap: Spacing.half },
-  selectedLabel: { fontWeight: '600' },
 });

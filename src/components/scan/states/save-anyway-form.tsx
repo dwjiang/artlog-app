@@ -12,6 +12,8 @@ import { GalleryButton } from '@/components/collection/gallery-button';
 
 export type SaveAnywayFormProps = {
   compact?: boolean;
+  /** Opens the detail fields at once, for a card the person reached by asking to enter details. */
+  initiallyEditing?: boolean;
   captureInput?: Omit<SaveResultInput, 'draft'>;
   saving: boolean;
   savedId?: string;
@@ -22,9 +24,9 @@ export type SaveAnywayFormProps = {
 };
 
 /** Blank fields for a card that names no work yet; the title the user types is what gets saved. */
-export function SaveAnywayForm({ compact = false, captureInput, saving, savedId, saveError, onSave, onViewSaved, onDraftChange }: SaveAnywayFormProps) {
+export function SaveAnywayForm({ compact = false, initiallyEditing = false, captureInput, saving, savedId, saveError, onSave, onViewSaved, onDraftChange }: SaveAnywayFormProps) {
   const [draft, setDraft] = useState(() => draftFromCandidate());
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initiallyEditing);
   const editable = !saving && !savedId;
   const saveBar = <SaveBar
     saveLabel={Object.values(draft).some((value) => value.trim()) ? 'Save to collection' : 'Save photo for later'}

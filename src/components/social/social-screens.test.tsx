@@ -326,6 +326,21 @@ it('waits for completed discovery before inviting a first scan', async () => {
   expect(mockPush).toHaveBeenLastCalledWith('/scan');
 });
 
+it('renders Explore rows from the relationship embedded in each page instead of one friendship query per person', async () => {
+  const person = (profileId: string, relationship: object) => ({ profileId: profileId as never, name: profileId, username: profileId, publishedWallCount: 0, relationship });
+  mockPages.mockReturnValue(pages({ items: [
+    person('friend', { state: 'accepted', revision: 3, requesterId: null, blocked: false, blockRevision: 0 }),
+    person('asked', { state: 'pending', revision: 1, requesterId: 'viewer', blocked: false, blockRevision: 0 }),
+    person('stranger', { state: 'none', revision: 0, requesterId: null, blocked: false, blockRevision: 0 }),
+  ] }));
+  mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
+  await render(<PeopleScreen />);
+  expect(screen.getByRole('button', { name: 'Requested' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Add' })).toBeOnTheScreen();
+  expect(screen.getAllByRole('button', { name: /^(Add|Requested|Accept)$/ })).toHaveLength(2);
+  expect(mockQuery.mock.calls.filter((call) => getFunctionName(call[0]) === 'friendships:getState').map((call) => call[1])).toEqual(['skip', 'skip']);
+});
+
 it('keeps discovery search available when a member has no friends', async () => {
   mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
   await render(<PeopleScreen />);

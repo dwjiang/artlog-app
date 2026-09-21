@@ -11,7 +11,7 @@ import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { PendingScan } from '@/db/schema';
-import { canSaveLabel, canShareLabel, setFieldValue, unlockField } from '@/lib/label/fields';
+import { canSaveLabel, canShareLabel, setFieldValue } from '@/lib/label/fields';
 import { useLabelForm } from '@/lib/label/use-label-form';
 import type { MuseumSearchStage } from '@/lib/museum-search/flow';
 import type { MuseumSearchController } from '@/lib/museum-search/use-museum-search';
@@ -68,8 +68,7 @@ function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: Labe
       <ThemedText type="subtitle">{"Found on the museum's site"}</ThemedText>
       {flow.sourceUrl && <SourceChip label="Museum page" url={flow.sourceUrl} />}
       <VerifiedFieldsForm state={form} warnings={flow.warnings} editable={!saving && !sharing && !shared && !savedId}
-        onChange={(name, value) => setForm((current) => current && setFieldValue(current, name, value))}
-        onUnlock={(name) => setForm((current) => current && unlockField(current, name))} />
+        onChange={(name, value) => setForm((current) => current && setFieldValue(current, name, value))} />
       {capture && !savedId && <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />}
       <LabelActions canSave={canSaveLabel(form)} allowContribution={!!contribution} saving={saving} sharing={sharing}
         savedId={savedId} completion={completion} shared={shared} saveError={saveError} shareError={shareError}

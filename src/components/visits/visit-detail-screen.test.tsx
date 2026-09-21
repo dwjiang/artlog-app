@@ -173,6 +173,14 @@ it('keeps a private visit readable and offers sharing without changing its visib
   expect(save).not.toHaveBeenCalled();
 });
 
+it('does not call a new unsynced private visit a pending privacy change', async () => {
+  mockVisit.owner = 'account:test-account'; mockVisit.visibility = 'private'; mockVisit.syncedAt = null;
+  await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
+  expect(screen.getByText('Private visit')).toBeOnTheScreen();
+  expect(screen.getByText('You choose what to share before anything is published.')).toBeOnTheScreen();
+  expect(screen.queryByText(/waiting to sync/i)).toBeNull();
+});
+
 it('does not claim a published visit is private while its privacy change is awaiting sync', async () => {
   mockVisit.owner = 'account:test-account';
   mockVisit.visibility = 'private';

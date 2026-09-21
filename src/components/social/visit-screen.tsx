@@ -157,8 +157,6 @@ const styles = StyleSheet.create({
   reflection: { fontFamily: Fonts.serif, fontSize: 26, lineHeight: 34, color: Gallery.ink, marginBottom: 20 },
   galleryHeader: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, marginTop: 2, paddingTop: 15, paddingBottom: 12 },
   sectionTitle: { ...Typography.section, color: Gallery.ink, alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 5 },
-  banner: { paddingVertical: 6, marginHorizontal: -20, marginBottom: 16, backgroundColor: Gallery.highlight, alignItems: 'center' },
-  bannerTitle: { ...Typography.section, fontSize: 16, lineHeight: 22, color: Gallery.ink },
   previewFooter: { paddingHorizontal: 20, borderTopWidth: 0.5, borderColor: Gallery.separator, backgroundColor: Gallery.paper },
   empty: { gap: 7, paddingVertical: 24 },
   photoPlaceholder: { color: Gallery.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', padding: 5 },

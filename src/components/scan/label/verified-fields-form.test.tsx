@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { LabelFlowDisplay } from '../../../../convex/lib/validators';
 
 import { VerifiedFieldsForm } from './verified-fields-form';
-import { formStateFromFlow, unlockField } from '@/lib/label/fields';
+import { formStateFromFlow } from '@/lib/label/fields';
 
 jest.mock('@/components/collection/gallery-button');
 jest.mock('@expo/ui', () => {
@@ -24,31 +24,16 @@ const flow: LabelFlowDisplay = {
     date: { value: '1990', evidence: 'weak', locked: false },
   },
 };
-const handlers = { onChange: jest.fn(), onUnlock: jest.fn() };
+const handlers = { onChange: jest.fn() };
 
 beforeEach(() => jest.clearAllMocks());
 afterEach(() => jest.restoreAllMocks());
 
-it('allows direct editing and downgrades verified evidence before applying an edit', async () => {
+it('lets verified fields be edited directly and reports each keystroke by field', async () => {
   await render(<VerifiedFieldsForm state={formStateFromFlow(flow)} warnings={flow.warnings} editable {...handlers} />);
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
+  expect(screen.getByLabelText('Date').props.editable).toBe(true);
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
-  expect(handlers.onUnlock).toHaveBeenCalledWith('title');
-  expect(handlers.onChange).toHaveBeenCalledWith('title', 'Nymphéas');
-  expect(handlers.onUnlock.mock.invocationCallOrder[0]).toBeLessThan(handlers.onChange.mock.invocationCallOrder[0]);
-});
-
-it('keeps verified evidence while the typed value still matches the verified one', async () => {
-  await render(<VerifiedFieldsForm state={formStateFromFlow(flow)} warnings={[]} editable {...handlers} />);
-  await fireEvent.changeText(screen.getByLabelText('Title'), 'Water Lilies ');
-  expect(handlers.onUnlock).not.toHaveBeenCalled();
-  expect(handlers.onChange).toHaveBeenCalledWith('title', 'Water Lilies ');
-});
-
-it('edits an already unlocked field without downgrading it again', async () => {
-  await render(<VerifiedFieldsForm state={unlockField(formStateFromFlow(flow), 'title')} warnings={[]} editable {...handlers} />);
-  await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
-  expect(handlers.onUnlock).not.toHaveBeenCalled();
   expect(handlers.onChange).toHaveBeenCalledWith('title', 'Nymphéas');
 });
 

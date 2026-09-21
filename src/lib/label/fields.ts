@@ -18,10 +18,12 @@ export const WARNING_MESSAGES: Record<LabelWarning, string> = {
 
 export type FieldState = {
   value: string;
-  /** The verifier's value; the field counts as edited once it differs or the lock was opened. */
+  /** The verifier's value; the field counts as edited while its value differs from it. */
   original: string;
   evidence?: LabelEvidence;
+  /** Verified and still matching the verifier's value. */
   locked: boolean;
+  /** Verified, but the value has diverged; typing the original back restores the lock. */
   unlocked: boolean;
 };
 export type LabelFormState = Record<LabelFieldName, FieldState>;
@@ -42,8 +44,12 @@ export function unlockField(state: LabelFormState, name: LabelFieldName): LabelF
   return { ...state, [name]: { ...state[name], locked: false, unlocked: true } };
 }
 
+/** A verified field's lock follows its value, so a typo that is corrected does not leave the field downgraded. */
 export function setFieldValue(state: LabelFormState, name: LabelFieldName, value: string): LabelFormState {
-  return { ...state, [name]: { ...state[name], value } };
+  const field = state[name];
+  const verified = field.locked || field.unlocked;
+  const diverged = value.trim() !== field.original;
+  return { ...state, [name]: { ...field, value, locked: verified && !diverged, unlocked: verified && diverged } };
 }
 
 export function isEdited(field: FieldState): boolean {

@@ -42,6 +42,4 @@ const styles = StyleSheet.create({
   footnote: { color: Gallery.muted, fontSize: 12, lineHeight: 18 },
   actions: { gap: 8, alignItems: 'flex-start' },
   symbol: { width: 76, height: 76, borderRadius: 38, backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center' },
-  search: { padding: 28, gap: 16, alignItems: 'center' },
-  center: { textAlign: 'center' },
 });

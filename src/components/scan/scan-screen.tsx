@@ -92,16 +92,7 @@ export function ScanScreen() {
           onStopped={() => setCameraReady(false)}
           onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
-      <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
-        <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
-          <View pointerEvents="box-none" style={styles.topRow}>
-            {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
-            <QueueBadge />
-          </View>
-          {cameraError && !message && !busy && <View accessible accessibilityRole="alert">
-            <OverlayCaption>{cameraError}</OverlayCaption>
-          </View>}
-        </View>
+      <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
@@ -129,6 +120,18 @@ export function ScanScreen() {
         </View>
       </View>
       </CameraPermission>
+      {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
+      <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
+        <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
+          <View pointerEvents="box-none" style={styles.topRow}>
+            {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
+            <QueueBadge />
+          </View>
+          {cameraError && !message && !busy && <View accessible accessibilityRole="alert">
+            <OverlayCaption>{cameraError}</OverlayCaption>
+          </View>}
+        </View>
+      </View>
       {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
       {help && <WallSheet title="Camera tips" tall presented={help === 'open'} onDismiss={() => setHelp((current) => current === 'import' ? current : undefined)}
         onDismissed={() => { setHelp(undefined); if (help === 'import') void capture.importPhoto(); }}>
@@ -146,14 +149,14 @@ export function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Gallery.paper },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.content },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', paddingHorizontal: Spacing.content },
+  topLayer: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.content },
   top: { gap: Spacing.three },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shutter: { width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: 3, borderColor: Colors.light.overlayText, padding: 4 },
   shutterInner: { flex: 1, borderRadius: SHUTTER_SIZE / 2, backgroundColor: Colors.light.overlayText },
-  controlsSpacer: { width: IMPORT_SIZE },
   importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
   importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   importIcon: { width: 24, height: 24 },

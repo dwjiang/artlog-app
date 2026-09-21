@@ -81,8 +81,6 @@ const styles = StyleSheet.create({
   thumbnails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   thumbnail: { width: 84, height: 54, padding: 3, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.fill },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  arrow: { minWidth: 32, minHeight: 28, alignItems: 'center', justifyContent: 'center' },
-  arrowText: { color: Gallery.ink, fontSize: 24 },
   title: { fontSize: 18, lineHeight: 22, color: Gallery.ink, fontWeight: '500' },
   medium: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
 });
