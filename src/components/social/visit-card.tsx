@@ -17,7 +17,7 @@ export function ProfileIdentity({ profile, interactive = true, showChevron = fal
     <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
     <View style={{ flex: 1, gap: 2 }}>
       <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
-      <Text style={socialStyles.caption}>@{profile.username}{!showChevron ? ` · ${profile.publishedWallCount} artworks` : ''}</Text>
+      <Text style={socialStyles.caption}>@{profile.username}</Text>
     </View>
     {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
     {showChevron && <Text style={{ color: Gallery.muted }} accessible={false}>›</Text>}
@@ -33,20 +33,20 @@ const aspect = ({ media }: { media: SharedArtwork['artwork']['media'] }) => medi
 type Candidate = { key: string; media: SharedArtwork['artwork']['media']; title: string };
 
 /** One slot per leading artwork, so every ranked highlight appears; spare slots take their extra selected photos. */
-function previewCandidates(artworks: SharedArtwork[]): Candidate[] {
+function previewCandidates(artworks: (Pick<SharedArtwork, 'artwork' | 'photos'> & { itemId?: string })[]): Candidate[] {
   const shown = artworks.slice(0, 3);
   const candidates: Candidate[] = [];
   shown.forEach(({ itemId, artwork, photos }, index) => {
     const reserved = shown.length - index - 1;
     const limit = Math.max(1, 3 - candidates.length - reserved);
     (photos?.length ? photos : [artwork.media]).slice(0, limit).forEach((media, photo) =>
-      candidates.push({ key: `${itemId}:${photo}`, media, title: photo ? `${artwork.title}, photo ${photo + 1}` : artwork.title }));
+      candidates.push({ key: `${itemId ?? index}:${photo}`, media, title: photo ? `${artwork.title}, photo ${photo + 1}` : artwork.title }));
   });
   return candidates;
 }
 
 /** Fit selected photos into an equal-height row while preserving each photo's proportions. */
-export function VisitArtworks({ artworks, token, compact = false }: { artworks: SharedArtwork[]; token?: string | null; compact?: boolean }) {
+export function VisitArtworks({ artworks, token, compact = false }: { artworks: (Pick<SharedArtwork, 'artwork' | 'photos'> & { itemId?: string })[]; token?: string | null; compact?: boolean }) {
   const [width, setWidth] = useState(0);
   const candidates = previewCandidates(artworks);
   const fit = (count: number) => (width - GAP * (count - 1)) / candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
@@ -62,38 +62,41 @@ export function VisitArtworks({ artworks, token, compact = false }: { artworks: 
   </View>;
 }
 
-/** `showAuthor` is off on the author's own profile, where the identity row would repeat the page and push it again. */
 export function VisitCard({ visit, token, showAuthor = true }: { visit: SharedVisit; token?: string | null; showAuthor?: boolean }) {
   const router = useRouter();
-  const { fontScale } = useWindowDimensions();
   const openVisit = () => router.push({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
   const openProfile = () => router.push({ pathname: '/profile/[profileId]', params: { profileId: visit.author.profileId } });
-  const count = visit.artworkCount ?? visit.artworks.page.length;
-  const countLabel = `${count}${visit.artworkCount === undefined && !visit.artworks.isDone ? '+' : ''} ${count === 1 && visit.artworkCount !== undefined ? 'artwork' : 'artworks'}`;
   const openMenu = () => ActionSheetIOS.showActionSheetWithOptions(
     { options: ['View visit', `View ${visit.author.name}’s profile`, 'Cancel'], cancelButtonIndex: 2 },
     (index) => { if (index === 0) openVisit(); else if (index === 1) openProfile(); });
-  const date = <Text accessibilityLabel={visitDate(visit.visitedOn)} style={styles.feedDate}>{visitDate(visit.visitedOn, undefined, 'short')}{visit.venue.city ? ` · ${visit.venue.city}` : ''}</Text>;
-  return <View style={styles.card}>
+  return <VisitFeedCard author={visit.author} venue={visit.venue} visitedOn={visit.visitedOn} notes={visit.reflection}
+    artworks={visit.artworks.page} artworkCount={visit.artworkCount} hasMore={!visit.artworks.isDone} token={token} showAuthor={showAuthor}
+    onOpenVisit={openVisit} onOpenProfile={openProfile} onOpenMenu={openMenu} />;
+}
+
+export function VisitFeedCard({ author, venue, visitedOn, notes, artworks, artworkCount, hasMore = false, token, showAuthor = true, inset = true, onOpenVisit, onOpenProfile, onOpenMenu }: {
+  author: Pick<PublicProfile, 'name' | 'photoUrl'>; venue: { name: string; city?: string }; visitedOn: string; notes: string;
+  artworks: (Pick<SharedArtwork, 'artwork' | 'photos'> & { itemId?: string })[]; artworkCount?: number; hasMore?: boolean; token?: string | null;
+  showAuthor?: boolean; inset?: boolean; onOpenVisit?: () => void; onOpenProfile?: () => void; onOpenMenu?: () => void;
+}) {
+  const { fontScale } = useWindowDimensions();
+  const count = artworkCount ?? artworks.length;
+  const photoCount = artworks.reduce((sum, item) => sum + (item.photos?.length ?? 0), 0);
+  const countLabel = `${count}${artworkCount === undefined && hasMore ? '+' : ''} ${count === 1 && (artworkCount !== undefined || !hasMore) ? 'artwork' : 'artworks'}`;
+  const date = <Text accessibilityLabel={visitDate(visitedOn)} style={styles.feedDate}>{visitDate(visitedOn, undefined, 'short')}{venue.city ? ` · ${venue.city}` : ''}</Text>;
+  const identity = <><ProfileAvatar name={author.name} photoUrl={author.photoUrl} size={40} /><View style={{ flex: 1, gap: 1 }}><Text style={styles.feedName}>{author.name}</Text>{date}</View></>;
+  const art = <VisitArtworks artworks={artworks} token={token} compact />;
+  return <View style={[styles.card, !inset && { marginHorizontal: 0 }]}>
     {showAuthor ? <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: 'column' }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s profile`} onPress={openProfile}
-        style={[styles.feedIdentity, fontScale > 1.4 && { flex: 0, width: '100%' }]}>
-        <ProfileAvatar name={visit.author.name} photoUrl={visit.author.photoUrl} size={40} />
-        <View style={{ flex: 1, gap: 1 }}>
-          <Text style={styles.feedName}>{visit.author.name}</Text>
-          {date}
-        </View>
-      </Pressable>
-      <GalleryIconButton icon="ellipsis" label="More options" onPress={openMenu} />
+      {onOpenProfile ? <Pressable accessibilityRole="button" accessibilityLabel={`View ${author.name}’s profile`} onPress={onOpenProfile} style={styles.feedIdentity}>{identity}</Pressable> : <View style={styles.feedIdentity}>{identity}</View>}
+      {onOpenMenu ? <GalleryIconButton icon="ellipsis" label="More options" onPress={onOpenMenu} /> : <Text style={styles.feedMeta} accessible={false}>···</Text>}
     </View> : <View style={styles.feedHeading}>{date}</View>}
-    {!!visit.artworks.page.length && <Pressable accessibilityRole="button" accessibilityLabel={`View ${visit.author.name}’s visit to ${visit.venue.name}`} onPress={openVisit}>
-      <VisitArtworks artworks={visit.artworks.page} token={token} compact />
-    </Pressable>}
-    <Text selectable style={styles.feedMuseum}>{visit.venue.name}</Text>
-    {!!visit.reflection && <Text selectable style={styles.notes}>{visit.reflection}</Text>}
+    {!!artworks.length && (onOpenVisit ? <Pressable accessibilityRole="button" accessibilityLabel={`View ${author.name}’s visit to ${venue.name}`} onPress={onOpenVisit}>{art}</Pressable> : art)}
+    <Text selectable style={styles.feedMuseum}>{venue.name}</Text>
+    {!!notes && <Text selectable style={styles.notes}>{notes}</Text>}
     <View style={styles.actions}>
-      <Text style={styles.feedMeta}>{countLabel}</Text>
-      <GalleryButton label="View visit" icon="arrow.right" iconPosition="trailing" onPress={openVisit} />
+      <Text style={styles.feedMeta}>{countLabel}{photoCount > 0 ? ` · ${photoCount}${hasMore ? '+' : ''} ${photoCount === 1 && !hasMore ? 'photo' : 'photos'}` : ''}</Text>
+      {onOpenVisit ? <GalleryButton label="View visit" icon="arrow.right" iconPosition="trailing" onPress={onOpenVisit} /> : <Text style={{ ...Typography.metadata, color: Gallery.accent }}>View visit →</Text>}
     </View>
   </View>;
 }
@@ -108,7 +111,7 @@ const styles = StyleSheet.create({
   feedMeta: { ...Typography.metadata, color: Gallery.muted },
   notes: { ...Typography.secondary, color: Gallery.ink, marginBottom: 2 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
-  name: { ...Typography.section, color: Gallery.ink },
+  name: { ...Typography.secondary, fontWeight: '600', color: Gallery.ink },
   strip: { flexDirection: 'row', alignItems: 'center', backgroundColor: Gallery.paper },
   actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 4 },
 });

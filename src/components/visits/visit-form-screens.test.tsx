@@ -33,24 +33,24 @@ async function fill() {
 }
 it('creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and notes', async () => {
   const first = await render(<VisitCreateScreen />);
-  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: /Public notes|Private notes/ })).toBeNull();
   await fill();
   await fireEvent.changeText(screen.getByLabelText('Notes'), 'Private memory');
-  await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
   expect(screen.queryByRole('alert')).toBeNull();
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   const firstVisit = (await listVisits())[0];
   expect(firstVisit).toMatchObject({ visitedOn: '2024-02-29', timeZone: 'America/New_York', reflection: 'Private memory' });
   await first.unmount();
-  await render(<VisitCreateScreen />); await fill(); await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  await render(<VisitCreateScreen />); await fill(); await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
   const repeats = await listVisits();
   expect(repeats).toHaveLength(2); expect(new Set(repeats.map((row) => row.localId)).size).toBe(2);
 });
 it('rejects future dates and clears form drafts when the owner changes', async () => {
   await render(<VisitCreateScreen />); await fill();
   await fireEvent.changeText(screen.getByLabelText('Visit date'), '2099-01-01T12:00:00');
-  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText('Notes'), 'Secret');
   await act(() => switchOwner('account:other', 'scope-other'));
   expect(screen.getByLabelText('Notes')).toHaveProp('value', '');
@@ -64,13 +64,13 @@ it('moves the default date back to the museum day when the device is already on 
   await fireEvent.press(await screen.findByRole('button', { name: 'Island Museum, Niue' }));
   expect(screen.getByLabelText('Visit date')).toHaveProp('value', pickerDate('2026-09-15').toISOString());
   expect(screen.queryByRole('alert')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Add visit' })).toBeEnabled();
 });
 it('creates a linked visit and returns to that artwork in its new visit context', async () => {
   mockSavedId = 'linked-work';
   await insertSavedWork({ localId: mockSavedId, title: 'Garden', artist: 'Artist', savedAt: 1 });
   await render(<VisitCreateScreen />); await fill();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
   await waitFor(() => expect(mockDismissTo).toHaveBeenCalled());
   const { params } = mockDismissTo.mock.calls[0][0];
   expect(params.savedId).toBe(mockSavedId);
@@ -105,7 +105,7 @@ describe('a museum our table does not know', () => {
     expect(await screen.findByRole('button', { name: 'Change museum' })).toBeOnTheScreen();
     expect(screen.getByText('Fraenkel Gallery')).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByLabelText('Visit date'), '2024-02-29T12:00:00');
-    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
     await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
     expect((await listVisits()).find((row) => row.venueId === 'id-fraenkel')).toMatchObject({ venueName: 'Fraenkel Gallery', visitedOn: '2024-02-29', timeZone: 'America/Los_Angeles' });
   });
@@ -140,6 +140,6 @@ describe('a museum our table does not know', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Fraenkel Gallery, San Francisco, United States' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/This museum could not be added\./);
     expect(screen.getByLabelText('Search museums')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled();
   });
 });

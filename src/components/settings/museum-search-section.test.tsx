@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import type { ReactNode } from 'react';
 
 import { MUSEUM_SEARCH_SETTING } from './museum-search-section';
+import { SEARCH_CONSENT_TITLE } from '@/components/scan/result/search-consent-sheet';
 import { runMuseumSearch } from '@/lib/museum-search/flow';
 import { SettingsDetailScreen } from './settings-detail-screen';
 import * as museumSearch from '@/lib/settings/museum-search';
@@ -39,9 +40,9 @@ it('mounts the privacy control in Settings and requires consent before enabling 
   await waitFor(() => expect(toggle).toBeEnabled());
   expect(toggle).not.toBeChecked();
   await fireEvent.press(toggle);
-  expect(await screen.findByText("Search this museum's collection?")).toBeOnTheScreen();
+  expect(await screen.findByText(SEARCH_CONSENT_TITLE)).toBeOnTheScreen();
   expect(await getMuseumSearchConsent()).toBe('unset');
-  await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Search this museum' }));
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   expect(await getMuseumSearchConsent()).toBe('granted');
 });
@@ -69,7 +70,7 @@ it('persists off as declined through a remount and keeps cancellation off', asyn
   expect(await getMuseumSearchConsent()).toBe('declined');
   expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
   await fireEvent.press(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Search' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Search this museum' }));
   await waitFor(() => expect(screen.getByRole('switch', { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
 });
 

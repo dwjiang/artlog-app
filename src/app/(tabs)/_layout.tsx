@@ -1,21 +1,18 @@
 import { useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { VisitBar } from '@/components/visits/visit-bar';
 import { TabBarVisibility } from '@/components/tab-bar-visibility';
-import { Gallery } from '@/constants/theme';
+import { BottomTabInset, Gallery } from '@/constants/theme';
 import { useVenue } from '@/lib/venue/use-venue';
 import { activeVisit } from '@/lib/venue/venue-reducer';
 
 export const unstable_settings = {
   anchor: '(home)',
 };
-
-function VisitAccessory() {
-  const placement = NativeTabs.BottomAccessory.usePlacement();
-  return <VisitBar compact={placement === 'inline'} />;
-}
 
 type RouteState = { index?: number; routes: { name: string; state?: RouteState }[] };
 
@@ -40,6 +37,7 @@ function useSelectedTab(): string | undefined {
 }
 
 export default function TabsLayout() {
+  const { bottom } = useSafeAreaInsets();
   const [hidden, setHidden] = useState(false);
   const { venue, visit } = useVenue();
   const selectedTab = useSelectedTab();
@@ -47,8 +45,8 @@ export default function TabsLayout() {
   const showVisitBar = !!activeVisit({ venue, visit }) && selectedTab !== '(scan)' && !hidden;
   return (
     <TabBarVisibility value={setHidden}>
-    <NativeTabs hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
-      {showVisitBar && <NativeTabs.BottomAccessory><VisitAccessory /></NativeTabs.BottomAccessory>}
+    <View style={{ flex: 1 }}>
+    <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
       <NativeTabs.Trigger name="(home)">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
@@ -64,6 +62,8 @@ export default function TabsLayout() {
         />
       </NativeTabs.Trigger>
     </NativeTabs>
+    {showVisitBar && <View pointerEvents="box-none" style={{ position: 'absolute', left: 20, right: 20, bottom: bottom + BottomTabInset + 12 }}><VisitBar /></View>}
+    </View>
     </TabBarVisibility>
   );
 }

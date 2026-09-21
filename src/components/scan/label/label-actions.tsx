@@ -39,8 +39,8 @@ export function LabelActions({
         </Pressable>
       ) : (
         <>
-          <GalleryButton label="Save to collection" variant="filled" fullWidth busy={saving} busyLabel="Saving…" disabled={!canSave || saving} onPress={onSave} />
-          <ThemedText type="small" themeColor="textSecondary">{allowContribution ? SHARING_NOTICE : 'Save privately to your collection.'}</ThemedText>
+          <View style={{ padding: 14, backgroundColor: '#F0F1E8', borderRadius: 8 }}><ThemedText type="small">{allowContribution ? SHARING_NOTICE : 'Save privately to your collection.'}</ThemedText></View>
+          <GalleryButton label="Confirm & save" variant="filled" fullWidth busy={saving} busyLabel="Saving…" disabled={!canSave || saving} onPress={onSave} />
           {!canSave && <ThemedText type="small" themeColor="textSecondary">Add a title to save this work.</ThemedText>}
           {saveError && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{saveError}</ThemedText>}
         </>

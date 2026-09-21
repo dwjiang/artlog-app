@@ -3,7 +3,7 @@ import { isNetworkError } from '@/lib/network-error';
 const CAPTURE_CODES = new Set(['bad_features', 'bad_vector', 'bad_dimension', 'bad_descriptors', 'bad_candidates']);
 const SESSION_CODES = new Set(['unauthenticated', 'device_not_registered', 'device_not_attested']);
 
-export const FAILED_TITLE = 'Couldn’t identify this painting';
+export const FAILED_TITLE = 'The story can wait.';
 
 /** Product voice for a scan the server could not identify; error codes and transport messages never reach the card raw. */
 export function failureCopy(error?: string | null): string {

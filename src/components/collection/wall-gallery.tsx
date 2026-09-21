@@ -66,12 +66,12 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
         <View style={{ outlineColor: Gallery.accent, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
           <WallArtwork piece={piece} width={layout.width * width} />
         </View>
-        {layout.width * width >= 78 && <View style={styles.label}>
+        <View style={styles.label}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>{piece.artwork.artist}</Text>
-            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>{piece.artwork.title}</Text>
+            <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>{piece.artwork.artist}</Text>
+            <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>{piece.artwork.title}</Text>
           </View>
-        </View>}
+        </View>
       </Pressable>
       {editing && selected && <>
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${piece.artwork.title} from wall`} onPress={() => onRemove?.(piece.localId)}

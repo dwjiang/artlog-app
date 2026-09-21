@@ -1,7 +1,7 @@
-import { SearchEmptyState } from '../empty-state';
+import { EmptyState, EmptySymbol, SearchEmptyState } from '../empty-state';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, Typography } from '@/constants/theme';
 import { captureOwner, useOwnerGeneration } from '@/lib/account/owner-store';
@@ -56,7 +56,9 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const [visibilityError, setVisibilityError] = useState<{ next: 'public' | 'private'; message: string }>();
   const isPublic = (endingVisit ? draftVisibility : visit.visibility) === 'public';
   const active = isPublic && sharing.acknowledged?.status === 'active';
-  const pendingPrivate = !endingVisit && signedIn && !isPublic && visit.syncedAt === null;
+  // Visits start private, so an unsynced private row only means a pending change once a published version exists.
+  const pendingPrivate = !endingVisit && signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === 'active';
+  const privacyPending = pendingPrivate || visibilityError?.next === 'private' || (changingVisibility && isPublic);
   const openSharing = () => router.push(signedIn ? { pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } } : signInRoute('visit', visit.localId));
   async function changeVisibility(next: 'public' | 'private' = isPublic ? 'private' : 'public') {
     const session = captureOwner();
@@ -111,29 +113,32 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     <Stack.Screen options={{ title: '' }} />
     <Stack.Toolbar placement="right"><Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Visit options" hidesSharedBackground tintColor={Gallery.ink}>
       <Stack.Toolbar.MenuAction icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })}>Link artwork</Stack.Toolbar.MenuAction>
+      {!endingVisit && <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={openSharing}>Prepare shared visit</Stack.Toolbar.MenuAction>}
+      {isPublic && <Stack.Toolbar.MenuAction icon="lock" destructive disabled={changingVisibility || sharing.busy} onPress={() => Alert.alert('Make this visit private?', 'Its shared version will be removed from profiles and feeds once the change syncs. Your artworks and notes stay in your collection.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Make private', style: 'destructive', onPress: () => { void changeVisibility('private'); } }])}>Make private</Stack.Toolbar.MenuAction>}
       {active && <Stack.Toolbar.MenuAction icon="globe"
         onPress={() => router.push({ pathname: '/visit-share/[visitId]/shared', params: { visitId: visit.localId } })}>View shared version</Stack.Toolbar.MenuAction>}
     </Stack.Toolbar.Menu></Stack.Toolbar>
     <View style={styles.page}>
       <VisitPage>
         {saveError && <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text>}
-        {visibilityError && <View style={{ gap: 8 }}>
+        {visibilityError && <View style={{ gap: 8, padding: 14, backgroundColor: '#FFF4DE', borderLeftWidth: 3, borderLeftColor: Gallery.warning }}>
           <Text accessibilityRole="alert" style={styles.error}>{visibilityError.message}</Text>
           <GalleryButton label="Retry visibility" disabled={changingVisibility} onPress={() => { void changeVisibility(visibilityError.next); }} />
         </View>}
         {sharing.error && <Text accessibilityRole="alert" style={styles.error}>{sharing.error}</Text>}
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 8 }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>{privacyPending ? 'Privacy change pending' : isPublic ? 'Public visit' : 'Private visit'}</Text>
           <Text selectable accessibilityRole="header" style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}>{visit.venueName}</Text>
           <Text selectable style={styles.caption}>{formatVisitDate(visit.visitedOn)}{visit.location ? ` · ${visit.location}` : ''}</Text>
         </View>
-        {pendingPrivate && sharing.acknowledged?.status === 'active' &&
-          <Text style={styles.caption}>Waiting to sync. The published visit is still visible.</Text>}
+        {privacyPending && !visibilityError && <View style={{ padding: 14, backgroundColor: '#FFF4DE', borderLeftWidth: 3, borderLeftColor: Gallery.warning }}><Text style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}>Waiting to sync. The published visit is still visible.</Text></View>}
         <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
         <View>
           <View style={styles.sectionLabel}>
-            <Text accessibilityRole="header" style={detail.sectionTitle}>{visit.works.length} {visit.works.length === 1 ? 'artwork' : 'artworks'} saved</Text>
+            <Text accessibilityRole="header" style={detail.sectionTitle}>{visit.works.length ? `${visit.works.length} ${visit.works.length === 1 ? 'artwork' : 'artworks'} saved` : 'Your artworks'}</Text>
+            {!!visit.works.length && <GalleryButton label="Link artwork" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />}
           </View>
-          {visit.works.length > 0 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+          {visit.works.length > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: 13, rowGap: 20, paddingTop: 4 }}>
             {filtered.map((work) => {
               const album = photos.data.filter((photo) => photo.owner === visit.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId);
@@ -144,13 +149,12 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             })}
           </View>
           {!filtered.length && (search.trim() ? <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." onClear={() => setSearch('')} />
-            : <View style={{ paddingVertical: 22, gap: 8, alignItems: 'flex-start' }}>
-              <Text style={styles.caption}>No artworks linked to this visit yet.</Text>
-              <GalleryButton label="Link artwork" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />
-            </View>)}
+            : <EmptyState inset={false} title="Bring the art into the story." detail="Link a saved artwork to this visit." visual={<EmptySymbol name="photo.on.rectangle" />}>
+              <GalleryButton label="Link artwork" icon="plus" variant="filled" fullWidth onPress={() => router.push({ pathname: '/link-artwork', params: { visitId: visit.localId } })} />
+            </EmptyState>)}
         </View>
       </VisitPage>
-      <VisitActionBar isPublic={isPublic} pendingPrivate={pendingPrivate} changingVisibility={changingVisibility} sharingBusy={sharing.busy} saving={saving}
+      <VisitActionBar endingVisit={endingVisit} isPublic={isPublic} pendingPrivate={pendingPrivate} changingVisibility={changingVisibility} sharingBusy={sharing.busy} saving={saving}
         onChangeVisibility={() => { void changeVisibility(); }} onSave={() => { void save(); }} />
     </View>
   </>;

@@ -36,10 +36,10 @@ export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: st
   if (!visit) throw new ConvexError({ code: 'not_found' });
   return visit;
 }
-export async function selectedSaves(ctx: QueryCtx, owner: JournalOwner, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
+export async function selectedSaves(ctx: QueryCtx, owner: JournalOwner, input: Infer<typeof sharedSelection> & { visitLocalId: string }, allowPrivate = false) {
   validateSelection(input);
   const visit = await ownedVisit(ctx, owner, input.visitLocalId);
-  if (visit.visibility === 'private') throw new ConvexError({ code: 'visit_private' });
+  if (visit.visibility === 'private' && !allowPrivate) throw new ConvexError({ code: 'visit_private' });
   if (input.reflection !== (visit.reflection ?? '')) throw new ConvexError({ code: 'conflict' });
   const saves = [];
   for (const localId of input.saveLocalIds) {

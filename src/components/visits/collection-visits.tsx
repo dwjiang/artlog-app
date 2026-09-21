@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
-import { searchVisitSummaries, visitCounts, type VisitSummary } from '@/lib/journal/visit-summaries';
+import { searchVisitSummaries, type VisitSummary } from '@/lib/journal/visit-summaries';
 import { searchTerm } from '@/lib/journal/query';
 import { useVisitView } from '@/lib/journal/use-visit-view';
 import { CollectionSearchField } from '../collection/collection-search-field';
@@ -22,7 +22,6 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
 }) {
   const { mode, changeMode, error: preferenceError } = useVisitView(owner);
   const { fontScale } = useWindowDimensions();
-  const counts = visitCounts(visits);
   const shown = searchVisitSummaries(visits, search);
   if (!loading && !error && !visits.length && !search.trim()) return <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
     {header}{collectionControls}<CollectionEmptyState kind="visits" />
@@ -32,7 +31,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
       <NativeSegmentedPicker compact label="Visit view" value={mode} disabled={!mode} onChange={changeMode} options={[{ value: 'globe', label: 'Globe', icon: 'globe' }, { value: 'list', label: 'List', icon: 'list.bullet' }]} />
       <GalleryButton label="Add visit" icon="plus" onPress={() => router.push('/visit-create')} />
     </View>
-    {mode === 'list' && <CollectionSearchField value={search} label="Search your visits" onChange={onSearchChange} onClear={clearSearch} />}
+    {mode === 'list' && <CollectionSearchField value={search} label="Search your visits" showLabel={false} filled onChange={onSearchChange} onClear={clearSearch} />}
     {preferenceError && <Text style={styles.error}>{preferenceError}</Text>}
   </View></View>;
   let message: ReactElement | undefined;
@@ -44,6 +43,5 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
   else if (mode === 'list' && !shown.length) message = <SearchEmptyState title="No visits found." detail={searchTerm(search) === null ? 'Enter between 2 and 100 characters to search.' : 'Try a museum, city, or date.'} onClear={clearSearch} />;
   // Keep the native scroll view, header, and controls mounted across view changes.
   return <VisitTimeline visits={mode === 'list' && !message ? shown : []} header={header} controls={controls} scrollResetKey={mode}
-    summary={mode !== 'list' || loading ? undefined : <Text style={[styles.eyebrow, { padding: 18 }]}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>}
     empty={message ?? (mode === 'globe' ? <VisitGlobe visits={visits} onList={() => changeMode('list')} /> : undefined)} />;
 }

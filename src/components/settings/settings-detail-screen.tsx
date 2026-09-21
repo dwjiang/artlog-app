@@ -10,7 +10,7 @@ import { DevTools } from './dev-tools';
 import { ExportSection } from './export-section';
 import { LeaderboardPreference } from './leaderboard-preference';
 import { PrivacySection } from './privacy-section';
-import { ContributionsSheet, SharingSection } from './sharing-section';
+import { ContributionsScreen } from './sharing-section';
 import { VisitPreference } from './visit-preference';
 import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from '@/components/grouped-list';
 import { SearchConsentSheet } from '@/components/scan/result/search-consent-sheet';
@@ -22,7 +22,7 @@ const titles = { account: 'Account', visits: 'Visits', leaderboards: 'Leaderboar
 
 export function SettingsDetailScreen({ section }: { section: string }) {
   // Sheets are React Native views, so they mount beside the SwiftUI list rather than inside a section.
-  const [sheet, setSheet] = useState<'contributions' | 'consent' | 'participation'>();
+  const [sheet, setSheet] = useState<'consent' | 'participation'>();
   const ready = useDeviceReady();
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.devices.me, section === 'developer' && isAuthenticated ? {} : 'skip');
@@ -32,6 +32,10 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   const offline = network.isConnected === false || network.isInternetReachable === false;
   const title = titles[section as keyof typeof titles] ?? 'Settings';
   const close = () => setSheet(undefined);
+  if (section === 'contributions') return <><Stack.Screen options={{ title }} /><ContributionsScreen contributions={contributions} offline={offline} /></>;
+  if (section === 'privacy') return <><Stack.Screen options={{ title }} /><PrivacySection onRequestConsent={() => setSheet('consent')} /><SearchConsentSheet open={sheet === 'consent'} onGranted={close} onDismiss={close} /></>;
+  if (section === 'about') return <><Stack.Screen options={{ title }} /><AboutSection /></>;
+  if (section === 'export') return <><Stack.Screen options={{ title }} /><ExportSection /></>;
   return <>
     <Stack.Screen options={{ title }} />
     <GroupedList>
@@ -41,10 +45,6 @@ export function SettingsDetailScreen({ section }: { section: string }) {
       {section === 'account' && <AccountSection />}
       {section === 'visits' && <VisitPreference />}
       {section === 'leaderboards' && <LeaderboardPreference onManage={() => setSheet('participation')} />}
-      {section === 'contributions' && <SharingSection contributions={contributions} offline={offline} onOpenContributions={() => setSheet('contributions')} />}
-      {section === 'export' && <ExportSection />}
-      {section === 'privacy' && <PrivacySection onRequestConsent={() => setSheet('consent')} />}
-      {section === 'about' && <AboutSection />}
       {section === 'developer' && __DEV__ && <>
         <GroupedSection title="Device"><ValueRow label="Registration" loading={me === undefined} value={me ? `${me.deviceId} · attested: ${me.attested ? 'yes' : 'no'}` : 'Unavailable'} />
           <ValueRow label="Model" value={model.modelVersion} />
@@ -52,8 +52,6 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         <DevTools attested={me?.attested ?? false} />
       </>}
     </GroupedList>
-    {section === 'contributions' && <ContributionsSheet open={sheet === 'contributions'} onDismiss={close} contributions={contributions} offline={offline} />}
-    {section === 'privacy' && <SearchConsentSheet open={sheet === 'consent'} onGranted={close} onDismiss={close} />}
     {sheet === 'participation' && <LeaderboardParticipation onDismiss={close} />}
   </>;
 }

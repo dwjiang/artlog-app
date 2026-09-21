@@ -1,18 +1,18 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Gallery, Radius, Spacing, Typography } from '@/constants/theme';
 import { ThemedText } from '../themed-text';
 
-export function CollectionSearchField({ value, label, placeholder = label, showLabel = true, filled = false, onChange, onClear }: {
-  value: string; label: string; placeholder?: string; showLabel?: boolean; filled?: boolean; onChange: (value: string) => void; onClear: () => void;
+export function CollectionSearchField({ value, label, placeholder = label, showLabel = true, filled = false, onChange, onClear, inputRef }: {
+  inputRef?: Ref<TextInput>; value: string; label: string; placeholder?: string; showLabel?: boolean; filled?: boolean; onChange: (value: string) => void; onClear: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   return <View style={{ gap: Spacing.two }}>
     {showLabel && <ThemedText variant="metadata">{label}</ThemedText>}
     <View style={[styles.field, { borderColor: focused ? Gallery.accent : filled ? 'transparent' : Gallery.controlBorder, backgroundColor: filled ? Gallery.fill : Gallery.surface }]}>
       <Image source="sf:magnifyingglass" tintColor={Gallery.muted} style={{ width: 17, height: 17 }} accessible={false} />
-      <TextInput value={value} onChangeText={onChange} placeholder={placeholder} accessibilityLabel={label} autoCapitalize="none"
+      <TextInput ref={inputRef} value={value} onChangeText={onChange} placeholder={placeholder} accessibilityLabel={label} autoCapitalize="none"
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} keyboardAppearance="light" selectionColor={Gallery.accent}
         placeholderTextColor={Gallery.muted} autoCorrect={false} returnKeyType="search" clearButtonMode="never" style={styles.input} />
       {!!value && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={onClear}

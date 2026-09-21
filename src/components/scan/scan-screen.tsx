@@ -1,3 +1,7 @@
+import { introArtworks } from '../guest/artwork-preview';
+import { GalleryButton } from '../collection/gallery-button';
+import { WallSheet } from '../collection/wall-sheet';
+import { ThemedText } from '../themed-text';
 import { LoadingRing } from '@/components/loading-ring';
 import { CaptureVisitPill } from './capture-visit-pill';
 import { Button, Host, Row } from '@expo/ui';
@@ -6,7 +10,7 @@ import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } f
 import { useIsFocused } from 'expo-router/react-navigation';
 import type { ParamListBase } from 'expo-router/react-navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
@@ -29,6 +33,7 @@ export function ScanScreen() {
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const [appState, setAppState] = useState(AppState.currentState);
+  const [help, setHelp] = useState<'open' | 'import'>();
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
   const [preview, setPreview] = useState({ width: 0, height: 0 });
@@ -52,14 +57,14 @@ export function ScanScreen() {
     });
   }, [navigation, visitId]);
   const searching = !occupied && (phase === 'searching' || (phase === 'retry' && source !== 'library'));
-  const detecting = active && cameraReady && searching;
+  const detecting = active && !help && cameraReady && searching;
   const frameOutput = useRectDetector(detecting, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     if (attempt) void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !['searching', 'retry'].includes(phase);
-  const cameraActive = active && (searching || (phase === 'capturing' && source === 'camera'));
+  const cameraActive = active && !help && (searching || (phase === 'capturing' && source === 'camera'));
   const failedImport = phase === 'retry' && source === 'library';
   const retryHint = failedImport ? undefined : rearm === 'shutter' ? 'Reframe the artwork and tap the shutter.' : 'Move the camera to reframe, then hold steady.';
   const shutterDisabled = busy || !active || !cameraReady;
@@ -76,7 +81,7 @@ export function ScanScreen() {
 
   return (
     <View style={styles.container} onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}>
-      <CameraPermission loading={cameraActive && !cameraReady && !cameraError}>
+      <CameraPermission onImport={() => { void capture.importPhoto(); }} notice={message} loading={cameraActive && !cameraReady && !cameraError}>
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
@@ -89,18 +94,7 @@ export function ScanScreen() {
           onStopped={() => setCameraReady(false)}
           onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
-      </CameraPermission>
-      {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
-      <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
-        <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
-          <View pointerEvents="box-none" style={styles.topRow}>
-            {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
-            <QueueBadge />
-          </View>
-          {cameraError && !message && !busy && <View accessible accessibilityRole="alert">
-            <OverlayCaption>{cameraError}</OverlayCaption>
-          </View>}
-        </View>
+      <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
@@ -123,24 +117,48 @@ export function ScanScreen() {
               disabled={shutterDisabled} accessibilityState={{ disabled: shutterDisabled, busy }}
               onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }}
               style={({ pressed }) => [styles.shutter, (pressed || shutterDisabled) && styles.dimmed]}><View style={styles.shutterInner} /></Pressable>
-            <View style={styles.controlsSpacer} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Camera tips" onPress={() => setHelp('open')} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}><Image source="sf:info.circle" tintColor={Colors.light.overlayText} style={{ width: 26, height: 26 }} /></Pressable>
           </View>}
         </View>
       </View>
+      </CameraPermission>
+      {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
+      <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
+        <View pointerEvents="box-none" style={styles.top} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}>
+          <View pointerEvents="box-none" style={styles.topRow}>
+            {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
+            <QueueBadge />
+          </View>
+          {cameraError && !message && !busy && <View accessible accessibilityRole="alert">
+            <OverlayCaption>{cameraError}</OverlayCaption>
+          </View>}
+        </View>
+      </View>
+      {capture.presentation && <CaptureReveal key={capture.presentation.attempt.id} presentation={capture.presentation} insets={revealInsets} onComplete={() => capture.completeReveal(capture.presentation!.attempt)} />}
+      {help && <WallSheet title="Camera tips" tall presented={help === 'open'} onDismiss={() => setHelp((current) => current === 'import' ? current : undefined)}
+        onDismissed={() => { setHelp(undefined); if (help === 'import') void capture.importPhoto(); }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 14 }}>
+        <Image source={introArtworks.stars.source} contentFit="contain" style={{ width: '100%', height: 180, backgroundColor: Gallery.fill }} accessibilityLabel="Example of an artwork framed straight on" />
+        <ThemedText variant="display">Get the whole picture.</ThemedText>
+        <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
+        <ThemedText themeColor="textSecondary">Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.</ThemedText>
+        <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
+        <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp('import')} />
+      </ScrollView></WallSheet>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Gallery.paper },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingHorizontal: Spacing.content },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', paddingHorizontal: Spacing.content },
+  topLayer: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.content },
   top: { gap: Spacing.three },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shutter: { width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: 3, borderColor: Colors.light.overlayText, padding: 4 },
   shutterInner: { flex: 1, borderRadius: SHUTTER_SIZE / 2, backgroundColor: Colors.light.overlayText },
-  controlsSpacer: { width: IMPORT_SIZE },
   importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
   importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   importIcon: { width: 24, height: 24 },

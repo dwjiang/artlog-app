@@ -14,6 +14,7 @@ let mockState: CaptureState = { phase: 'searching', occupied: false };
 let mockOnDetection: (detection: unknown) => void;
 let mockTimings: CaptureTimings | undefined;
 let mockMessage: string | undefined;
+let mockPresentation: { attempt: { id: string } } | undefined;
 let mockPending = 0;
 let mockVenueView: VenueView;
 let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onStopped: () => void; onError: () => void };
@@ -72,7 +73,7 @@ jest.mock('@/lib/capture/use-capture', () => ({
   useCapture: (options: { onVisitUnavailable?: () => void }) => {
     mockVisitUnavailable = options.onVisitUnavailable;
     return {
-      state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve },
+      state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve }, presentation: mockPresentation, completeReveal: jest.fn(),
       captureManually: mockCapture, captureAutomatically: mockCaptureAutomatically, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage,
     };
   },
@@ -86,7 +87,7 @@ jest.mock('@/lib/capture/use-rect-detector', () => ({
     return mockFrameOutput;
   },
 }));
-jest.mock('./capture-reveal', () => ({ CaptureReveal: () => null }));
+jest.mock('./capture-reveal', () => ({ CaptureReveal: () => { const { View } = jest.requireActual('react-native'); return <View accessibilityLabel="Capture reveal" />; } }));
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -101,6 +102,7 @@ beforeEach(() => {
   mockState = { phase: 'searching', occupied: false };
   mockTimings = undefined;
   mockMessage = undefined;
+  mockPresentation = undefined;
   mockPending = 0;
   mockVenueView = {
     status: 'resolved', venue: { kind: 'seeded', venueId: 'museum-1' as never, name: 'Legion of Honor' }, options: [],
@@ -124,12 +126,14 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-it('waits until Scan is active before asking for camera access', async () => {
+it('asks for camera access only after tapping Allow camera on the active screen', async () => {
   mockFocused = false; mockGranted = false; mockCanRequest = true;
   const view = await render(<ScanScreen />);
   expect(mockRequest).not.toHaveBeenCalled();
   mockFocused = true;
   await view.rerender(<ScanScreen />);
+  expect(mockRequest).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Allow camera' }));
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
 
@@ -246,14 +250,26 @@ it('keeps import available after camera permission denial', async () => {
   mockGranted = false;
   mockCanRequest = true;
   const view = await render(<ScanScreen />);
-  expect(mockRequest).toHaveBeenCalledTimes(1);
+  expect(mockRequest).not.toHaveBeenCalled();
   mockCanRequest = false;
   await view.rerender(<ScanScreen />);
   const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
   await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
   expect(open).toHaveBeenCalledTimes(1);
-  await fireEvent.press(screen.getByRole('button', { name: 'Import' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Import a photo' }));
   expect(mockImport).toHaveBeenCalledTimes(1);
+});
+
+it('reveals an imported photo and reports its failure while camera access is denied', async () => {
+  mockGranted = false; mockCanRequest = false;
+  mockPresentation = { attempt: { id: 'import-1' } };
+  mockState = { phase: 'retry', occupied: false, source: 'library' } as CaptureState;
+  mockMessage = 'Allow photo access in Settings to import a painting.';
+  await render(<ScanScreen />);
+  expect(screen.getByLabelText('Capture reveal')).toBeOnTheScreen();
+  expect(screen.getByRole('alert')).toHaveTextContent(mockMessage);
+  expect(screen.getByRole('button', { name: 'Import a photo' })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Scan artwork' })).toBeNull();
 });
 
 it('keeps the venue and queue controls', async () => {
@@ -262,6 +278,16 @@ it('keeps the venue and queue controls', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
   expect(mockPush).toHaveBeenCalledWith('/venue-picker');
   expect(screen.getByLabelText('Recent scans, 2 scans')).toBeOnTheScreen();
+});
+
+it('keeps the venue and queue entry points reachable without camera access', async () => {
+  mockGranted = false; mockCanRequest = false; mockPending = 1;
+  await render(<ScanScreen />);
+  expect(screen.getByRole('button', { name: 'Open Settings' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Legion of Honor' }));
+  expect(mockPush).toHaveBeenCalledWith('/venue-picker');
+  expect(screen.getByLabelText('Recent scans, 1 scan')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Scan artwork' })).toBeNull();
 });
 
 it('shows corrective guidance and keeps detecting after a camera failure', async () => {
@@ -322,4 +348,27 @@ it('keeps a chosen visit through sheets above the tab and drops it at the result
   mockSetParams.mockClear();
   mockVisitUnavailable?.();
   expect(mockSetParams).toHaveBeenCalledWith({ visitId: undefined });
+});
+
+it('pauses the camera and detection while reading tips and resumes on Ready to scan', async () => {
+  await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  await fireEvent.press(screen.getByRole('button', { name: 'Camera tips' }));
+  expect(screen.getByLabelText('Example of an artwork framed straight on')).toBeOnTheScreen();
+  expect(mockCameraProps.isActive).toBe(false);
+  expect(mockDetectorActive.at(-1)).toBe(false);
+  await fireEvent.press(screen.getByRole('button', { name: 'Ready to scan' }));
+  expect(screen.queryByRole('button', { name: 'Ready to scan' })).toBeNull();
+  expect(mockCameraProps.isActive).toBe(true);
+  expect(mockDetectorActive.at(-1)).toBe(true);
+});
+
+it('closes camera tips before opening the photo library', async () => {
+  await render(<ScanScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Camera tips' }));
+  mockImport.mockImplementationOnce(async () => {
+    expect(screen.queryByRole('button', { name: 'Ready to scan' })).toBeNull();
+  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Import a photo instead' }));
+  expect(mockImport).toHaveBeenCalledTimes(1);
 });

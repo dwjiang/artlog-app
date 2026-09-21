@@ -62,7 +62,7 @@ it('lets a guest move from the Friends prompt to Global rankings and open a publ
   const row = screen.getByRole('button', { name: 'Rank 1, Ada, 4 visits. Open public profile.' });
   await fireEvent.press(row);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/profile/[profileId]', params: { profileId: 'global-person' } });
-  expect(screen.getByRole('button', { name: 'Join' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Join the leaderboard' })).toBeOnTheScreen();
 });
 
 it('changes category and period independently using the dropdowns', async () => {
@@ -77,7 +77,8 @@ it('changes category and period independently using the dropdowns', async () => 
 
 it('opens sign-in when a guest joins the leaderboard', async () => {
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Global' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Join the leaderboard' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'leaderboards' } });
   expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull();
 });
@@ -85,13 +86,13 @@ it('opens sign-in when a guest joins the leaderboard', async () => {
 it('keeps Manage available with a ranking and only changes participation after Save', async () => {
   mockSession.status = 'ready'; mockSession.profileId = 'global-person' as Id<'profiles'>; mockVisibility = 'global';
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Manage' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Friends only' }));
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
   await act(() => mockSheetDismiss?.());
   expect(mockChange).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'Manage' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Manage participation' }));
   expect(screen.getByRole('button', { name: 'Friends & Global' })).toBeSelected();
   await fireEvent.press(screen.getByRole('button', { name: 'Off' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
@@ -104,20 +105,20 @@ it('holds Cancel while a participation save is pending so a dismissed sheet neve
   let finish!: () => void;
   mockChange.mockReturnValueOnce(new Promise<null>((resolve) => { finish = () => resolve(null); }));
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Join the leaderboard' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Friends only' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   await act(async () => { finish(); });
   await waitFor(() => expect(screen.queryByRole('header', { name: 'Participation' })).toBeNull());
-  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Join the leaderboard' }));
   expect(screen.getByRole('header', { name: 'Participation' })).toBeOnTheScreen();
 });
 
 it('keeps a failed participation change available for retry', async () => {
   mockSession.status = 'ready'; mockChange.mockRejectedValueOnce(new Error('offline'));
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Join' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Join the leaderboard' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Friends & Global' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save participation' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Could not save participation. Try again.');
@@ -130,7 +131,7 @@ it('offers creation for the selected metric while preserving actual participatio
   mockSession.status = 'ready'; mockVisibility = 'global'; mockRows = [];
   mockSettings.set('leaderboard-choice', JSON.stringify({ audience: 'global', metric: 'visits', period: 'month' }));
   await render(<LeaderboardScreen />);
-  expect(await screen.findByText('Participating on Global')).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'Manage participation' })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole('button', { name: 'Add visit' }));
   expect(mockPush).toHaveBeenLastCalledWith('/visit-create');
   expect(screen.queryByText('LOGGED VISITS')).toBeNull();
