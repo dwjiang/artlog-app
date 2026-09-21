@@ -24,8 +24,6 @@ jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings', offline: mockOffline }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockAccount?.linked ? { name: 'Alex', username: 'alex' } : undefined }) }));
 jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: !mockOffline, isInternetReachable: !mockOffline }) }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/hooks/use-screen-active', () => ({ useScreenActive: () => true }));
 jest.mock('@/lib/use-device-ready', () => ({ useDeviceReady: () => mockReady }));

@@ -8,8 +8,6 @@ jest.mock('convex/react', () => ({ useMutation: () => mockCreate, useAction: () 
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'account:a' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: true }) }));
 jest.mock('@/lib/social/profile-photo', () => ({ chooseProfilePhoto: jest.fn(), profilePhotoBytes: jest.fn(), removeProfilePhotoDraft: jest.fn() }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 
 beforeEach(() => {
   jest.clearAllMocks();

@@ -24,8 +24,6 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('expo-network', () => ({ getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }) }));
 jest.mock('@/lib/wall/wall-transport', () => ({ createWallTransport: () => mockTransport }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
-jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
-jest.mock('react-native-reanimated', () => ({ __esModule: true, default: { View: jest.requireActual('react-native').View }, isSharedValue: () => false, getUseOfValueInStyleWarning: () => '' }));
 jest.mock('./wall-gallery', () => {
   const { View, Pressable, Text } = jest.requireActual('react-native');
   return {
@@ -36,12 +34,12 @@ jest.mock('./wall-gallery', () => {
   };
 });
 jest.mock('@expo/ui', () => ({
-  ...jest.requireActual('../../../__mocks__/@expo/ui'),
+  ...jest.requireActual('@/__mocks__/@expo/ui'),
   Picker: Object.assign(() => null, { Item: () => null }), Slider: () => null,
 }));
 jest.mock('@expo/ui/swift-ui', () => {
   const { View } = jest.requireActual('react-native');
-  return { ...jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'), Slider: ({ modifiers, ...props }: ComponentProps<typeof import('@expo/ui/swift-ui').Slider>) =>
+  return { ...jest.requireActual('@/__mocks__/@expo/ui/swift-ui'), Slider: ({ modifiers, ...props }: ComponentProps<typeof import('@expo/ui/swift-ui').Slider>) =>
     <View {...props} accessible accessibilityRole="adjustable" accessibilityLabel="Artwork size"
       accessibilityState={{ disabled: modifiers?.some((modifier) => modifier.$type === 'disabled' && modifier.disabled) }} /> };
 });

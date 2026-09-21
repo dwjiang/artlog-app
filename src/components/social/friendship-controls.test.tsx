@@ -6,8 +6,6 @@ import { CompactFriendshipControls, FriendshipControls } from './friendship-cont
 const mockPush = jest.fn(), mockAct = jest.fn(), mockUseFriendship = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) } }));
 let mockState: object | undefined;
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('@/lib/social/use-friendship', () => ({ useFriendship: (...args: unknown[]) => { mockUseFriendship(...args); return { act: mockAct, state: mockState }; } }));
 const guest: SocialSession = { status: 'signed-out', key: 'guest', token: null, profileId: undefined,
   accountReady: false, offline: false, error: undefined, refresh: jest.fn() };

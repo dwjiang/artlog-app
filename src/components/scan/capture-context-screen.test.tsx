@@ -20,7 +20,6 @@ jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => 'owner' }))
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({ visit: mockOpenVisit }), visitByDefault: (...args: unknown[]) => mockVisitByDefault(...args) }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async (ids: string[]) => ids[0] === 'id-met' ? [{ id: 'id-met', key: 'k', name: 'The Met', lat: 40.78, lng: -73.96, website: null, region: 'new-york' }] : [] }));
 jest.mock('@/lib/capture/photo-draft', () => ({ readPhotoSession: () => mockSession, updatePhotoSession: (...args: unknown[]) => mockUpdateSession(...args) }));
-jest.mock('@/components/collection/gallery-button');
 
 const museum = { localId: 'captured-visit', owner: 'owner', venueId: 'id-met', venueName: 'Museum', visitedOn: '2024-02-29', endedAt: null };
 const other = { localId: 'other-visit', owner: 'owner', venueId: 'id-other', venueName: 'Other museum', visitedOn: '2024-03-01', endedAt: null };

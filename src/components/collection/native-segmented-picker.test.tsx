@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { NativeSegmentedPicker } from './native-segmented-picker';
 
-jest.mock('@expo/ui', () => jest.requireActual('../../../__mocks__/@expo/ui'));
 
 it('keeps icon options labeled and exposes the selected visit view', async () => {
   const onChange = jest.fn();

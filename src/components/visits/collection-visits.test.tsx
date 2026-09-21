@@ -7,7 +7,6 @@ import { CollectionVisits } from './collection-visits';
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
 let mockMode: 'list' | 'globe' | undefined = 'list';
-jest.mock('@expo/ui', () => jest.requireActual('../../../__mocks__/@expo/ui'));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() }, Link: ({ children }: { children: unknown }) => children }));
 jest.mock('./visit-globe', () => ({ VisitGlobe: () => { const { Text } = jest.requireActual('react-native'); return <Text>Globe canvas</Text>; } }));
 jest.mock('@/lib/journal/use-visit-view', () => ({ useVisitView: () => ({ mode: mockMode, changeMode: jest.fn() }) }));

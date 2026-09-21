@@ -7,8 +7,6 @@ jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mo
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('./photo-visibility', () => ({ PhotoVisibility: () => null }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 
 const layout = { x: 0.05, y: 0.06, width: 0.52, layer: 0, frame: 'black' as const };
 beforeAll(async () => {

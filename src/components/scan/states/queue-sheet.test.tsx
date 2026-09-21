@@ -18,7 +18,6 @@ let mockLoading = false;
 let mockError: Error | undefined;
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ dismiss: mockDismiss, push: mockPush, navigate: mockNavigate }) }));
-jest.mock('@/components/collection/gallery-button');
 jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: (localId: string) => mockRetry(localId) }));
 jest.mock('@/lib/queue/use-queue', () => ({

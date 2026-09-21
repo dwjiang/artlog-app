@@ -8,8 +8,6 @@ import { insertSavedWork, softDeleteSavedWork } from '@/db/repos/saved-works';
 import { setNote } from '@/db/repos/notes';
 
 const mockWrite = jest.fn();
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('expo-sharing', () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
 jest.mock('expo-file-system', () => ({

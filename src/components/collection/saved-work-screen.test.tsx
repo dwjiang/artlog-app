@@ -15,8 +15,6 @@ import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } fr
 let mockWall: Partial<ReturnType<typeof import('@/lib/wall/use-collection-wall').useCollectionWall>> = { pieces: [], signedIn: false };
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));
 jest.mock('@/lib/collection/pending-removals', () => ({ scheduleRemoval: jest.fn() }));
-jest.mock('react-native-reanimated', () => ({ __esModule: true, default: { View: jest.requireActual('react-native').View }, isSharedValue: () => false }));
-jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 const mockBack = jest.fn(), mockPush = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let client: ConvexReactClient;
@@ -30,7 +28,6 @@ jest.mock('convex/react', () => ({
   ...jest.requireActual('convex/react'),
   useConvexAuth: () => mockAuth,
 }));
-jest.mock('@expo/ui/swift-ui');
 
 const enrichment = {
   docent: [{ sentence: 'Monet painted this pond at Giverny in 1916.', factIds: ['f1'] }],

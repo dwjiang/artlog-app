@@ -13,11 +13,10 @@ let mockRows = [{ profile: { profileId: 'global-person', name: 'Ada', username: 
 const mockSettings = new Map<string, string>();
 let mockSheetDismiss: (() => void) | undefined;
 
-jest.mock('@expo/ui');
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@expo/ui/swift-ui', () => {
   const React = jest.requireActual('react'), { Pressable, Text, View } = jest.requireActual('react-native');
-  return { ...jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'),
+  return { ...jest.requireActual('@/__mocks__/@expo/ui/swift-ui'),
     Host: ({ children }: { children: ReactNode }) => <View>{children}</View>,
     VStack: View, ScrollView: View,
     BottomSheet: ({ isPresented, onDismiss, children }: { isPresented: boolean; onDismiss: () => void; children: ReactNode }) => {

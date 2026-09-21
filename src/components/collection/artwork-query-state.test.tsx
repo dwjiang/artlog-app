@@ -7,7 +7,6 @@ import { editSavedWork } from '@/db/repos/saved-works';
 let mockQuery: { data: unknown[]; updatedAt?: Date; error?: Error };
 let mockOwner = 'device:guest';
 const mockBack = jest.fn();
-jest.mock('@expo/ui');
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }), router: { back: mockBack }, useLocalSearchParams: () => ({ savedId: 'artwork', photoId: 'photo' }) }));
 jest.mock('drizzle-orm/expo-sqlite', () => ({ useLiveQuery: () => mockQuery }));
 jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => mockOwner, captureOwner: jest.fn() }));

@@ -7,7 +7,6 @@ const initialPhotos = Array.from({ length: 4 }, (_, index) => ({ localId: `photo
 let mockPhotos = initialPhotos;
 let mockPhotosUpdatedAt: Date | undefined;
 let mockPhotosError: Error | undefined;
-jest.mock('@expo/ui');
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
 jest.mock('@/db/repos/artwork-album', () => ({ selectArtworkPhotos: () => 'photos', selectArtworkEncounters: () => 'encounters', editEncounter: jest.fn() }));

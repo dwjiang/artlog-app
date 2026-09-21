@@ -51,7 +51,7 @@ module.exports = defineConfig([
   },
   {
     // Jest manual mocks mirror the mocked package's surface, so forwarding is their job.
-    ignores: ['__mocks__/**'],
+    ignores: ['src/__mocks__/**'],
     plugins: { artlog: { rules: { 'no-re-exports': noReExports } } },
     rules: { 'artlog/no-re-exports': 'error' },
   },

@@ -17,7 +17,6 @@ jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
-jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../visits/globe-canvas', () => ({ GlobeCanvas: () => null }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
 

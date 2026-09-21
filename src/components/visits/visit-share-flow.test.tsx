@@ -18,7 +18,6 @@ jest.mock('@/lib/journal/use-visits', () => ({ useVisits: () => ({ owner: mockVi
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 jest.mock('@/lib/visits/use-visit-sharing', () => ({ useVisitSharing: () => mockSharing }));
 jest.mock('../social/profile-form', () => ({ ProfileForm: () => null }));
-jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('../settings/account-section', () => ({ AccountSection: () => null }));
 jest.mock('drizzle-orm/expo-sqlite', () => ({ ...jest.requireActual('drizzle-orm/expo-sqlite'), useLiveQuery: () => ({ data: mockPhotos }) }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title, path }: { title: string; path: string | null }) => {
