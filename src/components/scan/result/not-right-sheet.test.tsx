@@ -1,20 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type { ReactNode } from 'react';
 
 import { NotRightSheet } from './not-right-sheet';
 import { bridge, haystacks } from './__fixtures__/scan';
 
-jest.mock('@/components/collection/gallery-button');
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View, RNHostView: View,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children: ReactNode }) => isPresented ? <View>{children}</View> : null,
-  };
-});
 
 const handlers = { onDismiss: jest.fn(), onPick: jest.fn(), onLabel: jest.fn() };
 beforeEach(() => jest.clearAllMocks());

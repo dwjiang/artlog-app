@@ -19,7 +19,9 @@ export function Icon() { return null; }
 export function Button({ label, children, onPress, disabled, modifiers }: ComponentProps<typeof import('@expo/ui').Button>) {
   const traits = modifiers?.find((modifier) => modifier.$type === 'accessibilityAddTraits')?.traits as string[] | undefined;
   const off = !!disabled || !!modifiers?.some((modifier) => modifier.$type === 'disabled' && modifier.disabled === true);
+  const value = modifiers?.find((modifier) => modifier.$type === 'accessibilityValue')?.value as string | undefined;
   return <Pressable accessibilityRole="button" accessibilityLabel={modifiers?.find((modifier) => modifier.$type === 'accessibilityLabel')?.label as string | undefined}
+    accessibilityValue={value ? { text: value } : undefined}
     accessibilityState={{ disabled: off, selected: traits?.includes('isSelected') }} disabled={off} onPress={onPress}>{children ?? <Text>{label}</Text>}</Pressable>;
 }
 export function TextInput({ modifiers, placeholder, defaultValue, onChangeText, autoCapitalize, autoCorrect, maxLength, editable, multiline, numberOfLines }: ComponentProps<typeof import('@expo/ui').TextInput>) {

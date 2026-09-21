@@ -10,7 +10,6 @@ jest.mock('./scan-crop-editor', () => ({ ScanCropEditor: () => null }));
 jest.mock('@/lib/capture/photo-draft', () => ({ isLabelCapture: () => false, readPhotoSession: () => ({ photos: [] }) }));
 jest.mock('@/lib/capture/discard-capture', () => ({ discardCapture: jest.fn() }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => { const { Pressable, Text } = jest.requireActual('react-native'); return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>; } }));
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
 
 let mockRows: { owner: string; localId: string; status: 'queued' | 'identified'; cropPath: string; capturedAt?: number; scanId?: string }[] = [];
@@ -32,15 +31,6 @@ jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/phot
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: jest.fn() }));
 jest.mock('@/lib/label/share-saved-label', () => ({ startPendingShareFlusher: jest.fn() }));
 jest.mock('@/lib/result/use-save-result', () => ({ useSaveResult: () => ({ saving: false, save: jest.fn() }) }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Icon: () => null,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>,
-    TextInput,
-  };
-});
 
 function ResultRoute() {
   const { scanId } = useLocalSearchParams<{ scanId: string }>();

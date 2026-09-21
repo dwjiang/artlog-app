@@ -1,21 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import type { ComponentProps, ReactNode } from 'react';
 
 import { SearchConsentSheet } from './search-consent-sheet';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 
-jest.mock('@/components/collection/gallery-button');
 jest.mock('@/lib/settings/museum-search', () => ({ setMuseumSearchConsent: jest.fn() }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View, RNHostView: View,
-    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children: ReactNode }) => isPresented ? <View>{children}</View> : null,
-    Button: ({ label, onPress, disabled }: ComponentProps<typeof import('@expo/ui').Button>) => (
-      <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
 
 beforeEach(() => jest.resetAllMocks());
 

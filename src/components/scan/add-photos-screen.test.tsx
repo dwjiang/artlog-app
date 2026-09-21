@@ -27,10 +27,6 @@ jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => true }));
 jest.mock('react-native-vision-camera', () => ({ Camera: () => null, usePhotoOutput: () => ({}) }));
 jest.mock('./camera-permission', () => ({ CameraPermission: () => null }));
 jest.mock('../collection/native-segmented-picker', () => ({ NativeSegmentedPicker: () => null }));
-jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, disabled, onPress }: { label: string; disabled?: boolean; onPress: () => void }) => {
-  const { Pressable, Text } = jest.requireActual('react-native');
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>;
-} }));
 jest.mock('@/lib/capture/check-album-photo', () => ({ checkAlbumPhoto: jest.fn() }));
 jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Index save failed' }));
 jest.mock('@/lib/account/photo-transfer', () => ({ removePhotoFile: jest.fn() }));

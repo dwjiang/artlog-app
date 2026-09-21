@@ -105,13 +105,13 @@
       "^@/shared/(.*)$": "<rootDir>/shared/$1"
     },
     "setupFiles": [
+      "react-native-gesture-handler/jestSetup",
       "<rootDir>/jest.setup.ts"
     ],
     "roots": [
       "<rootDir>/src",
       "<rootDir>/shared",
-      "<rootDir>/modules",
-      "<rootDir>/__mocks__"
+      "<rootDir>/modules"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|standard-navigation|@sentry/react-native|native-base|react-native-svg|@convex-dev/.*|is-network-error)"

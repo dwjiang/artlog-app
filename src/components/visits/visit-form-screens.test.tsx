@@ -16,7 +16,6 @@ jest.mock('@/lib/venue/search-venues', () => ({ MUSEUM_SEARCH_LIMIT: 30, searchV
 jest.mock('../../../modules/poi-search/src', () => ({ getPoiSearch: () => ({ searchByName: (...args: unknown[]) => mockSearchByName(...args) }) }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 } }), confirmPlace: (...args: unknown[]) => mockConfirmPlace(...args) }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [mockVenue], onVenueMetadataChange: () => () => {} }));
-jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('expo-router', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return { router: { back: () => mockBack(), dismissTo: (...args: unknown[]) => mockDismissTo(...args) }, useLocalSearchParams: () => ({ savedId: mockSavedId }), Stack: {

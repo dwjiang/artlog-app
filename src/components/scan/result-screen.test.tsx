@@ -27,7 +27,6 @@ import * as labelDrafts from '@/lib/label/draft';
 import { formStateFromFlow, unlockField } from '@/lib/label/fields';
 jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('../collection/gallery-button');
 jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null, useCapturePhotos: () => ({ label: 'Add photos', open: jest.fn(), unavailable: false }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 
@@ -74,19 +73,6 @@ jest.mock('convex/react', () => ({
   ...jest.requireActual('convex/react'),
   useConvexAuth: () => mockAuth,
 }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View, RNHostView: View,
-    Button: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children: ReactNode }) => isPresented ? <View accessibilityLabel="Not right sheet">{children}</View> : null,
-  };
-});
 
 beforeAll(async () => {
   await visits.upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', venueId: 'museum-met' as Id<'museums'>, venueName: 'The Met', startedAt: 1 });
@@ -346,11 +332,11 @@ it.each([confidentScan, softScan])('locks the draft and match choices while savi
   await openDetails();
   const saveButton = await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ });
   const savePromise = fireEvent.press(saveButton);
-  await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, busy: true });
+  await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, value: { text: 'Saving…' } });
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Edited while saving');
   try {
     expect(screen.getByLabelText('Title').props.editable).toBe(false);
-    expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, busy: true })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, value: { text: 'Saving…' } })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Not right?' })).toBeNull();
     expect(screen.queryByText('Other possibilities')).toBeNull();
     if (scan.outcome === 'soft') {
@@ -393,9 +379,7 @@ it('unlocks the draft and match choices after a local save fails so the user can
 it('records a rejection when "Not right?" opens, resolves it with the picked runner-up and re-renders as a maybe', async () => {
   await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
-  const sheet = await screen.findByLabelText('Not right sheet');
-  expect(sheet).toBeOnTheScreen();
-  expect(screen.getByText('Maybe one of these?')).toBeOnTheScreen();
+  expect(await screen.findByText('Maybe one of these?')).toBeOnTheScreen();
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
   expect(mockSign).toHaveBeenCalledWith(JSON.stringify({ objectId: lilies.objectId, operation: 'rejectMatch', scanId: SCAN_ID }));
   expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID, objectId: lilies.objectId, nonce: 'nonce-1', assertionBase64: '' });
@@ -404,7 +388,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(2));
   expect(getFunctionName(jest.mocked(client.mutation).mock.calls[1][0])).toBe('feedback:resolveRejection');
   expect(jest.mocked(client.mutation).mock.calls[1][1]).toEqual({ feedbackId: 'fb-1', resolution: { kind: 'runner_up', objectId: bridge.objectId } });
-  expect(screen.queryByLabelText('Not right sheet')).toBeNull();
+  expect(screen.queryByText('Maybe one of these?')).toBeNull();
   expect(screen.getByText('Maybe')).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
@@ -423,7 +407,7 @@ it('routes to the label from the sheet and keeps the choices when feedback canno
   expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
-  expect(screen.queryByLabelText('Not right sheet')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'None of these — point at the label' })).toBeNull();
 });
 
 it('hands a recorded rejection to the label screen so a verified label can resolve it', async () => {
@@ -660,7 +644,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
   await screen.findByLabelText("Searching the museum’s collection…");
   await openDetails();
   await fireEvent.press(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/ }));
-  await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, busy: true });
+  await screen.findByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, value: { text: 'Saving…' } });
   if (stage !== 'saving') await act(async () => { finishSave(); });
   await act(async () => { finishSearch({ stage: 'done', flow: verified, confirmedAt: verified.updatedAt }); });
   await publish({ ...softScan, museumSearch: confirmed, labelFlow: verified });
@@ -674,7 +658,7 @@ it.each(['saving', 'saved', 'failed'] as const)('keeps the original card when mu
     return;
   }
   if (stage === 'saving') {
-    expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, busy: true })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Save (to collection|with these details|photo for later)$/, value: { text: 'Saving…' } })).toBeDisabled();
     await act(async () => { finishSave(); });
   }
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);

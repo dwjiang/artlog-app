@@ -5,14 +5,12 @@ import type { SharedVisit } from '@/lib/social/types';
 const mockPages = jest.fn();
 let mockRelationship: { state: string; blocked: boolean } = { state: 'none', blocked: false };
 const mockPerson = { profileId: 'friend' as never, username: 'friend', name: 'Jamie Chen', publishedWallCount: 0 };
-jest.mock('@expo/ui');
 jest.mock('expo-router', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   const Button = ({ children, accessibilityLabel, onPress }: { children: string; accessibilityLabel?: string; onPress: () => void }) =>
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}><Text>{children}</Text></Pressable>;
   return { Stack: { Screen: () => null, Toolbar: Object.assign(View, { Button }) }, useRouter: () => ({ push: jest.fn() }) };
 });
-jest.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: jest.requireActual('react-native').View }));
 jest.mock('../collection/wall-gallery', () => ({ WallGallery: () => null }));
 jest.mock('./friendship-controls', () => ({ FriendshipControls: () => null }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'a', status: 'ready', profileId: 'owner', offline: false }) }));

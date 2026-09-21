@@ -3,8 +3,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import * as settings from '@/db/repos/settings';
 import { VisitPreference } from './visit-preference';
 
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 
 afterEach(() => jest.restoreAllMocks());

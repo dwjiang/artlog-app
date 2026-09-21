@@ -6,15 +6,6 @@ import type { LabelFlowDisplay } from '../../../../convex/lib/validators';
 import { UNLOCK_TITLE, unlockMessage, VerifiedFieldsForm } from './verified-fields-form';
 import { EDITED_LABEL, formStateFromFlow, unlockField } from '@/lib/label/fields';
 
-jest.mock('@expo/ui', () => {
-  const { TextInput, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    TextInput: ({ defaultValue, placeholder, editable, onChangeText }: { defaultValue?: string; placeholder?: string; editable?: boolean; onChangeText?: (value: string) => void }) => (
-      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} defaultValue={defaultValue} editable={editable} onChangeText={onChangeText} />
-    ),
-  };
-});
 
 const flow: LabelFlowDisplay = {
   stage: 'verified', evidence: ['tavily+image'], warnings: ['date_outside_lifespan'], moderation: 'clear', updatedAt: 1,

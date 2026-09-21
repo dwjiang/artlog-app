@@ -3,8 +3,6 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Text } from 'react-native';
 import { CollectionArtworks } from './collection-artworks';
 
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('expo-router', () => ({ useFocusEffect: () => {}, router: { navigate: jest.fn() }, Link: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({ signedIn: false, draft: { items: [] }, pieces: [] }) }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));

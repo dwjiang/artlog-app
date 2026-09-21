@@ -14,8 +14,6 @@ jest.mock('expo-router', () => {
   return { router: { back: () => mockBack() }, Stack: { Toolbar } };
 });
 jest.mock('@/lib/social/profile-photo', () => ({ chooseProfilePhoto: jest.fn(), profilePhotoBytes: jest.fn(), removeProfilePhotoDraft: jest.fn() }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 const profile = { profileId: 'profile' as never, username: 'alex', name: 'Alex Morgan', publishedWallCount: 2, photoUrl: 'https://example.com/avatar.jpg' };
 beforeEach(() => { jest.clearAllMocks(); mockSave.mockResolvedValue(profile); switchOwner('account:a', 'scope-a'); });
 it('saves trimmed profile text while preserving an unchanged photo', async () => {

@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { GalleryButton } from './gallery-button';
 
-jest.mock('@expo/ui', () => jest.requireActual('../../../__mocks__/@expo/ui'));
 
 it('keeps its label and prevents duplicate activation while announcing progress', async () => {
   const onPress = jest.fn();

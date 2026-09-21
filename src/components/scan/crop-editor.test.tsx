@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { CropEditor } from './crop-editor';
 
-jest.mock('@/components/collection/gallery-button');
 jest.mock('./crop-corners', () => ({ CropCorners: () => null }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 jest.mock('../../../modules/vision-rect/src', () => ({ getVisionRect: () => ({ detectStill: async () => { throw new Error('No detection'); } }) }));

@@ -6,7 +6,6 @@ jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPu
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title }: { title: string }) => {
   const { Text } = jest.requireActual('react-native'); return <Text accessibilityRole="image">{title}</Text>;
 } }));
-jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('./globe-canvas', () => {
   const React = jest.requireActual('react');
   const { Pressable, Text, View } = jest.requireActual('react-native');

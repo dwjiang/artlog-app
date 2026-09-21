@@ -36,18 +36,7 @@ let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: 'frame-output' };
 const mockDetectorActive: boolean[] = [];
 
-jest.mock('@/components/collection/gallery-button');
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('@expo/ui', () => {
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-  return {
-    Host: View,
-    Row: View,
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}><Text>{label}</Text></Pressable>
-    ),
-  };
-});
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => ({ push: mockPush }), useNavigation: () => ({
   addListener: () => () => {}, setParams: (...args: unknown[]) => mockSetParams(...args),
   getParent: () => ({ addListener: (_event: string, listener: typeof mockTabsListener) => { mockTabsListener = listener; return () => { mockTabsListener = undefined; }; } }),

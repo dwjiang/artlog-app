@@ -2,8 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ActionRow, NavigationRow, ValueRow } from './grouped-list';
 import { GalleryIconButton } from './collection/gallery-icon-button';
 
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 
 it('keeps action identity while showing progress and blocking duplicate activation', async () => {
   const onPress = jest.fn();

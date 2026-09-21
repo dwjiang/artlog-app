@@ -5,8 +5,6 @@ import { WallProfileSheet } from './wall-profile-sheet';
 
 const mockCreate = jest.fn();
 jest.mock('convex/react', () => ({ useMutation: () => mockCreate }));
-jest.mock('@expo/ui');
-jest.mock('@expo/ui/swift-ui');
 jest.mock('./wall-sheet', () => ({ WallSheet: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(() => jest.clearAllMocks());
