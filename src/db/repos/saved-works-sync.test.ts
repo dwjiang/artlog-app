@@ -110,3 +110,20 @@ it('accepts an image reference without replacing a newer local note or original 
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({ photoPath: 'original.heic', cropStorageId, syncedAt: null });
   expect(await getNote(remote.localId)).toMatchObject({ text: 'Still uploading' });
 });
+
+it('downloads a newer remote crop independently of note stamps, reports the displaced file, and ignores older crop replays', async () => {
+  await repo.insertSavedWork({ localId: 'work', title: 'Painting', artist: '', savedAt: 1, cropPath: 'old.jpg', cropStorageId: 'old' as Id<'_storage'>, photoUpdatedAt: 1, syncedAt: 100 });
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: 'new' as Id<'_storage'>, photoUpdatedAt: 3 }])).toEqual(['old.jpg']);
+  expect(await repo.getSavedWork('work')).toMatchObject({ cropPath: null, cropStorageId: 'new', photoUpdatedAt: 3, syncedAt: 100 });
+  await repo.updatePhotoTransfer('work', { cropPath: 'new.jpg' });
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: 'old' as Id<'_storage'>, photoUpdatedAt: 2 }])).toEqual([]);
+  expect(await repo.getSavedWork('work')).toMatchObject({ cropPath: 'new.jpg', cropStorageId: 'new' });
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: 'new' as Id<'_storage'>, photoUpdatedAt: 3 }])).toEqual([]);
+});
+
+it('keeps a local crop awaiting upload when remote sync still contains the previous crop', async () => {
+  await repo.insertSavedWork({ localId: 'work', title: 'Painting', artist: '', savedAt: 1, cropPath: 'old.jpg', cropStorageId: 'old' as Id<'_storage'> });
+  repo.replaceSavedCrop('work', 'edited.jpg');
+  await repo.upsertFromRemote([{ ...remote, cropStorageId: 'old' as Id<'_storage'>, photoUpdatedAt: 100 }]);
+  expect(await repo.getSavedWork('work')).toMatchObject({ cropPath: 'edited.jpg', cropStorageId: null });
+});

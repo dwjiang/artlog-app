@@ -2,10 +2,11 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { CollectionPhotoKind } from '../../../shared/collection/photo-limits';
 import type * as repository from '../../db/repos/saved-works';
 import type { SavedWork } from '../../db/schema';
+import type { PhotoUpload } from './photo-transfer';
 
 export type PhotoSyncDependencies = Pick<typeof repository,
   'listPhotoTransfers' | 'getSavedWork' | 'updatePhotoTransfer' | 'listDeletedPhotoFiles' | 'isPhotoFileReferenced' | 'clearDeletedPhotoPaths'> & {
-  upload: (localId: string, kind: CollectionPhotoKind, path: string) => Promise<Id<'_storage'>>;
+  upload: (localId: string, kind: CollectionPhotoKind, path: string) => Promise<PhotoUpload>;
   download: (localId: string, kind: CollectionPhotoKind, storageId: Id<'_storage'>) => Promise<string>;
   removeFile: (path: string) => void;
 };
@@ -39,10 +40,10 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
         if (current.cropPath && !current.cropStorageId) {
           const uploaded = await deps.upload(work.localId, 'crop', current.cropPath);
           if (!isCurrent()) return;
-          await deps.updatePhotoTransfer(work.localId, { cropStorageId: uploaded });
+          await deps.updatePhotoTransfer(work.localId, { cropStorageId: uploaded.storageId, photoUpdatedAt: uploaded.photoUpdatedAt }, undefined, current);
         } else if (!current.cropPath && current.cropStorageId) {
           const downloaded = await deps.download(work.localId, 'crop', current.cropStorageId);
-          if (!isCurrent() || !await deps.updatePhotoTransfer(work.localId, { cropPath: downloaded })) deps.removeFile(downloaded);
+          if (!isCurrent() || !await deps.updatePhotoTransfer(work.localId, { cropPath: downloaded }, undefined, current)) deps.removeFile(downloaded);
         }
       } catch (error) { failure = error; }
     }

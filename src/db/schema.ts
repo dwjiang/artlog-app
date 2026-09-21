@@ -32,7 +32,7 @@ export const visits = sqliteTable('visits', {
   revision: integer().notNull().default(0),
 }, (table) => [primaryKey({ columns: [table.owner, table.localId] }), index('visits_owner_history').on(table.owner, table.visitedOn, table.localId)]);
 
-/** An immutable snapshot of what the user saw: only notes, deletion and sync state change. */
+/** A saved artwork and its private collection preview. */
 export const savedWorks = sqliteTable(
   'savedWorks',
   {
@@ -54,6 +54,7 @@ export const savedWorks = sqliteTable(
     photoPath: text(),
     cropPath: text(),
     cropStorageId: text().$type<Id<'_storage'>>(),
+    photoUpdatedAt: integer().notNull().default(0),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
     syncedBy: text().$type<Id<'devices'>>(),

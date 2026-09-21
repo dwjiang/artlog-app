@@ -42,6 +42,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 20 }}>
     {photo.path && !imageFailed ? <Image source={{ uri: captureFileUri(photo.path) }} onError={() => setImageFailed(true)} style={{ width: '100%', height: 320, backgroundColor: Gallery.fill }} contentFit="contain" accessibilityLabel="Your artwork photo" />
       : <View style={{ minHeight: 200, justifyContent: 'center', padding: 20, backgroundColor: Gallery.fill }}><Text style={{ color: Gallery.muted }}>{imageFailed ? 'Image unavailable. Your photo details are still here.' : 'Photo unavailable on this iPhone. You can still edit its details.'}</Text></View>}
+    {photo.kind !== 'label' && <GalleryButton label="Adjust artwork crop" icon="crop" disabled={!photo.path || imageFailed} onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: photo.savedLocalId, photoId: photo.localId } })} />}
     <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
     <NativeSegmentedPicker label="Photo type" value={kind} options={[{ value: 'full', label: 'Full view' }, { value: 'detail', label: 'Detail' }, { value: 'label', label: 'Label' }]} onChange={setKind} />
     <View style={{ gap: 8 }}><Text style={{ color: Gallery.ink }}>Photo caption</Text>
