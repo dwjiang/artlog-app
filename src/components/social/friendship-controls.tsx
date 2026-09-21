@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { Host, Icon, Row, Text as NativeText } from '@expo/ui';
 import { Menu, Button } from '@expo/ui/swift-ui';
-import { accessibilityLabel, buttonStyle, frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, buttonStyle, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { Gallery } from '@/constants/theme';
 import { ThemedText as Text } from '@/components/themed-text';
 import { GalleryButton } from '@/components/collection/gallery-button';
@@ -28,7 +28,7 @@ export function FriendshipControls({ profileId, session }: { profileId: PublicPr
         ? state.requesterId === session.profileId ? 'Friend request sent' : 'Wants to be your friend' : 'Share a love of art.'}</Text>}
     {state?.state === 'accepted' && !state.blocked ? <View style={{ borderWidth: 1, borderColor: Gallery.accent, borderRadius: 4 }}>
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
-        <Menu modifiers={[accessibilityLabel('Friends'), buttonStyle('plain')]} label={<Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 44 })]}>
+        <Menu modifiers={[accessibilityLabel('Friends'), buttonStyle('plain')]} label={<Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}>
           <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}><Icon name="checkmark" size={17} color={Gallery.accent} /><NativeText textStyle={{ color: Gallery.accent, fontSize: 17 }}>Friends</NativeText></Row>
           <Icon name="chevron.down" size={12} color={Gallery.accent} modifiers={[frame({ width: 32 })]} />
         </Row>}><Button label="Remove friend" role="destructive" onPress={() => { if (!busy) void act('remove'); }} /></Menu>

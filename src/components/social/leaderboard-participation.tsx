@@ -1,5 +1,5 @@
 import { Button, Column, Host, Icon, Row, Text as NativeText } from '@expo/ui';
-import { font, accessibilityAddTraits, accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
+import { font, accessibilityAddTraits, accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -48,7 +48,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
           {modes.map((mode) => <Button key={mode.value} variant="outlined" disabled={pending || preference.data === undefined}
             onPress={() => setDraft(mode.value)} style={{ padding: 14, borderRadius: 12 }}
             modifiers={[accessibilityLabel(PARTICIPATION_LABELS[mode.value]), accessibilityAddTraits(value === mode.value ? ['isSelected'] : []), frame({ maxWidth: Infinity })]}>
-            <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
+            <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), contentShape(shapes.rectangle())]}>
               <Icon name={value === mode.value ? 'largecircle.fill.circle' : 'circle'} size={20} color={Gallery.accent} />
               <Column spacing={4} alignment="start" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
                 <NativeText textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' })]}>{PARTICIPATION_LABELS[mode.value]}</NativeText>
