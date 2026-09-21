@@ -76,7 +76,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
     <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
     <Stack.Toolbar placement="right"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} disabled={busy || !venue || !validDate} onPress={() => { void save(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button></Stack.Toolbar>
     <VisitPage>
-      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep the visit.</Text>
+      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep this day.</Text>
       <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>
       <Text accessibilityRole="header" style={styles.heading}>Museum</Text>
       {venue ? <View style={styles.card}>
@@ -102,7 +102,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
       <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
       <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Notes" placeholder="What stayed with you? (optional)" value={reflection} onChangeText={setReflection}
         multiline maxLength={LIMITS.note} editable={!busy} style={[styles.input, styles.reflection]} />
-      <Text style={styles.caption}>Public by default. Visible to others only after you publish.</Text>
+      <Text style={styles.caption}>Saved to your journal. Share it when you’re ready.</Text>
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </VisitPage>
   </>;

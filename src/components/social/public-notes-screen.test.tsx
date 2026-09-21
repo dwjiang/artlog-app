@@ -81,10 +81,10 @@ it('waits for the first wall read, then invites a note from the wall when none c
   mockOverride = { acknowledged: undefined };
   const view = await render(<PublicNotesScreen />);
   expect(screen.getByText('Opening your notes…')).toBeOnTheScreen();
-  expect(screen.queryByText('Let them in on what you noticed.')).toBeNull();
+  expect(screen.queryByText('No notes to share yet.')).toBeNull();
   mockOverride = { acknowledged: { ...mockWall.acknowledged, items: [] } };
   await view.rerender(<PublicNotesScreen />);
-  expect(screen.getByText('Let them in on what you noticed.')).toBeOnTheScreen();
+  expect(screen.getByText('No notes to share yet.')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Go to your wall' }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);

@@ -1,4 +1,4 @@
-import { Button, Host, Icon } from '@expo/ui';
+import { Button, Host, Icon, Row } from '@expo/ui';
 import { Menu, Picker, Text as NativeText } from '@expo/ui/swift-ui';
 import { accessibilityLabel, font, foregroundStyle, pickerStyle, strokeBorder, tag } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
@@ -9,11 +9,11 @@ import { useLocalOwner } from '@/lib/account/owner-store';
 import { useGlobeSession } from '@/lib/journal/globe-session';
 import { WallSheet } from '../collection/wall-sheet';
 import { GalleryButton } from '../collection/gallery-button';
-import { Gallery, Typography } from '@/constants/theme';
-import { countryName, formatVisitDate, placeIdentity } from '@/lib/journal/history';
+import { Gallery, Radius } from '@/constants/theme';
+import { countryName, placeIdentity } from '@/lib/journal/history';
 import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from '@/lib/journal/visit-summaries';
 import { GlobeCanvas, type GlobeCanvasHandle } from './globe-canvas';
-import { ArtworkPreviews, VisitMessage, VisitSymbol, visitStyles } from './visit-ui';
+import { ArtworkPreviews, VisitMessage, VisitSymbol } from './visit-ui';
 
 export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }: {
   visits: VisitSummary[]; expanded?: boolean; initialVenueId?: string; onList: () => void;
@@ -31,8 +31,10 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
   const initialPin = pins.find((pin) => pin.id === initialVenueId) ?? pins[0];
   const place = placeIdentity(selected);
   const placeVisits = visitsAtPlace(visits, place.key);
-  const counts = visitCounts(placeVisits);
-  const previews = placeVisits.flatMap((visit) => visit.works);
+  const museumVisits = placeVisits.filter((visit) => visit.venueId === selected.venueId);
+  const counts = visitCounts(museumVisits);
+  const previews = museumVisits.flatMap((visit) => visit.works);
+  const artworkCount = new Set(previews.map((work) => work.localId)).size;
   function select(id: string) {
     setSelectedId(id);
     const pin = pins.find((item) => item.id === id);
@@ -43,7 +45,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
       <GlobeCanvas ref={globe} pins={pins} selectedId={selected.venueId} initialPin={initialPin} height={expanded ? Math.max(420, height * 0.65) : 337} onSelect={setSelectedId}
         initialCamera={session.camera} onCameraChange={(camera) => session.update({ camera })} onCluster={setClusterIds} />
       <Host matchContents style={styles.worldMenu} colorScheme="light">
-        <Menu label={<NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>YOUR WORLD ⌄</NativeText>}
+        <Menu label={<Row alignment="center" spacing={6}><NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>Your world</NativeText><Icon name="chevron.down" size={11} color={Gallery.muted} /></Row>}
           modifiers={[accessibilityLabel('Choose a visited museum')]}>
           <Picker label="Museums" selection={selected.venueId} onSelectionChange={select} modifiers={[pickerStyle('inline')]}>
             {museums.map((visit) => <NativeText key={visit.venueId} modifiers={[tag(visit.venueId)]}>{visit.venueName} · {placeIdentity(visit).name}</NativeText>)}
@@ -59,21 +61,19 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
       {fontScale <= 1.5 && <Text pointerEvents="none" style={styles.hint}>Drag to explore · pinch to zoom</Text>}
     </View>
     <View style={styles.placeWrap}>
-      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel="Explore visits here" onPress={() => {
-        const destination = { pathname: '/visit-place' as const, params: { placeKey: place.key, name: place.name } };
+      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`Explore visits to ${selected.venueName}`} onPress={() => {
+        const destination = { pathname: '/visit-place' as const, params: { placeKey: place.key, name: selected.venueName, venueId: selected.venueId } };
         if (expanded) router.dismissTo(destination); else router.push(destination);
       }}>
         <View style={styles.placeTop}>
-          <View style={{ flex: 1 }}>
-            {!!selected.country && <Text style={[visitStyles.eyebrow, styles.country]}>{countryName(selected.country)}</Text>}
+          <ArtworkPreviews works={previews} size={48} limit={1} />
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text variant="button">{selected.venueName}</Text>
             <Text style={styles.placeTitle}>{place.name}</Text>
-            <Text style={styles.counts}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {counts.visits} {counts.visits === 1 ? 'visit' : 'visits'}</Text>
+            {!!selected.country && <Text style={styles.counts}>{countryName(selected.country)}</Text>}
+            <Text style={styles.counts}>{counts.visits} {counts.visits === 1 ? 'visit' : 'visits'} · {artworkCount} {artworkCount === 1 ? 'artwork' : 'artworks'}</Text>
           </View>
-          <View style={styles.arrow}><VisitSymbol name="arrow.right" size={15} color={Gallery.accent} /></View>
-        </View>
-        <View style={[styles.placeArts, fontScale > 1.5 && { flexDirection: 'column', alignItems: 'flex-start' }]}>
-          <ArtworkPreviews works={previews} size={35} limit={4} />
-          <Text style={styles.lastDate}>Last visited{'\n'}{formatVisitDate(placeVisits[0].visitedOn)}</Text>
+          <VisitSymbol name="chevron.right" size={13} color={Gallery.ink} />
         </View>
       </Pressable>
     </View>
@@ -102,12 +102,8 @@ const styles = StyleSheet.create({
   zoom: { position: 'absolute', left: 18, bottom: 13, flexDirection: 'row', gap: 5 },
   hint: { position: 'absolute', right: 18, bottom: 26, fontSize: 13, color: Gallery.muted },
   placeWrap: { paddingHorizontal: 20, paddingBottom: 4 },
-  placeCard: { padding: 14, paddingBottom: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, borderRadius: 0, backgroundColor: Gallery.paper },
+  placeCard: { padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.softBorder, borderRadius: Radius.input, backgroundColor: Gallery.surface },
   placeTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  country: { fontSize: 13, letterSpacing: 1.2, color: Gallery.muted },
-  placeTitle: { ...Typography.display, color: Gallery.ink, marginVertical: 4 },
+  placeTitle: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   counts: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  arrow: { width: 32, height: 32, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator, alignItems: 'center', justifyContent: 'center' },
-  placeArts: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 11, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
-  lastDate: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: 'right' },
 });

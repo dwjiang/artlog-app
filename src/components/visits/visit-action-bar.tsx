@@ -29,7 +29,7 @@ export function VisitActionBar({ isPublic, pendingPrivate, changingVisibility, s
       accessibilityLabel={`${visibility} visit. ${isPublic ? 'Make private.' : 'Make public.'}`}
       disabled={changingVisibility || sharingBusy} busy={changingVisibility} onPress={onChangeVisibility} />
     {isPublic ? <View style={{ width: fontScale >= 1.5 ? '100%' : '48%' }}>
-      <GalleryButton label="Save visit" variant="filled" fullWidth disabled={changingVisibility} onPress={onSave} />
+      <GalleryButton label="Prepare to share" variant="filled" fullWidth disabled={changingVisibility || sharingBusy} onPress={onSave} />
     </View> : <View style={styles.status}>
       {!pendingPrivate && <VisitSymbol name="checkmark" size={17} />}
       <Text style={styles.statusText}>{pendingPrivate ? 'Waiting to sync' : 'Saved privately'}</Text>

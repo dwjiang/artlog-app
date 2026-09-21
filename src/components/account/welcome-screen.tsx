@@ -23,8 +23,8 @@ export function WelcomeScreen() {
       </View>
     </View>
     <View style={styles.actions}>
-      <GalleryButton label="Sign in" fullWidth variant="filled" onPress={() => router.replace(signInRoute('account'))} />
-      <GalleryButton label="Explore without an account" fullWidth onPress={() => router.back()} />
+      <GalleryButton label="Start exploring" fullWidth variant="filled" onPress={() => router.back()} />
+      <GalleryButton label="I already have an account" fullWidth onPress={() => router.replace(signInRoute('account'))} />
     </View>
   </ScrollView>;
 }

@@ -50,11 +50,11 @@ export default function RootLayout() {
             <Stack.Screen name="photo-details" options={{ title: 'Photo details' }} />
             <Stack.Screen name="identify-artwork" options={{ title: 'Artwork details' }} />
             <Stack.Screen name="leaderboards" options={{ title: 'Leaderboards' }} />
-            <Stack.Screen name="people" options={{ title: 'Find people' }} />
+            <Stack.Screen name="people" options={{ title: 'Friends' }} />
             <Stack.Screen name="profile/[profileId]" options={{ title: 'Profile' }} />
             <Stack.Screen name="visit/[postId]" options={{ title: 'Visit' }} />
             <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: 'Edit profile' }} />
-            <Stack.Screen name="share-profile" options={{ ...visitSheet, title: 'Share profile' }} />
+            <Stack.Screen name="share-profile" options={{ title: 'Share profile' }} />
             <Stack.Screen name="public-notes" options={{ title: 'Public notes' }} />
             <Stack.Screen name="create-profile" options={{ title: 'Your profile', presentation: 'formSheet',
               sheetAllowedDetents: [1], sheetGrabberVisible: true }} />

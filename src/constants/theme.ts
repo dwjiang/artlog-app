@@ -7,17 +7,20 @@ export const Gallery = {
   paper: '#FCFCF9',
   surface: '#FFFFFF',
   fill: '#F0F0EC',
-  avatar: '#D7D7D8',
+  avatar: '#D7DBC5',
   accent: '#0A46F3',
   accentPressed: '#0836C4',
   highlight: '#DFF64D',
-  segmentTrack: '#FFFFFF',
+  segmentTrack: '#EEEEE8',
   segmentSelection: '#DFF64D',
   separator: '#CDCDD0',
   controlBorder: '#8E8E99',
   success: '#2F6846',
   warning: '#865A15',
   destructive: '#B42318',
+  destructiveFill: '#FFF5F2',
+  softBorder: '#DEDED8',
+  accentBorder: '#D8DEEF',
   sage: '#CDD0CA',
   colors: [
     { name: 'Paper', value: DEFAULT_WALL_COLOR },
@@ -72,15 +75,15 @@ export const Fonts = {
 } as const;
 
 export const Typography = {
-  wordmark: { fontFamily: Fonts.display, fontSize: 64, lineHeight: 72 },
+  wordmark: { fontFamily: Fonts.display, fontSize: 53, lineHeight: 60 },
   largeTitle: { fontSize: 34, lineHeight: 41, fontWeight: '700' },
   display: { fontFamily: Fonts.display, fontSize: 32, lineHeight: 38 },
-  pageTitle: { fontFamily: Fonts.display, fontSize: 60, lineHeight: 68 },
-  section: { fontFamily: Fonts.display, fontSize: 20, lineHeight: 26 },
-  body: { fontSize: 17, lineHeight: 25 },
-  secondary: { fontSize: 15, lineHeight: 22 },
-  metadata: { fontSize: 13, lineHeight: 18 },
-  button: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  pageTitle: { fontFamily: Fonts.display, fontSize: 46, lineHeight: 52 },
+  section: { fontFamily: Fonts.display, fontSize: 21, lineHeight: 26 },
+  body: { fontSize: 16, lineHeight: 24 },
+  secondary: { fontSize: 14, lineHeight: 21 },
+  metadata: { fontSize: 12, lineHeight: 18 },
+  button: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
 } as const satisfies Record<string, TextStyle>;
 
 export type TextRole = keyof typeof Typography;
@@ -97,7 +100,7 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const Radius = { artwork: 0, thumbnail: 2, button: 8, input: 8, full: 9999 } as const;
+export const Radius = { artwork: 0, thumbnail: 2, button: 8, input: 8, card: 12, sheet: 16, full: 9999 } as const;
 
 export const NavigationTheme = {
   headerTintColor: Gallery.accent,

@@ -1,9 +1,10 @@
-import { Children, type ReactElement, type ReactNode } from 'react';
+import { Children, useEffect, useRef, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import type { ButtonProps, PickerProps, DatePickerProps, SectionProps, ToggleProps } from '@expo/ui/swift-ui';
 export { Text };
 export function Label({ title }: { title?: string }) { return <Text>{title}</Text>; }
-export const Host = View;
+// Presented sheet content lives outside the host's native view, so the host's `pointerEvents` must not block presses on it.
+export function Host({ pointerEvents: _pointerEvents, ...props }: ComponentProps<typeof View>) { return <View {...props} />; }
 export const Menu = View;
 export const List = View;
 export const VStack = View;
@@ -12,6 +13,16 @@ export const ZStack = View;
 export function ProgressView() { return <ActivityIndicator accessibilityRole="progressbar" />; }
 export const ScrollView = View;
 export const RNHostView = View;
+export const Group = View;
+export function BottomSheet({ isPresented, children, onDismiss }: { isPresented: boolean; children: ReactNode; onDismiss?: () => void }) {
+  const wasPresented = useRef(isPresented);
+  // The native sheet reports full dismissal after its animation; here it follows the prop change directly.
+  useEffect(() => {
+    if (wasPresented.current && !isPresented) onDismiss?.();
+    wasPresented.current = isPresented;
+  }, [isPresented, onDismiss]);
+  return isPresented ? <View>{children}</View> : null;
+}
 export function Section({ title, header, children, footer }: SectionProps) {
   return <View>{title ? <Text accessibilityRole="header">{title}</Text> : header}{children}{footer}</View>;
 }

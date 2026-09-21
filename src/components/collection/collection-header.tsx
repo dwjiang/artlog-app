@@ -13,9 +13,8 @@ import { Ghost, LoadingSkeleton } from '@/components/loading-skeleton';
 
 export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = false }: { artworkCount?: number; visitCount?: number; loading?: boolean }) {
   const session = useSocialSession();
-  const { fontScale, width } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
   const accessibilityLayout = fontScale >= 1.6;
-  const stacked = width < 390 || accessibilityLayout;
   const guest = !useLocalOwner().startsWith('account:');
   const { data: profile } = useSocialQuery(api.profiles.mine, session.status === 'ready' ? {} : 'skip', session.key);
   const edit = () => router.push(profile ? '/edit-profile' : session.status === 'profile-required' ? '/create-profile' : signInRoute('wall'));
@@ -34,23 +33,23 @@ export function CollectionHeader({ artworkCount = 0, visitCount = 0, loading = f
       : artworkCount + visitCount > 0 && <Text variant="metadata" themeColor="textSecondary">{counts}</Text>}
   </View>;
   const identity = <>
-    <ProfileAvatar name={profile?.name ?? 'Your collection'} photoUrl={profile?.photoUrl} size={accessibilityLayout ? 56 : 76} />
+    <ProfileAvatar name={profile?.name ?? 'Your collection'} photoUrl={profile?.photoUrl} size={64} />
     <View style={{ flex: accessibilityLayout ? undefined : 1, minWidth: 0, gap: 2 }}>
       <Text variant={accessibilityLayout ? 'section' : 'display'} accessibilityRole="header" numberOfLines={2} style={{ color: Gallery.ink }}>{profile?.name ?? 'Your collection'}</Text>
       <Text variant="secondary" style={{ color: Gallery.muted }}>{status}</Text>
-      {loading ? <LoadingSkeleton label="Loading collection counts"><Ghost width={150} style={{ marginTop: 5 }} /></LoadingSkeleton>
-        : <Text variant="secondary" style={{ color: Gallery.muted }}>{counts}</Text>}
     </View>
   </>;
-  const identityStyle = { flex: stacked ? undefined : 1, minWidth: 0, flexDirection: accessibilityLayout ? 'column' as const : 'row' as const,
+  const identityStyle = { flex: 1, minWidth: 0, flexDirection: accessibilityLayout ? 'column' as const : 'row' as const,
     alignItems: accessibilityLayout ? 'flex-start' as const : 'center' as const, gap: 14, minHeight: 48 };
   return <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, backgroundColor: Gallery.paper }}>
-    <View style={{ flexDirection: stacked ? 'column' : 'row', alignItems: stacked ? 'stretch' : 'flex-start', gap: 8 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Edit your profile" onPress={edit} style={identityStyle}>{identity}</Pressable>
-      <View style={{ flexDirection: 'row', gap: 4, alignSelf: stacked ? 'flex-end' : 'flex-start' }}>
-        <GalleryIconButton label={profile ? 'Share your profile' : 'Share your wall'} icon="square.and.arrow.up" onPress={() => profile ? router.push({ pathname: '/share-profile', params: { profileId: profile.profileId } }) : edit()} />
         <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push('/settings')} />
-      </View>
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
+      {loading ? <LoadingSkeleton label="Loading collection counts"><Ghost width={150} /></LoadingSkeleton>
+        : <Text variant="metadata" style={{ flexShrink: 1, color: Gallery.muted }}>{counts}</Text>}
+      <GalleryIconButton label={profile ? 'Share your profile' : 'Share your wall'} icon="square.and.arrow.up" tone="accent" onPress={() => profile ? router.push({ pathname: '/share-profile', params: { profileId: profile.profileId } }) : edit()} />
     </View>
   </View>;
 }

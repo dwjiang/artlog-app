@@ -45,26 +45,26 @@ export function PeopleScreen() {
       keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={guestFriends ? [] : filter === 'friends' ? (friends.data ?? []).filter((person) => !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase())) : searching ? results.items : !text.trim() ? discovery.items : []}
       keyExtractor={profileId} renderItem={({ item }) => <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}><ProfileIdentity profile={item} showChevron friend={friends.data?.some((friend) => friend.profileId === item.profileId)} /></View>}
       ListHeaderComponent={<View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
-        <Text variant="pageTitle" accessibilityRole="header">People</Text>
-        {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Discover people and their little museums.</Text>}
+        <Text variant="pageTitle" accessibilityRole="header">Friends</Text>
+        {!text.trim() && filter === 'all' && <Text style={{ color: Gallery.muted, fontSize: 15 }}>Find friends and explore their collections.</Text>}
         {!guestFriends && !emptyFriends && <CollectionSearchField label="Name or username" value={text} onChange={setText} onClear={() => setText('')} showLabel={false} />}
-        <NativeSegmentedPicker label="People filter" value={filter} onChange={setFilter}
-        options={[{ value: 'all', label: 'All people' }, { value: 'friends', label: 'Friends' }]} /></View>}
+        <NativeSegmentedPicker label="Friends filter" value={filter} onChange={setFilter}
+        options={[{ value: 'all', label: 'Explore' }, { value: 'friends', label: 'Friends' }]} /></View>}
       ItemSeparatorComponent={() => <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />}
       ListEmptyComponent={guestFriends ? <FriendsInvitation onExplore={explore} />
         : filter === 'friends' ? session.status !== 'ready' ? <SocialGate session={session} />
           : friends.loading && !friends.error ? <ListSkeleton label="Opening friends…" avatar />
             : friends.error ? <SocialState title="Couldn’t load your friends." action="Try again" onAction={friends.refresh} />
-              : emptyFriends ? <SocialInvitation title={'Find your\nart people.'} detail="Search by name or username to add your first friend.">
-                <GalleryButton label="Find people" variant="filled" fullWidth onPress={explore} />
+              : emptyFriends ? <SocialInvitation title={'Find your\nfriends.'} detail="Search by name or username to add your first friend.">
+                <GalleryButton label="Find friends" variant="filled" fullWidth onPress={explore} />
               </SocialInvitation> : text.trim() ? <SearchEmptyState title="No friends found." detail="Try another name or username." onClear={() => setText('')} /> : null
-        : session.offline ? <SocialState title="You’re offline." detail="Connect to find people." icon="wifi.slash" />
+        : session.offline ? <SocialState title="You’re offline." detail="Connect to find friends." icon="wifi.slash" />
           : !text.trim() ? discovery.done && !discovery.loading && !discovery.error ? <SocialInvitation title={'A community\nin the making.'} detail="Public profiles will appear here. In the meantime, keep discovering art.">
             <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/scan'); }} />
           </SocialInvitation> : null
             : !peopleSearch(text) ? <SocialState title="Find a familiar eye." icon="person.2" detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`} />
               : text !== debounced ? <ListSkeleton label="Searching…" avatar />
-                : results.done && !results.loading && !results.error ? <SearchEmptyState title="No people found." detail="Try another name or username." onClear={() => setText('')} /> : null}
+                : results.done && !results.loading && !results.error ? <SearchEmptyState title="No friends found." detail="Try another name or username." onClear={() => setText('')} /> : null}
       ListFooterComponent={filter === 'all' ? searching ? <PageFooter {...results} count={results.items.length} noun="people" /> : !text.trim() ? discovery.done && !discovery.error ? discovery.items.length > 0 ? <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text> : null : <PageFooter {...discovery} count={discovery.items.length} noun="people" /> : null : null}
       onEndReached={filter === 'all' ? searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined : undefined} onEndReachedThreshold={0.4} />
   </>;

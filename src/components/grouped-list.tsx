@@ -9,13 +9,12 @@ type IconName = ComponentProps<typeof Icon>['name'];
 /** Render as a screen root: the native list needs the available screen frame. */
 export function GroupedList({ children }: { children: ReactNode }) {
   return <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
-    <List modifiers={[listStyle('plain'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
+    <List modifiers={[listStyle('insetGrouped'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
   </Host>;
 }
 
-/** Plain lists paint rows with the system background, so every section sets its rows on paper. */
 export function GroupedSection({ modifiers = [], ...props }: ComponentProps<typeof Section>) {
-  return <Section {...props} modifiers={[listRowBackground(Gallery.paper), ...modifiers]} />;
+  return <Section {...props} modifiers={[listRowBackground(Gallery.surface), ...modifiers]} />;
 }
 
 export function GroupedFooter({ children, tone = 'muted' }: { children: string; tone?: 'muted' | 'destructive' }) {
@@ -38,7 +37,7 @@ export function ActionRow({ label, icon, onPress, disabled = false, destructive 
   label: string; icon?: IconName; onPress: () => void; disabled?: boolean; destructive?: boolean;
 }) {
   const color = destructive ? Gallery.destructive : Gallery.accent;
-  return <Button variant="text" disabled={disabled} onPress={onPress} modifiers={[buttonStyle('borderless'), tint(color), frame({ minHeight: 44 })]}>
+  return <Button variant="text" disabled={disabled} onPress={onPress} modifiers={[buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
     <Row spacing={12} alignment="center">
       {icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
       <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color }}>{label}</Text>

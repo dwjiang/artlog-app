@@ -11,13 +11,13 @@ it('lets a new visitor skip sign-in and start exploring', async () => {
   await render(<WelcomeScreen />);
   expect(screen.getByRole('header', { name: 'Welcome to Artlog' })).toBeOnTheScreen();
   expect(screen.getByText('Remember the art that stays with you.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore without an account' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Start exploring' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
 it('opens optional sign-in without leaving another welcome screen underneath it', async () => {
   await render(<WelcomeScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'I already have an account' }));
   expect(mockReplace).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });

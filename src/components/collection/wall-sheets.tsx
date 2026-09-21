@@ -42,15 +42,20 @@ function WallSizeSlider({ width, disabled, onChange }: { width: number; disabled
   </Host>;
 }
 
-export function WallArtworkSheet({ piece, editing, disabled = false, color, onChange, onRemove, onDismiss }: {
+export function WallArtworkSheet({ piece, editing, disabled = false, color, onChange, onRemove, onDismiss, onDismissed, presented, onChoosePhoto, onDuplicatePhoto }: {
   piece: WallPiece; editing: boolean; color: string; onChange: (layout: WallLayout) => void;
   onRemove: () => void; onDismiss: () => void; disabled?: boolean;
+  presented?: boolean; onDismissed?: () => void; onChoosePhoto?: () => void; onDuplicatePhoto?: () => void;
 }) {
   const change = (patch: Partial<WallLayout>) => { if (!disabled) onChange(constrainLayout(piece.layout, patch)); };
-  return <WallSheet title={editing ? 'Edit artwork' : 'On your wall'} onDismiss={onDismiss} tall>
+  return <WallSheet title={editing ? 'Edit artwork' : 'On your wall'} onDismiss={onDismiss} onDismissed={onDismissed} presented={presented} tall>
     <ScrollView contentContainerStyle={{ paddingBottom: Spacing.five }}>
       <WallArtworkSummary piece={piece} color={color} />
       {editing && <>
+        {onChoosePhoto && <View style={styles.section}>
+          <GalleryButton label="Choose photo" icon="photo" disabled={disabled} onPress={onChoosePhoto} />
+          <GalleryButton label="Hang another photo" icon="plus" disabled={disabled || !onDuplicatePhoto} onPress={() => onDuplicatePhoto?.()} />
+        </View>}
         <Text style={styles.sectionHeading}>Frame</Text>
         <WallFramePicker piece={piece} value={piece.layout.frame} disabled={disabled} onChange={(frame) => change({ frame })} />
         <View style={[styles.section, styles.controls]}>

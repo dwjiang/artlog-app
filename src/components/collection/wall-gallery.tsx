@@ -10,12 +10,13 @@ import { Gallery } from '@/constants/theme';
 import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from '@/lib/wall/wall-layout';
 import { WallArtwork } from './wall-artwork';
 
-export function WallGallery({ pieces, color, width, editing = false, onSelect, onMove, selectedId, onRemove, children }: {
+export function WallGallery({ pieces, color, width, minHeight = pieces.length ? 580 : 440, editing = false, onSelect, onMove, selectedId, onRemove, children }: {
   pieces: WallPiece[]; color: string; width: number; editing?: boolean; selectedId?: string; onRemove?: (id: string) => void;
+  minHeight?: number;
   onSelect: (piece: WallPiece) => void; onMove?: (id: string, layout: WallLayout) => void; children?: React.ReactNode;
 }) {
   const light = isLightWall(color);
-  return <View style={{ width, minHeight: pieces.length ? 580 : 440, height: Math.max(440, wallBottom(pieces) * width + 85),
+  return <View style={{ width, minHeight, height: Math.max(minHeight, wallBottom(pieces) * width + 85),
     backgroundColor: color }}>
     {pieces.map((piece) => <Hanging key={piece.localId} piece={piece} width={width} editing={editing}
       selected={selectedId === piece.localId} onRemove={onRemove} labelColor={light ? Gallery.ink : Gallery.paper} onSelect={onSelect} onMove={onMove} />)}
@@ -62,7 +63,7 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
       <Animated.View style={size}><Pressable accessibilityRole="button" accessibilityLabel={`${piece.artwork.title}, ${piece.artwork.artist}`}
         accessibilityHint={editing ? 'Select to change the frame or photo. Hold and drag to move; drag the corner handle to resize.' : 'Opens artwork details.'}
         onPress={() => onSelect(piece)}>
-        <View style={{ outlineColor: Gallery.segmentSelection, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
+        <View style={{ outlineColor: Gallery.accent, outlineWidth: editing && selected ? 2 : 0, outlineOffset: 5 }}>
           <WallArtwork piece={piece} width={layout.width * width} />
         </View>
         {layout.width * width >= 78 && <View style={styles.label}>
@@ -74,7 +75,7 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
       </Pressable>
       {editing && selected && <>
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${piece.artwork.title} from wall`} onPress={() => onRemove?.(piece.localId)}
-          style={[styles.editBadge, { top: -18, left: -18, width: 44, height: 44, borderRadius: 6 }]}><Image source="sf:xmark" style={{ width: 11, height: 11 }} tintColor={Gallery.ink} /></Pressable>
+          style={[styles.editBadge, { top: -18, left: -18, width: 44, height: 44, borderRadius: 6, backgroundColor: Gallery.destructiveFill }]}><Image source="sf:minus.circle.fill" style={{ width: 20, height: 20 }} tintColor={Gallery.destructive} /></Pressable>
         <GestureDetector gesture={resize}><Animated.View accessible accessibilityRole="adjustable" accessibilityLabel="Artwork size"
           accessibilityHint="Drag to resize artwork." accessibilityValue={{ min: 16, max: 90, now: Math.round(layout.width * 100), text: `${Math.round(layout.width * 100)} percent of wall width` }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -82,7 +83,7 @@ function Hanging({ piece, width, editing, labelColor, onSelect, onMove, selected
             width: layout.width + (nativeEvent.actionName === 'increment' ? 0.04 : -0.04),
           }))}
           style={[styles.editBadge, { top: undefined, bottom: 18, right: -12, width: 44, height: 44, borderRadius: 22 }]}>
-          <Image source="sf:arrow.up.left.and.arrow.down.right" style={{ width: 13, height: 13 }} tintColor={Gallery.ink} />
+          <Image source="sf:arrow.up.left.and.arrow.down.right" style={{ width: 13, height: 13 }} tintColor={Gallery.surface} />
         </Animated.View></GestureDetector>
       </>}
       </Animated.View>
@@ -95,5 +96,5 @@ const styles = StyleSheet.create({
   artist: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
   title: { fontSize: 12, lineHeight: 16 },
   editBadge: { position: 'absolute', top: -10, right: -10, width: 26, height: 26,
-    backgroundColor: Gallery.segmentSelection, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+    backgroundColor: Gallery.accent, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
 });

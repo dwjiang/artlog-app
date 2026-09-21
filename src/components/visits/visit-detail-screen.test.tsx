@@ -39,7 +39,7 @@ it('opens sign-in directly above a guest visit and preserves the visit when dism
     'sign-in': () => <Text>Share your museum visit.</Text>,
   }, { initialUrl: '/journal/visit' });
   await navigation;
-  await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Prepare to share' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/sign-in'));
   expect(navigation.getSearchParams()).toMatchObject({ context: 'visit', visitId: 'visit' });
   await act(() => router.back());
@@ -52,7 +52,7 @@ it('shows Public on a published visit', async () => {
   mockPublication = { status: 'active', audience: 'public' };
   await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
   expect(screen.getByRole('button', { name: 'Public visit. Make private.' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Save visit' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Prepare to share' })).toBeOnTheScreen();
 });
 
 it('opens saved artwork from a visit and returns to its private notes', async () => {
@@ -63,7 +63,7 @@ it('opens saved artwork from a visit and returns to its private notes', async ()
   }, { initialUrl: '/journal/visit' });
   await navigation;
   expect(screen.queryByText(/Private on this device/)).toBeNull();
-  expect(screen.getByRole('button', { name: 'Save visit' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Prepare to share' })).toBeOnTheScreen();
   expect(screen.getByDisplayValue('The afternoon light')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('link', { name: 'Water Lilies, Claude Monet' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/saved/painting'));
@@ -125,7 +125,7 @@ it('marks a closed visit as seen once it is opened, but not one still in progres
   expect(mockMarkSeen).not.toHaveBeenCalled();
 });
 
-it('defaults to Public before publishing and opens the preview only from Save visit', async () => {
+it('defaults to Public before publishing and opens the preview only from Prepare to share', async () => {
   mockVisit.owner = 'account:test-account';
   const navigation = renderRouter({
     _layout: () => <Stack />,
@@ -135,7 +135,7 @@ it('defaults to Public before publishing and opens the preview only from Save vi
   await navigation;
   expect(screen.getByRole('button', { name: 'Public visit. Make private.' })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Share visit' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Prepare to share' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/visit-share/visit'));
 });
 
@@ -155,7 +155,7 @@ it('preserves a saved Private choice and toggles Public without publishing', asy
   const navigation = renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
   await navigation;
   expect(screen.getByText('Saved privately')).toBeOnTheScreen();
-  expect(screen.queryByRole('button', { name: 'Save visit' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Prepare to share' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Private visit. Make public.' }));
   expect(save).toHaveBeenCalledWith('visit', { visibility: 'public' }, mockVisit.owner);
   expect(navigation.getPathname()).toBe('/journal/visit');
@@ -202,19 +202,19 @@ it('releases the visibility control if an offline sync never finishes', async ()
 
 it('hides the bottom actions while editing and restores them after the keyboard closes', async () => {
   await renderRouter({ _layout: () => <Stack />, 'journal/[visitId]': VisitDetailScreen }, { initialUrl: '/journal/visit' });
-  expect(screen.getByRole('button', { name: 'Save visit' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Prepare to share' })).toBeOnTheScreen();
   const keyboard = { duration: 250, easing: 'keyboard', endCoordinates: { screenX: 0, screenY: 500, width: 390, height: 300 } };
   await act(() => DeviceEventEmitter.emit('keyboardWillShow', keyboard));
-  expect(screen.queryByRole('button', { name: 'Save visit' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Prepare to share' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Public visit. Make private.' })).toBeNull();
   expect(screen.getByLabelText('Notes')).toBeOnTheScreen();
   expect(screen.getByPlaceholderText('Search this visit')).toBeOnTheScreen();
   await act(() => DeviceEventEmitter.emit('keyboardDidHide', keyboard));
-  expect(screen.getByRole('button', { name: 'Save visit' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Prepare to share' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Public visit. Make private.' })).toBeOnTheScreen();
 });
 
-it('saves pending notes before opening the Save visit flow', async () => {
+it('saves pending notes before opening the Prepare to share flow', async () => {
   mockVisit.owner = 'account:test-account';
   const save = jest.spyOn(visits, 'patchVisit').mockResolvedValue(undefined);
   const navigation = renderRouter({
@@ -224,7 +224,7 @@ it('saves pending notes before opening the Save visit flow', async () => {
   }, { initialUrl: '/journal/visit' });
   await navigation;
   await fireEvent.changeText(screen.getByLabelText('Notes'), 'Remember the blue room');
-  await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Prepare to share' }));
   await waitFor(() => expect(navigation.getPathname()).toBe('/visit-share/visit'));
   expect(save).toHaveBeenCalledWith('visit', { reflection: 'Remember the blue room' }, mockVisit.owner, { sync: true });
 });
@@ -236,5 +236,5 @@ it('keeps a pending Private sync distinct from a completed private save', async 
   expect(screen.getByText('Waiting to sync')).toBeOnTheScreen();
   expect(screen.getByText('Waiting to sync. The published visit is still visible.')).toBeOnTheScreen();
   expect(screen.queryByText('Saved privately')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Save visit' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Prepare to share' })).toBeNull();
 });

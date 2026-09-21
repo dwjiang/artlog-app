@@ -7,15 +7,14 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
 import { Gallery } from '@/constants/theme';
-import { AppleSignInAction } from '@/components/account/apple-sign-in-action';
-import { ArtworkMedallions } from '@/components/guest/artwork-preview';
+import { GalleryButton } from '@/components/collection/gallery-button';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { useAccount } from '@/lib/account/use-account';
 import { api } from '../../../convex/_generated/api';
 import { useSocialSession } from '@/lib/social/use-social-session';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { ProfileAvatar } from '../social/profile-avatar';
 import { ThemedText } from '../themed-text';
-import { HighlightHeading } from '../highlight-heading';
 
 export function SettingsScreen() {
   const { fontScale } = useWindowDimensions();
@@ -39,16 +38,17 @@ export function SettingsScreen() {
           <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>{accountName}</ThemedText>
           {!!accountDetail && <ThemedText variant="metadata" themeColor="textSecondary">{accountDetail}</ThemedText>}
         </View>
-        <ThemedText themeColor="textSecondary" accessible={false}>›</ThemedText>
+        <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
       </Pressable>
     </View> : <View style={{ gap: 10 }}>
-      <View style={{ padding: 16, gap: 12, backgroundColor: '#F8F7EF', borderRadius: 12, borderWidth: 0.5, borderColor: '#E3E0D5' }}>
-        <ArtworkMedallions />
-        <ThemedText variant="display" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>Your art. Your people.</ThemedText>
-        <ThemedText variant="secondary" themeColor="textSecondary">Follow friends and share the visits you choose.</ThemedText>
-        <AppleSignInAction state={signIn} />
+      <View style={{ padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: Gallery.surface, borderRadius: 12, borderWidth: 0.5, borderColor: Gallery.softBorder }}>
+        <ProfileAvatar name="Your collection" size={44} />
+        <View style={{ flex: 1 }}><ThemedText variant="button">Your collection</ThemedText>
+          <ThemedText variant="metadata" themeColor="textSecondary">Saved on this iPhone</ThemedText></View>
       </View>
-      <ThemedText variant="metadata" themeColor="textSecondary">Your journal is saved on this iPhone.</ThemedText>
+      <ThemedText variant="display" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>Share your collection</ThemedText>
+      <ThemedText variant="body" themeColor="textSecondary">Sign in to share your wall and connect with friends.</ThemedText>
+      <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('account'))} />
     </View>}
     <SettingsGroup title="Your journal">
       <SettingsRow label="Visits" icon="chart.bar" onPress={detail('visits')} />
@@ -68,7 +68,7 @@ export function SettingsScreen() {
 }
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
-  return <View style={{ gap: 8 }}><HighlightHeading small>{title}</HighlightHeading>
+  return <View style={{ gap: 8 }}><ThemedText variant="section" accessibilityRole="header">{title}</ThemedText>
     <View style={{ paddingHorizontal: 12, backgroundColor: Gallery.surface, borderRadius: 12, borderWidth: 0.5, borderColor: Gallery.separator, overflow: 'hidden' }}>
       {Children.toArray(children).map((row, index) => <Fragment key={index}>{index > 0 && <View style={{ height: 0.5, backgroundColor: Gallery.separator }} />}{row}</Fragment>)}
     </View>

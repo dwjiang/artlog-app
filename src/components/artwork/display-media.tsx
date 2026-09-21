@@ -8,7 +8,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { ImageSkeleton } from '@/components/loading-skeleton';
 
 type Media = NonNullable<FunctionReturnType<typeof api.walls.getArtwork>>['artwork']['media'];
-type Props = { media: Media; label: string; width: number; token?: string | null };
+type Props = { media: Media; label: string; width: number; height?: number; token?: string | null };
 
 export function DisplayMedia(props: Props) {
   const { media, token } = props;
@@ -34,13 +34,13 @@ export function DisplayMedia(props: Props) {
   return <MediaImage key={`${uri ?? 'missing'}:${token ?? ''}`} {...props} uri={uri} />;
 }
 
-function MediaImage({ media, label, width, token, uri }: Props & { uri?: string }) {
+function MediaImage({ media, label, width, height, token, uri }: Props & { uri?: string }) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const validDimensions = Number.isFinite(media.width) && Number.isFinite(media.height) && media.width > 0 && media.height > 0;
   const missing = !uri || failed || !validDimensions;
-  const size = { width, height: missing ? width : width * media.height / media.width };
+  const size = { width, height: height ?? (missing ? width : width * media.height / media.width) };
   if (missing) return (
     <View accessible accessibilityRole="image" accessibilityLabel={`${label}: image unavailable`}
       style={{ ...size, backgroundColor: theme.backgroundElement, alignItems: 'center', justifyContent: 'center', padding: 12 }}>

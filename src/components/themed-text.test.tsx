@@ -20,10 +20,10 @@ describe('shared app text', () => {
       <ThemedText style={{ fontSize: 13 }}>Caption</ThemedText>
       <ThemedText style={[{ fontSize: 24 }, { color: 'red' }]}>Numeral</ThemedText>
     </>);
-    expect(screen.getByText('Body copy')).toHaveStyle({ fontSize: 17, lineHeight: 25 });
+    expect(screen.getByText('Body copy')).toHaveStyle({ fontSize: 16, lineHeight: 24 });
     expect(screen.getByText('Caption')).toHaveStyle({ fontSize: 13 });
-    expect(screen.getByText('Caption')).not.toHaveStyle({ lineHeight: 25 });
-    expect(screen.getByText('Numeral')).not.toHaveStyle({ lineHeight: 25 });
+    expect(screen.getByText('Caption')).not.toHaveStyle({ lineHeight: 24 });
+    expect(screen.getByText('Numeral')).not.toHaveStyle({ lineHeight: 24 });
   });
 
   it('refreshes existing text measurements when Dynamic Type changes while the app is open', async () => {

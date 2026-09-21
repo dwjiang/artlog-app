@@ -37,7 +37,7 @@ export function HomeScreen() {
         <Text variant={fontScale > 1.4 ? 'display' : 'wordmark'} accessibilityRole="header">Artlog</Text>
         <View style={styles.headerActions}>
           <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push('/leaderboards')} />
-          <GalleryIconButton icon="magnifyingglass" label="Find people" onPress={() => router.push('/people')} />
+          <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push('/people')} />
           <GalleryIconButton icon="person.2" label="Friends" onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })} />
         </View>
       </View>{(ready || session.status === 'loading') && <View style={styles.heading}>
@@ -46,8 +46,8 @@ export function HomeScreen() {
       </View>}</>}
       ListEmptyComponent={!ready ? session.status === 'loading' ? <FeedSkeleton label="Getting things ready…" /> : <SocialGate session={session} browsePublic /> : feed.done && !feed.loading && !feed.error
         ? <SocialInvitation title={guest ? 'Discover a\ndifferent view.' : 'See what your\nfriends see.'}
-          detail={guest ? 'No public visits yet. Explore people’s art collections while you wait.' : 'Museum visits from your friends will appear here. Find someone to get started.'}>
-          <GalleryButton label={guest ? 'Explore public walls' : 'Find people'} variant="filled" fullWidth onPress={() => router.push('/people')} />
+          detail={guest ? 'No public visits yet. Explore public art collections while you wait.' : 'Museum visits from your friends will appear here. Find someone to get started.'}>
+          <GalleryButton label={guest ? 'Explore public walls' : 'Find friends'} variant="filled" fullWidth onPress={() => router.push('/people')} />
           <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate('/scan')} />
         </SocialInvitation> : null}
       ListFooterComponent={ready && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? <PageFooter {...feed} count={feed.items.length} skeleton="feed" /> : null}

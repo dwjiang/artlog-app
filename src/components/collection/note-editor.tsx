@@ -79,7 +79,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: s
 
   return (
     <View style={styles.section}>
-      <NoteHeading title="Your note">
+      <NoteHeading title="Notes">
         {editing ? <GalleryButton label="Done" accessibilityLabel="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
           : <GalleryButton label={draft ? 'Edit' : 'Add'} accessibilityLabel={draft ? 'Edit note' : 'Add note'} disabled={draft === undefined} onPress={() => setEditing(true)} />}
       </NoteHeading>
