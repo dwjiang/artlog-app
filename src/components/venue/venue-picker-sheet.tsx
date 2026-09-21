@@ -1,6 +1,7 @@
 import { EmptyState } from '../empty-state';
 import { EmptyMap } from '../empty-state-art';
 import { LoadingRing } from '@/components/loading-ring';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -9,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { ThemedText } from '@/components/themed-text';
 import { ArtworkPreviews } from '@/components/visits/visit-ui';
-import { Colors, Gallery, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Radius, Spacing } from '@/constants/theme';
 import { useVisits } from '@/lib/journal/use-visits';
 import { formatVisitStart } from '@/lib/journal/use-visit-works';
 import { formatDistance } from '@/lib/venue/resolve';
@@ -141,50 +142,62 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
   const title = status === 'locating' ? 'Finding your museum…'
     : status === 'denied' ? 'Location is off'
     : options.length === 0 ? error ? 'Couldn’t find nearby museums.' : 'Finding your museum…'
+    : single ? 'Visiting here?'
     : options.some((option) => option.kind === 'poi') ? 'Looks like you’re at…'
-    : single ? `Still at ${single.name}?`
     : `${options.length} museums nearby`;
   const explanation = status === 'denied'
     ? 'Allow location access while using Artlog so scans are matched against the museum you are in. Your coordinates never leave the phone.'
     : options.length > 1
       ? 'The nearest one is selected. Scans are matched against the museum you confirm.'
       : single
-        ? 'Scans are matched against the museum you confirm.'
+        ? 'We’ll keep the art you scan together in this visit.'
         : status === 'locating' ? undefined : 'You can keep scanning without a museum.';
 
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
-    <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
+    <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, single && styles.confirmationContent]} bounces={false}>
+      <View style={styles.heading}>
         <ThemedText type={status === 'locating' && fontScale > 1.5 ? 'subtitle' : 'title'} accessibilityRole="header" style={status === 'locating' && styles.loadingTitle}>{title}</ThemedText>
         {status === 'locating' && <LoadingRing color={Gallery.accent} accessibilityLabel="Locating your museum" />}
         {explanation && <ThemedText themeColor="textSecondary">{explanation}</ThemedText>}
-        {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
-        {options.map((option, index) => {
-          const key = venueOptionKey(option);
-          const isSelected = selected !== undefined && venueOptionKey(selected) === key;
-          const confirming = busy === key;
-          return (
-            <Pressable
-              key={key}
-              accessibilityRole="button"
-              accessibilityLabel={option.name}
-              accessibilityState={{ selected: isSelected, busy: confirming, disabled: busy !== undefined }}
-              disabled={busy !== undefined}
-              onPress={() => setSelectedKey(key)}
-              style={({ pressed }) => [styles.option, isSelected ? styles.selectedOption : styles.unselectedOption, (pressed || confirming) && styles.pressedOption]}
-            >
-              <View style={styles.optionText}>
-                <ThemedText style={isSelected && styles.selectedLabel}>{option.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{confirming ? 'Confirming…' : detail(option, index === 0 && options.length > 1)}</ThemedText>
-              </View>
-              {confirming && <LoadingRing color={Gallery.accent} />}
-            </Pressable>
-          );
-        })}
-        {(failure ?? error) && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure ?? error}</ThemedText>}
-        {selected && status !== 'locating' && <GalleryButton label={`Confirm ${selected.name}`} variant="filled" fullWidth busy={busy !== undefined} busyLabel="Confirming…" onPress={() => { void choose(selected); }} />}
-        {keepVisit ? <GalleryButton label="Keep current visit" variant="outlined" fullWidth disabled={busy !== undefined} onPress={keepVisit} />
-          : status !== 'locating' && <GalleryButton label={options.length > 0 ? 'Not here' : 'OK'} variant="outlined" fullWidth onPress={notHere} />}
+      </View>
+      {status === 'denied' && <GalleryButton label="Open Settings" variant="outlined" onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
+      {single ? <View style={styles.placeCard}>
+        {fontScale <= 1.5 && <View style={styles.placeIcon}>
+          <Image source={single.kind === 'seeded' ? 'sf:building.columns' : 'sf:mappin.and.ellipse'} tintColor={Gallery.ink} accessible={false} style={styles.placeSymbol} />
+        </View>}
+        <View style={styles.optionText}>
+          <ThemedText selectable style={styles.selectedLabel}>{single.name}</ThemedText>
+          {!!detail(single, false) && <ThemedText variant="metadata" themeColor="textSecondary">{detail(single, false)}</ThemedText>}
+        </View>
+      </View> : options.map((option, index) => {
+        const key = venueOptionKey(option);
+        const isSelected = selected !== undefined && venueOptionKey(selected) === key;
+        const confirming = busy === key;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="button"
+            accessibilityLabel={option.name}
+            accessibilityState={{ selected: isSelected, busy: confirming, disabled: busy !== undefined }}
+            disabled={busy !== undefined}
+            onPress={() => setSelectedKey(key)}
+            style={({ pressed }) => [styles.option, isSelected ? styles.selectedOption : styles.unselectedOption, (pressed || confirming) && styles.pressedOption]}
+          >
+            <View style={styles.optionText}>
+              <ThemedText style={isSelected && styles.selectedLabel}>{option.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{confirming ? 'Confirming…' : detail(option, index === 0 && options.length > 1)}</ThemedText>
+            </View>
+            {confirming && <LoadingRing color={Gallery.accent} />}
+          </Pressable>
+        );
+      })}
+      {(failure ?? error) && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure ?? error}</ThemedText>}
+      <View style={styles.actions}>
+        {selected && status !== 'locating' && <GalleryButton label={single ? 'Yes, I’m here' : `Confirm ${selected.name}`} variant="filled" fullWidth busy={busy !== undefined} busyLabel="Confirming…" onPress={() => { void choose(selected); }} />}
+        {keepVisit ? <GalleryButton label="Keep current visit" variant={single ? 'text' : 'outlined'} tone={single ? 'ink' : 'accent'} fullWidth disabled={busy !== undefined} onPress={keepVisit} />
+          : status !== 'locating' && <GalleryButton label={options.length > 0 ? 'Not here' : 'OK'} variant={single ? 'text' : 'outlined'} tone={single ? 'ink' : 'accent'} fullWidth onPress={notHere} />}
+      </View>
     </ScrollView>
   );
 }
@@ -192,6 +205,12 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
 const styles = StyleSheet.create({
   container: { flexGrow: 0, backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, gap: Spacing.three },
+  confirmationContent: { paddingTop: Spacing.five, gap: Spacing.four },
+  heading: { gap: Spacing.two },
+  placeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, backgroundColor: Gallery.fill, borderRadius: Radius.card, borderCurve: 'continuous' },
+  placeIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: Gallery.highlight, borderRadius: Radius.card, borderCurve: 'continuous' },
+  placeSymbol: { width: 26, height: 26 },
+  actions: { gap: Spacing.two },
   loadingTitle: { textAlign: 'center' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: 'uppercase' },
