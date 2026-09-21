@@ -52,7 +52,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
           </Picker>
         </Menu>
       </Host>
-      {!expanded && <View style={styles.expand}><GlobeButton label="Expand globe" icon="arrow.up.left.and.arrow.down.right" onPress={() => router.push({ pathname: '/visit-globe', params: { venueId: selected.venueId } })} /></View>}
+      {!expanded && <View style={styles.expand}><GlobeButton label="Expand globe" icon="arrow.up.left.and.arrow.down.right" onPress={() => { globe.current?.settle(); router.push({ pathname: '/visit-globe', params: { venueId: selected.venueId } }); }} /></View>}
       <View style={styles.zoom}>
         <GlobeButton label="Zoom out" icon="minus" onPress={() => globe.current?.zoom(0.8)} />
         <GlobeButton label="Zoom in" icon="plus" onPress={() => globe.current?.zoom(1.25)} />
