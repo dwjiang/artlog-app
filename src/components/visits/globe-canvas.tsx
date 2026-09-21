@@ -1,17 +1,18 @@
 import { Canvas, Circle, Fill, Group, ImageShader, matchFont, RoundedRect, Shader, Skia, Text as CanvasText, useImage } from '@shopify/react-native-skia';
-import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import { useImperativeHandle, useState, type Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 import { globeCamera, globeClusters, globeGeometry, hitGlobePin, type GlobeCamera, type GlobeCluster, type GlobePin } from '@/lib/journal/globe-geometry';
 import { Gallery } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { globeShader } from './globe-shader';
+import { useGlobeCamera } from './use-globe-camera';
 
 const shader = Skia.RuntimeEffect.Make(globeShader);
 const font = matchFont({ fontFamily: 'Helvetica Neue', fontSize: 13, fontWeight: '500' });
-export type GlobeCanvasHandle = { reset: () => void; focus: (pin: GlobePin) => void; zoom: (factor: number) => void };
+export type GlobeCanvasHandle = { reset: () => void; focus: (pin: GlobePin) => void; zoom: (factor: number) => void; settle: () => void };
 
 export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, initialCamera, onCameraChange, onCluster, ref }: {
   pins: GlobePin[]; selectedId: string; initialPin: GlobePin; height: number;
@@ -21,32 +22,24 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
   const [width, setWidth] = useState(0);
   // Rasterized from the GSHHG coastline polygons supplied in the design mock.
   const image = useImage(require('../../../assets/images/visit-globe-land.png'));
-  const camera = useSharedValue(initialCamera ?? globeCamera(initialPin.latitude, initialPin.longitude));
-  useEffect(() => { if (initialCamera) camera.set(initialCamera); }, [camera, initialCamera]);
-  function setCamera(value: GlobeCamera) { camera.set(value); onCameraChange?.(value); }
-  const start = useSharedValue(globeCamera(initialPin.latitude, initialPin.longitude));
+  const { camera, pan, pinch, setCamera, settle, stop, save } = useGlobeCamera(initialCamera ?? globeCamera(initialPin.latitude, initialPin.longitude), onCameraChange);
   const clusters = useDerivedValue(() => globeClusters(pins, camera.get(), width, height));
   const uniforms = useDerivedValue(() => {
     const current = camera.get(), geometry = globeGeometry(width, height, current.zoom);
     return { center: [geometry.cx, geometry.cy], radius: geometry.radius, yaw: current.yaw * Math.PI / 180, pitch: current.pitch * Math.PI / 180 };
   });
   useImperativeHandle(ref, () => ({
-    reset: () => setCamera(globeCamera(initialPin.latitude, initialPin.longitude)),
-    focus: (pin) => setCamera(globeCamera(pin.latitude, pin.longitude)),
-    zoom: (factor) => setCamera({ ...camera.get(), zoom: Math.max(0.75, Math.min(2.25, camera.get().zoom * factor)) }),
+    reset: () => scheduleOnUI(setCamera, globeCamera(initialPin.latitude, initialPin.longitude)),
+    focus: (pin) => scheduleOnUI(setCamera, globeCamera(pin.latitude, pin.longitude)),
+    zoom: (factor) => scheduleOnUI(() => {
+      'worklet';
+      setCamera({ ...camera.get(), zoom: Math.max(0.75, Math.min(2.25, camera.get().zoom * factor)) });
+    }),
+    settle,
   }));
-  const pan = Gesture.Pan().maxPointers(1).minDistance(4)
-    .onStart(() => { start.set(camera.get()); })
-    .onUpdate((event) => {
-      const origin = start.get();
-      camera.set({ ...camera.get(), yaw: (origin.yaw + event.translationX * 0.34 / origin.zoom) % 360,
-        pitch: Math.max(-75, Math.min(75, origin.pitch + event.translationY * 0.28 / origin.zoom)) });
-    }).onFinalize(() => { if (onCameraChange) scheduleOnRN(onCameraChange, camera.get()); });
-  const pinch = Gesture.Pinch().onStart(() => { start.set(camera.get()); }).onUpdate((event) => {
-    camera.set({ ...camera.get(), zoom: Math.max(0.75, Math.min(2.25, start.get().zoom * event.scale)) });
-  }).onFinalize(() => { if (onCameraChange) scheduleOnRN(onCameraChange, camera.get()); });
-  const tap = Gesture.Tap().onEnd((event, success) => {
+  const tap = Gesture.Tap().onBegin(stop).onEnd((event, success) => {
     if (!success) return;
+    save();
     const id = hitGlobePin(clusters.get(), event.x, event.y);
     if (!id) return;
     const cluster = clusters.get().find((group) => group.ids.includes(id));
@@ -54,13 +47,12 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
       if (camera.get().zoom >= 2.2) { if (onCluster) scheduleOnRN(onCluster, cluster.ids); }
       else {
         const pin = pins.find((pin) => pin.id === id);
-        if (pin) camera.set({ ...globeCamera(pin.latitude, pin.longitude), zoom: Math.min(2.25, camera.get().zoom * 1.6) });
-        if (onCameraChange) scheduleOnRN(onCameraChange, camera.get());
+        if (pin) setCamera({ ...globeCamera(pin.latitude, pin.longitude), zoom: Math.min(2.25, camera.get().zoom * 1.6) });
       }
     } else scheduleOnRN(onSelect, id);
   });
-  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((_event, success) => {
-    if (success) { camera.set((current) => ({ ...current, zoom: Math.min(2.25, current.zoom * 1.25) })); if (onCameraChange) scheduleOnRN(onCameraChange, camera.get()); }
+  const doubleTap = Gesture.Tap().numberOfTaps(2).onBegin(stop).onEnd((_event, success) => {
+    if (success) setCamera({ ...camera.get(), zoom: Math.min(2.25, camera.get().zoom * 1.25) });
   });
   return <GestureHandlerRootView style={{ height }}><GestureDetector gesture={Gesture.Race(Gesture.Simultaneous(pan, pinch), Gesture.Exclusive(doubleTap, tap))}>
     <View collapsable={false} onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={{ height }}
