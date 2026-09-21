@@ -72,7 +72,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Your photo, name and introduction appear on your public profile.'}</GroupedFooter>}>
         <LabeledContent label="Name"><TextInput defaultValue={name} placeholder="Name" onChangeText={setName} maxLength={LIMITS.name} autoCapitalize="words" editable={!busy}
           modifiers={[accessibilityLabel('Name')]} /></LabeledContent>
-        <LabeledContent label="Introduction"><TextInput defaultValue={bio} placeholder="A little about the art you love…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
+        <LabeledContent label="Introduction"><TextInput defaultValue={bio} placeholder="Add an introduction…" onChangeText={setBio} maxLength={LIMITS.bio} multiline numberOfLines={4} editable={!busy}
           modifiers={[accessibilityLabel('Introduction')]} /></LabeledContent>
       </GroupedSection>
       <GroupedSection footer={<GroupedFooter>Usernames can’t be changed.</GroupedFooter>}>

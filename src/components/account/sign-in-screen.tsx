@@ -42,8 +42,8 @@ export function SignInScreen({ context = 'account', visitId }: { context?: SignI
       <Text accessibilityRole="header" style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: '100%' }]}>{copy.title}</Text>
       <Text style={styles.detail}>{copy.detail}</Text>
       <View style={styles.actions}>
-        {waitingForJournal && !busy ? <View style={styles.preparing}><LoadingRing accessibilityLabel="Preparing your visit…" color={Gallery.accent} />
-          <Text variant="metadata" themeColor="textSecondary">Preparing your visit…</Text></View> : <AppleSignInAction state={state} />}
+        {waitingForJournal && !busy ? <View style={styles.preparing}><LoadingRing accessibilityLabel="Syncing your journal…" color={Gallery.accent} />
+          <Text variant="metadata" themeColor="textSecondary">Syncing your journal…</Text></View> : <AppleSignInAction state={state} />}
         <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
       </View>
     </ScrollView>

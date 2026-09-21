@@ -24,7 +24,7 @@ export function EmptySymbol({ name }: { name: string }) {
   return <View accessibilityElementsHidden style={styles.symbol}><Image source={`sf:${name}`} tintColor={Gallery.muted} style={{ width: 30, height: 30 }} accessible={false} /></View>;
 }
 
-export function SearchEmptyState({ title = 'Nothing found this time.', detail, onClear }: { title?: string; detail: string; onClear: () => void }) {
+export function SearchEmptyState({ title = 'No results found.', detail, onClear }: { title?: string; detail: string; onClear: () => void }) {
   return <View style={styles.search}>
     <EmptySymbol name="magnifyingglass" />
     <Text variant="display" accessibilityRole="header" style={[styles.smallTitle, styles.center]}>{title}</Text>

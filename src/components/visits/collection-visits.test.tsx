@@ -19,7 +19,7 @@ beforeEach(() => { mockMode = 'list'; });
 it.each(['list', 'globe'] as const)('offers one first-visit action before there is content for the %s view', async (mode) => {
   mockMode = mode;
   await render(<CollectionVisits {...props} visits={[]} search="" />);
-  expect(screen.getByRole('header', { name: 'Keep the whole visit.' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'No visits yet.' })).toBeOnTheScreen();
   expect(screen.getAllByRole('button', { name: 'Add visit' })).toHaveLength(1);
   expect(screen.queryByLabelText('Search your visits')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Globe' })).toBeNull();

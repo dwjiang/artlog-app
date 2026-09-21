@@ -224,7 +224,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
 it('keeps the card usable while the prose is still being written, then fills it in', async () => {
   results.set('scans:get', confidentScanWithoutProse);
   await render(result());
-  expect(await screen.findByLabelText('Writing about this work…')).toBeOnTheScreen();
+  expect(await screen.findByLabelText('Loading artwork information…')).toBeOnTheScreen();
   await openDetails();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
   await publish({ ...confidentScanWithoutProse, docent: confidentScan.docent, factSheet: confidentScan.factSheet });
@@ -395,7 +395,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
   const sheet = await screen.findByLabelText('Not right sheet');
   expect(sheet).toBeOnTheScreen();
-  expect(screen.getByText('Maybe one of these?')).toBeOnTheScreen();
+  expect(screen.getByText('Other possible matches')).toBeOnTheScreen();
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
   expect(mockSign).toHaveBeenCalledWith(JSON.stringify({ objectId: lilies.objectId, operation: 'rejectMatch', scanId: SCAN_ID }));
   expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID, objectId: lilies.objectId, nonce: 'nonce-1', assertionBase64: '' });

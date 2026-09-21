@@ -21,7 +21,7 @@ export function LoadingSkeleton({ label, children, style, fill = false }: { labe
   </View>;
 }
 
-export function ParagraphSkeleton({ label = 'Writing about this work…' }: { label?: string }) {
+export function ParagraphSkeleton({ label = 'Loading artwork information…' }: { label?: string }) {
   return <LoadingSkeleton label={label}><View style={{ gap: 11 }}>
     <Ghost /><Ghost width="92%" /><Ghost /><Ghost width="68%" />
   </View></LoadingSkeleton>;

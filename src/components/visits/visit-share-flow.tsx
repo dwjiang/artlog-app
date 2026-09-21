@@ -126,7 +126,7 @@ export function VisitShareScreen() {
           {lead.map((work) => <SavedWorkImage key={work.localId} contain path={previewPhotoPath(work.localId)} title={work.title} style={share.leadThumb} />)}
           <Text style={share.leadCopy}>{selected.size > 3 ? `+${selected.size - 3} more inside the visit` : selected.size ? 'Every selected artwork opens in the visit' : 'Select artworks to fill the feed card'}</Text>
         </View>
-        <Text style={styles.fine}>Star up to 3 artworks to lead your visit.</Text>
+        <Text style={styles.fine}>Star up to 3 artworks to show on the feed card.</Text>
         <View style={styles.sectionLabel}><Text style={share.sectionTitle}>Shared artworks</Text>
           <Text style={styles.fine}>{selected.size}/{LIMITS.selectedSaves} selected</Text></View>
         <GalleryButton label="Deselect all" disabled={sharing.busy || !selected.size} onPress={() => controller.edit({ saveLocalIds: [] })} />
@@ -199,7 +199,7 @@ export function VisitSharedScreen() {
   const { controller, shared } = sharing;
   const signedIn = visit.owner.startsWith('account:');
   useEffect(() => { if (signedIn) void controller.view(); }, [controller, signedIn]);
-  if (!signedIn) return <VisitPage><SocialState title="Share a visit." detail="Sign in to publish this visit." icon="person.2"
+  if (!signedIn) return <VisitPage><SocialState title="Sign in to share this visit." detail="You choose what to include before it’s published." icon="person.2"
     action="Sign in" onAction={() => router.push(signInRoute('visit'))} /></VisitPage>;
   if (sharing.profileRequired) return <VisitPage><VisitMessage action="Back to selection" onAction={() => router.replace({ pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } })}>
     Create a profile before sharing this visit.

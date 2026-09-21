@@ -58,10 +58,10 @@ it('explains unavailable sign-in without preventing dismissal', async () => {
 
 it('continues to the visit editor only after the linked account has its local journal', async () => {
   const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByRole('header', { name: 'Share your museum visit.' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Sign in to share this visit' })).toBeOnTheScreen();
   mockAccount.account.linked = true;
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByText('Preparing your visit…')).toBeOnTheScreen();
+  expect(screen.getByText('Syncing your journal…')).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   mockOwner = 'account:account-a';
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);

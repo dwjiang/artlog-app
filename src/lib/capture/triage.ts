@@ -18,7 +18,7 @@ export type TriageResult = Awaited<ReturnType<Triage['check']>>;
 
 export function decide({ blurVariance, glareFraction }: TriageMetrics): TriageResult {
   if (blurVariance < BLUR_THRESHOLD) return { ok: false, reason: 'blur', message: 'Hold steady and try again' };
-  if (glareFraction > GLARE_THRESHOLD) return { ok: false, reason: 'glare', message: 'Dodge the glare' };
+  if (glareFraction > GLARE_THRESHOLD) return { ok: false, reason: 'glare', message: 'Adjust the angle to reduce glare' };
   return { ok: true };
 }
 

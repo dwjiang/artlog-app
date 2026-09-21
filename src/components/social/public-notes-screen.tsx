@@ -16,7 +16,7 @@ import { PublicNotesPreview } from './public-notes-preview';
 import { SocialState } from './social-state';
 import { socialStyles } from './social-styles';
 
-const INTRO = 'Your thoughts belong to you. Choose which notes visitors can read alongside artworks on your wall. Editing a shared note makes it private until you share it again.';
+const INTRO = 'Choose which notes visitors can read alongside artworks on your wall. Editing a shared note makes it private until you share it again.';
 
 export function PublicNotesScreen() {
   const wall = useCollectionWall([]);

@@ -163,6 +163,26 @@ portrait with the Anton wordmark and the tagline; About uses a compact portrait
 beside the name and version. Everyday screens use typography without
 repeating the portrait.
 
+## Interface writing
+
+Write in plain, calm, specific language. Say what is here, what is missing, or
+what the person can do next. Artwork and visual design supply the personality;
+everyday tasks do not need slogans, quips, or inspirational encouragement.
+Keep one brand statement on Welcome: “Remember the art that stays with you.”
+
+Use factual empty-state headings, such as “No saved artworks yet.” Add a short
+next step when useful: “Scan an artwork to add it to your collection.” Match
+copy to the actual state: signing in, creating a profile, loading, and an empty
+result each need different explanations. Never imply a save or share succeeded
+before it has completed.
+
+Remove a sentence when it adds no information. Do not repeat a navigation title
+with a decorative heading. Name actions directly, and use neutral input prompts
+such as “Add a note…” instead of questions about feelings or inspiration.
+Keep privacy, consent, saving behavior, uncertainty, and recovery instructions
+explicit. Natural contractions are welcome; warmth comes from clear, helpful
+wording. Lettering within an illustration can remain part of its visual design.
+
 ## Privacy and accessible states
 
 Visual changes preserve guest collections, saving, synchronization, sharing, and

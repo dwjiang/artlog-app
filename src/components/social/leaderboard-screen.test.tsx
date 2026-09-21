@@ -55,8 +55,8 @@ beforeEach(() => {
 
 it('lets a guest move from the Friends prompt to Global rankings and open a public profile', async () => {
   await render(<LeaderboardScreen />);
-  expect(screen.getByText('A little friendly inspiration.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore Global' }));
+  expect(screen.getByRole('header', { name: 'Sign in to see friends’ rankings.' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Browse Global' }));
   expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', { audience: 'global', metric: 'visits', period: 'month' });
   const row = screen.getByRole('button', { name: 'Rank 1, Ada, 4 visits. Open public profile.' });
   await fireEvent.press(row);
@@ -72,6 +72,23 @@ it('changes category and period independently using the dropdowns', async () => 
   expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', { audience: 'friends', metric: 'artworks', period: 'all' });
   expect(mockSettings.get('leaderboard-choice')).toBe('{"audience":"friends","metric":"artworks","period":"all"}');
   expect(screen.getByRole('button', { name: 'Rank 1, Ada, 4 artworks. Open public profile.' })).toBeOnTheScreen();
+});
+
+it('asks an authenticated person without a profile to create one before viewing Friends rankings', async () => {
+  mockSession.status = 'profile-required';
+  await render(<LeaderboardScreen />);
+  expect(screen.getByRole('header', { name: 'Create a profile to see friends’ rankings.' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Create your profile' }));
+  expect(mockPush).toHaveBeenCalledWith('/create-profile');
+  expect(mockQuery).toHaveBeenCalledWith('leaderboards:list', 'skip');
+});
+
+it('offers friend discovery when an authenticated person has no Friends rankings', async () => {
+  mockSession.status = 'ready'; mockRows = [];
+  await render(<LeaderboardScreen />);
+  expect(screen.getByRole('header', { name: 'No friends on this leaderboard yet.' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Find friends' }));
+  expect(mockPush).toHaveBeenCalledWith('/people');
 });
 
 it('opens sign-in when a guest joins the leaderboard', async () => {
@@ -130,6 +147,7 @@ it('offers creation for the selected metric while preserving actual participatio
   mockSettings.set('leaderboard-choice', JSON.stringify({ audience: 'global', metric: 'visits', period: 'month' }));
   await render(<LeaderboardScreen />);
   expect(await screen.findByText('Participating on Global')).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'No rankings this month.' })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole('button', { name: 'Add visit' }));
   expect(mockPush).toHaveBeenLastCalledWith('/visit-create');
   expect(screen.queryByText('LOGGED VISITS')).toBeNull();
@@ -138,5 +156,5 @@ it('offers creation for the selected metric while preserving actual participatio
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith('/scan');
   await fireEvent.press(screen.getByRole('button', { name: 'Choose All time' }));
-  expect(screen.queryByText('The month is yours to start.')).toBeNull();
+  expect(screen.getByRole('header', { name: 'No rankings yet.' })).toBeOnTheScreen();
 });

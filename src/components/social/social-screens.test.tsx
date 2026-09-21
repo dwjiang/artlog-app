@@ -85,7 +85,7 @@ it('keeps Home navigation available through ghosts, loaded content, and paginati
   const view = await render(<HomeScreen />);
   expect(screen.getByRole('progressbar', { name: 'Loading visits…' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Find friends' })).toBeOnTheScreen();
-  expect(screen.queryByText('See what your friends see.')).toBeNull();
+  expect(screen.queryByText('No visits from friends yet.')).toBeNull();
   mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
   await view.rerender(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
@@ -112,12 +112,12 @@ it('retains existing visits and shows only the refresh indicator while refreshin
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   expect(screen.getByRole('progressbar', { name: 'Refreshing visits' })).toBeOnTheScreen();
   expect(screen.queryByRole('progressbar', { name: 'Loading visits…' })).toBeNull();
-  expect(screen.queryByText('You’re all caught up.')).toBeNull();
+  expect(screen.queryByText('All visits shown.')).toBeNull();
 });
 
 it.each([
-  ['profile-required', 'Make yourself at home.'],
-  ['offline', 'You’re offline.'], ['loading', 'Getting things ready…'],
+  ['profile-required', 'Create a public profile.'],
+  ['offline', 'You’re offline.'], ['loading', 'Loading your account…'],
 ] as const)('gates private Home content while %s', async (status, expected) => {
   mockSession = { ...mockSession, status };
   mockPages.mockReturnValue(pages({ items: [visit] }));
@@ -130,13 +130,13 @@ it.each([
 it('waits for finished pagination before showing empty or caught-up copy and offers retry', async () => {
   mockPages.mockReturnValue(pages({ done: false, canLoadMore: true }));
   const view = await render(<HomeScreen />);
-  expect(screen.queryByText('You’re all caught up.')).toBeNull();
-  expect(screen.queryByText('See what your friends see.')).toBeNull();
+  expect(screen.queryByText('All visits shown.')).toBeNull();
+  expect(screen.queryByText('No visits from friends yet.')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'More visits' }));
   expect(mockLoadMore).toHaveBeenCalled();
   mockPages.mockReturnValue(pages({ items: [visit], done: true }));
   await view.rerender(<HomeScreen />);
-  expect(screen.getByText('You’re all caught up.')).toBeOnTheScreen();
+  expect(screen.getByText('All visits shown.')).toBeOnTheScreen();
   mockPages.mockReturnValue(pages({ done: false, error: new Error('offline') }));
   await view.rerender(<HomeScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
@@ -262,8 +262,8 @@ it('loads public visits for guests and opens their details without signing in', 
 it('offers public walls while the public visit feed is empty', async () => {
   mockSession = { ...mockSession, status: 'signed-out' };
   await render(<HomeScreen />);
-  expect(screen.getByText('Discover a different view.')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore public walls' }));
+  expect(screen.getByText('No public visits yet.')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'View public walls' }));
   expect(mockPush).toHaveBeenCalledWith('/people');
 });
 
@@ -272,7 +272,7 @@ it('shows a direct invitation for guest Friends and keeps public discovery one t
   await render(<PeopleScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
   expect(screen.queryByText('EXAMPLE')).toBeNull();
-  expect(screen.getByRole('header', { name: 'Find your friends.' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Sign in to add friends.' })).toBeOnTheScreen();
   expect(screen.queryByLabelText('Name or username')).toBeNull();
   expect(screen.queryByText('An afternoon of art')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in with Apple' }));
@@ -313,10 +313,10 @@ it.each(['wall', 'visit'])('renders sourced artwork stories in %s details', asyn
 it('waits for completed discovery before inviting a first scan', async () => {
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
   const view = await render(<PeopleScreen />);
-  expect(screen.queryByText('A community in the making.')).toBeNull();
+  expect(screen.queryByText('No public profiles yet.')).toBeNull();
   mockPages.mockReturnValue(pages({ error: new Error('Offline'), done: true }));
   await view.rerender(<PeopleScreen />);
-  expect(screen.queryByText('A community in the making.')).toBeNull();
+  expect(screen.queryByText('No public profiles yet.')).toBeNull();
   mockPages.mockReturnValue(pages());
   await view.rerender(<PeopleScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Scan artwork' }));
@@ -329,7 +329,7 @@ it('keeps discovery search available when a member has no friends', async () => 
   await render(<PeopleScreen />);
   expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Friends' }));
-  expect(screen.getByText('Find your friends.')).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'No friends added yet.' })).toBeOnTheScreen();
   expect(screen.queryByLabelText('Name or username')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Find friends' }));
   expect(screen.getByLabelText('Name or username')).toBeOnTheScreen();

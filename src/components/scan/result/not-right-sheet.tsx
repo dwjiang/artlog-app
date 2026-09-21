@@ -24,7 +24,7 @@ export function NotRightSheet({ open, onDismiss, runnerUps, onPick, onLabel, not
     <BottomSheet contentPadding={0} snapPoints={['full']} containerColor={Colors.light.background} isPresented={open} onDismiss={onDismiss}>
       <RNHostView>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <ThemedText type="subtitle">{hasRunnerUps ? 'Maybe one of these?' : 'Not in our index yet'}</ThemedText>
+          <ThemedText type="subtitle">{hasRunnerUps ? 'Other possible matches' : 'Not in our index yet'}</ThemedText>
           {notice && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{notice}</ThemedText>}
           {hasRunnerUps && <RunnerUps candidates={runnerUps} onPick={onPick} />}
           <GalleryButton label={hasRunnerUps ? 'None of these — point at the label' : 'Point at the label'} variant="filled" fullWidth onPress={onLabel} />

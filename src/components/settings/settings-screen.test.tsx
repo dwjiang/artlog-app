@@ -79,7 +79,7 @@ it('keeps privacy and About details accessible', async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(screen.getByText(PRIVACY_COPY)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
-  expect(screen.getByText('Your personal art journal.')).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Artlog' })).toBeOnTheScreen();
   for (const label of ['Privacy policy', 'Terms', 'Send feedback', 'Source code']) expect(screen.getByRole('button', { name: label })).toBeOnTheScreen();
 });
 

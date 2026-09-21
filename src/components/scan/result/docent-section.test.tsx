@@ -45,18 +45,18 @@ describe('while the backend is still writing', () => {
   it('shows the writing line under the title until the sentences arrive', async () => {
     const view = await render(<DocentSection title="About this work" pending />);
     expect(screen.getByText('About this work')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Writing about this work…')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Loading artwork information…')).toBeOnTheScreen();
     await view.rerender(<DocentSection title="About this work" pending={false} docent={docent} factSheet={factSheet} />);
-    expect(screen.queryByLabelText('Writing about this work…')).toBeNull();
+    expect(screen.queryByLabelText('Loading artwork information…')).toBeNull();
     expect(screen.getByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
   });
 
   it('explains unavailable background information after ten seconds', async () => {
     await render(<DocentSection title="About this work" pending />);
     await act(() => { jest.advanceTimersByTime(9_999); });
-    expect(screen.getByLabelText('Writing about this work…')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Loading artwork information…')).toBeOnTheScreen();
     await act(() => { jest.advanceTimersByTime(1); });
-    expect(screen.queryByLabelText('Writing about this work…')).toBeNull();
+    expect(screen.queryByLabelText('Loading artwork information…')).toBeNull();
     expect(screen.getByText('Background information isn’t available for this work yet.')).toBeOnTheScreen();
   });
 });

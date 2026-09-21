@@ -58,7 +58,7 @@ export function VisitArtworks({ artworks, token, compact = false }: { artworks: 
     {width > 0 && preview.map(({ key, media, title }, index) => <View key={key} style={{ width: height * ratios[index], height, overflow: 'hidden' }}>
       <DisplayMedia media={media} label={title} token={token} width={height * ratios[index]} height={height} />
     </View>)}
-    {!preview.length && <Text style={socialStyles.caption}>A moment from the museum.</Text>}
+    {!preview.length && <Text style={socialStyles.caption}>No artwork previews.</Text>}
   </View>;
 }
 

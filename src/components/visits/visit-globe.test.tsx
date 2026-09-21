@@ -24,7 +24,7 @@ it('renders one pin per museum and opens the selected museum’s visits', async 
   expect(screen.getByText('2 visits · 0 artworks')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Pin: Louvre' }));
   expect(screen.getByText('1 visit · 0 artworks')).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits to Louvre' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'View visits to Louvre' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'Paris', name: 'Louvre', venueId: 'Louvre' } });
 });
 it('supports menu selection without marker callbacks and provides globe zoom and reset', async () => {
@@ -50,6 +50,6 @@ it('keeps visits without coordinates available through List', async () => {
 });
 it('dismisses the expanded modal into the museum visit browser', async () => {
   await render(<VisitGlobe visits={[visit('1', 'Met', 'New York')]} expanded onList={jest.fn()} />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Explore visits to Met' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'View visits to Met' }));
   expect(mockDismissTo).toHaveBeenCalledWith({ pathname: '/visit-place', params: { placeKey: 'New York', name: 'Met', venueId: 'Met' } });
 });

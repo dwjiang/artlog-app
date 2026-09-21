@@ -85,7 +85,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: s
       </NoteHeading>
       {editing ? <><TextInput
         accessibilityLabel="Notes"
-        placeholder="What stayed with you?"
+        placeholder="Add a note…"
         placeholderTextColor={Colors.light.textSecondary}
         multiline
         maxLength={MAX_NOTE_LENGTH}
@@ -101,7 +101,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall }: { savedLocalId: s
       />
       {draft?.length === MAX_NOTE_LENGTH && <ThemedText themeColor="textSecondary" style={styles.body}>{NOTE_LENGTH_MESSAGE}</ThemedText>}
       </> : draft ? <ThemedText selectable style={styles.body}>{draft}</ThemedText>
-        : <ThemedText themeColor="textSecondary" style={styles.body}>Keep a private note about this work.</ThemedText>}
+        : <ThemedText themeColor="textSecondary" style={styles.body}>No note yet.</ThemedText>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Image source={sharedOnWall ? 'sf:globe' : 'sf:lock'} tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
         <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>{sharedOnWall === true ? 'Shared on your public wall' : sharedOnWall === false || !owner.startsWith('account:') ? 'Only you' : 'Private unless shared on your wall'}</ThemedText>

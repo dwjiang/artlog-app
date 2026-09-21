@@ -24,7 +24,7 @@ describe('decide', () => {
   });
 
   it('asks to dodge glare above the highlight fraction', () => {
-    expect(decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD + 0.001 })).toEqual({ ok: false, reason: 'glare', message: 'Dodge the glare' });
+    expect(decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD + 0.001 })).toEqual({ ok: false, reason: 'glare', message: 'Adjust the angle to reduce glare' });
     expect(decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD })).toEqual({ ok: true });
   });
 
@@ -40,7 +40,7 @@ describe('check', () => {
 
   it('measures blur as the Laplacian variance and glare as the highlight fraction of the downscaled crop', async () => {
     const fake = crop({ laplacianStddev: 45, highlightPixels: Math.round(TRIAGE_SIZE * TRIAGE_SIZE * 0.05) });
-    await expect(check('file:///crop.jpg', fake.cv)).resolves.toEqual({ ok: false, reason: 'glare', message: 'Dodge the glare' });
+    await expect(check('file:///crop.jpg', fake.cv)).resolves.toEqual({ ok: false, reason: 'glare', message: 'Adjust the angle to reduce glare' });
     expect(fake.calls).toContainEqual({ name: 'resize', args: [TRIAGE_SIZE, TRIAGE_SIZE, 'INTER_AREA'] });
     expect(fake.calls).toContainEqual({ name: 'threshold', args: [GLARE_LEVEL - 1, 255, 'THRESH_BINARY'] });
     expect(fake.leaked()).toEqual([]);

@@ -80,7 +80,7 @@ function QueueContent() {
       {error && <>
         <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load recent scans. Close this sheet and reopen it to try again.</ThemedText>
       </>}
-      {!loading && !error && items.length === 0 && <EmptyState inset={false} title="A fresh pair of eyes." detail={QUEUE_EMPTY} visual={<EmptySymbol name="camera" />}>
+      {!loading && !error && items.length === 0 && <EmptyState inset={false} title="No recent scans." detail={QUEUE_EMPTY} visual={<EmptySymbol name="camera" />}>
         <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismiss(); router.navigate('/(tabs)/(scan)/scan'); }} />
       </EmptyState>}
       {items.map((item) => <QueueRow key={item.localId} item={item} onOpen={open} onRetry={retry} onDiscard={discard} retrying={retrying.includes(item.localId)} discarding={discarding.includes(item.localId)} />)}

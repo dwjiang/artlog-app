@@ -46,8 +46,6 @@ function Editor({ work }: { work: SavedWork }) {
     finally { setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 18 }}>
-    <Text variant="display" accessibilityRole="header" style={{ color: Gallery.ink }}>Give this artwork a name.</Text>
-    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Your photos and visits stay together as you learn more.</Text>
     {([{ label: 'Title', value: title, change: setTitle }, { label: 'Artist', value: artist, change: setArtist }, { label: 'Date', value: date, change: setDate }, { label: 'Medium', value: medium, change: setMedium }]).map((field) => <View key={field.label} style={{ gap: 8 }}><Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text><TextInput accessibilityLabel={field.label} value={field.value} onChangeText={field.change} onFocus={() => setFocusedField(field.label)} onBlur={() => setFocusedField(undefined)} maxLength={500} editable={!busy} selectionColor={Gallery.accent} keyboardAppearance="light" style={{ backgroundColor: Gallery.surface, color: Gallery.ink, fontSize: 17, padding: 16, borderRadius: 8, borderWidth: 1, borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder }} /></View>)}
     <GalleryButton label="Save artwork details" variant="filled" fullWidth disabled={busy} onPress={() => {
       try { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }

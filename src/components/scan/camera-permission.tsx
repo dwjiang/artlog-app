@@ -23,7 +23,7 @@ export function CameraPermission({ children }: { children: ReactNode }) {
   if (hasPermission) return children;
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      <ThemedText type="subtitle">Identify a painting</ThemedText>
+      <ThemedText type="subtitle">Camera access needed</ThemedText>
       <ThemedText themeColor="textSecondary">
         Allow camera access to scan a painting, or import a photo from your library.
       </ThemedText>

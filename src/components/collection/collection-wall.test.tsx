@@ -423,7 +423,7 @@ it('shows a blank wall and opens Scan when there is no saved art', async () => {
   await fireEvent.press(await screen.findByRole('button', { name: 'Scan artwork' }));
   expect(mockPush).toHaveBeenLastCalledWith('/scan');
   expect(screen.getByRole('image', { name: 'Your blank gallery wall' })).toBeOnTheScreen();
-  expect(screen.queryByText('Your own little museum.')).toBeNull();
+  expect(screen.queryByText('No saved artworks yet.')).toBeNull();
   let settle: (wall: OwnerWall) => void = () => {};
   mockTransport.getMine.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
   await act(async () => { mockFocus?.(); });

@@ -16,7 +16,7 @@ export function CaptureCompletion({ completion, onViewResult, inline = false, sh
     <ThemedText style={styles.copy}>1 artwork · {completion.photoPaths.length} new {completion.photoPaths.length === 1 ? 'photo' : 'photos'}</ThemedText>
     <View style={styles.photos}>{completion.photoPaths.slice(0, 3).map((path) => <Image key={path} source={{ uri: captureFileUri(path) }} contentFit="cover" style={styles.photo} accessibilityLabel="Saved photo preview" />)}</View>
     <ThemedText style={styles.copy}>{completion.visitLabel}</ThemedText>
-    <ThemedText type="small" style={styles.note}>{completion.wasExisting ? 'Your earlier photos and encounters are unchanged.' : 'A single artwork, with all these photos together.'}</ThemedText>
+    <ThemedText type="small" style={styles.note}>{completion.wasExisting ? 'Your earlier photos and encounters are unchanged.' : 'All photos are saved to this artwork.'}</ThemedText>
     <GalleryButton label="Scan next artwork" icon="arrow.right" iconPosition="trailing" variant="filled" fullWidth onPress={() => {
       router.dismissAll();
       router.navigate('/(tabs)/(scan)/scan');

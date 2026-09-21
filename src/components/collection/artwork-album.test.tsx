@@ -41,14 +41,14 @@ it('waits for the photo read before showing an empty album and distinguishes a r
   mockPhotos = [];
   const view = await render(<ArtworkAlbum work={work} />);
   expect(screen.getByLabelText('Loading photos…')).toBeOnTheScreen();
-  expect(screen.queryByText('Keep your point of view.')).toBeNull();
+  expect(screen.queryByText('No photos yet.')).toBeNull();
   mockPhotosUpdatedAt = new Date();
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(screen.getByText('Keep your point of view.')).toBeOnTheScreen();
+  expect(screen.getByText('No photos yet.')).toBeOnTheScreen();
   mockPhotosError = new Error('Read failed');
   await view.rerender(<ArtworkAlbum work={work} />);
   expect(screen.getByRole('alert')).toHaveTextContent(/Photos couldn’t load\./);
-  expect(screen.queryByText('Keep your point of view.')).toBeNull();
+  expect(screen.queryByText('No photos yet.')).toBeNull();
 });
 
 it('moves to the last remaining photo after photos are deleted, so Previous works on its first tap', async () => {

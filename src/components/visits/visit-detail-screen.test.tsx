@@ -41,7 +41,7 @@ it('opens sign-in directly above a guest visit and preserves the visit when dism
   const navigation = renderRouter({
     _layout: () => <Stack />,
     'journal/[visitId]': VisitDetailScreen,
-    'sign-in': () => <Text>Share your museum visit.</Text>,
+    'sign-in': () => <Text>Sign in to share this visit</Text>,
   }, { initialUrl: '/journal/visit' });
   await navigation;
   await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
@@ -252,7 +252,7 @@ async function openEndReview() {
     index: () => <Pressable accessibilityRole="button" onPress={() => router.push('/journal/visit?endVisit=true')}><Text>End visit</Text></Pressable>,
     'journal/[visitId]': VisitDetailScreen,
     'visit-share/[visitId]/index': () => <Text>Publish preview</Text>,
-    'sign-in': () => <Text>Share your museum visit.</Text>,
+    'sign-in': () => <Text>Sign in to share this visit</Text>,
   });
   await navigation;
   await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));

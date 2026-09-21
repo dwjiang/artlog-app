@@ -191,10 +191,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Make room for your favorites.'}</Text>
-            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
+            <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>{opening ? 'Opening your wall…' : 'Add artworks to your wall.'}</Text>
+            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Choose from your saved artworks.'}</Text>}
             {opening ? <LoadingRing color={wallInk} />
-              : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
+              : !editing && wall.draft ? <GalleryButton label="Add artworks" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
         </WallGallery>}
       </View>}
@@ -232,7 +232,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     </View>}
     {photoPicker?.presented && selected?.saveLocalId && <WallPhotoSheet savedId={selected.saveLocalId} title={selected.artwork.title} photoId={selected.photoLocalId} duplicate={photoPicker.kind === 'duplicate'}
       onDismiss={() => setPhotoPicker(undefined)} onConfirm={(photoLocalId) => {
-        if (photoPicker.kind === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Another placement, still one artwork. Only this photo is public.'); }
+        if (photoPicker.kind === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Second placement added. Only this photo is public.'); }
         else if (wall.draft && !blocked) {
           commit({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
           showToast('Wall photo updated. Other photos remain private.');

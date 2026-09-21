@@ -33,11 +33,6 @@ export function AboutSection() {
         </View>
       </View></RNHostView>
     </GroupedSection>
-    <GroupedSection>
-      <RNHostView matchContents><View style={{ paddingVertical: 8, backgroundColor: Gallery.paper }}>
-        <ThemedText selectable>Your personal art journal.</ThemedText>
-      </View></RNHostView>
-    </GroupedSection>
     <GroupedSection footer={error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined}>
       <NavigationRow label="Privacy policy" onPress={() => router.push({ pathname: '/settings-detail', params: { section: 'privacy' } })} />
       <NavigationRow label="Terms" onPress={() => { void open(TERMS_URL); }} />

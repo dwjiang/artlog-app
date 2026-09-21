@@ -32,7 +32,7 @@ export function ContributionsSheet({ open, onDismiss, contributions }: { open: b
           <ThemedText type="subtitle" accessibilityRole="header">My contributions</ThemedText>
           {!!contributions?.length && <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>}
         </View>}
-        ListEmptyComponent={contributions === undefined ? <ThemedText>Connecting…</ThemedText> : <EmptyState inset={false} title="Help the next person see more."
+        ListEmptyComponent={contributions === undefined ? <ThemedText>Connecting…</ThemedText> : <EmptyState inset={false} title="No contributions yet."
           detail="Save a confirmed artwork to share its label details and a small artwork crop with the index." visual={<EmptyPaper kind="label" />} footnote="Your full photos stay private. No account needed.">
           <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { onDismiss(); router.dismissAll(); router.navigate('/scan'); }} />
         </EmptyState>}

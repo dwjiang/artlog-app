@@ -112,9 +112,10 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
   }
 
   const empty = !options.length && !error && (status === 'none' || status === 'denied');
+  const fallback = keepVisit ? 'Keep your current visit or add one manually.' : 'Add a visit manually or continue scanning without a museum.';
   if (empty) return <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
-    <EmptyState inset={false} title={status === 'denied' ? 'A place for this moment.' : 'Art turns up everywhere.'}
-      detail={status === 'denied' ? 'Allow location in Settings to find museums nearby, or keep exploring without it.' : 'No museum found nearby. You can still save the art in front of you.'}
+    <EmptyState inset={false} title={status === 'denied' ? 'Location access is off.' : 'No nearby museums found.'}
+      detail={status === 'denied' ? `Allow location in Settings to find nearby museums. ${fallback}` : fallback}
       visual={<EmptyMap />}>
       {status === 'denied' && <GalleryButton label="Open Settings" variant="filled" fullWidth onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
       {keepVisit ? <GalleryButton label="Keep current visit" variant="filled" fullWidth onPress={keepVisit} />

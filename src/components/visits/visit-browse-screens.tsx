@@ -16,7 +16,7 @@ export function VisitPlaceScreen() {
   return <><Stack.Screen options={{ title: name || 'Visits by museum' }} />
     {error || loading ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
       {error ? 'Visits could not load.' : 'Loading visits…'}
-    </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="A place still to discover." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
+    </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="No visits here yet." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
       <GalleryButton label="Back to Collection" onPress={() => router.back()} />
     </EmptyState></VisitPage> : <VisitTimeline visits={matches} groupByMuseum={!venueId} />}</>;
 }

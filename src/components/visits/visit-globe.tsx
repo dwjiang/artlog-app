@@ -45,7 +45,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
       <GlobeCanvas ref={globe} pins={pins} selectedId={selected.venueId} initialPin={initialPin} height={expanded ? Math.max(420, height * 0.65) : 337} onSelect={setSelectedId}
         initialCamera={session.camera} onCameraChange={(camera) => session.update({ camera })} onCluster={setClusterIds} />
       <Host matchContents style={styles.worldMenu} colorScheme="light">
-        <Menu label={<Row alignment="center" spacing={6}><NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>Your world</NativeText><Icon name="chevron.down" size={11} color={Gallery.muted} /></Row>}
+        <Menu label={<Row alignment="center" spacing={6}><NativeText modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(Gallery.muted)]}>Visited museums</NativeText><Icon name="chevron.down" size={11} color={Gallery.muted} /></Row>}
           modifiers={[accessibilityLabel('Choose a visited museum')]}>
           <Picker label="Museums" selection={selected.venueId} onSelectionChange={select} modifiers={[pickerStyle('inline')]}>
             {museums.map((visit) => <NativeText key={visit.venueId} modifiers={[tag(visit.venueId)]}>{visit.venueName} · {placeIdentity(visit).name}</NativeText>)}
@@ -58,10 +58,10 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
         <GlobeButton label="Zoom in" icon="plus" onPress={() => globe.current?.zoom(1.25)} />
         <GlobeButton label="Reset globe" icon="arrow.counterclockwise" onPress={() => { setSelectedId(initialPin.id); globe.current?.reset(); }} />
       </View>
-      {fontScale <= 1.5 && <Text pointerEvents="none" style={styles.hint}>Drag to explore · pinch to zoom</Text>}
+      {fontScale <= 1.5 && <Text pointerEvents="none" style={styles.hint}>Drag to rotate · pinch to zoom</Text>}
     </View>
     <View style={styles.placeWrap}>
-      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`Explore visits to ${selected.venueName}`} onPress={() => {
+      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`View visits to ${selected.venueName}`} onPress={() => {
         const destination = { pathname: '/visit-place' as const, params: { placeKey: place.key, name: selected.venueName, venueId: selected.venueId } };
         if (expanded) router.dismissTo(destination); else router.push(destination);
       }}>

@@ -96,28 +96,29 @@ export function LeaderboardScreen() {
           <Text style={styles.score}>{item.score}</Text>
         </Pressable>;
       }}
-      ListEmptyComponent={!canBrowse ? guest ? <EmptyState title="A little friendly inspiration." detail="Connect with friends to see what they’ve been discovering." visual={<EmptyPodium />}>
+      ListEmptyComponent={!canBrowse ? guest ? <EmptyState title={session.status === 'signed-out' ? 'Sign in to see friends’ rankings.' : 'Create a profile to see friends’ rankings.'}
+        detail="Rankings show saved artwork and visit totals. You can browse Global without a profile." visual={<EmptyPodium />}>
         {session.status === 'signed-out' ? <LeaderboardSignIn /> : <GalleryButton label="Create your profile" variant="filled" fullWidth onPress={() => router.push('/create-profile')} />}
-        <GalleryButton label="Explore Global" fullWidth onPress={() => filter({ audience: 'global' })} />
+        <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: 'global' })} />
       </EmptyState> : <SocialGate session={session} />
         : board.loading && !board.error ? <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           : board.error ? <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
-            : board.data ? <EmptyState title={audience === 'friends' ? 'A little friendly inspiration.' : period === 'month' ? 'The month is yours to start.' : 'A little inspiration starts here.'}
-              detail={audience === 'friends' ? 'No friends on this board yet. Find your friends and share the inspiration.' : metric === 'visits' ? 'No visits on this board yet. Log a museum visit to get started.' : 'No artworks on this board yet. Scan an artwork to get started.'} visual={<EmptyPodium />}>
+            : board.data ? <EmptyState title={audience === 'friends' ? 'No friends on this leaderboard yet.' : period === 'month' ? 'No rankings this month.' : 'No rankings yet.'}
+              detail={audience === 'friends' ? 'Add friends to see their shared activity totals.' : metric === 'visits' ? 'Log a museum visit to get started.' : 'Scan an artwork to get started.'} visual={<EmptyPodium />}>
               <GalleryButton label={audience === 'friends' ? 'Find friends' : metric === 'visits' ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth
                 onPress={() => {
                   if (audience === 'friends') router.push('/people');
                   else if (metric === 'visits') router.push('/visit-create');
                   else { router.dismissAll(); router.navigate('/scan'); }
                 }} />
-              {audience === 'friends' && <GalleryButton label="Explore Global" fullWidth onPress={() => filter({ audience: 'global' })} />}
+              {audience === 'friends' && <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: 'global' })} />}
             </EmptyState> : null}
       ListFooterComponent={<View style={styles.explainer}>
         {preferenceError && <Text accessibilityRole="alert" style={styles.caption}>{preferenceError}</Text>}
         {rows.length > 0 && <Text style={styles.explanation}>{metric === 'visits' ? 'One logged visit per museum, per day.' : 'Each identified artwork counts once per person. Unidentified entries count separately. Extra photos and encounters don’t add to the total.'}</Text>}
       </View>} />
     <View style={[styles.footer, largeText && { flexDirection: 'column', alignItems: 'stretch' }, { paddingBottom: Math.max(14, bottom) }]}>
-      {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on the board</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
+      {mine ? ownVisible ? <View style={{ flex: 1 }}><Text style={styles.footerTitle}>You’re on this leaderboard</Text><Text style={styles.caption}>{PARTICIPATION_LABELS[visibility]}</Text></View>
         : <Pressable accessibilityRole="button" accessibilityLabel={`Jump to your position, rank ${mine.rank}, ${mine.score} ${unit}${mine.score === 1 ? '' : 's'}`}
           style={{ flex: 1, flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 44 }}
           onPress={() => list.current?.scrollToIndex({ index: rows.indexOf(mine), animated: true })}>

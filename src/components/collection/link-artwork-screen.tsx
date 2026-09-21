@@ -65,7 +65,7 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
       ListEmptyComponent={query.error || encounters.error ? <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
         : !query.updatedAt && !rows.length ? <ListSkeleton label={savedId ? 'Loading visits…' : 'Loading artworks…'} />
         : search.trim() ? <SearchEmptyState title="No matches." detail={savedId ? 'Try a museum or visit date.' : 'Try another title or artist.'} onClear={clearSearch} />
-          : <EmptyState inset={false} title={savedId ? 'Give this artwork\na place in your day.' : 'Start with\none artwork.'}
+          : <EmptyState inset={false} title={savedId ? 'No visits to link.' : 'No artworks to link.'}
             detail={savedId ? 'Add a museum visit, then link this artwork to it.' : 'Scan an artwork to save it to this visit.'} visual={savedId ? <VisitKeepsake /> : <ArtworkCollage />}>
             <GalleryButton label={savedId ? 'Add visit' : 'Scan artwork'} variant="filled" fullWidth onPress={() => {
               if (savedId) router.push({ pathname: '/visit-create', params: { savedId } });

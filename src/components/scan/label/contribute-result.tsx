@@ -6,7 +6,7 @@ import type { ContributionOutcome } from '@/lib/label/contribute';
 
 export const CONTRIBUTION_MESSAGES = {
   tentative: 'Saved to the shared index as a tentative match for other visitors at this museum.',
-  duplicate: 'This work is already in the shared index — thanks anyway',
+  duplicate: 'This work is already in the shared index.',
   rejected: 'This contribution couldn’t be accepted',
 } as const;
 

@@ -39,10 +39,10 @@ it('keeps the collection shell while loading and distinguishes a loaded empty co
   expect(screen.getByText('Your collection')).toBeOnTheScreen();
   expect(screen.getByRole('progressbar', { name: 'Opening collection…' })).toBeOnTheScreen();
   expect(screen.queryByText('0 artworks')).toBeNull();
-  expect(screen.queryByText('Your own little museum.')).toBeNull();
+  expect(screen.queryByText('No saved artworks yet.')).toBeNull();
   await view.rerender(<CollectionArtworks works={[]} loading={false} error={undefined} search="" />);
   expect(screen.queryByRole('progressbar')).toBeNull();
-  expect(screen.getByText('Your own little museum.')).toBeOnTheScreen();
+  expect(screen.getByText('No saved artworks yet.')).toBeOnTheScreen();
 });
 
 it('replaces ghosts with retry even when a failed query still reports loading', async () => {

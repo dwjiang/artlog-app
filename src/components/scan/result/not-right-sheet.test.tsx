@@ -21,7 +21,7 @@ beforeEach(() => jest.clearAllMocks());
 
 it('shows the runner-ups first and the label as the way out', async () => {
   await render(<NotRightSheet open runnerUps={[bridge, haystacks]} {...handlers} />);
-  expect(screen.getByText('Maybe one of these?')).toBeOnTheScreen();
+  expect(screen.getByText('Other possible matches')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet, 31% confidence' }));
   expect(handlers.onPick).toHaveBeenCalledWith(bridge);
   await fireEvent.press(screen.getByRole('button', { name: 'None of these — point at the label' }));

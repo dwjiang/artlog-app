@@ -66,7 +66,7 @@ function CaptureContext({ owner, draftId, visitId }: { owner: string; draftId: s
     </>}
     {visits.error ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load your visits. Close this screen and reopen it to try again.</ThemedText>
       : !visits.updatedAt ? <ListSkeleton label="Loading visits…" rows={3} />
-      : noVisits && <EmptyState compact title="Keep the day, too." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} /></EmptyState>}
+      : noVisits && <EmptyState compact title="No visits yet." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" onPress={() => router.push('/visit-create')} /></EmptyState>}
     <View>{availableVisits.map((visit) => option(visit.localId, visit.venueName, open?.localId === visit.localId ? 'Visiting now' : formatVisitDate(visit.visitedOn)))}</View>
   </ScrollView>;
 }

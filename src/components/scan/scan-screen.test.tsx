@@ -247,11 +247,11 @@ it('keeps the venue and queue controls', async () => {
 });
 
 it('shows corrective guidance and keeps detecting after a camera failure', async () => {
-  mockMessage = 'Dodge the glare';
+  mockMessage = 'Adjust the angle to reduce glare';
   mockState = { phase: 'retry', source: 'camera', occupied: false, rearm: 'reframe' };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.getByRole('alert')).toHaveTextContent(/Dodge the glare/);
+  expect(screen.getByRole('alert')).toHaveTextContent(/Adjust the angle to reduce glare/);
   expect(screen.getByText('Move the camera to reframe, then hold steady.')).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Retake' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeEnabled();
@@ -259,11 +259,11 @@ it('shows corrective guidance and keeps detecting after a camera failure', async
 });
 
 it('asks for another shutter press after a shutter failure, which holding steady cannot rescan', async () => {
-  mockMessage = 'Dodge the glare';
+  mockMessage = 'Adjust the angle to reduce glare';
   mockState = { phase: 'retry', source: 'camera', occupied: false, rearm: 'shutter' };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.getByRole('alert')).toHaveTextContent(/Dodge the glare/);
+  expect(screen.getByRole('alert')).toHaveTextContent(/Adjust the angle to reduce glare/);
   expect(screen.getByText('Reframe the artwork and tap the shutter.')).toBeOnTheScreen();
   expect(screen.queryByText('Move the camera to reframe, then hold steady.')).toBeNull();
 });
