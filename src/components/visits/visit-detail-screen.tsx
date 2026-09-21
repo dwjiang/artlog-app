@@ -1,6 +1,6 @@
 import { SearchEmptyState } from '../empty-state';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery, Typography } from '@/constants/theme';
@@ -19,23 +19,31 @@ import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { WorkLink } from '../collection/work-link';
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from './visit-gallery';
 import { cropSyncing } from '@/lib/account/photo-sync';
+import { useVenue } from '@/lib/venue/use-venue';
+import { showToast } from '@/lib/ui/toast';
 import { VisitMessage, VisitPage, visitStyles as styles } from './visit-ui';
-import { VisitNotes } from './visit-notes';
+import { VisitNotes, type VisitNotesHandle } from './visit-notes';
 import { VisitActionBar } from './visit-action-bar';
 
 export function VisitDetailScreen() {
-  const { visitId } = useLocalSearchParams<{ visitId: string }>();
+  const { visitId, endVisit } = useLocalSearchParams<{ visitId: string; endVisit?: string }>();
   const { owner, visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
   if (!visit) return <VisitPage><VisitMessage loading={loading && !error} skeleton="visit" action="Back to Collection" onAction={() => router.back()}>
     {error ? 'This visit could not load.' : loading ? 'Loading visit…' : 'This visit is unavailable for this account.'}
   </VisitMessage></VisitPage>;
-  return <VisitDetail key={`${owner}:${visitId}`} visit={visit} />;
+  return <VisitDetail key={`${owner}:${visitId}:${endVisit}`} visit={visit} endingVisit={endVisit === 'true'} />;
 }
-function VisitDetail({ visit }: { visit: VisitSummary }) {
+function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit: boolean }) {
   // Only a closed visit counts as seen; one viewed while open is still new once it closes on its own.
   useEffect(() => { if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner); }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState('');
+  const { end } = useVenue();
+  const notes = useRef<VisitNotesHandle>(null);
+  const [draftVisibility, setDraftVisibility] = useState(visit.visibility);
+  const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
+  const [saveError, setSaveError] = useState<string>();
   const { fontScale } = useWindowDimensions();
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   const filtered = visit.works.filter((work) => matchesVisitSearch(work, search));
@@ -46,13 +54,14 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
   useFocusEffect(useCallback(() => { if (signedIn && token && generation) void controller.load(); }, [controller, signedIn, token, generation]));
   const [changingVisibility, setChangingVisibility] = useState(false);
   const [visibilityError, setVisibilityError] = useState<{ next: 'public' | 'private'; message: string }>();
-  const isPublic = visit.visibility === 'public';
+  const isPublic = (endingVisit ? draftVisibility : visit.visibility) === 'public';
   const active = isPublic && sharing.acknowledged?.status === 'active';
-  const pendingPrivate = signedIn && !isPublic && visit.syncedAt === null;
+  const pendingPrivate = !endingVisit && signedIn && !isPublic && visit.syncedAt === null;
   const openSharing = () => router.push(signedIn ? { pathname: '/visit-share/[visitId]', params: { visitId: visit.localId } } : signInRoute('visit', visit.localId));
   async function changeVisibility(next: 'public' | 'private' = isPublic ? 'private' : 'public') {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;
+    if (endingVisit) { setDraftVisibility(next); return; }
     setChangingVisibility(true);
     setVisibilityError(undefined);
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -72,6 +81,32 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
       if (session.isOwnerCurrent()) setChangingVisibility(false);
     }
   }
+  async function save() {
+    const session = captureOwner();
+    if (session.owner !== visit.owner || submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
+    setSaveError(undefined);
+    try {
+      if (endingVisit && draftVisibility !== visit.visibility) {
+        await patchVisit(visit.localId, { visibility: draftVisibility }, visit.owner);
+        if (!session.isCurrent()) return;
+      }
+      if (!await notes.current?.save() || !session.isCurrent()) return;
+      if (endingVisit) {
+        await end(visit.localId);
+        if (!session.isCurrent()) return;
+        router.setParams({ endVisit: undefined });
+      }
+      if (isPublic) openSharing();
+      else { showToast('Visit saved.'); if (router.canGoBack()) router.back(); }
+    } catch {
+      if (session.isCurrent()) setSaveError('Couldn’t save visit. Try again.');
+    } finally {
+      submitting.current = false;
+      if (session.isOwnerCurrent()) setSaving(false);
+    }
+  }
   return <>
     <Stack.Screen options={{ title: '' }} />
     <Stack.Toolbar placement="right"><Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Visit options" hidesSharedBackground tintColor={Gallery.ink}>
@@ -81,6 +116,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
     </Stack.Toolbar.Menu></Stack.Toolbar>
     <View style={styles.page}>
       <VisitPage>
+        {saveError && <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text>}
         {visibilityError && <View style={{ gap: 8 }}>
           <Text accessibilityRole="alert" style={styles.error}>{visibilityError.message}</Text>
           <GalleryButton label="Retry visibility" disabled={changingVisibility} onPress={() => { void changeVisibility(visibilityError.next); }} />
@@ -92,7 +128,7 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
         </View>
         {pendingPrivate && sharing.acknowledged?.status === 'active' &&
           <Text style={styles.caption}>Waiting to sync. The published visit is still visible.</Text>}
-        <VisitNotes visit={visit} />
+        <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
         <View>
           <View style={styles.sectionLabel}>
             <Text accessibilityRole="header" style={detail.sectionTitle}>{visit.works.length} {visit.works.length === 1 ? 'artwork' : 'artworks'} saved</Text>
@@ -114,8 +150,8 @@ function VisitDetail({ visit }: { visit: VisitSummary }) {
             </View>)}
         </View>
       </VisitPage>
-      <VisitActionBar isPublic={isPublic} pendingPrivate={pendingPrivate} changingVisibility={changingVisibility} sharingBusy={sharing.busy}
-        onChangeVisibility={() => { void changeVisibility(); }} onSave={openSharing} />
+      <VisitActionBar isPublic={isPublic} pendingPrivate={pendingPrivate} changingVisibility={changingVisibility} sharingBusy={sharing.busy} saving={saving}
+        onChangeVisibility={() => { void changeVisibility(); }} onSave={() => { void save(); }} />
     </View>
   </>;
 }

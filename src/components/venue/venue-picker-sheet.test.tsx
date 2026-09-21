@@ -190,20 +190,11 @@ describe('the open visit', () => {
     expect(screen.queryByRole('button', { name: 'Not here' })).toBeNull();
   });
 
-  it('ends the visit and lands on its detail', async () => {
+  it('opens the end-visit review without ending the visit', async () => {
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-    expect(mockEnd).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
-  });
-
-  it('keeps the sheet with the reason when ending fails', async () => {
-    mockEnd.mockRejectedValue(new Error('disk full'));
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('disk full');
-    expect(mockReplace).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'End visit' })).toBeEnabled();
+    expect(mockEnd).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1', endVisit: 'true' } });
   });
 
   it('opens the visit detail in place of the sheet', async () => {

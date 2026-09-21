@@ -50,8 +50,8 @@ export type VenueController = {
   /** A tap in the sheet: seeded venues start a visit; MapKit places are confirmed on the server first. */
   confirm(option: VenueOption, signal?: AbortSignal): Promise<void>;
   dismiss(): void;
-  /** Closes the open visit now, from the visit sheet or the visit bar. */
-  end(): Promise<void>;
+  /** Closes the open visit only while it is still `localId`; saving a stale end-visit review is otherwise a no-op. */
+  end(localId: string): Promise<void>;
   /** Flushes persisted visit starts and ends without blocking local resolution. */
   syncRemoteVisit(): Promise<void>;
   appStateChanged(status: AppStateStatus): void;
@@ -313,9 +313,9 @@ export function createVenueController(): VenueController {
     }
   }
 
-  async function end(): Promise<void> {
+  async function end(localId: string): Promise<void> {
     const visit = state.visit;
-    if (!visit) return;
+    if (!visit || visit.localId !== localId) return;
     await endVisit(visit, Date.now(), true);
   }
 

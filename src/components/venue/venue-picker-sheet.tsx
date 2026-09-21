@@ -44,31 +44,18 @@ export function VenuePickerSheet() {
   const visit = view.visit;
   // The mode is fixed when the sheet opens: a confirmation in the chooser closes the sheet rather than flipping it.
   const [mode, setMode] = useState<'visit' | 'change' | 'choose'>(visit && requested !== 'choose' ? 'visit' : 'choose');
-  if (mode === 'visit' && visit && view.status !== 'denied') return <VisitSheet visit={visit} view={view} onChange={() => setMode('change')} />;
+  if (mode === 'visit' && visit && view.status !== 'denied') return <VisitSheet visit={visit} onChange={() => setMode('change')} />;
   return <ChooserSheet view={view} keepVisit={visit && mode === 'change' ? () => setMode('visit') : undefined} />;
 }
 
-function VisitSheet({ visit, view, onChange }: { visit: CurrentVisit; view: VenueView; onChange: () => void }) {
+function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => void }) {
   const router = useRouter();
   const { visits } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
   const works = summary?.works ?? [];
   const sheetStyle = useSheetStyle();
-  const [ending, setEnding] = useState(false);
-  const [failure, setFailure] = useState<string>();
   const count = `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'} this visit`;
   const openVisit = () => router.replace({ pathname: '/journal/[visitId]', params: { visitId: visit.localId } });
-  async function endVisit() {
-    setEnding(true);
-    setFailure(undefined);
-    try {
-      await view.end();
-      openVisit();
-    } catch (cause) {
-      setFailure(cause instanceof Error ? cause.message : 'Could not end the visit. Try again.');
-      setEnding(false);
-    }
-  }
   return (
     <ScrollView style={sheetStyle} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} bounces={false}>
       <View style={styles.eyebrowRow}>
@@ -78,10 +65,9 @@ function VisitSheet({ visit, view, onChange }: { visit: CurrentVisit; view: Venu
       <ThemedText type="title" accessibilityRole="header">{visit.venueName}</ThemedText>
       <ThemedText themeColor="textSecondary">{summary?.location ? `${summary.location} · ${count}` : count}</ThemedText>
       {works.length > 0 && <ArtworkPreviews works={works} overflow />}
-      {failure && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure}</ThemedText>}
-      <GalleryButton label="End visit" variant="filled" fullWidth busy={ending} busyLabel="Ending visit…" onPress={() => { void endVisit(); }} />
-      <GalleryButton label="Change museum" variant="outlined" fullWidth disabled={ending} onPress={onChange} />
-      <GalleryButton label="Open visit" icon="chevron.right" iconPosition="trailing" disabled={ending} onPress={openVisit} />
+      <GalleryButton label="End visit" variant="filled" fullWidth onPress={() => router.replace({ pathname: '/journal/[visitId]', params: { visitId: visit.localId, endVisit: 'true' } })} />
+      <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
+      <GalleryButton label="Open visit" icon="chevron.right" iconPosition="trailing" onPress={openVisit} />
     </ScrollView>
   );
 }
