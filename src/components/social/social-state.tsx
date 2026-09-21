@@ -26,12 +26,12 @@ export function SocialState({ title, detail, icon = 'rectangle.3.group', loading
 export function SocialGate({ session, browsePublic = false, context = 'friends' }: { session: SocialSession; browsePublic?: boolean; context?: SignInContext }) {
   const router = useRouter();
   if (session.status === 'ready') return null;
-  if (session.status === 'signed-out') return <SocialInvitation title={'Find your\nfriends.'} detail="Connect with friends to see their museum visits and the art they love.">
+  if (session.status === 'signed-out') return <SocialInvitation title={'Sign in to add friends.'} detail="See the museum visits and artworks your friends share.">
     <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
     {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push('/people')} />}
   </SocialInvitation>;
-  if (session.status === 'profile-required') return <SocialInvitation title="Make yourself at home."
-    detail="Create your public profile to find friends and follow their museum visits.">
+  if (session.status === 'profile-required') return <SocialInvitation title="Create a public profile."
+    detail="A public profile lets you find friends and follow their museum visits.">
     <GalleryButton label="Create your profile" variant="filled" fullWidth onPress={() => router.push('/create-profile')} />
     {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push('/people')} />}
   </SocialInvitation>;
@@ -39,7 +39,7 @@ export function SocialGate({ session, browsePublic = false, context = 'friends' 
   if (session.status === 'error') return <SocialState title="Couldn’t load your account."
     detail={socialErrorMessage(session.error) ?? 'Check your connection and try again.'}
     action="Try again" onAction={session.refresh} />;
-  return <SocialState title="Getting things ready…" loading />;
+  return <SocialState title="Loading your account…" loading />;
 }
 
 export function PageFooter({ loading, error, done, count, loadMore, refresh, noun = 'visits', canLoadMore, skeleton = 'list' }: {
@@ -61,8 +61,8 @@ export function PageFooter({ loading, error, done, count, loadMore, refresh, nou
     <GalleryButton label={canLoadMore ? `More ${noun}` : 'Try again'} onPress={canLoadMore ? loadMore : refresh} />
   </View>;
   if (count > 0 && noun === 'visits') return <View style={{ alignItems: 'center', paddingHorizontal: 20, paddingTop: 26, paddingBottom: 8, gap: 2 }}>
-    <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>You’re all caught up.</Text>
-    <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>Tap a name to explore their public wall.</Text>
+    <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>All visits shown.</Text>
+    <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>Tap a name to view their public wall.</Text>
   </View>;
   return count > 0 ? <View style={socialStyles.footer}>
     <Image source="sf:checkmark.circle" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />

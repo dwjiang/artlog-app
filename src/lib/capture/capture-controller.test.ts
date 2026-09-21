@@ -15,7 +15,7 @@ function hold(controller: CaptureController, from = 0, quads = [painting], previ
 function failed(attempt = (controller: CaptureController) => hold(controller)!) {
   const controller = new CaptureController();
   const started = attempt(controller);
-  controller.fail(started, 'Dodge the glare');
+  controller.fail(started, 'Adjust the angle to reduce glare');
   controller.finish(started);
   return controller;
 }
@@ -91,7 +91,7 @@ it('requires 700 ms of continuous absence before a fresh stable detection', () =
 
 it('keeps a shutter failure on screen until the artwork leaves the frame or the shutter is pressed again', () => {
   const controller = failed((c) => c.begin('camera')!);
-  expect(controller.getSnapshot()).toMatchObject({ phase: 'retry', message: 'Dodge the glare', occupied: false, rearm: 'shutter' });
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'retry', message: 'Adjust the angle to reduce glare', occupied: false, rearm: 'shutter' });
   for (let now = 100; now <= 3000; now += 100) expect(observe(controller, now, [shifted(0.1, 0.1)])).toBeUndefined();
   expect(controller.getSnapshot().phase).toBe('retry');
   observe(controller, 3100, []);

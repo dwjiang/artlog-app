@@ -34,7 +34,7 @@ it('writes local collection metadata and shares a JSON file, including notes but
   expect(mockWrite.mock.calls[0][0]).not.toContain('photos/');
   expect(File).toHaveBeenCalledWith('file:///cache', expect.stringMatching(/^artlog-export-.*\.json$/));
   expect(Sharing.shareAsync).not.toHaveBeenCalled();
-  expect(screen.getByText('Your journal, ready to go.')).toBeOnTheScreen();
+  expect(screen.getByText('Export ready.')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Share file' }));
   expect(Sharing.shareAsync).toHaveBeenCalledWith(expect.stringMatching(/^file:\/\/\/cache\/artlog-export-.*\.json$/),
     expect.objectContaining({ mimeType: 'application/json', UTI: 'public.json' }));

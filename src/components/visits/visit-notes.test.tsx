@@ -130,7 +130,7 @@ it('removes a note when the field is cleared', async () => {
   await fireEvent.changeText(input, '  \n ');
   await fireEvent(input, 'blur');
   await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBeNull());
-  expect(screen.getByLabelText('Notes')).toHaveProp('placeholder', 'What stayed with you?');
+  expect(screen.getByLabelText('Notes')).toHaveProp('placeholder', 'Add a note about this visit…');
 });
 
 it('keeps a failed draft visible and retries without more typing', async () => {

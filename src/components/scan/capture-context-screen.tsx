@@ -87,7 +87,7 @@ function CaptureContext({ owner, draftId, visitId, venueId, capturedAt }: { owne
     </>}
     {visits.error ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load your visits. Close this screen and reopen it to try again.</ThemedText>
       : !visits.updatedAt ? <ListSkeleton label="Loading visits…" rows={3} />
-      : noVisits && <EmptyState visual={<VisitKeepsake />} title="Keep the day, too." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" variant="filled" fullWidth onPress={() => router.push('/visit-create')} /><GalleryButton label="Save artwork only" fullWidth onPress={() => choose('none', { kind: 'none' })} /></EmptyState>}
+      : noVisits && <EmptyState visual={<VisitKeepsake />} title="No visits yet." detail="Create a visit to remember where you saw this artwork. You can also save it on its own."><GalleryButton label="Create a visit" icon="plus" variant="filled" fullWidth onPress={() => router.push('/visit-create')} /><GalleryButton label="Save artwork only" fullWidth onPress={() => choose('none', { kind: 'none' })} /></EmptyState>}
     <View>
       {venueOption && venue && !venueVisit && option(VENUE_OPTION, { kind: 'venue', venueId: venueOption }, venue.name, `${venue.day} · Starts with this artwork`)}
       {availableVisits.map((visit) => option(visit.localId, { kind: 'visit', localId: visit.localId }, visit.venueName, open?.localId === visit.localId ? 'Visiting now' : formatVisitDate(visit.visitedOn)))}

@@ -5,7 +5,7 @@ import { Gallery } from '@/constants/theme';
 
 export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => void }) {
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 24 }}>
-    <View style={{ gap: 12 }}><ThemedText variant="pageTitle">{'Your art.\nYour choice.'}</ThemedText><ThemedText themeColor="textSecondary">Here’s how Artlog uses your photos and information.</ThemedText></View>
+    <ThemedText themeColor="textSecondary">Here’s how Artlog uses your photos and information.</ThemedText>
     <MuseumSearchSection onRequestConsent={onRequestConsent} />
     <ThemedText variant="section">How your data is used</ThemedText>
     {[

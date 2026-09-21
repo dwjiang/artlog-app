@@ -26,7 +26,7 @@ export function NotRightSheet({ open, onDismiss, runnerUps, onPick, onLabel, onM
     <BottomSheet contentPadding={0} snapPoints={['half', 'full']} containerColor={Colors.light.background} isPresented={open} onDismiss={onDismiss}>
       <RNHostView>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <ThemedText type="subtitle">Let’s get it right.</ThemedText>
+          <ThemedText type="subtitle">{hasRunnerUps ? 'Other possible matches' : 'No other matches found'}</ThemedText>
           {notice && <ThemedText type="small" themeColor="error" accessibilityRole="alert">{notice}</ThemedText>}
           {hasRunnerUps && <RunnerUps candidates={runnerUps} onPick={onPick} />}
           <GalleryButton label="Scan the museum label" variant="filled" fullWidth onPress={onLabel} />

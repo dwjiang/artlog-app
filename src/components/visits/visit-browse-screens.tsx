@@ -22,7 +22,7 @@ export function VisitPlaceScreen() {
   return <><Stack.Screen options={{ title: name || 'Visits by museum' }} />
     {error || loading ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
       {error ? 'Visits could not load.' : 'Loading visits…'}
-    </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="A place still to discover." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
+    </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="No visits here yet." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
       <GalleryButton label="Back to Collection" onPress={() => router.back()} />
     </EmptyState></VisitPage> : <FlatList data={matches} keyExtractor={(visit) => visit.localId} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 20 }}
       ListHeaderComponent={<View style={{ gap: 12 }}><Text style={[Typography.pageTitle, { color: Gallery.ink }]}>{name || matches[0].venueName}</Text>
@@ -46,8 +46,7 @@ function ExpandedGlobe() {
   const places = new Set(visits.map((visit) => placeIdentity(visit).key)).size;
   return <><Stack.Toolbar placement="right"><Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button></Stack.Toolbar>
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 30 }}>{loading || error ? <VisitMessage loading={loading && !error}>{error ? 'Globe locations could not load.' : 'Loading globe…'}</VisitMessage>
-      : <><View style={{ padding: 20, gap: 12 }}><Text style={[Typography.pageTitle, { color: Gallery.ink }]}>Your visits.</Text>
-        <Text style={{ color: Gallery.muted }}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {places} {citiesKnown ? places === 1 ? 'city' : 'cities' : places === 1 ? 'place' : 'places'}</Text>
+      : <><View style={{ padding: 20, gap: 12 }}><Text style={{ color: Gallery.muted }}>{counts.museums} {counts.museums === 1 ? 'museum' : 'museums'} · {places} {citiesKnown ? places === 1 ? 'city' : 'cities' : places === 1 ? 'place' : 'places'}</Text>
         <NativeSegmentedPicker compact label="Visit view" value={mode} onChange={setMode} options={[{ value: 'globe', label: 'Globe', icon: 'globe' }, { value: 'list', label: 'List', icon: 'list.bullet' }]} />
         </View>{mode === 'globe' ? <VisitGlobe visits={visits} expanded initialVenueId={venueId} onList={() => setMode('list')} /> : visits.map((visit) => <VisitRow key={visit.localId} visit={visit} />)}</>}</ScrollView></>;
 }

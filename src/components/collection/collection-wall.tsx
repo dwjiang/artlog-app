@@ -191,7 +191,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
         <GalleryButton label="Discard unsaved change" disabled={wall.pending} onPress={discard} />
       </View> : <GalleryButton label="Try again" onPress={() => { void wall.refresh(); }} />}</View>}
       {opening ? <LoadingSkeleton label="Opening your wall…" style={{ padding: 20 }}><View style={{ gap: 16 }}><Ghost height={376} /><Ghost width="62%" height={16} /></View></LoadingSkeleton> : blank ? <View style={[styles.blankWall, { backgroundColor: color === DEFAULT_WALL_COLOR ? '#EFEEE7' : color }]}>
-        <EmptyState title="Make room for your favorites." detail={`You have ${works.length} ${works.length === 1 ? 'artwork' : 'artworks'} saved. Pick the ones you’d like to hang on your public wall.`} footnote="Only the pieces you choose appear here." visual={<ArtworkCollage />}>
+        <EmptyState title="Add artworks to your wall." detail={`You have ${works.length} ${works.length === 1 ? 'artwork' : 'artworks'} saved. Pick the ones you’d like to hang on your public wall.`} footnote="Only the pieces you choose appear here." visual={<ArtworkCollage />}>
           <GalleryButton label={!wall.signedIn ? 'Sign in' : wall.profileRequired ? 'Create profile' : !wall.draft ? 'Load wall' : hasSavedArt ? 'Choose artworks' : 'Scan artwork'} variant="filled" fullWidth onPress={() => {
             if (!wall.signedIn) router.push(signInRoute('wall')); else if (wall.profileRequired) setProfile(true); else if (!wall.draft) void wall.refresh(); else if (hasSavedArt) openPicker(); else router.navigate('/scan');
           }} />
@@ -204,10 +204,10 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
             else { setSelectedId(piece.localId); setOptions(true); }
           }}>
           {!count && <View style={styles.empty}>
-            {!opening && <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>Make room for your favorites.</Text>}
-            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Hang a few favorites. Make this space yours.'}</Text>}
+            {!opening && <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>Add artworks to your wall.</Text>}
+            {!opening && <Text style={[styles.emptyCaption, { color: wallInk }]}>{editing ? 'Tap a saved artwork below to hang it.' : 'Choose from your saved artworks.'}</Text>}
             {opening ? <LoadingRing color={wallInk} accessibilityLabel="Opening your wall…" />
-              : !editing && wall.draft ? <GalleryButton label="Curate your wall" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
+              : !editing && wall.draft ? <GalleryButton label="Add artworks" variant="filled" inverse={!isLightWall(color)} onPress={edit} /> : !editing ? <GalleryButton label="Load wall" onPress={() => { void wall.refresh(); }} /> : null}
           </View>}
         </WallGallery>}
       </View>}
@@ -245,7 +245,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     </View>}
     {picker && <WallSheet title="Choose artworks" tall onDismiss={() => setPicker(undefined)}>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
-        <Text variant="pageTitle">Hang what stays with you.</Text><Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
+        <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
         {available.map((item) => {
           const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
           const checked = hung || picker.includes(item.localId);
@@ -266,7 +266,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     </WallSheet>}
     {photoPicker?.presented && selected?.saveLocalId && <WallPhotoSheet savedId={selected.saveLocalId} title={selected.artwork.title} photoId={selected.photoLocalId} duplicate={photoPicker.kind === 'duplicate'}
       onDismiss={() => setPhotoPicker(undefined)} onConfirm={(photoLocalId) => {
-        if (photoPicker.kind === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Another placement, still one artwork. Only this photo is public.'); }
+        if (photoPicker.kind === 'duplicate') { if (add(selected.saveLocalId!, photoLocalId)) showToast('Second placement added. Only this photo is public.'); }
         else if (wall.draft && !blocked) {
           commit({ ...wall.draft, items: wall.draft.items.map((item) => item.placementId === selected.localId ? { ...item, photoLocalId } : item) });
           showToast('Wall photo updated. Other photos remain private.');

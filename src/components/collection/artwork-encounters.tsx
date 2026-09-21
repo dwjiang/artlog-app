@@ -37,7 +37,7 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
     </NoteHeading>
     {editing ? <>
       <TextInput accessibilityLabel="Private encounter note" value={note} onChangeText={setNote} multiline maxLength={2000}
-        placeholder="What did you notice this time?" placeholderTextColor={Gallery.muted} style={styles.input} />
+        placeholder="Add a note about this visit…" placeholderTextColor={Gallery.muted} style={styles.input} />
       <View style={styles.actions}>
         <GalleryButton label="Save encounter note" onPress={() => {
           try { editEncounter(work.localId, encounter.visit.localId, { note }, work.owner); setEditing(false); setError(undefined); showToast('Private note saved for this encounter.'); }
@@ -64,7 +64,7 @@ export function ArtworkEncounterList({ work, encounters, visitId, loading, loadE
     </Pressable>)}
     {!encounters.length && (loadError ? <Text accessibilityRole="alert" style={styles.caption}>Visits couldn’t load. Close and reopen this artwork to try again.</Text>
       : loading ? <LoadingRing accessibilityLabel="Loading artwork visits…" />
-        : <EmptyState compact title="Where did you meet?" detail="This artwork was saved without a visit. Link one to remember where you saw it.">
+        : <EmptyState compact title="No linked visits." detail="This artwork was saved without a visit. Link one to remember where you saw it.">
           <GalleryButton label="Link a visit" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })} />
         </EmptyState>)}
     {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [

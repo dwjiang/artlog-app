@@ -16,7 +16,6 @@ import { useLocalOwner } from '@/lib/account/owner-store';
 import { discardCapture } from '@/lib/capture/discard-capture';
 
 export const QUEUE_FOOTER = 'Waiting scans continue when you’re back online.';
-export const QUEUE_EMPTY = 'Your scans are up to date. Ready for the next artwork?';
 
 export function QueueSheet() {
   const owner = useLocalOwner();
@@ -81,8 +80,8 @@ function QueueContent() {
       {error && <>
         <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load recent scans. Close this sheet and reopen it to try again.</ThemedText>
       </>}
-      {!loading && !error && items.length === 0 && <EmptyState inset={false} title="All caught up." detail={QUEUE_EMPTY} visual={<View style={{ width: 132, height: 132, borderRadius: 66, backgroundColor: Gallery.highlight, alignItems: 'center', justifyContent: 'center' }}><Image source="sf:checkmark" tintColor={Gallery.ink} style={{ width: 48, height: 48 }} /></View>}>
-        <GalleryButton label="Keep scanning" variant="filled" fullWidth onPress={() => { router.dismiss(); router.navigate('/(tabs)/(scan)/scan'); }} />
+      {!loading && !error && items.length === 0 && <EmptyState inset={false} title="No recent scans." visual={<View style={{ width: 132, height: 132, borderRadius: 66, backgroundColor: Gallery.highlight, alignItems: 'center', justifyContent: 'center' }}><Image source="sf:checkmark" tintColor={Gallery.ink} style={{ width: 48, height: 48 }} /></View>}>
+        <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismiss(); router.navigate('/(tabs)/(scan)/scan'); }} />
       </EmptyState>}
       {items.map((item) => <QueueRow key={item.localId} item={item} onOpen={open} onRetry={retry} onDiscard={discard} retrying={retrying.includes(item.localId)} discarding={discarding.includes(item.localId)} />)}
       {retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}

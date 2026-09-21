@@ -57,7 +57,7 @@ function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; v
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
-      {wall.signedIn && !work.syncedAt && <View style={{ padding: 14, gap: 12, backgroundColor: '#EEF2FF' }}><Text style={{ fontSize: 14, lineHeight: 21 }}>Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.</Text><Text variant="metadata">On your wall · Waiting for sync</Text><GalleryButton label="Keep exploring" onPress={() => router.back()} /></View>}
+      {wall.signedIn && !work.syncedAt && <View style={{ padding: 14, gap: 12, backgroundColor: '#EEF2FF' }}><Text style={{ fontSize: 14, lineHeight: 21 }}>Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.</Text><Text variant="metadata">On your wall · Waiting for sync</Text><GalleryButton label="Back" onPress={() => router.back()} /></View>}
       <GalleryButton label="Adjust crop" icon="crop" onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: work.localId } })} />
       <Divider />
       <ArtworkEncounterList work={work} encounters={encounters} loading={loadingEncounters} loadError={encounterError} visitId={currentEncounter?.visit.localId} />

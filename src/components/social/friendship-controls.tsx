@@ -48,9 +48,7 @@ export function FriendshipControls({ profileId, session }: { profileId: PublicPr
     onPress={() => router.push(session.status === 'signed-out' ? signInRoute('friends') : '/create-profile')} />;
   if (profileId === session.profileId || session.status !== 'ready') return null;
   return <View style={{ gap: 8 }}>
-    {state && (state.blocked || (state.state !== 'accepted' && !(state.state === 'pending' && state.requesterId === session.profileId))) && <Text style={socialStyles.caption}>{state.blocked ? 'This connection is unavailable.'
-      : state.state === 'pending'
-        ? state.requesterId === session.profileId ? 'Friend request sent' : 'Wants to be your friend' : 'Share a love of art.'}</Text>}
+    {state && (state.blocked || (state.state === 'pending' && state.requesterId !== session.profileId)) && <Text style={socialStyles.caption}>{state.blocked ? 'This connection is unavailable.' : 'Wants to be your friend'}</Text>}
     {state?.state === 'accepted' && !state.blocked ? <View style={{ borderWidth: 1, borderColor: Gallery.accent, borderRadius: 4 }}>
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
         <Menu modifiers={[accessibilityLabel('Friends'), buttonStyle('plain')]} label={<Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}>

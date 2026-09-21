@@ -25,7 +25,6 @@ export function AboutSection() {
     <View accessibilityElementsHidden style={{ height: 220 }}>
       {[{ art: introArtworks.lilies, left: '0%' as const, rotate: '-12deg', top: 28 }, { art: introArtworks.stars, left: '60%' as const, rotate: '10deg', top: 28 }, { art: introArtworks.pearl, left: '30%' as const, rotate: '4deg', top: 8 }].map(({ art, left, rotate, top }) => <View key={art.title} style={{ position: 'absolute', left, top, width: '40%', height: 180, backgroundColor: Gallery.surface, padding: 5, transform: [{ rotate }], boxShadow: '0 5px 12px #17171724' }}><Image source={art.source} contentFit="cover" accessible={false} style={{ width: '100%', height: '100%' }} /></View>)}
     </View>
-    <ThemedText variant="pageTitle" style={{ maxWidth: 290 }}>Your personal art journal.</ThemedText>
     <View style={{ borderWidth: 0.5, borderColor: Gallery.separator, borderRadius: 12, overflow: 'hidden' }}>
       {[
         { label: 'Privacy policy', icon: 'lock', action: () => router.push({ pathname: '/settings-detail', params: { section: 'privacy' } }) },

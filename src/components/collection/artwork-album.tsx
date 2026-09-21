@@ -71,8 +71,8 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
     {rows.length === 1 && <GalleryButton label="Photo" accessibilityLabel="Add photos" icon="plus" onPress={() => router.push({ pathname: '/add-photos', params: { draftId: `saved:${work.localId}`, savedId: work.localId, title: work.title, visitId } })} />}
     {!!selectedPhoto?.caption && <Text selectable style={styles.secondary}>{selectedPhoto.caption}</Text>}
     {!!visitId && <NativeSegmentedPicker label="Photo scope" value={scope} onChange={(value) => { setScope(value); setPage(0); gallery.current?.scrollTo({ x: 0, animated: false }); }} options={[{ value: 'visit', label: 'This visit' }, { value: 'all', label: 'All photos' }]} />}
-    {!rows.length && !!photos.updatedAt && !photos.error && <EmptyState inset={false} title={scope === 'visit' ? 'No photos from this visit yet.' : 'Keep your point of view.'}
-      detail={scope === 'visit' ? 'Add a photo from this visit, or look through the rest of this artwork’s photos.' : 'The full painting, a tiny detail, its wall label. Keep the way you saw it.'}>
+    {!rows.length && !!photos.updatedAt && !photos.error && <EmptyState inset={false} title={scope === 'visit' ? 'No photos from this visit yet.' : 'No photos yet.'}
+      detail={scope === 'visit' ? 'Add a photo from this visit, or look through the rest of this artwork’s photos.' : 'Add photos of the artwork, its details, or its wall label.'}>
       <GalleryButton label="Add photos" variant="filled" fullWidth onPress={() => router.push({ pathname: '/add-photos', params: { draftId: `saved:${work.localId}`, savedId: work.localId, title: work.title, visitId: scope === 'visit' ? visitId : undefined } })} />
       {scope === 'visit' && <GalleryButton label="View all photos" onPress={() => { setScope('all'); setPage(0); }} />}
     </EmptyState>}

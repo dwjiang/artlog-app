@@ -13,7 +13,7 @@ export function CameraPermission({ children, onImport, notice, compact = false, 
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   if (hasPermission) return <>{children}{loading && <View pointerEvents="none" style={StyleSheet.absoluteFill}><LoadingRing accessibilityLabel="Starting camera…" style={{ flex: 1 }} /></View>}</>;
-  const invitation = <EmptyState inset={false} visual={compact ? <EmptySymbol name="camera" /> : <ArtworkCollage />} title={canRequestPermission ? 'Meet the art\nin front of you.' : 'Camera access\nis turned off.'}
+  const invitation = <EmptyState inset={false} visual={compact ? <EmptySymbol name="camera" /> : <ArtworkCollage />} title={canRequestPermission ? 'Camera access needed' : 'Camera access is off.'}
       detail={canRequestPermission ? 'Point your camera at an artwork to learn more and keep it in your collection.' : 'Allow camera access in Settings, or choose a photo from your library.'}>
       <GalleryButton label={canRequestPermission ? 'Allow camera' : 'Open Settings'} variant="filled" fullWidth busy={busy} onPress={() => {
         setBusy(true); setError(undefined);

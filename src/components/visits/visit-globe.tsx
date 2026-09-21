@@ -46,7 +46,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
       {!expanded && <View style={styles.expand}><GlobeButton label="Expand globe" icon="arrow.up.left.and.arrow.down.right" onPress={() => { globe.current?.settle(); router.push({ pathname: '/visit-globe', params: { venueId: selected.venueId } }); }} /></View>}
     </View>
     <View style={styles.placeWrap}>
-      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`Explore visits to ${selected.venueName}`} onPress={() => {
+      <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`View visits to ${selected.venueName}`} onPress={() => {
         const destination = { pathname: '/visit-place' as const, params: { placeKey: place.key, name: selected.venueName, venueId: selected.venueId } };
         if (expanded) router.dismissTo(destination); else router.push(destination);
       }}>

@@ -149,11 +149,11 @@ describe('choosing a museum', () => {
   it('explains an empty result and a denied permission with a way to Settings', async () => {
     mockView = { ...mockView, status: 'none', options: [] };
     const view = await render(<VenuePickerSheet />);
-    expect(screen.getByText('Art turns up everywhere.')).toBeOnTheScreen();
+    expect(screen.getByText('No nearby museums found.')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Continue without a museum' })).toBeOnTheScreen();
     mockView = { ...mockView, status: 'denied', options: [] };
     await view.rerender(<VenuePickerSheet />);
-    expect(screen.getByText('Find your museum, wherever you are.')).toBeOnTheScreen();
+    expect(screen.getByText('Location access is off.')).toBeOnTheScreen();
     const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
     await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
     expect(open).toHaveBeenCalledTimes(1);
@@ -228,6 +228,17 @@ describe('the open visit', () => {
     expect(mockDismiss).not.toHaveBeenCalled();
   });
 
+  it('offers to keep the current visit when "Change museum" finds nothing nearby', async () => {
+    mockView = { ...mockView, status: 'none', options: [] };
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Change museum' }));
+    expect(screen.getByText('No nearby museums found.')).toBeOnTheScreen();
+    expect(screen.getByText('Search by museum or city, or keep your current visit.')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Continue without a museum' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep current visit' }));
+    expect(screen.getByRole('button', { name: 'End visit' })).toBeOnTheScreen();
+  });
+
   it('confirms a different museum from the chooser', async () => {
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole('button', { name: 'Change museum' }));
@@ -239,7 +250,7 @@ describe('the open visit', () => {
   it('shows the chooser for a paused visit when location is denied', async () => {
     mockView = { ...mockView, status: 'denied', venue: undefined, options: [] };
     await render(<VenuePickerSheet />);
-    expect(screen.getByText('Find your museum, wherever you are.')).toBeOnTheScreen();
+    expect(screen.getByText('Location access is off.')).toBeOnTheScreen();
   });
 
   it('offers the resolved museum, not the visit paused at another one, when the pill opens the sheet', async () => {

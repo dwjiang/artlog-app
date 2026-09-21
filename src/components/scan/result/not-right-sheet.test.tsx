@@ -9,7 +9,7 @@ beforeEach(() => jest.clearAllMocks());
 
 it('shows the runner-ups first and the label as the way out', async () => {
   await render(<NotRightSheet open runnerUps={[bridge, haystacks]} {...handlers} />);
-  expect(screen.getByText('Let’s get it right.')).toBeOnTheScreen();
+  expect(screen.getByText('Other possible matches')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'The Japanese Footbridge, Claude Monet, 31% confidence' }));
   expect(handlers.onPick).toHaveBeenCalledWith(bridge);
   await fireEvent.press(screen.getByRole('button', { name: 'Scan the museum label' }));
@@ -24,7 +24,7 @@ it('shows the runner-ups first and the label as the way out', async () => {
 
 it('goes straight to the label without runner-ups and surfaces a notice', async () => {
   await render(<NotRightSheet open runnerUps={[]} notice="This device can’t send feedback yet." {...handlers} />);
-  expect(screen.getByText('Let’s get it right.')).toBeOnTheScreen();
+  expect(screen.getByText('No other matches found')).toBeOnTheScreen();
   expect(screen.getByText('This device can’t send feedback yet.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Scan the museum label' })).toBeOnTheScreen();
 });

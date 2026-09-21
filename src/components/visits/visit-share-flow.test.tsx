@@ -232,7 +232,7 @@ it('shows success only for a published visit and copies its app link', async () 
   mockPage = 'success'; mockCopy.mockResolvedValue(true);
   mockSharing.acknowledged = { ...mockSharing.acknowledged!, status: 'active', postId: 'published-post' as never, saveLocalIds: ['save'] };
   await render(<VisitShareLayout />);
-  expect(screen.getByText('A day worth sharing.')).toBeOnTheScreen();
+  expect(screen.getByText('Your Museum visit is now public.')).toBeOnTheScreen();
   expect(screen.getByText(/· 1 artwork$/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Copy link' }));
   expect(mockCopy).toHaveBeenCalledWith('artlog://visit/published-post');

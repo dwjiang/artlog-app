@@ -33,7 +33,7 @@ export function PublicProfileHeader({ person, actions, children, visitCount, com
 
 export function PublicWallView({ wall, arrangedBy, onSelect }: { wall: PublicWall; arrangedBy?: string; onSelect: (item: PublicWall['items'][number]) => void }) {
   const [width, setWidth] = useState(0);
-  if (!wall.items.length) return <EmptyState title="A wall in the making." detail={`${arrangedBy ?? 'This person'} hasn’t hung any artworks yet. Check back for a different point of view.`} visual={<ArtworkCollage />}><GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push('/people')} /></EmptyState>;
+  if (!wall.items.length) return <EmptyState title="No artworks on this wall yet." detail={`${arrangedBy ?? 'This person'} hasn’t added any artworks yet.`} visual={<ArtworkCollage />}><GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push('/people')} /></EmptyState>;
   return <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
     {width > 0 && <WallGallery width={width} color={wall.color}
       pieces={wall.items.map((item) => ({ localId: item.itemId, layout: item.layout, artwork: item.artwork }))}

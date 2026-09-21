@@ -49,17 +49,17 @@ export function HomeScreen() {
         </View>
       </View>{guest && !dismissedPrompt && <View style={{ marginHorizontal: 20, marginBottom: 16, paddingLeft: 12, paddingVertical: 6, backgroundColor: '#EEF2FF', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
-        <View style={{ flex: 1 }}><Text style={{ fontSize: 13, lineHeight: 19 }}>Your art journey can start here.</Text><Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>Sign in to connect with friends.</Text></View>
+        <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, color: Gallery.muted }}>Sign in to connect with friends.</Text>
         <GalleryButton label="Sign in" onPress={() => router.push(signInRoute('friends'))} />
         <GalleryIconButton label="Dismiss sign-in invitation" icon="xmark" onPress={() => setDismissedPrompt(true)} />
       </View>}{(ready || session.status === 'loading') && <View style={styles.heading}>
         {ready ? <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text> : <Ghost width={110} height={24} />}
         {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
       </View>}</>}
-      ListEmptyComponent={!ready ? session.status === 'loading' ? <FeedSkeleton label="Getting things ready…" /> : <SocialGate session={session} browsePublic /> : feed.done && !feed.loading && !feed.error
-        ? <SocialInvitation title={guest ? 'Discover a\ndifferent view.' : 'See what your\nfriends see.'}
-          detail={guest ? 'No public visits yet. Explore public art collections while you wait.' : 'Museum visits from your friends will appear here. Find someone to get started.'}>
-          <GalleryButton label={guest ? 'Explore public walls' : 'Find friends'} variant="filled" fullWidth onPress={() => router.push('/people')} />
+      ListEmptyComponent={!ready ? session.status === 'loading' ? <FeedSkeleton label="Loading your account…" /> : <SocialGate session={session} browsePublic /> : feed.done && !feed.loading && !feed.error
+        ? <SocialInvitation title={guest ? 'No public visits yet.' : 'No visits from friends yet.'}
+          detail={guest ? 'View public walls to see other people’s collections.' : 'Add friends to see the museum visits they share.'}>
+          <GalleryButton label={guest ? 'View public walls' : 'Find friends'} variant="filled" fullWidth onPress={() => router.push('/people')} />
           <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate('/scan')} />
         </SocialInvitation> : null}
       ListFooterComponent={ready && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? <PageFooter {...feed} count={feed.items.length} skeleton="feed" /> : null}

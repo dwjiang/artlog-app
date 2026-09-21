@@ -4,6 +4,6 @@ import { WallSheet } from './wall-sheet';
 export function WallProfileSheet({ onDismiss, onCreated }: { onDismiss: () => void; onCreated: () => void }) {
   return <WallSheet title="Your public wall" onDismiss={onDismiss} tall>
     <ProfileForm onCreated={onCreated}
-      introduction="Give your wall a name. Choose which artworks to hang after creating your profile." />
+      introduction="Create a public profile, then choose which artworks to add to your wall." />
   </WallSheet>;
 }

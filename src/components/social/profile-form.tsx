@@ -59,7 +59,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     finally { submitting.current = false; if (owner.isCurrent() && mounted.current) setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 20 }}>
-    <View style={{ gap: 10 }}><Text variant="pageTitle">Make yourself at home.</Text><Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>{introduction}</Text></View>
+    <View style={{ gap: 10 }}><Text variant="pageTitle">Create a public profile.</Text><Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>{introduction}</Text></View>
     <View style={{ alignItems: 'center', gap: 8 }}><ProfileAvatar name={name || 'You'} photoUrl={photo} size={72} /><GalleryButton label={photo ? 'Change photo' : 'Add a photo'} disabled={busy} onPress={() => { void choose(); }} /></View>
     {([{ label: 'Name', value: name, change: setName, max: LIMITS.name }, { label: 'Username', value: username, change: setUsername, max: LIMITS.usernameMax }, { label: 'Introduction', value: bio, change: setBio, max: LIMITS.bio }]).map((field) => <View key={field.label} style={{ gap: 8 }}>
       <Text style={{ fontSize: 14, color: Gallery.ink }}>{field.label}{field.label === 'Introduction' ? ' (optional)' : ''}</Text>

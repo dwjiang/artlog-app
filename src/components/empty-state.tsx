@@ -6,14 +6,14 @@ import { ThemedText as Text } from './themed-text';
 import { GalleryButton } from './collection/gallery-button';
 
 export function EmptyState({ title, detail, visual, children, footnote, compact = false, inset = true }: {
-  title: string; detail: string; visual?: ReactNode; children?: ReactNode; footnote?: string; compact?: boolean; inset?: boolean;
+  title: string; detail?: string; visual?: ReactNode; children?: ReactNode; footnote?: string; compact?: boolean; inset?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   return <View style={[styles.root, inset && !compact && styles.inset, compact && styles.compact]}>
     {visual}
     <View style={styles.copy}>
       <Text variant="display" accessibilityRole="header" style={compact || !visual ? styles.smallTitle : fontScale > 1.3 ? styles.largeTextTitle : styles.title}>{title}</Text>
-      <Text style={styles.detail}>{detail}</Text>
+      {detail && <Text style={styles.detail}>{detail}</Text>}
     </View>
     {children && <View style={styles.actions}>{children}</View>}
     {footnote && <Text style={styles.footnote}>{footnote}</Text>}
@@ -24,7 +24,7 @@ export function EmptySymbol({ name, size = 76 }: { name: string; size?: number }
   return <View accessibilityElementsHidden style={[styles.symbol, { width: size, height: size, borderRadius: size / 2 }]}><Image source={`sf:${name}`} tintColor={Gallery.muted} style={{ width: size * 0.38, height: size * 0.38 }} accessible={false} /></View>;
 }
 
-export function SearchEmptyState({ title = 'Nothing found this time.', detail, onClear }: { title?: string; detail: string; onClear: () => void }) {
+export function SearchEmptyState({ title = 'No results found.', detail, onClear }: { title?: string; detail: string; onClear: () => void }) {
   return <EmptyState title={title} detail={detail} visual={<EmptySymbol name="magnifyingglass" size={132} />}>
     <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />
   </EmptyState>;

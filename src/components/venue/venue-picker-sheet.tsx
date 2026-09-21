@@ -123,6 +123,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
   }
 
   const hasQuery = !!query.trim();
+  const emptyDetail = keepVisit ? 'Search by museum or city, or keep your current visit.' : 'Search by museum or city. You can also keep scanning without a museum.';
   return <ScrollView style={sheetStyle} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <ThemedText type="title" accessibilityRole="header">Choose museum</ThemedText>
     <CollectionSearchField inputRef={searchInput} value={query} label="Search museums" placeholder="Museum or city" showLabel={false} filled onChange={setQuery} onClear={() => setQuery('')} />
@@ -134,7 +135,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
               <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} /><View style={styles.optionText}><ThemedText>{row.name}</ThemedText><ThemedText type="small" themeColor="textSecondary">{venueLocation(row).location}</ThemedText></View>{busy === row.id && <LoadingRing />}
             </Pressable>)
       : status === 'locating' ? <LoadingRing accessibilityLabel="Locating your museum" />
-        : !options.length ? <EmptyState inset={false} title={status === 'denied' ? 'Find your museum, wherever you are.' : 'Art turns up everywhere.'} detail="Search by museum or city. You can also keep scanning without a museum." visual={<EmptyMap />}>
+        : !options.length ? <EmptyState inset={false} title={status === 'denied' ? 'Location access is off.' : 'No nearby museums found.'} detail={status === 'denied' ? `Allow location in Settings to find nearby museums. ${emptyDetail}` : emptyDetail} visual={<EmptyMap />}>
           <GalleryButton label="Search museums" variant="filled" fullWidth onPress={() => searchInput.current?.focus()} />
           {status === 'denied' && <GalleryButton label="Open Settings" fullWidth onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
         </EmptyState>

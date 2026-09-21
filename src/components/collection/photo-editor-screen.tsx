@@ -48,16 +48,16 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     {photo.kind !== 'label' && <GalleryButton label="Adjust artwork crop" icon="crop" disabled={!photo.path || imageFailed} onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: photo.savedLocalId, photoId: photo.localId } })} />}
     <NativeSegmentedPicker label="Photo type" value={kind} options={[{ value: 'full', label: 'Full view' }, { value: 'detail', label: 'Detail' }, { value: 'label', label: 'Label' }]} onChange={setKind} />
     <View style={{ gap: 8 }}><Text style={{ color: Gallery.ink }}>Photo caption</Text>
-    <TextInput accessibilityLabel="Photo caption" placeholder="What caught your eye?" placeholderTextColor={Gallery.muted} selectionColor={Gallery.accent} keyboardAppearance="light" onFocus={() => setCaptionFocused(true)} onBlur={() => setCaptionFocused(false)} multiline value={caption} onChangeText={setCaption} maxLength={2000}
+    <TextInput accessibilityLabel="Photo caption" placeholder="Add a caption…" placeholderTextColor={Gallery.muted} selectionColor={Gallery.accent} keyboardAppearance="light" onFocus={() => setCaptionFocused(true)} onBlur={() => setCaptionFocused(false)} multiline value={caption} onChangeText={setCaption} maxLength={2000}
       style={{ padding: 16, minHeight: 90, borderRadius: 8, borderWidth: 1, borderColor: captionFocused ? Gallery.accent : Gallery.controlBorder, backgroundColor: Gallery.surface, color: Gallery.ink, fontSize: 17, lineHeight: 25 }} /></View>
     <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
     <GalleryButton label="Save photo details" variant="filled" fullWidth onPress={() => execute({ kind, caption })} />
     <View style={{ borderWidth: 1, borderColor: Gallery.softBorder, borderRadius: 8, paddingHorizontal: 12 }}>
     <GalleryButton label="Move to another artwork" icon="arrow.right" onPress={() => setMoving(!moving)} />
-    {moving && <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}><Text variant="display">Where does this belong?</Text><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
+    {moving && <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your artworks. Close and reopen this photo to try again.</Text>
         : !works.updatedAt && !destinations.length ? <ListSkeleton label="Loading artworks…" rows={3} />
-        : !destinations.length ? <EmptyState compact title="One artwork so far." detail="Save another artwork before moving this photo. Your photo and edits can stay here."><GalleryButton label="Keep it here" onPress={() => setMoving(false)} /></EmptyState> : null}
+        : !destinations.length ? <EmptyState compact title="No other artworks available." detail="Save another artwork before moving this photo. Your photo and edits can stay here."><GalleryButton label="Keep it here" onPress={() => setMoving(false)} /></EmptyState> : null}
       {destinations.map((work) => <Pressable key={work.localId} accessibilityRole="button" accessibilityLabel={`Move photo to ${work.title}`} onPress={() => {
         execute({ savedLocalId: work.localId, kind, caption });
       }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>

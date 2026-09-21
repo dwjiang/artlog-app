@@ -62,7 +62,7 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
         : <CollectionEmptyState kind="artworks" />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
-    contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={<>{empty}{!wall.signedIn && works.length > 0 && <View style={{ padding: 20, gap: 6, borderTopWidth: 0.5, borderColor: Gallery.softBorder }}><Text style={{ color: Gallery.muted, fontSize: 13 }}>Your art, kept together. Sign in to share your wall and connect with friends.</Text><GalleryButton label="Sign in" onPress={() => router.push(signInRoute('wall'))} /></View>}</>}
+    contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={<>{empty}{!wall.signedIn && works.length > 0 && <View style={{ padding: 20, gap: 6, borderTopWidth: 0.5, borderColor: Gallery.softBorder }}><Text style={{ color: Gallery.muted, fontSize: 13 }}>Sign in to share your wall and connect with friends.</Text><GalleryButton label="Sign in" onPress={() => router.push(signInRoute('wall'))} /></View>}</>}
     stickyHeaderIndices={controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined}
     renderItem={({ item }) => {
       if (item.kind === 'element') return item.element;

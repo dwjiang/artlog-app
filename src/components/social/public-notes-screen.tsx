@@ -17,7 +17,7 @@ import { PublicNotesPreview } from './public-notes-preview';
 import { SocialState } from './social-state';
 import { socialStyles } from './social-styles';
 
-const INTRO = 'Your thoughts belong to you. Choose which notes visitors can read alongside artworks on your wall. Editing a shared note makes it private until you share it again.';
+const INTRO = 'Choose which notes visitors can read alongside artworks on your wall. Editing a shared note makes it private until you share it again.';
 
 export function PublicNotesScreen() {
   const wall = useCollectionWall([]);
@@ -34,7 +34,7 @@ export function PublicNotesScreen() {
     try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
     catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
-  const gate = !wall.signedIn ? <EmptyState title={'Your words,\nwhen you’re ready.'} detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
+  const gate = !wall.signedIn ? <EmptyState title="Sign in to manage public notes." detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
       : wall.loading || (!wall.acknowledged && !wall.error) ? <SocialState title="Opening your notes…" loading /> : null;
   if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}>{gate}</ScrollView>;
@@ -61,7 +61,7 @@ export function PublicNotesScreen() {
   </ScrollView>;
   return <>{toolbar}
     <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 22 }}>
-      <Text variant="display">Share your notes.</Text><Text themeColor="textSecondary">{INTRO}</Text>
+      <Text themeColor="textSecondary">{INTRO}</Text>
       {wall.error && <><Text themeColor="error" accessibilityRole="alert">{wall.error}</Text><GalleryButton label="Refresh notes" onPress={() => { void wall.refresh(); }} /></>}
       {eligible.map((item) => <View key={item.itemId} style={{ gap: 12, paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>

@@ -420,8 +420,8 @@ it('shows a blank wall and opens Scan when there is no saved art', async () => {
   await render(<CollectionWall works={[]} />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Scan artwork' }));
   expect(mockPush).toHaveBeenLastCalledWith('/scan');
-  expect(screen.getByText('Make room for your favorites.')).toBeOnTheScreen();
-  expect(screen.queryByText('Your own little museum.')).toBeNull();
+  expect(screen.getByText('Add artworks to your wall.')).toBeOnTheScreen();
+  expect(screen.queryByText('No saved artworks yet.')).toBeNull();
   let settle: (wall: OwnerWall) => void = () => {};
   mockTransport.getMine.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
   await act(async () => { mockFocus?.(); });

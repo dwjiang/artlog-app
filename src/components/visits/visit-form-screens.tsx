@@ -112,7 +112,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     try {
       await upsertVisit({ localId, venueId: venue.id, venueName: venue.name, visitedOn: date, timeZone, visibility: 'private', reflection: reflection.trim() || null }, session.owner, savedId);
       if (session.isOwnerCurrent()) {
-        showToast(savedId ? 'New visit linked. Other photos are unchanged.' : 'Visit saved. Publish it when you’re ready.');
+        showToast(savedId ? 'New visit linked. Other photos are unchanged.' : 'Visit saved.');
         if (savedId) router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId, visitId: localId } });
         else router.back();
       }
@@ -123,8 +123,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     <Stack.Toolbar placement="left"><Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()} disabled={busy}>Cancel</Stack.Toolbar.Button></Stack.Toolbar>
 
     <VisitPage>
-      <Text style={[styles.title, { letterSpacing: -0.8 }]}>Keep this day.</Text>
-      <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'A visit is yours to remember, with or without artworks.'}</Text>
+      <Text style={styles.caption}>{savedId ? 'This visit will be linked to your artwork when you save.' : 'You can save a visit without adding artworks.'}</Text>
       <Text accessibilityRole="header" style={styles.heading}>Museum</Text>
       {venue ? <View style={styles.card}>
         <Text style={styles.body}>{venue.name}</Text><Text style={styles.caption}>{venueLocation(venue).location}</Text>
@@ -159,7 +158,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
       <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} accessibilityLabel="Notes" value={reflection} onChangeText={setReflection}
         multiline maxLength={LIMITS.note} editable={!busy} style={[styles.input, styles.reflection]} />
-      <Text style={styles.caption}>This visit starts private. You can choose to share it later.</Text>
+      <Text style={styles.caption}>Your visit stays private until you share it.</Text>
       <GalleryButton label="Add visit" variant="filled" fullWidth busy={busy} disabled={busy || !venue || !validDate} onPress={() => { void save(); }} />
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </VisitPage>

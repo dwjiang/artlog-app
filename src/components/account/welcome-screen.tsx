@@ -19,11 +19,11 @@ export function WelcomeScreen() {
       <ArtworkCollage welcome />
       <View style={styles.copy}>
         <Text style={fontScale > 1.3 ? Typography.display : styles.tagline}>{fontScale > 1.3 ? 'Remember the art that stays with you.' : 'Remember\nthe art that\nstays with you.'}</Text>
-        <Text themeColor="textSecondary">Scan an artwork. Keep the memory.</Text>
+        <Text themeColor="textSecondary">Scan artworks and save your museum visits.</Text>
       </View>
     </View>
     <View style={styles.actions}>
-      <GalleryButton label="Start exploring" fullWidth variant="filled" onPress={() => router.back()} />
+      <GalleryButton label="Get started" fullWidth variant="filled" onPress={() => router.back()} />
       <GalleryButton label="I already have an account" fullWidth onPress={() => router.replace(signInRoute('account'))} />
     </View>
   </ScrollView>;

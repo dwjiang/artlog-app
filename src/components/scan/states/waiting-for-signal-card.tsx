@@ -9,7 +9,7 @@ import { LoadingRing } from '@/components/loading-ring';
 // Product voice: the card says "waiting for signal" and asks for the label now.
 export const WAITING_TITLE = 'Waiting for signal';
 export const WAITING_LINE = 'Capture the label now so we can finish this when you’re back online.';
-export const IDENTIFYING_TITLE = 'Finding the story behind the artwork.';
+export const IDENTIFYING_TITLE = 'Identifying artwork…';
 export const IDENTIFYING_LINE = 'Keep this screen open while we look for a match.';
 export const LABEL_NOW = 'Point at the label';
 

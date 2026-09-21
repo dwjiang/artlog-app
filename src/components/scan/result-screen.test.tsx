@@ -196,7 +196,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
   expect(screen.getByLabelText('Date').props.defaultValue).toBe('1916');
   expect(screen.getByLabelText('Medium').props.defaultValue).toBe('Oil on canvas');
   expect(screen.getByLabelText('Institution').props.defaultValue).toBe('Metropolitan Museum of Art');
-  expect(screen.getByText('A closer look')).toBeOnTheScreen();
+  expect(screen.getByText('About this work')).toBeOnTheScreen();
   expect(screen.getByText('Monet painted this pond at Giverny in 1916.')).toBeOnTheScreen();
   expect(screen.getByRole('link', { name: 'The Met' })).toBeOnTheScreen();
   expect(screen.getByText('From the web')).toBeOnTheScreen();
@@ -211,7 +211,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
 it('keeps the card usable while the prose is still being written, then fills it in', async () => {
   results.set('scans:get', confidentScanWithoutProse);
   await render(result());
-  expect(await screen.findByLabelText('Writing about this work…')).toBeOnTheScreen();
+  expect(await screen.findByLabelText('Loading artwork information…')).toBeOnTheScreen();
   await openDetails();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Nymphéas');
   await publish({ ...confidentScanWithoutProse, docent: confidentScan.docent, factSheet: confidentScan.factSheet });
@@ -230,7 +230,7 @@ it('shows a soft match as a maybe with the suggestions and the label button', as
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
   expect(screen.getByText('Other possibilities')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
-  expect(screen.queryByText('A closer look')).toBeNull();
+  expect(screen.queryByText('About this work')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: LABEL_BUTTON }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/label/[scanId]', params: { scanId: SCAN_ID, intent: 'review' } });
 });
@@ -380,7 +380,7 @@ it('unlocks the draft and match choices after a local save fails so the user can
 it('records a rejection when "Not right?" opens, resolves it with the picked runner-up and re-renders as a maybe', async () => {
   await render(result());
   await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
-  expect(await screen.findByText('Let’s get it right.')).toBeOnTheScreen();
+  expect(await screen.findByText('Other possible matches')).toBeOnTheScreen();
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
   expect(mockSign).toHaveBeenCalledWith(JSON.stringify({ objectId: lilies.objectId, operation: 'rejectMatch', scanId: SCAN_ID }));
   expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID, objectId: lilies.objectId, nonce: 'nonce-1', assertionBase64: '' });
@@ -393,7 +393,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   expect(screen.getByText('Maybe')).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('The Japanese Footbridge');
-  expect(screen.queryByText('A closer look')).toBeNull();
+  expect(screen.queryByText('About this work')).toBeNull();
   expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeNull();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
@@ -439,12 +439,12 @@ it('waits for the device before querying and shows the unsupported, failed and q
   mockAuth.isAuthenticated = true;
   results.set('scans:get', unsupportedScan);
   await view.rerender(result());
-  expect(await screen.findByText('A newer way to see.')).toBeOnTheScreen();
+  expect(await screen.findByText('Update required.')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Update the app' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^Save (to collection|photo for later)$/ })).toBeEnabled();
   expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
   await publish(failedScan);
-  expect(await screen.findByText('The story can wait.')).toBeOnTheScreen();
+  expect(await screen.findByText('Identification failed.')).toBeOnTheScreen();
   expect(screen.getByText('The photo couldn’t be read. Try scanning the painting again.')).toBeOnTheScreen();
   expect(screen.queryByText('bad_features')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
@@ -481,7 +481,7 @@ it('starts a fresh card when the same screen receives another scan id', async ()
 it('shows a failed card when the server refuses the scan', async () => {
   results.set('scans:get', null);
   await render(result());
-  expect(await screen.findByText('The story can wait.')).toBeOnTheScreen();
+  expect(await screen.findByText('Identification failed.')).toBeOnTheScreen();
   expect(screen.queryByText(haystacks.title)).toBeNull();
 });
 
@@ -859,7 +859,7 @@ it('keeps a tentative visitor suggestion visible without starting museum search'
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/ })).toBeEnabled();
-  expect(screen.queryByText('A closer look')).toBeNull();
+  expect(screen.queryByText('About this work')).toBeNull();
 });
 
 it('saves edited tentative metadata without implying confirmation', async () => {
@@ -879,7 +879,7 @@ it('opens a fresh manual form when recovery returns to the same scan', async () 
   await view.rerender(result(SCAN_ID, true));
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('');
   expect(screen.getByLabelText('Title').props.editable).toBe(true);
-  expect(screen.queryByText('A closer look')).toBeNull();
+  expect(screen.queryByText('About this work')).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Title'), 'My own entry');
   expect(screen.getByLabelText('Title').props.defaultValue).toBe('My own entry');
 });

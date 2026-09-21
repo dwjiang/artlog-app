@@ -40,7 +40,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     finally { saving.current = false; setPending(false); }
   }
   return <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>
-    <Text variant="pageTitle">Join in. On your terms.</Text><Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>Choose who can see your activity totals.</Text>
+    <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>Choose who can see your activity totals.</Text>
     {session.status === 'ready' ? <>
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
         <Column spacing={0}>

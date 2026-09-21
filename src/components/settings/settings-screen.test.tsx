@@ -87,7 +87,7 @@ it('keeps privacy and About details accessible', async () => {
   expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
   expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
-  expect(screen.getByText('Your personal art journal.')).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: 'Artlog' })).toBeOnTheScreen();
   for (const label of ['Privacy policy', 'Send feedback', 'Source code']) expect(screen.getByRole('button', { name: label })).toBeOnTheScreen();
 });
 
