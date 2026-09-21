@@ -6,6 +6,7 @@ import { VisitBar } from '@/components/visits/visit-bar';
 import { TabBarVisibility } from '@/components/tab-bar-visibility';
 import { Gallery } from '@/constants/theme';
 import { useVenue } from '@/lib/venue/use-venue';
+import { activeVisit } from '@/lib/venue/venue-reducer';
 
 export const unstable_settings = {
   anchor: '(home)',
@@ -40,10 +41,10 @@ function useSelectedTab(): string | undefined {
 
 export default function TabsLayout() {
   const [hidden, setHidden] = useState(false);
-  const { visit } = useVenue();
+  const { venue, visit } = useVenue();
   const selectedTab = useSelectedTab();
-  // The camera has the venue pill; the bar there would crowd the shutter.
-  const showVisitBar = !!visit && selectedTab !== '(scan)' && !hidden;
+  // The camera has the venue pill; the bar there would crowd the shutter. A visit paused away from its museum stays quiet.
+  const showVisitBar = !!activeVisit({ venue, visit }) && selectedTab !== '(scan)' && !hidden;
   return (
     <TabBarVisibility value={setHidden}>
     <NativeTabs hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>

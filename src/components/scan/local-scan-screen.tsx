@@ -103,7 +103,7 @@ export function LocalScanScreen({ localId }: { localId: string }) {
           ]);
           else setEditingCrop(true);
         }} />}
-        {row && !savedId && <CaptureContextButton draftId={row.photoPath} visitId={row.visitLocalId ?? undefined} disabled={saving} />}
+        {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}
         {loadError ? <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load this scan. Close this screen and reopen it to try again.</ThemedText>
           : !updatedAt ? <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" /></View>
           : !row ? <View style={styles.section}><ThemedText type="subtitle">{MISSING_TITLE}</ThemedText><GalleryButton label="Scan another artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></View>

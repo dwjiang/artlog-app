@@ -143,7 +143,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>
     {capture && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />}
-    {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
+    {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
     {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
   </>;
   const search = view.editable && showMuseumSearch ? <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} /> : undefined;

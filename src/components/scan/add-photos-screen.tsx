@@ -16,6 +16,8 @@ import { Gallery, Spacing } from '@/constants/theme';
 import { captureOwner, useLocalOwner } from '@/lib/account/owner-store';
 import { extractCaptureMeta } from '@/lib/capture/exif';
 import { clearPhotoDraft, readPhotoDraft, readPhotoSession, writePhotoDraft, type DraftPhoto } from '@/lib/capture/photo-draft';
+import { captureVisitChoice } from '@/lib/capture/visit-choice';
+import { visitForSave } from '@/lib/venue/use-venue';
 import { captureFileUri, persistArtworkPhoto } from '@/lib/files/photos';
 import { removePhotoFile } from '@/lib/account/photo-transfer';
 import { saveArtworkSession } from '@/db/repos/artwork-album';
@@ -97,9 +99,15 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     } catch { setError('Could not add this photo. Try again.'); }
     finally { busyRef.current = false; setOperation(undefined); }
   }
-  function sessionVisitId() {
-    const chosen = readPhotoSession(owner, draftId).visitLocalId;
-    return chosen === undefined ? visitId : chosen ?? undefined;
+  const saveCapture = readPhotoSession(owner, draftId).saveInput?.capture;
+  // The visit's day is the scan's, as the context chip shows it; an added photo's own date (a library pick may be weeks old) does not move it.
+  const contextCapturedAt = saveCapture?.capturedAt ?? photos[0]?.capturedAt;
+  // The same choice the context chip shows, so a separate save lands in the visit the chip names.
+  async function sessionVisitId(): Promise<string | undefined> {
+    const session = readPhotoSession(owner, draftId);
+    const choice = captureVisitChoice({ visitLocalId: visitId, venueId: saveCapture?.venueId, capturedAt: contextCapturedAt }, session);
+    if (choice.kind === 'venue') return (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId;
+    return choice.kind === 'visit' ? choice.localId : undefined;
   }
   async function done() {
     if (busyRef.current || completion) return;
@@ -109,7 +117,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     try {
       if (savedId) {
         if (!photos.length) return;
-        const selectedVisitId = sessionVisitId();
+        const selectedVisitId = await sessionVisitId();
         const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
         if (selectedVisitId && !visit) throw new Error('Visit unavailable');
         if (!session.isOwnerCurrent()) return;
@@ -133,7 +141,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     const session = captureOwner(); setOperation('separating');
     try {
       const existing = photo.recognized ? (await listSavedWorks(owner)).find((work) => work.objectId === photo.recognized!.objectId) : undefined;
-      const selectedVisitId = sessionVisitId();
+      const selectedVisitId = await sessionVisitId();
       const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
       if (selectedVisitId && !visit) throw new Error('Visit unavailable');
       if (!session.isOwnerCurrent()) return;
@@ -151,12 +159,12 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
     </View>
   </ScrollView>;
   const photoCount = photos.length + (savedId ? 0 : 1);
-  const shares = !savedId && !!readPhotoSession(owner, draftId).saveInput?.contribution;
+  const shares = !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return <ScrollView style={styles.screen} contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
     <Stack.Screen options={{ title: 'Add photos' }} />
     <View style={styles.target}><ThemedText type="smallBold" style={styles.eyebrow}>ADDING PHOTOS TO</ThemedText><ThemedText type="title" style={styles.title}>{title || 'Unidentified artwork'}</ThemedText>
       <ThemedText type="small" style={styles.hint}>Full views, details, and labels stay together.</ThemedText></View>
-    <CaptureContextButton draftId={draftId} visitId={visitId} disabled={busy} />
+    <CaptureContextButton capture={{ photoPath: draftId, visitLocalId: visitId, venueId: saveCapture?.venueId, capturedAt: contextCapturedAt }} disabled={busy} />
     <View style={styles.camera}>
       {currentPhoto ? <LoadingImage uri={captureFileUri(currentPhoto.path)} label="Selected artwork photo" style={StyleSheet.absoluteFill} contentFit="contain" /> : <CameraPermission loading={active && !ready && !error && !busy}>
         <Camera style={StyleSheet.absoluteFill} device="back" outputs={[output]} isActive={active} resizeMode="cover" orientationSource="interface"
