@@ -100,7 +100,7 @@ function CreateForm({ savedId }: { savedId?: string }) {
       </Host>
       {!validDate && <Text accessibilityRole="alert" style={styles.error}>Choose today or an earlier date at this museum.</Text>}
       <Text accessibilityRole="header" style={styles.heading}>Notes</Text>
-      <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted} accessibilityLabel="Notes" placeholder="What stayed with you? (optional)" value={reflection} onChangeText={setReflection}
+      <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} accessibilityLabel="Notes" value={reflection} onChangeText={setReflection}
         multiline maxLength={LIMITS.note} editable={!busy} style={[styles.input, styles.reflection]} />
       <Text style={styles.caption}>Saved to your journal. Share it when you’re ready.</Text>
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

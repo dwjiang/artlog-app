@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { AppState, TextInput, View } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Gallery } from '@/constants/theme';
@@ -13,11 +13,13 @@ import { HighlightHeading } from '../highlight-heading';
 import { visitStyles as styles } from './visit-ui';
 
 type NotesVisit = Pick<Visit, 'localId' | 'owner' | 'reflection'>;
+export type VisitNotesHandle = { save: () => Promise<boolean> };
+type VisitNotesProps = { visit: NotesVisit; autoSave?: boolean; editable?: boolean; ref?: Ref<VisitNotesHandle> };
 type NoteDraft = {
   localId: string; owner: string;
   text: string; savedText: string; unsynced: boolean; focused: boolean;
   timer?: ReturnType<typeof setTimeout>;
-  writes: Promise<void>; pending: number;
+  writes: Promise<boolean>; pending: number;
   onResult: (error?: string) => void;
 };
 
@@ -25,7 +27,7 @@ type NoteDraft = {
 function persist(note: NoteDraft, sync = true) {
   clearTimeout(note.timer);
   const text = note.text;
-  if (!note.pending && text === note.savedText && !(sync && note.unsynced)) return;
+  if (!note.pending && text === note.savedText && !(sync && note.unsynced)) return Promise.resolve(true);
   note.pending++;
   // A slower earlier save must not overwrite the latest draft.
   note.writes = note.writes.then(async () => {
@@ -39,31 +41,35 @@ function persist(note: NoteDraft, sync = true) {
         note.unsynced = false;
       }
       note.onResult();
+      return true;
     } catch (cause) {
       note.onResult(socialErrorMessage(cause) ?? 'Your note could not be saved. Try again.');
+      return false;
     } finally { note.pending--; }
   });
+  return note.writes;
 }
 
-export function VisitNotes({ visit }: { visit: NotesVisit }) {
-  return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} />;
+export function VisitNotes({ visit, ...props }: VisitNotesProps) {
+  return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
 }
 
-function NoteField({ visit }: { visit: NotesVisit }) {
+function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? '');
   const [error, setError] = useState<string>();
   const latest = useRef<NoteDraft>({
     localId: visit.localId, owner: visit.owner, text: visit.reflection ?? '', savedText: visit.reflection ?? '', unsynced: false, focused: false,
-    writes: Promise.resolve(), pending: 0, onResult: setError,
+    writes: Promise.resolve(true), pending: 0, onResult: setError,
   });
+  useImperativeHandle(ref, () => ({ save: () => persist(latest.current) }), []);
 
   useEffect(() => {
     const note = latest.current;
     note.onResult = setError;
-    const subscription = AppState.addEventListener('change', (state) => { if (state !== 'active') persist(note); });
-    return () => { subscription.remove(); note.onResult = () => {}; persist(note); };
-  }, []);
-  useFocusEffect(useCallback(() => () => persist(latest.current), []));
+    const subscription = autoSave ? AppState.addEventListener('change', (state) => { if (state !== 'active') void persist(note); }) : undefined;
+    return () => { subscription?.remove(); note.onResult = () => {}; clearTimeout(note.timer); if (autoSave) void persist(note); };
+  }, [autoSave]);
+  useFocusEffect(useCallback(() => () => { if (autoSave) void persist(latest.current); }, [autoSave]));
   useEffect(() => {
     const note = latest.current;
     if (!note.focused && note.text === note.savedText) {
@@ -74,19 +80,19 @@ function NoteField({ visit }: { visit: NotesVisit }) {
 
   return <View>
     <View style={styles.sectionLabel}><HighlightHeading>Notes</HighlightHeading></View>
-    <TextInput keyboardAppearance="light" selectionColor={Gallery.accent} placeholderTextColor={Gallery.muted}
-      accessibilityLabel="Notes" placeholder="What stayed with you?" value={draft}
+    <TextInput keyboardAppearance="light" selectionColor={Gallery.accent}
+      accessibilityLabel="Notes" value={draft} editable={editable}
       onFocus={() => { latest.current.focused = true; }}
       onChangeText={(text) => {
         const note = latest.current;
         note.text = text; setDraft(text); clearTimeout(note.timer);
-        note.timer = setTimeout(() => persist(note, false), 500);
+        if (autoSave) note.timer = setTimeout(() => { void persist(note, false); }, 500);
       }}
-      onBlur={() => { latest.current.focused = false; persist(latest.current); }}
+      onBlur={() => { latest.current.focused = false; if (autoSave) void persist(latest.current); }}
       multiline maxLength={LIMITS.note} style={[styles.input, styles.reflection]} />
     {error && <View>
       <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
-      <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />
+      {autoSave && <GalleryButton label="Retry save" onPress={() => { void persist(latest.current); }} />}
     </View>}
   </View>;
 }

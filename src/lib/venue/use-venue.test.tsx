@@ -201,7 +201,7 @@ it('pauses the visit when a later fix finds nothing nearby and resumes it on ret
 it('does not restart a visit ended by hand from location alone that day, but does on a confirmed choice', async () => {
   mockNearest.mockResolvedValue([metRow]);
   await controller.resolve();
-  await controller.end();
+  await controller.end('uuid-1');
   expect(mockSettings.get('endedVisit:device:test-installation')).toBe('uuid-1');
   mockNow += 5 * 60 * 1000;
   await expect(controller.resolve()).resolves.toEqual({ venueId: 'id-met' });
@@ -221,7 +221,7 @@ it('does not restart a visit ended by hand from location alone that day, but doe
 it('starts a visit again at that museum the next day after an ending by hand', async () => {
   mockNearest.mockResolvedValue([metRow]);
   await controller.resolve();
-  await controller.end();
+  await controller.end('uuid-1');
   mockNow += 24 * 60 * 60 * 1000;
   const relaunched = createVenueController();
   await relaunched.hydrate();
@@ -234,14 +234,14 @@ it('ends the visit on End and syncs the ending', async () => {
   await controller.resolve();
   await controller.syncRemoteVisit();
   mockNow += 10 * 60 * 1000;
-  await controller.end();
+  await controller.end('uuid-1');
   await controller.syncRemoteVisit();
   expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: mockNow, remoteVisitId: 'remote-1' });
   expect(mockMutation).toHaveBeenCalledWith('syncVisit', expect.objectContaining({ remoteVisitId: 'remote-1', endedAt: mockNow }));
   expect(mockSettings.has('currentVisit:device:test-installation')).toBe(false);
   expect(controller.getState().visit).toBeUndefined();
   expect(controller.getContext()).toEqual({ venueId: 'id-met' });
-  await controller.end();
+  await controller.end('uuid-1');
   expect(mockVisits.size).toBe(1);
 });
 
@@ -506,4 +506,13 @@ it('keeps the other same-name place available after confirming one branch', asyn
     expect.objectContaining({ kind: 'seeded', venueId: 'id-corner' }),
     expect.objectContaining({ kind: 'poi', name: place.name, lat: otherBranch.lat }),
   ]);
+});
+
+it('leaves the current visit open when saving an older end-visit review', async () => {
+  mockNearest.mockResolvedValue([metRow]);
+  await controller.resolve();
+  await controller.end('older-visit');
+  expect(controller.getState().visit?.localId).toBe('uuid-1');
+  expect(mockVisits.get('uuid-1')).toMatchObject({ endedAt: null });
+  expect(mockSettings.get('currentVisit:device:test-installation')).toBe('uuid-1');
 });

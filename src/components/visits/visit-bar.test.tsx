@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { VisitBar } from './visit-bar';
 import type { VenueView } from '@/lib/venue/use-venue';
@@ -29,14 +29,11 @@ it('names the open visit with its artwork count and opens its detail', async () 
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
 
-it('ends the visit from the bar and opens its detail', async () => {
-  let finish!: () => void;
-  mockEnd.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+it('opens the end-visit review without ending the visit', async () => {
   await render(<VisitBar />);
   await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(screen.getByRole('button', { name: 'End visit' })).toBeBusy();
-  await act(async () => { finish(); });
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
+  expect(mockEnd).not.toHaveBeenCalled();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1', endVisit: 'true' } });
 });
 
 it('shows only the name when placed inline next to a minimized tab bar', async () => {
@@ -50,15 +47,4 @@ it('renders nothing without an open visit', async () => {
   mockVisit = undefined;
   await render(<VisitBar />);
   expect(screen.queryByRole('button')).toBeNull();
-});
-
-it('keeps the visit available and offers another attempt if ending fails', async () => {
-  mockEnd.mockRejectedValueOnce(new Error('Could not save'));
-  await render(<VisitBar />);
-  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t end visit. Try again.');
-  expect(mockPush).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(mockEnd).toHaveBeenCalledTimes(2);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
