@@ -25,7 +25,7 @@ const listeners = new Set<() => void>();
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }), router: { push: (...args: unknown[]) => mockPush(...args) } }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, push: mockPush }), router: { push: (...args: unknown[]) => mockPush(...args) } }));
 jest.mock('convex/react', () => ({
   ...jest.requireActual('convex/react'),
   useConvexAuth: () => mockAuth,
@@ -222,4 +222,12 @@ it('keeps encounter photos and notes specific to the selected visit and opens ot
   await view.rerender(<ConvexProvider client={client}><SavedWorkScreen savedId="lilies" visitId={second} /></ConvexProvider>);
   expect(await screen.findByText('Second encounter thought')).toBeOnTheScreen();
   expect(screen.queryByText('First encounter thought')).toBeNull();
+});
+
+
+it('opens crop adjustment from the saved artwork while keeping its album photo available', async () => {
+  await render(detail('lilies'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Adjust crop' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/adjust-crop', params: { savedId: 'lilies' } });
+  expect(screen.getByLabelText('full photo 1 of Water Lilies')).toBeOnTheScreen();
 });

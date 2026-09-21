@@ -37,18 +37,21 @@ export const findForCaller = internalQuery({
 
 // Only the authenticated HTTP upload can attach a freshly stored file. Clients cannot claim storage IDs.
 export const attach = internalMutation({
-  args: { ...args, storageId: v.id('_storage'), width: v.optional(v.number()), height: v.optional(v.number()) }, returns: v.id('_storage'),
+  args: { ...args, storageId: v.id('_storage'), width: v.optional(v.number()), height: v.optional(v.number()) },
+  returns: v.object({ storageId: v.id('_storage'), photoUpdatedAt: v.number() }),
   handler: async (ctx, { scope, localId, kind, photoId, storageId, width, height }) => {
     const { save, photo } = await target(ctx, scope, localId, kind, photoId);
     const existing = photo ? photo.storageId : save.cropStorageId;
-    if (existing) {
+    if (photo && existing) {
       if (existing !== storageId) await deleteUnreferencedPhoto(ctx, storageId);
-      return existing;
+      return { storageId: existing, photoUpdatedAt: 0 };
     }
     const changeVersion = await nextChangeVersion(ctx, save.owner);
+    const photoUpdatedAt = photo ? 0 : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
     if (photo) await ctx.db.patch(photo._id, { storageId, width, height, changeVersion });
-    else await ctx.db.patch(save._id, { cropStorageId: storageId, photoUpdatedAt: Date.now(), changeVersion });
-    return storageId;
+    else await ctx.db.patch(save._id, { cropStorageId: storageId, photoUpdatedAt, changeVersion });
+    if (existing && existing !== storageId) await deleteUnreferencedPhoto(ctx, existing);
+    return { storageId, photoUpdatedAt };
   },
 });
 
@@ -79,7 +82,7 @@ export const upload = httpAction(async (ctx, request) => {
     const device = await requireDeviceFromAction(ctx);
     const input = parameters(request);
     const existing = await ctx.runQuery(internal.collectionPhotos.findForCaller, input);
-    if (existing) return Response.json({ storageId: existing });
+    if (existing && input.kind === 'photo') return Response.json({ storageId: existing, photoUpdatedAt: 0 });
     await limitDevice(ctx, 'photoUpload', device._id);
     if (Number(request.headers.get('Content-Length')) > MAX_COLLECTION_PHOTO_BYTES) {
       throw new ConvexError({ code: 'photo_too_large' });
@@ -92,8 +95,8 @@ export const upload = httpAction(async (ctx, request) => {
     uploaded = await ctx.storage.store(blob);
     const width = Number(request.headers.get('X-Photo-Width')), height = Number(request.headers.get('X-Photo-Height'));
     const dimensions = width > 0 && height > 0 && width <= 65535 && height <= 65535 ? { width, height } : {};
-    const storageId = await ctx.runMutation(internal.collectionPhotos.attach, { ...input, storageId: uploaded, ...dimensions });
-    return Response.json({ storageId });
+    const result = await ctx.runMutation(internal.collectionPhotos.attach, { ...input, storageId: uploaded, ...dimensions });
+    return Response.json(result);
   } catch (error) {
     if (uploaded) await ctx.runMutation(internal.collectionPhotos.discard, { storageId: uploaded });
     return failure(error);

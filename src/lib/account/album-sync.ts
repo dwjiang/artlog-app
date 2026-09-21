@@ -5,6 +5,7 @@ import { acknowledgeAlbum, albumPhotoTransfers, applyAlbum, clearDeletedAlbumPho
 import { getSetting, setSetting } from '../../db/repos/settings';
 import { convex } from '../convex-client';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
+import { removeUnreferencedPhotos } from '../files/unreferenced-photos';
 import type { SyncContext } from './sync';
 
 export async function syncArtworkAlbums(context: SyncContext, token: string, isCurrent: () => boolean) {
@@ -26,7 +27,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
     if (!isCurrent()) return;
     await upsertVisitsFromRemote(result.visits, context.owner);
     if (!isCurrent()) return;
-    await upsertFromRemote(result.saves, context.owner);
+    await removeUnreferencedPhotos(await upsertFromRemote(result.saves, context.owner));
     if (!isCurrent()) return;
     acknowledgeAlbum(pending, context.owner);
     applyAlbum(result.photos, result.encounters, context.owner);
@@ -43,7 +44,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
       if (!isCurrent()) return;
       try {
         if (photo.path && !photo.storageId) {
-          const storageId = await uploadCollectionPhoto(token, context.scope, photo.savedLocalId, 'photo', photo.path, isCurrent, photo.localId);
+          const { storageId } = await uploadCollectionPhoto(token, context.scope, photo.savedLocalId, 'photo', photo.path, isCurrent, photo.localId);
           if (isCurrent()) updateAlbumTransfer(photo.localId, { storageId }, context.owner);
         } else if (!photo.path && photo.storageId) {
           const path = await downloadCollectionPhoto(token, context.scope, photo.savedLocalId, 'photo', photo.storageId, photo.localId);

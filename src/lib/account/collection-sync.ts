@@ -20,6 +20,7 @@ import { onCollectionChange } from './sync-events';
 import { syncCollectionPhotos } from './photo-sync';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
 import { syncArtworkAlbums } from './album-sync';
+import { removeUnreferencedPhotos } from '../files/unreferenced-photos';
 
 let context: SyncContext | null = null;
 let generation = 0;
@@ -71,7 +72,7 @@ const transfers: Queue = {
     ...savedWorks,
     listPhotoTransfers: () => savedWorks.listPhotoTransfers(context.owner),
     getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
-    updatePhotoTransfer: (id, fields) => savedWorks.updatePhotoTransfer(id, fields, context.owner),
+    updatePhotoTransfer: (id, fields, _owner, expected) => savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
     listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
     clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
     upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
@@ -89,7 +90,7 @@ const sync: Queue = {
       ...savedWorks, ...createJournalRepository(context.owner, isCurrent),
       getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
       setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
-      sync: (args) => convex.mutation(api.sync.syncJournal, args),
+      sync: (args) => convex.mutation(api.sync.syncJournal, args), removeUnreferencedPhotos,
     }, context, isCurrent);
     if (isCurrent()) schedule(transfers, 0);
   },
