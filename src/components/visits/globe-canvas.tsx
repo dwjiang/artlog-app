@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { Canvas, Circle, Fill, Group, ImageShader, matchFont, RoundedRect, Shader, Skia, Text as CanvasText, useImage } from '@shopify/react-native-skia';
 import { useImperativeHandle, useState, type Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -21,7 +22,8 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
 }) {
   const [width, setWidth] = useState(0);
   // Rasterized from the GSHHG coastline polygons supplied in the design mock.
-  const image = useImage(require('../../../assets/images/visit-globe-land.png'));
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = useImage(require('../../../assets/images/visit-globe-land.png'), () => setImageFailed(true));
   const { camera, pan, pinch, setCamera, settle, stop, save } = useGlobeCamera(initialCamera ?? globeCamera(initialPin.latitude, initialPin.longitude), onCameraChange);
   const clusters = useDerivedValue(() => globeClusters(pins, camera.get(), width, height));
   const uniforms = useDerivedValue(() => {
@@ -56,7 +58,7 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
   });
   return <GestureHandlerRootView style={{ height }}><GestureDetector gesture={Gesture.Race(Gesture.Simultaneous(pan, pinch), Gesture.Exclusive(doubleTap, tap))}>
     <View collapsable={false} onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={{ height }}
-      accessible accessibilityRole="image" accessibilityLabel="Interactive globe of your museum visits"
+      accessible={!!image && !!shader && width > 0} accessibilityRole="image" accessibilityLabel="Interactive globe of your museum visits"
       accessibilityHint="Drag to rotate and pinch to zoom. Use Choose a visited museum to select a place without gestures.">
       <View pointerEvents="none" style={[styles.shadow, { width: width * 0.46, left: width * 0.27, top: height * 0.87 }]} />
       <Canvas style={StyleSheet.absoluteFill}>
@@ -65,7 +67,8 @@ export function GlobeCanvas({ pins, selectedId, initialPin, height, onSelect, in
           {pins.map((pin, index) => <GlobeMarker key={pin.id} index={index} clusters={clusters} selectedId={selectedId} width={width} />)}
         </>}
       </Canvas>
-      {(!shader || !image) && <View style={{ padding: 20, gap: 8 }}><ThemedText variant="secondary">{!shader ? 'Globe rendering is unavailable. Use the museum chooser or List.' : 'Loading globe…'}</ThemedText></View>}
+      {!shader || imageFailed ? <View style={{ padding: 20 }}><ThemedText variant="secondary">Globe rendering is unavailable. Use the museum chooser or List.</ThemedText></View>
+        : (!image || width === 0) && <LoadingRing accessibilityLabel="Loading globe…" size={28} style={StyleSheet.absoluteFill} />}
     </View>
   </GestureDetector></GestureHandlerRootView>;
 }

@@ -31,6 +31,6 @@ export function ExportSection() {
   }
 
   return <GroupedSection footer={<GroupedFooter tone={error ? 'destructive' : 'muted'}>{error ?? 'Includes saved works, visits and notes. Photo files aren’t included in this export.'}</GroupedFooter>}>
-    <ActionRow label={busy ? 'Exporting…' : 'Export collection as JSON'} icon="square.and.arrow.up" disabled={busy} onPress={() => { void exportCollection(); }} />
+    <ActionRow label="Export collection as JSON" busy={busy} icon="square.and.arrow.up" disabled={busy} onPress={() => { void exportCollection(); }} />
   </GroupedSection>;
 }

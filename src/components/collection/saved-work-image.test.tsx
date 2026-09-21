@@ -2,11 +2,16 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SavedWorkImage } from './saved-work-image';
 
+let mockOnline = true;
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: mockOnline, isInternetReachable: mockOnline }) }));
+beforeEach(() => { mockOnline = true; });
+
 jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
 
-it('shows syncing only when an actual transfer is reported on a large image surface', async () => {
+it('shows a ghost while an account photo is awaiting download', async () => {
   await render(<SavedWorkImage path={null} title="Water Lilies" syncing style={{ width: 240, height: 240 }} />);
-  expect(screen.getByText('Photo syncing…')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Downloading photo: Water Lilies' })).toBeOnTheScreen();
+  expect(screen.queryByText('Photo syncing…')).toBeNull();
   expect(screen.queryByLabelText('Your photo of Water Lilies')).toBeNull();
 });
 
@@ -39,4 +44,11 @@ it('keeps artwork identity visible when an image fails and tries a changed photo
   await view.rerender(<SavedWorkImage path="new.jpg" title="Water Lilies" style={{ width: 100, height: 100 }} />);
   expect(screen.getByLabelText('Your photo of Water Lilies')).toBeOnTheScreen();
   expect(screen.queryByText('Image unavailable')).toBeNull();
+});
+
+it('shows an offline status instead of endless animation without a connection', async () => {
+  mockOnline = false;
+  await render(<SavedWorkImage path={null} title="Water Lilies" syncing style={{ width: 240, height: 240 }} />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Photo available when online')).toBeOnTheScreen();
 });

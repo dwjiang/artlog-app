@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { api } from '../../../convex/_generated/api';
 
-import { ActionRow, GroupedSection } from '@/components/grouped-list';
+import { ActionRow, GroupedSection, ValueRow } from '@/components/grouped-list';
 import { Gallery } from '@/constants/theme';
 import { getAppAttest } from '@/lib/app-attest';
 import { signPayload } from '@/lib/attested-write';
@@ -30,7 +30,7 @@ export function DevTools({ attested }: { attested: boolean }) {
   const [running, setRunning] = useState(false);
   const inFlight = useRef(false);
   const supported = getAppAttest() !== null;
-  const [modelStatus, setModelStatus] = useState('Embedding model: loading…');
+  const [modelStatus, setModelStatus] = useState<string>();
   const [calibration, setCalibration] = useState<string>();
   const [progress, setProgress] = useState<string>();
   const exporting = useRef(false);
@@ -77,9 +77,9 @@ export function DevTools({ attested }: { attested: boolean }) {
     if (exporting.current) return;
     exporting.current = true;
     setCalibration(undefined);
-    setProgress('Exporting calibration…');
+    setProgress('');
     try {
-      const { report } = await runCalibrationExport((done, total) => setProgress(`Exporting calibration ${done}/${total}…`));
+      const { report } = await runCalibrationExport((done, total) => setProgress(`${done}/${total} embeddings`));
       setCalibration(`Calibration: ${report.count} embeddings · median ${report.embedMedianMs.toFixed(1)} ms · ${report.device}`);
     } catch (error) {
       setCalibration(message(error));
@@ -111,22 +111,23 @@ export function DevTools({ attested }: { attested: boolean }) {
 
   return <>
     <GroupedSection title="Capture">
-      <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
+      {timings.enabled === undefined && !timings.failed ? <ValueRow label="Show capture timings" loading /> : <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
         onValueChange={(value) => {
           setSavingTimings(true);
           void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
-        }} />
+        }} />}
     </GroupedSection>
     <GroupedSection title="App Attest">
       <Status>{supported ? 'App Attest: supported' : 'App Attest: unsupported on this device'}</Status>
-      <ActionRow label={running ? 'Checking assertion…' : 'Check App Attest'} disabled={!supported || !attested || running} onPress={() => { void checkAssertion(); }} />
+      <ActionRow label="Check App Attest" busy={running} disabled={!supported || !attested || running} onPress={() => { void checkAssertion(); }} />
       {result ? <Status>{result}</Status> : null}
     </GroupedSection>
     <GroupedSection title="Embedding">
-      <Status>{modelStatus}</Status>
-      <ActionRow label={progress ?? 'Export calibration embeddings'} disabled={progress !== undefined} onPress={() => { void exportCalibration(); }} />
+      {modelStatus ? <Status>{modelStatus}</Status> : <ValueRow label="Embedding model" loading />}
+      <ActionRow label="Export calibration embeddings" busy={progress !== undefined} disabled={progress !== undefined} onPress={() => { void exportCalibration(); }} />
+      {progress && <Status>{progress}</Status>}
       {calibration ? <Status>{calibration}</Status> : null}
-      <ActionRow label={checkingOrb ? 'Checking ORB parity…' : 'Check ORB parity'} disabled={checkingOrb} onPress={() => { void checkOrbParity(); }} />
+      <ActionRow label="Check ORB parity" busy={checkingOrb} disabled={checkingOrb} onPress={() => { void checkOrbParity(); }} />
       {orbParity ? <Status>{orbParity}</Status> : null}
     </GroupedSection>
   </>;

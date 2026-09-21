@@ -157,8 +157,17 @@ describe('choosing a museum', () => {
   it('shows progress while locating without a dismiss button', async () => {
     mockView = { ...mockView, status: 'locating', options: [] };
     await render(<VenuePickerSheet />);
-    expect(screen.getByText('Finding your museum…')).toHaveStyle({ textAlign: 'center' });
+    expect(screen.getByRole('progressbar', { name: 'Locating your museum' })).toBeOnTheScreen();
+    expect(screen.queryByText('Finding your museum…')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('marks the confirming row busy without swapping its detail for text', async () => {
+    mockConfirm.mockReturnValue(new Promise<void>(() => {}));
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirm Metropolitan Museum of Art' }));
+    expect(screen.getByRole('button', { name: 'Metropolitan Museum of Art' })).toBeBusy();
+    expect(screen.queryByText('Confirming…')).toBeNull();
   });
 
   it.each(['Not here', 'swipe'])('cancels a pending confirmation on %s without navigating again', async (method) => {

@@ -43,7 +43,7 @@ it('keeps export disabled while the share sheet is open and enables it after dis
   jest.mocked(Sharing.shareAsync).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
   await render(<ExportSection />);
   await fireEvent.press(screen.getByRole('button', { name: 'Export collection as JSON' }));
-  expect(screen.getByRole('button', { name: 'Exporting…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Export collection as JSON' })).toBeDisabled();
   await act(async () => finish());
   expect(screen.getByRole('button', { name: 'Export collection as JSON' })).toBeEnabled();
 });

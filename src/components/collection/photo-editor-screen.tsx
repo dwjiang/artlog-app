@@ -1,7 +1,8 @@
+import { LoadingImage } from '@/components/loading-image';
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { EmptyState } from '../empty-state';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
@@ -40,7 +41,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     catch { setError('Could not update this photo. Please try again.'); }
   };
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 20 }}>
-    {photo.path && !imageFailed ? <Image source={{ uri: captureFileUri(photo.path) }} onError={() => setImageFailed(true)} style={{ width: '100%', height: 320, backgroundColor: Gallery.fill }} contentFit="contain" accessibilityLabel="Your artwork photo" />
+    {photo.path && !imageFailed ? <LoadingImage uri={captureFileUri(photo.path)} onError={() => setImageFailed(true)} style={{ width: '100%', height: 320, backgroundColor: Gallery.fill }} contentFit="contain" label="Your artwork photo" />
       : <View style={{ minHeight: 200, justifyContent: 'center', padding: 20, backgroundColor: Gallery.fill }}><Text style={{ color: Gallery.muted }}>{imageFailed ? 'Image unavailable. Your photo details are still here.' : 'Photo unavailable on this iPhone. You can still edit its details.'}</Text></View>}
     {photo.kind !== 'label' && <GalleryButton label="Adjust artwork crop" icon="crop" disabled={!photo.path || imageFailed} onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: photo.savedLocalId, photoId: photo.localId } })} />}
     <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
@@ -52,7 +53,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     <GalleryButton label="Move to another artwork" icon="arrow.right" onPress={() => setMoving(!moving)} />
     {moving && <View style={{ gap: 8 }}><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your artworks. Close and reopen this photo to try again.</Text>
-        : !works.updatedAt && !destinations.length ? <Text style={{ color: Gallery.muted }}>Loading artworks…</Text>
+        : !works.updatedAt && !destinations.length ? <ListSkeleton label="Loading artworks…" rows={3} />
         : !destinations.length ? <EmptyState compact title="One artwork so far." detail="Save another artwork before moving this photo. Your photo and edits can stay here."><GalleryButton label="Keep it here" onPress={() => setMoving(false)} /></EmptyState> : null}
       {destinations.map((work) => <GalleryButton key={work.localId} label={work.title} onPress={() => {
         execute({ savedLocalId: work.localId, kind, caption });

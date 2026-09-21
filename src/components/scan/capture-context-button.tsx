@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
@@ -38,7 +39,7 @@ export type CaptureContextCapture = { photoPath: string; visitLocalId?: string |
 
 /** The visit this capture will save to: its own, the museum it was scanned at, or the draft's override. Tapping picks another for this shot only. */
 export function CaptureContextButton({ capture, disabled }: { capture: CaptureContextCapture; disabled?: boolean }) {
-  const owner = useLocalOwner(), [label, setLabel] = useState('Loading visit…');
+  const owner = useLocalOwner(), [label, setLabel] = useState<string>();
   const { photoPath: draftId, visitLocalId, venueId, capturedAt } = capture;
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -57,11 +58,11 @@ export function CaptureContextButton({ capture, disabled }: { capture: CaptureCo
     void load().catch(() => { if (active) setLabel('Visit unavailable'); });
     return () => { active = false; };
   }, [owner, draftId, visitLocalId, venueId, capturedAt]));
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${label} · Change`} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled }} disabled={disabled}
+  return <Pressable accessibilityRole="button" accessibilityLabel={label ? `${label} · Change` : 'Loading visit…'} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled || !label, busy: !label }} disabled={disabled || !label}
     onPress={() => router.push({ pathname: '/capture-context', params: { draftId, visitId: visitLocalId ?? undefined, venueId: venueId ?? undefined, capturedAt: capturedAt === undefined ? undefined : String(capturedAt) } })}
     style={({ pressed }) => [styles.chip, pressed && styles.pressed, disabled && styles.disabled]}>
     <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
-    <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>{label}</ThemedText>
+    {label ? <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>{label}</ThemedText> : <TextSkeleton label="Loading visit…" width={140} />}
     <Image source="sf:chevron.down" tintColor={Gallery.ink} style={styles.chevron} />
   </Pressable>;
 }

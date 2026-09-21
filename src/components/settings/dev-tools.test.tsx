@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo, DeviceEventEmitter } from 'react-native';
 
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { DevTimings } from '@/components/scan/dev-timings';
@@ -26,6 +27,8 @@ jest.mock('@/lib/orb/run-parity-check', () => ({ runOrbParityCheck: () => mockRu
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(AccessibilityInfo.isReduceMotionEnabled).mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockGetAppAttest.mockReturnValue({});
   mockSignPayload.mockResolvedValue({ nonce: 'nonce', assertionBase64: 'assertion', payloadJson: '{}' });
   mockWarmUp.mockResolvedValue({ loadMs: 4100.4, predictMs: 66.2, alreadyLoaded: false });
@@ -80,7 +83,9 @@ it('exports the calibration embeddings, showing progress while it runs and the r
   );
   await render(<DevTools attested />);
   await fireEvent.press(screen.getByRole('button', { name: 'Export calibration embeddings' }));
-  expect(screen.getByRole('button', { name: 'Exporting calibration 1/2…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Export calibration embeddings' })).toBeDisabled();
+  expect(screen.getByText('1/2 embeddings')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Export calibration embeddings in progress' })).toBeOnTheScreen();
   await act(async () => {
     finish({ fileUri: 'file:///cache/calibration/iphone-embeddings.json', report: { count: 2, embedMedianMs: 66.44, device: 'iPhone17,1' } });
   });
@@ -102,7 +107,7 @@ it('runs the ORB parity check and reports the row agreement, timings and triage 
   mockRunOrbParityCheck.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
   await render(<DevTools attested />);
   await fireEvent.press(screen.getByRole('button', { name: 'Check ORB parity' }));
-  expect(screen.getByRole('button', { name: 'Checking ORB parity…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Check ORB parity' })).toBeDisabled();
   await act(async () => {
     finish({
       count: 500, expectedCount: 500, rowsInOrder: 312, rowsAnywhere: 494, extractMs: 9.84, triageMs: 3.06,

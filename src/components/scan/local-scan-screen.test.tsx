@@ -201,7 +201,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
 
 it('reads as identifying while the flusher has the capture in flight', async () => {
   await render(<LocalScanScreen localId="cap-flight" />);
-  expect(await screen.findByText(IDENTIFYING_TITLE)).toBeOnTheScreen();
+  expect(await screen.findByLabelText(IDENTIFYING_TITLE)).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: LABEL_NOW })).toBeOnTheScreen();
 });
 
@@ -216,7 +216,7 @@ it.each([
   if (status === 'identifying') await markIdentifying(localId);
 
   await render(<LocalScanScreen localId={localId} />);
-  expect(await screen.findByText(title)).toBeOnTheScreen();
+  expect(await (status === 'identifying' ? screen.findByLabelText(title) : screen.findByText(title))).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   expect(screen.queryByText('Your result is ready')).toBeNull();
   expect(screen.queryByRole('button', { name: 'View result' })).toBeNull();

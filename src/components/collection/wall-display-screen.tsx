@@ -1,3 +1,5 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { FormSkeleton } from '@/components/loading-skeleton';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useState } from 'react';
@@ -58,7 +60,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Text variant="pageTitle" accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: Gallery.ink }}>{work.title}</Text>
-    {!wall.draft ? <Text style={styles.caption}>{wall.loading ? 'Opening your wall…' : 'Your wall is unavailable right now.'}</Text>
+    {!wall.draft ? wall.loading ? <FormSkeleton label="Opening your wall…" /> : <Text style={styles.caption}>Your wall is unavailable right now.</Text>
       : !hung ? <Text style={styles.caption}>This artwork is not on your wall.</Text> : <>
       {piece && <View accessible accessibilityRole="image" accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
         style={[styles.preview, { backgroundColor: wall.draft.color }]}>
@@ -78,7 +80,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
     </>}
     {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
       <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
-    {wall.pending && <Text accessibilityLiveRegion="polite" style={styles.caption}>Saving wall changes…</Text>}
+    {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
     {hung && !wall.pending && !wall.error && <Text style={styles.caption}>Changes save automatically.</Text>}
   </ScrollView>;
 }

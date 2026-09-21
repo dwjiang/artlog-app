@@ -23,12 +23,12 @@ beforeEach(() => {
 
 it('distinguishes loading from a completed unavailable profile and provides a way out', async () => {
   const view = await render(<ShareProfileScreen />);
-  expect(screen.getByText('Opening your profile…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Opening your profile…')).toBeOnTheScreen();
   expect(screen.queryByText('Profile unavailable.')).toBeNull();
   mockResult = { data: null, loading: false };
   await view.rerender(<ShareProfileScreen />);
   expect(screen.getByText('Profile unavailable.')).toBeOnTheScreen();
-  expect(screen.queryByText('Opening your profile…')).toBeNull();
+  expect(screen.queryByLabelText('Opening your profile…')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
   expect(mockBack).toHaveBeenCalledTimes(1);
 });

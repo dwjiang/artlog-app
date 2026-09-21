@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 
 import { getMuseumSearchConsent, subscribeMuseumSearchConsent, type MuseumSearchConsent } from './museum-search';
 
+/** `consent` stays undefined until the first read answers; `failed` marks a read that rejected so callers can stop waiting. */
 export function useMuseumSearchConsent(active: boolean) {
-  const [consent, setConsent] = useState<MuseumSearchConsent>();
+  const [state, setState] = useState<{ consent?: MuseumSearchConsent; failed: boolean }>({ failed: false });
   useEffect(() => {
     if (!active) return;
     let current = true;
@@ -11,13 +12,13 @@ export function useMuseumSearchConsent(active: boolean) {
     const reload = () => {
       const request = ++revision;
       void getMuseumSearchConsent().then(
-        (value) => { if (current && request === revision) setConsent(value); },
-        () => { if (current && request === revision) setConsent(undefined); },
+        (consent) => { if (current && request === revision) setState({ consent, failed: false }); },
+        () => { if (current && request === revision) setState({ consent: undefined, failed: true }); },
       );
     };
     reload();
     const unsubscribe = subscribeMuseumSearchConsent(reload);
     return () => { current = false; unsubscribe(); };
   }, [active]);
-  return consent;
+  return state;
 }

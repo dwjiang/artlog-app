@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -15,16 +16,16 @@ export function VisitBar({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const owner = useLocalOwner();
   const { visit } = useVenue();
-  const works = useVisitWorks(visit?.localId, owner);
+  const { works, loading, error } = useVisitWorks(visit?.localId, owner);
   if (!visit) return null;
-  const count = `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}`;
+  const count = loading ? 'Loading artworks' : error ? 'Artwork count unavailable' : `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}`;
   const visitId = visit.localId;
   return (
     <View style={[styles.bar, compact && styles.compact]}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Visiting ${visit.venueName}, ${count}`} accessibilityHint="Opens the current visit"
         onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId } })} style={({ pressed }) => [styles.summary, pressed && styles.pressed]}>
         <View style={styles.text}>
-          {!compact && <ThemedText variant="metadata" themeColor="textSecondary" numberOfLines={1}>Visiting now · {count} saved</ThemedText>}
+          {!compact && (loading ? <TextSkeleton label="Loading visit artwork count" width={150} /> : <ThemedText variant="metadata" themeColor="textSecondary" numberOfLines={1}>Visiting now · {count}{!error && ' saved'}</ThemedText>)}
           <ThemedText numberOfLines={1} style={styles.name}>{visit.venueName}</ThemedText>
         </View>
       </Pressable>

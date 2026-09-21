@@ -1,3 +1,5 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { FormSkeleton } from '@/components/loading-skeleton';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -282,7 +284,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     );
   }
 
-  if (phase.kind === 'capture' && restoring) return <StateCard title="Loading the label…" />;
+  if (phase.kind === 'capture' && restoring) return <StateCard><FormSkeleton label="Loading the label…" /></StateCard>;
 
   if (phase.kind === 'capture' && phase.restore !== false && scan instanceof Error && !storeOnly) {
     return <StateCard title="Couldn’t load this label" detail="Your captured photo stays on this phone. Capture the label again to continue.">
@@ -300,7 +302,8 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   if (phase.kind === 'review' && !form) {
     return (
-      <StateCard title={formError?.message ?? 'Loading the label…'}>
+      <StateCard title={formError?.message}>
+        {!formError && <FormSkeleton label="Loading the label…" />}
         {formError && <GalleryButton label="Try again" variant="filled" fullWidth onPress={retryForm} />}
       </StateCard>
     );
@@ -349,7 +352,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const canCapture = active && cameraReady && !busy;
   return (
     <View style={styles.camera}>
-      <CameraPermission>
+      <CameraPermission loading={active && !cameraReady && !cameraError && !busy}>
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
@@ -369,7 +372,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
         </OverlayCaption>
         <View style={styles.bottom}>
           {capture && <CaptureContextButton capture={capture} disabled={busy} />}
-          {cameraError ? <OverlayCaption>{cameraError}</OverlayCaption> : busy ? <OverlayCaption>Keeping the label…</OverlayCaption> : null}
+          {cameraError ? <OverlayCaption>{cameraError}</OverlayCaption> : busy ? <OverlayCaption><LoadingRing accessibilityLabel="Keeping the label…" color={Colors.light.overlayText} /></OverlayCaption> : null}
           <View style={styles.controls}>
             <GlassSurface isInteractive style={styles.importButton}>
               <Pressable accessibilityRole="button" accessibilityLabel="Import" disabled={busy}
@@ -391,11 +394,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   );
 }
 
-function StateCard({ title, detail, children }: { title: string; detail?: string; children?: React.ReactNode }) {
+function StateCard({ title, detail, children }: { title?: string; detail?: string; children?: React.ReactNode }) {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-        <ThemedText type="subtitle">{title}</ThemedText>
+        {title && <ThemedText type="subtitle">{title}</ThemedText>}
         {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}
         {children}
       </ScrollView>

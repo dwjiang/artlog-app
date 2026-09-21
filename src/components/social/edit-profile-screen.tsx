@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { ListItem, TextInput } from '@expo/ui';
 import { LabeledContent } from '@expo/ui/swift-ui';
 import { accessibilityLabel, disabled } from '@expo/ui/swift-ui/modifiers';
@@ -32,28 +33,29 @@ export function EditProfileScreen() {
 export function EditProfileForm({ profile }: { profile: PublicProfile }) {
   const save = useAction(api.profilePhotos.save);
   const [name, setName] = useState(profile.name), [bio, setBio] = useState(profile.bio ?? '');
-  const [photo, setPhoto] = useState<string | null>(), [busy, setBusy] = useState(false), [error, setError] = useState<string>();
+  const [photo, setPhoto] = useState<string | null>(), [operation, setOperation] = useState<'photo' | 'save'>(), [error, setError] = useState<string>();
+  const busy = operation !== undefined;
   const draftFile = useRef<string>(undefined), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; removeProfilePhotoDraft(draftFile.current); }; }, []);
   async function choose() {
-    setBusy(true); setError(undefined);
+    setOperation('photo'); setError(undefined);
     try {
       const next = await chooseProfilePhoto();
       if (!mounted.current) { removeProfilePhotoDraft(next); return; }
       if (next) { removeProfilePhotoDraft(draftFile.current); draftFile.current = next; setPhoto(next); }
     } catch { if (mounted.current) setError('This photo could not be opened. Try another image.'); }
-    finally { if (mounted.current) setBusy(false); }
+    finally { if (mounted.current) setOperation(undefined); }
   }
   async function submit() {
     if (busy || !name.trim()) return;
-    const owner = captureOwner(); setBusy(true); setError(undefined);
+    const owner = captureOwner(); setOperation('save'); setError(undefined);
     try {
       const bytes = typeof photo === 'string' ? await profilePhotoBytes(photo) : photo;
       if (!owner.isCurrent() || !mounted.current) return;
       await save({ name: name.trim(), bio: bio.trim(), ...(bytes !== undefined ? { photo: bytes } : {}) });
       if (owner.isCurrent() && mounted.current) { showToast('Profile updated. Your wall and visits are unchanged.'); router.back(); }
     } catch (cause) { if (owner.isCurrent() && mounted.current) setError(socialErrorMessage(cause) ?? 'Your profile was not saved. Please try again.'); }
-    finally { if (owner.isCurrent() && mounted.current) setBusy(false); }
+    finally { if (owner.isCurrent() && mounted.current) setOperation(undefined); }
   }
   const shownPhoto = photo === undefined ? profile.photoUrl : photo ?? undefined;
   return <>
@@ -61,11 +63,12 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.accent} onPress={() => router.back()}>Cancel</Stack.Toolbar.Button>
     </Stack.Toolbar>
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button variant="done" disabled={busy || !name.trim()} tintColor={Gallery.accent} onPress={() => { void submit(); }}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
+      {busy ? <Stack.Toolbar.View><LoadingRing accessibilityLabel={operation === 'photo' ? 'Preparing profile photo…' : 'Saving profile…'} style={{ width: 44, height: 44 }} /></Stack.Toolbar.View>
+        : <Stack.Toolbar.Button variant="done" disabled={!name.trim()} tintColor={Gallery.accent} onPress={() => { void submit(); }}>Save</Stack.Toolbar.Button>}
     </Stack.Toolbar>
     <GroupedList>
       <GroupedSection>
-        <ListItem leading={<ProfileAvatar name={name} photoUrl={shownPhoto} size={56} />} modifiers={[disabled(busy)]} onPress={() => { void choose(); }}>{shownPhoto ? 'Change photo' : 'Add photo'}</ListItem>
+        <ListItem leading={<ProfileAvatar name={name} photoUrl={shownPhoto} size={56} />} modifiers={[accessibilityLabel(shownPhoto ? 'Change photo' : 'Add photo'), disabled(busy)]} onPress={() => { void choose(); }}>{shownPhoto ? 'Change photo' : 'Add photo'}</ListItem>
         {shownPhoto ? <ActionRow label="Remove photo" destructive disabled={busy}
           onPress={() => { removeProfilePhotoDraft(draftFile.current); draftFile.current = undefined; setPhoto(null); }} /> : null}
       </GroupedSection>

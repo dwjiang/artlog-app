@@ -1,5 +1,6 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, ScrollView, StyleSheet } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useCameraPermission } from 'react-native-vision-camera';
 
 import { GalleryButton } from '@/components/collection/gallery-button';
@@ -7,7 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 
-export function CameraPermission({ children }: { children: ReactNode }) {
+export function CameraPermission({ children, loading = false }: { children: ReactNode; loading?: boolean }) {
   const active = useScreenActive();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [error, setError] = useState<string>();
@@ -20,7 +21,7 @@ export function CameraPermission({ children }: { children: ReactNode }) {
     }
   }, [active, canRequestPermission, requestPermission]);
 
-  if (hasPermission) return children;
+  if (hasPermission) return <>{children}{loading && <View pointerEvents="none" style={StyleSheet.absoluteFill}><LoadingRing accessibilityLabel="Starting camera…" style={{ flex: 1 }} /></View>}</>;
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <ThemedText type="subtitle">Identify a painting</ThemedText>

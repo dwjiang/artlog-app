@@ -11,17 +11,19 @@ const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
 const mockDelete = jest.fn();
-let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null = null;
+let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null | undefined = null;
 let mockReady = true;
 let mockBusy = false;
 let mockSessionStatus = 'ready';
+let mockOffline = false;
 const contribution = {
   contributionId: 'contribution-1', status: 'tentative', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
 };
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
-jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings' }) }));
+jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings', offline: mockOffline }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockAccount?.linked ? { name: 'Alex', username: 'alex' } : undefined }) }));
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: !mockOffline, isInternetReachable: !mockOffline }) }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
@@ -52,7 +54,7 @@ jest.mock('convex/react', () => ({
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) }, Stack: { Screen: () => null }, Link: ({ children }: { children: ReactNode }) => children }));
 
 beforeEach(async () => {
-  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false; mockSessionStatus = 'ready';
+  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false; mockSessionStatus = 'ready'; mockOffline = false;
   mockWithdraw.mockResolvedValue(null);
 });
 
@@ -88,12 +90,12 @@ it('shares confirmed works automatically even when an old local preference was o
   await render(<SettingsDetailScreen section="contributions" />);
   expect(screen.queryByRole('switch')).toBeNull();
   expect(screen.getByText(/Saving a confirmed work shares/)).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'My contributions (1)' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'My contributions' })).toBeEnabled();
 });
 
 it('opens contributions and withdraws the selected work', async () => {
   await render(<SettingsDetailScreen section="contributions" />);
-  await fireEvent.press(screen.getByRole('button', { name: 'My contributions (1)' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'My contributions' }));
   expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
   expect(screen.getByText('Shared · Tentative')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Withdraw' }));
@@ -105,7 +107,7 @@ it('opens contributions and withdraws the selected work', async () => {
 it('keeps withdrawal retryable when the network fails', async () => {
   mockWithdraw.mockRejectedValueOnce(new Error('offline'));
   await render(<SettingsDetailScreen section="contributions" />);
-  await fireEvent.press(screen.getByRole('button', { name: 'My contributions (1)' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'My contributions' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Withdraw' }));
   expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't withdraw/);
   await fireEvent.press(screen.getByRole('button', { name: 'Withdraw' }));
@@ -119,6 +121,17 @@ it('opens contextual sign-in while keeping the guest journal available', async (
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   expect(mockSignIn).not.toHaveBeenCalled();
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
+});
+
+it('holds the account row behind a ghost only while the account can still load', async () => {
+  mockAccount = undefined;
+  const view = await render(<SettingsDetailScreen section="account" />);
+  expect(screen.getByRole('progressbar', { name: 'Loading account' })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Sign in to Artlog' })).toBeNull();
+  mockOffline = true;
+  await view.rerender(<SettingsDetailScreen section="account" />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Sign in to Artlog' })).toBeEnabled();
 });
 
 it('shows account details and controls without device counts or sync copy', async () => {
@@ -147,6 +160,16 @@ it('shows pending contributions before device registration completes', async () 
   mockReady = false;
   await setSetting('sharing-default', 'false');
   await render(<SettingsDetailScreen section="contributions" />);
-  await fireEvent.press(screen.getByRole('button', { name: 'My contributions (…)' }));
-  expect(screen.getByText('Connecting…')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'My contributions' }));
+  expect(screen.getByLabelText('Loading contributions…')).toBeOnTheScreen();
+});
+
+it('reports contributions as unavailable offline instead of loading indefinitely', async () => {
+  mockReady = false; mockOffline = true;
+  await render(<SettingsDetailScreen section="contributions" />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Unavailable')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'My contributions' }));
+  expect(screen.getByText('Connect to see your contributions.')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Loading contributions…')).toBeNull();
 });

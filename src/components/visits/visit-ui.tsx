@@ -14,8 +14,8 @@ export function VisitMessage({ children, loading, skeleton, action, onAction }: 
   if (loading && skeleton) return skeleton === 'visit' ? <VisitSkeleton label={typeof children === 'string' ? children : 'Loading visit…'} />
     : <ListSkeleton label={typeof children === 'string' ? children : 'Loading visits…'} rows={3} />;
   return <View style={visitStyles.section}>
-    {loading && <LoadingRing accessibilityLabel="Loading visits" color={Gallery.accent} />}
-    <Text style={[visitStyles.body, loading && visitStyles.loadingMessage]}>{children}</Text>
+    {loading && <LoadingRing accessibilityLabel={typeof children === 'string' ? children : 'Loading visits'} color={Gallery.accent} />}
+    {!loading && <Text style={visitStyles.body}>{children}</Text>}
     {action && onAction && <GalleryButton label={action} onPress={onAction} />}
   </View>;
 }
@@ -50,7 +50,6 @@ export const visitStyles = StyleSheet.create({
   title: { ...Typography.display, color: Gallery.ink },
   heading: { fontSize: 20, lineHeight: 26, fontWeight: '600', color: Gallery.ink },
   body: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
-  loadingMessage: { textAlign: 'center' },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   card: { padding: 16, gap: 10, backgroundColor: Gallery.surface, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.card, borderColor: Gallery.softBorder },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },

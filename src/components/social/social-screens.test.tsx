@@ -31,6 +31,7 @@ jest.mock('@/components/settings/account-section', () => ({ AccountSection: () =
 jest.mock('expo-image', () => ({ Image: (props: object) => {
   const { View } = jest.requireActual('react-native'); return <View accessibilityRole="image" {...props} />;
 } }));
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true, isInternetReachable: true }) }));
 jest.mock('expo-router', () => {
   const { Pressable, Text } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;

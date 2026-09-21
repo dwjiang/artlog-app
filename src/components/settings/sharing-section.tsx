@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { router } from 'expo-router';
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
@@ -15,15 +16,16 @@ import { Gallery, Spacing } from '@/constants/theme';
 
 export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
 
-export function SharingSection({ contributions, onOpenContributions }: { contributions: Contribution[] | undefined; onOpenContributions: () => void }) {
+// Offline, the query never answers; the row and sheet say so instead of animating indefinitely.
+export function SharingSection({ contributions, offline, onOpenContributions }: { contributions: Contribution[] | undefined; offline: boolean; onOpenContributions: () => void }) {
   return <>
     <GroupedSection footer={<GroupedFooter>Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos stay private. No account needed.</GroupedFooter>}>
-      <NavigationRow label={`My contributions (${contributions?.length ?? '…'})`} onPress={onOpenContributions} />
+      <NavigationRow label="My contributions" value={contributions ? String(contributions.length) : offline ? 'Unavailable' : undefined} loading={contributions === undefined && !offline} onPress={onOpenContributions} />
     </GroupedSection>
   </>;
 }
 
-export function ContributionsSheet({ open, onDismiss, contributions }: { open: boolean; onDismiss: () => void; contributions: Contribution[] | undefined }) {
+export function ContributionsSheet({ open, onDismiss, contributions, offline }: { open: boolean; onDismiss: () => void; contributions: Contribution[] | undefined; offline: boolean }) {
   return <BottomSheet isPresented={open} onDismiss={onDismiss} snapPoints={['half', 'full']} contentPadding={0} containerColor={Gallery.paper}>
     <RNHostView>
       <FlatList style={{ flex: 1 }} data={contributions ?? []} keyExtractor={(row) => row.contributionId}
@@ -32,7 +34,7 @@ export function ContributionsSheet({ open, onDismiss, contributions }: { open: b
           <ThemedText type="subtitle" accessibilityRole="header">My contributions</ThemedText>
           {!!contributions?.length && <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>}
         </View>}
-        ListEmptyComponent={contributions === undefined ? <ThemedText>Connecting…</ThemedText> : <EmptyState inset={false} title="Help the next person see more."
+        ListEmptyComponent={contributions === undefined ? offline ? <ThemedText themeColor="textSecondary">Connect to see your contributions.</ThemedText> : <ListSkeleton label="Loading contributions…" rows={3} /> : <EmptyState inset={false} title="Help the next person see more."
           detail="Save a confirmed artwork to share its label details and a small artwork crop with the index." visual={<EmptyPaper kind="label" />} footnote="Your full photos stay private. No account needed.">
           <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { onDismiss(); router.dismissAll(); router.navigate('/scan'); }} />
         </EmptyState>}

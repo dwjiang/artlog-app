@@ -1,3 +1,4 @@
+import { LoadingImage } from '@/components/loading-image';
 import { EmptyState, EmptySymbol } from '../empty-state';
 import { GalleryButton } from './gallery-button';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -45,7 +46,7 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
       onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.round(nativeEvent.contentOffset.x / width))}>
       {rows.map((photo, i) => <View key={photo.localId} style={{ width, paddingHorizontal: 20 }}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${photo.kind} photo ${i + 1}`} onPress={() => router.push({ pathname: '/photo-details', params: { savedId: work.localId, photoId: photo.localId } })} style={{ height: imageHeight, justifyContent: 'center' }}>
-          {photo.path && !failedPhotos[photo.path] ? <Image source={{ uri: captureFileUri(photo.path) }} accessibilityLabel={`${photo.kind} photo ${i + 1} of ${work.title}`}
+          {photo.path && !failedPhotos[photo.path] ? <LoadingImage uri={captureFileUri(photo.path)} label={`${photo.kind} photo ${i + 1} of ${work.title}`}
             onError={() => setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))}
             onLoad={({ source }) => { if (source.width > 0 && source.height > 0) setRatios((previous) => ({ ...previous, [photo.localId]: source.width / source.height })); }}
             style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ minHeight: 180, backgroundColor: Gallery.fill, padding: 16, justifyContent: 'center' }}><Text style={styles.secondary}>{photo.path ? `Image unavailable · ${work.title}` : `Photo unavailable on this iPhone · ${work.title}`}</Text></View>}
@@ -56,7 +57,7 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ flex: 1 }}>
         {rows.map((photo, index) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
           accessibilityState={{ selected: index === page }} onPress={() => goTo(index)} style={[styles.thumbnail, index === page && { borderColor: Gallery.accent }]}>
-          {photo.path && !failedPhotos[photo.path] ? <Image source={{ uri: captureFileUri(photo.path) }} contentFit="cover" style={{ width: '100%', height: '100%' }} />
+          {photo.path && !failedPhotos[photo.path] ? <LoadingImage uri={captureFileUri(photo.path)} label={`${photo.kind} thumbnail ${index + 1}`} contentFit="cover" style={{ width: '100%', height: '100%' }} />
             : <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />}
         </Pressable>)}
       </ScrollView>

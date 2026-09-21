@@ -34,7 +34,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       <LabeledContent label="Username"><TextInput placeholder="Username" onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} maxLength={LIMITS.usernameMax} editable={!busy} modifiers={[accessibilityLabel('Username')]} /></LabeledContent>
     </GroupedSection>
     <GroupedSection>
-      <ActionRow label={busy ? 'Creating…' : 'Create public profile'} disabled={busy || !name.trim() || !username.trim()} onPress={() => { void submit(); }} />
+      <ActionRow label="Create public profile" busy={busy} disabled={busy || !name.trim() || !username.trim()} onPress={() => { void submit(); }} />
     </GroupedSection>
   </GroupedList>;
 }

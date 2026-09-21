@@ -134,7 +134,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
   };
 
   if (editingCrop && capture) return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
-  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} />;
 
   const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
@@ -154,7 +154,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<'scans'> }) {
         savePhotoOnly={view.kind !== 'confident' && !hasEdits && !selection.chosenObjectId} onSavePhoto={() => { void save({ scanId, capture, draft: draftFromCandidate() }); }} {...saveProps} /> :
         <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
           {header}{context}
-          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><ThemedText themeColor="textSecondary" style={{ flex: 1 }}>Identifying…</ThemedText></View>}
+          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" /></View>}
           {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
           {view.kind === 'failed' && <><FailedCard error={view.error} />{capture && <SaveAnywayForm {...saveProps} />}<GalleryButton label="Scan another artwork" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
           {search}

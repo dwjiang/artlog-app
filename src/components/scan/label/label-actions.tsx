@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptureCompletion } from '../capture-completion';
@@ -52,7 +53,7 @@ export function LabelActions({
 export function ContributionStatus({ sharing, shared, shareError, onShare }: Pick<LabelActionsProps, 'sharing' | 'shared' | 'shareError' | 'onShare'>) {
   return <>
     {shared && <ContributeResult result={shared} />}
-    {sharing && <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">Saving to the shared index…</ThemedText>}
+    {sharing && <LoadingRing accessibilityLabel="Saving to the shared index…" />}
     {shareError && <>
       <ThemedText type="small" themeColor="error" accessibilityRole="alert">{shareError}. Your artwork is saved to your collection.</ThemedText>
       <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth disabled={sharing} onPress={onShare} />

@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { ThemedText as Text } from '@/components/themed-text';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
@@ -17,7 +18,7 @@ function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photo
     session.status === 'ready' && scope ? { scope, savedLocalId: savedId } : 'skip', session.key);
   if (session.status === 'profile-required') return <VisibilityLabel>This photo is private.</VisibilityLabel>;
   if (session.offline || session.error || visibility.error) return <VisibilityLabel>Photo visibility unavailable. Connect to check where it is shared.</VisibilityLabel>;
-  if (session.status !== 'ready' || !scope || !visibility.data) return <VisibilityLabel>Checking photo visibility…</VisibilityLabel>;
+  if (session.status !== 'ready' || !scope || !visibility.data) return <TextSkeleton label="Checking photo visibility…" width={180} />;
   const photo = visibility.data.find((row) => row.photoLocalId === photoId);
   const wall = photo?.wallPlacements ?? 0, visits = photo?.sharedVisits ?? 0;
   const parts = [wall ? `${wall} public wall ${wall === 1 ? 'placement' : 'placements'}` : '', visits ? `${visits} shared ${visits === 1 ? 'visit' : 'visits'}` : ''].filter(Boolean);
