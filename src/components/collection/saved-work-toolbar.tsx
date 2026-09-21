@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -28,7 +29,8 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       </Stack.Toolbar.MenuAction>
       <Stack.Toolbar.MenuAction onPress={() => router.push({ pathname: '/add-photos', params: { draftId: `saved:${work.localId}`, savedId: work.localId, title: work.title, visitId } })}>Add photos</Stack.Toolbar.MenuAction>
       <Stack.Toolbar.MenuAction onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })}>Link visit</Stack.Toolbar.MenuAction>
-      <Stack.Toolbar.MenuAction icon="trash" destructive onPress={() => { scheduleRemoval({ owner: work.owner, localId: work.localId, title: work.title }); router.back(); }}>Remove from collection</Stack.Toolbar.MenuAction>
+      {owner.startsWith('account:') && <Stack.Toolbar.MenuAction icon="slider.horizontal.3" onPress={() => router.push({ pathname: '/wall-display', params: { savedId: work.localId } })}>Wall display options</Stack.Toolbar.MenuAction>}
+      <Stack.Toolbar.MenuAction icon="trash" destructive onPress={() => Alert.alert('Remove this artwork?', `Remove ${work.title} from your collection. You can undo this immediately afterward.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove artwork', style: 'destructive', onPress: () => { scheduleRemoval({ owner: work.owner, localId: work.localId, title: work.title }); router.back(); } }])}>Remove from collection</Stack.Toolbar.MenuAction>
     </Stack.Toolbar.Menu>
   </Stack.Toolbar>;
 }

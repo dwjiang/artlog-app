@@ -1,3 +1,4 @@
+import { showToast } from '../ui/toast';
 import { ConvexHttpClient } from 'convex/browser';
 import { fetch as expoFetch } from 'expo/fetch';
 import { useEffect, useRef, useState } from 'react';
@@ -10,9 +11,13 @@ import type { FriendshipAction, Relationship } from './types';
 import type { SocialSession } from './use-social-session';
 import { useSocialQuery } from './use-social-query';
 
-export function useFriendship(profileId: Id<'profiles'>, session: SocialSession) {
+/** A relationship the caller already holds (a browse page embeds one per row), so no per-person subscription opens. */
+export type RelationshipSource = { data: Relationship; refresh: () => void };
+
+export function useFriendship(profileId: Id<'profiles'>, session: SocialSession, source?: RelationshipSource) {
   const enabled = session.status === 'ready' && profileId !== session.profileId;
-  const query = useSocialQuery(api.friendships.getState, enabled ? { profileId } : 'skip', session.key);
+  const own = useSocialQuery(api.friendships.getState, enabled && !source ? { profileId } : 'skip', session.key);
+  const query = source ? { ...source, error: undefined } : own;
   const [confirmed, setConfirmed] = useState<Relationship>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -33,7 +38,7 @@ export function useFriendship(profileId: Id<'profiles'>, session: SocialSession)
     setBusy(true); setError(undefined);
     try {
       const result = await client.mutation(api.friendships[action], { profileId, revision: state.revision }, { skipQueue: true });
-      if (current()) setConfirmed(result);
+      if (current()) { setConfirmed(result); if (action === 'accept') showToast('You’re now friends.'); return true; }
     } catch (cause) {
       if (!current()) return;
       if (convexErrorCode(cause) === 'conflict' || convexErrorCode(cause) === 'invalid_relationship') {

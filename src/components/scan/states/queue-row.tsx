@@ -55,7 +55,7 @@ export function QueueRow({ item, now, onOpen, onRetry, onDiscard, retrying = fal
           <ThemedText type="smallBold" numberOfLines={2}>{title}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{when} · {photoCount} {photoCount === 1 ? 'photo' : 'photos'}</ThemedText>
           {retrying || item.status === 'identifying' || discarding ? <LoadingRing accessibilityLabel={discarding ? 'Discarding scan…' : retrying ? 'Retrying…' : status} style={{ alignSelf: 'flex-start' }} />
-            : <ThemedText type="small" themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : 'warning'}>{status}</ThemedText>}
+            : <ThemedText type="small" style={{ alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 3, backgroundColor: item.status === 'identified' ? Gallery.highlight : Gallery.fill }} themeColor={item.status === 'failed' ? 'error' : item.status === 'identified' ? 'success' : 'warning'}>{status}</ThemedText>}
         </View>
         {hasLabel && (
           <Image source="sf:tag" accessibilityLabel="Label attached" style={styles.labelIcon} tintColor={Colors.light.textSecondary} />

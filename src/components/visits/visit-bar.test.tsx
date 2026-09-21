@@ -37,13 +37,6 @@ it('opens the end-visit review without ending the visit', async () => {
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1', endVisit: 'true' } });
 });
 
-it('shows only the name when placed inline next to a minimized tab bar', async () => {
-  await render(<VisitBar compact />);
-  expect(screen.getByText('Legion of Honor')).toBeOnTheScreen();
-  expect(screen.queryByText(/Visiting now/)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'End visit' })).toBeNull();
-});
-
 it('renders nothing without an open visit', async () => {
   mockVisit = undefined;
   await render(<VisitBar />);

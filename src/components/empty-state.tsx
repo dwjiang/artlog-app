@@ -20,17 +20,14 @@ export function EmptyState({ title, detail, visual, children, footnote, compact 
   </View>;
 }
 
-export function EmptySymbol({ name }: { name: string }) {
-  return <View accessibilityElementsHidden style={styles.symbol}><Image source={`sf:${name}`} tintColor={Gallery.muted} style={{ width: 30, height: 30 }} accessible={false} /></View>;
+export function EmptySymbol({ name, size = 76 }: { name: string; size?: number }) {
+  return <View accessibilityElementsHidden style={[styles.symbol, { width: size, height: size, borderRadius: size / 2 }]}><Image source={`sf:${name}`} tintColor={Gallery.muted} style={{ width: size * 0.38, height: size * 0.38 }} accessible={false} /></View>;
 }
 
 export function SearchEmptyState({ title = 'Nothing found this time.', detail, onClear }: { title?: string; detail: string; onClear: () => void }) {
-  return <View style={styles.search}>
-    <EmptySymbol name="magnifyingglass" />
-    <Text variant="display" accessibilityRole="header" style={[styles.smallTitle, styles.center]}>{title}</Text>
-    <Text style={[styles.detail, styles.center]}>{detail}</Text>
-    <GalleryButton label="Clear search" onPress={onClear} />
-  </View>;
+  return <EmptyState title={title} detail={detail} visual={<EmptySymbol name="magnifyingglass" size={132} />}>
+    <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />
+  </EmptyState>;
 }
 
 const styles = StyleSheet.create({
@@ -45,6 +42,4 @@ const styles = StyleSheet.create({
   footnote: { color: Gallery.muted, fontSize: 12, lineHeight: 18 },
   actions: { gap: 8, alignItems: 'flex-start' },
   symbol: { width: 76, height: 76, borderRadius: 38, backgroundColor: Gallery.fill, alignItems: 'center', justifyContent: 'center' },
-  search: { padding: 28, gap: 16, alignItems: 'center' },
-  center: { textAlign: 'center' },
 });

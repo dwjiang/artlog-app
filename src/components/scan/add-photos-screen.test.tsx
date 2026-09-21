@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { AddPhotosScreen } from './add-photos-screen';
 import { CaptureContextScreen } from './capture-context-screen';
@@ -68,7 +68,7 @@ it('retains an edited visit after leaving the session and saves only new photos 
   await render(<AddPhotosScreen />);
   expect(await screen.findByRole('button', { name: 'Other museum · 2 Sep 2026 · Change' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
-  expect(await screen.findByText('1 artwork · 1 new photo')).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'Add a private note' })).toBeOnTheScreen();
   expect(screen.getByText('Other museum · 2 Sep 2026')).toBeOnTheScreen();
   expect(screen.getAllByLabelText('Saved photo preview')).toHaveLength(1);
   expect(selectArtworkPhotos('artwork').all()).toEqual(expect.arrayContaining([
@@ -86,8 +86,8 @@ it('saves an unsaved artwork and every added photo directly from the session', a
   updatePhotoSession(owner, capture.photoPath, { visit: { kind: 'visit', localId: 'eaebe816-f46f-5312-a657-f92d1af2cb76' }, saveInput: { capture, draft: { ...draftFromCandidate(), title: 'My edited title' } }, photos: [{ localId: 'extra', path: 'extra.jpg', kind: 'detail', capturedAt: 2 }] });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Save 2 photos' }));
-  expect(await screen.findByText('Saved as My edited title.')).toBeOnTheScreen();
-  expect(screen.getByText('1 artwork · 2 new photos')).toBeOnTheScreen();
+  expect(await screen.findByText('My edited title')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Add a private note' })).toBeOnTheScreen();
   expect((await getSavedWork('saved-new'))?.title).toBe('My edited title');
   expect(selectArtworkPhotos('saved-new').all().map((photo) => photo.visitLocalId)).toEqual(['eaebe816-f46f-5312-a657-f92d1af2cb76', 'eaebe816-f46f-5312-a657-f92d1af2cb76']);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
@@ -141,7 +141,7 @@ it('saves a conflicting photo as its own artwork in the museum visit the context
   await render(<AddPhotosScreen />);
   expect(await screen.findByRole('button', { name: 'The Met · 31 Dec 1969 · Change' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save as a separate artwork' }));
-  await screen.findByText('0 new photos');
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Save as a separate artwork' })).toBeNull());
   expect(mockVisitForSave).toHaveBeenCalledWith('museum-met', 1);
   expect(await getSavedWork('saved-new')).toMatchObject({ title: 'Unidentified artwork', savedAt: 7, visitLocalId: '3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f', venueId: 'museum-met', venueName: 'The Met' });
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
@@ -153,6 +153,6 @@ it('keeps unresolved photos in the draft until the owner explicitly confirms the
   expect(screen.getByRole('button', { name: 'Save 1 photo' })).toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: 'Keep with this artwork' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
-  expect(await screen.findByText('Saved to collection')).toBeOnTheScreen();
+  expect(await screen.findByText('Saved to your collection')).toBeOnTheScreen();
   expect(selectArtworkPhotos('artwork').all()).toHaveLength(2);
 });

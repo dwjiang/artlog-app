@@ -10,17 +10,6 @@ export const LABEL_FIELD_LABELS: Record<LabelFieldName, string> = {
   title: 'Title', artist: 'Artist', date: 'Date', accession: 'Accession number', medium: 'Medium', creditLine: 'Credit line',
 };
 
-// Badge text per evidence kind; unverified kinds show none. Adding a kind means adding a label.
-export const EVIDENCE_LABELS: Record<LabelEvidence, string | null> = {
-  accession: 'From the museum’s records', qr: 'From the museum’s records', wikidata: 'Wikidata',
-  tavily: 'From the web', 'tavily+image': 'From the museum’s site', weak: null, ocr: null,
-};
-export const EVIDENCE_SOURCES: Record<LabelEvidence, string | null> = {
-  accession: 'the museum’s records', qr: 'the museum’s records', wikidata: 'Wikidata',
-  tavily: 'the web', 'tavily+image': 'the museum’s site', weak: null, ocr: null,
-};
-export const EDITED_LABEL = 'Edited by you';
-
 export const WARNING_MESSAGES: Record<LabelWarning, string> = {
   date_outside_lifespan: 'The date is outside the artist’s lifespan — please check',
   artist_not_found: 'We couldn’t find this artist — please check the spelling',
@@ -29,10 +18,12 @@ export const WARNING_MESSAGES: Record<LabelWarning, string> = {
 
 export type FieldState = {
   value: string;
-  /** The verifier's value; the field counts as edited once it differs or the lock was opened. */
+  /** The verifier's value; the field counts as edited while its value differs from it. */
   original: string;
   evidence?: LabelEvidence;
+  /** Verified and still matching the verifier's value. */
   locked: boolean;
+  /** Verified, but the value has diverged; typing the original back restores the lock. */
   unlocked: boolean;
 };
 export type LabelFormState = Record<LabelFieldName, FieldState>;
@@ -53,17 +44,16 @@ export function unlockField(state: LabelFormState, name: LabelFieldName): LabelF
   return { ...state, [name]: { ...state[name], locked: false, unlocked: true } };
 }
 
+/** A verified field's lock follows its value, so a typo that is corrected does not leave the field downgraded. */
 export function setFieldValue(state: LabelFormState, name: LabelFieldName, value: string): LabelFormState {
-  return { ...state, [name]: { ...state[name], value } };
+  const field = state[name];
+  const verified = field.locked || field.unlocked;
+  const diverged = value.trim() !== field.original;
+  return { ...state, [name]: { ...field, value, locked: verified && !diverged, unlocked: verified && diverged } };
 }
 
 export function isEdited(field: FieldState): boolean {
   return field.unlocked || field.value.trim() !== field.original;
-}
-
-export function badgeFor(field: FieldState): string | null {
-  if (isEdited(field)) return EDITED_LABEL;
-  return field.locked && field.evidence ? EVIDENCE_LABELS[field.evidence] : null;
 }
 
 export function toVerifyInput(state: LabelFormState): LabelInput {

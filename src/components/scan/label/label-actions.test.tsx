@@ -17,10 +17,10 @@ it('explains automatic sharing before saving and gates saving on a title', async
   const view = await render(<LabelActions canSave saving={false} sharing={false} {...handlers} />);
   expect(screen.getByText(/Also saves the confirmed label/)).toBeOnTheScreen();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Confirm & save' }));
   expect(handlers.onSave).toHaveBeenCalledTimes(1);
   await view.rerender(<LabelActions canSave={false} saving={false} sharing={false} {...handlers} />);
-  expect(screen.getByRole('button', { name: 'Save to collection' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Confirm & save' })).toBeDisabled();
 });
 
 it('keeps a saved artwork available and offers retry after sharing fails', async () => {
@@ -35,7 +35,7 @@ it('replaces the buttons with the saved link and the contribution outcome', asyn
   await render(
     <LabelActions canSave saving={false} sharing={false} savedId="saved-1" shared={{ contributionId, status: 'tentative' }} {...handlers} />,
   );
-  expect(screen.queryByRole('button', { name: 'Save to collection' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Confirm & save' })).toBeNull();
   expect(screen.queryByRole('button', { name: SHARE_BUTTON })).toBeNull();
   expect(screen.queryByText('stale')).toBeNull();
   expect(screen.getByText('Saved to the shared index as a tentative match for other visitors at this museum.')).toBeOnTheScreen();

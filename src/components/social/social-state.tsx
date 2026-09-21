@@ -1,3 +1,4 @@
+import { EmptyState, EmptySymbol } from '../empty-state';
 import { SocialInvitation } from './social-invitation';
 import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
@@ -12,16 +13,14 @@ import { socialErrorMessage } from '@/shared/social/errors';
 import { socialStyles } from './social-styles';
 import { FeedSkeleton, ListSkeleton, VisitSkeleton } from '@/components/loading-skeleton';
 
-export function SocialState({ title, detail, icon = 'rectangle.3.group', loading, action, onAction }: {
-  title: string; detail?: string; icon?: string; loading?: boolean; action?: string; onAction?: () => void;
+export function SocialState({ title, detail, icon = 'rectangle.3.group', loading, action, onAction, secondaryAction, onSecondaryAction }: {
+  title: string; detail?: string; icon?: string; loading?: boolean; secondaryAction?: string; onSecondaryAction?: () => void; action?: string; onAction?: () => void;
 }) {
-  return <View style={socialStyles.state}>
-    {loading ? <LoadingRing color={Gallery.accent} accessibilityLabel={title} />
-      : <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={{ width: 40, height: 40 }} />}
-    {!loading && <Text accessibilityRole="header" style={socialStyles.title}>{title}</Text>}
-    {detail && <Text selectable style={socialStyles.body}>{detail}</Text>}
-    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" />}
-  </View>;
+  if (loading) return <View style={socialStyles.state}><LoadingRing color={Gallery.accent} accessibilityLabel={title} /></View>;
+  return <EmptyState title={title} detail={detail ?? ''} visual={<EmptySymbol name={icon} size={132} />}>
+    {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
+    {secondaryAction && onSecondaryAction && <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />}
+  </EmptyState>;
 }
 
 export function SocialGate({ session, browsePublic = false, context = 'friends' }: { session: SocialSession; browsePublic?: boolean; context?: SignInContext }) {
@@ -36,8 +35,7 @@ export function SocialGate({ session, browsePublic = false, context = 'friends' 
     <GalleryButton label="Create your profile" variant="filled" fullWidth onPress={() => router.push('/create-profile')} />
     {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push('/people')} />}
   </SocialInvitation>;
-  if (session.status === 'offline') return <SocialState title="You’re offline."
-    detail="Connect to see the latest shared visits. Your saved collection is still here." icon="wifi.slash" />;
+  if (session.status === 'offline') return <View><SocialState title="You’re offline." detail="Your saved collection is still here. Shared visits will return when you’re connected." icon="wifi.slash" action="Open your collection" onAction={() => { router.dismissAll(); router.navigate('/collection'); }} /><View style={{ paddingHorizontal: 20 }}><GalleryButton label="Try again" fullWidth onPress={session.refresh} /></View></View>;
   if (session.status === 'error') return <SocialState title="Couldn’t load your account."
     detail={socialErrorMessage(session.error) ?? 'Check your connection and try again.'}
     action="Try again" onAction={session.refresh} />;
@@ -48,15 +46,17 @@ export function PageFooter({ loading, error, done, count, loadMore, refresh, nou
   loading: boolean; error?: Error; done: boolean; count: number; loadMore: () => void; refresh: () => void;
   canLoadMore: boolean; noun?: string; skeleton?: 'feed' | 'list' | 'gallery';
 }) {
+  const router = useRouter();
   if (loading && !error) {
     const label = `Loading ${noun}…`;
     if (count > 0) return <View style={socialStyles.footer}><LoadingRing accessibilityLabel={label} /></View>;
     if (skeleton === 'feed') return <FeedSkeleton label={label} />;
     if (skeleton === 'gallery') return <VisitSkeleton label={label} heading={false} />;
-    return <ListSkeleton label={label} avatar={noun === 'people'} />;
+    return <ListSkeleton label={label} avatar={noun === 'friends'} />;
   }
+  if (error && count > 0) return <View style={{ padding: 20, gap: 4, alignItems: 'center' }}><Text style={socialStyles.caption}>Couldn’t load more {noun}.</Text><GalleryButton label="Try loading more" onPress={canLoadMore ? loadMore : refresh} /></View>;
   if (error) return <SocialState title={`Couldn’t load ${noun}.`} detail={socialErrorMessage(error) ?? 'Please try again.'}
-    action="Try again" onAction={refresh} />;
+    action="Try again" onAction={refresh} secondaryAction="Open your collection" onSecondaryAction={() => { router.dismissAll(); router.navigate('/collection'); }} />;
   if (!done) return <View style={socialStyles.footer}>
     <GalleryButton label={canLoadMore ? `More ${noun}` : 'Try again'} onPress={canLoadMore ? loadMore : refresh} />
   </View>;

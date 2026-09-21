@@ -5,11 +5,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { FAILED_TITLE, failureCopy } from '@/lib/result/failure-copy';
 
-export const RETRY_BUTTON = 'Retry';
+export const RETRY_BUTTON = 'Try again';
 
 export type FailedCardProps = {
   error?: string | null;
-  /** Given for a scan still on this phone; a scan the server already answered cannot be rerun from the card. */
   onRetry?: () => void;
   retrying?: boolean;
 };
@@ -18,8 +17,8 @@ export function FailedCard({ error, onRetry, retrying = false }: FailedCardProps
   return (
     <>
       <View style={styles.section}>
-        <ThemedText type="subtitle" themeColor="error">{FAILED_TITLE}</ThemedText>
-        <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText>
+        <ThemedText type="title">{FAILED_TITLE}</ThemedText>
+        <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText><ThemedText themeColor="textSecondary">Your photo is still here. Try again or keep it for later.</ThemedText>
       </View>
       {onRetry && <GalleryButton label={RETRY_BUTTON} busy={retrying} busyLabel="Retrying…" disabled={retrying} variant="filled" fullWidth onPress={onRetry} />}
     </>

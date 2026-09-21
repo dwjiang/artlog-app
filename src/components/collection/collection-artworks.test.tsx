@@ -14,11 +14,11 @@ const works = [
 
 it('sorts by recent save and preserves artist grouping as an option', async () => {
   await render(<CollectionArtworks works={works} loading={false} error={undefined} search="" />);
-  const titles = () => screen.getAllByRole('button').map((button) => button.props.accessibilityLabel).filter(Boolean);
+  const titles = () => screen.getAllByRole('button').map((button) => button.props.accessibilityLabel).filter((label) => label?.includes(', '));
   expect(titles()).toEqual(['Coast, Zora', 'Garden, Alice']);
   await fireEvent.press(screen.getByRole('button', { name: 'Artist' }));
   expect(titles()).toEqual(['Garden, Alice', 'Coast, Zora']);
-  expect(screen.getByText('3 photos · 2 visits')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
 });
 
 it('shows the matching count and clears an empty search', async () => {

@@ -203,3 +203,14 @@ it('merges 200 friend streams under transaction limits and honors short-page cur
   } while (cursor);
   expect(seen).toEqual(expected.sort().reverse());
 }, 30_000);
+
+it('prepares a private visit only for its owner without publishing or changing visibility', async () => {
+  const t = harness(), owner = await socialUser(t), stranger = await socialUser(t), draft = await socialVisit(t, owner);
+  await setVisitVisibility(t, owner, draft.visit._id, 'private');
+  expect((await owner.as.query(api.sharedVisits.preview, draft.selection)).artworks).toHaveLength(2);
+  await expect(stranger.as.query(api.sharedVisits.preview, draft.selection)).rejects.toMatchObject(notFound);
+  await expect(t.query(api.sharedVisits.preview, draft.selection)).rejects.toThrow();
+  expect(await t.run(async (ctx) => (await ctx.db.get(draft.visit._id))?.visibility)).toBe('private');
+  expect(await t.run((ctx) => ctx.db.query('sharedVisits').collect())).toEqual([]);
+  await expect(owner.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({ data: { code: 'visit_private' } });
+});

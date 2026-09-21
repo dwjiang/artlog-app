@@ -1,5 +1,7 @@
+import { GalleryButton } from './gallery-button';
+import { signInRoute } from '@/lib/account/sign-in-context';
 import { SearchEmptyState } from '../empty-state';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { FlatList, View, useWindowDimensions } from 'react-native';
@@ -13,15 +15,15 @@ import { SocialState } from '../social/social-state';
 import { SavedWorkImage } from './saved-work-image';
 import { cropSyncing } from '@/lib/account/photo-sync';
 import { WorkLink } from './work-link';
-import { ListSkeleton } from '@/components/loading-skeleton';
+import { VisitSkeleton } from '@/components/loading-skeleton';
 import { ChoiceMenu } from '../choice-menu';
 import { CollectionEmptyState } from '../guest/collection-empty-state';
 
 type Work = ReturnType<typeof useCollectionData>['works'][number];
 type Row = { key: string; kind: 'element'; element: ReactElement } | { key: string; kind: 'artist'; title: string } | { key: string; kind: 'works'; works: Work[] };
 
-export function CollectionArtworks({ works, loading, error, search, header, controls, onClearSearch, onRetry }: Pick<ReturnType<typeof useCollectionData>, 'works' | 'loading' | 'error'> & {
-  search: string; header?: ReactElement; controls?: ReactElement; onClearSearch?: () => void; onRetry?: () => void;
+export function CollectionArtworks({ works, loading, error, search, header, controls, onClearSearch, onRetry, showCount = true }: Pick<ReturnType<typeof useCollectionData>, 'works' | 'loading' | 'error'> & {
+  showCount?: boolean; search: string; header?: ReactElement; controls?: ReactElement; onClearSearch?: () => void; onRetry?: () => void;
 }) {
   const wall = useCollectionWall(works);
   const { fontScale, width } = useWindowDimensions();
@@ -43,7 +45,7 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   if (controls) rows.push({ key: 'controls', kind: 'element', element: controls });
   const initialLoading = loading && !error && !works.length;
   if (!initialLoading && works.length > 0) rows.push({ key: 'count', kind: 'element', element: <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-    <Text variant="metadata" themeColor="textSecondary" style={{ flex: 1 }}>{filtered.length} {filtered.length === 1 ? 'artwork' : 'artworks'}</Text>
+    <View style={{ flex: 1 }}>{showCount && <Text variant="metadata" themeColor="textSecondary">{filtered.length} {filtered.length === 1 ? 'artwork' : 'artworks'}</Text>}</View>
     <View style={{ minWidth: 96 }}><ChoiceMenu plain label="Sort artworks" value={sort} onChange={setSort} options={[{ value: 'recent', label: 'Recent' }, { value: 'artist', label: 'Artist' }]} /></View>
   </View> });
   if (sort === 'artist') {
@@ -54,13 +56,13 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
   } else {
     addWorks([...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId)));
   }
-  const empty = initialLoading ? <ListSkeleton label="Opening collection…" rows={5} /> : filtered.length ? undefined
+  const empty = initialLoading ? <VisitSkeleton heading={false} label="Opening collection…" /> : filtered.length ? undefined
     : error ? <SocialState title="Couldn’t load your collection." detail="Your saved collection is still on this iPhone. Try opening it again." action={onRetry ? 'Try again' : undefined} onAction={onRetry} />
       : search.trim() ? <SearchEmptyState title="No artworks found." detail="Try another title, artist, or place." onClear={() => onClearSearch?.()} />
         : <CollectionEmptyState kind="artworks" />;
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} data={rows} keyExtractor={(row) => row.key}
     contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
-    contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={empty}
+    contentContainerStyle={{ paddingBottom: 28 }} ListHeaderComponent={header} ListFooterComponent={<>{empty}{!wall.signedIn && works.length > 0 && <View style={{ padding: 20, gap: 6, borderTopWidth: 0.5, borderColor: Gallery.softBorder }}><Text style={{ color: Gallery.muted, fontSize: 13 }}>Your art, kept together. Sign in to share your wall and connect with friends.</Text><GalleryButton label="Sign in" onPress={() => router.push(signInRoute('wall'))} /></View>}</>}
     stickyHeaderIndices={controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined}
     renderItem={({ item }) => {
       if (item.kind === 'element') return item.element;
@@ -75,7 +77,7 @@ export function CollectionArtworks({ works, loading, error, search, header, cont
             <View style={{ gap: 2 }}>
               <Text variant="secondary" style={{ fontWeight: '600' }}>{work.title}</Text>
               <Text variant="metadata" themeColor="textSecondary">{work.artist || 'Artist unknown'}</Text>
-              <Text variant="metadata" themeColor="textSecondary">{work.photoCount} {work.photoCount === 1 ? 'photo' : 'photos'} · {work.visitCount} {work.visitCount === 1 ? 'visit' : 'visits'}{hung ? ' · On your wall' : ''}</Text>
+              {hung && <Text variant="metadata" themeColor="textSecondary">On your wall</Text>}
             </View>
           </WorkLink>;
         })}

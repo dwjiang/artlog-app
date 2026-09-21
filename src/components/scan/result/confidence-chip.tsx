@@ -1,7 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Gallery, Radius, Spacing } from '@/constants/theme';
+import { Gallery, Spacing } from '@/constants/theme';
 import type { ResultKind } from '@/lib/result/state';
 
 // Product voice: a soft match is a "Maybe", never presented as fact. The calibrator
@@ -14,9 +14,9 @@ export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
 export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: StyleProp<ViewStyle> }) {
   const label = CONFIDENCE_LABELS[kind];
   if (!label) return null;
-  const hasMatch = kind === 'confident' || kind === 'soft';
+  const hasMatch = kind === 'confident';
   return (
-    <View style={[styles.chip, hasMatch && styles.match, style]}>
+    <View style={[styles.chip, hasMatch && styles.match, kind === 'soft' && { backgroundColor: '#FFF0D5', borderColor: '#C68A24' }, style]}>
       <ThemedText type="smallBold" style={kind === 'failed' ? styles.failed : undefined}>{label}</ThemedText>
     </View>
   );
@@ -25,7 +25,7 @@ export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: Styl
 const styles = StyleSheet.create({
   chip: {
     alignSelf: 'flex-start', paddingHorizontal: Spacing.compact, paddingVertical: Spacing.one,
-    borderRadius: Radius.full, borderWidth: 1, borderColor: Gallery.ink, backgroundColor: Gallery.fill,
+    borderRadius: 3, backgroundColor: Gallery.fill,
   },
   match: { backgroundColor: Gallery.highlight },
   failed: { color: Gallery.destructive },

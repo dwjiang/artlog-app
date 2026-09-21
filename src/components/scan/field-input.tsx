@@ -9,22 +9,20 @@ export type FieldInputProps = {
   label: string;
   defaultValue: string;
   editable: boolean;
-  /** Renders as a read-only, filled box; the parent decides how it unlocks. */
-  locked?: boolean;
   autoCapitalize: 'none' | 'words';
   onChangeText: (value: string) => void;
   style?: StyleProp<ViewStyle>;
 };
 
 /** A multiline native text field in a bordered box that highlights while focused. */
-export function FieldInput({ label, defaultValue, editable, locked = false, autoCapitalize, onChangeText, style }: FieldInputProps) {
+export function FieldInput({ label, defaultValue, editable, autoCapitalize, onChangeText, style }: FieldInputProps) {
   const [focused, setFocused] = useState(false);
   return (
     <Host matchContents={{ vertical: true }} colorScheme="light" style={[styles.host, style]}>
       <TextInput
         defaultValue={defaultValue}
         placeholder={label}
-        editable={editable && !locked}
+        editable={editable}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
         multiline
@@ -35,8 +33,8 @@ export function FieldInput({ label, defaultValue, editable, locked = false, auto
         // modifiers: the inset strokeBorder survives the clip that rounds the fill. Keep the background shapeless and
         // the Host unbordered; both shift the field up by half its height on first mount.
         modifiers={[font({ textStyle: 'body' }), accessibilityLabel(label), padding({ horizontal: 11, vertical: 10 }),
-          background(locked ? Gallery.fill : Gallery.surface),
-          ...(locked ? [] : [strokeBorder({ color: focused ? Gallery.accent : Gallery.controlBorder, shape: 'roundedRectangle', cornerRadius: Radius.input, style: { lineWidth: 1 } })]),
+          background(Gallery.surface),
+          strokeBorder({ color: focused ? Gallery.accent : Gallery.controlBorder, shape: 'roundedRectangle', cornerRadius: Radius.input, style: { lineWidth: 1 } }),
           clipShape('roundedRectangle', Radius.input)]}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}

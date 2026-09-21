@@ -1,13 +1,13 @@
-import { LoadingRing } from '@/components/loading-ring';
+import { EmptyState } from '../empty-state';
+import { EmptyPaper } from '../empty-state-art';
 import { FormSkeleton } from '@/components/loading-skeleton';
 import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useNetworkState } from 'expo-network';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
@@ -20,21 +20,18 @@ import { CapturePhotosButton } from './capture-photos-button';
 import { CaptureContextButton } from './capture-context-button';
 import { CameraPermission } from './camera-permission';
 import { LabelActions } from './label/label-actions';
-import { LabelViewfinder } from './label/label-viewfinder';
 import { ProgressSteps } from './label/progress-steps';
 import { VerifiedFieldsForm } from './label/verified-fields-form';
 import { SourceChip } from './result/source-chip';
-import { OverlayCaption } from './overlay-caption';
 import { GalleryButton } from '@/components/collection/gallery-button';
-import { GlassSurface } from '@/components/glass-surface';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
+import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { MAX_LABEL_ATTEMPTS, setLabelPhoto, setQrUrl } from '@/db/repos/pending-scans';
 import { useQrScanner } from '@/lib/capture/use-qr-scanner';
 import { persistLabelPhoto } from '@/lib/files/photos';
 import { removeFile } from '@/lib/label/crop';
-import { canSaveLabel, canShareLabel, setFieldValue, unlockField } from '@/lib/label/fields';
+import { canSaveLabel, canShareLabel, setFieldValue } from '@/lib/label/fields';
 import { LabelFlowError, type LabelStage } from '@/lib/label/flow';
 import { runLabelFlowForScan, type LabelSource } from '@/lib/label/label-deps';
 import { useLabelCapture } from '@/lib/label/use-label-capture';
@@ -45,18 +42,12 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 import type { ResultViewState } from '@/lib/result/state';
 import { useScan } from '@/lib/result/use-scan';
 
-export const LABEL_PROMPT = 'Not in our index yet — point at the label';
 export const QR_FOUND = 'Found a QR code';
 export const QUEUED_MESSAGE = 'Saved — we’ll finish this when you’re back online';
 export const QUEUED_ONLINE_MESSAGE = 'Saved — we’ll finish this label shortly';
 const MISSING_CAPTURE = 'Your photo of this scan isn’t on this phone, so the label can’t be kept with it.';
 // Label saves never count as confirms of a match: the view carries no primary work, so `suggested` is null.
 const LABEL_VIEW: ResultViewState = { kind: 'unidentified', runnerUps: [], editable: true };
-const SHUTTER_SIZE = 72;
-const SHUTTER_RING = 4;
-const SHUTTER_GAP = 3;
-const IMPORT_SIZE = 56;
-
 export type LabelCaptureScreenProps = {
   scanId: string;
   intent?: 'capture' | 'review';
@@ -79,7 +70,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const router = useRouter();
   const isFocused = useIsFocused();
   const network = useNetworkState();
-  const { top, bottom } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
@@ -239,10 +230,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     setForm((current) => current && setFieldValue(current, name, value));
   }
 
-  function onUnlock(name: LabelFieldName) {
-    setForm((current) => current && unlockField(current, name));
-  }
-
   if (phase.kind === 'running') {
     return (
       <ThemedView style={styles.container}>
@@ -294,8 +281,9 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   if (phase.kind === 'error') {
     return (
-      <StateCard title={phase.message}>
-        <GalleryButton label="Try again" variant="filled" fullWidth onPress={() => setPhase({ kind: 'capture', restore: false })} />
+      <StateCard title="We couldn’t read that label." detail={phase.message} illustrated>
+        <GalleryButton label="Retake label" variant="filled" fullWidth onPress={() => setPhase({ kind: 'capture', restore: false })} />
+        <GalleryButton label="Enter details myself" fullWidth onPress={() => router.replace({ pathname: '/result/[scanId]', params: { scanId, edit: '1' } })} />
       </StateCard>
     );
   }
@@ -323,9 +311,11 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           keyboardDismissMode="interactive"
           contentContainerStyle={styles.content}
         >
-          <ThemedText type="subtitle">From the label</ThemedText>
+          <ThemedText type="small" style={{ alignSelf: 'flex-start', padding: 6, backgroundColor: '#EEF2FF', color: Gallery.accent }}>{phase.flow.sourceUrl ? 'Read from the museum page' : 'Read from your photo'}</ThemedText>
+          <ThemedText type="title">Look right?</ThemedText>
+          <ThemedText themeColor="textSecondary">Check the details before saving. Edit anything that doesn’t look right.</ThemedText>
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
-          <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} onUnlock={onUnlock} />
+          <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} />
           {capture && !savedId && <>
             <CaptureContextButton capture={capture} disabled={saving} />
             <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
@@ -350,57 +340,33 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   }
 
   const canCapture = active && cameraReady && !busy;
-  return (
-    <View style={styles.camera}>
-      <CameraPermission loading={active && !cameraReady && !cameraError && !busy}>
-        <Camera
-          style={StyleSheet.absoluteFill}
-          device="back"
-          orientationSource="interface"
-          isActive={active}
-          outputs={outputs}
-          allowHapticsAndSystemSoundsPlayback
-          onStarted={() => { setCameraReady(true); setCameraError(undefined); }}
-          onStopped={() => setCameraReady(false)}
-          onError={(error) => { setCameraReady(false); setCameraError(error.message); }}
-        />
-        <LabelViewfinder />
-      </CameraPermission>
-      <View pointerEvents="box-none" style={[styles.overlay, { paddingTop: top + Spacing.three, paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
-        <OverlayCaption hint={storeOnly ? 'No signal — we’ll keep the label with your scan and finish when you’re back online' : undefined}>
-          {LABEL_PROMPT}
-        </OverlayCaption>
-        <View style={styles.bottom}>
-          {capture && <CaptureContextButton capture={capture} disabled={busy} />}
-          {cameraError ? <OverlayCaption>{cameraError}</OverlayCaption> : busy ? <OverlayCaption><LoadingRing accessibilityLabel="Keeping the label…" color={Colors.light.overlayText} /></OverlayCaption> : null}
-          <View style={styles.controls}>
-            <GlassSurface isInteractive style={styles.importButton}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Import" disabled={busy}
-                accessibilityState={{ disabled: busy }} onPress={importPhoto}
-                style={({ pressed }) => [styles.importContent, (pressed || busy) && styles.dimmed]}>
-                <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
-              </Pressable>
-            </GlassSurface>
-            <Pressable accessibilityRole="button" accessibilityLabel="Take photo" disabled={!canCapture}
-              accessibilityState={{ disabled: !canCapture, busy }} onPress={takePhoto}
-              style={({ pressed }) => [styles.shutter, !canCapture && styles.disabled, pressed && styles.dimmed]}>
-              <View style={styles.shutterCore} />
-            </Pressable>
-            <View style={styles.balance} />
-          </View>
-        </View>
+  return <ScrollView style={styles.camera} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: Math.max(20, bottom), gap: 18 }}>
+    <ThemedText type="title">The details are right here.</ThemedText>
+    <ThemedText themeColor="textSecondary">Fill the frame with the museum label.</ThemedText>
+    <CameraPermission compact onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
+      <View style={{ height: 260, marginHorizontal: -20, backgroundColor: Gallery.fill }}>
+        <Camera style={StyleSheet.absoluteFill} device="back" orientationSource="interface" isActive={active} outputs={outputs} allowHapticsAndSystemSoundsPlayback
+          onStarted={() => { setCameraReady(true); setCameraError(undefined); }} onStopped={() => setCameraReady(false)}
+          onError={(error) => { setCameraReady(false); setCameraError(error.message); }} />
+        <View pointerEvents="none" accessibilityLabel="Label guide" style={{ position: 'absolute', top: 40, bottom: 40, left: 24, right: 24, borderWidth: 2, borderColor: Gallery.accent }} />
       </View>
-    </View>
-  );
+    </CameraPermission>
+    <ThemedText type="small" themeColor="textSecondary">{storeOnly ? 'No signal. We’ll keep the label with your scan and finish when you’re back online.' : 'Keep the text sharp and avoid glare.'}</ThemedText>
+    {cameraError && <ThemedText themeColor="error" accessibilityRole="alert">{cameraError}</ThemedText>}
+    <View style={{ flex: 1 }} />
+    <GalleryButton label="Read label" icon="viewfinder" variant="filled" fullWidth disabled={!canCapture} busy={busy} onPress={takePhoto} />
+    <GalleryButton label="Import a label photo" icon="photo" fullWidth disabled={busy} onPress={importPhoto} />
+  </ScrollView>;
 }
 
-function StateCard({ title, detail, children }: { title?: string; detail?: string; children?: React.ReactNode }) {
+function StateCard({ title, detail, children, illustrated = false }: { title?: string; detail?: string; children?: React.ReactNode; illustrated?: boolean }) {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-        {title && <ThemedText type="subtitle">{title}</ThemedText>}
-        {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}
-        {children}
+        {illustrated && title ? <EmptyState inset={false} visual={<EmptyPaper kind="label" />} title={title} detail={detail ?? ''}>{children}</EmptyState> : <>
+          {title && <ThemedText type="title">{title}</ThemedText>}
+          {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}{children}
+        </>}
       </ScrollView>
     </ThemedView>
   );
@@ -408,23 +374,6 @@ function StateCard({ title, detail, children }: { title?: string; detail?: strin
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, gap: Spacing.four },
+  content: { padding: 20, gap: Spacing.three },
   camera: { flex: 1, backgroundColor: Colors.light.background },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.content },
-  bottom: { alignSelf: 'stretch', alignItems: 'center', gap: Spacing.three },
-  controls: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
-  importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  importIcon: { width: 24, height: 24 },
-  balance: { width: IMPORT_SIZE },
-  shutter: {
-    width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: SHUTTER_RING,
-    borderColor: Colors.light.overlayText, alignItems: 'center', justifyContent: 'center',
-  },
-  shutterCore: {
-    width: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP), height: SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP),
-    borderRadius: (SHUTTER_SIZE - 2 * (SHUTTER_RING + SHUTTER_GAP)) / 2, backgroundColor: Colors.light.overlayText,
-  },
-  disabled: { opacity: 0.4 },
-  dimmed: { opacity: 0.7 },
 });

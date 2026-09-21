@@ -8,12 +8,12 @@ import type { Relationship } from './types';
 import type { SocialSession } from './use-social-session';
 
 let mockRelationship: Relationship;
-const mockMutation = jest.fn(), mockOptions = jest.fn(), mockRefresh = jest.fn();
+const mockMutation = jest.fn(), mockOptions = jest.fn(), mockRefresh = jest.fn(), mockQueryArgs = jest.fn();
 jest.mock('expo/fetch', () => ({ fetch: jest.fn() }));
 jest.mock('convex/browser', () => ({ ConvexHttpClient: function (_url: string, options: object) {
   mockOptions(options); return { mutation: mockMutation };
 } }));
-jest.mock('./use-social-query', () => ({ useSocialQuery: () => ({ data: mockRelationship, refresh: mockRefresh }) }));
+jest.mock('./use-social-query', () => ({ useSocialQuery: (_query: unknown, args: unknown) => { mockQueryArgs(args); return { data: mockRelationship, refresh: mockRefresh }; } }));
 const session: SocialSession = { key: 'scope-a', token: 'token-a', profileId: 'viewer' as never,
   status: 'ready', offline: false, accountReady: true, error: undefined, refresh: jest.fn() };
 const relationship = (patch: Partial<Relationship> = {}): Relationship => ({ state: 'none', revision: 0,
@@ -75,4 +75,17 @@ it('ignores an old account’s mutation response and refuses actions while offli
   expect(view.result.current.state).toBeUndefined();
   await act(() => view.result.current.act('request'));
   expect(mockMutation).toHaveBeenCalledTimes(1);
+});
+
+it('acts on a caller-held relationship without opening its own subscription and refreshes through the caller', async () => {
+  const refresh = jest.fn();
+  const source = { data: relationship({ state: 'pending', requesterId: 'other' as never, revision: 2 }), refresh };
+  mockMutation.mockRejectedValueOnce(new ConvexError({ code: 'conflict' }));
+  const { result } = await renderHook(() => useFriendship('other' as never, session, source));
+  expect(mockQueryArgs).toHaveBeenLastCalledWith('skip');
+  expect(result.current.state).toEqual(source.data);
+  await act(() => result.current.act('accept'));
+  expect(mockMutation.mock.calls[0][1]).toEqual({ profileId: 'other', revision: 2 });
+  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(mockRefresh).not.toHaveBeenCalled();
 });

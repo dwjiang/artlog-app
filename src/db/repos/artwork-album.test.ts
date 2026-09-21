@@ -1,6 +1,6 @@
 import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from './saved-works';
 import { upsertVisit } from './visits';
-import { albumMediaPending, saveArtworkSession, addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit, pendingAlbum, selectArtworkEncounters, selectArtworkPhotos, selectVisitArtworkPhotos } from './artwork-album';
+import { albumMediaPending, saveArtworkSession, addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit, linkArtworkVisits, linkArtworksVisit, pendingAlbum, selectArtworkEncounters, selectArtworkPhotos, selectVisitArtworkPhotos } from './artwork-album';
 import { createJournalRepository } from './journal';
 import { db } from '../client';
 import { artworkPhotos } from '../schema';
@@ -84,4 +84,23 @@ it('reports media a publish depends on as pending until its rows and bytes reach
   expect(albumMediaPending(owner, { photoLocalIds: ['pending-work'] })).toBe(true);
   db.update(artworkPhotos).set({ storageId: 'stored' as never }).where(eq(artworkPhotos.localId, 'pending-work')).run();
   expect(albumMediaPending(owner, { photoLocalIds: ['pending-work'], saveLocalIds: ['pending-work'] })).toBe(false);
+});
+
+it('links a selection atomically and rolls every new link back if one artwork is unavailable', async () => {
+  await insertSavedWork({ localId: 'batch-one', title: 'One', artist: '', savedAt: 1 });
+  await insertSavedWork({ localId: 'batch-two', title: 'Two', artist: '', savedAt: 1 });
+  const visitId = 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3341';
+  expect(() => linkArtworksVisit(['batch-one', 'missing'], visitId)).toThrow();
+  expect(selectArtworkEncounters().all().filter((row) => row.savedLocalId === 'batch-one')).toEqual([]);
+  linkArtworksVisit(['batch-one', 'batch-two', 'batch-one'], visitId);
+  expect(selectArtworkEncounters().all().filter((row) => row.savedLocalId.startsWith('batch-'))).toHaveLength(2);
+});
+
+it('links one artwork to several visits atomically', async () => {
+  await insertSavedWork({ localId: 'multi-visit', title: 'Multi', artist: '', savedAt: 1 });
+  const first = 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3341', second = 'ab7f8f54-0af5-4ac0-8839-bc5fc00e3342';
+  expect(() => linkArtworkVisits('multi-visit', [first, 'missing-visit'])).toThrow();
+  expect(selectArtworkEncounters().all().filter((row) => row.savedLocalId === 'multi-visit')).toEqual([]);
+  linkArtworkVisits('multi-visit', [first, second, first]);
+  expect(selectArtworkEncounters().all().filter((row) => row.savedLocalId === 'multi-visit').map((row) => row.visitLocalId).sort()).toEqual([first, second]);
 });

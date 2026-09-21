@@ -81,6 +81,9 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   const hidden = reason !== undefined && museumSearchMessage(reason) === undefined;
 
   return {
+    available: available && !hidden && online,
+    consented: consent === 'granted',
+    search: run,
     flow: available ? flow : undefined,
     confirmedAt: phase.stage === 'done' ? phase.confirmedAt : undefined,
     restoring,

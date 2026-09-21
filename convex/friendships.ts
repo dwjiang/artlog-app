@@ -1,14 +1,12 @@
 import { ConvexError, v } from 'convex/values';
 import { isRevision, LIMITS } from '../shared/journal/limits';
-import { relationshipState } from '../shared/social/contracts';
+import { relationship as state } from '../shared/social/contracts';
 import { mutation, query, type QueryCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { activeProfile, requireProfile } from './lib/ownership';
 import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from './lib/friendships';
 import { limitKey } from './lib/rateLimits';
 
-const state = v.object({ state: relationshipState, revision: v.number(), requesterId: v.union(v.id('profiles'), v.null()),
-  blocked: v.boolean(), blockRevision: v.number() });
 const args = { profileId: v.id('profiles'), revision: v.number() };
 // Revocations stay available after the counterpart is removed so a stale edge cannot hold a friend slot.
 async function participants(ctx: QueryCtx, profileId: Id<'profiles'>, revocation = false) {

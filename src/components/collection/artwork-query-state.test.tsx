@@ -57,7 +57,7 @@ it('keeps manual identification edits when saving fails', async () => {
   jest.mocked(editSavedWork).mockImplementationOnce(() => { throw new Error('Disk write failed'); });
   await render(<IdentifyArtworkScreen />);
   await fireEvent.changeText(screen.getByLabelText('Title'), 'Water Lilies');
-  await fireEvent.press(screen.getByRole('button', { name: 'Save artwork details' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save details' }));
   expect(screen.getByDisplayValue('Water Lilies')).toBeOnTheScreen();
   expect(screen.getByText('Your artwork details could not be saved. Your edits are still here. Try again.')).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();

@@ -41,7 +41,7 @@ it('offers Share in the header', async () => {
   await render(<ProfileScreen profileId="friend" />);
   expect(screen.getByRole('button', { name: 'Share profile' })).toBeOnTheScreen();
 });
-it('lists shared visits without repeating the author row', async () => {
+it('uses the same shared visit card as Home', async () => {
   mockVisits = [{ audience: 'public', postId: 'post-a', author: mockPerson, publishedAt: 1, revision: 1, reflection: '',
     venue: { venueId: 'museum' as never, name: 'Museum of Modern Art', city: 'New York' }, visitedOn: '2026-09-12', artworks: { page: [], cursor: null, isDone: true } }];
   await render(<ProfileScreen profileId="friend" />);
@@ -49,6 +49,6 @@ it('lists shared visits without repeating the author row', async () => {
   expect(screen.getByText('Museum of Modern Art')).toBeOnTheScreen();
   expect(screen.getByLabelText('September 12, 2026')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'View visit' })).toBeOnTheScreen();
-  expect(screen.queryByRole('button', { name: 'View Jamie Chen’s profile' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'More options' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'View Jamie Chen’s profile' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'More options' })).toBeOnTheScreen();
 });

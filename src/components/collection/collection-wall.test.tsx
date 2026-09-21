@@ -84,7 +84,7 @@ it('gives guests a sign-in action without requesting or publishing a wall', asyn
   await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
   await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'wall' } });
-  await fireEvent.press(screen.getByRole('button', { name: '0 on wall' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'All artworks' }));
   expect(mockPush).toHaveBeenCalledWith('/all-artworks');
   expect(mockTransport.getMine).not.toHaveBeenCalled();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
@@ -420,7 +420,7 @@ it('shows a blank wall and opens Scan when there is no saved art', async () => {
   await render(<CollectionWall works={[]} />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Scan artwork' }));
   expect(mockPush).toHaveBeenLastCalledWith('/scan');
-  expect(screen.getByRole('image', { name: 'Your blank gallery wall' })).toBeOnTheScreen();
+  expect(screen.getByText('Make room for your favorites.')).toBeOnTheScreen();
   expect(screen.queryByText('Your own little museum.')).toBeNull();
   let settle: (wall: OwnerWall) => void = () => {};
   mockTransport.getMine.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
@@ -433,7 +433,9 @@ it('shows a blank wall and opens Scan when there is no saved art', async () => {
 it('opens the editor from an empty wall when saved art is available', async () => {
   mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
   await render(<CollectionWall works={[{ localId: 'save-b' } as SavedWork]} />);
-  await fireEvent.press(await screen.findByRole('button', { name: 'Add artwork' }));
-  expect(await screen.findByRole('button', { name: 'Hang Sunflowers' })).toBeOnTheScreen();
-  expect(mockTransport.setLayout).not.toHaveBeenCalled();
+  await fireEvent.press(await screen.findByRole('button', { name: 'Choose artworks' }));
+  await fireEvent.press(await screen.findByRole('checkbox', { name: 'Sunflowers' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Add 1 artwork to wall' }));
+  expect(screen.getByRole('header', { name: 'Edit wall' })).toBeOnTheScreen();
+  expect(mockTransport.setLayout).toHaveBeenCalledWith(expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: 'save-b' })] }), expect.anything());
 });

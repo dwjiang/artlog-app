@@ -8,8 +8,8 @@ import { clearEmptyNoteVisibility } from './lib/publicationAccess';
 
 it('creates exactly one wall on first write, normalizes color and acknowledges unchanged retries', async () => {
   const t = harness(), a = await wallFixture(t, 'a');
-  expect(await a.as.query(api.walls.getMine, {})).toMatchObject({ revision: 0, color: '#FBFBF6', items: [] });
-  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({ color: '#FBFBF6', items: [] });
+  expect(await a.as.query(api.walls.getMine, {})).toMatchObject({ revision: 0, color: '#FCFCF9', items: [] });
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({ color: '#FCFCF9', items: [] });
   expect(await t.run((ctx) => ctx.db.query('walls').collect())).toHaveLength(0);
   const results = await Promise.all([1, 2].map(() => a.as.mutation(api.walls.setLayout, { ...a.input, color: '#abcdef' })));
   expect(results[0]).toEqual(results[1]);

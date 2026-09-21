@@ -1,3 +1,8 @@
+import { Image } from 'expo-image';
+import { useState } from 'react';
+import { signInRoute } from '@/lib/account/sign-in-context';
+import { useVenue } from '@/lib/venue/use-venue';
+import { activeVisit } from '@/lib/venue/venue-reducer';
 import { SocialInvitation } from './social-invitation';
 import { GalleryButton } from '../collection/gallery-button';
 import { WelcomePrompt } from '../account/welcome-prompt';
@@ -20,6 +25,8 @@ const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: 
 const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
+  const [dismissedPrompt, setDismissedPrompt] = useState(false);
+  const visitBar = !!activeVisit(useVenue());
   const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const guest = session.status === 'signed-out';
@@ -28,7 +35,7 @@ export function HomeScreen() {
   const router = useRouter();
   return <>
     <WelcomePrompt />
-    <FlatList style={socialStyles.root} contentContainerStyle={socialStyles.content} contentInsetAdjustmentBehavior="automatic"
+    <FlatList style={socialStyles.root} contentContainerStyle={[socialStyles.content, visitBar && { paddingBottom: 110 }]} contentInsetAdjustmentBehavior="automatic"
       data={ready ? feed.items : []} keyExtractor={visitId} initialNumToRender={4} maxToRenderPerBatch={4}
       renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
       refreshControl={ready ? <RefreshControl refreshing={feed.refreshing}
@@ -40,7 +47,12 @@ export function HomeScreen() {
           <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push('/people')} />
           <GalleryIconButton icon="person.2" label="Friends" onPress={() => router.push({ pathname: '/people', params: { filter: 'friends' } })} />
         </View>
-      </View>{(ready || session.status === 'loading') && <View style={styles.heading}>
+      </View>{guest && !dismissedPrompt && <View style={{ marginHorizontal: 20, marginBottom: 16, paddingLeft: 12, paddingVertical: 6, backgroundColor: '#EEF2FF', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
+        <View style={{ flex: 1 }}><Text style={{ fontSize: 13, lineHeight: 19 }}>Your art journey can start here.</Text><Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>Sign in to connect with friends.</Text></View>
+        <GalleryButton label="Sign in" onPress={() => router.push(signInRoute('friends'))} />
+        <GalleryIconButton label="Dismiss sign-in invitation" icon="xmark" onPress={() => setDismissedPrompt(true)} />
+      </View>}{(ready || session.status === 'loading') && <View style={styles.heading}>
         {ready ? <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>{guest ? 'Public visits' : 'Recent visits'}</Text> : <Ghost width={110} height={24} />}
         {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
       </View>}</>}
