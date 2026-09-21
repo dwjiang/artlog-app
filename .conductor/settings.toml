@@ -7,10 +7,14 @@ Before creating the pull request, rename the current workspace branch to a conci
 Title the pull request as a Conventional Commit: `type(scope): summary`. Keep the summary imperative, lowercase, and without a trailing period.
 
 - Type: one of `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, or `chore`.
-- Scope: run `gh pr list --state all --limit 40 --json title` first and reuse the scope of the closest prior pull request whenever one fits.
-- When no prior scope fits, choose from `app` (routes, layouts, navigation), `ui` (components, styling, themes, platform variants), `config` (`app.json`, TypeScript, ESLint, environment), `deps` (dependencies and lockfile), `agents` (`AGENTS.md`, `.agents/skills/`), or `conductor` (`.conductor/`).
-- Introduce a new scope only when the change genuinely belongs to none of the above, and name it after the directory or subsystem it owns.
-- Omit the scope for a repository-wide change rather than inventing a vague one.
+- Scope: derive it from the diff, never from earlier pull request titles. Run `git diff --name-only origin/main...HEAD` and map each path to an area:
+  - `src/components/<area>/`, `src/lib/<area>/`, `shared/<area>/` → `<area>`, for example `scan`, `social`, `visits`, `collection`, `settings`, `account`, `venue`, `capture`, `label`, `journal`, `wall`, `queue`.
+  - `src/app/` → `routes`. Top-level files in `src/components/` plus `src/constants/` → `ui`.
+  - `convex/` → `convex`; `src/db/` → `db`; `modules/<name>/` → `<name>`; `scripts/` → `scripts`; `docs/` → `docs`.
+  - `AGENTS.md` and `.agents/` → `agents`; `.conductor/` → `conductor`; `app.json`, `tsconfig.json`, `eslint.config.js`, `.env.example` → `config`; `package.json` and the lockfile → `deps`.
+  - Any other path: the directory or subsystem that owns it.
+- Use the area the summary is about. When the summary spans several areas, use the area holding at least half of the changed files; when none does, use `ui` for a restyle and omit the scope for any other repository-wide change.
+- `app` is not a scope. Do not use it or any other catch-all.
 """
 
 [scripts]

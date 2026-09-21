@@ -92,7 +92,7 @@ The About screen has a "Terms" row that opens `https://google.com` as a placehol
 ## Git workflow
 
 - Branch: `advisor/001-terms-and-privacy-pages`
-- Conventional commits as in `git log`, for example `feat(app): serve terms and privacy pages from the convex site`
+- Conventional commits as in `git log`, for example `feat(convex): serve terms and privacy pages from the convex site`
 - Do NOT push or open a PR unless the operator instructed it.
 
 ## Steps
