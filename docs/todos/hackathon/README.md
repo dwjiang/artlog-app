@@ -21,9 +21,9 @@ submitting. Deadline: **2026-10-30 10:00 PT**.
    public on YouTube, filmed on a physical iPhone in light mode, no copyrighted
    music or third-party trademarks. Show the app functioning as the README
    describes: C-RADIO on the phone, Nemotron Super and Lightning on Token Factory,
-   Kimi for vision, and a live Tavily call through museum-site search or label
-   verification. Keep `FLAG_RIGHT_NOW=off` and leave that feature out. Add the
-   video link to the README and submission.
+   on-device OCR with Nemotron Super sorting the label, and a live Tavily call
+   through museum-site search or label verification. Keep `FLAG_RIGHT_NOW=off`
+   and leave that feature out. Add the video link to the README and submission.
 4. **Submit written feedback — operator.** Required on the form for every entry.
    Distill the dated [feedback notes](../../hackathon/feedback-notes.md) into expected behavior, observed behavior, evidence, and a suggested improvement
    for Token Factory, Serverless AI Jobs, the NVIDIA models, and Tavily.

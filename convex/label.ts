@@ -10,9 +10,10 @@ import {
   LABEL_MAX_TOKENS,
   LABEL_SCHEMA,
   LABEL_SYSTEM_PROMPT,
-  LABEL_USER_PROMPT,
   PROMPT_VERSION,
+  labelUser,
   parseLabelReading,
+  titleWithoutDate,
   type LabelReading,
 } from './lib/labelPrompt';
 import {
@@ -54,13 +55,13 @@ import {
 import { allowedVenueUrl, fetchVenuePage, venueHosts } from './lib/venueFetch';
 import { lifespan, type WikidataEntity } from './lib/wikidata';
 import schema from './schema';
+import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES, type OcrLine } from '../shared/label/ocr-limits';
 
-const MAX_IMAGE_BYTES = 1_500_000;
 // The label read and the moderation check are each retried at most once (tokenFactory.chatJson).
 const MAX_READ_CALLS = 4;
 const MAX_MODERATION_CALLS = 2;
-// Measured p95 was 3.3 s for Kimi before upload time; the default 8 s is too tight with an image.
-export const READ_TIMEOUT_MS = 20_000;
+// Super's measured p95 on the 25-label set was 2.6 s; the default 8 s leaves no room for a slow day.
+const READ_TIMEOUT_MS = 20_000;
 
 const labelInput = v.object({
   title: v.optional(v.string()), artist: v.optional(v.string()), date: v.optional(v.string()),
@@ -97,14 +98,15 @@ async function start(ctx: ActionCtx, scanId: Id<'scans'>) {
   return { device, ...context };
 }
 
-function decodedBytes(base64: string): number {
-  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
-  return Math.floor((base64.length * 3) / 4) - padding;
-}
+// The phone's OCR lines in reading order; the phone trims to the bounds, so more is a bad request.
+const ocrLine = v.object({ text: v.string(), confidence: v.number() });
 
-export function assertImageBase64(imageBase64: string): void {
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) throw new ConvexError({ code: 'bad_image' });
-  if (decodedBytes(imageBase64) > MAX_IMAGE_BYTES) throw new ConvexError({ code: 'image_too_large' });
+function usableLines(lines: OcrLine[]): OcrLine[] {
+  if (lines.length > MAX_OCR_LINES || lines.some((line) => line.text.length > MAX_OCR_LINE_CHARS ||
+    !Number.isFinite(line.confidence) || line.confidence < 0 || line.confidence > 1)) throw new ConvexError({ code: 'bad_lines' });
+  const usable = lines.map((line) => ({ text: line.text.trim(), confidence: line.confidence })).filter((line) => line.text);
+  if (!usable.length) throw new ConvexError({ code: 'nothing_read' });
+  return usable;
 }
 
 const READING_KEYS: Record<LabelFieldName, keyof LabelReading> = {
@@ -115,7 +117,7 @@ function readFields(reading: LabelReading): LabelFields {
   const fields: LabelFields = {};
   for (const name of FIELD_NAMES) {
     const key = READING_KEYS[name];
-    const value = reading[key];
+    const value = key === 'title' && reading.title ? titleWithoutDate(reading.title, reading.work_date) : reading[key];
     if (typeof value !== 'string' || !value.trim()) continue;
     const confidence = key in reading.confidence ? reading.confidence[key as keyof LabelReading['confidence']] : undefined;
     fields[name] = labelField(value.trim(), 'ocr', confidence);
@@ -148,20 +150,20 @@ export const fetchQr = action({
 });
 
 export const readLabel = action({
-  args: { scanId: v.id('scans'), imageBase64: v.string() },
+  args: { scanId: v.id('scans'), lines: v.array(ocrLine) },
   returns: labelFlowDisplay,
-  handler: async (ctx, { scanId, imageBase64 }): Promise<LabelFlowDisplay> => {
+  handler: async (ctx, { scanId, lines }): Promise<LabelFlowDisplay> => {
     const { device, scan } = await start(ctx, scanId);
-    assertImageBase64(imageBase64);
+    const usable = usableLines(lines);
     await limitDevice(ctx, 'labelRead', device._id);
-    const model = process.env.LABEL_VL_MODEL;
+    const model = process.env.LABEL_MODEL;
     if (!model) throw new ConvexError({ code: 'model_unconfigured' });
     const day = await ctx.runMutation(internal.spend.reserve, { kind: 'tokenFactory', amount: MAX_READ_CALLS });
     let calls = 0;
     try {
-      // The photo goes to the model and nowhere else: never stored, never logged.
+      // The photo stays on the phone; only its OCR lines reach the model, and they are never logged.
       const reading = await chatJson({
-        model, system: LABEL_SYSTEM_PROMPT, user: LABEL_USER_PROMPT, imageBase64, schemaName: 'label',
+        model, system: LABEL_SYSTEM_PROMPT, user: labelUser(usable), schemaName: 'label',
         schema: LABEL_SCHEMA, maxTokens: LABEL_MAX_TOKENS, parse: parseLabelReading, timeoutMs: READ_TIMEOUT_MS,
       });
       calls += reading.calls;

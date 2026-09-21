@@ -17,6 +17,7 @@ namespace margelo::nitro::visionrect {
       prototype.registerHybridMethod("detect", &HybridVisionRectSpec::detect);
       prototype.registerHybridMethod("detectStill", &HybridVisionRectSpec::detectStill);
       prototype.registerHybridMethod("warpAndLetterbox", &HybridVisionRectSpec::warpAndLetterbox);
+      prototype.registerHybridMethod("recognizeText", &HybridVisionRectSpec::recognizeText);
     });
   }
 

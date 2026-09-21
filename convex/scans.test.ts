@@ -125,22 +125,20 @@ it('exposes the museum-site search state and the label flow without raw OCR to t
   expect(before?.labelFlow).toBeUndefined();
   expect(before?.museumSearch).toBeUndefined();
   const candidate = {
-    sourceUrl: 'https://www.metmuseum.org/art/collection/search/437137',
-    fields: { title: 'Water Lilies', artist: 'Claude Monet', accession: '1998.325.2' },
+    sourceUrl: 'https://www.metmuseum.org/exhibitions/water',
+    exhibition: { title: 'Water', content: 'One painting.' },
     imageUrls: ['https://images.metmuseum.org/work.jpg'],
   };
   const write = async (museumSearch: Parameters<typeof t.mutation<typeof internal.museumSearch.write>>[1]['museumSearch']) => {
     const revision = await t.mutation(internal.museumSearch.beginSearch, { scanId, deviceId: user.deviceId, generation: 0 });
     return t.mutation(internal.museumSearch.write, { scanId, deviceId: user.deviceId, generation: 0, revision, museumSearch });
   };
-  await write({ stage: 'candidates', candidates: [candidate], promptVersion: 'describe-v1', updatedAt: 1 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
-    stage: 'candidates', candidates: [candidate], promptVersion: 'describe-v1', updatedAt: 1,
-  });
+  await write({ stage: 'exhibitions', candidates: [candidate], updatedAt: 1 });
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({ stage: 'exhibitions', candidates: [candidate], updatedAt: 1 });
   await write({ stage: 'none', reason: 'cap', updatedAt: 2 });
   expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({ stage: 'none', reason: 'cap', updatedAt: 2 });
-  await write({ stage: 'none', reason: 'no_candidates', promptVersion: 'describe-v1', updatedAt: 3 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({ reason: 'no_candidates', promptVersion: 'describe-v1' });
+  await write({ stage: 'none', reason: 'identity_unresolved', updatedAt: 3 });
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({ reason: 'identity_unresolved' });
 
   const fields = {
     title: labelField('Water Lilies', 'tavily+image'), artist: labelField('Claude Monet', 'tavily+image'),
@@ -152,10 +150,10 @@ it('exposes the museum-site search state and the label flow without raw OCR to t
       stage: 'verified', fields, evidence: ['tavily+image', 'tavily'], warnings: [], moderation: 'clear',
       rawOcr: { title: 'Water Lilies' }, sourceUrl: candidate.sourceUrl, imageUrls: candidate.imageUrls, updatedAt: 4,
     },
-    museumSearch: { stage: 'confirmed', candidates: [candidate], selected, promptVersion: 'describe-v1', updatedAt: 4 },
+    museumSearch: { stage: 'confirmed', candidates: [candidate], selected, updatedAt: 4 },
   }));
   const confirmed = await user.as.query(api.scans.get, { scanId });
-  expect(confirmed?.museumSearch).toEqual({ stage: 'confirmed', candidates: [candidate], selected, promptVersion: 'describe-v1', updatedAt: 4 });
+  expect(confirmed?.museumSearch).toEqual({ stage: 'confirmed', candidates: [candidate], selected, updatedAt: 4 });
   expect(confirmed?.labelFlow).toEqual({
     stage: 'verified', fields, evidence: ['tavily+image', 'tavily'], warnings: [], moderation: 'clear',
     sourceUrl: candidate.sourceUrl, imageUrls: candidate.imageUrls, updatedAt: 4,

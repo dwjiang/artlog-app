@@ -18,7 +18,7 @@ afterEach(() => {
 
 const parse = (value: unknown) => (value && typeof value === 'object' && 'ok' in value ? (value as { ok: boolean }) : null);
 const request = {
-  model: 'moonshotai/Kimi-K2.6', system: 'sys', user: 'usr', schemaName: 'probe',
+  model: 'nvidia/Nemotron-3_5-Lightning', system: 'sys', user: 'usr', schemaName: 'probe',
   schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false },
   maxTokens: 64, parse,
 };
@@ -26,7 +26,7 @@ const request = {
 describe('Token Factory chatJson', () => {
   it('sends a strict json_schema request with thinking disabled and parses the JSON content', async () => {
     fetchMock.mockResolvedValueOnce(completion({ ok: true }));
-    await expect(chatJson({ ...request, imageBase64: 'AAAA' })).resolves.toEqual({ value: { ok: true }, calls: 1 });
+    await expect(chatJson(request)).resolves.toEqual({ value: { ok: true }, calls: 1 });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.tokenfactory.nebius.com/v1/chat/completions');
     expect(init).toMatchObject({ method: 'POST', headers: {
@@ -34,24 +34,11 @@ describe('Token Factory chatJson', () => {
       'User-Agent': 'artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)',
     } });
     expect(JSON.parse(String(init?.body))).toEqual({
-      model: 'moonshotai/Kimi-K2.6',
-      messages: [
-        { role: 'system', content: 'sys' },
-        { role: 'user', content: [
-          { type: 'text', text: 'usr' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
-        ] },
-      ],
+      model: 'nvidia/Nemotron-3_5-Lightning',
+      messages: [{ role: 'system', content: 'sys' }, { role: 'user', content: 'usr' }],
       response_format: { type: 'json_schema', json_schema: { name: 'probe', strict: true, schema: request.schema } },
-      temperature: 0, max_tokens: 64, chat_template_kwargs: { thinking: false },
+      temperature: 0, max_tokens: 64, chat_template_kwargs: { enable_thinking: false },
     });
-  });
-
-  it('uses the NVIDIA template parameter and a plain string message for text-only calls', async () => {
-    fetchMock.mockResolvedValueOnce(completion({ ok: false }));
-    await chatJson({ ...request, model: 'nvidia/Nemotron-3_5-Lightning' });
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    expect(body.messages[1]).toEqual({ role: 'user', content: 'usr' });
-    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
   it('retries once on 429 honoring Retry-After capped at five seconds, then counts both calls', async () => {

@@ -7,7 +7,7 @@ import { useScreenActive } from '@/hooks/use-screen-active';
 import { setMuseumSearchConsent } from '@/lib/settings/museum-search';
 import { useMuseumSearchConsent } from '@/lib/settings/use-museum-search-consent';
 
-export const MUSEUM_SEARCH_SETTING = 'Search museum sites with my photo';
+export const MUSEUM_SEARCH_SETTING = 'Search museum sites for my scans';
 
 /** Turning the switch on asks the owner to present the consent sheet; consent itself is stored by that sheet. */
 export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: () => void }) {

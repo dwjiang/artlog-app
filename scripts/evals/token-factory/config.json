@@ -21,6 +21,7 @@
   },
   "suites": {
     "label": {"models": ["glm", "minicpm", "kimi"], "manifest": "labels/manifest.json", "repeats": 1, "max_tokens": 2048},
+    "label-ocr": {"models": ["super", "lightning"], "manifest": "labels/manifest.json", "ocr": "labels/ocr-lines.jsonl", "repeats": 1, "max_tokens": 2048},
     "docent": {"models": ["lightning", "nano"], "manifest": "fixtures/docent.json", "repeats": 3, "max_tokens": 1024},
     "factsheet": {"models": ["super"], "manifest": "fixtures/factsheet.json", "repeats": 1, "max_tokens": 4096},
     "moderation": {"models": ["lightning"], "manifest": "fixtures/moderation.json", "repeats": 1, "max_tokens": 256}

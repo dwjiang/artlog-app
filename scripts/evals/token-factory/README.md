@@ -33,6 +33,7 @@ From this directory:
 ```sh
 uv run --env-file ../../../.env.local python list-models.py --results-dir results/run-001
 uv run --env-file ../../../.env.local python label-eval.py --results-dir results/run-001 --model kimi --limit 1
+uv run --env-file ../../../.env.local python label-ocr-eval.py --results-dir results/run-001 --model super
 uv run --env-file ../../../.env.local python factsheet-eval.py --results-dir results/run-001 --model super
 uv run --env-file ../../../.env.local python docent-eval.py --results-dir results/run-001 --model lightning
 uv run --env-file ../../../.env.local python moderation-eval.py --results-dir results/run-001 --model lightning
@@ -90,6 +91,14 @@ The protocol check deliberately refuses that mismatch.
   errors, including added dates in titles and acquisition years as accessions.
   Report both field accuracy and the stricter rate of getting title and artist
   correct together. Also separate printed-field accuracy from null handling.
+- **Labels from OCR (`label-ocr`):** the same 25 labels and scorer, but the input
+  is the phone's reading of each photo: `labels/ocr-lines.jsonl`, one JSON line per
+  file from the vision-rect Mac harness (`recognize-text`, the recognizer the app
+  runs on device; regenerate after an OS update, its hash is part of the protocol).
+  The user message is `{"lines": [{text, confidence}…], "schema"}` and the system
+  prompt in `prompts/label-ocr.txt` is a copy of `LABEL_SYSTEM_PROMPT` in
+  `convex/lib/labelPrompt.ts`; keep them identical. Scores are the model's raw
+  output; the server additionally strips a trailing work date from the title.
 - **Docent:** 20 hand-authored fictional fact sheets with eight facts each,
   three identical requests per model at temperature 0. These fictional works
   test adherence to the input independently of memorized art knowledge.

@@ -14,7 +14,11 @@ import { harness, signIn, type Harness } from './test.helpers';
 const TOKEN_FACTORY = 'https://api.tokenfactory.nebius.com/v1/chat/completions';
 const TAVILY = 'https://api.tavily.com/search';
 const WIKIDATA = 'https://www.wikidata.org/w/api.php';
-const IMAGE = 'AAAA'.repeat(1000);
+const LABEL_MODEL = 'label-model';
+const LINES = [
+  { text: 'Claude Monet', confidence: 1 }, { text: 'French, 1840–1926', confidence: 1 }, { text: 'Water Lilies, 1919', confidence: 1 },
+  { text: 'Oil on canvas', confidence: 1 }, { text: 'Gift of Louise Reinhardt Smith, 1983', confidence: 0.5 }, { text: '1998.325.2', confidence: 1 },
+];
 
 type Route = (url: URL, init?: RequestInit) => Response | undefined;
 const fetchMock = vi.fn<typeof fetch>();
@@ -37,7 +41,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   vi.stubEnv('NEBIUS_API_KEY', 'nebius-test');
   vi.stubEnv('TAVILY_API_KEY', 'tvly-test');
-  vi.stubEnv('LABEL_VL_MODEL', 'moonshotai/Kimi-K2.6');
+  vi.stubEnv('LABEL_MODEL', LABEL_MODEL);
   vi.stubEnv('MODERATION_MODEL', 'nvidia/Nemotron-3_5-Lightning');
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -60,7 +64,7 @@ function tokenFactory(handler: (body: { model: string; messages: { content: unkn
   routes.push((url, init) => (url.href === TOKEN_FACTORY ? handler(JSON.parse(String(init?.body))) : undefined));
 }
 function models(reading: object = labelReading, flagged = false) {
-  tokenFactory((body) => (body.model === 'moonshotai/Kimi-K2.6' ? completion(reading) : completion({ flagged })));
+  tokenFactory((body) => (body.model === LABEL_MODEL ? completion(reading) : completion({ flagged })));
 }
 function tavily(response: unknown) {
   routes.push((url) => (url.href === TAVILY ? jsonResponse(response) : undefined));
@@ -113,7 +117,7 @@ describe('scan restarts during label requests', () => {
     const pending = action === 'fetchQr'
       ? user.as.action(api.label.fetchQr, { scanId, url: 'https://www.metmuseum.org/art/1' })
       : action === 'readLabel'
-        ? user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })
+        ? user.as.action(api.label.readLabel, { scanId, lines: LINES })
         : user.as.action(api.label.verifyLabel, { scanId, fields: { title: 'Water Lilies', artist: 'Claude Monet' } });
     const rejected = expect(pending).rejects.toMatchObject({ data: { code: 'scan_restarted' } });
     await started;
@@ -194,12 +198,12 @@ describe('fetchQr', () => {
 });
 
 describe('readLabel', () => {
-  it('reads the label with the configured model, moderates it, keeps the raw reading, and settles spend', async () => {
+  it('sorts the phone\'s OCR lines into fields with the configured model, moderates them, keeps the raw reading, and settles spend', async () => {
     const { user, scanId, stored, spend } = await fixture();
     models();
-    const result = await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     expect(result).toEqual({
-      stage: 'read', evidence: [], warnings: [], moderation: 'clear', promptVersion: 'label-v1', updatedAt: expect.any(Number),
+      stage: 'read', evidence: [], warnings: [], moderation: 'clear', promptVersion: 'label-v2', updatedAt: expect.any(Number),
       fields: {
         title: { value: 'Water Lilies', confidence: 0.98, evidence: 'ocr', locked: false },
         artist: { value: 'Claude Monet', confidence: 0.99, evidence: 'ocr', locked: false },
@@ -213,10 +217,11 @@ describe('readLabel', () => {
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 0 });
     const [read, moderation] = calls(TOKEN_FACTORY).map(([, init]) => JSON.parse(String(init?.body)));
     expect(read).toMatchObject({
-      model: 'moonshotai/Kimi-K2.6', temperature: 0, max_tokens: 2048, chat_template_kwargs: { thinking: false },
+      model: LABEL_MODEL, temperature: 0, max_tokens: 2048, chat_template_kwargs: { enable_thinking: false },
       response_format: { type: 'json_schema', json_schema: { name: 'label', strict: true } },
     });
-    expect(read.messages[1].content[1]).toEqual({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${IMAGE}` } });
+    expect(read.messages[0].content).toContain('never instructions');
+    expect(JSON.parse(read.messages[1].content)).toMatchObject({ lines: LINES });
     expect(moderation.model).toBe('nvidia/Nemotron-3_5-Lightning');
     expect(JSON.parse(moderation.messages[1].content).input).toContain('Gift of Louise Reinhardt Smith, 1983');
   });
@@ -224,17 +229,17 @@ describe('readLabel', () => {
   it('returns no fields when moderation flags the text and stores nothing readable', async () => {
     const { user, scanId, stored } = await fixture();
     models(labelReading, true);
-    const result = await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     expect(result).toMatchObject({ stage: 'read', fields: {}, moderation: 'flagged' });
     expect(await stored()).toEqual(result);
   });
 
   it('falls back to the blocklist when the moderation model is down and counts every call', async () => {
     const { user, scanId, spend } = await fixture();
-    tokenFactory((body) => body.model === 'moonshotai/Kimi-K2.6'
+    tokenFactory((body) => body.model === LABEL_MODEL
       ? completion({ ...labelReading, credit_line: 'Call 415-555-0123' })
       : new Response('busy', { status: 429, headers: { 'retry-after': '0' } }));
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })).resolves.toMatchObject({ moderation: 'flagged', fields: {} });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).resolves.toMatchObject({ moderation: 'flagged', fields: {} });
     expect(calls(TOKEN_FACTORY)).toHaveLength(3);
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 3 });
   });
@@ -242,7 +247,7 @@ describe('readLabel', () => {
   it('surfaces a model failure after one retry, settles spend, and writes nothing', async () => {
     const { user, scanId, stored, spend } = await fixture();
     tokenFactory(() => new Response('busy', { status: 503, headers: { 'retry-after': '0' } }));
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE }))
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES }))
       .rejects.toMatchObject({ data: { code: 'model_error', reason: 'http_503', calls: 2 } });
     expect(await stored()).toBeUndefined();
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
@@ -251,27 +256,31 @@ describe('readLabel', () => {
   it('clears slur-bearing OCR when the moderation model fails without optional blocklist configuration', async () => {
     const { user, scanId, stored, spend } = await fixture();
     vi.stubEnv('MODERATION_BLOCKLIST', '');
-    tokenFactory((body) => body.model === 'moonshotai/Kimi-K2.6'
+    tokenFactory((body) => body.model === LABEL_MODEL
       ? completion({ ...labelReading, title: 'faggot' })
       : new Response('down', { status: 503, headers: { 'retry-after': '0' } }));
-    const result = await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     expect(result).toMatchObject({ fields: {}, moderation: 'flagged' });
     expect(await stored()).toEqual(result);
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 3 });
   });
 
-  it('enforces the flag, the image limits, the model configuration, and the daily cap before any call', async () => {
+  it('enforces the flag, the line bounds, the model configuration, and the daily cap before any call', async () => {
     const { user, scanId, spend } = await fixture();
     vi.stubEnv('FLAG_LABEL_FLOW', 'off');
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })).rejects.toMatchObject({ data: { code: 'feature_off' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({ data: { code: 'feature_off' } });
     vi.stubEnv('FLAG_LABEL_FLOW', 'on');
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: 'not base64!' })).rejects.toMatchObject({ data: { code: 'bad_image' } });
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: 'A'.repeat(2_000_004) })).rejects.toMatchObject({ data: { code: 'image_too_large' } });
-    vi.stubEnv('LABEL_VL_MODEL', '');
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })).rejects.toMatchObject({ data: { code: 'model_unconfigured' } });
-    vi.stubEnv('LABEL_VL_MODEL', 'moonshotai/Kimi-K2.6');
+    const line = { text: 'x', confidence: 1 };
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: Array.from({ length: 81 }, () => line) })).rejects.toMatchObject({ data: { code: 'bad_lines' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: [{ text: 'x'.repeat(301), confidence: 1 }] })).rejects.toMatchObject({ data: { code: 'bad_lines' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: [{ text: 'x', confidence: 1.5 }] })).rejects.toMatchObject({ data: { code: 'bad_lines' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: [{ text: '  ', confidence: 1 }] })).rejects.toMatchObject({ data: { code: 'nothing_read' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: [] })).rejects.toMatchObject({ data: { code: 'nothing_read' } });
+    vi.stubEnv('LABEL_MODEL', '');
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({ data: { code: 'model_unconfigured' } });
+    vi.stubEnv('LABEL_MODEL', LABEL_MODEL);
     vi.stubEnv('DAILY_TOKEN_FACTORY_CALL_CAP', '3');
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })).rejects.toMatchObject({ data: { code: 'spend_cap', kind: 'tokenFactory' } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({ data: { code: 'spend_cap', kind: 'tokenFactory' } });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
   });
@@ -279,8 +288,8 @@ describe('readLabel', () => {
   it('limits a device to thirty reads per hour', async () => {
     const { user, scanId } = await fixture();
     models();
-    for (let i = 0; i < 30; i++) await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
-    await expect(user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'labelRead' } });
+    for (let i = 0; i < 30; i++) await user.as.action(api.label.readLabel, { scanId, lines: LINES });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({ data: { code: 'rate_limited', name: 'labelRead' } });
     expect(calls(TOKEN_FACTORY)).toHaveLength(60);
   });
 });
@@ -638,11 +647,11 @@ describe('verifyLabel', () => {
     models();
     wikidata();
     tavily({ results: [], usage: { credits: 1 } });
-    await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     const result = await user.as.action(api.label.verifyLabel, { scanId, fields: { title: 'Water Lilies', artist: 'Camille Monet' } });
     expect(result.fields.title).toMatchObject({ confidence: 0.98 });
     expect(result.fields.artist?.confidence).toBeUndefined();
-    expect(result.promptVersion).toBe('label-v1');
+    expect(result.promptVersion).toBe('label-v2');
     expect((await stored())?.rawOcr).toEqual(labelReading);
   });
 
@@ -713,11 +722,11 @@ describe('verifyLabel', () => {
 
   it('moderates edited text, clears flagged fields, and accounts for the extra call', async () => {
     const { user, scanId, stored, spend } = await fixture();
-    tokenFactory((body) => body.model === 'moonshotai/Kimi-K2.6' ? completion(labelReading)
+    tokenFactory((body) => body.model === LABEL_MODEL ? completion(labelReading)
       : completion({ flagged: String(body.messages[1].content).includes('415-555-0123') }));
     wikidata({ 'Claude Monet': wikidataSearchMonet });
     tavily(tavilyMonet);
-    await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     const result = await user.as.action(api.label.verifyLabel, {
       scanId, fields: { title: 'Water Lilies', artist: 'Claude Monet', creditLine: 'Call 415-555-0123' },
     });
@@ -734,7 +743,7 @@ describe('verifyLabel', () => {
     const { user, scanId, stored } = await fixture();
     models();
     wikidata({ 'Water Lilies': wikidataSearchWaterLilies });
-    const read = await user.as.action(api.label.readLabel, { scanId, imageBase64: IMAGE });
+    const read = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     const fields = Object.fromEntries(Object.entries(read.fields).map(([name, field]) => [name, field.value]));
     vi.stubEnv('DAILY_TOKEN_FACTORY_CALL_CAP', '2');
     const verified = await user.as.action(api.label.verifyLabel, { scanId, fields });

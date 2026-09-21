@@ -28,6 +28,10 @@ namespace margelo::nitro::visionrect { struct SubjectObservation; }
 namespace margelo::nitro::visionrect { struct LetterboxResult; }
 // Forward declaration of `CropContentBounds` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct CropContentBounds; }
+// Forward declaration of `TextRecognition` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextRecognition; }
+// Forward declaration of `TextLine` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextLine; }
 
 #include "RectDetection.hpp"
 #include <optional>
@@ -42,6 +46,8 @@ namespace margelo::nitro::visionrect { struct CropContentBounds; }
 #include <string>
 #include "LetterboxResult.hpp"
 #include "CropContentBounds.hpp"
+#include "TextRecognition.hpp"
+#include "TextLine.hpp"
 
 #include "VisionRect-Swift-Cxx-Umbrella.hpp"
 
@@ -111,6 +117,14 @@ namespace margelo::nitro::visionrect {
     }
     inline std::shared_ptr<Promise<LetterboxResult>> warpAndLetterbox(const std::string& photoPath, const std::optional<std::vector<RectPoint>>& quad, double size) override {
       auto __result = _swiftPart.warpAndLetterbox(photoPath, quad, std::forward<decltype(size)>(size));
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+      auto __value = std::move(__result.value());
+      return __value;
+    }
+    inline std::shared_ptr<Promise<TextRecognition>> recognizeText(const std::string& photoPath) override {
+      auto __result = _swiftPart.recognizeText(photoPath);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

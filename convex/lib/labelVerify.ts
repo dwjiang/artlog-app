@@ -2,8 +2,8 @@ import type { Doc } from '../_generated/dataModel';
 import { extractPage, hasArtworkMetadata, type PageFields } from './pageExtract';
 import type { TavilySearchResponse } from './tavily';
 import { TITLE_MATCH_THRESHOLD, artistMentioned, exactTitle, jaccard, mentions, normalizeText, personMatches, titleMatches, titleQualifiersMatch } from './textMatch';
-import type { ImageCheck, LabelEvidence, LabelField, LabelFieldName, LabelFields, LabelFlow, LabelFlowDisplay, SearchCandidate } from './validators';
-import { allowedVenueUrl, fetchVenuePage, hostAllowed, type VenuePage } from './venueFetch';
+import type { ImageCheck, LabelEvidence, LabelField, LabelFieldName, LabelFields, LabelFlow, LabelFlowDisplay } from './validators';
+import { allowedVenueUrl, fetchVenuePage, hostAllowed } from './venueFetch';
 import {
   collections,
   countries,
@@ -25,7 +25,6 @@ export const LOCKING_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession'
 export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(['accession', 'qr']);
 export const IMAGE_MATCH_COSINE = 0.85;
 const MAX_IMAGE_URLS = 3;
-const MAX_CANDIDATE_PAGES = 3;
 
 export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {
   const { rawOcr: _rawOcr, ...display } = flow;
@@ -164,46 +163,6 @@ function artworkImageUrls(images: string[], pageUrl: string, hosts: string[]): s
     return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname) ? [url.href] : [];
   });
   return [...new Set(urls)].slice(0, MAX_IMAGE_URLS);
-}
-
-function objectPageUrl(value: string, hosts: string[]): URL | null {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== 'https:' || !hostAllowed(url, hosts)) return null;
-  return OBJECT_PATH.test(url.pathname) && !NON_OBJECT.test(url.host + url.pathname) ? url : null;
-}
-
-// A description retrieves look-alikes, so every object page on the venue's hosts is a
-// candidate and the phone's pixels decide. A page must name a title and carry an image to be checked.
-export async function selectSearchCandidates(response: TavilySearchResponse, hosts: string[]): Promise<SearchCandidate[]> {
-  const ranked = response.results
-    .filter((result) => objectPageUrl(result.url, hosts) !== null)
-    .sort((a, b) => b.score - a.score);
-  const candidates: SearchCandidate[] = [];
-  const visited = new Set<string>();
-  for (const result of ranked) {
-    if (visited.has(result.url)) continue;
-    if (visited.size >= MAX_CANDIDATE_PAGES) break;
-    visited.add(result.url);
-    let page: VenuePage;
-    try {
-      page = await fetchVenuePage(result.url, hosts);
-    } catch (error) {
-      console.warn('Candidate page unavailable', error);
-      continue;
-    }
-    const extracted = extractPage(page.html);
-    const title = extracted.fields.title;
-    if (!title || !hasArtworkMetadata(extracted)) continue;
-    const imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
-    if (!imageUrls.length || candidates.some((candidate) => candidate.sourceUrl === page.url)) continue;
-    candidates.push({ sourceUrl: page.url, fields: { ...extracted.fields, title }, imageUrls });
-  }
-  return candidates;
 }
 
 // Find the pair in substantive museum content, prefer the canonical object page over

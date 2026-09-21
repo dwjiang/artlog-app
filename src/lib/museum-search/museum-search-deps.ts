@@ -3,8 +3,6 @@ import type { Id } from '../../../convex/_generated/dataModel';
 import type { MuseumSearchDisplay } from '../../../convex/lib/validators';
 import { getPendingScan } from '@/db/repos/pending-scans';
 import { convex } from '@/lib/convex-client';
-import { captureFileUri } from '@/lib/files/photos';
-import { prepareMuseumSearchCrop } from '@/lib/label/crop';
 import { imageCheckDeps } from '@/lib/label/label-deps';
 import model from '@/shared/model/model-version.json';
 import { runMuseumSearch, type MuseumSearchStage } from './flow';
@@ -34,16 +32,14 @@ export function runMuseumSearchForScan(input: {
     }
     return runMuseumSearch({
       ...input,
-      stored: input.stored ?? (latest?.museumSearch?.stage === 'candidates' || latest?.museumSearch?.stage === 'exhibitions' ? latest.museumSearch : undefined),
+      stored: input.stored ?? (latest?.museumSearch?.stage === 'exhibitions' ? latest.museumSearch : undefined),
       api: {
         searchExhibitions: (args) => convex.action(api.museumSearch.searchExhibitions, args),
-        searchMuseumSite: (args) => convex.action(api.museumSearch.searchMuseumSite, args),
         confirmSearchCandidate: (args) => convex.action(api.museumSearch.confirmSearchCandidate, args),
       },
       images: imageCheckDeps,
       inputSize: model.inputSize,
       getCapture: getPendingScan,
-      prepareCrop: (path) => prepareMuseumSearchCrop(captureFileUri(path)),
     });
   })().finally(() => { running.delete(input.scanId); });
   running.set(input.scanId, task);
