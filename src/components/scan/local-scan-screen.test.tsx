@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { upsertVisit } from '@/db/repos/visits';
 import * as SQLite from 'expo-sqlite';
 import { Alert, AppState } from 'react-native';
 
@@ -30,6 +31,16 @@ const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeList
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => 'Legion of Honor' }));
+// A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
+const mockVisitForSave = jest.fn();
+jest.mock('@/lib/venue/use-venue', () => ({ visitByDefault: () => true, visitForSave: (...args: unknown[]) => mockVisitForSave(...args) }));
+beforeEach(() => {
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = { localId: '4d0e6a2f-8b3c-4d9e-af10-2b3c4d5e6f70', venueId, venueName: 'Legion of Honor', startedAt: capturedAt, visitedOn: '1970-01-01', timeZone: 'UTC' };
+    await upsertVisit(visit);
+    return visit;
+  });
+});
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: (localId: string) => mockRetry(localId) }));
 jest.mock('@/lib/convex-client', () => ({
   convex: { mutation: (fn: unknown, args: unknown) => mockMutation(jest.requireActual('convex/server').getFunctionName(fn), args) },
@@ -176,7 +187,7 @@ it('shows the queued capture as waiting for signal, sends the label offline and 
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
   expect(await getSavedWork(savedId)).toMatchObject({
-    title: 'Pond at dusk', artist: '', cropPath: 'crops/cap-queued.preview.jpg', photoPath: 'photos/cap-queued.jpg', scanId: null, venueId: 'museum-legion', venueName: 'Legion of Honor',
+    title: 'Pond at dusk', artist: '', cropPath: 'crops/cap-queued.preview.jpg', photoPath: 'photos/cap-queued.jpg', scanId: null, venueId: 'museum-legion', venueName: 'Legion of Honor', visitLocalId: '4d0e6a2f-8b3c-4d9e-af10-2b3c4d5e6f70',
   });
   await waitFor(() => expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ localId: savedId, suggested: null })));
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();

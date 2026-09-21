@@ -70,13 +70,13 @@ it('refuses a crop save for another owner or a dismissed editor', async () => {
 
 it('recomputes scan features, preserves draft photos and context, and isolates late results for the old crop', async () => {
   await seedScan();
-  updatePhotoSession(owner, 'full.jpg', { photos: [{ localId: 'detail', kind: 'detail', path: 'detail.jpg', capturedAt: 2 }], visitLocalId: null });
+  updatePhotoSession(owner, 'full.jpg', { photos: [{ localId: 'detail', kind: 'detail', path: 'detail.jpg', capturedAt: 2 }], visit: { kind: 'none' } });
   const nextId = await saveEditedScanCrop('scan', crop, owner);
   const next = await getPendingScan(nextId);
   expect(next).toMatchObject({ ...features, status: 'queued', scanId: null, attempts: 0, capturedAt: 1 });
   expect(next?.photoPath).not.toBe('full.jpg');
   expect(mockFiles.has(`file:///documents/${next?.photoPath}`)).toBe(true);
-  expect(readPhotoSession(owner, next!.photoPath)).toMatchObject({ photos: [{ localId: 'detail' }], visitLocalId: null });
+  expect(readPhotoSession(owner, next!.photoPath)).toMatchObject({ photos: [{ localId: 'detail' }], visit: { kind: 'none' } });
   expect(await getPendingScan('scan')).toBeUndefined();
   await markIdentified('scan', 'late-old-result' as Id<'scans'>);
   expect((await getPendingScan(nextId))?.scanId).toBeNull();

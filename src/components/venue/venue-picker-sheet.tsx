@@ -15,7 +15,7 @@ import { useVisits } from '@/lib/journal/use-visits';
 import { formatVisitStart } from '@/lib/journal/use-visit-works';
 import { formatDistance } from '@/lib/venue/resolve';
 import { useVenue, type VenueView } from '@/lib/venue/use-venue';
-import { venueOptionKey, type CurrentVisit, type VenueOption } from '@/lib/venue/venue-reducer';
+import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from '@/lib/venue/venue-reducer';
 
 /**
  * `fitToContents` derives the sheet height from this scroll view, so an uncapped one grows past the
@@ -35,15 +35,15 @@ function detail(option: VenueOption, nearest: boolean): string {
 }
 
 /**
- * One sheet for the venue pill, the visit bar and the location prompt: the open visit, or the museum chooser.
- * `mode=choose` opens the chooser even while a visit is paused elsewhere; "Not here" then leaves that visit alone.
+ * One sheet for the venue pill, the visit bar and the location prompt: the visit open at this museum, or the chooser.
+ * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone.
  */
 export function VenuePickerSheet() {
   const view = useVenue();
   const { mode: requested } = useLocalSearchParams<{ mode?: string }>();
   const visit = view.visit;
   // The mode is fixed when the sheet opens: a confirmation in the chooser closes the sheet rather than flipping it.
-  const [mode, setMode] = useState<'visit' | 'change' | 'choose'>(visit && requested !== 'choose' ? 'visit' : 'choose');
+  const [mode, setMode] = useState<'visit' | 'change' | 'choose'>(activeVisit(view) && requested !== 'choose' ? 'visit' : 'choose');
   if (mode === 'visit' && visit && view.status !== 'denied') return <VisitSheet visit={visit} onChange={() => setMode('change')} />;
   return <ChooserSheet view={view} keepVisit={visit && mode === 'change' ? () => setMode('visit') : undefined} />;
 }

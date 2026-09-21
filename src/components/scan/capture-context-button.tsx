@@ -2,35 +2,63 @@ import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
+import tzLookup from '@photostructure/tz-lookup';
 import { calendarDate } from '../../../shared/journal/limits';
+import type { Id } from '../../../convex/_generated/dataModel';
 import { getVisit } from '@/db/repos/visits';
 import type { Visit } from '@/db/schema';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { readPhotoSession } from '@/lib/capture/photo-draft';
 import { formatVisitDate } from '@/lib/journal/history';
+import { captureVisitChoice } from '@/lib/capture/visit-choice';
+import { venueMetadataForIds } from '@/lib/venue/venue-db';
+import { isVisitToday } from '@/lib/venue/venue-reducer';
 import { Gallery, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '../themed-text';
 
-export function captureVisitLabel(visit: Pick<Visit, 'venueName' | 'visitedOn' | 'timeZone'>, now = Date.now()): string {
-  return `${visit.venueName} · ${visit.visitedOn === calendarDate(now, visit.timeZone) ? 'Today' : formatVisitDate(visit.visitedOn)}`;
+function dayLabel(visitedOn: string, today: boolean): string {
+  return today ? 'Today' : formatVisitDate(visitedOn);
 }
 
-/** The visit this capture will save to: the capture's own unless the draft overrides it. Tapping picks another for this shot only. */
-export function CaptureContextButton({ draftId, visitId, disabled }: { draftId: string; visitId?: string; disabled?: boolean }) {
+export function captureVisitLabel(visit: Pick<Visit, 'venueName' | 'visitedOn' | 'timeZone'>, now = Date.now()): string {
+  return `${visit.venueName} · ${dayLabel(visit.visitedOn, isVisitToday(visit, now))}`;
+}
+
+/** The museum a save starts or joins a visit at, with the visit's day taken from the capture in the museum's time zone. */
+export async function venueVisitLabel(venueId: Id<'museums'>, capturedAt: number, now = Date.now()): Promise<{ name: string; visitedOn: string; today: boolean; day: string } | undefined> {
+  const [venue] = await venueMetadataForIds([venueId]);
+  if (!venue) return undefined;
+  const timeZone = tzLookup(venue.lat, venue.lng);
+  const visitedOn = calendarDate(capturedAt, timeZone);
+  const today = isVisitToday({ visitedOn, timeZone }, now);
+  return { name: venue.name, visitedOn, today, day: dayLabel(visitedOn, today) };
+}
+
+export type CaptureContextCapture = { photoPath: string; visitLocalId?: string | null; venueId?: Id<'museums'> | null; capturedAt?: number };
+
+/** The visit this capture will save to: its own, the museum it was scanned at, or the draft's override. Tapping picks another for this shot only. */
+export function CaptureContextButton({ capture, disabled }: { capture: CaptureContextCapture; disabled?: boolean }) {
   const owner = useLocalOwner(), [label, setLabel] = useState('Loading visit…');
+  const { photoPath: draftId, visitLocalId, venueId, capturedAt } = capture;
   useFocusEffect(useCallback(() => {
     let active = true;
     async function load() {
-      const stored = readPhotoSession(owner, draftId).visitLocalId;
-      const id = stored === undefined ? visitId : stored ?? undefined;
-      const visit = id ? await getVisit(id, owner) : undefined;
-      if (active) setLabel(visit ? captureVisitLabel(visit) : id ? 'Visit unavailable' : 'No visit');
+      const choice = captureVisitChoice({ visitLocalId, venueId, capturedAt }, readPhotoSession(owner, draftId));
+      let next = 'No visit';
+      if (choice.kind === 'visit') {
+        const visit = await getVisit(choice.localId, owner);
+        next = visit ? captureVisitLabel(visit) : 'Visit unavailable';
+      } else if (choice.kind === 'venue') {
+        const venue = await venueVisitLabel(choice.venueId, capturedAt ?? Date.now());
+        next = venue ? `${venue.name} · ${venue.day}` : 'Visit unavailable';
+      }
+      if (active) setLabel(next);
     }
     void load().catch(() => { if (active) setLabel('Visit unavailable'); });
     return () => { active = false; };
-  }, [owner, draftId, visitId]));
+  }, [owner, draftId, visitLocalId, venueId, capturedAt]));
   return <Pressable accessibilityRole="button" accessibilityLabel={`${label} · Change`} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled }} disabled={disabled}
-    onPress={() => router.push({ pathname: '/capture-context', params: { draftId, visitId } })}
+    onPress={() => router.push({ pathname: '/capture-context', params: { draftId, visitId: visitLocalId ?? undefined, venueId: venueId ?? undefined, capturedAt: capturedAt === undefined ? undefined : String(capturedAt) } })}
     style={({ pressed }) => [styles.chip, pressed && styles.pressed, disabled && styles.disabled]}>
     <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
     <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>{label}</ThemedText>

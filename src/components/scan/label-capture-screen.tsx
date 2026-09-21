@@ -324,7 +324,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
           <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} onUnlock={onUnlock} />
           {capture && !savedId && <>
-            <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />
+            <CaptureContextButton capture={capture} disabled={saving} />
             <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
           </>}
           <LabelActions
@@ -368,7 +368,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           {LABEL_PROMPT}
         </OverlayCaption>
         <View style={styles.bottom}>
-          {capture && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={busy} />}
+          {capture && <CaptureContextButton capture={capture} disabled={busy} />}
           {cameraError ? <OverlayCaption>{cameraError}</OverlayCaption> : busy ? <OverlayCaption>Keeping the label…</OverlayCaption> : null}
           <View style={styles.controls}>
             <GlassSurface isInteractive style={styles.importButton}>

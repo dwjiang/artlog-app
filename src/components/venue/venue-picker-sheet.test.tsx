@@ -229,6 +229,18 @@ describe('the open visit', () => {
     expect(screen.getByText('A place for this moment.')).toBeOnTheScreen();
   });
 
+  it('offers the resolved museum, not the visit paused at another one, when the pill opens the sheet', async () => {
+    mockView = { ...mockView, venue: neighbour, options: [neighbour] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: 'Visiting here?' })).toBeOnTheScreen();
+    expect(screen.getByText('Neue Galerie')).toBeOnTheScreen();
+    expect(screen.queryByText(/Visiting now/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'End visit' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Not here' }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockEnd).not.toHaveBeenCalled();
+  });
+
   it('lists the candidates for a prompt while the visit is paused elsewhere, and "Not here" dismisses without ending it', async () => {
     mockParams = { mode: 'choose' };
     mockView = { ...mockView, status: 'choose', venue: undefined, options: [{ ...seeded, venueId: 'id-guggenheim' as never, name: 'Guggenheim', distanceM: 120 }, neighbour] };
