@@ -49,7 +49,7 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
     <FlatList style={{ backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }} data={filtered} keyExtractor={(row) => row.id}
       ListHeaderComponent={<View style={{ gap: 10, paddingVertical: 14 }}>
-        {!savedId && <><Text variant="pageTitle">Part of this visit.</Text><Text style={{ color: Gallery.muted }}>{destination ? `${destination.venueName} · ${formatVisitDate(destination.visitedOn)}` : 'Opening visit…'}</Text></>}
+        {!savedId && <Text style={{ color: Gallery.muted }}>{destination ? `${destination.venueName} · ${formatVisitDate(destination.visitedOn)}` : 'Opening visit…'}</Text>}
         {rows.length > 0 && <CollectionSearchField value={search} label={savedId ? 'Search visits' : 'Search artworks'} showLabel={false} filled onChange={setSearch} onClear={clearSearch} />}
         {rows.length > 0 && <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.</Text>}
         {savedId && rows.length > 0 && <GalleryButton label="Add a new visit" icon="plus" onPress={() => router.push({ pathname: '/visit-create', params: { savedId } })} />}

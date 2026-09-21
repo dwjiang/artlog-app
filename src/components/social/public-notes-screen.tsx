@@ -61,7 +61,7 @@ export function PublicNotesScreen() {
   </ScrollView>;
   return <>{toolbar}
     <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 22 }}>
-      <Text variant="display">Share your notes.</Text><Text themeColor="textSecondary">{INTRO}</Text>
+      <Text themeColor="textSecondary">{INTRO}</Text>
       {wall.error && <><Text themeColor="error" accessibilityRole="alert">{wall.error}</Text><GalleryButton label="Refresh notes" onPress={() => { void wall.refresh(); }} /></>}
       {eligible.map((item) => <View key={item.itemId} style={{ gap: 12, paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
