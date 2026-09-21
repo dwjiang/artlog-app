@@ -1,3 +1,5 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
+import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -26,9 +28,9 @@ export function VenuePill() {
   const { status, venue, visit } = useVenue();
   const label = venuePillLabel({ status, venue });
   const active = !!visit && visit.venueId === venue?.venueId;
-  const works = useVisitWorks(active ? visit.localId : undefined, owner);
+  const { works, loading, error } = useVisitWorks(active ? visit.localId : undefined, owner);
   const locating = !venue && (status === 'idle' || status === 'locating');
-  const accessibilityLabel = active ? `${label}, visiting now, ${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}` : label;
+  const accessibilityLabel = active && !loading && !error ? `${label}, visiting now, ${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}` : label;
   return (
     <GlassSurface isInteractive style={styles.pill}>
       <Pressable
@@ -41,8 +43,8 @@ export function VenuePill() {
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
         {active ? <View style={styles.dot} /> : <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
-        <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>{label}</ThemedText>
-        {active && <ThemedText type="small" themeColor="overlayText" style={styles.count}>· {works.length}</ThemedText>}
+        {locating ? <LoadingRing accessibilityLabel={label} color={Colors.light.overlayText} /> : <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>{label}</ThemedText>}
+        {active && (loading ? <TextSkeleton label="Loading visit artwork count" width={24} /> : !error && <ThemedText type="small" themeColor="overlayText" style={styles.count}>· {works.length}</ThemedText>)}
         <Image source="sf:chevron.down" style={styles.chevron} tintColor={Colors.light.overlayText} accessible={false} />
       </Pressable>
     </GlassSurface>

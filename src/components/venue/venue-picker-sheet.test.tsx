@@ -152,8 +152,17 @@ describe('choosing a museum', () => {
   it('allows continuing without a museum while locating', async () => {
     mockView = { ...mockView, status: 'locating', options: [] };
     await render(<VenuePickerSheet />);
-    expect(screen.getByLabelText('Locating your museum')).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar', { name: 'Locating your museum' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Continue without a museum' })).toBeOnTheScreen();
+    expect(screen.queryByText('Finding your museum…')).toBeNull();
+  });
+
+  it('marks the confirming row busy without swapping its detail for text', async () => {
+    mockConfirm.mockReturnValue(new Promise<void>(() => {}));
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Metropolitan Museum of Art' }));
+    expect(screen.getByRole('button', { name: 'Metropolitan Museum of Art' })).toBeBusy();
+    expect(screen.queryByText('Confirming…')).toBeNull();
   });
 
   it.each(['Not here', 'swipe'])('cancels a pending confirmation on %s without navigating again', async (method) => {
@@ -185,20 +194,11 @@ describe('the open visit', () => {
     expect(screen.queryByRole('button', { name: 'Continue without a museum' })).toBeNull();
   });
 
-  it('ends the visit and lands on its detail', async () => {
+  it('opens the end-visit review without ending the visit', async () => {
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-    expect(mockEnd).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
-  });
-
-  it('keeps the sheet with the reason when ending fails', async () => {
-    mockEnd.mockRejectedValue(new Error('disk full'));
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('disk full');
-    expect(mockReplace).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'End visit' })).toBeEnabled();
+    expect(mockEnd).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1', endVisit: 'true' } });
   });
 
   it('opens the visit detail in place of the sheet', async () => {
@@ -230,6 +230,18 @@ describe('the open visit', () => {
     mockView = { ...mockView, status: 'denied', venue: undefined, options: [] };
     await render(<VenuePickerSheet />);
     expect(screen.getByText('Find your museum, wherever you are.')).toBeOnTheScreen();
+  });
+
+  it('offers the resolved museum, not the visit paused at another one, when the pill opens the sheet', async () => {
+    mockView = { ...mockView, venue: neighbour, options: [neighbour] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole('header', { name: 'Choose museum' })).toBeOnTheScreen();
+    expect(screen.getByText('Neue Galerie')).toBeOnTheScreen();
+    expect(screen.queryByText(/Visiting now/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'End visit' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue without a museum' }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockEnd).not.toHaveBeenCalled();
   });
 
   it('lists the candidates for a prompt while the visit is paused elsewhere, and "Not here" dismisses without ending it', async () => {

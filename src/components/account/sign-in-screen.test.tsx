@@ -4,11 +4,13 @@ import { SignInScreen } from './sign-in-screen';
 const mockBack = jest.fn(), mockReplace = jest.fn(), mockSignIn = jest.fn();
 const mockRouter = { back: mockBack, replace: mockReplace };
 let mockOwner = 'device:guest';
+let mockOnline = true;
 let mockAccount = { account: { linked: false, accountId: 'account-a' }, available: true, busy: false, error: undefined as string | undefined, ready: true, signInWithApple: mockSignIn };
 jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => mockOwner }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@/lib/account/use-account', () => ({ useAccount: () => mockAccount }));
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, Stack: { Screen: () => null } }));
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: mockOnline, isInternetReachable: mockOnline }) }));
 jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 }, AppleAuthenticationButtonStyle: { BLACK: 0 },
   AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => {
@@ -19,6 +21,7 @@ jest.mock('expo-apple-authentication', () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockOwner = 'device:guest';
+  mockOnline = true;
   mockAccount = { ...mockAccount, account: { linked: false, accountId: 'account-a' }, busy: false, ready: true, available: true, error: undefined };
 });
 it('shows context, starts Apple sign-in, and lets a guest dismiss', async () => {
@@ -49,6 +52,16 @@ it('returns to the previous activity when the close button is pressed', async ()
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockSignIn).not.toHaveBeenCalled();
 });
+it('waits for the device with a spinner online and explains the wait offline', async () => {
+  mockAccount.ready = false;
+  const view = await render(<SignInScreen />);
+  expect(screen.getByRole('progressbar', { name: 'Connecting to your account' })).toBeOnTheScreen();
+  mockOnline = false;
+  await view.rerender(<SignInScreen />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Connect to the internet to sign in.')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Not now' })).toBeEnabled();
+});
 it('explains unavailable sign-in without preventing dismissal', async () => {
   mockAccount.available = false;
   await render(<SignInScreen />);
@@ -61,7 +74,7 @@ it('continues to the visit editor only after the linked account has its local jo
   expect(screen.getByRole('header', { name: 'Share your museum visit.' })).toBeOnTheScreen();
   mockAccount.account.linked = true;
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByText('Preparing your visit…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Preparing your visit…')).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   mockOwner = 'account:account-a';
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);

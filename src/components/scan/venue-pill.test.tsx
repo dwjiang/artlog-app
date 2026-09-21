@@ -4,13 +4,14 @@ import { VenuePill } from './venue-pill';
 import type { VenueView } from '@/lib/venue/use-venue';
 
 const mockPush = jest.fn();
+let mockLoading = false;
 let mockView: VenueView;
 let mockWorks: { localId: string }[] = [];
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => mockView }));
 jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => 'device:test' }));
-jest.mock('@/lib/journal/use-visit-works', () => ({ useVisitWorks: (visitLocalId?: string) => visitLocalId ? mockWorks : [] }));
+jest.mock('@/lib/journal/use-visit-works', () => ({ useVisitWorks: (visitLocalId?: string) => ({ works: visitLocalId ? mockWorks : [], loading: mockLoading }) }));
 
 const legion = { kind: 'seeded', venueId: 'id-legion' as never, name: 'Legion of Honor', distanceM: 40 } as const;
 const visit = { localId: 'visit-1', venueId: 'id-legion' as never, venueName: 'Legion of Honor', startedAt: 1, visitedOn: '2026-09-18', timeZone: 'America/Los_Angeles' };
@@ -19,7 +20,18 @@ function view(status: VenueView['status'], venue?: VenueView['venue'], current?:
   return { status, venue, visit: current, options: [], resolve: jest.fn(), confirm: jest.fn(), dismiss: jest.fn(), end: jest.fn() };
 }
 
-beforeEach(() => { mockPush.mockReset(); mockWorks = []; });
+beforeEach(() => { mockPush.mockReset(); mockLoading = false; mockWorks = []; });
+
+it('keeps the visit count behind a ghost until its artworks are read', async () => {
+  mockView = view('resolved', legion, visit);
+  mockLoading = true;
+  const rendered = await render(<VenuePill />);
+  expect(screen.getByLabelText('Loading visit artwork count')).toBeOnTheScreen();
+  expect(screen.queryByText('· 0')).toBeNull();
+  mockLoading = false;
+  await rendered.rerender(<VenuePill />);
+  expect(screen.getByText('· 0')).toBeOnTheScreen();
+});
 
 it('names the museum the phone resolved and opens the visit sheet on tap', async () => {
   mockView = view('resolved', legion);

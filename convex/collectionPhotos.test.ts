@@ -30,7 +30,7 @@ it('serves private bytes to the canonical account and denies other owners or ano
   expect((await outsider.as.fetch(await path(outsider))).status).toBe(404);
   expect((await t.fetch(await path())).status).toBe(401);
 });
-it('is idempotent under concurrent uploads and validates content, byte size, kind, and UUID ownership', async () => {
+it('keeps only the latest crop under concurrent uploads and validates content and ownership', async () => {
   const { t, owner, outsider, work, scope, path, upload } = await fixture();
   expect((await upload(outsider)).status).toBe(404);
   expect((await upload(owner, 'kind=crop', new Uint8Array())).status).toBe(400);
@@ -40,7 +40,8 @@ it('is idempotent under concurrent uploads and validates content, byte size, kin
   expect((await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status).toBe(400);
   expect((await upload(owner, `kind=photo&photoId=${crypto.randomUUID()}`)).status).toBe(404);
   const responses = await Promise.all([upload(), upload()]);
-  const ids = await Promise.all(responses.map((r) => r.json())); expect(ids[0]).toEqual(ids[1]);
+  const ids = await Promise.all(responses.map((r) => r.json())); expect(ids[0].storageId).not.toEqual(ids[1].storageId);
+  expect(responses.every((response) => response.status === 200)).toBe(true);
   expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toHaveLength(1);
   await outsider.as.mutation(api.collections.saveToCollection, { ...work, scope: await scope(outsider), suggested: null });
   expect((await outsider.as.fetch(await path(outsider))).status).toBe(404);
@@ -66,4 +67,18 @@ it('deletion revokes every account device and cleans bytes immediately', async (
   expect((await upload()).status).toBe(404);
   expect((await sibling.as.fetch(await path(sibling))).status).toBe(404);
   expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toEqual([]);
+});
+
+it('replaces a crop for every account device, advances photo sync, and removes obsolete private bytes', async () => {
+  const { t, owner, sibling, path, upload, sync } = await fixture();
+  const first = await (await upload()).json();
+  const before = await sync();
+  const changed = new Uint8Array([...jpeg, 42]);
+  const next = await (await upload(owner, 'kind=crop', changed)).json();
+  expect(next.storageId).not.toBe(first.storageId);
+  expect(next.photoUpdatedAt).toBeGreaterThan(first.photoUpdatedAt);
+  expect(new Uint8Array(await (await sibling.as.fetch(await path(sibling))).arrayBuffer())).toEqual(changed);
+  const after = await sync(sibling, before.checkpoint);
+  expect(after.saves[0]).toMatchObject({ cropStorageId: next.storageId, photoUpdatedAt: next.photoUpdatedAt });
+  expect(await t.run((ctx) => ctx.storage.get(first.storageId))).toBeNull();
 });

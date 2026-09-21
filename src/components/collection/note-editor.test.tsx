@@ -17,6 +17,27 @@ beforeEach(async () => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+it('holds a ghost until the saved note is read instead of showing the empty-note prompt', async () => {
+  const read = notes.getNote;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  jest.spyOn(notes, 'getNote').mockImplementationOnce(async (...args) => { await pending; return read(...args); });
+  await render(<NoteEditor savedLocalId="work" />);
+  expect(screen.getByRole('progressbar', { name: 'Loading your note…' })).toBeOnTheScreen();
+  expect(screen.queryByText('Keep a private note about this work.')).toBeNull();
+  await act(() => release());
+  expect(await screen.findByText('Original note')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+it('ends loading with an error if the note read fails', async () => {
+  jest.spyOn(notes, 'getNote').mockRejectedValueOnce(new Error('Read failed'));
+  await render(<NoteEditor savedLocalId="work" />);
+  expect(await screen.findByText('Your note could not load. Reopen this artwork to try again.')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.queryByText('Keep a private note about this work.')).toBeNull();
+});
+
 async function editNote() {
   const view = await render(<NoteEditor savedLocalId="work" />);
   await fireEvent.press(await screen.findByRole('button', { name: 'Edit note' }));

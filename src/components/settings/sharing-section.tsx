@@ -3,6 +3,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { captureFileUri } from '@/lib/files/photos';
+import { ListSkeleton } from '@/components/loading-skeleton';
 import { router } from 'expo-router';
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
@@ -18,7 +19,7 @@ import { Gallery, Spacing } from '@/constants/theme';
 
 export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
 
-export function ContributionsScreen({ contributions }: { contributions: Contribution[] | undefined }) {
+export function ContributionsScreen({ contributions, offline }: { contributions: Contribution[] | undefined; offline: boolean }) {
   return <FlatList style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" data={contributions ?? []} keyExtractor={(row) => row.contributionId}
         contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }} renderItem={({ item }) => <ContributionRow contribution={item} />}
         ListHeaderComponent={contributions?.length ? <View style={{ gap: Spacing.three }}>
@@ -26,7 +27,7 @@ export function ContributionsScreen({ contributions }: { contributions: Contribu
           <ThemedText themeColor="textSecondary">Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos stay private. No account needed.</ThemedText>
           {!!contributions?.length && <ThemedText type="small" themeColor="textSecondary">Contributions from this device, newest first. Up to 200 are shown.</ThemedText>}
         </View> : null}
-        ListEmptyComponent={contributions === undefined ? <ThemedText>Connecting…</ThemedText> : <EmptyState inset={false} title="Help the next person see more."
+        ListEmptyComponent={contributions === undefined ? offline ? <ThemedText themeColor="textSecondary">Connect to see your contributions.</ThemedText> : <ListSkeleton label="Loading contributions…" rows={3} /> : <EmptyState inset={false} title="Help the next person see more."
           detail="Save a confirmed artwork to share its label details and a small artwork crop with the index." visual={<EmptyPaper kind="label" />} footnote="Your full photos stay private. No account needed.">
           <GalleryButton label="Scan artwork" variant="filled" fullWidth onPress={() => { router.dismissAll(); router.navigate('/scan'); }} />
         </EmptyState>}

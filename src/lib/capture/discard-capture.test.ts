@@ -23,7 +23,7 @@ it('discards the capture, additional photos and label together', async () => {
   await discardCapture('scan', owner);
   expect(await getPendingScan('scan')).toBeUndefined();
   expect(readPhotoDraft(owner, 'photos/scan.jpg')).toEqual([]);
-  expect(jest.mocked(removePhotoFile).mock.calls.map(([path]) => path)).toEqual(['photos/scan.jpg', 'crops/scan.jpg', 'labels/scan.jpg', 'photos/detail.jpg']);
+  expect(jest.mocked(removePhotoFile).mock.calls.map(([path]) => path)).toEqual(['photos/scan.jpg', 'crops/scan.jpg', 'crops/scan.preview.jpg', 'labels/scan.jpg', 'photos/detail.jpg']);
 });
 
 it('leaves another owner’s capture and photos alone', async () => {

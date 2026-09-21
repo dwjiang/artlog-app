@@ -1,13 +1,13 @@
 import { retryPendingScan } from '@/lib/queue/queue';
+import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
-import { ParagraphSkeleton } from '@/components/loading-skeleton';
 import { SearchConsentSheet } from './result/search-consent-sheet';
 import { useConvex } from 'convex/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
@@ -39,7 +39,7 @@ import { GalleryButton } from '@/components/collection/gallery-button';
 import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { markFailed, selectCaptureForScan } from '@/db/repos/pending-scans';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import { captureFileUri } from '@/lib/files/photos';
+import { captureFileUri, scanPreviewPath } from '@/lib/files/photos';
 import { useMuseumSearch } from '@/lib/museum-search/use-museum-search';
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from '@/lib/result/feedback';
 import { canSave, draftFromCandidate, type SnapshotDraft } from '@/lib/result/snapshot';
@@ -77,6 +77,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
   const [searchConsent, setSearchConsent] = useState(false);
   const [retryError, setRetryError] = useState<string>();
   const [retrying, setRetrying] = useState(false);
+  const [editingCrop, setEditingCrop] = useState(false);
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
@@ -84,11 +85,18 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
   const rejection = useRef<Promise<Id<'feedback'> | null>>(undefined);
   const view: ResultViewState = manual ? { kind: 'unidentified', editable: true, runnerUps: [] } : toResultViewState(scan, selection);
   const showMuseumSearch = !manual && !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
-  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch);
+  const museumSearch = useMuseumSearch(scan instanceof Error ? undefined : scan, isActive && showMuseumSearch && !editingCrop);
 
   useEffect(() => {
     if (isActive && labelCapture) router.replace({ pathname: '/label/[scanId]', params: { scanId } });
   }, [isActive, labelCapture, router, scanId]);
+
+  function adjustCrop() {
+    if (hasEdits) Alert.alert('Adjust this crop?', 'Recognition will run again. Unsaved artwork details will be discarded.', [
+      { text: 'Keep editing', style: 'cancel' }, { text: 'Adjust crop', onPress: () => { setHasEdits(false); setEditingCrop(true); } },
+    ]);
+    else setEditingCrop(true);
+  }
 
   function openLabel() {
     setSheet({ open: false });
@@ -132,15 +140,17 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
     onViewSaved: () => router.push({ pathname: '/saved/[savedId]', params: { savedId: savedId ?? '' } }),
   };
 
-  if (labelCapture) return <ThemedView style={styles.container}><ThemedText>Opening your label…</ThemedText></ThemedView>;
+  if (editingCrop && capture) return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
+  if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} />;
 
   const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
-  const header = <CardHeader cropUri={capture ? captureFileUri(capture.cropPath) : undefined} artworkTitle={view.primary?.title}
+  const header = <CardHeader cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined} artworkTitle={view.primary?.title}
     loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>
-    {capture && !savedId && <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />}
+    {capture && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />}
+    {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
     {captureError && <ThemedText themeColor="error" accessibilityRole="alert">Couldn’t load the photo saved on this phone.</ThemedText>}
   </>;
   const search = view.editable && showMuseumSearch ? <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} /> : undefined;
@@ -153,7 +163,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
         savePhotoOnly={view.kind !== 'confident' && !hasEdits && !selection.chosenObjectId} onSavePhoto={() => { void save({ scanId, capture, draft: draftFromCandidate() }); }} {...saveProps} /> :
         <ScrollView contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive" contentContainerStyle={styles.content}>
           {header}{context}
-          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} /><View style={{ flex: 1, gap: 8 }}><ThemedText type="small" themeColor="accent">Looking a little closer…</ThemedText><ThemedText type="title">Finding the story behind the artwork.</ThemedText><ThemedText themeColor="textSecondary">Keep this screen open while we look for a match.</ThemedText><ParagraphSkeleton /></View></View>}
+          {view.kind === 'loading' && <View style={styles.loading} accessibilityState={{ busy: true }}><LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" /></View>}
           {view.kind === 'unsupported' && <UnsupportedCard {...saveProps} />}
           {view.kind === 'failed' && <><FailedCard error={view.error} retrying={retrying} onRetry={capture ? () => {
             if (retrying) return;

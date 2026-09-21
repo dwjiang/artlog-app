@@ -11,9 +11,12 @@ import { findArtworkPhoto, saveArtworkSession, selectArtworkPhotos } from '@/db/
 import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from '../capture/photo-draft';
 import { requestCollectionSync } from '@/lib/account/sync-events';
 import { getVisit } from '@/db/repos/visits';
-import type { PendingScan } from '@/db/schema';
+import type { PendingScan, Visit } from '@/db/schema';
 import { convex } from '@/lib/convex-client';
+import { visitForSave } from '@/lib/venue/use-venue';
 import { venueNameById } from '@/lib/venue/venue-db';
+import { captureVisitChoice } from '../capture/visit-choice';
+import { scanPreviewPath } from '@/lib/files/photos';
 import type { ContributeInput } from '../label/contribute';
 import { shareSavedLabel, type ContributionAttempt } from '../label/share-saved-label';
 import { buildSnapshot, type SnapshotDraft } from './snapshot';
@@ -43,30 +46,38 @@ export function saveErrorMessage(cause: unknown): string {
   return cause instanceof Error && ACTIONABLE.has(cause.message) ? cause.message : 'Couldn’t save. Try again.';
 }
 
+type LinkedVisit = Pick<Visit, 'localId' | 'venueId' | 'venueName' | 'visitedOn' | 'remoteVisitId'>;
+
 /** Saves locally first, then mirrors the row to the collection on the server. */
 export async function saveResult({ scanId, capture, view, draft, contribution }: SaveResultInput): Promise<SaveResultOutcome> {
   const current = captureOwner();
   if (capture.owner !== current.owner) throw new Error('Journal owner changed');
   const { snapshot, suggested } = buildSnapshot(draft, view);
   if (!snapshot.title) snapshot.title = 'Unidentified artwork';
+  if (readPhotoDraft(current.owner, capture.photoPath).some((photo) => photo.review)) throw new Error('Review your added photos before saving.');
   const session = readPhotoSession(current.owner, capture.photoPath);
-  const visitId = session.visitLocalId === undefined ? capture.visitLocalId : session.visitLocalId;
-  const visit = visitId ? await getVisit(visitId, current.owner) : undefined;
-  let contextChanged = false;
-  if (session.visitLocalId !== undefined) {
-    if (visitId && !visit) throw new Error('Choose an available visit before saving.');
-    const chosen = { visitLocalId: visit?.localId ?? null, visitId: visit?.remoteVisitId ?? null, venueId: visit?.venueId ?? null };
-    // The scan was identified with the capture's venue and visit; the server refuses to confirm it under a different context.
-    contextChanged = (chosen.visitLocalId ?? undefined) !== (capture.visitLocalId ?? undefined) || (chosen.venueId ?? undefined) !== (capture.venueId ?? undefined);
-    capture = { ...capture, ...chosen };
+  const choice = captureVisitChoice(capture, session);
+  let visit: LinkedVisit | undefined;
+  if (choice.kind === 'visit') {
+    visit = await getVisit(choice.localId, current.owner);
+    if (!visit) throw new Error(session.visit ? 'Choose an available visit before saving.' : 'The capture is linked to an invalid visit');
+  } else if (choice.kind === 'venue') {
+    // The first save at a museum starts its visit, dated by the shutter; later saves join it.
+    const started = await visitForSave(choice.venueId, capture.capturedAt);
+    visit = { ...started, remoteVisitId: started.remoteVisitId ?? null };
   }
-  const confirmationScanId = contextChanged ? undefined : scanId;
-  if (capture.visitLocalId != null && (!visit || visit.venueId !== capture.venueId) ||
-    capture.visitId != null && (!visit || visit.remoteVisitId !== capture.visitId)) {
+  if (!current.isCurrent()) throw new Error('Journal owner changed');
+  if (!session.visit && capture.visitLocalId != null && visit &&
+    (visit.venueId !== capture.venueId || (capture.visitId != null && visit.remoteVisitId !== capture.visitId))) {
     throw new Error('The capture is linked to an invalid visit');
   }
-  const venueId = capture.venueId ?? visit?.venueId;
+  // A save with no visit by default (the visit there ended by hand today) keeps its museum; only a draft's "No visit" drops it.
+  const venueId = visit?.venueId ?? (session.visit ? undefined : capture.venueId ?? undefined);
   const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId).catch(() => undefined) : undefined);
+  // The scan was identified at the capture's museum, in its visit when one was open; the server confirms it only under that context.
+  const contextChanged = venueId !== (capture.venueId ?? undefined) || (capture.visitLocalId != null && visit?.localId !== capture.visitLocalId);
+  const confirmationScanId = contextChanged ? undefined : scanId;
+  capture = { ...capture, visitLocalId: visit?.localId ?? null, visitId: visit?.remoteVisitId ?? null, venueId: venueId ?? null };
   const primary = view?.primary;
   // The capture's album row carries the scan's id, so saving the same scan twice lands on the same artwork.
   const captured = findArtworkPhoto(capture.localId, current.owner);
@@ -77,7 +88,6 @@ export async function saveResult({ scanId, capture, view, draft, contribution }:
   const localId = existing?.localId ?? randomUUID();
   const savedAt = capture.capturedAt;
   if (!current.isCurrent()) throw new Error('Journal owner changed');
-  if (readPhotoDraft(current.owner, capture.photoPath).some((photo) => photo.review)) throw new Error('Review your added photos before saving.');
   const photos = selectArtworkPhotos(localId, current.owner).all();
   const additional = readPhotoDraft(current.owner, capture.photoPath).map((photo) => ({ ...photo, savedLocalId: localId, visitLocalId: visit?.localId }));
   if (!photos.some((photo) => photo.path === capture.photoPath)) additional.unshift({ localId: captured ? randomUUID() : capture.localId, savedLocalId: localId,
@@ -85,7 +95,7 @@ export async function saveResult({ scanId, capture, view, draft, contribution }:
   saveArtworkSession(localId, existing ? undefined : { localId, savedAt, ...snapshot,
     visitLocalId: visit?.localId, venueId, venueName, gallery: primary?.gallery,
     objectId: primary?.objectId, artworkId: primary?.artworkId, scanId,
-    photoPath: capture.photoPath, cropPath: capture.cropPath }, additional, visit?.localId, current.owner);
+    photoPath: capture.photoPath, cropPath: scanPreviewPath(capture.cropPath) }, additional, visit?.localId, current.owner);
   clearPhotoDraft(current.owner, capture.photoPath);
   const synced = (async () => {
     if (!current.scope || !current.isCurrent()) return;

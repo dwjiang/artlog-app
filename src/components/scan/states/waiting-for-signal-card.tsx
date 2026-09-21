@@ -24,8 +24,7 @@ export function WaitingForSignalCard({ status, onLabel }: WaitingForSignalCardPr
     <>
       <View style={styles.section}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.compact }}>
-          {!waiting && <LoadingRing accessible={false} />}
-          <ThemedText type="title" style={{ flex: 1 }}>{waiting ? WAITING_TITLE : IDENTIFYING_TITLE}</ThemedText>
+          {waiting ? <ThemedText type="title" style={{ flex: 1 }}>{WAITING_TITLE}</ThemedText> : <LoadingRing accessibilityLabel={IDENTIFYING_TITLE} />}
         </View>
         <ThemedText themeColor="textSecondary">{waiting ? WAITING_LINE : IDENTIFYING_LINE}</ThemedText>
       </View>

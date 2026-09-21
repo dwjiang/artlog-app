@@ -1,3 +1,5 @@
+import { LoadingRing } from '@/components/loading-ring';
+import { FormSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
@@ -19,7 +21,6 @@ import { useSaveResult } from '@/lib/result/use-save-result';
 
 const STAGE_TEXT: Record<MuseumSearchStage, string> = {
   exhibitions: 'Looking up current exhibitions',
-  describe: 'Preparing your photo', search: 'Describing the painting and searching the site',
   check: 'Comparing the museum’s images on your phone', done: 'Image confirmed', none: 'Search finished',
 };
 
@@ -29,7 +30,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
   if (!search.visible) return null;
   if (search.restoring || search.restoreError) return (
     <View style={styles.section}>
-      <ThemedText>{search.restoreError ? 'Couldn’t load your museum result. Try again.' : 'Loading museum result…'}</ThemedText>
+      {search.restoreError ? <ThemedText>Couldn’t load your museum result. Try again.</ThemedText> : <FormSkeleton label="Loading museum result…" />}
       {search.restoreError && <GalleryButton label="Try again" variant="outlined" onPress={search.retryRestore} />}
     </View>
   );
@@ -40,7 +41,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
         <MuseumSearchResult key={`${scanId}:${search.confirmedAt}`} flow={search.flow} confirmedAt={search.confirmedAt} scanId={scanId} capture={capture} />
       ) : search.running ? (
         <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }} style={styles.progress}>
-          <ThemedText>{"Searching the museum's collection…"}</ThemedText>
+          <LoadingRing accessibilityLabel="Searching the museum’s collection…" />
           {search.progress && <ThemedText type="small" themeColor="textSecondary">{STAGE_TEXT[search.progress]}</ThemedText>}
         </View>
       ) : search.message && <ThemedText themeColor="textSecondary">{search.message}</ThemedText>}
@@ -55,7 +56,7 @@ function MuseumSearchResult({ flow, confirmedAt, scanId, capture }: { flow: Labe
 
   if (!form) return (
     <View style={styles.section}>
-      <ThemedText>{formError?.message ?? 'Loading your edits…'}</ThemedText>
+      {formError ? <ThemedText>{formError.message}</ThemedText> : <FormSkeleton label="Loading your edits…" />}
       {formError && <GalleryButton label="Try again" variant="outlined" onPress={retryForm} />}
     </View>
   );

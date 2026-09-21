@@ -1,5 +1,6 @@
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
+import { FormSkeleton } from '@/components/loading-skeleton';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useNetworkState } from 'expo-network';
@@ -270,7 +271,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     );
   }
 
-  if (phase.kind === 'capture' && restoring) return <StateCard title="Loading the label…" />;
+  if (phase.kind === 'capture' && restoring) return <StateCard><FormSkeleton label="Loading the label…" /></StateCard>;
 
   if (phase.kind === 'capture' && phase.restore !== false && scan instanceof Error && !storeOnly) {
     return <StateCard title="Couldn’t load this label" detail="Your captured photo stays on this phone. Capture the label again to continue.">
@@ -289,7 +290,8 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   if (phase.kind === 'review' && !form) {
     return (
-      <StateCard title={formError?.message ?? 'Loading the label…'}>
+      <StateCard title={formError?.message}>
+        {!formError && <FormSkeleton label="Loading the label…" />}
         {formError && <GalleryButton label="Try again" variant="filled" fullWidth onPress={retryForm} />}
       </StateCard>
     );
@@ -315,7 +317,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
           <VerifiedFieldsForm key={phase.flow.updatedAt} state={form} warnings={phase.flow.warnings} editable={editable} onChange={onChange} />
           {capture && !savedId && <>
-            <CaptureContextButton draftId={capture.photoPath} visitId={capture.visitLocalId ?? undefined} disabled={saving} />
+            <CaptureContextButton capture={capture} disabled={saving} />
             <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
           </>}
           <LabelActions
@@ -341,7 +343,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   return <ScrollView style={styles.camera} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: Math.max(20, bottom), gap: 18 }}>
     <ThemedText type="title">The details are right here.</ThemedText>
     <ThemedText themeColor="textSecondary">Fill the frame with the museum label.</ThemedText>
-    <CameraPermission compact onImport={importPhoto}>
+    <CameraPermission compact onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
       <View style={{ height: 260, marginHorizontal: -20, backgroundColor: Gallery.fill }}>
         <Camera style={StyleSheet.absoluteFill} device="back" orientationSource="interface" isActive={active} outputs={outputs} allowHapticsAndSystemSoundsPlayback
           onStarted={() => { setCameraReady(true); setCameraError(undefined); }} onStopped={() => setCameraReady(false)}
@@ -357,12 +359,12 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   </ScrollView>;
 }
 
-function StateCard({ title, detail, children, illustrated = false }: { title: string; detail?: string; children?: React.ReactNode; illustrated?: boolean }) {
+function StateCard({ title, detail, children, illustrated = false }: { title?: string; detail?: string; children?: React.ReactNode; illustrated?: boolean }) {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-        {illustrated ? <EmptyState inset={false} visual={<EmptyPaper kind="label" />} title={title} detail={detail ?? ''}>{children}</EmptyState> : <>
-          <ThemedText type="title">{title}</ThemedText>
+        {illustrated && title ? <EmptyState inset={false} visual={<EmptyPaper kind="label" />} title={title} detail={detail ?? ''}>{children}</EmptyState> : <>
+          {title && <ThemedText type="title">{title}</ThemedText>}
           {detail && <ThemedText themeColor="textSecondary">{detail}</ThemedText>}{children}
         </>}
       </ScrollView>

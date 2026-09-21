@@ -26,6 +26,10 @@ namespace margelo::nitro::visionrect { struct RectPoint; }
 namespace margelo::nitro::visionrect { struct StillDetection; }
 // Forward declaration of `SubjectObservation` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
+// Forward declaration of `TextLine` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextLine; }
+// Forward declaration of `TextRecognition` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct TextRecognition; }
 
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridFrameSpec_cxx` to properly resolve imports.
@@ -42,6 +46,8 @@ namespace VisionRect { class HybridVisionRectSpec_cxx; }
 #include "RectPoint.hpp"
 #include "StillDetection.hpp"
 #include "SubjectObservation.hpp"
+#include "TextLine.hpp"
+#include "TextRecognition.hpp"
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/PromiseHolder.hpp>
 #include <NitroModules/Result.hpp>
@@ -250,6 +256,51 @@ namespace margelo::nitro::visionrect::bridge::swift {
     return optional.value();
   }
   
+  // pragma MARK: std::vector<TextLine>
+  /**
+   * Specialized version of `std::vector<TextLine>`.
+   */
+  using std__vector_TextLine_ = std::vector<TextLine>;
+  inline std::vector<TextLine> create_std__vector_TextLine_(size_t size) noexcept {
+    std::vector<TextLine> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<TextRecognition>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<TextRecognition>>`.
+   */
+  using std__shared_ptr_Promise_TextRecognition__ = std::shared_ptr<Promise<TextRecognition>>;
+  inline std::shared_ptr<Promise<TextRecognition>> create_std__shared_ptr_Promise_TextRecognition__() noexcept {
+    return Promise<TextRecognition>::create();
+  }
+  inline PromiseHolder<TextRecognition> wrap_std__shared_ptr_Promise_TextRecognition__(std::shared_ptr<Promise<TextRecognition>> promise) noexcept {
+    return PromiseHolder<TextRecognition>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const TextRecognition& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const TextRecognition&)>`.
+   */
+  using Func_void_TextRecognition = std::function<void(const TextRecognition& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const TextRecognition& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_TextRecognition_Wrapper final {
+  public:
+    explicit Func_void_TextRecognition_Wrapper(std::function<void(const TextRecognition& /* result */)>&& func): _function(std::make_unique<std::function<void(const TextRecognition& /* result */)>>(std::move(func))) {}
+    inline void call(TextRecognition result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const TextRecognition& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_TextRecognition create_Func_void_TextRecognition(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_TextRecognition_Wrapper wrap_Func_void_TextRecognition(Func_void_TextRecognition value) noexcept {
+    return Func_void_TextRecognition_Wrapper(std::move(value));
+  }
+  
   // pragma MARK: std::shared_ptr<HybridVisionRectSpec>
   /**
    * Specialized version of `std::shared_ptr<HybridVisionRectSpec>`.
@@ -287,6 +338,15 @@ namespace margelo::nitro::visionrect::bridge::swift {
   }
   inline Result_std__shared_ptr_Promise_LetterboxResult___ create_Result_std__shared_ptr_Promise_LetterboxResult___(const std::exception_ptr& error) noexcept {
     return Result<std::shared_ptr<Promise<LetterboxResult>>>::withError(error);
+  }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<TextRecognition>>>
+  using Result_std__shared_ptr_Promise_TextRecognition___ = Result<std::shared_ptr<Promise<TextRecognition>>>;
+  inline Result_std__shared_ptr_Promise_TextRecognition___ create_Result_std__shared_ptr_Promise_TextRecognition___(const std::shared_ptr<Promise<TextRecognition>>& value) noexcept {
+    return Result<std::shared_ptr<Promise<TextRecognition>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_TextRecognition___ create_Result_std__shared_ptr_Promise_TextRecognition___(const std::exception_ptr& error) noexcept {
+    return Result<std::shared_ptr<Promise<TextRecognition>>>::withError(error);
   }
 
 } // namespace margelo::nitro::visionrect::bridge::swift

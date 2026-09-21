@@ -15,7 +15,8 @@ import { formStateFromFlow } from '@/lib/label/fields';
 
 const mockMutation = jest.fn();
 jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Couldn’t save to the shared index right now' }));
-const mockVenueName = jest.fn();
+const mockVisitByDefault = jest.fn();
+const mockVisitForSave = jest.fn();
 let mockUuid = 0;
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
@@ -24,7 +25,8 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 const mockFlush = jest.fn();
 jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: () => mockFlush() }));
-jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: (id: string) => mockVenueName(id) }));
+jest.mock('@/lib/venue/use-venue', () => ({ visitByDefault: (...args: unknown[]) => mockVisitByDefault(...args), visitForSave: (...args: unknown[]) => mockVisitForSave(...args) }));
+jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async (id: string) => id === 'museum-met' ? 'The Met' : undefined }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 
 const capture = {
@@ -58,7 +60,7 @@ it('does not share if saving fails or the capture moves to a different visit con
   await expect(saveResult({ capture, draft: draftFromCandidate(lilies), contribution })).rejects.toThrow('Review your added photos');
   expect(contributeLabel).not.toHaveBeenCalled();
   writePhotoDraft(capture.owner, capture.photoPath, []);
-  updatePhotoSession(capture.owner, capture.photoPath, { visitLocalId: null });
+  updatePhotoSession(capture.owner, capture.photoPath, { visit: { kind: 'none' } });
   const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
   expect(result.contribution).toBeUndefined();
   expect(contributeLabel).not.toHaveBeenCalled();
@@ -68,12 +70,20 @@ beforeAll(async () => {
   await upsertVisit({ visitedOn: '1970-01-01', timeZone: 'UTC', localId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', venueId: 'museum-met' as never, venueName: 'The Met', startedAt: 1 });
 });
 
+/** The visit `visitForSave` starts for a venue-only capture: the controller's row, as the app's would be. */
+const STARTED_VISIT = '2b1c7e0a-0d3f-4c6e-9a1b-5d7e8f9a0b1c';
+
 beforeEach(() => {
   for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, settings]) db.delete(table).run();
   jest.resetAllMocks();
   mockFlush.mockResolvedValue(undefined);
   mockMutation.mockResolvedValue({ collectionId: 'col-1', updatedAt: 20, updatedBy: 'device' });
-  mockVenueName.mockResolvedValue('Legion of Honor');
+  mockVisitByDefault.mockReturnValue(true);
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = { localId: STARTED_VISIT, venueId, venueName: 'Legion of Honor', startedAt: capturedAt, visitedOn: '1970-01-01', timeZone: 'UTC' };
+    await upsertVisit(visit);
+    return visit;
+  });
 });
 
 it('saves an untouched confident card locally and passes the suggestion to the server', async () => {
@@ -83,7 +93,7 @@ it('saves an untouched confident card locally and passes the suggestion to the s
   expect(row).toMatchObject({
     title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas', institution: 'Metropolitan Museum of Art',
     venueId: 'museum-met', venueName: 'The Met', visitLocalId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', gallery: 'Gallery 819',
-    objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.jpg',
+    objectId: lilies.objectId, artworkId: lilies.artworkId, scanId: SCAN_ID, photoPath: 'photos/c1.jpg', cropPath: 'crops/c1.preview.jpg',
   });
   await synced;
   expect(getFunctionName).toBeDefined();
@@ -104,15 +114,46 @@ it('keeps the suggestion when the title was edited so the server decides the con
   expect(mockMutation.mock.calls[0][1]).toMatchObject({ snapshot: { title: 'Nymphéas' }, suggested: { title: 'Water Lilies', artist: 'Claude Monet' } });
 });
 
-it('saves a chosen runner-up on a soft card without a suggestion and names the venue from the local table', async () => {
+it('starts the museum visit for a venue-only capture, dated by the shutter, and confirms the scan into it', async () => {
   const view = toResultViewState(softScan, { chosenObjectId: bridge.objectId });
-  const { localId, synced } = await saveResult({
-    scanId: SCAN_ID, capture: { ...capture, visitLocalId: null, visitId: null }, view, draft: draftFromCandidate(bridge),
-  });
+  const venueOnly = { ...capture, visitLocalId: null, visitId: null };
+  const { localId, synced, completion } = await saveResult({ scanId: SCAN_ID, capture: venueOnly, view, draft: draftFromCandidate(bridge) });
   await synced;
-  expect(await getSavedWork(localId)).toMatchObject({ title: 'The Japanese Footbridge', venueName: 'Legion of Honor', visitLocalId: null, gallery: null });
-  expect(mockVenueName).toHaveBeenCalledWith('museum-met');
-  expect(mockMutation.mock.calls[0][1]).toMatchObject({ objectId: bridge.objectId, visitLocalId: undefined, suggested: null });
+  expect(mockVisitByDefault).toHaveBeenCalledWith('museum-met', 1234);
+  expect(mockVisitForSave).toHaveBeenCalledWith('museum-met', 1234);
+  expect(await getSavedWork(localId)).toMatchObject({ title: 'The Japanese Footbridge', venueId: 'museum-met', venueName: 'Legion of Honor', visitLocalId: STARTED_VISIT, gallery: null });
+  expect(selectArtworkPhotos(localId).all()[0].visitLocalId).toBe(STARTED_VISIT);
+  expect(completion.visitLabel).toBe('Legion of Honor · 1 Jan 1970');
+  expect(mockMutation.mock.calls[0][1]).toMatchObject({ scanId: SCAN_ID, objectId: bridge.objectId, venueId: 'museum-met', visitLocalId: STARTED_VISIT, suggested: null });
+});
+
+it('saves a venue-only capture with no visit but its museum after the person ended the visit there today, still confirming the scan', async () => {
+  mockVisitByDefault.mockReturnValue(false);
+  const venueOnly = { ...capture, visitLocalId: null, visitId: null };
+  const { localId, synced, completion, contribution: shared } = await saveResult({ scanId: SCAN_ID, capture: venueOnly, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies), contribution });
+  await synced;
+  expect(mockVisitForSave).not.toHaveBeenCalled();
+  expect(await getSavedWork(localId)).toMatchObject({ visitLocalId: null, venueId: 'museum-met', venueName: 'The Met' });
+  expect(completion.visitLabel).toBe('No visit · Collection only');
+  expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: SCAN_ID, venueId: 'museum-met', visitLocalId: undefined, suggested: { title: 'Water Lilies', artist: 'Claude Monet' } }));
+  expect(shared).toBeDefined();
+});
+
+it('starts the visit when the draft chooses the museum, even after an ending there today', async () => {
+  mockVisitByDefault.mockReturnValue(false);
+  const venueOnly = { ...capture, visitLocalId: null, visitId: null };
+  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, { visit: { kind: 'venue', venueId: 'museum-met' as never } });
+  const { localId, synced } = await saveResult({ scanId: SCAN_ID, capture: venueOnly, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies) });
+  await synced;
+  expect(mockVisitForSave).toHaveBeenCalledWith('museum-met', 1234);
+  expect(await getSavedWork(localId)).toMatchObject({ visitLocalId: STARTED_VISIT, venueId: 'museum-met' });
+  expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: SCAN_ID, visitLocalId: STARTED_VISIT, suggested: { title: 'Water Lilies', artist: 'Claude Monet' } }));
+});
+
+it('does not start a visit when saving fails before the artwork is written', async () => {
+  writePhotoDraft(capture.owner, capture.photoPath, [{ localId: 'unconfirmed', path: 'different.jpg', capturedAt: 1235, kind: 'full', review: 'conflict' }]);
+  await expect(saveResult({ capture: { ...capture, visitLocalId: null, visitId: null }, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies) })).rejects.toThrow('Review your added photos before saving.');
+  expect(mockVisitForSave).not.toHaveBeenCalled();
 });
 
 it('saves a typed title on an unidentified card with no object', async () => {
@@ -200,7 +241,7 @@ it.each([{ visitLocalId: 'missing' }, { visitLocalId: '' }, { venueId: 'wrong-mu
 });
 
 it('tells the user to pick another visit when the chosen draft visit no longer exists', async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { visitLocalId: 'deleted-visit' });
+  updatePhotoSession(capture.owner, capture.photoPath, { visit: { kind: 'visit', localId: 'deleted-visit' } });
   const attempt = saveResult({ capture, draft: draftFromCandidate(lilies) });
   await expect(attempt).rejects.toThrow('Choose an available visit before saving.');
   expect(saveErrorMessage(await attempt.catch((cause: unknown) => cause))).toBe('Choose an available visit before saving.');
@@ -213,7 +254,7 @@ it('saves every new photo to the draft visit, preserving the capture date and ea
   const view = toResultViewState(confidentScan);
   const first = await saveResult({ capture, view, draft: draftFromCandidate(lilies) });
   const nextCapture = { ...capture, localId: 'next-capture', photoPath: 'next.jpg', cropPath: 'next-crop.jpg', capturedAt: 5678 };
-  updatePhotoSession(capture.owner, nextCapture.photoPath, { visitLocalId: 'eaebe816-f46f-5312-a657-f92d1af2cb76', photos: [{ localId: 'detail', path: 'detail.jpg', capturedAt: 5679, kind: 'detail' }] });
+  updatePhotoSession(capture.owner, nextCapture.photoPath, { visit: { kind: 'visit', localId: 'eaebe816-f46f-5312-a657-f92d1af2cb76' }, photos: [{ localId: 'detail', path: 'detail.jpg', capturedAt: 5679, kind: 'detail' }] });
   const next = await saveResult({ capture: nextCapture, view, draft: draftFromCandidate(lilies) });
   expect(next.localId).toBe(first.localId);
   expect(selectArtworkPhotos(first.localId).all()).toEqual(expect.arrayContaining([
@@ -225,7 +266,7 @@ it('saves every new photo to the draft visit, preserving the capture date and ea
 });
 
 it('can explicitly save a scan without its originally selected visit', async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { visitLocalId: null });
+  updatePhotoSession(capture.owner, capture.photoPath, { visit: { kind: 'none' } });
   const result = await saveResult({ scanId: SCAN_ID, capture, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies) });
   await result.synced;
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: undefined, suggested: null }));
@@ -236,8 +277,9 @@ it('can explicitly save a scan without its originally selected visit', async () 
 
 it('stops confirming a scan when saving a venue-only capture without its venue', async () => {
   const venueOnly = { ...capture, visitLocalId: null, visitId: null };
-  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, { visitLocalId: null });
+  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, { visit: { kind: 'none' } });
   const result = await saveResult({ scanId: SCAN_ID, capture: venueOnly, view: toResultViewState(confidentScan), draft: draftFromCandidate(lilies) });
+  expect(mockVisitForSave).not.toHaveBeenCalled();
   await result.synced;
   expect(mockMutation).toHaveBeenCalledWith('collections:saveToCollection', expect.objectContaining({ scanId: undefined, venueId: undefined, suggested: null }));
   expect(await getSavedWork(result.localId)).toMatchObject({ visitLocalId: null, venueId: null, venueName: null });

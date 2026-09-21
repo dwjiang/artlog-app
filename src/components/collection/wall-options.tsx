@@ -1,5 +1,5 @@
 import { Button, Column, Host, RNHostView, Text as NativeText } from '@expo/ui';
-import { accessibilityAddTraits, accessibilityLabel, background, buttonStyle, padding, frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityAddTraits, accessibilityLabel, background, buttonStyle, contentShape, frame, padding, shapes } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
@@ -16,7 +16,7 @@ function WallChoice({ label, selected, onPress, children, width = 68, disabled =
     <Button variant="text" onPress={onPress} disabled={disabled}
       style={{ paddingVertical: 4 }}
       modifiers={[buttonStyle('plain'), frame({ width: width * fontScale, minHeight: 72 }), accessibilityLabel(label), accessibilityAddTraits(selected ? ['isSelected'] : [])]}>
-      <Column spacing={7} alignment="center">
+      <Column spacing={7} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 72 }), contentShape(shapes.rectangle())]}>
         <RNHostView matchContents>
           <View pointerEvents="none" style={styles.preview}>{children}</View>
         </RNHostView>

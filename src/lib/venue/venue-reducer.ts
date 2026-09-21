@@ -6,7 +6,7 @@ import { CHOOSE_RADIUS_M, haversineMeters, type Coordinate, type VenueCandidate,
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
 
 export type SeededOption = { kind: 'seeded'; venueId: Id<'museums'>; name: string; distanceM?: number; website?: string; manual?: boolean };
-export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM: number; website?: string; city?: string; country?: string; category: string };
+export type PoiOption = { kind: 'poi'; name: string; lat: number; lng: number; distanceM?: number; website?: string; city?: string; country?: string; category: string };
 export type VenueOption = SeededOption | PoiOption;
 
 export function venueOptionKey(option: VenueOption): string {
@@ -79,10 +79,15 @@ export function needsFix(state: VenueState, now: number): boolean {
   return state.fix === undefined || now - state.fix.at >= FIX_MAX_AGE_MS;
 }
 
+/** The open visit while the phone is at its museum; undefined while it is paused elsewhere. */
+export function activeVisit(state: Pick<VenueState, 'venue' | 'visit'>): CurrentVisit | undefined {
+  return state.visit && state.visit.venueId === state.venue?.venueId ? state.visit : undefined;
+}
+
 /** What a scan sends: the resolved venue, plus the visit only when it is at that venue. */
 export function venueContext(state: VenueState): VenueContext {
   if (!state.venue) return {};
-  const visit = state.visit?.venueId === state.venue.venueId ? state.visit : undefined;
+  const visit = activeVisit(state);
   return {
     venueId: state.venue.venueId,
     ...(visit ? { visitLocalId: visit.localId } : {}),
@@ -139,7 +144,9 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       const selectedKey = venueOptionKey(event.replaces);
       const options = [event.option, ...state.options.filter((option) =>
         venueOptionKey(option) !== selectedKey && venueOptionKey(option) !== event.option.venueId)];
-      return { ...state, status: 'resolved', venue: event.option, options, dismissedNear: undefined, error: undefined };
+      // Confirming the museum ended by hand today says its visits are wanted again; saves there default to one.
+      const ended = state.ended?.venueId === event.option.venueId ? undefined : state.ended;
+      return { ...state, status: 'resolved', venue: event.option, options, dismissedNear: undefined, ended, error: undefined };
     }
     case 'visitStarted':
       return { ...state, visit: event.visit, ended: undefined };
@@ -147,7 +154,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       const visit = state.visit;
       if (visit?.localId !== event.localId) return state;
       const ended = event.manual ? { venueId: visit.venueId, visitedOn: visit.visitedOn, timeZone: visit.timeZone } : state.ended;
-      return { ...state, visit: undefined, ended, ...(state.venue?.manual ? { venue: undefined, status: 'none' as const } : {}) };
+      return { ...state, visit: undefined, ended, ...(state.venue?.manual && state.venue.venueId === visit.venueId ? { venue: undefined, status: 'none' as const } : {}) };
     }
     case 'remoteVisit':
       if (state.visit?.localId !== event.localId) return state;

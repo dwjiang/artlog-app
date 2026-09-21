@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { CollectionVisits } from './collection-visits';
@@ -34,10 +35,29 @@ it('keeps the search field mounted through too-short, unmatched and matched quer
   }
   expect(screen.getByText('Museum')).toBeOnTheScreen();
 });
+it('keeps the collection header and view controls mounted when switching between list and globe', async () => {
+  const mounted = jest.fn();
+  const unmounted = jest.fn();
+  function Header() {
+    useEffect(() => { mounted(); return unmounted; }, []);
+    return <View />;
+  }
+  const view = await render(<CollectionVisits {...props} header={<Header />} search="" />);
+  const globeButton = screen.getByRole('button', { name: 'Globe' });
+  for (const mode of ['globe', 'list', 'globe'] as const) {
+    mockMode = mode;
+    await view.rerender(<CollectionVisits {...props} header={<Header />} search="" />);
+    expect(screen.getByRole('button', { name: 'Globe' })).toBe(globeButton);
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+  }
+  expect(screen.getByText('Globe canvas')).toBeOnTheScreen();
+});
 it('shows loading instead of the globe until the view preference is read', async () => {
   mockMode = undefined;
   await render(<CollectionVisits {...props} search="" />);
-  expect(screen.getByText('Loading your visits…')).toHaveStyle({ textAlign: 'center' });
+  expect(screen.getByRole('progressbar', { name: 'Loading your visits…' })).toBeOnTheScreen();
+  expect(screen.queryByText('Loading your visits…')).toBeNull();
   expect(screen.queryByText('Globe canvas')).toBeNull();
   expect(screen.getByRole('button', { name: 'Globe' })).toBeDisabled();
 });
@@ -50,7 +70,7 @@ it('holds visits behind the loading state until their places are read', async ()
   expect(screen.queryByText(/1 museum/)).toBeNull();
   mockMode = 'globe';
   await view.rerender(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
-  expect(screen.getByText('Loading your visits…')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Loading your visits…' })).toBeOnTheScreen();
   expect(screen.queryByText('Globe canvas')).toBeNull();
   await view.rerender(<CollectionVisits {...props} visits={[visit]} search="" />);
   expect(screen.getByText('Globe canvas')).toBeOnTheScreen();

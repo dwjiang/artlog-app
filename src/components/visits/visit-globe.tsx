@@ -1,5 +1,5 @@
 import { Button, Host, Icon } from '@expo/ui';
-import { accessibilityLabel, strokeBorder } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -43,7 +43,7 @@ export function VisitGlobe({ visits, expanded = false, initialVenueId, onList }:
     <View style={{ marginTop: 8 }}>
       <GlobeCanvas ref={globe} pins={pins} initialPin={initialPin} height={expanded ? Math.min(width, 390) : 337} onSelect={setSelectedId}
         initialCamera={session.camera} onCameraChange={(camera) => session.update({ camera })} onCluster={setClusterIds} />
-      {!expanded && <View style={styles.expand}><GlobeButton label="Expand globe" icon="arrow.up.left.and.arrow.down.right" onPress={() => router.push({ pathname: '/visit-globe', params: { venueId: selected.venueId } })} /></View>}
+      {!expanded && <View style={styles.expand}><GlobeButton label="Expand globe" icon="arrow.up.left.and.arrow.down.right" onPress={() => { globe.current?.settle(); router.push({ pathname: '/visit-globe', params: { venueId: selected.venueId } }); }} /></View>}
     </View>
     <View style={styles.placeWrap}>
       <Pressable style={styles.placeCard} accessibilityRole="button" accessibilityLabel={`Explore visits to ${selected.venueName}`} onPress={() => {
@@ -76,7 +76,7 @@ function GlobeButton({ label, icon, onPress }: { label: string; icon: ComponentP
       // Stroke the rounded shape; a style border is square and loses its corners when clipped.
       strokeBorder({ color: Gallery.separator, shape: 'roundedRectangle', cornerRadius: GLOBE_BUTTON_RADIUS, style: { lineWidth: 1 } })]}
       style={{ width: 44, height: 44, borderRadius: GLOBE_BUTTON_RADIUS, backgroundColor: Gallery.paper }}>
-      <Icon name={icon} size={14} color={Gallery.accent} />
+      <Icon name={icon} size={14} color={Gallery.accent} modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]} />
     </Button>
   </Host>;
 }

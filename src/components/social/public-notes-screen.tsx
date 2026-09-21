@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
 import { GalleryButton } from '../collection/gallery-button';
@@ -37,11 +38,12 @@ export function PublicNotesScreen() {
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />
       : wall.loading || (!wall.acknowledged && !wall.error) ? <SocialState title="Opening your notes…" loading /> : null;
   if (gate) return <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}>{gate}</ScrollView>;
-  // The header keeps only direct Toolbar.Button children, so no fragments here.
+  // Toolbar items must be direct children so the native header can extract them.
   const toolbar = <Stack.Toolbar placement="right">
     {preview ? <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(false)}>Edit</Stack.Toolbar.Button>
       : <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(true)}>Preview</Stack.Toolbar.Button>}
-    {!preview && <Stack.Toolbar.Button variant="done" tintColor={Gallery.ink} disabled={wall.pending || !changes.length} onPress={() => { void save(); }}>{wall.pending ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>}
+    {!preview && (wall.pending ? <Stack.Toolbar.View><LoadingRing accessibilityLabel="Saving note choices…" style={{ width: 44, height: 44 }} /></Stack.Toolbar.View>
+      : <Stack.Toolbar.Button variant="done" tintColor={Gallery.ink} disabled={!changes.length} onPress={() => { void save(); }}>Save</Stack.Toolbar.Button>)}
   </Stack.Toolbar>;
   if (preview && wall.acknowledged) return <>{toolbar}
     <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingVertical: 20 }}>

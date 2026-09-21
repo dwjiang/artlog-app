@@ -11,17 +11,19 @@ const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
 const mockDelete = jest.fn();
-let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null = null;
+let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null | undefined = null;
 let mockReady = true;
 let mockBusy = false;
 let mockSessionStatus = 'ready';
+let mockOffline = false;
 const contribution = {
   contributionId: 'contribution-1', status: 'tentative', fields: { title: { value: 'Water Lilies' }, artist: { value: 'Claude Monet' } },
 };
 
 jest.mock('./leaderboard-preference', () => ({ LeaderboardPreference: () => null }));
-jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings' }) }));
+jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: mockSessionStatus, key: 'settings', offline: mockOffline }) }));
 jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({ data: mockAccount?.linked ? { name: 'Alex', username: 'alex' } : undefined }) }));
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: !mockOffline, isInternetReachable: !mockOffline }) }));
 jest.mock('@expo/ui');
 jest.mock('@expo/ui/swift-ui');
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
@@ -58,7 +60,7 @@ async function confirmDestructive() {
 }
 beforeEach(async () => {
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false; mockSessionStatus = 'ready';
+  jest.clearAllMocks(); mockAccount = null; mockReady = true; mockBusy = false; mockSessionStatus = 'ready'; mockOffline = false;
   mockWithdraw.mockResolvedValue(null);
 });
 
@@ -84,7 +86,7 @@ it('opens account management from the profile row', async () => {
 it('keeps privacy and About details accessible', async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(screen.getByText(/Coordinates never leave your phone/)).toBeOnTheScreen();
-  expect(screen.getByText(/Those features do not store the images/)).toBeOnTheScreen();
+  expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
   expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
   expect(screen.getByText('Your personal art journal.')).toBeOnTheScreen();
@@ -130,6 +132,17 @@ it('opens contextual sign-in while keeping the guest journal available', async (
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { context: 'account' } });
 });
 
+it('holds the account row behind a ghost only while the account can still load', async () => {
+  mockAccount = undefined;
+  const view = await render(<SettingsDetailScreen section="account" />);
+  expect(screen.getByRole('progressbar', { name: 'Loading account' })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Sign in to Artlog' })).toBeNull();
+  mockOffline = true;
+  await view.rerender(<SettingsDetailScreen section="account" />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Sign in to Artlog' })).toBeEnabled();
+});
+
 it('shows account details and controls without device counts or sync copy', async () => {
   mockAccount = { linked: true, deviceCount: 2, email: 'visitor@example.com' };
   await render(<SettingsDetailScreen section="account" />);
@@ -158,5 +171,13 @@ it('shows pending contributions before device registration completes', async () 
   mockReady = false;
   await setSetting('sharing-default', 'false');
   await render(<SettingsDetailScreen section="contributions" />);
-  expect(screen.getByText('Connecting…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Loading contributions…')).toBeOnTheScreen();
+});
+
+it('reports contributions as unavailable offline instead of loading indefinitely', async () => {
+  mockReady = false; mockOffline = true;
+  await render(<SettingsDetailScreen section="contributions" />);
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.getByText('Connect to see your contributions.')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Loading contributions…')).toBeNull();
 });

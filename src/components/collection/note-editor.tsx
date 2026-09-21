@@ -3,6 +3,7 @@ import { SavedWorkImage } from './saved-work-image';
 import { WallSheet } from './wall-sheet';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectSavedWork } from '@/db/repos/saved-works';
+import { ParagraphSkeleton } from '@/components/loading-skeleton';
 import { Image } from 'expo-image';
 import { Button, Host } from '@expo/ui/swift-ui';
 import { useEffect, useRef, useState } from 'react';
@@ -62,6 +63,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
   const [draft, setDraft] = useState<string>();
   const [savedText, setSavedText] = useState('');
   const [saveFailed, setSaveFailed] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [editing, setEditing] = useState(initiallyEditing);
   const latest = useRef<NoteDraft>(undefined);
 
@@ -76,7 +78,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
       note.text = note.saved = row?.text ?? '';
       latest.current = note;
       setDraft(note.text); setSavedText(note.saved);
-    }, (error: unknown) => console.warn('Note not loaded', error));
+    }, () => { if (active) setLoadFailed(true); });
     return () => {
       active = false;
       persist(note);
@@ -90,7 +92,9 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
         {editing ? <GalleryButton label="Done" accessibilityLabel="Done editing note" onPress={() => { persist(latest.current); setEditing(false); }} />
           : <GalleryButton label={draft ? 'Edit' : 'Add'} accessibilityLabel={draft ? 'Edit note' : 'Add note'} disabled={draft === undefined} onPress={() => setEditing(true)} />}
       </NoteHeading>
-      {editing && <WallSheet title="Notes" tall onDismiss={() => { persist(latest.current); setEditing(false); }}><ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
+      {loadFailed ? <ThemedText accessibilityRole="alert" themeColor="error">Your note could not load. Reopen this artwork to try again.</ThemedText>
+        : draft === undefined ? <ParagraphSkeleton label="Loading your note…" /> : null}
+      {editing && draft !== undefined && <WallSheet title="Notes" tall onDismiss={() => { persist(latest.current); setEditing(false); }}><ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingBottom: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator }}><SavedWorkImage path={work?.cropPath ?? null} title={work?.title ?? 'Artwork'} contain style={{ width: 44, height: 52 }} /><View style={{ flex: 1, gap: 3 }}><ThemedText variant="secondary" style={{ fontWeight: '600' }}>{work?.title}</ThemedText><ThemedText variant="metadata" themeColor="textSecondary">{work?.artist}</ThemedText></View></View>
         <ThemedText variant="metadata" themeColor="textSecondary" style={{ letterSpacing: 1 }}>WHAT STAYED WITH YOU?</ThemedText>
         <TextInput autoFocus
@@ -114,10 +118,10 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
         <ThemedText themeColor="textSecondary">{saveFailed ? 'Couldn’t save. Your draft is still here.' : draft === savedText ? 'Saved on this iPhone' : 'Saves when you close'}</ThemedText>
         {saveFailed && <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />}
       </ScrollView></WallSheet>}
-      <NotePaper label="A moment to keep">
+      {draft !== undefined && <NotePaper label="A moment to keep">
         {draft ? <ThemedText selectable style={styles.body}>{draft}</ThemedText>
           : <ThemedText themeColor="textSecondary" style={styles.body}>What stayed with you? Add a private note.</ThemedText>}
-      </NotePaper>
+      </NotePaper>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Image source={sharedOnWall ? 'sf:globe' : 'sf:lock'} tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
         <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>{sharedOnWall === true ? 'Shared on your public wall' : sharedOnWall === false || !owner.startsWith('account:') ? 'Only you' : 'Private unless shared on your wall'}</ThemedText>

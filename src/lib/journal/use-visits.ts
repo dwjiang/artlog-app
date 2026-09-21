@@ -12,6 +12,7 @@ export function useVisits() {
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const works = useLiveQuery(listSavedWorks(owner), [owner]);
   const { metadata, ready } = useVenueMetadata(visits.data.filter((visit) => visit.owner === owner).map((visit) => visit.venueId), owner);
+  const error = visits.error ?? works.error ?? encounters.error;
   return { owner, visits: visitSummaries(visits.data, works.data, metadata, owner, encounters.data),
-    loading: !visits.updatedAt || !works.updatedAt || !ready, error: visits.error ?? works.error };
+    loading: !error && (!visits.updatedAt || !works.updatedAt || !encounters.updatedAt || !ready), error };
 }

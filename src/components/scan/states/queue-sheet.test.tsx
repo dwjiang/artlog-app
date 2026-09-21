@@ -19,7 +19,7 @@ let mockError: Error | undefined;
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ dismiss: mockDismiss, push: mockPush, navigate: mockNavigate }) }));
 jest.mock('@/components/collection/gallery-button');
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock('@/lib/queue/queue', () => ({ retryPendingScan: (localId: string) => mockRetry(localId) }));
 jest.mock('@/lib/queue/use-queue', () => ({
   useQueue: () => ({ pending: mockItems.filter((row) => row.status !== 'failed').length, items: mockItems, loading: mockLoading, error: mockError }),
@@ -62,7 +62,7 @@ it('lists the waiting scans with their status, closes itself and opens the tappe
   await render(<QueueSheet />);
   expect(screen.getByText('Your scans')).toBeOnTheScreen();
   expect(screen.getByText('Waiting for signal')).toBeOnTheScreen();
-  expect(screen.getByText('Identifying…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Identifying…')).toBeOnTheScreen();
   expect(screen.getByText(RETRY_ROW)).toBeOnTheScreen();
   expect(screen.getByText(new RegExp(QUEUE_FOOTER.replace('.', '\\.')))).toBeOnTheScreen();
   expect(screen.queryByText(QUEUE_EMPTY)).toBeNull();
@@ -123,8 +123,8 @@ it('blocks duplicate retries and preserves the photo when a retry fails', async 
   mockRetry.mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail; }));
   await render(<QueueSheet />);
   await fireEvent.press(screen.getByRole('button', { name: RETRY_ROW }));
-  const pending = screen.getByRole('button', { name: 'Retrying scan…' });
-  expect(screen.getByText('Retrying…')).toBeOnTheScreen();
+  const pending = screen.getByRole('button', { name: RETRY_ROW });
+  expect(screen.getByLabelText('Retrying…')).toBeOnTheScreen();
   expect(pending).toBeDisabled();
   await fireEvent.press(pending);
   expect(mockRetry).toHaveBeenCalledTimes(1);

@@ -31,7 +31,7 @@ export interface OrbExtractor {
 }
 
 export type IdentifyResponse = FunctionReturnType<typeof api.identify.identify>;
-export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, 'scope'> & { owner: string; scope?: string; photoUri: string; cropUri: string; visitLocalId?: string };
+export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, 'scope'> & { owner: string; scope?: string; photoUri: string; cropUri: string; contentBounds: CropContentBounds; visitLocalId?: string };
 export type CaptureInput = Pick<CapturePayload, 'capturedAt' | 'venueId' | 'visitId' | 'visitLocalId'> & {
   photoUri: string;
   quad: Quad | null;

@@ -16,8 +16,8 @@ it('holds the app until migrations finish', async () => {
   mockState.error = undefined;
   await renderGate();
   expect(screen.queryByText('App ready')).toBeNull();
-  expect(screen.getByText('Opening your collection…')).toBeOnTheScreen();
-  expect(screen.getByText('Opening your collection…')).toHaveStyle({ textAlign: 'center' });
+  expect(screen.getByRole('progressbar', { name: 'Opening your collection' })).toBeOnTheScreen();
+  expect(screen.queryByText('Opening your collection…')).toBeNull();
 });
 
 it('renders the app once the store is migrated', async () => {

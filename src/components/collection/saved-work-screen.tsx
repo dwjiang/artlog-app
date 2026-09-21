@@ -1,3 +1,4 @@
+import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
@@ -57,6 +58,7 @@ function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; v
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
       <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
       {wall.signedIn && !work.syncedAt && <View style={{ padding: 14, gap: 12, backgroundColor: '#EEF2FF' }}><Text style={{ fontSize: 14, lineHeight: 21 }}>Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.</Text><Text variant="metadata">On your wall · Waiting for sync</Text><GalleryButton label="Keep exploring" onPress={() => router.back()} /></View>}
+      <GalleryButton label="Adjust crop" icon="crop" onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: work.localId } })} />
       <Divider />
       <ArtworkEncounterList work={work} encounters={encounters} loading={loadingEncounters} loadError={encounterError} visitId={currentEncounter?.visit.localId} />
       <Divider />
@@ -80,7 +82,7 @@ function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; v
       </>}
       {wall.error && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{wall.error}</Text>
         <GalleryButton label="Retry" disabled={wall.pending} onPress={() => { if (wall.layoutDraft) void saveLayout(); else void wall.refresh(); }} /></View>}
-      {wall.pending && <Text accessibilityLiveRegion="polite" style={styles.caption}>Saving wall changes…</Text>}
+      {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
     </View>
   </ScrollView>;
 }

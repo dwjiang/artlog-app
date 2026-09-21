@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { VisitSummary } from '@/lib/journal/visit-summaries';
 import { VisitGlobe } from './visit-globe';
-const mockPush = jest.fn(), mockDismissTo = jest.fn(), mockFocus = jest.fn();
+const mockPush = jest.fn(), mockDismissTo = jest.fn(), mockFocus = jest.fn(), mockReset = jest.fn(), mockZoom = jest.fn(), mockSettle = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args), dismissTo: (...args: unknown[]) => mockDismissTo(...args) } }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title }: { title: string }) => {
   const { Text } = jest.requireActual('react-native'); return <Text accessibilityRole="image">{title}</Text>;
@@ -11,7 +11,7 @@ jest.mock('./globe-canvas', () => {
   const React = jest.requireActual('react');
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return { GlobeCanvas: React.forwardRef(function MockGlobe({ pins, onSelect }: { pins: { id: string; label: string }[]; onSelect: (id: string) => void }, ref: unknown) {
-    React.useImperativeHandle(ref, () => ({ focus: mockFocus }));
+    React.useImperativeHandle(ref, () => ({ focus: mockFocus, reset: mockReset, zoom: mockZoom, settle: mockSettle }));
     return <View>{pins.map((pin) => <Pressable accessibilityRole="button" key={pin.id} onPress={() => onSelect(pin.id)}><Text>Pin: {pin.id}</Text></Pressable>)}</View>;
   }) };
 });
@@ -32,6 +32,13 @@ it('offers a larger globe while keeping the selected museum visible', async () =
   await fireEvent.press(screen.getByRole('button', { name: 'Expand globe' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-globe', params: { venueId: 'Met' } });
   expect(screen.getByRole('button', { name: 'Explore visits to Met' })).toBeOnTheScreen();
+});
+it('settles the globe before opening the expanded view so it starts from the live camera', async () => {
+  await render(<VisitGlobe visits={[visit('1', 'Met', 'New York')]} onList={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Expand globe' }));
+  expect(mockSettle).toHaveBeenCalledTimes(1);
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/visit-globe', params: { venueId: 'Met' } });
+  expect(mockSettle.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
 });
 it('keeps visits without coordinates available through List', async () => {
   const onList = jest.fn();

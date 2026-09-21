@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { VisitBar } from './visit-bar';
 import type { VenueView } from '@/lib/venue/use-venue';
 
 const mockPush = jest.fn();
+let mockLoading = false;
 const mockEnd = jest.fn();
 let mockVisit: VenueView['visit'];
 let mockWorks: { localId: string; title: string; cropPath: string | null }[] = [];
@@ -12,11 +13,11 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({ visit: mockVisit, end: mockEnd }) }));
 jest.mock('@/lib/account/owner-store', () => ({ useLocalOwner: () => 'device:test' }));
 jest.mock('@/lib/account/photo-sync', () => ({ cropSyncing: () => false }));
-jest.mock('@/lib/journal/use-visit-works', () => ({ useVisitWorks: (visitLocalId?: string) => visitLocalId ? mockWorks : [] }));
+jest.mock('@/lib/journal/use-visit-works', () => ({ useVisitWorks: (visitLocalId?: string) => ({ works: visitLocalId ? mockWorks : [], loading: mockLoading }) }));
 jest.mock('../collection/saved-work-image', () => ({ SavedWorkImage: ({ title }: { title: string }) => { const { Text } = jest.requireActual('react-native'); return <Text>{title} cover</Text>; } }));
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.clearAllMocks(); mockLoading = false;
   mockEnd.mockResolvedValue(undefined);
   mockVisit = { localId: 'visit-1', venueId: 'id-legion' as never, venueName: 'Legion of Honor', startedAt: 1, visitedOn: '2026-09-18', timeZone: 'America/Los_Angeles' };
   mockWorks = [{ localId: 'a', title: 'Water Lilies', cropPath: 'a.jpg' }, { localId: 'b', title: 'Irises', cropPath: null }];
@@ -29,14 +30,11 @@ it('names the open visit with its artwork count and opens its detail', async () 
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
 });
 
-it('ends the visit from the bar and opens its detail', async () => {
-  let finish!: () => void;
-  mockEnd.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+it('opens the end-visit review without ending the visit', async () => {
   await render(<VisitBar />);
   await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(screen.getByRole('button', { name: 'End visit' })).toBeBusy();
-  await act(async () => { finish(); });
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
+  expect(mockEnd).not.toHaveBeenCalled();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1', endVisit: 'true' } });
 });
 
 it('renders nothing without an open visit', async () => {
@@ -45,13 +43,12 @@ it('renders nothing without an open visit', async () => {
   expect(screen.queryByRole('button')).toBeNull();
 });
 
-it('keeps the visit available and offers another attempt if ending fails', async () => {
-  mockEnd.mockRejectedValueOnce(new Error('Could not save'));
-  await render(<VisitBar />);
-  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t end visit. Try again.');
-  expect(mockPush).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole('button', { name: 'End visit' }));
-  expect(mockEnd).toHaveBeenCalledTimes(2);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/journal/[visitId]', params: { visitId: 'visit-1' } });
+it('does not report zero artworks before the initial read completes', async () => {
+  mockWorks = []; mockLoading = true;
+  const view = await render(<VisitBar />);
+  expect(screen.getByLabelText('Loading visit artwork count')).toBeOnTheScreen();
+  expect(screen.queryByText(/0 artworks/)).toBeNull();
+  mockLoading = false;
+  await view.rerender(<VisitBar />);
+  expect(screen.getByText('Visiting now · 0 artworks saved')).toBeOnTheScreen();
 });

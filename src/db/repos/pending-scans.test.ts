@@ -88,7 +88,7 @@ it('counts attempts, gives up at the limit, and lets a manual retry start over',
   expect((await repo.pendingScansQuery()).map((entry) => entry.status)).toEqual(['failed']);
   await repo.retryPendingScan('a');
   expect(await repo.getPendingScan('a')).toMatchObject({ status: 'queued', attempts: 0, lastError: null });
-  await expect(repo.recordAttemptFailure('missing', 'x', { countAttempt: true })).rejects.toThrow('missing');
+  await expect(repo.recordAttemptFailure('missing', 'x', { countAttempt: true })).resolves.toEqual({ status: 'failed', attempts: 0 });
   await repo.deletePendingScan('a');
 });
 

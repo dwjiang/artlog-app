@@ -130,7 +130,7 @@ it('removes a note when the field is cleared', async () => {
   await fireEvent.changeText(input, '  \n ');
   await fireEvent(input, 'blur');
   await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBeNull());
-  expect(screen.getByPlaceholderText('What stayed with you?')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Notes')).toHaveProp('placeholder', 'What stayed with you?');
 });
 
 it('keeps a failed draft visible and retries without more typing', async () => {
@@ -171,4 +171,21 @@ it('accepts synced notes when idle and keeps an unsaved local draft during a ref
   expect(input).toHaveProp('value', 'Local draft');
   await fireEvent(input, 'blur');
   await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe('Local draft'));
+});
+
+it('keeps end-visit notes unsaved through pauses, blur, backgrounding and dismissal', async () => {
+  let changeState!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, callback) => {
+    changeState = callback; return { remove: jest.fn() };
+  });
+  const save = jest.spyOn(visits, 'patchVisit');
+  const view = await render(<VisitNotes visit={{ ...draft, owner: anonymousOwner(), reflection: null }} autoSave={false} />);
+  jest.useFakeTimers();
+  await fireEvent.changeText(screen.getByLabelText('Notes'), 'Unsaved review');
+  await act(() => jest.advanceTimersByTime(1000));
+  await fireEvent(screen.getByLabelText('Notes'), 'blur');
+  await act(() => changeState?.('background'));
+  await view.unmount();
+  expect(save).not.toHaveBeenCalled();
+  expect((await visits.getVisit(localId))?.reflection).toBeNull();
 });

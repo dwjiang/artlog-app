@@ -6,23 +6,25 @@ import { getVisit, listVisits } from '@/db/repos/visits';
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
 import { pickerDate } from '@/lib/journal/visit-date';
 import { VisitCreateScreen } from './visit-form-screens';
-const mockBack = jest.fn(), mockDismissTo = jest.fn();
+const mockBack = jest.fn(), mockDismissTo = jest.fn(), mockSearchByName = jest.fn(), mockConfirmPlace = jest.fn();
 let mockSavedId: string | undefined;
 const mockVenue = { id: 'museum', name: 'Museum of Art', city: 'New York', lat: 40.78, lng: -73.96, country: 'US', region: 'new-york' };
 const mockIsland = { id: 'island', name: 'Island Museum', lat: -19.05, lng: -169.92, region: 'country:NU' };
 jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('node:crypto').randomUUID() }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/lib/venue/search-venues', () => ({ MUSEUM_SEARCH_LIMIT: 30, searchVenues: async () => [mockVenue, mockIsland] }));
+jest.mock('@/lib/venue/search-venues', () => ({ MUSEUM_SEARCH_LIMIT: 30, searchVenues: async (query: string) => /^fr/i.test(query) ? [] : [mockVenue, mockIsland] }));
+jest.mock('../../../modules/poi-search/src', () => ({ getPoiSearch: () => ({ searchByName: (...args: unknown[]) => mockSearchByName(...args) }) }));
+jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 } }), confirmPlace: (...args: unknown[]) => mockConfirmPlace(...args) }));
 jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [mockVenue], onVenueMetadataChange: () => () => {} }));
 jest.mock('@expo/ui/swift-ui', () => jest.requireActual('../../../__mocks__/@expo/ui/swift-ui'));
 jest.mock('expo-router', () => {
   const { Pressable, Text, View } = jest.requireActual('react-native');
   return { router: { back: () => mockBack(), dismissTo: (...args: unknown[]) => mockDismissTo(...args) }, useLocalSearchParams: () => ({ savedId: mockSavedId }), Stack: {
-    Toolbar: Object.assign(View, { Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) =>
+    Toolbar: Object.assign(View, { View, Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) =>
       <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable> }),
   } };
 });
-beforeEach(() => { mockSavedId = undefined; mockBack.mockClear(); mockDismissTo.mockClear(); switchOwner(anonymousOwner(), 'scope-form'); });
+beforeEach(() => { mockSavedId = undefined; mockBack.mockClear(); mockDismissTo.mockClear(); mockSearchByName.mockReset().mockResolvedValue([]); mockConfirmPlace.mockReset(); switchOwner(anonymousOwner(), 'scope-form'); });
 afterEach(() => jest.restoreAllMocks());
 async function fill() {
   await fireEvent.changeText(screen.getByLabelText('Search museums'), 'museum');
@@ -85,4 +87,59 @@ it('cancels a pending linked visit without creating a visit or encounter', async
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(await listVisits()).toHaveLength(before);
   expect(selectArtworkEncounters().all().some((entry) => entry.savedLocalId === mockSavedId)).toBe(false);
+});
+
+describe('a museum our table does not know', () => {
+  const place = { name: 'Fraenkel Gallery', lat: 37.79, lng: -122.4, category: 'store', city: 'San Francisco', country: 'US', distanceMeters: 1200 };
+  const row = { id: 'id-fraenkel', key: 'poi:1', name: 'Fraenkel Gallery', lat: 37.79, lng: -122.4, website: null, region: 'country:US', city: 'San Francisco', cityKey: null, country: 'US' };
+
+  it('falls back to Apple Maps near the last fix and adds the chosen place as the museum for this visit', async () => {
+    mockSearchByName.mockResolvedValue([place]);
+    mockConfirmPlace.mockResolvedValue(row);
+    await render(<VisitCreateScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'fraenkel');
+    expect(await screen.findByRole('header', { name: 'From Apple Maps' })).toBeOnTheScreen();
+    expect(mockSearchByName).toHaveBeenCalledWith('fraenkel', 37.77, -122.42);
+    await fireEvent.press(screen.getByRole('button', { name: 'Fraenkel Gallery, San Francisco, United States' }));
+    await waitFor(() => expect(mockConfirmPlace).toHaveBeenCalledWith(expect.objectContaining({ kind: 'poi', name: 'Fraenkel Gallery', lat: 37.79, lng: -122.4, city: 'San Francisco', country: 'US' }), expect.any(Function)));
+    expect(await screen.findByRole('button', { name: 'Change museum' })).toBeOnTheScreen();
+    expect(screen.getByText('Fraenkel Gallery')).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Visit date'), '2024-02-29T12:00:00');
+    await fireEvent.press(screen.getByRole('button', { name: 'Add visit' }));
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+    expect((await listVisits()).find((row) => row.venueId === 'id-fraenkel')).toMatchObject({ venueName: 'Fraenkel Gallery', visitedOn: '2024-02-29', timeZone: 'America/Los_Angeles' });
+  });
+
+  it('does not ask Apple Maps while our table has matches or the name is too short', async () => {
+    await render(<VisitCreateScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'museum');
+    await screen.findByRole('button', { name: 'Museum of Art, New York, United States' });
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'fr');
+    expect(await screen.findByText('No museums found.')).toBeOnTheScreen();
+    expect(screen.getByText('Type more of the name to search Apple Maps too.')).toBeOnTheScreen();
+    expect(mockSearchByName).not.toHaveBeenCalled();
+  });
+
+  it('offers a retry when Apple Maps fails, naming Apple Maps rather than the table that answered', async () => {
+    mockSearchByName.mockRejectedValueOnce(new Error('offline')).mockResolvedValue([place]);
+    await render(<VisitCreateScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'fraenkel');
+    expect(await screen.findByText('Apple Maps could not be reached. Try again.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: 'Fraenkel Gallery, San Francisco, United States' })).toBeOnTheScreen();
+  });
+
+  it('keeps the search open when Apple Maps has nothing or the museum cannot be added', async () => {
+    await render(<VisitCreateScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'fraenkel');
+    expect(await screen.findByText('No museums found.')).toBeOnTheScreen();
+    expect(screen.queryByRole('header', { name: 'From Apple Maps' })).toBeNull();
+    mockSearchByName.mockResolvedValue([place]);
+    mockConfirmPlace.mockRejectedValue(new Error('offline'));
+    await fireEvent.changeText(screen.getByLabelText('Search museums'), 'fraenkel gallery');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Fraenkel Gallery, San Francisco, United States' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/This museum could not be added\./);
+    expect(screen.getByLabelText('Search museums')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Add visit' })).toBeDisabled();
+  });
 });

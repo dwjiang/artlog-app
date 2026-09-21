@@ -38,7 +38,7 @@ async function startWorker() {
 
 jest.mock('@/db/repos/pending-scans', () => mockRepo);
 jest.mock('@/lib/venue/visit-sync', () => ({ resolveScanVisit: (...args: unknown[]) => mockResolveVisit(...args) }));
-jest.mock('@/lib/files/photos', () => ({
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'),
   persistCapture: (...args: unknown[]) => mockPersist(...args),
   captureFileUri: (path: string) => `${mockDocumentsUri}/${path}`,
 }));
@@ -68,7 +68,7 @@ const { runCapture } = jest.requireActual<typeof import('../capture/pipeline')>(
 
 const scanId = 'scan-1' as Id<'scans'>;
 const payload: CapturePayload = {
-  owner: 'device:test-installation', scope: 'test-scope',
+  owner: 'device:test-installation', scope: 'test-scope', contentBounds: { x: 0, y: 64, width: 512, height: 384 },
   localId: 'cap-1', vector: [0.5], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(2), modelVersion: model.modelVersion,
   venueId: 'museum-1' as Id<'museums'>, visitLocalId: 'local-visit', capturedAt: 123, photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg',
 };
@@ -87,7 +87,7 @@ afterEach(() => { stopWorker?.(); stopWorker = undefined; jest.restoreAllMocks()
 
 it('persists both files before inserting the row with the requested status', async () => {
   await captureStore.enqueue(payload, 'identifying');
-  expect(mockPersist).toHaveBeenCalledWith({ localId: 'cap-1', photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg' });
+  expect(mockPersist).toHaveBeenCalledWith({ localId: 'cap-1', photoUri: 'file:///tmp/photo.jpg', cropUri: 'file:///caches/crops/x.jpg', contentBounds: payload.contentBounds });
   expect(mockRepo.enqueuePendingScan).toHaveBeenCalledWith({
     localId: 'cap-1', photoPath: 'photos/cap-1.jpg', cropPath: 'crops/cap-1.jpg',
     vector: [0.5], descriptors: payload.descriptors, keypoints: payload.keypoints, modelVersion: model.modelVersion,
@@ -239,5 +239,8 @@ it('does not enqueue into the old owner after file persistence crosses an accoun
   try {
     await expect(captureStore.enqueue(payload, 'queued')).rejects.toThrow('Journal owner changed');
     expect(mockRepo.enqueuePendingScan).not.toHaveBeenCalled();
+    expect(jest.mocked(jest.requireMock('@/lib/label/crop').removeFile).mock.calls).toEqual([
+      ['file:///documents/photos/new.jpg'], ['file:///documents/crops/new.jpg'], ['file:///documents/crops/new.preview.jpg'],
+    ]);
   } finally { switchOwner(payload.owner, payload.scope); }
 });

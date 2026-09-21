@@ -27,7 +27,7 @@ beforeEach(async () => {
 
 it('finishes the batch when one photo transfer fails, then rethrows so the queue retries', async () => {
   db.insert(artworkPhotos).values([photo('broken', { path: 'gone.jpg' }), photo('fine', { path: 'fine.jpg' }), photo('remote', { storageId: 'cloud' as Id<'_storage'> })]).run();
-  mockUpload.mockImplementation(async (_token, _scope, _saveId, _kind, path) => { if (path === 'gone.jpg') throw new Error('missing file'); return 'uploaded'; });
+  mockUpload.mockImplementation(async (_token, _scope, _saveId, _kind, path) => { if (path === 'gone.jpg') throw new Error('missing file'); return { storageId: 'uploaded', photoUpdatedAt: 0 }; });
   mockDownload.mockResolvedValue('collection-photos/remote.jpg');
   await expect(syncArtworkAlbums(context, 'token', () => true)).rejects.toThrow('missing file');
   const rows = Object.fromEntries(selectArtworkPhotos('work').all().map((row) => [row.localId, row]));

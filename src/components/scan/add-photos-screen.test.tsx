@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { AddPhotosScreen } from './add-photos-screen';
 import { CaptureContextScreen } from './capture-context-screen';
@@ -34,14 +34,22 @@ jest.mock('../collection/gallery-button', () => ({ GalleryButton: ({ label, disa
 jest.mock('@/lib/capture/check-album-photo', () => ({ checkAlbumPhoto: jest.fn() }));
 jest.mock('@/lib/label/contribute', () => ({ contributeLabel: jest.fn(), contributionErrorMessage: () => 'Index save failed' }));
 jest.mock('@/lib/account/photo-transfer', () => ({ removePhotoFile: jest.fn() }));
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock('@/lib/files/photos', () => ({ ...jest.requireActual('@/lib/files/photos'), captureFileUri: (path: string) => `file:///${path}` }));
 jest.mock('@/lib/account/collection-sync', () => ({ flushJournal: async () => {} }));
-jest.mock('@/lib/venue/venue-db', () => ({ venueNameById: async () => undefined }));
+jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async (ids: string[]) => ids[0] === 'museum-met' ? [{ id: 'museum-met', key: 'k', name: 'The Met', lat: 40.78, lng: -73.96, website: null, region: 'new-york' }] : [] }));
+// A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
+const mockVisitForSave = jest.fn();
+jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({ visit: undefined }), visitByDefault: () => true, visitForSave: (...args: unknown[]) => mockVisitForSave(...args) }));
 jest.mock('@/lib/convex-client', () => ({ convex: { mutation: async () => ({ collectionId: 'remote', updatedAt: 1, updatedBy: 'device' }) } }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'saved-new' }));
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = { localId: '3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f', venueId, venueName: 'The Met', startedAt: capturedAt, visitedOn: '1970-01-01', timeZone: 'UTC' };
+    await upsertVisit(visit);
+    return visit;
+  });
   for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, pendingScans, visits, settings]) db.delete(table).run();
   AppState.currentState = 'active';
   mockParams = { draftId: 'saved-artwork', savedId: 'artwork', title: 'Water Lilies', visitId: 'aea0b816-f46f-5312-a657-f92d1af2cb76' };
@@ -54,12 +62,12 @@ beforeEach(async () => {
 it('retains an edited visit after leaving the session and saves only new photos to it', async () => {
   const capture = await render(<AddPhotosScreen />);
   await fireEvent.press(await screen.findByRole('button', { name: 'The Met · 1 Sep 2026 · Change' }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/capture-context', params: { draftId: 'saved-artwork', visitId: 'aea0b816-f46f-5312-a657-f92d1af2cb76' } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/capture-context', params: { draftId: 'saved-artwork', visitId: 'aea0b816-f46f-5312-a657-f92d1af2cb76', capturedAt: expect.any(String) } });
   await capture.unmount();
   const context = await render(<CaptureContextScreen />);
   expect(await screen.findByRole('button', { name: 'The Met · 1 Sep 2026', selected: true })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole('button', { name: 'Other museum · 2 Sep 2026' }));
-  expect(readPhotoSession(owner, 'saved-artwork').visitLocalId).toBe('eaebe816-f46f-5312-a657-f92d1af2cb76');
+  expect(readPhotoSession(owner, 'saved-artwork').visit).toEqual({ kind: 'visit', localId: 'eaebe816-f46f-5312-a657-f92d1af2cb76' });
   await context.unmount();
   await render(<AddPhotosScreen />);
   expect(await screen.findByRole('button', { name: 'Other museum · 2 Sep 2026 · Change' })).toBeOnTheScreen();
@@ -79,7 +87,7 @@ it('saves an unsaved artwork and every added photo directly from the session', a
   await enqueuePendingScan({ localId: 'capture', photoPath: 'capture.jpg', cropPath: 'crop.jpg', capturedAt: 1, status: 'queued', modelVersion: 'm', attemptModelVersion: 'm', vector: [], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), createdAt: 1 });
   const capture = (await getPendingScan('capture'))!;
   mockParams = { draftId: capture.photoPath, title: 'My edited title' };
-  updatePhotoSession(owner, capture.photoPath, { visitLocalId: 'eaebe816-f46f-5312-a657-f92d1af2cb76', saveInput: { capture, draft: { ...draftFromCandidate(), title: 'My edited title' } }, photos: [{ localId: 'extra', path: 'extra.jpg', kind: 'detail', capturedAt: 2 }] });
+  updatePhotoSession(owner, capture.photoPath, { visit: { kind: 'visit', localId: 'eaebe816-f46f-5312-a657-f92d1af2cb76' }, saveInput: { capture, draft: { ...draftFromCandidate(), title: 'My edited title' } }, photos: [{ localId: 'extra', path: 'extra.jpg', kind: 'detail', capturedAt: 2 }] });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Save 2 photos' }));
   expect(await screen.findByText('My edited title')).toBeOnTheScreen();
@@ -94,7 +102,7 @@ it('saves an unsaved artwork and every added photo directly from the session', a
 });
 
 it('names a chosen visit that has since been deleted instead of calling it the current visit', async () => {
-  updatePhotoSession(owner, mockParams.draftId, { visitLocalId: 'deleted-visit', photos: [{ localId: 'detail', path: 'detail.jpg', kind: 'detail', capturedAt: 2 }] });
+  updatePhotoSession(owner, mockParams.draftId, { visit: { kind: 'visit', localId: 'deleted-visit' }, photos: [{ localId: 'detail', path: 'detail.jpg', kind: 'detail', capturedAt: 2 }] });
   await render(<AddPhotosScreen />);
   expect(await screen.findByRole('button', { name: 'Visit unavailable · Change' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Save 1 photo' }));
@@ -123,6 +131,24 @@ it('reloads scan bytes from storage for automatic sharing and retries without sa
   await fireEvent.press(screen.getByRole('button', { name: 'Retry saving to the shared index' }));
   expect(await screen.findByText('An artwork crop was saved to the shared index. Your wall and shared visits haven’t changed.')).toBeOnTheScreen();
   expect(selectArtworkPhotos('saved-new').all()).toHaveLength(1);
+  // The capture was scanned at the Met with no visit yet: the save started one.
+  expect(selectArtworkPhotos('saved-new').all()[0].visitLocalId).toBe('3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f');
+});
+
+it('saves a conflicting photo as its own artwork in the museum visit the context chip names, dated by the scan rather than the photo', async () => {
+  await enqueuePendingScan({ localId: 'capture', photoPath: 'capture.jpg', cropPath: 'crop.jpg', capturedAt: 1, status: 'queued', venueId: 'museum-met' as never,
+    modelVersion: 'm', attemptModelVersion: 'm', vector: [], descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), createdAt: 1 });
+  const capture = (await getPendingScan('capture'))!;
+  mockParams = { draftId: capture.photoPath, title: 'Water Lilies' };
+  updatePhotoSession(owner, capture.photoPath, { saveInput: { capture, draft: { ...draftFromCandidate(), title: 'Water Lilies' } },
+    photos: [{ localId: 'other', path: 'other.jpg', kind: 'full', capturedAt: 7, review: 'conflict' }] });
+  await render(<AddPhotosScreen />);
+  expect(await screen.findByRole('button', { name: 'The Met · 31 Dec 1969 · Change' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Save as a separate artwork' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Save as a separate artwork' })).toBeNull());
+  expect(mockVisitForSave).toHaveBeenCalledWith('museum-met', 1);
+  expect(await getSavedWork('saved-new')).toMatchObject({ title: 'Unidentified artwork', savedAt: 7, visitLocalId: '3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f', venueId: 'museum-met', venueName: 'The Met' });
+  expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
 });
 
 it('keeps unresolved photos in the draft until the owner explicitly confirms them', async () => {

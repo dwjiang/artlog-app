@@ -17,7 +17,7 @@ let mockMessage: string | undefined;
 let mockPresentation: { attempt: { id: string } } | undefined;
 let mockPending = 0;
 let mockVenueView: VenueView;
-let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onError: () => void };
+let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onStopped: () => void; onError: () => void };
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
@@ -91,6 +91,7 @@ jest.mock('./capture-reveal', () => ({ CaptureReveal: () => { const { View } = j
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
   jest.spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled').mockResolvedValue(false);
   jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockFocused = true;
@@ -181,13 +182,30 @@ it('hides camera startup errors while an imported photo is processing or needs a
   mockState = { phase: 'processing', occupied: true, source: 'library' };
   await view.rerender(<ScanScreen />);
   expect(screen.queryByText('Could not start the camera. You can import a photo.')).toBeNull();
-  expect(screen.getByText('Preparing painting…')).toBeOnTheScreen();
+  expect(screen.getByLabelText('Preparing painting…')).toBeOnTheScreen();
 
   mockState = { phase: 'retry', occupied: false, source: 'library' };
   mockMessage = 'Fit all corners';
   await view.rerender(<ScanScreen />);
   expect(screen.queryByText('Could not start the camera. You can import a photo.')).toBeNull();
   expect(screen.getByRole('alert')).toHaveTextContent('Fit all corners');
+  expect(screen.getByRole('button', { name: 'Choose another photo' })).toBeEnabled();
+});
+
+it('shows camera startup progress only while the camera is meant to run', async () => {
+  const view = await render(<ScanScreen />);
+  expect(mockCameraProps.isActive).toBe(true);
+  expect(screen.getByLabelText('Starting camera…')).toBeOnTheScreen();
+  await act(() => mockCameraProps.onStarted());
+  expect(screen.queryByLabelText('Starting camera…')).toBeNull();
+
+  mockState = { phase: 'processing', occupied: true, source: 'library' };
+  await view.rerender(<ScanScreen />);
+  await act(() => mockCameraProps.onStopped());
+  mockState = { phase: 'retry', occupied: false, source: 'library' };
+  await view.rerender(<ScanScreen />);
+  expect(mockCameraProps.isActive).toBe(false);
+  expect(screen.queryByLabelText('Starting camera…')).toBeNull();
   expect(screen.getByRole('button', { name: 'Choose another photo' })).toBeEnabled();
 });
 
@@ -225,7 +243,7 @@ it.each(['processing', 'revealing', 'result'] as const)('pauses scanning and imp
   expect(mockDetectorActive.at(-1)).toBe(false);
   expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
-  if (phase === 'revealing') expect(screen.getByText('Recognizing artwork…')).toBeOnTheScreen();
+  if (phase === 'revealing') expect(screen.getByLabelText('Recognizing artwork…')).toBeOnTheScreen();
 });
 
 it('keeps import available after camera permission denial', async () => {

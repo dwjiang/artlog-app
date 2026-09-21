@@ -7,6 +7,7 @@ jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), useAct
 jest.mock('expo-router', () => {
   const { Pressable, Text } = jest.requireActual('react-native');
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
+  Toolbar.View = Toolbar;
   Toolbar.Button = function ToolbarButton({ children, onPress, disabled }: { children: string; onPress: () => void; disabled?: boolean }) {
     return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable>;
   };

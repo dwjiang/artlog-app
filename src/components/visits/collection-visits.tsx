@@ -12,7 +12,7 @@ import { GalleryButton } from '../collection/gallery-button';
 import { NativeSegmentedPicker } from '../collection/native-segmented-picker';
 import { VisitGlobe } from './visit-globe';
 import { VisitTimeline } from './visit-timeline';
-import { VisitMessage, VisitPrivacyNote, visitStyles as styles } from './visit-ui';
+import { VisitMessage, visitStyles as styles } from './visit-ui';
 import { ListSkeleton } from '@/components/loading-skeleton';
 import { CollectionEmptyState } from '@/components/guest/collection-empty-state';
 
@@ -41,9 +41,7 @@ export function CollectionVisits({ owner, visits, search, header, collectionCont
     ? <ListSkeleton label="Loading your visits…" rows={3} />
     : <VisitMessage loading>Loading your visits…</VisitMessage>;
   else if (mode === 'list' && !shown.length) message = <SearchEmptyState title="No visits found." detail={searchTerm(search) === null ? 'Enter between 2 and 100 characters to search.' : 'Try a museum, city, or date.'} onClear={clearSearch} />;
-  if (mode !== 'list') return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="on-drag" stickyHeaderIndices={fontScale < 1.5 ? [header ? 1 : 0] : undefined}
-    contentContainerStyle={{ paddingBottom: 30 }}>{header}{controls}{message ?? <VisitGlobe visits={visits} onList={() => changeMode('list')} />}<VisitPrivacyNote /></ScrollView>;
-  // One list container for every search state keeps the search field mounted while typing.
-  return <VisitTimeline visits={message ? [] : shown} header={header} controls={controls}
-    empty={message} />;
+  // Keep the native scroll view, header, and controls mounted across view changes.
+  return <VisitTimeline visits={mode === 'list' && !message ? shown : []} header={header} controls={controls} scrollResetKey={mode}
+    empty={message ?? (mode === 'globe' ? <VisitGlobe visits={visits} onList={() => changeMode('list')} /> : undefined)} />;
 }

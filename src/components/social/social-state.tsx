@@ -16,7 +16,7 @@ import { FeedSkeleton, ListSkeleton, VisitSkeleton } from '@/components/loading-
 export function SocialState({ title, detail, icon = 'rectangle.3.group', loading, action, onAction, secondaryAction, onSecondaryAction }: {
   title: string; detail?: string; icon?: string; loading?: boolean; secondaryAction?: string; onSecondaryAction?: () => void; action?: string; onAction?: () => void;
 }) {
-  if (loading) return <View style={socialStyles.state}><LoadingRing color={Gallery.accent} accessibilityLabel={title} /><Text style={socialStyles.title}>{title}</Text></View>;
+  if (loading) return <View style={socialStyles.state}><LoadingRing color={Gallery.accent} accessibilityLabel={title} /></View>;
   return <EmptyState title={title} detail={detail ?? ''} visual={<EmptySymbol name={icon} size={132} />}>
     {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
     {secondaryAction && onSecondaryAction && <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />}

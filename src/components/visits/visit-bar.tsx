@@ -1,5 +1,5 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,38 +11,23 @@ import { useVenue } from '@/lib/venue/use-venue';
 export function VisitBar() {
   const router = useRouter();
   const owner = useLocalOwner();
-  const { visit, end } = useVenue();
-  const works = useVisitWorks(visit?.localId, owner);
-  const [ending, setEnding] = useState(false);
-  const [error, setError] = useState<string>();
+  const { visit } = useVenue();
+  const { works, loading, error } = useVisitWorks(visit?.localId, owner);
   if (!visit) return null;
-  const count = `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}`;
+  const count = loading ? 'Loading artworks' : error ? 'Artwork count unavailable' : `${works.length} ${works.length === 1 ? 'artwork' : 'artworks'}`;
   const visitId = visit.localId;
-  async function endVisit() {
-    if (ending) return;
-    setEnding(true);
-    setError(undefined);
-    try {
-      await end();
-      router.push({ pathname: '/journal/[visitId]', params: { visitId } });
-    } catch {
-      setError('Couldn’t end visit. Try again.');
-    } finally {
-      setEnding(false);
-    }
-  }
   return (
     <View style={styles.bar}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Visiting ${visit.venueName}, ${count}`} accessibilityHint="Opens the current visit"
         onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId } })} style={({ pressed }) => [styles.summary, pressed && styles.pressed]}>
         <View style={styles.text}>
-          <ThemedText variant="metadata" style={{ fontSize: 11, lineHeight: 16 }} themeColor={error ? 'error' : 'textSecondary'} accessibilityRole={error ? 'alert' : undefined} numberOfLines={2}>{error ?? `Visiting now · ${count} saved`}</ThemedText>
+          {loading ? <TextSkeleton label="Loading visit artwork count" width={150} /> : <ThemedText variant="metadata" style={{ fontSize: 11, lineHeight: 16 }} themeColor="textSecondary" numberOfLines={2}>Visiting now · {count}{!error && ' saved'}</ThemedText>}
           <ThemedText numberOfLines={2} style={styles.name}>{visit.venueName}</ThemedText>
         </View>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="End visit" accessibilityState={{ busy: ending, disabled: ending }} disabled={ending}
-        onPress={() => { void endVisit(); }} style={({ pressed }) => [styles.end, pressed && styles.pressed]}>
-        <ThemedText variant="metadata" style={styles.endLabel}>{ending ? 'Ending…' : 'End visit'}</ThemedText>
+      <Pressable accessibilityRole="button" accessibilityLabel="End visit"
+        onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId, endVisit: 'true' } })} style={({ pressed }) => [styles.end, pressed && styles.pressed]}>
+        <ThemedText variant="metadata" style={styles.endLabel}>End visit</ThemedText>
       </Pressable>
     </View>
   );

@@ -1,7 +1,7 @@
 import { api } from '../../../convex/_generated/api';
 import { useSocialQuery } from '@/lib/social/use-social-query';
 import { useSocialSession } from '@/lib/social/use-social-session';
-import type { ReactElement } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { Link } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -33,10 +33,21 @@ export function VisitRow({ visit, shared = false, isNew = false, isOpen = false 
     </Pressable>
   </Link>;
 }
-export function VisitTimeline({ visits, header, controls, empty, groupByMuseum = false }: {
-  visits: VisitSummary[]; header?: ReactElement; controls?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean;
+export function VisitTimeline({ visits, header, controls, empty, groupByMuseum = false, scrollResetKey }: {
+  visits: VisitSummary[]; header?: ReactElement; controls?: ReactElement; empty?: ReactElement; groupByMuseum?: boolean; scrollResetKey?: string;
 }) {
   const { fontScale } = useWindowDimensions();
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const list = useRef<FlatList<Row>>(null);
+  const scrollOffset = useRef(0);
+  const previousKey = useRef(scrollResetKey);
+  useLayoutEffect(() => {
+    if (previousKey.current === scrollResetKey) return;
+    previousKey.current = scrollResetKey;
+    // Reveal the new view's content while preserving the header's collapsed position.
+    list.current?.scrollToOffset({ offset: Math.min(scrollOffset.current, headerHeight), animated: false });
+  }, [headerHeight, scrollResetKey]);
   const session = useSocialSession();
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === 'ready' ? {} : 'skip', session.key);
   const shared = new Set(sharing.data);
@@ -53,10 +64,14 @@ export function VisitTimeline({ visits, header, controls, empty, groupByMuseum =
     rows.push({ key: `month:${section.key}`, kind: 'month', title: section.title });
     for (const visit of section.data) rows.push({ key: visit.localId, kind: 'visit', visit });
   }
-  return <FlatList data={rows} keyExtractor={(row) => row.key} contentInsetAdjustmentBehavior="automatic"
-    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets ListHeaderComponent={header}
+  return <FlatList ref={list} data={rows} keyExtractor={(row) => row.key} contentInsetAdjustmentBehavior="automatic"
+    onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+    onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.y; }}
+    keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets
+    ListHeaderComponent={header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>}
     stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
-    contentContainerStyle={{ paddingBottom: open ? 110 : 30 }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
+    // Shorter content must still let the header scroll away without moving pinned controls.
+    contentContainerStyle={{ paddingBottom: open ? 110 : 30, minHeight: controls ? viewportHeight + headerHeight : undefined }} ListFooterComponent={<>{empty}<VisitPrivacyNote /></>}
     renderItem={({ item }) => item.kind === 'element' ? item.element : item.kind === 'month'
       ? <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>{item.title}</Text>
       : <VisitRow visit={item.visit} shared={shared.has(item.visit.localId)} isNew={isVisitNew(item.visit, seen)} isOpen={item.visit.localId === open} />} />;

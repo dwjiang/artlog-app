@@ -1,3 +1,4 @@
+import { TextSkeleton } from '@/components/loading-skeleton';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -15,7 +16,7 @@ export function CaptureVisitPill({ visitId }: { visitId: string }) {
     <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint="Opens this visit"
       onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId } })}
       style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
-      <ThemedText type="smallBold" themeColor="overlayText">{label}</ThemedText>
+      {!visits.updatedAt && !visits.error ? <TextSkeleton label="Loading selected visit" width={180} /> : <ThemedText type="smallBold" themeColor="overlayText">{label}</ThemedText>}
     </Pressable>
   </GlassSurface>;
 }

@@ -29,6 +29,7 @@ jest.mock('@expo/ui/swift-ui', () => {
       <Pressable accessibilityRole="button" accessibilityLabel={`Choose ${child.props.children}`} onPress={() => onSelectionChange(child.props.modifiers.find((modifier) => modifier.$type === 'tag')?.tag ?? '')}><Text>{child.props.children}</Text></Pressable>)}</View>,
   };
 });
+jest.mock('expo-network', () => ({ useNetworkState: () => ({ isConnected: true, isInternetReachable: true }) }));
 jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args), navigate: (...args: unknown[]) => mockPush(...args), dismissAll: () => mockDismissAll() },
   useRouter: () => ({ push: mockPush }),
   Stack: { Screen: () => null, Toolbar: Object.assign(() => null, { Button: () => null }) },

@@ -9,7 +9,7 @@ export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => v
     <MuseumSearchSection onRequestConsent={onRequestConsent} />
     <ThemedText variant="section">How your data is used</ThemedText>
     {[
-      ['Identifying art', 'Identification sends a numeric fingerprint of your photo. Reading a label sends the label photo. Museum-site search only sends a painting crop with your consent. Those features do not store the images.'],
+      ['Identifying art', 'Identification sends a numeric fingerprint of your photo. Label reading happens on your phone and sends only the label’s text. Museum-site search compares the museum’s images on your phone and sends no photo.'],
       ['Your photos', 'Saving an artwork uploads a private, resized copy for backup and sync. Camera and location metadata are removed from that copy. The original stays on your iPhone.'],
       ['Helping other visitors', 'Saving a confirmed work contributes its label details, numeric fingerprint and a small artwork crop to the shared index. You can withdraw these in Contributions.'],
       ['Your location', 'Your location is used on this iPhone to find the museum. Coordinates never leave your phone.'],
