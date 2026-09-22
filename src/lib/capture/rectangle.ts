@@ -44,6 +44,7 @@ export type TrackerResult = {
   guidance: Guidance;
   /** Largest corner movement within the window as a fraction of the frame diagonal. */
   jitter: number;
+  progress: number;
 };
 
 const unitSize: FrameSize = { width: 1, height: 1 };
@@ -153,7 +154,7 @@ export function framingGuidance(quad: Quad, size: FrameSize): 'move-closer' | 'f
   return null;
 }
 
-const searching: TrackerResult = { quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0 };
+const searching: TrackerResult = { quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0, progress: 0 };
 
 export class RectTracker {
   private history: { quad: Quad; at: number }[] = [];
@@ -204,7 +205,11 @@ export class RectTracker {
     const jitter = displacement / Math.hypot(size.width, size.height);
     const stable = windowFull && jitter < STABLE_MAX_DISPLACEMENT;
     const guidance = framingGuidance(quad, size) ?? (stable ? 'ready' : 'hold-still');
-    this.last = { quad, captureQuad, stable, guidance, jitter };
+    const lastMovement = this.history.findLastIndex((sample) =>
+      maxCornerDistance(sample.quad, quad, size) >= STABLE_MAX_DISPLACEMENT * Math.hypot(size.width, size.height));
+    const steadySince = this.history[Math.min(lastMovement + 1, this.history.length - 1)].at;
+    const progress = guidance === 'ready' ? 1 : guidance === 'hold-still' ? Math.min((now - steadySince) / STABLE_WINDOW_MS, 1) : 0;
+    this.last = { quad, captureQuad, stable, guidance, jitter, progress };
     return this.last;
   }
 }

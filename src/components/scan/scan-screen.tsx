@@ -2,7 +2,6 @@ import { introArtworks } from '../guest/artwork-preview';
 import { GalleryButton } from '../collection/gallery-button';
 import { WallSheet } from '../collection/wall-sheet';
 import { ThemedText } from '../themed-text';
-import { LoadingRing } from '@/components/loading-ring';
 import { CaptureVisitPill } from './capture-visit-pill';
 import { Button, Host, Row } from '@expo/ui';
 import { Image } from 'expo-image';
@@ -16,6 +15,7 @@ import { Camera, usePhotoOutput } from 'react-native-vision-camera';
 
 import { CameraPermission } from './camera-permission';
 import { CaptureReveal } from './capture-reveal';
+import { CaptureFeedback, CaptureOutline, CaptureShutter } from './capture-feedback';
 import { DevTimings } from './dev-timings';
 import { OverlayCaption } from './overlay-caption';
 import { QueueBadge } from './queue-badge';
@@ -26,7 +26,6 @@ import { useCapture } from '@/lib/capture/use-capture';
 import { useRectDetector } from '@/lib/capture/use-rect-detector';
 
 const IMPORT_SIZE = 56;
-const SHUTTER_SIZE = 72;
 
 export function ScanScreen() {
   const isFocused = useIsFocused();
@@ -58,6 +57,8 @@ export function ScanScreen() {
   }, [navigation, visitId]);
   const searching = !occupied && (phase === 'searching' || (phase === 'retry' && source !== 'library'));
   const detecting = active && !help && cameraReady && searching;
+  const { resetDetection } = capture.controller;
+  useEffect(() => { if (!detecting) resetDetection(); }, [detecting, resetDetection]);
   const frameOutput = useRectDetector(detecting, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     if (attempt) void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
@@ -94,12 +95,12 @@ export function ScanScreen() {
           onStopped={() => setCameraReady(false)}
           onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
+      {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
       <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>
-            : busy ? <OverlayCaption><LoadingRing accessibilityLabel={phase === 'revealing' || phase === 'result' ? 'Recognizing artwork…' : 'Preparing painting…'} color={Colors.light.overlayText} /></OverlayCaption>
-            : cameraReady && <OverlayCaption>Point at an artwork. Hold steady to scan.</OverlayCaption>}
+            : <CaptureFeedback controller={capture.controller} detecting={detecting} busy={busy} />}
           {failedImport ? <Host matchContents colorScheme="light">
             <Row spacing={Spacing.three}>
               <Button label="Choose another photo" onPress={() => { void capture.importPhoto(); }} />
@@ -113,11 +114,10 @@ export function ScanScreen() {
                 <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
               </Pressable>
             </GlassSurface>
-            <Pressable accessibilityRole="button" accessibilityLabel="Scan artwork" accessibilityHint="Scans now instead of waiting for automatic detection"
-              disabled={shutterDisabled} accessibilityState={{ disabled: shutterDisabled, busy }}
-              onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }}
-              style={({ pressed }) => [styles.shutter, (pressed || shutterDisabled) && styles.dimmed]}><View style={styles.shutterInner} /></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Camera tips" onPress={() => setHelp('open')} style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}><Image source="sf:info.circle" tintColor={Colors.light.overlayText} style={{ width: 26, height: 26 }} /></Pressable>
+            <CaptureShutter controller={capture.controller} disabled={shutterDisabled} busy={busy} captured={busy && source === 'camera'} detecting={detecting}
+              onPress={() => { void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {})); }} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Camera tips" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => setHelp('open')}
+              style={({ pressed }) => [styles.tips, (pressed || busy) && styles.dimmed]}><Image source="sf:info.circle" tintColor={Colors.light.overlayText} style={{ width: 26, height: 26 }} /></Pressable>
           </View>}
         </View>
       </View>
@@ -150,16 +150,15 @@ export function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Gallery.paper },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', paddingHorizontal: Spacing.content },
-  topLayer: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.content },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 1, justifyContent: 'flex-end', paddingHorizontal: Spacing.content },
+  topLayer: { position: 'absolute', zIndex: 1, top: 0, left: 0, right: 0, paddingHorizontal: Spacing.content },
   top: { gap: Spacing.three },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   bottom: { gap: Spacing.three },
   controls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  shutter: { width: SHUTTER_SIZE, height: SHUTTER_SIZE, borderRadius: SHUTTER_SIZE / 2, borderWidth: 3, borderColor: Colors.light.overlayText, padding: 4 },
-  shutterInner: { flex: 1, borderRadius: SHUTTER_SIZE / 2, backgroundColor: Colors.light.overlayText },
   importButton: { width: IMPORT_SIZE, height: IMPORT_SIZE, borderRadius: IMPORT_SIZE / 2, overflow: 'hidden' },
   importContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   importIcon: { width: 24, height: 24 },
+  tips: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
   dimmed: { opacity: 0.7 },
 });

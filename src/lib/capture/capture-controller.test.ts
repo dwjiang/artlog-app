@@ -1,5 +1,5 @@
 import { CaptureController } from './capture-controller';
-import { toCorners, type FrameSize } from './rectangle';
+import { previewQuad, toCorners, type FrameSize } from './rectangle';
 import type { Quad } from './stages';
 
 const frame = { width: 768, height: 1024 };
@@ -41,6 +41,50 @@ it('restarts stability after movement', () => {
   const controller = new CaptureController();
   for (let now = 0; now < 800; now += 100) observe(controller, now);
   expect(observe(controller, 800, [shifted(0.12, 0.12)])).toBeUndefined();
+});
+
+it('publishes preview-aligned corners and hold progress without rerendering the capture state', () => {
+  const controller = new CaptureController();
+  const preview = { width: 390, height: 700 };
+  const stateChanged = jest.fn();
+  const feedbackChanged = jest.fn();
+  controller.subscribe(stateChanged);
+  controller.subscribeFeedback(feedbackChanged);
+  for (let now = 0; now <= 400; now += 100) observe(controller, now, [painting], preview);
+  expect(controller.getFeedback()).toEqual({ quad: previewQuad(painting, frame, preview), progress: 0.5 });
+  expect(feedbackChanged).toHaveBeenCalled();
+  expect(stateChanged).not.toHaveBeenCalled();
+  observe(controller, 500, []);
+  expect(controller.getFeedback()).toBeNull();
+  observe(controller, 600);
+  expect(controller.getFeedback()?.progress).toBe(0);
+  controller.resetDetection();
+  expect(controller.getFeedback()).toBeNull();
+});
+
+it('shows a visible but small painting without advancing capture progress', () => {
+  const controller = new CaptureController();
+  const small: Quad = [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]];
+  expect(hold(controller, 0, [small])).toBeUndefined();
+  expect(controller.getFeedback()).toEqual({ quad: previewQuad(small, frame, frame), progress: 0 });
+});
+
+it('clears feedback when pausing or starting either capture path', () => {
+  const controller = new CaptureController();
+  observe(controller, 0);
+  controller.setActive(false);
+  expect(controller.getFeedback()).toBeNull();
+  controller.setActive(true);
+  observe(controller, 100);
+  const attempt = controller.begin('camera')!;
+  expect(controller.getFeedback()).toBeNull();
+  controller.fail(attempt, 'Try again');
+  controller.finish(attempt);
+  observe(controller, 200);
+  expect(controller.getFeedback()).toBeNull();
+  controller.reset();
+  expect(hold(controller, 300)).toBeDefined();
+  expect(controller.getFeedback()).toBeNull();
 });
 
 it.each([

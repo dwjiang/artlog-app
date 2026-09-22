@@ -2,11 +2,11 @@ import { TextSkeleton } from '@/components/loading-skeleton';
 import { LoadingRing } from '@/components/loading-ring';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { GlassSurface } from '@/components/glass-surface';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Gallery, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useLocalOwner } from '@/lib/account/owner-store';
 import { useVisitWorks } from '@/lib/journal/use-visit-works';
 import { useVenue, type VenueView } from '@/lib/venue/use-venue';
@@ -42,7 +42,7 @@ export function VenuePill() {
         onPress={() => router.push('/venue-picker')}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        {active ? <View style={styles.dot} /> : <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
+        {!active && <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
         {locating ? <LoadingRing accessibilityLabel={label} color={Colors.light.overlayText} /> : <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>{label}</ThemedText>}
         {active && (loading ? <TextSkeleton label="Loading visit artwork count" width={24} /> : !error && <ThemedText type="small" themeColor="overlayText" style={styles.count}>· {works.length}</ThemedText>)}
         <Image source="sf:chevron.down" style={styles.chevron} tintColor={Colors.light.overlayText} accessible={false} />
@@ -57,7 +57,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
   icon: { width: 18, height: 18 },
   chevron: { width: 12, height: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.highlight },
   label: { flexShrink: 1 },
   count: { opacity: 0.8 },
 });
