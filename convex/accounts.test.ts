@@ -139,8 +139,9 @@ it('checks every claim on deletion and forgets a device’s claim once it unlink
   expect(await t.run((ctx) => ctx.db.query('journalClaims').collect())).toEqual([]);
 });
 
-it('purges the deleted account’s journal, photos and sync state in batches', async () => {
+it('purges the deleted account’s journal, photos and sync state without extra monitoring jobs', async () => {
   vi.useFakeTimers();
+  vi.stubEnv('SENTRY_DSN', 'https://public@example.ingest.sentry.io/123');
   const t = harness(); const { a } = await pair(t);
   const accountId = (await a.as.query(api.accounts.me, {})).accountId!;
   const owner = { kind: 'account' as const, accountId };
@@ -158,6 +159,8 @@ it('purges the deleted account’s journal, photos and sync state in batches', a
   });
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const jobs = await t.run((ctx) => ctx.db.system.query('_scheduled_functions').collect());
+  expect(new Set(jobs.map((job) => job.name))).toEqual(new Set(['accounts:purgeJournal']));
   expect(await t.run((ctx) => ctx.db.query('collections').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query('visits').withIndex('by_owner_localId', (q) => q.eq('owner', owner)).collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query('journalSyncState').collect())).toEqual([]);

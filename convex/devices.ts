@@ -1,3 +1,4 @@
+import { withErrorReporting } from './lib/observability';
 import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
@@ -169,7 +170,7 @@ export const markAttested = internalMutation({
 export const attestDevice = action({
   args: { keyId: v.string(), attestationBase64: v.string(), nonce: v.string() },
   returns: v.object({ deviceId: v.id('devices') }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => withErrorReporting('devices.attestDevice', async () => {
     const device = await requireDeviceFromAction(ctx);
     if (isAttested(device)) throw new ConvexError({ code: 'device_already_attested' });
     if (!process.env.APP_ATTEST_APP_ID) throw new ConvexError({ code: 'attest_unconfigured' });
@@ -191,7 +192,7 @@ export const attestDevice = action({
       counter: result.counter ?? 0,
     });
     return { deviceId: device._id };
-  },
+  }),
 });
 
 export type AttestedWriteArgs = { nonce: string; assertionBase64: string; payload: string };

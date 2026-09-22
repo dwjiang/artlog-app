@@ -1,4 +1,5 @@
 import type { Id } from '../../../convex/_generated/dataModel';
+import * as Sentry from '@sentry/react-native';
 import { db } from '@/db/client';
 import * as repo from '@/db/repos/saved-works';
 import { notes, savedWorks } from '@/db/schema';
@@ -49,6 +50,19 @@ it('downloads an imported crop into a persistent local path and retries after a 
   expect(download.mock.calls).toEqual([['a', 'crop', cropStorageId]]);
   expect(await repo.getSavedWork('a')).toMatchObject({ cropPath: 'collection-photos/a-crop.jpg', photoPath: null });
   expect(upload).not.toHaveBeenCalled();
+});
+
+it('reports a persistent crop failure even when a later transfer fails offline', async () => {
+  for (const localId of ['a', 'b']) await repo.insertSavedWork({ localId, title: 'Painting', artist: '', savedAt: 1, cropPath: `${localId}-crop.jpg` });
+  const corrupt = new Error('Crop decoder could not read the saved image');
+  const offline = new Error('Network request failed');
+  upload.mockRejectedValueOnce(corrupt).mockRejectedValueOnce(offline);
+  await expect(syncCollectionPhotos(deps)).rejects.toBe(offline);
+  expect(upload).toHaveBeenCalledTimes(2);
+  expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  expect(Sentry.captureException).toHaveBeenCalledWith(expect.objectContaining({ message: corrupt.message }),
+    expect.objectContaining({ tags: { operation: 'sync.photos' }, contexts: { operation: { kind: 'crop', direction: 'upload' } } }));
+  expect(await repo.listPhotoTransfers()).toHaveLength(2);
 });
 
 it('discards a download completed after sign-out without writing paths or starting another transfer', async () => {

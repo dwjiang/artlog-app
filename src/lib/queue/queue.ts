@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { addNetworkStateListener, getNetworkStateAsync } from 'expo-network';
 import { AppState } from 'react-native';
 
@@ -123,7 +124,7 @@ export function startQueueFlusher(): () => void {
   const currentFlusher = makeFlusher();
   flusher = currentFlusher;
   const recovery = pending.requeueInterrupted()
-    .catch((error: unknown) => console.warn('Could not requeue interrupted scans', error));
+    .catch((error: unknown) => { reportError(error, 'queue.recover'); console.warn('Could not requeue interrupted scans', error); });
   void recovery.then(() => { if (active) return currentFlusher.start(); });
   const network = addNetworkStateListener((state) => {
     if (state.isInternetReachable ?? state.isConnected) void flushQueue();

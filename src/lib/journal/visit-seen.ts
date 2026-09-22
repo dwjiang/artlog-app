@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { eq } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { db } from '@/db/client';
@@ -22,6 +24,7 @@ export function selectSeenVisits(owner: string) {
 /** Visits opened since they closed; a closed visit outside this set is shown as new. */
 export function useSeenVisits(owner: string): Set<string> {
   const rows = useLiveQuery(selectSeenVisits(owner), [owner]);
+  useEffect(() => { if (rows.error) reportError(rows.error, 'journal.seen-visits.load'); }, [rows.error]);
   return new Set(parseSeenVisits(rows.data[0]?.value));
 }
 

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { ScrollView } from 'react-native';
@@ -14,6 +16,8 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
   const owner = useLocalOwner();
   const works = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
+  const queryError = works.error ?? photos.error;
+  useEffect(() => { if (queryError) reportError(queryError, 'collection.crop-source.load'); }, [queryError]);
   const work = works.data.find((row) => row.owner === owner && row.deletedAt === null);
   const album = photos.data.filter((row) => row.owner === owner && row.savedLocalId === savedId && row.deletedAt === null && row.kind !== 'label');
   const source = photoId ? album.find((row) => row.localId === photoId)?.path

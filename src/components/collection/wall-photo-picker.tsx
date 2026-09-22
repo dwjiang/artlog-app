@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { PhotoStripSkeleton, TextSkeleton } from '@/components/loading-skeleton';
 import { LoadingImage } from '@/components/loading-image';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -16,6 +18,8 @@ export function WallPhotoPicker({ savedId, selectedId, onSelect, compact = false
   const { fontScale } = useWindowDimensions();
   const { data, updatedAt, error } = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
   const visits = useLiveQuery(listVisits(owner), [owner]);
+  const queryError = error ?? visits.error;
+  useEffect(() => { if (queryError) reportError(queryError, 'wall.photo-picker.load'); }, [queryError]);
   const photos = data.filter((photo) => photo.owner === owner);
   const selected = photos.find((photo) => photo.localId === selectedId);
   const selectedVisit = visits.data.find((visit) => visit.owner === owner && visit.localId === selected?.visitLocalId);

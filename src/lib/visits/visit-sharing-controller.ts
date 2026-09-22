@@ -1,3 +1,4 @@
+import { addBreadcrumb, reportError } from '@/lib/observability';
 import { ConvexError } from 'convex/values';
 import { LIMITS } from '@/shared/journal/limits';
 import { socialErrorMessage } from '@/shared/social/errors';
@@ -23,7 +24,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
   const listeners = new Set<() => void>();
   const emit = (patch: Partial<State>) => { state = { ...state, ...patch }; listeners.forEach((listener) => listener()); };
   function reset() { abort?.abort(); abort = undefined; state = empty(); listeners.forEach((listener) => listener()); }
-  async function run(work: (context: RequestContext, current: () => boolean) => Promise<void>): Promise<boolean> {
+  async function run(operation: 'load' | 'preview' | 'publish' | 'view', work: (context: RequestContext, current: () => boolean) => Promise<void>): Promise<boolean> {
     if (state.busy || disposed) return false;
     const session = capture();
     if (!session.owner.startsWith('account:') || !session.token || !session.scope) {
@@ -35,15 +36,19 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     const cancelled = new Promise<never>((_, reject) => {
       request.signal.addEventListener('abort', () => reject(new Error('Sharing request cancelled or timed out')), { once: true });
     });
-    const timeout = setTimeout(() => request.abort(), 30_000);
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; request.abort(); }, 30_000);
+    addBreadcrumb(`visit.sharing.${operation}.started`);
     emit({ busy: true, error: undefined });
     try {
       await Promise.race([flush(), cancelled]);
       if (!current()) return false;
       await Promise.race([work(context, current), cancelled]);
+      if (current()) addBreadcrumb(`visit.sharing.${operation}.completed`);
       return current();
     } catch (cause) {
       if (!disposed && abort === request && session.isCurrent()) {
+        reportError(timedOut ? new Error('Visit sharing timed out') : cause, `visit.sharing.${operation}`);
         const conflict = convexErrorCode(cause) === 'conflict';
         emit({ profileRequired: convexErrorCode(cause) === 'profile_required',
           error: conflict ? 'This share changed on another device. Your draft is kept. Refresh the preview before sharing again.'
@@ -74,7 +79,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     getSnapshot: () => state,
     connect() { disposed = false; unsubscribe ??= subscribeOwner(reset); },
     dispose() { disposed = true; abort?.abort(); unsubscribe?.(); unsubscribe = undefined; state = empty(); },
-    load: () => run(async (context, current) => {
+    load: () => run('load', async (context, current) => {
       const result = await transport.getState({ visitLocalId }, context);
       if (current()) accept(result);
     }),
@@ -92,7 +97,7 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
       draft.highlightLocalIds = draft.highlightLocalIds?.filter((id) => draft.saveLocalIds.includes(id)).slice(0, 3);
       emit({ draft, preview: null });
     },
-    preview: () => run(async (context, current) => {
+    preview: () => run('preview', async (context, current) => {
       const fresh = await transport.getState({ visitLocalId }, context);
       if (!current()) return;
       accept(fresh); emit({ preview: null });
@@ -103,12 +108,12 @@ export function createVisitSharingController({ visitLocalId, saveLocalIds, trans
     publish: () => {
       if (!state.preview || !state.draft || state.conflict || state.acknowledged?.removed) return Promise.resolve(false);
       const draft = state.draft;
-      return run(async (context, current) => {
+      return run('publish', async (context, current) => {
         const result = await transport.publish(draft, context);
         if (current()) { accept(result, false); emit({ preview: null }); }
       });
     },
-    view: () => run(async (context, current) => {
+    view: () => run('view', async (context, current) => {
       const fresh = await transport.getState({ visitLocalId }, context);
       if (!current()) return;
       accept(fresh);

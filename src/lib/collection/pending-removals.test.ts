@@ -1,7 +1,9 @@
+import { reportError } from '@/lib/observability';
 import { act, renderHook } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 import { softDeleteSavedWork } from '@/db/repos/saved-works';
 import { commitRemoval, scheduleRemoval, undoRemoval, usePendingRemovals } from './pending-removals';
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn() }));
 jest.mock('@/db/repos/saved-works', () => ({ softDeleteSavedWork: jest.fn().mockResolvedValue(undefined) }));
 let appStateListener: ((state: AppStateStatus) => void) | undefined;
 beforeEach(() => {
@@ -18,6 +20,7 @@ it('undo cancels deletion even after the detail screen has closed', async () => 
   await act(() => undoRemoval(item));
   await act(() => jest.advanceTimersByTime(6000));
   expect(softDeleteSavedWork).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
   expect(view.result.current).toEqual([]);
 });
 it('commits to the original owner and exposes a failed removal for retry', async () => {
@@ -28,6 +31,7 @@ it('commits to the original owner and exposes a failed removal for retry', async
   await act(() => jest.advanceTimersByTime(6000));
   expect(softDeleteSavedWork).toHaveBeenCalledWith('retry', expect.any(Number), 'account:original');
   expect(view.result.current[0].status).toBe('failed');
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Disk full' }), 'collection.remove');
   await act(() => commitRemoval(view.result.current[0]));
   expect(view.result.current).toEqual([]);
 });

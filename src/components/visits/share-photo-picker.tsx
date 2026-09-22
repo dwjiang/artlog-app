@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { PhotoStripSkeleton } from '@/components/loading-skeleton';
 import { LoadingImage } from '@/components/loading-image';
 import { Image } from 'expo-image';
@@ -15,6 +17,7 @@ export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: 
 }) {
   const { fontScale } = useWindowDimensions();
   const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [work.localId, visitId, work.owner]);
+  useEffect(() => { if (error) reportError(error, 'visit.share-photos.load'); }, [error]);
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
     <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
     <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Choose photos</Text>

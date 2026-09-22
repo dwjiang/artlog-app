@@ -1,3 +1,4 @@
+import { reportError, addBreadcrumb } from '@/lib/observability';
 import * as Haptics from 'expo-haptics';
 import type { CaptureCompletion } from '../capture/completion';
 import { useRef, useState } from 'react';
@@ -28,6 +29,7 @@ export function useSaveResult() {
       const outcome = await attempt;
       setShared(outcome.result); setShareError(outcome.error);
     } catch (cause) {
+      reportError(cause, 'result.share');
       console.warn('Could not save the work to the shared index', cause);
       setShareError(contributionErrorMessage(cause));
     } finally {
@@ -52,6 +54,7 @@ export function useSaveResult() {
     setError(undefined);
     try {
       const { localId, completion, contribution } = await saveResult({ ...input, capture });
+      addBreadcrumb('result.saved', { hasContribution: !!contribution });
       setSavedId(localId);
       setCompletion(completion);
       if (contribution && input.contribution) {
@@ -60,6 +63,7 @@ export function useSaveResult() {
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (cause) {
+      reportError(cause, 'result.save');
       console.warn('Could not save the work', cause);
       setError(saveErrorMessage(cause));
     } finally {

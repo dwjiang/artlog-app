@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Gallery, Spacing } from '@/constants/theme';
 import { captureFileUri } from '@/lib/files/photos';
 import { ImageSkeleton } from '@/components/loading-skeleton';
+import { reportError } from '@/lib/observability';
 
 export function SavedWorkImage({ path, title, style, contain = false, syncing = false, onLoad }: {
   path: string | null; title: string; style: StyleProp<ViewStyle>; contain?: boolean; syncing?: boolean;
@@ -29,7 +30,10 @@ export function SavedWorkImage({ path, title, style, contain = false, syncing = 
     }}>
       {path && failedPath !== path ? <Image source={captureFileUri(path)} contentFit={contain ? 'contain' : 'cover'}
         onLoad={({ source }) => { setLoadedPath(path); if (source.width > 0 && source.height > 0) onLoad?.(source); }}
-        onError={() => setFailedPath(path)}
+        onError={(event) => {
+          reportError(new Error(event?.error || 'Saved artwork photo could not load'), 'collection.photo.load', { level: 'warning' });
+          setFailedPath(path);
+        }}
         accessibilityLabel={`Your photo of ${title}`} style={StyleSheet.absoluteFill} />
         : !path && syncing ? <PhotoDownload title={title} compact={compact} /> : <View accessible accessibilityRole="image" accessibilityLabel={`${title}: ${status.toLowerCase()}`} style={[StyleSheet.absoluteFill, styles.placeholder, compact && { padding: 0 }]}>
           <Image source="sf:photo" accessible={false} tintColor={Gallery.muted} style={{ width: compact ? 18 : 28, height: compact ? 18 : 28 }} />

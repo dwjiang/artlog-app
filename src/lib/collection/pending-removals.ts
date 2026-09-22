@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { softDeleteSavedWork } from '@/db/repos/saved-works';
@@ -20,7 +21,7 @@ export async function commitRemoval(item: Removal) {
   try {
     await softDeleteSavedWork(item.localId, Date.now(), item.owner);
     pending = pending.filter((row) => key(row) !== key(item)); emit();
-  } catch { update(item, 'failed'); }
+  } catch (cause) { reportError(cause, 'collection.remove'); update(item, 'failed'); }
 }
 // The toast already reports the removal, so leaving the foreground commits it instead of losing the timer with the process.
 let appState: { remove: () => void } | undefined;

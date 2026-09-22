@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import type { CaptureCompletion } from '../capture/completion';
 import { formatVisitDate } from '../journal/history';
 import { randomUUID } from 'expo-crypto';
@@ -73,7 +74,7 @@ export async function saveResult({ scanId, capture, view, draft, contribution }:
   }
   // A save with no visit by default (the visit there ended by hand today) keeps its museum; only a draft's "No visit" drops it.
   const venueId = visit?.venueId ?? (session.visit ? undefined : capture.venueId ?? undefined);
-  const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId).catch(() => undefined) : undefined);
+  const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId).catch((error: unknown) => { reportError(error, 'result.resolve_venue', { level: 'warning' }); return undefined; }) : undefined);
   // The scan was identified at the capture's museum, in its visit when one was open; the server confirms it only under that context.
   const contextChanged = venueId !== (capture.venueId ?? undefined) || (capture.visitLocalId != null && visit?.localId !== capture.visitLocalId);
   const confirmationScanId = contextChanged ? undefined : scanId;
@@ -108,7 +109,7 @@ export async function saveResult({ scanId, capture, view, draft, contribution }:
     gallery: primary?.gallery, snapshot, suggested: contextChanged ? null : suggested, savedAt, venueName,
     });
     if (current.isCurrent()) await markSynced([{ ...acknowledgement, localId, revision: 0 }], current.owner);
-  })().catch((error: unknown) => { console.warn('Could not sync the saved work; it stays on the phone', error); }).finally(requestCollectionSync);
+  })().catch((error: unknown) => { reportError(error, 'result.sync'); console.warn('Could not sync the saved work; it stays on the phone', error); }).finally(requestCollectionSync);
   return { localId, synced, contribution: contribution && !contextChanged ? shareSavedLabel(contribution, localId) : undefined,
     completion: { savedId: localId, title: existing?.title ?? snapshot.title, wasExisting: !!existing,
     photoPaths: additional.map((photo) => photo.path), visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : 'No visit · Collection only' } };

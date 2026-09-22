@@ -3,6 +3,7 @@ import { ConvexError } from 'convex/values';
 import { internal } from '../_generated/api';
 import type { ActionCtx } from '../_generated/server';
 import { search, type TavilySearchRequest, type TavilySearchResponse } from './tavily';
+import { reportBackendError } from './observability';
 
 // One credit is reserved atomically before dispatch and reconciled from the reported
 // usage. Returns null when the cap is reached, the key is missing, or the search fails; the caller
@@ -26,6 +27,7 @@ export async function searchWithCredit(ctx: ActionCtx, request: TavilySearchRequ
       await ctx.runMutation(internal.spend.reconcile, { kind: 'tavily', day, reserved: 1, actual: 0 });
     }
     // Any other failure keeps the reservation: the provider may have charged the credit.
+    await reportBackendError(error, 'tavily.search');
     console.warn('Tavily search failed', error);
     return null;
   }

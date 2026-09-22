@@ -1,4 +1,5 @@
 import { ImageSkeleton } from '@/components/loading-skeleton';
+import { reportError } from '@/lib/observability';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -32,7 +33,8 @@ export function CardHeader({ cropUri, artworkTitle, loading = false, corners, in
       <View style={styles.frame} onLayout={({ nativeEvent: { layout } }) => setFrame({ width: layout.width, height: layout.height })}>
       {available ? (
         <Image source={cropUri} contentFit="contain" accessibilityLabel="Your photo of this painting" style={styles.photo}
-          onLoad={({ source }) => setPreview({ uri: cropUri, width: source.width, height: source.height })} onError={() => setFailedUri(cropUri)} />
+          onLoad={({ source }) => setPreview({ uri: cropUri, width: source.width, height: source.height })}
+          onError={(event) => { reportError(new Error(event?.error ?? 'Painting preview unavailable'), 'result.load_preview', { level: 'warning' }); setFailedUri(cropUri); }} />
       ) : loading ? <ImageSkeleton style={{ width: '100%', height: '100%' }} /> : (
         <View style={styles.placeholder}>
           <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />

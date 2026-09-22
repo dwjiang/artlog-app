@@ -7,6 +7,7 @@ import { convex } from '../convex-client';
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from './photo-transfer';
 import { removeUnreferencedPhotos } from '../files/unreferenced-photos';
 import type { SyncContext } from './sync';
+import { reportError } from '../observability';
 
 export async function syncArtworkAlbums(context: SyncContext, token: string, isCurrent: () => boolean) {
   while (isCurrent()) {
@@ -50,7 +51,10 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
           const path = await downloadCollectionPhoto(token, context.scope, photo.savedLocalId, 'photo', photo.storageId, photo.localId);
           if (!isCurrent() || !updateAlbumTransfer(photo.localId, { path }, context.owner)) removePhotoFile(path);
         }
-      } catch (error) { failure = error; }
+      } catch (error) {
+        reportError(error, 'sync.photos', { data: { kind: 'album', direction: photo.path ? 'upload' : 'download' } });
+        failure = error;
+      }
     }
     if (failure) throw failure;
   }

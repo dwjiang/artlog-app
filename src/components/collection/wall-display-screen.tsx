@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingRing } from '@/components/loading-ring';
 import { FormSkeleton } from '@/components/loading-skeleton';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -27,6 +28,7 @@ export function WallDisplayScreen({ savedId }: { savedId: string }) {
 
 function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
   const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  useEffect(() => { if (error) reportError(error, 'collection.artwork.load'); }, [error]);
   const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? <WallDisplay work={work} /> : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
 }
@@ -43,7 +45,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
   async function saveLayout() {
     wall.setError(undefined);
     try { await wall.repository.publishLayout(); }
-    catch { wall.setError('Your wall change was not saved. Tap Retry to save these changes.'); }
+    catch (cause) { reportError(cause, 'wall.layout.publish'); wall.setError('Your wall change was not saved. Tap Retry to save these changes.'); }
   }
   function change(patch: { frame?: WallFrame; photoLocalId?: string }) {
     if (!wall.draft || !hung || wall.pending) return;
@@ -56,7 +58,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
     if (!published || wall.pending) return;
     wall.setError(undefined);
     try { wall.repository.setNoteDraft([{ itemId: published.itemId, visible: value }]); await wall.repository.publishNotes(); }
-    catch { wall.setError('This note could not be shared. Refresh to review the latest synced note and try again.'); }
+    catch (cause) { reportError(cause, 'wall.notes.publish'); wall.setError('This note could not be shared. Refresh to review the latest synced note and try again.'); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
 

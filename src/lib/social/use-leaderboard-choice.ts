@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useEffect, useRef, useState } from 'react';
 import { getSetting, setSetting } from '@/db/repos/settings';
 
@@ -29,7 +30,7 @@ export function useLeaderboardChoice() {
     let active = true;
     void getSetting(KEY).then((value) => {
       if (active && !changed.current) { latest.current = readChoice(value); setChoice(latest.current); }
-    }).catch(() => { if (active) setError('Your saved filters could not load.'); });
+    }).catch((cause) => { reportError(cause, 'leaderboard.filters.load'); if (active) setError('Your saved filters could not load.'); });
     return () => { active = false; };
   }, []);
   function changeChoice(update: Partial<LeaderboardChoice>) {
@@ -37,7 +38,7 @@ export function useLeaderboardChoice() {
     const next = { ...latest.current, ...update };
     latest.current = next; setChoice(next); setError(undefined);
     writes.current = writes.current.then(() => setSetting(KEY, JSON.stringify(next)))
-      .catch(() => setError('These filters could not be remembered. Your current selection still works.'));
+      .catch((cause) => { reportError(cause, 'leaderboard.filters.save'); setError('These filters could not be remembered. Your current selection still works.'); });
   }
   return { choice, changeChoice, error };
 }

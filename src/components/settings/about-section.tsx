@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Image } from 'expo-image';
 import { introArtworks } from '../guest/artwork-preview';
 import Constants from 'expo-constants';
@@ -18,7 +19,7 @@ export function AboutSection() {
   async function open(url: string) {
     setError(undefined);
     try { await Linking.openURL(url); }
-    catch { setError("Couldn't open the link. Try again."); }
+    catch (cause) { reportError(cause, 'settings.open-link', { level: 'warning' }); setError("Couldn't open the link. Try again."); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 24 }}>
     <View style={{ gap: 6, paddingTop: 18 }}><ThemedText variant="wordmark" style={{ fontSize: 64, lineHeight: 76 }} accessibilityRole="header">Artlog</ThemedText><ThemedText type="small" themeColor="textSecondary">Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'Unknown'}</ThemedText></View>

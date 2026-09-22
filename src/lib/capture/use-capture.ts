@@ -1,3 +1,4 @@
+import { reportError, addBreadcrumb } from '@/lib/observability';
 import { getVisit } from '@/db/repos/visits';
 import { useAction } from 'convex/react';
 import * as Haptics from 'expo-haptics';
@@ -122,6 +123,7 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
       const input = await getInput();
       if (!current()) return;
       if (!input) { (onCancel ?? reset)(); return; }
+      addBreadcrumb('capture.started', { source: input.source });
       controller.processing(attempt);
       const retained = new PresentationImages();
       images.current = retained;
@@ -149,6 +151,7 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
         resolveVisitId: resolveScanVisit,
       }, captureOptions);
       if (!current()) return;
+      addBreadcrumb('capture.completed', { outcome: result.kind });
       setTimings(result.timings);
       if (result.kind === 'retake') {
         releasePresentation();
@@ -160,6 +163,7 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
       }
     } catch (error) {
       if (current()) {
+        reportError(error, 'capture.process');
         images.current?.release();
         images.current = undefined;
         setPresentation((value) => value?.source === 'library' ? { attempt, photoUri: value.photoUri, source: 'library' } : undefined);
@@ -207,6 +211,7 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
       return { photoUri: photo.uri, quad: null, source: 'library', capturedAt };
     }, attempt, async () => ({
       venueId: position ? await venueIdAt(position).catch((error: unknown) => {
+        reportError(error, 'capture.resolve_import_venue', { level: 'warning' });
         console.warn('Could not resolve the venue of the imported photo', error);
         return undefined;
       }) : undefined,

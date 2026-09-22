@@ -10,6 +10,7 @@ import { deleteUnreferencedPhoto } from './lib/collectionPhotos';
 import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from './lib/ownership';
 import { isUuid } from '../shared/journal/limits';
 import { limitDevice } from './lib/rateLimits';
+import { reportBackendError } from './lib/observability';
 
 const kindValidator = v.union(v.literal('photo'), v.literal('crop'));
 const args = { scope: v.string(), localId: v.string(), kind: kindValidator, photoId: v.optional(v.string()) };
@@ -98,6 +99,7 @@ export const upload = httpAction(async (ctx, request) => {
     const result = await ctx.runMutation(internal.collectionPhotos.attach, { ...input, storageId: uploaded, ...dimensions });
     return Response.json(result);
   } catch (error) {
+    await reportBackendError(error, 'collectionPhotos.upload');
     if (uploaded) await ctx.runMutation(internal.collectionPhotos.discard, { storageId: uploaded });
     return failure(error);
   }
@@ -116,5 +118,8 @@ export const download = httpAction(async (ctx, request) => {
     return new Response(blob, { headers: {
       'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
     } });
-  } catch (error) { return failure(error); }
+  } catch (error) {
+    await reportBackendError(error, 'collectionPhotos.download');
+    return failure(error);
+  }
 });

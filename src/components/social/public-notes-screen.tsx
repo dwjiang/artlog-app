@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingRing } from '@/components/loading-ring';
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
@@ -32,7 +33,7 @@ export function PublicNotesScreen() {
   async function save() {
     wall.setError(undefined);
     try { await wall.repository.publishNotes(); setPreview(false); showToast('Your note choices are saved.'); }
-    catch { wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
+    catch (cause) { reportError(cause, 'wall.notes.publish'); wall.setError(wall.repository.getSnapshot().needsNoteConfirmation ? 'A note changed. Review the latest notes and choose again.' : 'Your choices were not saved. Check your connection and try again.'); }
   }
   const gate = !wall.signedIn ? <EmptyState title="Sign in to manage public notes." detail="Sign in to choose which artwork notes appear on your public wall." visual={<EmptyPaper kind="note" />} footnote="Your existing notes stay private."><GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('wall'))} /></EmptyState>
     : wall.profileRequired ? <SocialState title="Create your public profile first." icon="person.crop.circle.badge.plus" action="Create your profile" onAction={() => router.push('/create-profile')} />

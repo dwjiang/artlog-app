@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Alert } from 'react-native';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
   async function share() {
     if (!work?.cropPath) return;
     try { await Sharing.shareAsync(captureFileUri(work.cropPath), { dialogTitle: work.title }); }
-    catch { showToast('This artwork could not be shared.'); }
+    catch (cause) { reportError(cause, 'collection.artwork.share'); showToast('This artwork could not be shared.'); }
   }
   return <Stack.Toolbar placement="right">
     <Stack.Toolbar.Button icon="square.and.arrow.up" accessibilityLabel="Share artwork" tintColor={Gallery.ink} hidesSharedBackground disabled={!work.cropPath} onPress={() => { void share(); }}>Share</Stack.Toolbar.Button>

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { introArtworks } from '../guest/artwork-preview';
 import { GalleryButton } from '../collection/gallery-button';
 import { WallSheet } from '../collection/wall-sheet';
@@ -93,7 +94,7 @@ export function ScanScreen() {
           allowHapticsAndSystemSoundsPlayback
           onStarted={() => { setCameraReady(true); setCameraError(undefined); }}
           onStopped={() => setCameraReady(false)}
-          onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
+          onError={(error) => { reportError(error, 'camera.start', { data: { screen: 'scan' } }); setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
       {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
       <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}>

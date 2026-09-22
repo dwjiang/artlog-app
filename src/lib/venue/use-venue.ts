@@ -20,6 +20,7 @@ import { signPayload } from '@/lib/attested-write';
 import { flushJournal } from '@/lib/account/collection-sync';
 import { convex } from '@/lib/convex-client';
 import { errorMessage, SyncUnavailableError } from '@/lib/network-error';
+import { addBreadcrumb, reportError } from '@/lib/observability';
 import { refreshVenueTableInBackground } from './refresh';
 import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from './resolve';
 import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from './venue-db';
@@ -108,6 +109,7 @@ export async function confirmPlace(option: PoiOption, wanted: () => boolean = ()
     if (!wanted()) return undefined;
     await applyVenueMetadata(db, [venue]);
   } catch (error) {
+    reportError(error, 'venue.confirm.persist');
     console.warn('Could not add the confirmed venue to the local table', error);
   }
   return { id: venue.id, key: venue.key, name: venue.name, lat: venue.lat, lng: venue.lng, website: venue.website ?? null,
@@ -139,6 +141,7 @@ export function createVenueController(): VenueController {
       const row = localId ? await getVisit(localId) : undefined;
       if (row?.remoteVisitId) dispatch({ type: 'remoteVisit', localId: row.localId, remoteVisitId: row.remoteVisitId });
     } catch (error) {
+      reportError(error, 'venue.visit.sync');
       if (!(error instanceof SyncUnavailableError)) console.warn('Could not sync visits with the server', error);
     }
   }
@@ -184,6 +187,7 @@ export function createVenueController(): VenueController {
         const endedAt = Math.max(visit.startedAt, await latestVisitActivity(visit.localId, owner) ?? visit.startedAt);
         await updateLocally(() => closeVisit(visit, endedAt, owner));
       } catch (error) {
+        reportError(error, 'venue.visit.close');
         console.warn('Could not close the visit', visit.localId, error);
       }
     }
@@ -256,6 +260,7 @@ export function createVenueController(): VenueController {
         })),
       });
     } catch (error) {
+      reportError(error, 'venue.search.nearby', { level: 'warning' });
       console.warn('Nearby place search failed', error);
     }
   }
@@ -307,11 +312,13 @@ export function createVenueController(): VenueController {
       if (!wanted()) return venueContext(state);
       if (__DEV__) console.debug('Venue resolved', resolution.kind, resolution.kind === 'none' ? '' : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`));
       dispatch({ type: 'resolved', fix, resolution });
+      addBreadcrumb('venue.resolved', { kind: resolution.kind });
       await closeStaleVisits(fix.at, getLocalOwner());
       if (state.status === 'none' && resolution.kind === 'none') await searchNearbyPlaces(fix);
       return venueContext(state);
     } catch (error) {
       if (!wanted()) return venueContext(state);
+      reportError(error, 'venue.resolve', { level: 'warning' });
       console.warn('Venue resolution failed', error);
       dispatch({ type: 'failed', error: socialErrorMessage(error) ?? errorMessage(error) });
       return venueContext(state);
@@ -365,7 +372,10 @@ export function createVenueController(): VenueController {
     const before = state.visit;
     dispatch({ type: 'dismissed' });
     if (before && !state.visit) {
-      void endVisit(before, Date.now()).catch((error: unknown) => console.warn('Could not end the visit', error));
+      void endVisit(before, Date.now()).catch((error: unknown) => {
+        reportError(error, 'venue.visit.end');
+        console.warn('Could not end the visit', error);
+      });
     }
   }
 
@@ -447,7 +457,10 @@ export function VenueResolver({ controller = venueController }: { controller?: V
   const seenPrompt = useRef(prompt);
 
   useEffect(() => {
-    void controller.hydrate().then(controller.resolve, (error: unknown) => console.warn('Could not restore the visit', error));
+    void controller.hydrate().then(controller.resolve).catch((error: unknown) => {
+      reportError(error, 'venue.visit.restore');
+      console.warn('Could not restore the visit', error);
+    });
     refreshVenueTableInBackground();
     const subscription = AppState.addEventListener('change', controller.appStateChanged);
     return () => subscription.remove();

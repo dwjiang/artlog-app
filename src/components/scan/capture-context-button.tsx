@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { TextSkeleton } from '@/components/loading-skeleton';
 import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -55,7 +56,7 @@ export function CaptureContextButton({ capture, disabled }: { capture: CaptureCo
       }
       if (active) setLabel(next);
     }
-    void load().catch(() => { if (active) setLabel('Visit unavailable'); });
+    void load().catch((error: unknown) => { reportError(error, 'capture.load_visit_context', { level: 'warning' }); if (active) setLabel('Visit unavailable'); });
     return () => { active = false; };
   }, [owner, draftId, visitLocalId, venueId, capturedAt]));
   return <Pressable accessibilityRole="button" accessibilityLabel={label ? `${label} · Change` : 'Loading visit…'} accessibilityHint="Chooses the visit for this artwork" accessibilityState={{ disabled: !!disabled || !label, busy: !label }} disabled={disabled || !label}

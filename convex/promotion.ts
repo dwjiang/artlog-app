@@ -1,3 +1,4 @@
+import { withErrorReporting } from './lib/observability';
 import { type Infer, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -183,10 +184,10 @@ export const runSummary = v.object({
 export const run = internalAction({
   args: {},
   returns: runSummary,
-  handler: async (ctx) => {
+  handler: async (ctx) => withErrorReporting('promotion.run', async () => {
     const multiViewVectors = await promoteMultiView(ctx);
     return { multiViewVectors };
-  },
+  }),
 });
 
 export const viewForReassessment = internalQuery({

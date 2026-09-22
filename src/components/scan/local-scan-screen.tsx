@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -32,6 +33,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   const router = useRouter();
   const isActive = useScreenActive();
   const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  useEffect(() => { if (loadError) reportError(loadError, 'result.load_local_scan'); }, [loadError]);
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
@@ -72,7 +74,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
     setRetrying(true);
     setRetryError(undefined);
     void retryPendingScan(localId)
-      .catch(() => setRetryError('Couldn’t retry this scan. Your photo is still here. Try again.'))
+      .catch((error: unknown) => { reportError(error, 'queue.retry'); setRetryError('Couldn’t retry this scan. Your photo is still here. Try again.'); })
       .finally(() => { retryPending.current = false; setRetrying(false); });
   }
 

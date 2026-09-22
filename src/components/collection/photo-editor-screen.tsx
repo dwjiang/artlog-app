@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { WallSheet } from './wall-sheet';
 import { SavedWorkImage } from './saved-work-image';
 import { LoadingImage } from '@/components/loading-image';
@@ -6,7 +7,7 @@ import { EmptyState } from '../empty-state';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { editArtworkPhoto, selectArtworkPhotos } from '@/db/repos/artwork-album';
@@ -27,6 +28,7 @@ export function PhotoEditorScreen() {
 }
 function PhotoQuery({ owner, savedId, photoId, onRetry }: { owner: string; savedId: string; photoId: string; onRetry: () => void }) {
   const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
+  useEffect(() => { if (photos.error) reportError(photos.error, 'collection.photo.load'); }, [photos.error]);
   const photo = photos.data.find((row) => row.owner === owner && row.savedLocalId === savedId && row.localId === photoId && row.deletedAt === null);
   return photo ? <PhotoEditor key={`${owner}:${photoId}`} photo={photo} />
     : <ArtworkQueryState item="Photo" loading={!photos.updatedAt} error={photos.error} onRetry={onRetry} />;
@@ -37,10 +39,11 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   const [captionFocused, setCaptionFocused] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const works = useLiveQuery(listSavedWorks(photo.owner), [photo.owner]);
+  useEffect(() => { if (works.error) reportError(works.error, 'collection.photo-destinations.load'); }, [works.error]);
   const destinations = works.data.filter((work) => work.owner === photo.owner && work.localId !== photo.savedLocalId && work.deletedAt === null);
   const execute = (patch: Parameters<typeof editArtworkPhoto>[1]) => {
     try { editArtworkPhoto(photo.localId, patch, photo.owner); router.back(); }
-    catch { setError('Could not update this photo. Please try again.'); }
+    catch (cause) { reportError(cause, 'collection.photo.update'); setError('Could not update this photo. Please try again.'); }
   };
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 20 }}>
     {photo.path && !imageFailed ? <LoadingImage uri={captureFileUri(photo.path)} onError={() => setImageFailed(true)} style={{ width: '100%', height: 220, backgroundColor: Gallery.fill }} contentFit="contain" label="Your artwork photo" />

@@ -2,10 +2,12 @@ import { act, renderHook } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
+import { reportError } from '@/lib/observability';
 import { useCapture } from './use-capture';
 import type { CaptureDependencies, CaptureInput, CapturePayload, CaptureResult, PreparedPainting, Quad } from './stages';
 
 const mockVisit = jest.fn();
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 jest.mock('@/db/repos/visits', () => ({ getVisit: (...args: unknown[]) => mockVisit(...args) }));
 const mockIdentify = jest.fn();
 const mockPush = jest.fn();
@@ -126,6 +128,23 @@ it('explains denied photo access without opening the picker', async () => {
   await act(async () => { await hook.result.current.importPhoto(); });
   expect(mockPicker).not.toHaveBeenCalled();
   expect(hook.result.current.state.message).toContain('Allow photo access in Settings');
+});
+
+it('reports a handled capture failure without including the photo', async () => {
+  const error = new Error('Native image processing failed');
+  mockPipeline.mockRejectedValue(error);
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.capture(async () => input); });
+  expect(reportError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(error, 'capture.process');
+  expect(hook.result.current.state.phase).toBe('retry');
+});
+
+it('does not report a cancelled photo selection', async () => {
+  mockPicker.mockResolvedValue({ canceled: true, assets: null });
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.importPhoto(); });
+  expect(reportError).not.toHaveBeenCalled();
 });
 
 it('blocks a second capture until the first finishes, then exposes errors for retry', async () => {

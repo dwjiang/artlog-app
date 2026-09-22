@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useNetworkState } from 'expo-network';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -43,7 +44,8 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
       });
       if (mounted.current) setPhase(result);
       if (result.stage === 'cancelled') attempted.current = false;
-    } catch {
+    } catch (error) {
+      reportError(error, 'museum_search.prepare');
       if (mounted.current) setPhase({ stage: 'none', reason: 'network' });
     } finally {
       inFlight.current = false;
@@ -67,7 +69,7 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
           return { stage: 'done', flow, confirmedAt: stored.updatedAt };
         });
       },
-      () => { if (current) setPhase({ stage: 'restore-error' }); },
+      (error: unknown) => { reportError(error, 'museum_search.restore'); if (current) setPhase({ stage: 'restore-error' }); },
     );
     return () => { current = false; };
   }, [scan, stored, restoreAttempt]);

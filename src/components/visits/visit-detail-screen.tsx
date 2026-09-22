@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { EmptyState, EmptySymbol, SearchEmptyState } from '../empty-state';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -46,6 +47,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const [saveError, setSaveError] = useState<string>();
   const { fontScale } = useWindowDimensions();
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
+  useEffect(() => { if (photos.error) reportError(photos.error, 'visit.photos.load'); }, [photos.error]);
   const filtered = visit.works.filter((work) => matchesVisitSearch(work, search));
   const generation = useOwnerGeneration();
   const sharing = useVisitSharing(visit.localId, visit.works.map((work) => work.localId));
@@ -76,7 +78,8 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         clearTimeout(timeout);
         if (session.isCurrent() && !sharing.profileRequired) await controller.load();
       }
-    } catch {
+    } catch (cause) {
+      reportError(cause, 'visit.visibility.save', { data: { visibility: next } });
       if (session.isOwnerCurrent()) setVisibilityError({ next, message: signedIn ? 'Visibility could not sync. A published visit may still be visible.' : 'Visibility could not save. Try again.' });
     } finally {
       clearTimeout(timeout);
@@ -102,7 +105,8 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       }
       if (isPublic) openSharing();
       else { showToast('Visit saved.'); if (router.canGoBack()) router.back(); }
-    } catch {
+    } catch (cause) {
+      reportError(cause, 'visit.save');
       if (session.isCurrent()) setSaveError('Couldn’t save visit. Try again.');
     } finally {
       submitting.current = false;

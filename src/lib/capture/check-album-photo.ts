@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { File } from 'expo-file-system';
 import { getNetworkStateAsync } from 'expo-network';
 import { api } from '../../../convex/_generated/api';
@@ -28,6 +29,6 @@ export async function checkAlbumPhoto(photo: DraftPhoto, targetObjectId?: string
     return { review: classification === 'same' ? undefined : classification, recognized: result.outcome === 'confident' && result.best ? {
       title: result.best.title, artist: result.best.artist, objectId: result.best.objectId, artworkId: result.best.artworkId,
     } : undefined };
-  } catch { return { review: 'uncertain' }; }
+  } catch (error) { reportError(error, 'capture.check_album_photo', { level: 'warning' }); return { review: 'uncertain' }; }
   finally { clearTimeout(timeout); if (cropUri) { const file = new File(cropUri); if (file.exists) file.delete(); } }
 }

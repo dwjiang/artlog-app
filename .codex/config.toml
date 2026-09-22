@@ -6,6 +6,11 @@ command = "npx"
 args = ["-y", "convex@latest", "mcp", "start"]
 startup_timeout_sec = 60
 
+[mcp_servers.convex.env]
+# Use the saved Convex login; deployment keys fail MCP's account authorization check.
+CONVEX_DEPLOY_KEY = ""
+CONVEX_DEPLOYMENT_TOKEN = ""
+
 [mcp_servers.XcodeBuildMCP]
 command = "npx"
 args = ["-y", "xcodebuildmcp@latest", "mcp"]

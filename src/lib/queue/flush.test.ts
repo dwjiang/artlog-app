@@ -1,9 +1,12 @@
 import { ConvexError } from 'convex/values';
+import { reportError } from '@/lib/observability';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import type { PendingScan } from '@/db/schema';
 import type { IdentifyResponse } from '@/lib/capture/stages';
 import { createFlusher, type FlushDependencies } from './flush';
+
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
 function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): PendingScan {
   return {
@@ -61,6 +64,7 @@ function fakeDependencies(rows: PendingScan[]) {
 }
 
 beforeEach(() => {
+  jest.mocked(reportError).mockClear();
   jest.useFakeTimers();
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -91,6 +95,18 @@ it('does nothing while offline', async () => {
   await createFlusher(deps).start();
   expect(deps.identify).not.toHaveBeenCalled();
   expect(deps.markIdentifying).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
+});
+
+it('reports a failed queued task while retaining its retry state', async () => {
+  const { deps, store } = fakeDependencies([pendingScan('a')]);
+  const error = new Error('Native model failed');
+  deps.identify.mockRejectedValueOnce(error);
+  const flusher = createFlusher(deps);
+  await flusher.start();
+  expect(reportError).toHaveBeenCalledWith(error, 'queue.identify', { data: { attempts: 1, status: 'queued' } });
+  expect(store.get('a')).toMatchObject({ status: 'queued', attempts: 1 });
+  flusher.stop();
 });
 
 it('waits for the captured local visit before sending a queued scan', async () => {
@@ -182,6 +198,7 @@ it.each([
   expect(deps.recordFailure).toHaveBeenCalledWith('a', expect.any(String), { countAttempt: false });
   expect(store.get('a')).toMatchObject({ status: 'queued', attempts: 0 });
   expect(store.get('b')).toMatchObject({ status: 'queued' });
+  expect(reportError).not.toHaveBeenCalled();
   await jest.advanceTimersByTimeAsync(1999);
   expect(deps.identify).toHaveBeenCalledTimes(1);
   await jest.advanceTimersByTimeAsync(1);

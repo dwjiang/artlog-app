@@ -1,5 +1,6 @@
 import { ownedAlbumPhoto } from './lib/albumMedia';
 import { ConvexError, type Infer, v } from 'convex/values';
+import { reportBackendError } from './lib/observability';
 import { previewMediaContext, sharedVisitMediaContext, validateMediaContext } from '../shared/social/contracts';
 import { internal } from './_generated/api';
 import { internalQuery, type ActionCtx } from './_generated/server';
@@ -54,6 +55,7 @@ export async function serveSharedMedia(ctx: Pick<ActionCtx, 'runQuery'> & { stor
     return new Response(blob, { headers: { ...headers, 'Content-Type': blob.type || 'application/octet-stream' } });
   } catch (error) {
     if (!(error instanceof ConvexError)) throw error;
+    await reportBackendError(error, 'sharedMedia.download');
     return Response.json({ code: 'not_found' }, { status: 404, headers });
   }
 }

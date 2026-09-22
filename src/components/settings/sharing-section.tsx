@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Image } from 'expo-image';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectCaptureForScan } from '@/db/repos/pending-scans';
@@ -50,7 +51,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
     try {
       await withdraw({ contributionId: contribution.contributionId });
       setWithdrawn(true);
-    } catch { setError("Couldn't withdraw this contribution. Check your connection and try again."); }
+    } catch (cause) { reportError(cause, 'contribution.withdraw'); setError("Couldn't withdraw this contribution. Check your connection and try again."); }
     finally { inFlight.current = false; setBusy(false); }
   }
 

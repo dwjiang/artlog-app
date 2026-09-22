@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { act, renderHook } from '@testing-library/react-native';
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
@@ -5,6 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { useCursorPages, useSocialQuery } from './use-social-query';
 import type { PublicProfile } from './types';
 
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn() }));
 let mockResults: Record<string, unknown>;
 let mockRequests: Record<string, { query: unknown; args: { cursor?: string | null } }>;
 const mockHttpQuery = jest.fn();
@@ -121,6 +123,7 @@ it('ignores a stale refresh failure after changing the query scope', async () =>
   await view.rerender({ scope: 'new' });
   await act(() => reject(new Error('Old request failed')));
   expect(view.result.current.error).toBeUndefined();
+  expect(reportError).not.toHaveBeenCalled();
 });
 
 it('restores the live subscription when arguments return during a refresh', async () => {
@@ -161,4 +164,24 @@ it('keeps loaded rows visible while retrying a failed later page', async () => {
   await act(() => view.result.current.refresh());
   expect(view.result.current.items.map((profile) => profile.name)).toEqual(['alex']);
   expect(view.result.current.loading).toBe(true);
+});
+
+it('reports subscription failures with the query name and no private query arguments', async () => {
+  const failure = new Error('Unexpected profile query failure');
+  mockResults.first = failure;
+  const view = await renderHook(() => useSocialQuery(api.profiles.getPublic, { profileId: 'private-profile-id' as never }, 'private-account-scope'));
+  expect(view.result.current.error).toBe(failure);
+  expect(reportError).toHaveBeenCalledWith(failure, 'social.query.profiles:getPublic');
+  expect(reportError).toHaveBeenCalledTimes(1);
+  await view.rerender(undefined);
+  expect(reportError).toHaveBeenCalledTimes(1);
+});
+
+it('reports failed later pages without including the cursor or search text', async () => {
+  const failure = new Error('Unexpected page failure');
+  mockResults = { first: page('alex', 'private-cursor'), 'private-cursor': failure };
+  const view = await renderHook(() => useCursorPages(api.profiles.search, { query: 'private search text' }, 'private-scope', select, identify));
+  await act(() => view.result.current.loadMore());
+  expect(view.result.current.error).toBe(failure);
+  expect(reportError).toHaveBeenCalledWith(failure, 'social.query.profiles:search');
 });

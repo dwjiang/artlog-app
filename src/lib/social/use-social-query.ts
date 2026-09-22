@@ -1,6 +1,7 @@
+import { reportError } from '@/lib/observability';
 import { useQueries, type RequestForQueries } from 'convex/react';
 import { getFunctionName, makeFunctionReference, type FunctionArgs, type FunctionReference, type FunctionReturnType } from 'convex/server';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { readCursorPages, type CursorPage } from './cursor-pages';
 import { useQueryRefresh } from './use-query-refresh';
 
@@ -17,6 +18,7 @@ export function useSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q> 
   // A delivered live result outranks a stale refresh failure; `null` is a valid result, so `??` cannot decide this.
   const live: FunctionReturnType<Q> | Error | undefined = results[key];
   const result = enabled ? live !== undefined ? live : retry.error : undefined;
+  useEffect(() => { if (result instanceof Error) reportError(result, `social.query.${name}`); }, [result, name]);
   return { data: result instanceof Error ? undefined : result, error: result instanceof Error ? result : undefined,
     loading: args !== 'skip' && (retry.refreshing || result === undefined), refresh: retry.refresh };
 }
@@ -54,6 +56,7 @@ export function useCursorPages<Q extends Query, T>(query: Q, args: Omit<Function
   const holding = held && !stale ? held.pages : undefined;
   const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
   const refreshing = retry.refreshing || holding !== undefined;
+  useEffect(() => { if (pages.error) reportError(pages.error, `social.query.${name}`); }, [pages.error, name]);
   return { ...pages, refreshing, loading: args !== 'skip' && (pages.loading || refreshing),
     refresh: () => { if (!refreshing && live.first !== undefined) setHeld({ key, pages: live }); setState({ key, cursors: [null] }); retry.refresh(); },
     loadMore: () => {
