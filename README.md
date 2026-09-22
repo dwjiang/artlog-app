@@ -357,6 +357,9 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
   Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
   device and stay private until promoted. Sign in with Apple is optional and only syncs the
   collection between devices; an account is never required to scan, save or contribute.
+- **Crash reports go to Sentry.** When the app hits an error it sends the stack trace, device model,
+  OS and app version, and recent console warnings and request URLs as breadcrumbs to sentry.io.
+  No photos, screenshots, session replays or location fixes are attached.
 - **The collection is local-first**, in SQLite on the phone. Saved photos and crops back up privately to Convex file storage; collection rows hold storage IDs. Authenticated `/collection-photo` uploads and downloads check the caller's collection ownership. Cloud copies are JPEGs (up to 2,560 px for photos, 512 px for crops), without camera/location metadata. Linked devices download them for offline viewing; originals remain on the capturing phone. Retries are idempotent, and deletion removes stored files once no active collection copy references them.
 
 ## Development

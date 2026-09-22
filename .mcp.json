@@ -47,6 +47,10 @@
       ],
       "env": {}
     },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
     "mobbin": {
       "type": "http",
       "url": "https://api.mobbin.com/mcp"
