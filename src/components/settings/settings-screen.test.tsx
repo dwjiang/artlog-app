@@ -83,7 +83,9 @@ it('opens account management from the profile row', async () => {
 
 it('keeps privacy and About details accessible', async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
-  expect(screen.getByText(/Coordinates never leave your phone/)).toBeOnTheScreen();
+  expect(screen.getByText(/Apple Maps searches may send a search area centered on your location to Apple/)).toBeOnTheScreen();
+  expect(screen.getByText(/Artlog’s servers receive the selected museum, but not your GPS coordinates/)).toBeOnTheScreen();
+  expect(screen.getByText(/Confirming a new place also sends that place’s name, coordinates and website to Artlog/)).toBeOnTheScreen();
   expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
   expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
