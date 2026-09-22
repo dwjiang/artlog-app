@@ -62,6 +62,7 @@ export type CaptureDependencies = {
   orb: OrbExtractor;
   identify: (payload: CapturePayload) => Promise<IdentifyResponse>;
   isOnline: () => boolean;
+  recognizeOffline?: (payload: CapturePayload) => Promise<void>;
   /** Syncs a visit the server has not seen yet, so the first scan at a museum identifies now instead of queuing. */
   resolveVisitId?: (visitLocalId: string, venueId: NonNullable<CapturePayload['venueId']>) => Promise<NonNullable<CapturePayload['visitId']>>;
   store: CaptureStore;

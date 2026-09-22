@@ -51,6 +51,7 @@ export function SettingsScreen() {
       <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('account'))} />
     </View>}
     <SettingsGroup title="Your journal">
+      <SettingsRow label="Museum downloads" icon="arrow.down.to.line" onPress={() => router.push('/museum-downloads')} />
       <SettingsRow label="Visits" icon="chart.bar" onPress={detail('visits')} />
       {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail('leaderboards')} />}
       {account?.linked && <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push('/public-notes')} />}

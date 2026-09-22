@@ -4,6 +4,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import model from '../shared/model/model-version.json';
+import { museumPackage, packageFields } from './lib/museumDownloadValidators';
 import { albumPhoto, albumEncounter } from '../shared/collection/album';
 import { journalOwner, journalVisit, journalSave } from '../shared/journal/contracts';
 import { wallLayout, relationshipState, publicationStatus, visitAudience, mediaSource, reportTarget, reportEvidence, reportReview, removal } from '../shared/social/contracts';
@@ -48,6 +49,11 @@ const rightsRequest = {
 
 export default defineSchema({
   ...authTables,
+
+  museumDownloads: defineTable({
+    venueId: v.id('museums'), published: v.optional(museumPackage),
+    building: v.optional(v.object({ ...packageFields, cursor: v.union(v.string(), v.null()) })),
+  }).index('by_venue', ['venueId']),
 
   artworks: defineTable({
     identityStatus,

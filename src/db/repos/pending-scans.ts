@@ -3,7 +3,7 @@ import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or } fr
 import type { Id } from '../../../convex/_generated/dataModel';
 import { getLocalOwner } from '../../lib/account/owner-store';
 import { db } from '../client';
-import { artworkPhotos, pendingScans, type NewPendingScan, type PendingScan, type PendingScanStatus } from '../schema';
+import { artworkPhotos, offlineScanResults, pendingScans, type NewPendingScan, type PendingScan, type PendingScanStatus } from '../schema';
 import { requireVisitMembership } from './visit-membership';
 
 export const MAX_IDENTIFY_ATTEMPTS = 5;
@@ -134,6 +134,7 @@ export async function resetAttemptsForModel(localId: string, attemptModelVersion
 }
 
 export async function updateFeatures(localId: string, features: ScanFeatureUpdate, owner = getLocalOwner()): Promise<void> {
+  await db.delete(offlineScanResults).where(and(eq(offlineScanResults.owner, owner), eq(offlineScanResults.localId, localId)));
   await db.update(pendingScans).set({ ...features, attemptModelVersion: features.modelVersion, status: 'queued', attempts: 0, lastError: null })
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }

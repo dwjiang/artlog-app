@@ -1,5 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
+import { getNetworkStateAsync } from 'expo-network';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { and, eq } from 'drizzle-orm';
 
@@ -20,6 +21,7 @@ import { toCorners } from './rectangle';
 import { validCrop } from './crop-geometry';
 import type { Quad } from './stages';
 import { clearPhotoDraft, readPhotoSession, updatePhotoSession } from './photo-draft';
+import { recognizeOfflineCapture } from '@/lib/museum-downloads/recognize-capture';
 
 export type EditedCrop = { modelUri: string; previewUri: string; width: number; height: number };
 
@@ -87,5 +89,13 @@ export async function saveEditedScanCrop(localId: string, crop: EditedCrop, owne
     });
   } catch (error) { removePhotoFile(modelPath); removePhotoFile(previewPath); if (photoPath) removePhotoFile(photoPath); throw error; }
   await removeUnreferencedPhotos([capture.photoPath, capture.cropPath, scanPreviewPath(capture.cropPath)]);
+  void recognizeUnsendableCrop({ ...features, owner, localId: nextId, modelVersion: model.modelVersion, venueId: capture.venueId ?? undefined }, current.scope)
+    .catch(error => console.warn('Offline identification unavailable; edited capture stays queued', error));
   return nextId;
+}
+
+// Like runCapture, a local match only stands in for a scan the queue cannot send; the editor flushes the queue on return.
+async function recognizeUnsendableCrop(payload: Parameters<typeof recognizeOfflineCapture>[0], scope: string | undefined) {
+  if (scope && (await getNetworkStateAsync()).isInternetReachable !== false) return;
+  await recognizeOfflineCapture(payload);
 }

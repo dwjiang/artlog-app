@@ -18,6 +18,7 @@ jest.mock('@/lib/device-identity', () => ({ DeviceIdentity: () => null }));
 jest.mock('@/lib/account/collection-sync', () => ({ CollectionSync: () => null }));
 jest.mock('@/lib/embed/embedder', () => ({ warmUpEmbedder: () => {} }));
 jest.mock('@/lib/queue/use-queue', () => ({ QueueFlusher: () => null }));
+jest.mock('@/lib/museum-downloads/use-museum-downloads', () => ({ MuseumDownloadLifecycle: () => null }));
 jest.mock('@/lib/venue/use-venue', () => ({ VenueResolver: () => null }));
 
 afterEach(() => jest.useRealTimers());

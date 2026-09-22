@@ -13,8 +13,11 @@ import * as resultSave from '@/lib/result/save';
 import { getSavedWork } from '@/db/repos/saved-works';
 import type { NewPendingScan } from '@/db/schema';
 import { FAILED_TITLE } from '@/lib/result/failure-copy';
+import { cacheOfflineResult } from '@/db/repos/offline-scan-results';
+import { confidentScan } from './result/__fixtures__/scan';
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
-jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null }));
+jest.mock('./capture-photos-button', () => ({ CapturePhotosButton: () => null, useCapturePhotos: () => ({ label: 'Add photos', open: jest.fn(), unavailable: false }) }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
@@ -46,7 +49,12 @@ jest.mock('@/lib/convex-client', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => `saved-${++mockUuid}` }));
 jest.mock('expo-router/react-navigation', () => ({ useIsFocused: () => mockFocused }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, navigate: mockNavigate, replace: mockReplace, dismissAll: mockDismissAll }) }));
+jest.mock('expo-router', () => {
+  const { Pressable, Text, View } = jest.requireActual('react-native');
+  const Action = ({ children, onPress, disabled }: { children: React.ReactNode; onPress: () => void; disabled?: boolean }) => <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}><Text>{children}</Text></Pressable>;
+  return { useRouter: () => ({ push: mockPush, navigate: mockNavigate, replace: mockReplace, dismissAll: mockDismissAll }),
+    Stack: { Toolbar: Object.assign(View, { Menu: View, MenuAction: Action }) } };
+});
 jest.mock('expo-haptics', () => ({
   notificationAsync: (type: string) => mockHaptic(type),
   NotificationFeedbackType: { Success: 'success' },
@@ -90,6 +98,43 @@ async function complete(localId: string) {
     }
   });
 }
+
+it('shows cached recognition and reading immediately, preserves it when reception returns, and saves normally', async () => {
+  await enqueuePendingScan(row('offline-result', { status: 'queued' }));
+  await cacheOfflineResult('offline-result', confidentScan);
+  await render(<LocalScanScreen localId="offline-result" />);
+  expect(await screen.findByText('Water Lilies')).toBeOnTheScreen();
+  expect(screen.getByText(/Claude Monet/)).toBeOnTheScreen();
+  expect(screen.getByText(/Monet painted this pond at Giverny in 1916/)).toBeOnTheScreen();
+  expect(screen.queryByText(WAITING_TITLE)).toBeNull();
+  await complete('offline-result');
+  expect(mockReplace).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Save to collection' }));
+  expect(await screen.findByText('Saved to your collection')).toBeOnTheScreen();
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: 'Water Lilies', artist: 'Claude Monet', objectId: confidentScan.best?.objectId });
+});
+
+it('opens the server result once the queue identifies a capture that already shows a cached match', async () => {
+  await enqueuePendingScan(row('offline-online', { status: 'queued' }));
+  await cacheOfflineResult('offline-online', confidentScan);
+  await render(<LocalScanScreen localId="offline-online" />);
+  expect(await screen.findByText('Water Lilies')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'View the online result' })).toBeNull();
+  await complete('offline-online');
+  await fireEvent.press(await screen.findByRole('button', { name: 'View the online result' }));
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: '/result/[scanId]', params: { scanId: 'scan-offline-online' } });
+});
+
+it('drops a picked runner-up from the other possibilities of a cached recognition', async () => {
+  await enqueuePendingScan(row('offline-pick', { status: 'queued' }));
+  await cacheOfflineResult('offline-pick', confidentScan);
+  await render(<LocalScanScreen localId="offline-pick" />);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Not right?' }));
+  await fireEvent.press(screen.getByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ }));
+  expect(screen.getByText('Could this be The Japanese Footbridge?')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: /^The Japanese Footbridge, Claude Monet/ })).toBeNull();
+});
 
 it('keeps a manual draft on completion, then saves it before opening the result', async () => {
   await enqueuePendingScan(row('draft-completion', { status: 'queued' }));

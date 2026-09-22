@@ -12,6 +12,7 @@ import { convex } from '@/lib/convex-client';
 import { installationStorage } from '@/lib/installation-storage';
 import { DeviceIdentity } from '@/lib/device-identity';
 import { warmUpEmbedder } from '@/lib/embed/embedder';
+import { MuseumDownloadLifecycle } from '@/lib/museum-downloads/use-museum-downloads';
 import { QueueFlusher } from '@/lib/queue/use-queue';
 import { VenueResolver } from '@/lib/venue/use-venue';
 
@@ -27,6 +28,7 @@ export default function RootLayout() {
         <DeviceIdentity />
         <CollectionSync />
         <QueueFlusher />
+        <MuseumDownloadLifecycle />
         <VenueResolver />
         <ThemeProvider value={navigationTheme}>
           <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'default' }}>
@@ -43,6 +45,7 @@ export default function RootLayout() {
             <Stack.Screen name="sign-in" dangerouslySingular options={{ presentation: 'formSheet', sheetAllowedDetents: [0.62, 1], sheetGrabberVisible: true, headerShown: false }} />
             <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
+            <Stack.Screen name="museum-downloads" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings" options={{ title: '', headerBackTitle: 'Collection' }} />
             <Stack.Screen name="saved/[savedId]" options={{ title: '' }} />
             <Stack.Screen name="wall-display" options={{ title: '' }} />
