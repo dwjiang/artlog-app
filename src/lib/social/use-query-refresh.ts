@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { ConvexHttpClient } from 'convex/browser';
 import { getFunctionName, type FunctionArgs, type FunctionReference } from 'convex/server';
@@ -27,7 +28,10 @@ export function useQueryRefresh<Q extends FunctionReference<'query', 'public'>>(
       fetch: (input, options) => expoFetch(input, { ...options, signal: controller.signal }) });
     let error: Error | undefined;
     try { await client.query(query, args); }
-    catch (cause) { error = cause instanceof Error ? cause : new Error('Couldn’t refresh. Try again.'); }
+    catch (cause) {
+      if (session.isCurrent() && !controller.signal.aborted) reportError(cause, `social.query.${getFunctionName(query)}`);
+      error = cause instanceof Error ? cause : new Error('Couldn’t refresh. Try again.', { cause });
+    }
     finally {
       if (session.isCurrent() && !controller.signal.aborted) {
         request.current = null;

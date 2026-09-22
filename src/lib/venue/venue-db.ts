@@ -8,6 +8,7 @@ import type { api } from '../../../convex/_generated/api';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { bundledVenueAsset } from '@/lib/venue-asset';
 import { filePath } from '@/lib/file-uri';
+import { reportError } from '@/lib/observability';
 import { boundingBox, CHOOSE_RADIUS_M, pickVenue, rankCandidates, type Coordinate, type VenueCandidate, type VenueResolution, type VenueRow } from './resolve';
 
 export const VENUE_DB_NAME = 'venues.db';
@@ -47,7 +48,8 @@ async function installedTableIsValid(): Promise<boolean> {
   try {
     await validateVenueTable(db);
     return true;
-  } catch {
+  } catch (error) {
+    reportError(error, 'venue.table.validate', { level: 'warning' });
     // The installed hash only records which bundle was copied, not that the copy landed intact.
     return false;
   } finally {
@@ -60,6 +62,7 @@ async function journalVenueRows(): Promise<VenueRow[]> {
   try {
     return await db.getAllAsync<VenueRow>(`SELECT ${VENUE_COLUMNS} FROM venues WHERE id IN (SELECT id FROM journalVenues)`);
   } catch (error) {
+    reportError(error, 'venue.table.preserve', { level: 'warning' });
     console.warn('Could not carry journal venues across the bundled table update', error);
     return [];
   } finally {
@@ -115,7 +118,10 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
         for (const venue of installed.carried) await writeVenue(db, venue, 'IGNORE');
         await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
       }
-      await installStagedTable(db).catch((error: unknown) => console.warn('Could not install the refreshed venue table', error));
+      await installStagedTable(db).catch((error: unknown) => {
+        reportError(error, 'venue.table.install', { level: 'warning' });
+        console.warn('Could not install the refreshed venue table', error);
+      });
       if (__DEV__) console.debug('Venue table', await readVenueTableMeta(db));
       return db;
     } catch (error) {
@@ -123,6 +129,7 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
       throw error;
     }
   })().catch((error: unknown) => {
+    reportError(error, 'venue.table.open');
     opening = undefined;
     throw error;
   });

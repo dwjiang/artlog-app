@@ -1,3 +1,4 @@
+import { reportError, addBreadcrumb } from '@/lib/observability';
 import type { FunctionArgs } from 'convex/server';
 
 import type { api } from '../../../convex/_generated/api';
@@ -140,7 +141,9 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           const transient = isTransientError(error);
           const recordFailure = labelTask ? deps.recordLabelFailure : deps.recordFailure;
           const { status, attempts } = await recordFailure(row.localId, errorMessage(error), { countAttempt: !transient });
+          if (!transient) reportError(error, `queue.${task}`, { data: { attempts, status } });
           if (transient) {
+            addBreadcrumb('queue.paused', { task, reason: 'transient_failure' });
             taskBackoff.pauseUntil = Date.now() + Math.max(backoffMs(++taskBackoff.transientFailures), rateLimitRetryAfterMs(error) ?? 0);
             nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
             return;
@@ -180,6 +183,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           await run(() => active && generation === runGeneration && (deps.isCurrent?.() ?? true));
         } while (active && rerun);
       } catch (error) {
+        reportError(error, 'queue.flush');
         console.warn('Queue flush failed', error);
       } finally {
         inFlight = undefined;

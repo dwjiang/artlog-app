@@ -1,3 +1,4 @@
+import { withErrorReporting } from './lib/observability';
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import { contributionPayload } from '../shared/attestation/attested-payloads';
@@ -250,7 +251,7 @@ export const contribute = action({
     cropStorageId: v.id('_storage'), nonce: v.string(), assertionBase64: v.string(),
   },
   returns: contributionResult,
-  handler: async (ctx, args): Promise<ContributionResult> => {
+  handler: async (ctx, args): Promise<ContributionResult> => withErrorReporting('contributions.contribute', async () => {
     const keypointCount = decodeQuery(args.descriptors, args.keypoints).count;
     const { nonce, assertionBase64, descriptors, keypoints, ...submission } = args;
     const authorization = await ctx.runMutation(internal.contributions.authorize, {
@@ -304,7 +305,7 @@ export const contribute = action({
     } finally {
       await ctx.runMutation(internal.orbFiles.discard, { storageIds: [orb.storageId] });
     }
-  },
+  }),
 });
 
 export const withdraw = mutation({

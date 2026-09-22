@@ -1,10 +1,11 @@
+import { reportError } from '@/lib/observability';
 import { SavedWorkImage } from './saved-work-image';
 import { LoadingRing } from '@/components/loading-ring';
 import { ListSkeleton } from '@/components/loading-skeleton';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 import { api } from '../../../convex/_generated/api';
 import { Gallery } from '@/constants/theme';
@@ -26,6 +27,7 @@ export function IdentifyArtworkScreen() {
 }
 function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
   const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  useEffect(() => { if (error) reportError(error, 'collection.artwork.load'); }, [error]);
   const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? <Editor key={`${owner}:${savedId}`} work={work} />
     : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
@@ -36,6 +38,7 @@ function Editor({ work }: { work: SavedWork }) {
   const [date, setDate] = useState(work.date ?? ''), [medium, setMedium] = useState(work.medium ?? '');
   const [search, setSearch] = useState(''), [choosing, setChoosing] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState<string>();
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
+  useEffect(() => { if (works.error) reportError(works.error, 'collection.merge-destinations.load'); }, [works.error]);
   const matches = works.data.filter((target) => target.owner === work.owner && target.localId !== work.localId && target.deletedAt === null && `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase()));
   async function merge(target: SavedWork) {
     const session = captureOwner(); if (!session.scope) { setError('Connect to the internet to merge artworks.'); return; }
@@ -46,7 +49,7 @@ function Editor({ work }: { work: SavedWork }) {
       if (!session.isCurrent()) return;
       await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner)); applyAlbum(result.photos, result.encounters, session.owner);
       router.replace({ pathname: '/saved/[savedId]', params: { savedId: target.localId } });
-    } catch { setError('Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.'); }
+    } catch (cause) { reportError(cause, 'collection.artwork.merge'); setError('Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.'); }
     finally { setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, gap: 18 }}>
@@ -65,7 +68,7 @@ function Editor({ work }: { work: SavedWork }) {
     </View>
     <GalleryButton label="Save details" variant="filled" fullWidth disabled={busy} onPress={() => {
       try { editSavedWork(work.localId, { title: title.trim() || 'Unidentified artwork', artist: artist.trim(), date: date.trim() || null, medium: medium.trim() || null }, work.owner); router.back(); }
-      catch { setError('Your artwork details could not be saved. Your edits are still here. Try again.'); }
+      catch (cause) { reportError(cause, 'collection.artwork.update'); setError('Your artwork details could not be saved. Your edits are still here. Try again.'); }
     }} />
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
   </ScrollView>;

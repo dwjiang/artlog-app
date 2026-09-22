@@ -1,5 +1,6 @@
+import { reportError } from '@/lib/observability';
 import { useQueries, type RequestForQueries } from 'convex/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -14,5 +15,6 @@ export function useScan(scanId: Id<'scans'> | undefined): ScanResult | Error | u
     [ready, scanId],
   );
   const { scan }: { scan?: ScanResult | Error } = useQueries(query);
+  useEffect(() => { if (scan instanceof Error) reportError(scan, 'result.load_scan'); }, [scan]);
   return scan;
 }

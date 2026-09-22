@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { db } from '../../db/client';
 import { settings } from '../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -17,7 +18,7 @@ export function readPhotoSession(owner: string, draftId: string): PhotoSessionDr
   try {
     const parsed = JSON.parse(value) as PhotoSessionDraft;
     return { ...parsed, photos: Array.isArray(parsed.photos) ? parsed.photos.filter((photo) => typeof photo?.localId === 'string' && typeof photo?.path === 'string' && ['full', 'detail', 'label'].includes(photo?.kind) && Number.isFinite(photo?.capturedAt)) : [] };
-  } catch { return { photos: [] }; }
+  } catch (error) { reportError(error, 'capture.restore_photo_draft'); return { photos: [] }; }
 }
 export function readPhotoDraft(owner: string, draftId: string): DraftPhoto[] {
   return readPhotoSession(owner, draftId).photos;

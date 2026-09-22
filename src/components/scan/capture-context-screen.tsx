@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { VisitKeepsake } from '../guest/visit-keepsake';
 import { EmptyState } from '../empty-state';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -34,6 +35,7 @@ export function CaptureContextScreen() {
 
 function CaptureContext({ owner, draftId, visitId, venueId, capturedAt }: { owner: string; draftId: string; visitId?: string; venueId?: Id<'museums'>; capturedAt?: number }) {
   const visits = useLiveQuery(listVisits(owner), [owner]);
+  useEffect(() => { if (visits.error) reportError(visits.error, 'capture.load_visits'); }, [visits.error]);
   const { visit: open } = useVenue();
   const [openedAt] = useState(Date.now);
   const captureTime = capturedAt ?? openedAt;
@@ -47,7 +49,7 @@ function CaptureContext({ owner, draftId, visitId, venueId, capturedAt }: { owne
   useEffect(() => {
     let active = true;
     if (!venueOption) return;
-    void venueVisitLabel(venueOption, captureTime).then((label) => { if (active) setVenue(label); }, () => {});
+    void venueVisitLabel(venueOption, captureTime).then((label) => { if (active) setVenue(label); }, (error: unknown) => { reportError(error, 'capture.load_visit_label', { level: 'warning' }); });
     return () => { active = false; };
   }, [venueOption, captureTime]);
   // A save at the museum joins the visit already on the books for the capture's day (today only while it is still open),
@@ -60,7 +62,8 @@ function CaptureContext({ owner, draftId, visitId, venueId, capturedAt }: { owne
       updatePhotoSession(owner, draftId, { visit: choice });
       setSelected(value);
       router.back();
-    } catch {
+    } catch (error) {
+      reportError(error, 'capture.save_visit');
       setError('Couldn’t save this visit choice. Your previous selection is unchanged. Try again.');
     }
   }

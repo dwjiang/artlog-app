@@ -3,6 +3,7 @@ import type { CollectionPhotoKind } from '../../../shared/collection/photo-limit
 import type * as repository from '../../db/repos/saved-works';
 import type { SavedWork } from '../../db/schema';
 import type { PhotoUpload } from './photo-transfer';
+import { reportError } from '../observability';
 
 export type PhotoSyncDependencies = Pick<typeof repository,
   'listPhotoTransfers' | 'getSavedWork' | 'updatePhotoTransfer' | 'listDeletedPhotoFiles' | 'isPhotoFileReferenced' | 'clearDeletedPhotoPaths'> & {
@@ -45,7 +46,10 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
           const downloaded = await deps.download(work.localId, 'crop', current.cropStorageId);
           if (!isCurrent() || !await deps.updatePhotoTransfer(work.localId, { cropPath: downloaded }, undefined, current)) deps.removeFile(downloaded);
         }
-      } catch (error) { failure = error; }
+      } catch (error) {
+        reportError(error, 'sync.photos', { data: { kind: 'crop', direction: current.cropPath ? 'upload' : 'download' } });
+        failure = error;
+      }
     }
     if (failure) throw failure;
   }

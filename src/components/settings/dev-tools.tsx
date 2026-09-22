@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Switch, Text } from '@expo/ui';
 import { font } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
@@ -45,6 +46,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         if (active) setModelStatus(`Embedding model: ready · load ${Math.round(warm.loadMs)} ms · predict ${Math.round(warm.predictMs)} ms`);
       },
       (error: unknown) => {
+        reportError(error, 'diagnostics.model.warm-up');
         if (active) setModelStatus(`Embedding model: ${message(error)}`);
       },
     );
@@ -66,6 +68,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       const replay = await assertSmoke(signed);
       setResult(`Assertion: ${first.ok ? 'accepted' : 'rejected'} · Replay: ${replay.ok ? 'accepted' : 'rejected'}`);
     } catch (error) {
+      reportError(error, 'diagnostics.attestation');
       setResult(message(error));
     } finally {
       inFlight.current = false;
@@ -82,6 +85,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       const { report } = await runCalibrationExport((done, total) => setProgress(`${done}/${total} embeddings`));
       setCalibration(`Calibration: ${report.count} embeddings · median ${report.embedMedianMs.toFixed(1)} ms · ${report.device}`);
     } catch (error) {
+      reportError(error, 'diagnostics.calibration');
       setCalibration(message(error));
     } finally {
       exporting.current = false;
@@ -102,6 +106,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
       );
     } catch (error) {
+      reportError(error, 'diagnostics.orb-parity');
       setOrbParity(message(error));
     } finally {
       orbInFlight.current = false;
@@ -114,7 +119,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       {timings.enabled === undefined && !timings.failed ? <ValueRow label="Show capture timings" loading /> : <Switch label="Show capture timings" value={timings.enabled === true} disabled={timings.enabled === undefined || savingTimings}
         onValueChange={(value) => {
           setSavingTimings(true);
-          void timings.change(value).catch(() => setResult("Couldn't save the timings setting. Try again.")).finally(() => setSavingTimings(false));
+          void timings.change(value).catch((cause) => { reportError(cause, 'settings.capture-timings.save'); setResult("Couldn't save the timings setting. Try again."); }).finally(() => setSavingTimings(false));
         }} />}
     </GroupedSection>
     <GroupedSection title="App Attest">

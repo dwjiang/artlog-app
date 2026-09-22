@@ -1,4 +1,5 @@
 import { BottomSheet, RNHostView } from '@expo/ui';
+import { reportError } from '@/lib/observability';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -25,7 +26,8 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
     try {
       await setMuseumSearchConsent('granted');
       onGranted();
-    } catch {
+    } catch (error) {
+      reportError(error, 'museum_search.save_consent');
       setError("Couldn't save your choice. Try again.");
     } finally {
       pending.current = false;

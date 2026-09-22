@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from '@/lib/social/profile-photo';
 import { useAction, useMutation } from 'convex/react';
 import { useEffect, useRef, useState } from 'react';
@@ -42,7 +43,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       const next = await chooseProfilePhoto();
       if (!mounted.current) { removeProfilePhotoDraft(next); return; }
       if (next) { removeProfilePhotoDraft(photoDraft.current); photoDraft.current = next; setPhoto(next); }
-    } catch { if (mounted.current) setError('This photo could not be opened. Try another image.'); }
+    } catch (cause) { reportError(cause, 'profile.photo.choose'); if (mounted.current) setError('This photo could not be opened. Try another image.'); }
     finally { if (mounted.current) setBusy(false); }
   }
   async function submit() {
@@ -55,7 +56,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       if (!owner.isCurrent() || !mounted.current) return;
       if (bytes) await savePhoto({ name: name.trim(), bio: bio.trim(), photo: bytes });
       if (owner.isCurrent() && mounted.current) onCreated();
-    } catch (cause) { if (owner.isCurrent() && mounted.current) setError(created.current ? 'Your profile is ready, but the photo could not upload. Retry or continue without it.' : socialErrorMessage(cause) ?? 'Your profile could not be created. Your edits are kept. Try again.'); }
+    } catch (cause) { reportError(cause, created.current ? 'profile.photo.save' : 'profile.create'); if (owner.isCurrent() && mounted.current) setError(created.current ? 'Your profile is ready, but the photo could not upload. Retry or continue without it.' : socialErrorMessage(cause) ?? 'Your profile could not be created. Your edits are kept. Try again.'); }
     finally { submitting.current = false; if (owner.isCurrent() && mounted.current) setBusy(false); }
   }
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 20 }}>

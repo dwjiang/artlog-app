@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { selectArtworkEncounters } from '@/db/repos/artwork-album';
 import { listSavedWorks } from '@/db/repos/saved-works';
@@ -10,6 +12,7 @@ export function useVisitWorks(visitLocalId: string | undefined, owner: string) {
   const encounters = useLiveQuery(selectArtworkEncounters(owner), [owner]);
   const works = useLiveQuery(listSavedWorks(owner), [owner]);
   const error = encounters.error ?? works.error;
+  useEffect(() => { if (error) reportError(error, 'journal.visit-artworks.load'); }, [error]);
   const loading = !!visitLocalId && !error && (!encounters.updatedAt || !works.updatedAt);
   const linked = new Set(encounters.data
     .filter((encounter) => encounter.owner === owner && encounter.visitLocalId === visitLocalId && encounter.deletedAt === null)

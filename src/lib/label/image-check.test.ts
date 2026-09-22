@@ -1,6 +1,9 @@
+import { reportError } from '@/lib/observability';
 import { encodeOrbFeatures } from '@/shared/orb/features';
 import { makeSyntheticPair } from '@/shared/orb/test-fixtures';
 import { checkImages, cosineSimilarity, type ImageCheckDeps } from './image-check';
+
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
 const pair = makeSyntheticPair({ count: 120 });
 const scan = { vector: [1, 0, 0], ...encodeOrbFeatures(pair.query) };
@@ -62,7 +65,8 @@ it('checks at most three images and skips one that fails to download', async () 
   expect(deps.download).toHaveBeenCalledTimes(3);
   expect(deps.embed).toHaveBeenCalledTimes(2);
   expect(result).toMatchObject({ url: 'https://museum.example/c.jpg', homographyValid: true });
-  expect(console.warn).toHaveBeenCalledWith('Could not check a museum image', expect.objectContaining({ url: 'https://museum.example/b.jpg' }));
+  expect(console.warn).toHaveBeenCalledWith('Could not check a museum image', expect.any(Error));
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'label.check_museum_image', { level: 'warning' });
 });
 
 it('measures cosine similarity on unnormalized vectors and rejects mismatched lengths', () => {

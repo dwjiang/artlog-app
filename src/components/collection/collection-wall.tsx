@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingSkeleton, Ghost } from '../loading-skeleton';
 import { WallSheet } from './wall-sheet';
 import { EmptyState } from '../empty-state';
@@ -103,6 +104,7 @@ export function CollectionWallContent({ works, hiddenIds = [], onEditingChange, 
     }
     catch (cause) {
       if (!session.isCurrent() || !wall.repository.getSnapshot().layoutDraft) return;
+      reportError(cause, 'wall.layout.publish');
       setOptions(false); setPhotoPicker(undefined);
       wall.setError(convexErrorCode(cause) === 'conflict'
         ? 'Your wall changed on another device. Retry saving to keep your edits, or discard them to use the latest wall.'

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { LoadingRing } from '@/components/loading-ring';
 import { LoadingImage } from '@/components/loading-image';
@@ -45,7 +46,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
   const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
-    if (savedId) void (async () => { try { const work = await getSavedWork(savedId, owner); if (current) setTarget(work); } catch {} })();
+    if (savedId) void (async () => { try { const work = await getSavedWork(savedId, owner); if (current) setTarget(work); } catch (error) { reportError(error, 'capture.load_album'); } })();
     return () => { current = false; };
   }, [savedId, owner]);
   const input = readPhotoSession(owner, draftId).saveInput;
@@ -104,7 +105,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
         }
       }
       setSelected(next.find((photo) => photo.review)?.localId);
-    } catch { setError('Could not add this photo. Try again.'); }
+    } catch (error) { reportError(error, 'capture.add_photo', { data: { source } }); setError('Could not add this photo. Try again.'); }
     finally { busyRef.current = false; setOperation(undefined); }
   }
   const saveCapture = readPhotoSession(owner, draftId).saveInput?.capture;
@@ -140,7 +141,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
         if (!capture || !session.isOwnerCurrent()) throw new Error('Capture unavailable');
         await newArtwork.save({ ...input, capture, contribution: input.contribution ? { ...input.contribution, capture } : undefined });
       }
-    } catch { setError('Could not save the photos. Your draft is still here.'); }
+    } catch (error) { reportError(error, 'capture.save_photos'); setError('Could not save the photos. Your draft is still here.'); }
     finally { busyRef.current = false; setOperation(undefined); }
   }
   async function saveSeparately(photo: DraftPhoto) {
@@ -158,7 +159,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
         objectId: photo.recognized?.objectId, artworkId: photo.recognized?.artworkId, savedAt: photo.capturedAt, photoPath: photo.path, cropPath: photo.path,
         visitLocalId: visit?.localId, venueId: visit?.venueId, venueName: visit?.venueName }, [{ localId: photo.localId, path: photo.path, kind: photo.kind, capturedAt: photo.capturedAt, savedLocalId: id, visitLocalId: visit?.localId, caption: photo.caption }], visit?.localId, owner);
       update(photos.filter((row) => row.localId !== photo.localId)); setSelected(undefined);
-    } catch { setError('Could not save this photo separately. Your draft is still here.'); } finally { busyRef.current = false; setOperation(undefined); }
+    } catch (error) { reportError(error, 'capture.save_separate_photo'); setError('Could not save this photo separately. Your draft is still here.'); } finally { busyRef.current = false; setOperation(undefined); }
   }
   if (completion) return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
     <CaptureCompletion completion={completion} inline sharedToIndex={newArtwork.shared?.status === 'tentative'} />
@@ -181,7 +182,7 @@ function PhotoSession({ draftId, title, savedId, visitId, objectId, owner }: { d
       onChange={(value) => currentPhoto ? update(photos.map((photo) => photo.localId === currentPhoto.localId ? { ...photo, kind: value as PhotoKind } : photo)) : setKind(value as PhotoKind)} />
     {currentPhoto ? <View style={styles.camera}><LoadingImage uri={captureFileUri(currentPhoto.path)} label="Selected artwork photo" style={StyleSheet.absoluteFill} contentFit="contain" /></View> : <CameraPermission compact loading={active && !ready && !error && !busy}>
       <View style={styles.camera}><Camera style={StyleSheet.absoluteFill} device="back" outputs={[output]} isActive={active} resizeMode="cover" orientationSource="interface"
-        onStarted={() => setReady(true)} onStopped={() => setReady(false)} onError={() => setError('Camera unavailable. Add photos from your library.')} /></View>
+        onStarted={() => setReady(true)} onStopped={() => setReady(false)} onError={(error) => { reportError(error, 'camera.start', { data: { screen: 'add_photos' } }); setError('Camera unavailable. Add photos from your library.'); }} /></View>
     </CameraPermission>}
     {currentPhoto ? <View style={{ gap: 4 }}>
       {!!currentPhoto.review && <View style={{ gap: 8, padding: 16, backgroundColor: Gallery.fill, borderLeftWidth: 3, borderLeftColor: Gallery.warning }}>

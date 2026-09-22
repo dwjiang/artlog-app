@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { internal } from './_generated/api';
 import { internalAction } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+import { reportBackendError } from './lib/observability';
 
 export const prepare = internalAction({
   args: { saveId: v.id('collections') }, returns: v.null(),
@@ -22,6 +23,7 @@ export const prepare = internalAction({
       storageId = await ctx.storage.store(new Blob([new Uint8Array(data)], { type: 'image/jpeg' }));
       if (await ctx.runMutation(internal.displayMedia.attach, { assetId: asset._id, storageId, width: info.width, height: info.height })) storageId = undefined;
     } catch (error) {
+      await reportBackendError(error, 'displayMediaPrepare.prepare');
       console.warn('Display media preparation failed', error instanceof Error ? error.name : 'UnknownError');
     } finally {
       if (storageId) await ctx.runMutation(internal.displayMedia.discard, { storageId });

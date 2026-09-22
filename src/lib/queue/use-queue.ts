@@ -1,4 +1,5 @@
 import { useConvexAuth } from 'convex/react';
+import { reportError } from '@/lib/observability';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { addDatabaseChangeListener } from 'expo-sqlite';
 import { useEffect, useReducer } from 'react';
@@ -23,6 +24,7 @@ export function useQueue(): QueueState {
     return () => subscription.remove();
   }, []);
   const { data: rows, updatedAt, error } = useLiveQuery(pendingScansQuery(owner), [owner, albumRevision]);
+  useEffect(() => { if (error) reportError(error, 'queue.load'); }, [error]);
   const data = rows.filter((row) => row.owner === owner);
   return { pending: data.filter((row) => row.status === 'queued' || row.status === 'identifying').length, items: data, loading: !updatedAt && !error, error };
 }

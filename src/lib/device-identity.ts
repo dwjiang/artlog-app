@@ -9,6 +9,7 @@ import { api } from '../../convex/_generated/api';
 import { APP_ATTEST_KEY_ID, getAppAttest } from '@/lib/app-attest';
 import { getDeviceAuthSecret } from '@/lib/device-credentials';
 import { installationStorage } from '@/lib/installation-storage';
+import { addBreadcrumb, reportError } from '@/lib/observability';
 
 type DeviceFunctions = {
   registerDevice: ReactMutation<typeof api.devices.registerDevice>;
@@ -25,6 +26,7 @@ let pendingAttestation: {
 } | null = null;
 
 async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
+  addBreadcrumb('auth.device_registration.start');
   const storedKeyId = await installationStorage.getItem(APP_ATTEST_KEY_ID);
   const result = await fns.registerDevice({
     platform: Device.isDevice ? 'ios' : 'simulator',
@@ -33,6 +35,7 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   const appAttest = getAppAttest();
   if (result.attested || !appAttest) {
     pendingAttestation = null;
+    addBreadcrumb('auth.device_registration.success');
     return;
   }
 
@@ -51,6 +54,7 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
       request.attestationBase64 ??= await appAttest.attestKey(keyId, request.nonce);
       await fns.attestDevice({ keyId, attestationBase64: request.attestationBase64, nonce: request.nonce });
       pendingAttestation = null;
+      addBreadcrumb('auth.device_registration.success');
       return;
     } catch (error) {
       const code = errorCode(error);
@@ -123,7 +127,9 @@ export function useDeviceIdentity(): void {
     void pending.catch((error: unknown) => {
       if (!active) return;
       console.warn('Device identity setup failed', error);
-      if (!canRetrySetup(error)) return;
+      const retrying = canRetrySetup(error);
+      reportError(error, isAuthenticated ? 'auth.device_registration' : 'auth.anonymous_sign_in', { data: { attempt: attempt + 1, retrying } });
+      if (!retrying) return;
       retry = setTimeout(() => setAttempt((value) => value + 1), Math.min(1000 * 2 ** attempt, 30_000));
     });
     return () => {

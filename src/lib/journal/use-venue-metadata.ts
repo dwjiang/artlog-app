@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useEffect, useState } from 'react';
 import { onVenueMetadataChange, venueMetadataForIds } from '../venue/venue-db';
 import type { VenueRow } from '../venue/resolve';
@@ -21,7 +22,7 @@ export function useVenueMetadata(ids: string[], owner: string): { metadata: Map<
       void venueMetadataForIds(requestedIds).then((rows) => {
         if (active) setState((current) => merge(current, rows));
       }).catch((error: unknown) => {
-        console.warn('Could not read journal venue metadata', error);
+        reportError(error, 'journal.venue-metadata.load');
         // Visits still render, without places, rather than loading forever.
         if (active) setState((current) => merge(current));
       });

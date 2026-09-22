@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { NotePaper } from '../note-paper';
 import { SavedWorkImage } from './saved-work-image';
 import { WallSheet } from './wall-sheet';
@@ -37,7 +38,7 @@ function persist(note: NoteDraft | undefined): void {
       }
       note.onSaveResult(false);
     } catch (error) {
-      console.warn('Note not saved', error);
+      reportError(error, 'collection.note.save');
       note.onSaveResult(true);
     }
   });
@@ -78,7 +79,7 @@ function WorkNoteEditor({ savedLocalId, owner, sharedOnWall, initiallyEditing }:
       note.text = note.saved = row?.text ?? '';
       latest.current = note;
       setDraft(note.text); setSavedText(note.saved);
-    }, () => { if (active) setLoadFailed(true); });
+    }, (cause) => { reportError(cause, 'collection.note.load'); if (active) setLoadFailed(true); });
     return () => {
       active = false;
       persist(note);

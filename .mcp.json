@@ -13,7 +13,10 @@
         "mcp",
         "start"
       ],
-      "env": {}
+      "env": {
+        "CONVEX_DEPLOY_KEY": "",
+        "CONVEX_DEPLOYMENT_TOKEN": ""
+      }
     },
     "huggingface": {
       "type": "http",

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useEffect, useState } from 'react';
 
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -23,6 +24,7 @@ export function useLabelForm(scanId: Id<'scans'> | undefined, flow: LabelFlowDis
       loadLabelDraft(scanId, museumSearchUpdatedAt).then(
         (draft) => { if (active) setForm(draft ?? formStateFromFlow(flow)); },
         (cause: unknown) => {
+          reportError(cause, 'label.restore_draft');
           console.warn('Could not restore the label draft', cause);
           if (active) setError(new Error('Couldn’t load your label edits. Try again.'));
         },

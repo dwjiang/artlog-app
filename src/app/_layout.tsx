@@ -1,10 +1,13 @@
+import '@/lib/sentry';
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import * as Sentry from '@sentry/react-native';
-import { DefaultTheme, ThemeProvider } from 'expo-router';
+import { DefaultTheme, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { useEffect } from 'react';
 
 import { RemovalToast } from '@/components/collection/removal-toast';
+import { AppDiagnostics } from '@/components/app-diagnostics';
+import { AppErrorBoundary } from '@/components/app-error-boundary';
 import { DatabaseGate } from '@/components/database-gate';
 import { ToastLayer } from '@/components/toast';
 import { Gallery, NavigationTheme } from '@/constants/theme';
@@ -16,8 +19,9 @@ import { warmUpEmbedder } from '@/lib/embed/embedder';
 import { QueueFlusher } from '@/lib/queue/use-queue';
 import { VenueResolver } from '@/lib/venue/use-venue';
 
-// No session replay: it would record the unmasked camera preview, which README §Privacy rules out.
-Sentry.init({ dsn: 'https://f15d821481cbfc2a9bc7ffe64aadee16@o4512128707198976.ingest.us.sentry.io/4512128734986240' });
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <AppErrorBoundary {...props} />;
+}
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -26,7 +30,7 @@ export const unstable_settings = {
 function RootLayout() {
   useEffect(warmUpEmbedder, []);
   return (
-    <DatabaseGate>
+    <><AppDiagnostics /><DatabaseGate>
       <ConvexAuthProvider client={convex} storage={installationStorage}>
         <DeviceIdentity />
         <CollectionSync />
@@ -91,7 +95,7 @@ function RootLayout() {
           <ToastLayer><RemovalToast /></ToastLayer>
         </ThemeProvider>
       </ConvexAuthProvider>
-    </DatabaseGate>
+    </DatabaseGate></>
   );
 }
 

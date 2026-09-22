@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { CollectionSearchField } from '../collection/collection-search-field';
 import { museumDay } from '@/lib/journal/visit-date';
 import { searchVenues } from '@/lib/venue/search-venues';
@@ -89,7 +90,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
     if (!searching) return;
     let active = true;
     const timer = setTimeout(() => { void searchVenues(query).then((rows) => { if (active) setResults({ query, rows }); })
-      .catch(() => { if (active) setResults({ query, rows: [], error: 'Museums could not load. Try another search.' }); }); }, 200);
+      .catch((cause) => { reportError(cause, 'venue.search'); if (active) setResults({ query, rows: [], error: 'Museums could not load. Try another search.' }); }); }, 200);
     return () => { active = false; clearTimeout(timer); };
   }, [query, searching]);
   const [busy, setBusy] = useState<string>();
@@ -109,6 +110,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       await confirm(option, request.signal);
       if (!request.signal.aborted) router.back();
     } catch (cause) {
+      if (!request.signal.aborted) reportError(cause, 'venue.confirm');
       if (!request.signal.aborted) setFailure(cause instanceof Error ? cause.message : 'Could not confirm the venue. Try again.');
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
@@ -137,7 +139,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       : status === 'locating' ? <LoadingRing accessibilityLabel="Locating your museum" />
         : !options.length ? <EmptyState inset={false} title={status === 'denied' ? 'Location access is off.' : 'No nearby museums found.'} detail={status === 'denied' ? `Allow location in Settings to find nearby museums. ${emptyDetail}` : emptyDetail} visual={<EmptyMap />}>
           <GalleryButton label="Search museums" variant="filled" fullWidth onPress={() => searchInput.current?.focus()} />
-          {status === 'denied' && <GalleryButton label="Open Settings" fullWidth onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
+          {status === 'denied' && <GalleryButton label="Open Settings" fullWidth onPress={() => { void Linking.openSettings().catch((cause) => { reportError(cause, 'venue.open-settings', { level: 'warning' }); setFailure('Could not open Settings.'); }); }} />}
         </EmptyState>
           : <><ThemedText type="smallBold" themeColor="textSecondary">Nearby</ThemedText>{options.map((option, index) => <Pressable key={venueOptionKey(option)} accessibilityRole="button" accessibilityLabel={option.name} accessibilityState={{ busy: busy === venueOptionKey(option), disabled: !!busy }} disabled={!!busy} onPress={() => { void choose(option); }} style={[styles.option, styles.unselectedOption]}>
             <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} /><View style={styles.optionText}><ThemedText>{option.name}</ThemedText><ThemedText type="small" themeColor="textSecondary">{detail(option, index === 0)}</ThemedText></View>{busy === venueOptionKey(option) && <LoadingRing />}

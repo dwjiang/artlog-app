@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Host, Switch } from '@expo/ui';
 import { useState } from 'react';
 
@@ -25,7 +26,8 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
     setSaving(true);
     try {
       await setMuseumSearchConsent('declined');
-    } catch {
+    } catch (cause) {
+      reportError(cause, 'settings.museum-search.save');
       setError("Couldn't save your choice. Try again.");
     } finally {
       setSaving(false);

@@ -1,3 +1,4 @@
+import { reportError, addBreadcrumb } from '@/lib/observability';
 import type { FunctionArgs } from 'convex/server';
 
 import type { api } from '../../../convex/_generated/api';
@@ -60,6 +61,7 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     const capture = await input.getCapture(input.localId);
     if (!capture || capture.scanId !== scanId) return none('missing_capture');
     if (!search) {
+      addBreadcrumb('museum_search.started');
       onStage?.('exhibitions');
       search = await api.searchExhibitions({ scanId });
       if (!await canContinue()) return { stage: 'cancelled' };
@@ -73,9 +75,11 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     const flow = await api.confirmSearchCandidate({ scanId, ...match });
     if (!await canContinue()) return { stage: 'cancelled' };
     if (flow.moderation !== 'clear' || flow.stage !== 'verified') return none('model_error');
+    addBreadcrumb('museum_search.confirmed');
     onStage?.('done');
     return { stage: 'done', flow, confirmedAt: flow.updatedAt };
   } catch (error) {
+    reportError(error, 'museum_search.run');
     return none(errorMessage(error));
   }
 }

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { getSetting, setSetting } from '@/db/repos/settings';
@@ -19,7 +20,7 @@ export function WelcomePrompt() {
       if (cancelled) return;
       setChecked(true);
       if (seen !== 'true' && !owner.startsWith('account:')) router.push('/welcome');
-    })().catch(() => { if (!cancelled) setChecked(true); });
+    })().catch((cause) => { reportError(cause, 'account.welcome.load'); if (!cancelled) setChecked(true); });
     return () => { cancelled = true; };
   }, [active, checked, router, owner]);
   return null;

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingImage } from '@/components/loading-image';
 import { EmptyState, EmptySymbol } from '../empty-state';
 import { GalleryButton } from './gallery-button';
@@ -5,7 +6,7 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
@@ -17,6 +18,7 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
+  useEffect(() => { if (photos.error) reportError(photos.error, 'collection.album.load'); }, [photos.error]);
   const [scope, setScope] = useState<'all' | 'visit'>(visitId ? 'visit' : 'all');
   const [requestedPhoto, setRequestedPhoto] = useState(photoId);
   const [page, setPage] = useState(0);

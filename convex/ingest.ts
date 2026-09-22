@@ -1,6 +1,7 @@
 // The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // scripts/data/pipeline in the same PR.
+import { withErrorReporting } from './lib/observability';
 import { validateGeography } from '../shared/social/contracts';
 import { ConvexError, type Infer, v } from 'convex/values';
 
@@ -422,7 +423,7 @@ export const commitDescriptors = internalMutation({
 export const upsertDescriptors = internalAction({
   args: { rows: v.array(descriptorRow) },
   returns: descriptorIds,
-  handler: async (ctx, { rows }): Promise<Infer<typeof descriptorIds>> => {
+  handler: async (ctx, { rows }): Promise<Infer<typeof descriptorIds>> => withErrorReporting('ingest.upsertDescriptors', async () => {
     checkBatch(rows);
     if (new Set(rows.map((row) => row.objectKey)).size !== rows.length) throw new ConvexError({ code: 'duplicate_descriptor_keys' });
     // Validate the entire batch before creating files, including the preserved zero-keypoint case.
@@ -459,7 +460,7 @@ export const upsertDescriptors = internalAction({
     } finally {
       if (created.length) await ctx.runMutation(internal.orbFiles.discard, { storageIds: created });
     }
-  },
+  }),
 });
 
 export const setObjectPenalty = internalMutation({
@@ -621,7 +622,7 @@ const descriptorExport = v.object({
 export const exportDescriptors = internalAction({
   args: { cursor: v.optional(v.string()) },
   returns: descriptorExport,
-  handler: async (ctx, args): Promise<Infer<typeof descriptorExport>> => {
+  handler: async (ctx, args): Promise<Infer<typeof descriptorExport>> => withErrorReporting('ingest.exportDescriptors', async () => {
     const result = await ctx.runQuery(internal.ingest.exportDescriptorReferences, args);
     const page = [];
     for (let start = 0; start < result.page.length; start += 8) {
@@ -630,7 +631,7 @@ export const exportDescriptors = internalAction({
       }))));
     }
     return { ...result, page };
-  },
+  }),
 });
 
 export const auditThumbnails = internalQuery({

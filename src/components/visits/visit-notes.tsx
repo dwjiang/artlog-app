@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { NotePaper } from '../note-paper';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
@@ -43,6 +44,7 @@ function persist(note: NoteDraft, sync = true) {
       note.onResult();
       return true;
     } catch (cause) {
+      reportError(cause, 'visit.note.save');
       note.onResult(socialErrorMessage(cause) ?? 'Your note could not be saved. Try again.');
       return false;
     } finally { note.pending--; }

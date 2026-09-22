@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { decodeOrbFeatures } from '@/shared/orb/features';
 import { verifyOrb } from '@/shared/orb/verify';
 import type { ImageCheck } from '../../../convex/lib/validators';
@@ -52,7 +53,8 @@ export async function checkImages(
         const cosine = cosineSimilarity(scan.vector, await deps.embed(letterboxed));
         if (!best || cosine > best.cosine) best = { url, cosine, uri: letterboxed };
       } catch (error) {
-        console.warn('Could not check a museum image', { url, error });
+        reportError(error, 'label.check_museum_image', { level: 'warning' });
+        console.warn('Could not check a museum image', error);
       }
     }
     if (!best || best.cosine < IMAGE_MATCH_COSINE) return null;

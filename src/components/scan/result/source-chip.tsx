@@ -1,4 +1,5 @@
 import { openBrowserAsync } from 'expo-web-browser';
+import { reportError } from '@/lib/observability';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,7 +13,8 @@ export function SourceChip({ label, url }: { label: string; url: string }) {
     setFailed(false);
     try {
       await openBrowserAsync(url);
-    } catch {
+    } catch (error) {
+      reportError(error, 'result.open_source', { level: 'warning' });
       setFailed(true);
     }
   }

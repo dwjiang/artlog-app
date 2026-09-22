@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Switch } from '@expo/ui';
 import { useEffect, useState } from 'react';
 import { GroupedFooter, GroupedSection, ValueRow } from '@/components/grouped-list';
@@ -11,13 +12,13 @@ function OwnedPreference() {
   useEffect(() => {
     let active = true;
     void getSetting(`remember-visit-view:${owner}`).then((value) => { if (active) setRemember(value !== 'false'); })
-      .catch(() => { if (active) setError('The preference could not load.'); }).finally(() => { if (active) setLoaded(true); });
+      .catch((cause) => { reportError(cause, 'settings.visit-view.load'); if (active) setError('The preference could not load.'); }).finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
   }, [owner]);
   async function change(value: boolean) {
     const session = captureOwner(); setSaving(true); setError(undefined);
     try { await setSetting(`remember-visit-view:${owner}`, String(value)); if (session.isCurrent()) setRemember(value); }
-    catch { if (session.isCurrent()) setError('The preference could not be saved.'); }
+    catch (cause) { reportError(cause, 'settings.visit-view.save'); if (session.isCurrent()) setError('The preference could not be saved.'); }
     finally { if (session.isCurrent()) setSaving(false); }
   }
   // The switch stays mounted while a change saves: unmounting it cuts the toggle animation and drops VoiceOver focus.

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { File } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
@@ -53,7 +54,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
       try { uri = (await image.saveAsync({ format: SaveFormat.PNG })).uri; }
       finally { image.release(); }
       await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `${person.name}’s Artlog profile` });
-    } catch { setError('Your QR code could not be shared. Try again.'); }
+    } catch (cause) { reportError(cause, 'profile.share'); setError('Your QR code could not be shared. Try again.'); }
     finally {
       context?.release();
       if (uri) { try { new File(uri).delete(); } catch { /* The cache can already have been cleared by iOS. */ } }

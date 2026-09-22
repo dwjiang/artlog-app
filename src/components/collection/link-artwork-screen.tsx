@@ -1,10 +1,11 @@
+import { reportError } from '@/lib/observability';
 import { EmptyState, SearchEmptyState } from '../empty-state';
 import { ArtworkCollage } from '../guest/artwork-preview';
 import { VisitKeepsake } from '../guest/visit-keepsake';
 import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from '@/db/repos/artwork-album';
@@ -33,6 +34,8 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
   const works = useLiveQuery(listSavedWorks(owner), [owner]);
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const encounters = useLiveQuery(selectArtworkEncounters(owner), [owner]);
+  const queryError = works.error ?? visits.error ?? encounters.error;
+  useEffect(() => { if (queryError) reportError(queryError, 'collection.link-options.load'); }, [queryError]);
   const [error, setError] = useState<string>(), [search, setSearch] = useState('');
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
@@ -86,7 +89,7 @@ function LinkPicker({ owner, savedId, visitId, onRetry }: { owner: string; saved
           showToast(`${selected.length} ${noun} linked.`);
           if (visitId) router.dismissTo({ pathname: '/journal/[visitId]', params: { visitId } });
           else router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId: savedId! } });
-        } catch { setError('Could not link your selection. Try again.'); }
+        } catch (cause) { reportError(cause, 'collection.visit.link'); setError('Could not link your selection. Try again.'); }
       }} />
     </View>}
   </>;

@@ -1,5 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { LoadingImage } from './loading-image';
+import { reportError } from '@/lib/observability';
+
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn() }));
 
 it('keeps the ghost until the image loads and starts a fresh ghost for a changed source', async () => {
   const props = { uri: 'file:///first.jpg', label: 'Artwork', style: { width: 120, height: 160 } };
@@ -18,6 +21,8 @@ it('ends loading on failure, keeps an accessible fallback, and retries a new sou
   const view = await render(<LoadingImage {...props} />);
   await fireEvent(screen.getByLabelText('Artwork'), 'error', { nativeEvent: { error: 'Unavailable' } });
   expect(onError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'media.load', { level: 'warning', data: { source: 'local' } });
+  expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain('file:///broken.jpg');
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(screen.getByRole('image', { name: 'Artwork: image unavailable' })).toBeOnTheScreen();
   await view.rerender(<LoadingImage {...props} uri="file:///replacement.jpg" />);

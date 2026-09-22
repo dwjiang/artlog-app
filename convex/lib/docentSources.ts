@@ -1,3 +1,4 @@
+import { reportBackendError } from './observability';
 import { ConvexError } from 'convex/values';
 
 import type { Doc } from '../_generated/dataModel';
@@ -88,6 +89,7 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       if (text.length >= MIN_PAGE_CHARS) sources.push({ url: page.url, label: input.owner.name, score: 1, text });
     } catch (error) {
       if (!(error instanceof ConvexError && error.data.code === 'qr_host_not_allowed')) failures++;
+      await reportBackendError(error, 'docent.ownerPage');
       console.warn('Owner page unavailable for the fact sheet', error);
     }
   }
@@ -98,6 +100,7 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       if (entity && text) sources.push({ url: `https://www.wikidata.org/wiki/${entity.id}`, label: 'Wikidata', score: wikidataScore(), text });
     } catch (error) {
       failures++;
+      await reportBackendError(error, 'docent.wikidata');
       console.warn('Wikidata unavailable for the fact sheet', error);
     }
   }

@@ -14,6 +14,7 @@ import { albumMediaPending } from '@/db/repos/artwork-album';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
 import { SyncUnavailableError } from '@/lib/network-error';
+import { reportError } from '@/lib/observability';
 import { useDeviceReady } from '@/lib/use-device-ready';
 import { syncJournal, type SyncContext } from './sync';
 import { onCollectionChange } from './sync-events';
@@ -29,6 +30,7 @@ let authToken: string | null = null;
 
 type Queue = {
   label: string;
+  operation: 'sync.photos' | 'sync.journal';
   run: (context: SyncContext, token: string, isCurrent: () => boolean) => Promise<void>;
   running: Promise<void> | null; requested: boolean; timer?: ReturnType<typeof setTimeout>;
 };
@@ -54,6 +56,7 @@ async function flush(queue: Queue): Promise<unknown> {
   queue.running = queue.run(session.context, session.token, isCurrent).catch((error: unknown) => {
     failure = error;
     console.warn(`${queue.label} will retry`, error);
+    reportError(error, queue.operation);
     schedule(queue, 30_000);
   }).finally(() => {
     queue.running = null;
@@ -65,7 +68,7 @@ async function flush(queue: Queue): Promise<unknown> {
 
 // Photo transfers run in their own queue so a large backlog never delays note, deletion or import sync.
 const transfers: Queue = {
-  label: 'Photo transfer', running: null, requested: false,
+  label: 'Photo transfer', operation: 'sync.photos', running: null, requested: false,
   run: async (context, token, isCurrent) => {
     await syncArtworkAlbums(context, token, isCurrent);
     await syncCollectionPhotos({
@@ -82,7 +85,7 @@ const transfers: Queue = {
   },
 };
 const sync: Queue = {
-  label: 'Collection sync', running: null, requested: false,
+  label: 'Collection sync', operation: 'sync.journal', running: null, requested: false,
   run: async (context, _token, isCurrent) => {
     if (context.accountId) await completeJournalClaim(context, isCurrent);
     if (!isCurrent()) return;
@@ -183,7 +186,8 @@ export function CollectionSync(): null {
         if (current.owner !== context.owner || current.scope !== scope) switchOwner(getLocalOwner());
       } else {
         switchOwner(context.owner, paused ? undefined : scope);
-        void setSetting('activeJournalOwner', context.owner);
+        void setSetting('activeJournalOwner', context.owner)
+          .catch((error: unknown) => reportError(error, 'sync.persist_owner'));
       }
       scheduleSync();
     } else switchOwner(getLocalOwner());

@@ -1,8 +1,10 @@
+import { addBreadcrumb, reportError } from '@/lib/observability';
 import { waitFor } from '@testing-library/react-native';
 import { ConvexError } from 'convex/values';
 import { createVisitSharingController } from './visit-sharing-controller';
 import type { SharePreview, ShareState, VisitSharingTransport } from './visit-sharing-transport';
 import { captureOwner, subscribeOwner, switchOwner } from '../account/owner-store';
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 const initial: ShareState = { audience: 'public', status: 'private', postId: null, removed: false, reflection: '', saveLocalIds: [], revision: 0 };
 const preview: SharePreview = { audience: 'public', author: { name: 'Reader', username: 'reader' } as SharePreview['author'], venue: { venueId: 'museum' as never, name: 'Museum' },
   visitedOn: '2024-02-29', reflection: 'For friends', artworks: [] };
@@ -74,6 +76,7 @@ it('aborts and clears private state on account changes and discards a late mutat
   gate.resolve({ ...initial, status: 'active', revision: 1 });
   expect(await publish).toBe(false);
   expect(controller.getSnapshot()).toMatchObject({ acknowledged: null, draft: null, preview: null, busy: false });
+  expect(reportError).not.toHaveBeenCalled();
 });
 it('blocks publishing an edited selection until another preview is ready', async () => {
   await controller.load(); await controller.preview(); controller.edit({ saveLocalIds: ['save-1'] });
@@ -114,4 +117,27 @@ it('keeps publishing public and requires a fresh preview when the selection chan
   await controller.preview();
   await controller.publish();
   expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: 'public' }), expect.anything());
+});
+
+it('reports publication failures without attaching the selected artwork or reflection', async () => {
+  await controller.load(); await controller.preview();
+  const error = new Error('Unexpected server failure');
+  transport.publish.mockRejectedValueOnce(error);
+  expect(await controller.publish()).toBe(false);
+  expect(reportError).toHaveBeenCalledWith(error, 'visit.sharing.publish');
+  expect(controller.getSnapshot().draft).not.toBeNull();
+  expect(addBreadcrumb).toHaveBeenCalledWith('visit.sharing.publish.started');
+  expect(addBreadcrumb).not.toHaveBeenCalledWith('visit.sharing.publish.completed');
+});
+
+it('reports a timed-out load and releases the busy state for retry', async () => {
+  jest.useFakeTimers();
+  try {
+    transport.getState.mockImplementationOnce(() => new Promise(() => {}));
+    const pending = controller.load();
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(await pending).toBe(false);
+    expect(controller.getSnapshot().busy).toBe(false);
+    expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Visit sharing timed out' }), 'visit.sharing.load');
+  } finally { jest.useRealTimers(); }
 });

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { addNetworkStateListener, getNetworkStateAsync } from 'expo-network';
 import { AppState } from 'react-native';
 
@@ -29,6 +30,7 @@ export function shareSavedLabel(input: ContributeInput, savedLocalId: string): P
       await removeSetting(id);
       return { result };
     } catch (error) {
+      reportError(error, 'label.share');
       if (!isTransientError(error)) await removeSetting(id);
       return { error: contributionErrorMessage(error) };
     }
@@ -51,7 +53,7 @@ export function flushPendingShares(): Promise<void> {
       if (!capture || !await isSaved(share, capture.localId, current.owner)) { await removeSetting(id); continue; }
       await shareSavedLabel({ scanId: share.scanId, capture, state: share.state, museumSearchUpdatedAt: share.museumSearchUpdatedAt }, share.savedLocalId);
     }
-  })().catch((error: unknown) => { console.warn('Could not flush queued shares', error); }).finally(() => { flushing = undefined; });
+  })().catch((error: unknown) => { reportError(error, 'label.flush_shares'); console.warn('Could not flush queued shares', error); }).finally(() => { flushing = undefined; });
   return flushing;
 }
 

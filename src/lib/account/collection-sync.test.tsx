@@ -10,6 +10,8 @@ jest.mock('./album-sync', () => ({ syncArtworkAlbums: async () => {} }));
 const mockSync = jest.fn();
 const mockPhotos = jest.fn();
 const mockClaim = jest.fn();
+const mockReportError = jest.fn();
+const mockSetSetting = jest.fn();
 let mockToken = 'token';
 jest.mock('@convex-dev/auth/react', () => ({ useAuthToken: () => mockToken }));
 jest.mock('./photo-sync', () => ({ syncCollectionPhotos: (...args: unknown[]) => mockPhotos(...args) }));
@@ -28,14 +30,17 @@ let mockPending = false, mockJournalPending = false;
 jest.mock('@/db/repos/artwork-album', () => ({ albumMediaPending: (...args: unknown[]) => mockAlbumPending(...args) }));
 const mockAlbumPending = jest.fn((..._args: unknown[]) => mockPending);
 jest.mock('@/db/repos/saved-works', () => ({ listUnsynced: async () => mockJournalPending ? [{}] : [] }));
-jest.mock('@/db/repos/settings', () => ({ setSetting: async () => {} }));
+jest.mock('@/db/repos/settings', () => ({ setSetting: (...args: unknown[]) => mockSetSetting(...args) }));
 jest.mock('@/db/repos/visits', () => ({ listUnsyncedVisits: () => [] }));
 jest.mock('@/db/repos/journal-claim', () => ({ claimLocalJournal: async () => {} }));
 jest.mock('./sync', () => ({ syncJournal: (...args: unknown[]) => mockSync(...args) }));
+jest.mock('@/lib/observability', () => ({ reportError: (...args: unknown[]) => mockReportError(...args), addBreadcrumb: jest.fn() }));
 
 beforeEach(() => {
   jest.useFakeTimers(); mockSync.mockReset().mockResolvedValue(undefined); mockPhotos.mockReset().mockResolvedValue(undefined);
   mockClaim.mockReset().mockResolvedValue({ claimId: null, complete: true });
+  mockReportError.mockReset();
+  mockSetSetting.mockReset().mockResolvedValue(undefined);
   mockAccount = { scope: 'account:a,b', accountId: 'account' }; mockToken = 'token';
   Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' });
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
@@ -120,6 +125,7 @@ it('rejects flushJournal with the sync failure, keeps the scheduled retry, and r
   const failure = new Error('Network request failed');
   mockSync.mockRejectedValueOnce(failure);
   await expect(flushJournal()).rejects.toBe(failure);
+  expect(mockReportError).toHaveBeenCalledWith(failure, 'sync.journal');
   expect(mockSync).toHaveBeenCalledTimes(2);
   await act(() => jest.advanceTimersByTimeAsync(30_000));
   expect(mockSync).toHaveBeenCalledTimes(3);
@@ -147,8 +153,18 @@ it('lets flushCollectionMedia through a transfer failure unless the caller depen
   expect(mockSync).toHaveBeenCalledTimes(before.sync + 1); expect(mockPhotos).toHaveBeenCalledTimes(before.photos + 1);
   mockPending = true;
   await expect(flushCollectionMedia({ photoLocalIds: ['hung'] })).rejects.toBe(failure);
+  expect(mockReportError).toHaveBeenCalledWith(failure, 'sync.photos');
   mockPhotos.mockResolvedValue(undefined);
   await expect(flushCollectionMedia({ photoLocalIds: ['hung'] })).resolves.toBeUndefined();
+});
+
+it('reports a failed owner persistence without exposing the owner or stopping the sync', async () => {
+  const failure = new Error('Database unavailable');
+  mockAccount = { scope: 'a', accountId: null };
+  mockSetSetting.mockRejectedValueOnce(failure);
+  await render(<CollectionSync />); await tick();
+  expect(mockReportError).toHaveBeenCalledWith(failure, 'sync.persist_owner');
+  expect(mockSync).toHaveBeenCalledTimes(1);
 });
 
 it('keeps a linked scope across a token refresh but suspends it again when the account scope changes', async () => {

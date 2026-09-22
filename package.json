@@ -10,6 +10,7 @@
     "@expo/app-integrity": "~57.0.1",
     "@expo/ui": "~57.0.16",
     "@photostructure/tz-lookup": "^11.6.1",
+    "@sentry/core": "10.37.0",
     "@sentry/react-native": "~7.11.0",
     "@shopify/react-native-skia": "2.6.2",
     "cbor-x": "^1.6.6",

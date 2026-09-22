@@ -1,3 +1,4 @@
+import { withErrorReporting } from './lib/observability';
 import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
@@ -81,7 +82,7 @@ export const write = internalMutation({
 export const searchExhibitions = action({
   args: { scanId: v.id('scans') },
   returns: museumSearchDisplay,
-  handler: async (ctx, { scanId }): Promise<MuseumSearchDisplay> => {
+  handler: async (ctx, { scanId }): Promise<MuseumSearchDisplay> => withErrorReporting('museumSearch.searchExhibitions', async () => {
     const device = await requireDeviceFromAction(ctx);
     if (!isEnabled('museumSearch')) throw new ConvexError({ code: 'feature_off' });
     const { scan, hosts, venueName } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
@@ -116,7 +117,7 @@ export const searchExhibitions = action({
     } finally {
       await ctx.runMutation(internal.spend.reconcile, { kind: 'tavily', day, reserved: 1, actual: credits });
     }
-  },
+  }),
 });
 
 function retainedCandidate(
@@ -209,7 +210,7 @@ export const markUnresolved = internalMutation({
 export const confirmSearchCandidate = action({
   args: { scanId: v.id('scans'), sourceUrl: v.string(), imageCheck },
   returns: labelFlowDisplay,
-  handler: async (ctx, { scanId, sourceUrl, imageCheck: check }): Promise<LabelFlowDisplay> => {
+  handler: async (ctx, { scanId, sourceUrl, imageCheck: check }): Promise<LabelFlowDisplay> => withErrorReporting('museumSearch.confirmSearchCandidate', async () => {
     const device = await requireDeviceFromAction(ctx);
     if (!isEnabled('museumSearch')) throw new ConvexError({ code: 'feature_off' });
     const { scan, hosts } = await ctx.runQuery(internal.museumSearch.load, { scanId, deviceId: device._id });
@@ -241,5 +242,5 @@ export const confirmSearchCandidate = action({
       scanId, deviceId: device._id, generation: scan.generation,
       labelFlow: moderation === 'flagged' ? confirmedFlow(candidate, check.url, {}, 'flagged') : clear,
     });
-  },
+  }),
 });

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Button, Column, Host, Icon, Row, Text as NativeText } from '@expo/ui';
 import { font, accessibilityAddTraits, accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { useMutation } from 'convex/react';
@@ -36,7 +37,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
       showToast(value === 'off' ? 'You’re off both leaderboards.' : value === 'friends' ? 'Your totals are shared with friends only.' : 'Your totals are shared on Friends & Global.');
       onDismiss();
     }
-    catch { setError('Could not save participation. Try again.'); }
+    catch (cause) { reportError(cause, 'leaderboard.participation.save'); setError('Could not save participation. Try again.'); }
     finally { saving.current = false; setPending(false); }
   }
   return <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>

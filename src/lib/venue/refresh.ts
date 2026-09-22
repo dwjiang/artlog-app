@@ -4,6 +4,7 @@ import { openDatabaseAsync } from 'expo-sqlite';
 import { api } from '../../../convex/_generated/api';
 import { getSetting, setSetting } from '@/db/repos/settings';
 import { convex } from '@/lib/convex-client';
+import { addBreadcrumb, reportError } from '@/lib/observability';
 import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from './venue-db';
 
 export const VENUE_TABLE_CHECKED_AT = 'venueTableCheckedAt';
@@ -69,8 +70,9 @@ export const refreshDependencies: RefreshDependencies = {
 export function refreshVenueTableInBackground(): void {
   refreshVenueTable(refreshDependencies).then(
     (outcome) => {
+      if (outcome === 'downloaded') addBreadcrumb('venue.table.downloaded');
       if (__DEV__) console.debug('Venue table refresh', outcome);
     },
-    (error: unknown) => console.warn('Venue table refresh failed', error),
+    (error: unknown) => { reportError(error, 'venue.table.refresh', { level: 'warning' }); console.warn('Venue table refresh failed', error); },
   );
 }
