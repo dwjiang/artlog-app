@@ -1,25 +1,28 @@
-# Workspace simulator cleanup
+# Workspace archive cleanup
 
-Archiving a local workspace shuts down its running iOS simulators and closes
-their windows. Devices and their app data remain available for reuse.
+Archiving a local workspace stops its Expo, Metro, and Convex development
+processes, including detached descendants, based on their working directory.
+Unresponsive processes receive SIGKILL after three seconds. Other workspaces
+and agent tooling stay running; cleanup does not rely on allocated ports.
 
-Name a dedicated simulator `Artlog <workspace>` with an optional purpose after
-a space, for example `Artlog addis-ababa` or `Artlog Addis Ababa Guest Capture`.
-`<workspace>` is the workspace folder or the name Conductor shows; the two differ
-after a rename, and either matches. Matching ignores case and treats spaces,
-hyphens, and underscores alike. Longer workspace names take precedence, so
-archiving `ndjamena` leaves `ndjamena-v1` open. A `v<number>` word right after
-the workspace name is reserved for such versioned workspaces, so do not start a
-purpose with one: `Artlog ndjamena V2 Layout` is never shut down.
+Dedicated iOS simulators named `Artlog <workspace> [purpose]` are shut down and
+their windows closed, including windows of already stopped devices. Devices and
+app data remain. The workspace folder and display name both match, ignoring case,
+spaces, hyphens, underscores, and optional number prefixes such as `03.07`.
+Longer workspace names take precedence. A `v<number>` immediately after the name
+denotes a different workspace, so `Artlog ndjamena V2 Layout` stays open when
+archiving `ndjamena`.
 
 Only use that naming convention for simulators dedicated to that workspace.
 Shared devices such as `iPhone 17 Pro` stay open; the existing **iOS** Run action
 does not create or claim a dedicated simulator. Rename a dedicated device with
 `xcrun simctl rename <UDID> "Artlog <workspace>"` to include it in cleanup.
 
-The archive hook in `settings.toml` runs `./.conductor/archive-ios-simulators.sh`
-when the workspace checkout contains it, so older branches still archive cleanly.
-Conductor loads shared settings from the remote default branch; merge the change
-into `main` to activate it. A local `scripts.archive` override takes precedence.
+The hook reads `archive-workspace.cjs` from the local `origin/<default branch>`
+Git ref, so even workspaces without the script get current cleanup. Conductor
+loads shared settings from that branch; merge into `main` to activate it. A local
+`scripts.archive` override takes precedence. Closing lingering windows uses
+System Events and requires macOS Automation/Accessibility permission; failures
+are reported without skipping server shutdown.
 
 Run `npm run test:conductor` to check isolation and archive failure handling.
