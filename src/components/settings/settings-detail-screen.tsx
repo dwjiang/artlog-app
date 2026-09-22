@@ -7,6 +7,7 @@ import { api } from '../../../convex/_generated/api';
 import { AboutSection } from './about-section';
 import { AccountSection } from './account-section';
 import { DevTools } from './dev-tools';
+import { GeneralPreference } from './general-preference';
 import { LeaderboardPreference } from './leaderboard-preference';
 import { PrivacySection } from './privacy-section';
 import { ContributionsScreen } from './sharing-section';
@@ -17,7 +18,7 @@ import { LeaderboardParticipation } from '@/components/social/leaderboard-partic
 import { useDeviceReady } from '@/lib/use-device-ready';
 import model from '../../../shared/model/model-version.json';
 
-const titles = { account: 'Account', visits: 'Visits', leaderboards: 'Leaderboards', contributions: 'Contributions', privacy: 'Privacy', about: 'About', developer: 'Developer tools' };
+const titles = { account: 'Account', general: 'General', visits: 'Visits', leaderboards: 'Leaderboards', contributions: 'Contributions', privacy: 'Privacy', about: 'About', developer: 'Developer tools' };
 
 export function SettingsDetailScreen({ section }: { section: string }) {
   // Sheets are React Native views, so they mount beside the SwiftUI list rather than inside a section.
@@ -41,6 +42,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         <ActionRow label="Back to Settings" onPress={() => router.back()} />
       </GroupedSection>}
       {section === 'account' && <AccountSection />}
+      {section === 'general' && <GeneralPreference />}
       {section === 'visits' && <VisitPreference />}
       {section === 'leaderboards' && <LeaderboardPreference onManage={() => setSheet('participation')} />}
       {section === 'developer' && __DEV__ && <>

@@ -102,6 +102,8 @@ export const Spacing = {
 
 export const Radius = { artwork: 0, thumbnail: 2, button: 8, input: 8, card: 12, sheet: 16, full: 9999 } as const;
 
+export const SettingsOutline = { borderWidth: 0.5, borderColor: Gallery.separator, borderRadius: Radius.card } as const;
+
 export const NavigationTheme = {
   headerTintColor: Gallery.accent,
   headerStyle: { backgroundColor: Gallery.paper },
