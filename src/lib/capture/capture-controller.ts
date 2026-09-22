@@ -1,5 +1,5 @@
 import type { RectDetection } from '../../../modules/vision-rect/src';
-import { containsPoint, framingGuidance, isUsableQuad, maxCornerDistance, MISS_GRACE_MS, previewQuad, RectTracker, toQuad, type FrameSize } from './rectangle';
+import { containsPoint, framingGuidance, isUsableQuad, largestObservation, maxCornerDistance, MISS_GRACE_MS, previewQuad, RectTracker, toQuad, type FrameSize } from './rectangle';
 import type { CaptureInput, Quad } from './stages';
 
 /** Fraction of the frame diagonal the artwork must move after a failure before it is scanned again. */
@@ -11,6 +11,7 @@ export type CaptureAttempt = { id: number; source: CaptureInput['source']; quad:
 /** What resumes automatic scanning after a camera failure: moving the failed corners, or the shutter (a shutter attempt has none). */
 export type Rearm = 'reframe' | 'shutter';
 export type CaptureState = { phase: CapturePhase; occupied: boolean; source?: CaptureInput['source']; message?: string; rearm?: Rearm };
+export type CaptureFeedback = { quad: Quad; progress: number } | null;
 
 export class CaptureController {
   private tracker = new RectTracker();
@@ -22,12 +23,31 @@ export class CaptureController {
   private absentSince?: number;
   private state: CaptureState = { phase: 'searching', occupied: false };
   private listeners = new Set<() => void>();
+  private feedback: CaptureFeedback = null;
+  private feedbackListeners = new Set<() => void>();
 
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };
   readonly getSnapshot = () => this.state;
+  readonly getFeedback = () => this.feedback;
+  readonly subscribeFeedback = (listener: () => void) => {
+    this.feedbackListeners.add(listener);
+    return () => { this.feedbackListeners.delete(listener); };
+  };
+
+  private showFeedback(feedback: CaptureFeedback) {
+    if (this.feedback === feedback) return;
+    this.feedback = feedback;
+    this.feedbackListeners.forEach((listener) => listener());
+  }
+
+  readonly resetDetection = () => {
+    this.tracker.reset();
+    this.lastDetectionAt = -Infinity;
+    this.showFeedback(null);
+  };
 
   private update(update: Partial<CaptureState>) {
     this.state = { ...this.state, ...update };
@@ -37,7 +57,7 @@ export class CaptureController {
   setActive(active: boolean) {
     if (this.active === active) return;
     this.active = active;
-    this.tracker.reset();
+    this.resetDetection();
     this.absentSince = undefined;
   }
 
@@ -45,7 +65,7 @@ export class CaptureController {
     if (this.attempt) this.attempt.valid = false;
     this.failedQuad = null;
     this.absentSince = undefined;
-    this.tracker.reset();
+    this.resetDetection();
     this.update({ phase: 'searching', source: undefined, message: undefined, rearm: undefined });
   }
 
@@ -54,7 +74,7 @@ export class CaptureController {
     if (this.attempt) this.attempt.valid = false;
     const attempt = { id: ++this.nextId, source, quad, valid: true };
     this.attempt = attempt;
-    this.tracker.reset();
+    this.resetDetection();
     this.update({ phase: 'capturing', occupied: true, source, message: undefined, rearm: undefined });
     return attempt;
   }
@@ -71,7 +91,7 @@ export class CaptureController {
     if (!attempt.valid) return;
     this.failedQuad = attempt.quad;
     this.absentSince = undefined;
-    this.tracker.reset();
+    this.resetDetection();
     this.update({ phase: 'retry', message, rearm: attempt.source === 'camera' ? attempt.quad ? 'reframe' : 'shutter' : undefined });
   }
 
@@ -112,14 +132,21 @@ export class CaptureController {
       this.tracker.reset();
       this.update({ phase: 'searching', message: undefined, rearm: undefined });
     }
-    const candidates = observations.filter((o) => {
+    const visibleObservations = observations.filter((o) => {
       const quad = toQuad(o.corners);
       const visible = previewQuad(quad, detection, preview);
-      return containsPoint(quad, [0.5, 0.5]) && isUsableQuad(visible) && framingGuidance(quad, detection) === null;
+      return containsPoint(quad, [0.5, 0.5]) && isUsableQuad(visible);
     });
+    const candidates = visibleObservations.filter((o) => framingGuidance(toQuad(o.corners), detection) === null);
     // Invalid framing must not contribute time to a future stable window.
-    if (!candidates.length) { this.tracker.reset(); return; }
+    if (!candidates.length) {
+      this.tracker.reset();
+      const visible = largestObservation(visibleObservations);
+      this.showFeedback(visible ? { quad: previewQuad(toQuad(visible.corners), detection, preview), progress: 0 } : null);
+      return;
+    }
     const tracked = this.tracker.push(candidates, detection, now);
+    this.showFeedback(tracked.quad ? { quad: previewQuad(tracked.quad, detection, preview), progress: tracked.progress } : null);
     if (!tracked.captureQuad || tracked.guidance !== 'ready') return;
     const quad = tracked.captureQuad;
     if (!candidates.some((o) => maxCornerDistance(toQuad(o.corners), quad, detection) < 0.001)) return;

@@ -18,7 +18,7 @@ function holdSteady(tracker: RectTracker, corners: RectPoint[], from: number, un
 
 describe('RectTracker guidance', () => {
   it('searches while nothing is detected', () => {
-    expect(new RectTracker().push([], frame, 0)).toEqual({ quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0 });
+    expect(new RectTracker().push([], frame, 0)).toEqual({ quad: null, captureQuad: null, stable: false, guidance: 'searching', jitter: 0, progress: 0 });
   });
 
   it('asks to move closer when the quad covers less than a quarter of the frame', () => {
@@ -41,6 +41,17 @@ describe('RectTracker guidance', () => {
     const tracker = new RectTracker();
     expect(holdSteady(tracker, framed, 0, STABLE_WINDOW_MS - 100)).toMatchObject({ stable: false, guidance: 'hold-still' });
     expect(holdSteady(tracker, framed, STABLE_WINDOW_MS, STABLE_WINDOW_MS)).toMatchObject({ stable: true, guidance: 'ready' });
+  });
+
+  it('reports hold progress from accepted frames and resets it when the painting moves', () => {
+    const tracker = new RectTracker();
+    expect(holdSteady(tracker, framed, 0, 400).progress).toBe(0.5);
+    expect(holdSteady(tracker, framed, 500, 800).progress).toBe(1);
+    const moved = tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, 900);
+    expect(moved.progress).toBe(0);
+    expect(moved.stable).toBe(false);
+    tracker.reset();
+    expect(tracker.push(observe(framed), frame, 1000).progress).toBe(0);
   });
 
   it('tolerates hand-held jitter and drops back to hold-still on a jump', () => {

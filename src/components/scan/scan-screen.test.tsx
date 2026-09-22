@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppStateStatus } from 'react-native';
 
 import { ScanScreen } from './scan-screen';
-import type { CaptureState } from '@/lib/capture/capture-controller';
+import type { CaptureFeedback, CaptureState } from '@/lib/capture/capture-controller';
 import type { CaptureTimings } from '@/lib/capture/stages';
 import type { VenueView } from '@/lib/venue/use-venue';
 
@@ -11,6 +11,7 @@ let mockFocused = true;
 let mockGranted = true;
 let mockCanRequest = false;
 let mockState: CaptureState = { phase: 'searching', occupied: false };
+let mockFeedback: CaptureFeedback = null;
 let mockOnDetection: (detection: unknown) => void;
 let mockTimings: CaptureTimings | undefined;
 let mockMessage: string | undefined;
@@ -36,6 +37,20 @@ let mockTabsListener: ((event: { data: { state: { index: number; routes: { name:
 let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: 'frame-output' };
 const mockDetectorActive: boolean[] = [];
+const mockResetDetection = jest.fn();
+
+jest.mock('@shopify/react-native-skia', () => {
+  const { View } = jest.requireActual('react-native');
+  return { Canvas: View, Path: View };
+});
+jest.mock('react-native-reanimated', () => {
+  const { View } = jest.requireActual('react-native');
+  const { useRef } = jest.requireActual('react');
+  return { __esModule: true, default: { View },
+    useSharedValue: (value: number) => useRef({ get: () => value, set: jest.fn() }).current,
+    withTiming: (value: number) => value, cancelAnimation: jest.fn(), Easing: { linear: jest.fn() },
+  };
+});
 
 jest.mock('./capture-context-button', () => ({ CaptureContextButton: () => null }));
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => ({ push: mockPush }), useNavigation: () => ({
@@ -62,7 +77,9 @@ jest.mock('@/lib/capture/use-capture', () => ({
   useCapture: (options: { onVisitUnavailable?: () => void }) => {
     mockVisitUnavailable = options.onVisitUnavailable;
     return {
-      state: { ...mockState, message: mockMessage }, controller: { observe: mockObserve }, presentation: mockPresentation, completeReveal: jest.fn(),
+      state: { ...mockState, message: mockMessage }, controller: {
+        observe: mockObserve, getFeedback: () => mockFeedback, subscribeFeedback: () => () => {}, resetDetection: mockResetDetection,
+      }, presentation: mockPresentation, completeReveal: jest.fn(),
       captureManually: mockCapture, captureAutomatically: mockCaptureAutomatically, importPhoto: mockImport, timings: mockTimings, useCamera: mockClearMessage,
     };
   },
@@ -89,6 +106,7 @@ beforeEach(() => {
   mockGranted = true;
   mockCanRequest = false;
   mockState = { phase: 'searching', occupied: false };
+  mockFeedback = null;
   mockTimings = undefined;
   mockMessage = undefined;
   mockPresentation = undefined;
@@ -126,15 +144,28 @@ it('asks for camera access only after tapping Allow camera on the active screen'
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
 
-it('streams frames to the detector and shows automatic scan guidance without a label button', async () => {
+it('streams frames to the detector without idle captions or an autoscan chip', async () => {
   await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.getByText('Point at an artwork. Hold steady to scan.')).toBeOnTheScreen();
+  expect(screen.queryByText('Point at an artwork. Hold steady to scan.')).toBeNull();
+  expect(screen.queryByText('Hold steady')).toBeNull();
+  expect(screen.queryByText(/auto scan/i)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Scan label' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
   expect(mockCameraProps.orientationSource).toBe('interface');
   expect(mockCameraProps.allowHapticsAndSystemSoundsPlayback).toBe(true);
+});
+
+it('shows Hold steady only while the detected painting is accumulating hold time', async () => {
+  const view = await render(<ScanScreen />);
+  await act(() => mockCameraProps.onStarted());
+  mockFeedback = { quad: [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]], progress: 0.5 };
+  await view.rerender(<ScanScreen />);
+  expect(screen.getByText('Hold steady')).toBeOnTheScreen();
+  mockFeedback = null;
+  await view.rerender(<ScanScreen />);
+  expect(screen.queryByText('Hold steady')).toBeNull();
 });
 
 it('takes a still only when the controller accepts a detection', async () => {
@@ -160,7 +191,7 @@ it('announces camera startup errors, keeps import available, and clears the erro
 
   await act(() => mockCameraProps.onStarted());
   expect(screen.queryByRole('alert')).toBeNull();
-  expect(screen.getByText('Point at an artwork. Hold steady to scan.')).toBeOnTheScreen();
+  expect(screen.queryByText('Point at an artwork. Hold steady to scan.')).toBeNull();
   expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeEnabled();
 });
 
@@ -171,7 +202,7 @@ it('hides camera startup errors while an imported photo is processing or needs a
   mockState = { phase: 'processing', occupied: true, source: 'library' };
   await view.rerender(<ScanScreen />);
   expect(screen.queryByText('Could not start the camera. You can import a photo.')).toBeNull();
-  expect(screen.getByLabelText('Preparing painting…')).toBeOnTheScreen();
+  expect(screen.getByText('Identifying artwork')).toBeOnTheScreen();
 
   mockState = { phase: 'retry', occupied: false, source: 'library' };
   mockMessage = 'Fit all corners';
@@ -232,7 +263,8 @@ it.each(['processing', 'revealing', 'result'] as const)('pauses scanning and imp
   expect(mockDetectorActive.at(-1)).toBe(false);
   expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
-  if (phase === 'revealing') expect(screen.getByLabelText('Recognizing artwork…')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Camera tips' })).toBeDisabled();
+  expect(screen.getByText('Identifying artwork')).toBeOnTheScreen();
 });
 
 it('keeps import available after camera permission denial', async () => {

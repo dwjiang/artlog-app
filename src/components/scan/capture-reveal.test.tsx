@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ImageRef } from 'expo-image';
 import type { CapturePresentation } from '@/lib/capture/use-capture';
-import { CaptureReveal, CROSSFADE_MS, HIGHLIGHT_MS, STRAIGHTEN_MS } from './capture-reveal';
+import { CaptureReveal, CROSSFADE_MS, HIGHLIGHT_MS, REVEAL_TIMEOUT_MS, SHINE_MS, STRAIGHTEN_MS } from './capture-reveal';
 
 let mockReduced = false;
 const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] = [];
@@ -39,19 +39,39 @@ it.each([false, true])('finishes once after the reveal, with a crossfade for red
   const view = await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
   await fireEvent(screen.getByLabelText('Captured painting'), 'layout', { nativeEvent: { layout: { width: 390, height: 844 } } });
   await fireEvent(screen.getByLabelText('Isolated painting'), 'display');
-  expect(mockAnimations.map((a) => a.duration)).toEqual(reduced ? [0, CROSSFADE_MS] : [HIGHLIGHT_MS, STRAIGHTEN_MS]);
+  expect(mockAnimations.map((a) => a.duration)).toEqual(reduced ? [0, CROSSFADE_MS] : [HIGHLIGHT_MS, STRAIGHTEN_MS, SHINE_MS]);
   expect(complete).not.toHaveBeenCalled();
+  if (!reduced) {
+    await act(() => mockAnimations.find((animation) => animation.duration === STRAIGHTEN_MS)!.finish!(true));
+    expect(complete).not.toHaveBeenCalled();
+  }
   await act(() => mockAnimations.at(-1)!.finish!(true));
   await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
-  await act(() => jest.advanceTimersByTime(2500));
+  await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
   expect(complete).toHaveBeenCalledTimes(1);
-  expect(mockAnimations).toHaveLength(2);
+  expect(mockAnimations).toHaveLength(reduced ? 2 : 3);
 });
 
 it('falls through once when image display fails or never arrives', async () => {
   const complete = jest.fn();
   await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
   await fireEvent(screen.getByLabelText('Captured painting'), 'error');
-  await act(() => jest.advanceTimersByTime(2500));
+  await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
   expect(complete).toHaveBeenCalledTimes(1);
+});
+
+it('does not strand a scan when the crop never displays', async () => {
+  const complete = jest.fn();
+  await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
+  expect(complete).toHaveBeenCalledTimes(1);
+});
+
+it('does not complete a cancelled shine', async () => {
+  const complete = jest.fn();
+  await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await fireEvent(screen.getByLabelText('Captured painting'), 'layout', { nativeEvent: { layout: { width: 390, height: 844 } } });
+  await fireEvent(screen.getByLabelText('Isolated painting'), 'display');
+  await act(() => mockAnimations.at(-1)!.finish!(false));
+  expect(complete).not.toHaveBeenCalled();
 });

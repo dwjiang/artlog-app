@@ -18,7 +18,8 @@ export function OverlayCaption({ children, hint }: { children: ReactNode; hint?:
 const styles = StyleSheet.create({
   caption: {
     alignSelf: 'center', alignItems: 'center', gap: Spacing.half, maxWidth: '90%',
-    borderRadius: 6, overflow: 'hidden', paddingVertical: Spacing.two, paddingHorizontal: Spacing.three,
+    minHeight: 44, justifyContent: 'center', borderRadius: Spacing.four, overflow: 'hidden',
+    paddingVertical: Spacing.two + Spacing.half, paddingHorizontal: Spacing.three,
   },
   captionText: { textAlign: 'center' },
 });
