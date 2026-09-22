@@ -1,5 +1,5 @@
 import { selectArtworkEncounters, selectAllArtworkPhotos } from '@/db/repos/artwork-album';
-import { usePendingRemovals } from './pending-removals';
+import { useRemovedWorkIds } from './pending-removals';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { listSavedWorks } from '@/db/repos/saved-works';
 import { listVisits } from '@/db/repos/visits';
@@ -12,12 +12,12 @@ export function useCollectionData() {
   const owner = useLocalOwner();
   const encounters = useLiveQuery(selectArtworkEncounters(owner), [owner]);
   const photos = useLiveQuery(selectAllArtworkPhotos(owner), [owner]);
-  const removals = usePendingRemovals();
+  const removedIds = useRemovedWorkIds(owner);
   const worksQuery = useLiveQuery(listSavedWorks(owner, true), [owner]);
   const visitsQuery = useLiveQuery(listVisits(owner), [owner]);
   const hiddenIds = [...new Set([
     ...worksQuery.data.filter((row) => row.owner === owner && row.deletedAt !== null).map((row) => row.localId),
-    ...removals.filter((item) => item.owner === owner && item.status !== 'failed').map((item) => item.localId),
+    ...removedIds,
   ])];
   const rows = worksQuery.data.filter((row) => row.owner === owner && !hiddenIds.includes(row.localId));
   const visits = visitsQuery.data.filter((row) => row.owner === owner);

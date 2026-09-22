@@ -3,11 +3,19 @@ import { AppState } from 'react-native';
 import { softDeleteSavedWork } from '@/db/repos/saved-works';
 
 type Removal = { owner: string; localId: string; title: string; status: 'undoable' | 'saving' | 'failed' };
+type RemovedWork = Pick<Removal, 'owner' | 'localId'>;
 let pending: Removal[] = [];
+// Session tombstones prevent independent live queries from restoring a save before their SQLite notifications arrive.
+const committed = new Map<string, RemovedWork>();
+let hidden: RemovedWork[] = [];
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const listeners = new Set<() => void>();
 const key = (item: Pick<Removal, 'owner' | 'localId'>) => `${item.owner}:${item.localId}`;
-function emit() { for (const listener of listeners) listener(); }
+function subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+function emit() {
+  hidden = [...committed.values(), ...pending.filter((item) => item.status !== 'failed')];
+  for (const listener of listeners) listener();
+}
 function update(item: Removal, status: Removal['status']) { pending = pending.map((row) => key(row) === key(item) ? { ...row, status } : row); emit(); }
 export function undoRemoval(item: Pick<Removal, 'owner' | 'localId'>) {
   if (pending.find((row) => key(row) === key(item))?.status === 'saving') return;
@@ -19,6 +27,7 @@ export async function commitRemoval(item: Removal) {
   update(item, 'saving');
   try {
     await softDeleteSavedWork(item.localId, Date.now(), item.owner);
+    committed.set(key(item), { owner: item.owner, localId: item.localId });
     pending = pending.filter((row) => key(row) !== key(item)); emit();
   } catch { update(item, 'failed'); }
 }
@@ -33,5 +42,8 @@ export function scheduleRemoval(item: Omit<Removal, 'status'>) {
   appState ??= AppState.addEventListener('change', (state) => { if (state !== 'active') commitUndoable(); });
 }
 export function usePendingRemovals() {
-  return useSyncExternalStore((listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => pending);
+  return useSyncExternalStore(subscribe, () => pending);
+}
+export function useRemovedWorkIds(owner: string) {
+  return useSyncExternalStore(subscribe, () => hidden).filter((item) => item.owner === owner).map((item) => item.localId);
 }
