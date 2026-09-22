@@ -191,8 +191,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   function importPhoto() {
     if (busy) return;
     void handleLabel(async () => {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) throw new Error('Allow photo access in Settings to import a label photo.');
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (result.canceled || !result.assets[0]) return null;
       return { photoUri: result.assets[0].uri };
