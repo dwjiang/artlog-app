@@ -1,6 +1,6 @@
 import { Button, Host, Icon, ListItem, Row, Text } from '@expo/ui';
-import { LabeledContent, List, Section } from '@expo/ui/swift-ui';
-import { accessibilityLabel, accessibilityValue, background, buttonStyle, contentShape, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, shapes, tint } from '@expo/ui/swift-ui/modifiers';
+import { LabeledContent, List, Section, Spacer } from '@expo/ui/swift-ui';
+import { accessibilityLabel, accessibilityValue, background, buttonStyle, contentShape, font, foregroundStyle, frame, listRowBackground, listStyle, multilineTextAlignment, scrollContentBackground, shapes, tint } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps, ReactNode } from 'react';
 import { Gallery } from '@/constants/theme';
 import { NativeLoadingRing } from './native-loading-ring';
@@ -38,10 +38,15 @@ export function ActionRow({ label, icon, onPress, disabled = false, destructive 
   label: string; icon?: IconName; onPress: () => void; disabled?: boolean; destructive?: boolean; busy?: boolean;
 }) {
   const color = destructive ? Gallery.destructive : Gallery.accent;
+  // The spacer lets SwiftUI measure a spinner inserted into an initially idle slot.
+  const indicator = <Row alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
+    {busy ? <NativeLoadingRing label={`${label} in progress`} color={color} /> : icon ? <Icon name={icon} size={20} color={color} /> : <Spacer />}
+  </Row>;
   return <Button variant="text" disabled={disabled || busy} onPress={onPress} modifiers={[accessibilityLabel(label), accessibilityValue(busy ? 'In progress' : ''), buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
     <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), contentShape(shapes.rectangle())]}>
-      {busy ? <NativeLoadingRing label={`${label} in progress`} color={color} /> : icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
-      <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color }}>{label}</Text>
+      {icon && indicator}
+      <Text modifiers={[font({ textStyle: 'body' }), multilineTextAlignment('leading')]} textStyle={{ color }}>{label}</Text>
+      {!icon && indicator}
     </Row>
   </Button>;
 }
