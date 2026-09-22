@@ -27,3 +27,42 @@ it('becomes ready without rows when the venue table cannot be read', async () =>
   await waitFor(() => expect(hook.result.current.ready).toBe(true));
   expect(hook.result.current.metadata.size).toBe(0);
 });
+
+it('keeps known museum metadata ready when deleting an artwork shrinks the requested set', async () => {
+  const hook = await renderHook((ids: string[]) => useVenueMetadata(ids, 'a'), { initialProps: ['met', 'moma'] });
+  await act(() => mockResolve?.([row('met'), row('moma')]));
+  await hook.rerender(['met']);
+  expect(hook.result.current.ready).toBe(true);
+  expect([...hook.result.current.metadata.keys()]).toEqual(['met']);
+  await act(() => mockResolve?.([row('met')]));
+  expect(hook.result.current.ready).toBe(true);
+});
+
+it('does not reuse another owner’s museum metadata', async () => {
+  const hook = await renderHook((owner: string) => useVenueMetadata(['met'], owner), { initialProps: 'a' });
+  await act(() => mockResolve?.([row('met')]));
+  await hook.rerender('b');
+  expect(hook.result.current.ready).toBe(false);
+  expect(hook.result.current.metadata.size).toBe(0);
+});
+
+it('retains the remaining museum details if their refresh fails after removal', async () => {
+  const hook = await renderHook((ids: string[]) => useVenueMetadata(ids, 'a'), { initialProps: ['met', 'moma'] });
+  await act(() => mockResolve?.([row('met'), row('moma')]));
+  mockRead.mockRejectedValueOnce(new Error('locked'));
+  await hook.rerender(['met']);
+  expect(hook.result.current.ready).toBe(true);
+  expect(hook.result.current.metadata.get('met')?.name).toBe('met');
+});
+
+it('stays ready when Undo brings a museum back that was read earlier', async () => {
+  const hook = await renderHook((ids: string[]) => useVenueMetadata(ids, 'a'), { initialProps: ['met', 'moma'] });
+  await act(() => mockResolve?.([row('met'), row('moma')]));
+  await hook.rerender(['met']);
+  await act(() => mockResolve?.([row('met')]));
+  await hook.rerender(['met', 'moma']);
+  expect(hook.result.current.ready).toBe(true);
+  expect(hook.result.current.metadata.get('moma')?.name).toBe('moma');
+  await act(() => mockResolve?.([row('met'), { ...row('moma'), name: 'MoMA' }]));
+  expect(hook.result.current.metadata.get('moma')?.name).toBe('MoMA');
+});

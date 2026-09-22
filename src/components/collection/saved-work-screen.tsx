@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { randomUUID } from 'expo-crypto';
@@ -5,7 +6,7 @@ import { Image } from 'expo-image';
 import { Host, Switch } from '@expo/ui';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ArtworkEnrichment } from './artwork-enrichment';
 import { NoteEditor } from './note-editor';
@@ -30,6 +31,7 @@ export function SavedWorkScreen({ savedId, visitId, photoId, editNote }: SavedWo
 }
 function SavedWorkQuery({ owner, savedId, visitId, photoId, editNote, onRetry }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
   const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  useEffect(() => { if (error) reportError(error, 'collection.artwork.load'); }, [error]);
   const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? <SavedArtwork key={`${owner}:${savedId}:${visitId ?? ''}:${photoId ?? ''}`} work={work} visitId={visitId} photoId={photoId} editNote={editNote} />
     : <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />;
@@ -46,7 +48,7 @@ function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; v
   async function saveLayout() {
     wall.setError(undefined);
     try { await wall.repository.publishLayout(); }
-    catch { wall.setError('Your wall change was not saved. Tap Retry to save these changes.'); }
+    catch (cause) { reportError(cause, 'wall.layout.publish'); wall.setError('Your wall change was not saved. Tap Retry to save these changes.'); }
   }
   function toggleWall(value: boolean) {
     if (!wall.draft || wall.pending || (value && wallFull)) return;

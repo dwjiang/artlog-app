@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { EmptyState } from '../empty-state';
 import { EmptyPaper } from '../empty-state-art';
 import { FormSkeleton } from '@/components/loading-skeleton';
@@ -135,6 +136,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       setPhase({ kind: 'review', flow });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (error) {
+      reportError(error, 'label.verify');
       console.warn('Label flow failed', error);
       if (isTransientError(error instanceof LabelFlowError ? error.cause ?? error : error)) {
         keepSource = true;
@@ -161,6 +163,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       if (storeOnly) await queueLabel(label);
       else await runFlow({ labelPhotoUri: label.photoUri, qrUrl: label.qrUrl });
     } catch (error) {
+      reportError(error, 'label.capture');
       console.warn('Could not keep the label', error);
       if (mounted.current) setPhase({ kind: 'error', message: failureMessage ?? (error instanceof Error ? error.message : 'Couldn’t keep the label. Try again.') });
     } finally {
@@ -188,8 +191,6 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   function importPhoto() {
     if (busy) return;
     void handleLabel(async () => {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) throw new Error('Allow photo access in Settings to import a label photo.');
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (result.canceled || !result.assets[0]) return null;
       return { photoUri: result.assets[0].uri };
@@ -204,6 +205,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       if (capture) await discardPendingLabel(capture.localId);
       if (mounted.current) setPhase({ kind: 'capture', restore: false });
     } catch (error) {
+      reportError(error, 'label.discard');
       console.warn('Could not discard the pending label', error);
       if (mounted.current) setPhase({ kind: 'error', message: 'Couldn’t replace the label. Try again.' });
     } finally {
@@ -218,7 +220,8 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     setBusy(true);
     try {
       await retryPendingLabel(capture.localId);
-    } catch {
+    } catch (error) {
+      reportError(error, 'label.retry');
       if (mounted.current) setPhase({ kind: 'error', message: 'Couldn’t retry this label. Your scan and label are still on this phone.' });
     } finally {
       inFlight.current = false;
@@ -346,7 +349,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       <View style={{ height: 260, marginHorizontal: -20, backgroundColor: Gallery.fill }}>
         <Camera style={StyleSheet.absoluteFill} device="back" orientationSource="interface" isActive={active} outputs={outputs} allowHapticsAndSystemSoundsPlayback
           onStarted={() => { setCameraReady(true); setCameraError(undefined); }} onStopped={() => setCameraReady(false)}
-          onError={(error) => { setCameraReady(false); setCameraError(error.message); }} />
+          onError={(error) => { reportError(error, 'camera.start', { data: { screen: 'label' } }); setCameraReady(false); setCameraError(error.message); }} />
         <View pointerEvents="none" accessibilityLabel="Label guide" style={{ position: 'absolute', top: 40, bottom: 40, left: 24, right: 24, borderWidth: 2, borderColor: Gallery.accent }} />
       </View>
     </CameraPermission>

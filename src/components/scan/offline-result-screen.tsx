@@ -7,7 +7,6 @@ import type { ResultCandidate, ResultViewState } from '@/lib/result/state';
 import { draftFromCandidate } from '@/lib/result/snapshot';
 import { useSaveResult } from '@/lib/result/use-save-result';
 import { captureFileUri, scanPreviewPath } from '@/lib/files/photos';
-import model from '../../../shared/model/model-version.json';
 import { ThemedView } from '@/components/themed-view';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { CaptureCompletion } from './capture-completion';
@@ -47,8 +46,8 @@ export function OfflineResultScreen({ capture, result, onViewResult }: { capture
   return <ThemedView style={{ flex: 1 }}>
     <ResultCard key={`${manual}:${view.primary?.objectId}`} manual={manual} prosePending={false} view={view}
       saving={saved.saving} savedId={saved.savedId} saveError={saved.error} captureInput={{ capture, view }}
-      header={<CardHeader cropUri={captureFileUri(scanPreviewPath(capture.cropPath))} artworkTitle={view.primary?.title} inputSize={model.inputSize} kind={view.kind}
-        corners={view.primary?.corners} onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined} />}
+      header={<CardHeader cropUri={captureFileUri(scanPreviewPath(capture.cropPath))} artworkTitle={view.primary?.title} kind={view.kind}
+        onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined} />}
       context={saved.savedId ? undefined : <>{viewResult && <GalleryButton label="View the online result" icon="antenna.radiowaves.left.and.right" onPress={viewResult} disabled={saved.saving} />}
         <GalleryButton label="Adjust crop" icon="crop" onPress={adjustCrop} disabled={saved.saving} /><CaptureContextButton capture={capture} disabled={saved.saving} /></>}
       onLabel={onLabel} onPick={setChosen} onEdit={() => setHasEdits(true)} savePhotoOnly={manual && !hasEdits}

@@ -10,6 +10,7 @@ const mockGetItem = jest.fn();
 const mockSetItem = jest.fn();
 const mockDeleteItem = jest.fn();
 const mockRandomBytes = jest.fn();
+const mockReportError = jest.fn();
 const mockStorage = new Map<string, string>();
 const mockAppAttest = {
   isSupported: jest.fn(),
@@ -41,6 +42,7 @@ jest.mock('@/lib/app-attest', () => ({
   APP_ATTEST_KEY_ID: 'appAttestKeyId',
   getAppAttest: () => mockAppAttest.isSupported() ? mockAppAttest : null,
 }));
+jest.mock('@/lib/observability', () => ({ reportError: (...args: unknown[]) => mockReportError(...args), addBreadcrumb: jest.fn() }));
 
 let useDeviceIdentity: typeof import('./device-identity').useDeviceIdentity;
 
@@ -212,6 +214,7 @@ it('bounds recovery when Apple repeatedly rejects keys', async () => {
   expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
   expect(mockStorage.has('appAttestKeyId')).toBe(false);
   expect(console.warn).toHaveBeenCalledWith('Device identity setup failed', error);
+  expect(mockReportError).toHaveBeenCalledWith(error, 'auth.device_registration', { data: { attempt: 1, retrying: false } });
 });
 
 it('replaces an expired attestation proof with a fresh key and challenge', async () => {
@@ -316,9 +319,11 @@ it('retries a failed sign-in with the credential already saved for that request'
 
 it('waits for keychain persistence before making any sign-in request', async () => {
   mockAuth.isLoading = false;
-  mockSetItem.mockRejectedValueOnce(new Error('keychain unavailable'));
+  const failure = new Error('keychain unavailable');
+  mockSetItem.mockRejectedValueOnce(failure);
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).not.toHaveBeenCalled();
+  expect(mockReportError).toHaveBeenCalledWith(failure, 'auth.anonymous_sign_in', { data: { attempt: 1, retrying: true } });
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockSignIn).toHaveBeenCalledWith('anonymous', { secret: 'a1'.repeat(32) });
 });

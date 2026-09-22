@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { Image } from 'expo-image';
 import { ImageManipulator } from 'expo-image-manipulator';
 import { useEffect, useRef, useState } from 'react';
@@ -36,12 +37,13 @@ export function CropEditor({ photoPath, saveLabel = 'Save crop', onSave, onCance
       let photo;
       try {
         photo = await context.renderAsync();
-        const detected = await getVisionRect().detectStill(filePath(uri)).catch(() => undefined);
+        const detected = await getVisionRect().detectStill(filePath(uri)).catch((error: unknown) => { reportError(error, 'capture.detect_crop', { level: 'warning' }); return undefined; });
         if (cancelled) return;
         setSize({ width: photo.width, height: photo.height });
         setCorners(detected ? selectCaptureQuad(null, detected) ?? wholePhoto : wholePhoto);
         setBusy(undefined);
-      } catch {
+      } catch (error) {
+        if (!cancelled) reportError(error, 'capture.open_crop');
         if (!cancelled) { setError('Couldn’t open the full photo. Try again once it is on this iPhone.'); setBusy(undefined); }
       } finally { photo?.release(); context.release(); }
     })();
@@ -58,7 +60,7 @@ export function CropEditor({ photoPath, saveLabel = 'Save crop', onSave, onCance
       const crop = await prepareEditedCrop(photoPath, corners);
       if (!active.current) { discardEditedCrop(crop); return; }
       retained.current = crop; setPreview(crop);
-    } catch { if (active.current) setError('Couldn’t prepare this crop. Adjust the corners and try again.'); }
+    } catch (error) { if (active.current) reportError(error, 'capture.preview_crop'); if (active.current) setError('Couldn’t prepare this crop. Adjust the corners and try again.'); }
     finally { working.current = false; if (active.current) setBusy(undefined); }
   }
   function adjust() {
@@ -69,7 +71,7 @@ export function CropEditor({ photoPath, saveLabel = 'Save crop', onSave, onCance
     if (!preview || working.current) return;
     working.current = true; setBusy('saving'); setError(undefined);
     try { await onSave(preview, () => active.current); }
-    catch { if (active.current) setError('Couldn’t save this crop. Your previous crop is still available. Try again.'); }
+    catch (error) { if (active.current) reportError(error, 'capture.save_crop'); if (active.current) setError('Couldn’t save this crop. Your previous crop is still available. Try again.'); }
     finally { working.current = false; if (active.current) setBusy(undefined); }
   }
   return <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 16) }]}>

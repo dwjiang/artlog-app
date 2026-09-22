@@ -21,7 +21,3 @@ export async function setNote(savedLocalId: string, text: string, updatedAt = Da
 export async function getNote(savedLocalId: string, owner = getLocalOwner()): Promise<Note | undefined> {
   return db.select().from(notes).where(and(eq(notes.owner, owner), eq(notes.savedLocalId, savedLocalId))).get();
 }
-
-export function listNotes(owner = getLocalOwner()) {
-  return db.select().from(notes).where(eq(notes.owner, owner));
-}

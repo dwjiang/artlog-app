@@ -7,6 +7,8 @@ import { wallFixture } from './lib/wallFixtures';
 import { seedArtworkWithObject, seedContribution, seedMuseum, seedScan } from './lib/testFactories';
 import { projectSharedVisitCard } from './lib/projections';
 import { resolveDisplayAsset } from './lib/displayMedia';
+import { download } from './displayMedia';
+import type { ActionCtx } from './_generated/server';
 
 async function fixture(width = 600, height = 300, orientation = 6) {
   const t = harness(), a = await wallFixture(t, 'a');
@@ -25,6 +27,31 @@ async function fixture(width = 600, height = 300, orientation = 6) {
   const path = `/display-media?kind=wallItem&itemId=${itemId}`;
   return { t, a, original, ...source, itemId, path };
 }
+
+it('reports unexpected download failures while keeping the private 404 response', async () => {
+  vi.stubEnv('SENTRY_DSN', 'https://public@example.ingest.sentry.io/555');
+  const sentry = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status: 200 }));
+  vi.stubGlobal('fetch', sentry);
+  const run = (download as unknown as { _handler: (ctx: ActionCtx, request: Request) => Promise<Response> })._handler;
+  try {
+    const t = harness();
+    const response = await t.action(async (ctx) => {
+      const result = await run({ ...ctx, runQuery: async () => { throw new Error('storage failed with private token'); } },
+        new Request('https://example.com/display-media?kind=wallItem&itemId=example'));
+      return { status: result.status, body: await result.text(), cache: result.headers.get('Cache-Control') };
+    });
+    expect(response.status).toBe(404);
+    expect(response.body).toBe('Image unavailable');
+    expect(response.cache).toBe('private, no-store');
+    expect(sentry).toHaveBeenCalledTimes(1);
+    const event = String(sentry.mock.calls[0][1]?.body);
+    expect(event).toContain('displayMedia.download');
+    expect(event).not.toContain('private token');
+    sentry.mockClear();
+    expect((await t.fetch('/display-media?kind=invalid')).status).toBe(404);
+    expect(sentry).not.toHaveBeenCalled();
+  } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
+});
 
 it('decodes, orients, strips metadata and stores a separate measured derivative; retries do not duplicate', async () => {
   const f = await fixture();

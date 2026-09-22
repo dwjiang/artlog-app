@@ -2,10 +2,12 @@ import { act, renderHook } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
+import { reportError } from '@/lib/observability';
 import { useCapture } from './use-capture';
 import type { CaptureDependencies, CaptureInput, CapturePayload, CaptureResult, PreparedPainting, Quad } from './stages';
 
 const mockVisit = jest.fn();
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 jest.mock('@/db/repos/visits', () => ({ getVisit: (...args: unknown[]) => mockVisit(...args) }));
 const mockIdentify = jest.fn();
 const mockPush = jest.fn();
@@ -42,7 +44,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockReachable = true;
   mockWarning.mockResolvedValue(undefined);
-  mockPermission.mockResolvedValue({ granted: true });
+  mockPermission.mockResolvedValue({ granted: false, status: 'denied', canAskAgain: false });
   mockImageLoad.mockResolvedValue({ width: 512, height: 512, release: mockRelease });
   mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
     await deps.onPrepared?.(painting);
@@ -78,16 +80,34 @@ it('shows retake guidance without navigating', async () => {
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
-it('requests photo permission only on import and preserves EXIF capture time', async () => {
+it('imports despite denied library access without requesting permission and preserves EXIF capture time', async () => {
   mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///library.jpg', exif: { DateTimeOriginal: '2020:01:02 03:04:05' } }] });
   const hook = await renderHook(useCapture);
   expect(mockPermission).not.toHaveBeenCalled();
   await act(async () => { await hook.result.current.importPhoto(); });
+  expect(mockPermission).not.toHaveBeenCalled();
   expect(mockPicker).toHaveBeenCalledWith({ mediaTypes: ['images'], exif: true, quality: 1 });
   expect(mockPipeline.mock.calls[0][0]).toEqual({
     photoUri: 'file:///library.jpg', quad: null, source: 'library', capturedAt: new Date(2020, 0, 2, 3, 4, 5).getTime(),
   });
   expect(mockVenueIdAt).not.toHaveBeenCalled();
+});
+
+it.each([undefined, null, {}])('imports without EXIF metadata (%s) using the current time and no venue', async (exif) => {
+  const now = jest.spyOn(Date, 'now').mockReturnValue(1234);
+  try {
+    mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///library.jpg', assetId: null, exif }] });
+    const hook = await renderHook(useCapture);
+    await act(async () => { await hook.result.current.importPhoto(); });
+    expect(mockPipeline.mock.calls[0][0]).toEqual({
+      photoUri: 'file:///library.jpg', quad: null, source: 'library', capturedAt: 1234, venueId: undefined,
+    });
+    expect(mockVenueIdAt).not.toHaveBeenCalled();
+    expect(mockResolveVenue).not.toHaveBeenCalled();
+    expect(hook.result.current.state.message).toBeUndefined();
+  } finally {
+    now.mockRestore();
+  }
 });
 
 it('names the venue of an imported photo from its EXIF position without starting a visit', async () => {
@@ -110,8 +130,11 @@ it('imports without a venue when the local table cannot be read', async () => {
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
-it('leaves the screen unchanged when the picker is canceled', async () => {
-  mockPicker.mockResolvedValue({ canceled: true, assets: null });
+it.each([
+  { canceled: true, assets: null },
+  { canceled: false, assets: [] },
+])('leaves the screen unchanged when no photo is selected: %s', async (result) => {
+  mockPicker.mockResolvedValue(result);
   const hook = await renderHook(useCapture);
   await act(async () => { await hook.result.current.importPhoto(); });
   expect(mockPipeline).not.toHaveBeenCalled();
@@ -120,12 +143,34 @@ it('leaves the screen unchanged when the picker is canceled', async () => {
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
-it('explains denied photo access without opening the picker', async () => {
-  mockPermission.mockResolvedValue({ granted: false });
+it('shows picker errors and releases the capture for another import', async () => {
+  mockPicker.mockRejectedValueOnce(new Error('Picker unavailable'));
   const hook = await renderHook(useCapture);
   await act(async () => { await hook.result.current.importPhoto(); });
-  expect(mockPicker).not.toHaveBeenCalled();
-  expect(hook.result.current.state.message).toContain('Allow photo access in Settings');
+  expect(hook.result.current.state).toMatchObject({ phase: 'retry', occupied: false, message: 'Picker unavailable' });
+  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(mockPush).not.toHaveBeenCalled();
+  mockPicker.mockResolvedValueOnce({ canceled: false, assets: [{ uri: 'file:///library.jpg' }] });
+  await act(async () => { await hook.result.current.importPhoto(); });
+  expect(mockPipeline).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.state.message).toBeUndefined();
+});
+
+it('reports a handled capture failure without including the photo', async () => {
+  const error = new Error('Native image processing failed');
+  mockPipeline.mockRejectedValue(error);
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.capture(async () => input); });
+  expect(reportError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(error, 'capture.process');
+  expect(hook.result.current.state.phase).toBe('retry');
+});
+
+it('does not report a cancelled photo selection', async () => {
+  mockPicker.mockResolvedValue({ canceled: true, assets: null });
+  const hook = await renderHook(useCapture);
+  await act(async () => { await hook.result.current.importPhoto(); });
+  expect(reportError).not.toHaveBeenCalled();
 });
 
 it('blocks a second capture until the first finishes, then exposes errors for retry', async () => {

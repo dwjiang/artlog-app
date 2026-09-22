@@ -1,4 +1,5 @@
 import type { Id } from '../../../convex/_generated/dataModel';
+import type { MeasurementUnits } from '@/lib/settings/measurement-units';
 
 /** A single seeded row this close is the venue. */
 export const AUTO_RADIUS_M = 150;
@@ -72,8 +73,12 @@ export function pickVenue(candidates: VenueCandidate[]): VenueResolution {
   return { kind: 'choose', options };
 }
 
-export function formatDistance(distanceM: number): string {
+export function formatDistance(distanceM: number, units: MeasurementUnits = 'metric'): string {
   if (!Number.isFinite(distanceM)) return '';
+  if (units === 'imperial') {
+    if (distanceM < 1609.344) return `${Math.max(10, Math.round(distanceM / 0.3048 / 10) * 10)} ft`;
+    return `${(distanceM / 1609.344).toFixed(1)} mi`;
+  }
   if (distanceM < 1000) return `${Math.max(10, Math.round(distanceM / 10) * 10)} m`;
   return `${(distanceM / 1000).toFixed(1)} km`;
 }

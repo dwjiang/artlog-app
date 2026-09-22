@@ -5,6 +5,9 @@ import { formStateFromFlow } from '../label/fields';
 import { shareSavedLabel } from '../label/share-saved-label';
 import { saveResult } from './save';
 import { useSaveResult } from './use-save-result';
+import { reportError } from '@/lib/observability';
+
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
 jest.mock('expo-haptics', () => ({ notificationAsync: async () => {}, NotificationFeedbackType: { Success: 'success' } }));
 jest.mock('./save', () => ({ saveResult: jest.fn(), saveErrorMessage: () => 'Couldn’t save. Try again.' }));
@@ -29,8 +32,18 @@ it('ends the sharing state and offers a retry when the share attempt itself fail
   await waitFor(() => expect(hook.result.current.sharing).toBe(false));
   expect(hook.result.current.savedId).toBe('saved-1');
   expect(hook.result.current.shareError).toBe('Couldn’t save to the shared index right now');
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'result.share');
   jest.mocked(shareSavedLabel).mockResolvedValue({ result: outcome });
   await act(() => hook.result.current.retrySharing());
   expect(shareSavedLabel).toHaveBeenCalledWith(contribution, 'saved-1');
   expect(hook.result.current).toMatchObject({ sharing: false, shared: outcome, shareError: undefined });
+});
+
+it('reports a failed local save while leaving the draft available to retry', async () => {
+  const error = new Error('database is locked');
+  jest.mocked(saveResult).mockRejectedValue(error);
+  const hook = await renderHook(useSaveResult);
+  await act(() => hook.result.current.save({ capture, draft: { title: 'Private title', artist: '', date: '', medium: '', institution: '' } }));
+  expect(reportError).toHaveBeenCalledWith(error, 'result.save');
+  expect(hook.result.current).toMatchObject({ saving: false, savedId: undefined, error: 'Couldn’t save. Try again.' });
 });

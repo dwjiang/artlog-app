@@ -4,6 +4,9 @@ import { Linking } from 'react-native';
 import { VenuePickerSheet } from './venue-picker-sheet';
 import type { VenueView } from '@/lib/venue/use-venue';
 import type { CurrentVisit, VenueOption } from '@/lib/venue/venue-reducer';
+import { setMeasurementUnits } from '@/lib/settings/measurement-units';
+import { removeSetting } from '@/db/repos/settings';
+jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('@/lib/venue/search-venues', () => ({ searchVenues: jest.fn() }));
 jest.mock('@/hooks/use-reduced-motion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) }));
@@ -28,7 +31,8 @@ const neighbour: VenueOption = { kind: 'seeded', venueId: 'id-neue' as never, na
 const poi: VenueOption = { kind: 'poi', name: 'Corner Gallery', lat: 1, lng: 2, distanceM: 1250, category: 'landmark' };
 const visit: CurrentVisit = { localId: 'visit-1', venueId: 'id-met' as never, venueName: 'Metropolitan Museum of Art', startedAt: Date.UTC(2026, 8, 18, 21, 10), visitedOn: '2026-09-18', timeZone: 'America/New_York' };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await removeSetting('measurement-units');
   jest.resetAllMocks();
   mockConfirm.mockResolvedValue(undefined);
   mockEnd.mockResolvedValue(undefined);
@@ -38,6 +42,17 @@ beforeEach(() => {
 });
 
 describe('choosing a museum', () => {
+  it('uses saved imperial units and updates when the preference changes', async () => {
+    await setMeasurementUnits('imperial');
+    mockView.options = [seeded, { ...poi, distanceM: 3218.688 }];
+    await render(<VenuePickerSheet />);
+    expect(await screen.findByText('140 ft · nearest')).toBeOnTheScreen();
+    expect(screen.getByText('2.0 mi · landmark')).toBeOnTheScreen();
+    await act(() => setMeasurementUnits('metric'));
+    expect(screen.getByText('40 m · nearest')).toBeOnTheScreen();
+    expect(screen.getByText('3.2 km · landmark')).toBeOnTheScreen();
+  });
+
   it('lists nearby museums and confirms the tapped museum', async () => {
     await render(<VenuePickerSheet />);
     expect(screen.getByRole('header', { name: 'Choose museum' })).toBeOnTheScreen();

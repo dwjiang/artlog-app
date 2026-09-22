@@ -1,10 +1,11 @@
+import { reportError } from '@/lib/observability';
 import { EmptyState } from '../empty-state';
 import { LoadingRing } from '../loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { Image } from 'expo-image';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from '@/db/repos/artwork-album';
@@ -19,6 +20,8 @@ export function useArtworkEncounters(work: SavedWork) {
   const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
   const visits = useLiveQuery(listVisits(work.owner), [work.owner]);
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
+  const queryError = encounters.error ?? visits.error ?? photos.error;
+  useEffect(() => { if (queryError) reportError(queryError, 'collection.encounters.load'); }, [queryError]);
   const rows = visits.data.filter((visit) => visit.owner === work.owner).flatMap((visit) => {
     const encounter = encounters.data.find((row) => row.owner === work.owner && row.savedLocalId === work.localId && row.visitLocalId === visit.localId && row.deletedAt === null);
     return encounter ? [{ visit, note: encounter.note, photoCount: photos.data.filter((photo) => photo.owner === work.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId).length }] : [];
@@ -41,7 +44,7 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
       <View style={styles.actions}>
         <GalleryButton label="Save encounter note" onPress={() => {
           try { editEncounter(work.localId, encounter.visit.localId, { note }, work.owner); setEditing(false); setError(undefined); showToast('Private note saved for this encounter.'); }
-          catch { setError('Your note could not be saved. Try again.'); }
+          catch (cause) { reportError(cause, 'collection.encounter.note.save'); setError('Your note could not be saved. Try again.'); }
         }} />
         <GalleryButton label="Cancel" onPress={() => { setEditing(false); setError(undefined); }} />
       </View>
@@ -70,7 +73,7 @@ export function ArtworkEncounterList({ work, encounters, visitId, loading, loadE
     {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [
       { text: 'Cancel', style: 'cancel' }, { text: 'Unlink', onPress: () => {
         try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/saved/[savedId]', params: { savedId: work.localId } }); }
-        catch { setError('This visit could not be unlinked. Try again.'); }
+        catch (cause) { reportError(cause, 'collection.encounter.unlink'); setError('This visit could not be unlinked. Try again.'); }
       } },
     ])} />}
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}

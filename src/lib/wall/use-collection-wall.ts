@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { selectAllArtworkPhotos } from '@/db/repos/artwork-album';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -47,6 +48,7 @@ export function useCollectionWall(works: SavedWork[]) {
       if (active) { setError(undefined); setProfileRequired(false); }
     }).catch((cause: unknown) => {
       if (!active) return;
+      reportError(cause, 'wall.load');
       const failure = loadFailure(cause);
       setProfileRequired(failure.profileRequired); setError(failure.error);
     }).finally(() => { if (active) setLoadedKey(loadKey); });
@@ -59,6 +61,7 @@ export function useCollectionWall(works: SavedWork[]) {
     try { await state.repository.refresh(); if (session.isCurrent()) setProfileRequired(false); }
     catch (cause) {
       if (!session.isCurrent()) return;
+      reportError(cause, 'wall.load');
       const failure = loadFailure(cause);
       setProfileRequired(failure.profileRequired); setError(failure.error);
     } finally { if (session.isCurrent()) setRefreshing(false); }
@@ -92,11 +95,13 @@ export function useCollectionWall(works: SavedWork[]) {
       });
       setCursor(result.isDone ? null : result.cursor);
     } catch (cause) {
+      if (session.isCurrent()) reportError(cause, 'wall.selections.load');
       if (session.isCurrent()) setError(socialErrorMessage(cause) ?? 'Artworks could not load. Try again.');
     } finally { if (session.isCurrent()) setLoadingSelections(false); }
   }
 
   const albumPhotos = useLiveQuery(selectAllArtworkPhotos(owner), [owner]);
+  useEffect(() => { if (albumPhotos.error) reportError(albumPhotos.error, 'wall.photos.load'); }, [albumPhotos.error]);
   const albumPhoto = (saveLocalId: string, photoLocalId?: string) => photoLocalId
     ? albumPhotos.data.find((row) => row.owner === owner && row.savedLocalId === saveLocalId && row.localId === photoLocalId) : undefined;
   const photoPaths = JSON.stringify((draft?.items ?? []).flatMap((item) => {

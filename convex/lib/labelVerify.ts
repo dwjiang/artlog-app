@@ -1,3 +1,4 @@
+import { reportBackendError } from './observability';
 import type { Doc } from '../_generated/dataModel';
 import { extractPage, hasArtworkMetadata, type PageFields } from './pageExtract';
 import type { TavilySearchResponse } from './tavily';
@@ -74,6 +75,7 @@ export async function verifyAccession(
   try {
     page = await fetchVenuePage(venue.accessionUrlPattern.replace('{accession}', encodeURIComponent(input.accession)), hosts);
   } catch (error) {
+    await reportBackendError(error, 'label.accession');
     console.warn('Accession lookup unavailable', error);
     return null;
   }
@@ -204,6 +206,7 @@ export async function selectTavilyEvidence(response: TavilySearchResponse, pair:
       }
       if (hasArtworkMetadata(extracted)) evidence.imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
     } catch (error) {
+      await reportBackendError(error, 'label.imageMetadata');
       console.warn('Artwork image metadata unavailable; keeping text evidence only', error);
     }
     return evidence;

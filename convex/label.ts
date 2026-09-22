@@ -1,3 +1,4 @@
+import { reportBackendError, withErrorReporting } from './lib/observability';
 import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
@@ -128,7 +129,7 @@ function readFields(reading: LabelReading): LabelFields {
 export const fetchQr = action({
   args: { scanId: v.id('scans'), url: v.string() },
   returns: labelFlowDisplay,
-  handler: async (ctx, { scanId, url }): Promise<LabelFlowDisplay> => {
+  handler: async (ctx, { scanId, url }): Promise<LabelFlowDisplay> => withErrorReporting('label.fetchQr', async () => {
     const { device, scan, venue } = await start(ctx, scanId);
     const hosts = venue ? venueHosts(venue) : [];
     if (!allowedVenueUrl(url, hosts)) throw new ConvexError({ code: 'qr_host_not_allowed' });
@@ -146,13 +147,13 @@ export const fetchQr = action({
     };
     await ctx.runMutation(internal.label.write, { scanId, deviceId: device._id, generation: scan.generation, labelFlow: flow });
     return flow;
-  },
+  }),
 });
 
 export const readLabel = action({
   args: { scanId: v.id('scans'), lines: v.array(ocrLine) },
   returns: labelFlowDisplay,
-  handler: async (ctx, { scanId, lines }): Promise<LabelFlowDisplay> => {
+  handler: async (ctx, { scanId, lines }): Promise<LabelFlowDisplay> => withErrorReporting('label.readLabel', async () => {
     const { device, scan } = await start(ctx, scanId);
     const usable = usableLines(lines);
     await limitDevice(ctx, 'labelRead', device._id);
@@ -186,7 +187,7 @@ export const readLabel = action({
     } finally {
       await ctx.runMutation(internal.spend.reconcile, { kind: 'tokenFactory', day, reserved: MAX_READ_CALLS, actual: calls });
     }
-  },
+  }),
 });
 
 async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPair): Promise<TavilyEvidence | null> {
@@ -229,7 +230,7 @@ export const verifyLabel = action({
     imageCheck: v.optional(imageCheck),
   },
   returns: labelFlowDisplay,
-  handler: async (ctx, args): Promise<LabelFlowDisplay> => {
+  handler: async (ctx, args): Promise<LabelFlowDisplay> => withErrorReporting('label.verifyLabel', async () => {
     const { device, scan, venue } = await start(ctx, args.scanId);
     const stored = scan.labelFlow;
     const input: LabelInput = trimInput(args.fields);
@@ -302,6 +303,7 @@ export const verifyLabel = action({
         artist = pair?.artist ?? (await findArtist(input.artist));
         if (artist) countryMatch = await venueCountryMatch(artist, venue);
       } catch (error) {
+        await reportBackendError(error, 'label.wikidata');
         console.warn('Wikidata unavailable; skipping the plausibility checks', error);
         artist = undefined;
       }
@@ -339,5 +341,5 @@ export const verifyLabel = action({
     if (args.imageCheck) flow = applyImageCheck(flow, args.imageCheck);
     await ctx.runMutation(internal.label.write, { scanId: args.scanId, deviceId: device._id, generation: scan.generation, labelFlow: flow });
     return displayLabelFlow(flow);
-  },
+  }),
 });

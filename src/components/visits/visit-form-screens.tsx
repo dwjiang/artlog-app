@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { venueMetadataForIds } from '@/lib/venue/venue-db';
 import { SearchEmptyState } from '../empty-state';
 import { Host } from '@expo/ui';
@@ -55,7 +56,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   useEffect(() => {
     if (!initialVenueId) return;
     let active = true;
-    void venueMetadataForIds([initialVenueId]).then((rows) => { if (active && rows[0]) { setVenue(rows[0]); const museumToday = calendarDate(now, venueTimeZone(rows[0])); setDate((current) => current > museumToday ? museumToday : current); } }).catch(() => {});
+    void venueMetadataForIds([initialVenueId]).then((rows) => { if (active && rows[0]) { setVenue(rows[0]); const museumToday = calendarDate(now, venueTimeZone(rows[0])); setDate((current) => current > museumToday ? museumToday : current); } }).catch((cause) => reportError(cause, 'visit.venue.load'));
     return () => { active = false; };
   }, [initialVenueId, now]);
   const [retry, setRetry] = useState(0);
@@ -79,11 +80,11 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
         .then(async (rows) => {
           if (rows.length) return { rows, places: [] };
           // Apple Maps is the fallback, so its failure is reported as its own rather than blamed on the table that answered.
-          const places = await searchPlaces(query, fix).catch(() => undefined);
+          const places = await searchPlaces(query, fix).catch((cause) => { reportError(cause, 'visit.places.search'); return undefined; });
           return places ? { rows, places } : { rows, places: [], error: 'Apple Maps could not be reached. Try again.' };
         })
         .then((found) => { if (active) setResults({ query, retry, ...found }); })
-        .catch(() => { if (active) setResults({ query, retry, rows: [], places: [], error: 'Museums could not load. Try again.' }); });
+        .catch((cause) => { reportError(cause, 'visit.venues.search'); if (active) setResults({ query, retry, rows: [], places: [], error: 'Museums could not load. Try again.' }); });
     }, 200);
     return () => { active = false; clearTimeout(timer); };
   }, [query, venue, retry, fix]);
@@ -102,7 +103,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     try {
       const row = await confirmPlace(place, () => session.isOwnerCurrent());
       if (row) chooseVenue(row);
-    } catch (cause) { if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'This museum could not be added. Check your connection and try again.'); }
+    } catch (cause) { reportError(cause, 'visit.venue.confirm'); if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'This museum could not be added. Check your connection and try again.'); }
     finally { if (session.isOwnerCurrent()) setAdding(undefined); }
   }
   async function save() {
@@ -116,7 +117,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
         if (savedId) router.dismissTo({ pathname: '/saved/[savedId]', params: { savedId, visitId: localId } });
         else router.back();
       }
-    } catch (cause) { if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'Your visit could not be saved. Try again.'); }
+    } catch (cause) { reportError(cause, 'visit.create'); if (session.isOwnerCurrent()) setError(socialErrorMessage(cause) ?? 'Your visit could not be saved. Try again.'); }
     finally { if (session.isOwnerCurrent()) { submitting.current = false; setBusy(false); } }
   }
   return <>

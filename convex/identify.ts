@@ -1,3 +1,4 @@
+import { withErrorReporting } from './lib/observability';
 import { ConvexError, type Infer, v } from 'convex/values';
 
 import { sameOwner } from '../shared/journal/contracts';
@@ -187,7 +188,7 @@ export const identify = action({
     capturedAt: v.number(),
   },
   returns: scanDisplay,
-  handler: async (ctx, args): Promise<ScanDisplay> => {
+  handler: async (ctx, args): Promise<ScanDisplay> => withErrorReporting('identify.identify', async () => {
     const device = await requireDeviceFromAction(ctx);
     await limitDevice(ctx, 'identify', device._id);
     const supported = isSupported(args.modelVersion);
@@ -213,5 +214,5 @@ export const identify = action({
       return ctx.runQuery(internal.scans.getDisplay, { scanId, deviceId: device._id });
     }
     return runScan(ctx, scan, query!);
-  },
+  }),
 });

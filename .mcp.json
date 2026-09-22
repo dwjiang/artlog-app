@@ -13,7 +13,10 @@
         "mcp",
         "start"
       ],
-      "env": {}
+      "env": {
+        "CONVEX_DEPLOY_KEY": "",
+        "CONVEX_DEPLOYMENT_TOKEN": ""
+      }
     },
     "huggingface": {
       "type": "http",
@@ -46,6 +49,10 @@
         "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main"
       ],
       "env": {}
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
     },
     "mobbin": {
       "type": "http",

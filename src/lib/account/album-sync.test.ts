@@ -1,4 +1,5 @@
 import type { Id } from '../../../convex/_generated/dataModel';
+import * as Sentry from '@sentry/react-native';
 import { db } from '@/db/client';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
@@ -47,4 +48,17 @@ it('removes the files of deleted album photos unless a live row still uses them'
   expect(mockRemove.mock.calls).toEqual([['artwork-photos/orphan.jpg']]);
   const paths = db.select({ localId: artworkPhotos.localId, path: artworkPhotos.path }).from(artworkPhotos).all();
   expect(paths).toEqual(expect.arrayContaining([{ localId: 'orphan', path: null }, { localId: 'seed', path: null }, { localId: 'live', path: 'artwork-photos/live.jpg' }]));
+});
+
+it('reports an album transfer failure before a later offline error while preserving the batch retry', async () => {
+  db.insert(artworkPhotos).values([photo('first', { path: 'first.jpg' }), photo('second', { path: 'second.jpg' })]).run();
+  const corrupt = new Error('Album decoder could not read the saved image');
+  const offline = new Error('Network request failed');
+  mockUpload.mockRejectedValueOnce(corrupt).mockRejectedValueOnce(offline);
+  await expect(syncArtworkAlbums(context, 'token', () => true)).rejects.toBe(offline);
+  expect(mockUpload).toHaveBeenCalledTimes(2);
+  expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  expect(Sentry.captureException).toHaveBeenCalledWith(expect.objectContaining({ message: corrupt.message }),
+    expect.objectContaining({ tags: { operation: 'sync.photos' }, contexts: { operation: { kind: 'album', direction: 'upload' } } }));
+  expect(selectArtworkPhotos('work').all().every((row) => row.storageId === null)).toBe(true);
 });

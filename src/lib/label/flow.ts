@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import type { FunctionArgs } from 'convex/server';
 
 import type { api } from '../../../convex/_generated/api';
@@ -98,6 +99,7 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
     if (urls.length > 0 && input.checkImages) {
       onStage?.('image-check');
       const check = await input.checkImages(urls).catch((error: unknown) => {
+        reportError(error, 'label.check_images', { level: 'warning' });
         console.warn('Image check failed; keeping the text verification', error);
         return null;
       });

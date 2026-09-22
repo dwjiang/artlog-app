@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { showToast } from '../ui/toast';
 import { ConvexHttpClient } from 'convex/browser';
 import { fetch as expoFetch } from 'expo/fetch';
@@ -41,6 +42,7 @@ export function useFriendship(profileId: Id<'profiles'>, session: SocialSession,
       if (current()) { setConfirmed(result); if (action === 'accept') showToast('You’re now friends.'); return true; }
     } catch (cause) {
       if (!current()) return;
+      reportError(cause, `friendship.${action}`);
       if (convexErrorCode(cause) === 'conflict' || convexErrorCode(cause) === 'invalid_relationship') {
         setConfirmed(undefined);
         setError('This friendship changed. Review the updated options and try again.');

@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { CollectionSearchField } from '../collection/collection-search-field';
 import { museumDay } from '@/lib/journal/visit-date';
 import { searchVenues } from '@/lib/venue/search-venues';
@@ -20,6 +21,8 @@ import { Colors, Gallery, Spacing } from '@/constants/theme';
 import { useVisits } from '@/lib/journal/use-visits';
 import { formatVisitStart } from '@/lib/journal/use-visit-works';
 import { formatDistance } from '@/lib/venue/resolve';
+import type { MeasurementUnits } from '@/lib/settings/measurement-units';
+import { useMeasurementUnits } from '@/lib/settings/use-measurement-units';
 import { useVenue, type VenueView } from '@/lib/venue/use-venue';
 import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from '@/lib/venue/venue-reducer';
 
@@ -33,8 +36,8 @@ function useSheetStyle() {
   return [styles.container, { maxHeight: height - top }];
 }
 
-function detail(option: VenueOption, nearest: boolean): string {
-  const parts = [formatDistance(option.distanceM ?? Number.NaN)];
+function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits | undefined): string {
+  const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ''];
   if (option.kind === 'poi' && option.category !== 'unknown') parts.push(option.category);
   if (nearest) parts.push('nearest');
   return parts.filter(Boolean).join(' · ');
@@ -79,6 +82,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
 }
 
 function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => void }) {
+  const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
   const sheetStyle = useSheetStyle();
   const { status, options, error, confirm, dismiss } = view;
@@ -89,7 +93,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
     if (!searching) return;
     let active = true;
     const timer = setTimeout(() => { void searchVenues(query).then((rows) => { if (active) setResults({ query, rows }); })
-      .catch(() => { if (active) setResults({ query, rows: [], error: 'Museums could not load. Try another search.' }); }); }, 200);
+      .catch((cause) => { reportError(cause, 'venue.search'); if (active) setResults({ query, rows: [], error: 'Museums could not load. Try another search.' }); }); }, 200);
     return () => { active = false; clearTimeout(timer); };
   }, [query, searching]);
   const [busy, setBusy] = useState<string>();
@@ -109,6 +113,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       await confirm(option, request.signal);
       if (!request.signal.aborted) router.back();
     } catch (cause) {
+      if (!request.signal.aborted) reportError(cause, 'venue.confirm');
       if (!request.signal.aborted) setFailure(cause instanceof Error ? cause.message : 'Could not confirm the venue. Try again.');
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
@@ -137,10 +142,10 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
       : status === 'locating' ? <LoadingRing accessibilityLabel="Locating your museum" />
         : !options.length ? <EmptyState inset={false} title={status === 'denied' ? 'Location access is off.' : 'No nearby museums found.'} detail={status === 'denied' ? `Allow location in Settings to find nearby museums. ${emptyDetail}` : emptyDetail} visual={<EmptyMap />}>
           <GalleryButton label="Search museums" variant="filled" fullWidth onPress={() => searchInput.current?.focus()} />
-          {status === 'denied' && <GalleryButton label="Open Settings" fullWidth onPress={() => { void Linking.openSettings().catch(() => setFailure('Could not open Settings.')); }} />}
+          {status === 'denied' && <GalleryButton label="Open Settings" fullWidth onPress={() => { void Linking.openSettings().catch((cause) => { reportError(cause, 'venue.open-settings', { level: 'warning' }); setFailure('Could not open Settings.'); }); }} />}
         </EmptyState>
           : <><ThemedText type="smallBold" themeColor="textSecondary">Nearby</ThemedText>{options.map((option, index) => <Pressable key={venueOptionKey(option)} accessibilityRole="button" accessibilityLabel={option.name} accessibilityState={{ busy: busy === venueOptionKey(option), disabled: !!busy }} disabled={!!busy} onPress={() => { void choose(option); }} style={[styles.option, styles.unselectedOption]}>
-            <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} /><View style={styles.optionText}><ThemedText>{option.name}</ThemedText><ThemedText type="small" themeColor="textSecondary">{detail(option, index === 0)}</ThemedText></View>{busy === venueOptionKey(option) && <LoadingRing />}
+            <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} /><View style={styles.optionText}><ThemedText>{option.name}</ThemedText><ThemedText type="small" themeColor="textSecondary">{detail(option, index === 0, units ?? (unitsFailed ? 'metric' : undefined))}</ThemedText></View>{busy === venueOptionKey(option) && <LoadingRing />}
           </Pressable>)}</>}
     {(failure ?? error) && <ThemedText selectable themeColor="error" accessibilityRole="alert">{failure ?? error}</ThemedText>}
     <GalleryButton label={keepVisit ? 'Keep current visit' : 'Continue without a museum'} fullWidth onPress={keepVisit ?? notHere} />

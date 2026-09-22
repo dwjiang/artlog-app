@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
-import { Gallery } from '@/constants/theme';
+import { Gallery, SettingsOutline } from '@/constants/theme';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { useAccount } from '@/lib/account/use-account';
@@ -51,15 +51,14 @@ export function SettingsScreen() {
       <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('account'))} />
     </View>}
     <SettingsGroup title="Your journal">
+      <SettingsRow label="General" icon="gearshape" onPress={detail('general')} />
       <SettingsRow label="Museum downloads" icon="arrow.down.to.line" onPress={() => router.push('/museum-downloads')} />
       <SettingsRow label="Visits" icon="chart.bar" onPress={detail('visits')} />
       {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail('leaderboards')} />}
       {account?.linked && <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push('/public-notes')} />}
       <SettingsRow label="Contributions" icon="person.2" onPress={detail('contributions')} />
-      {!account?.linked && <SettingsRow label="Export journal" icon="square.and.arrow.down" onPress={detail('export')} />}
     </SettingsGroup>
     <SettingsGroup title={account?.linked ? 'Your data' : 'Artlog'}>
-      {account?.linked && <SettingsRow label="Export journal" icon="square.and.arrow.down" onPress={detail('export')} />}
       <SettingsRow label="Privacy" icon="lock" onPress={detail('privacy')} />
       <SettingsRow label="About" icon="info.circle" onPress={detail('about')} />
     </SettingsGroup>
@@ -70,8 +69,8 @@ export function SettingsScreen() {
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return <View style={{ gap: 8 }}><ThemedText variant="section" accessibilityRole="header">{title}</ThemedText>
-    <View style={{ paddingHorizontal: 12, backgroundColor: Gallery.surface, borderRadius: 12, borderWidth: 0.5, borderColor: Gallery.separator, overflow: 'hidden' }}>
-      {Children.toArray(children).map((row, index) => <Fragment key={index}>{index > 0 && <View style={{ height: 0.5, backgroundColor: Gallery.separator }} />}{row}</Fragment>)}
+    <View style={{ paddingHorizontal: 12, backgroundColor: Gallery.surface, ...SettingsOutline, overflow: 'hidden' }}>
+      {Children.toArray(children).map((row, index) => <Fragment key={index}>{index > 0 && <View style={{ height: SettingsOutline.borderWidth, backgroundColor: SettingsOutline.borderColor }} />}{row}</Fragment>)}
     </View>
   </View>;
 }
@@ -80,7 +79,7 @@ function SettingsRow({ label, icon, onPress }: { label: string; icon: ComponentP
   return <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
     <Button variant="text" onPress={onPress} modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}>
       <Row spacing={16} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 54 }), contentShape(shapes.rectangle())]}>
-        <Icon name={icon} size={22} color={Gallery.ink} />
+        <Icon name={icon} size={22} color={Gallery.ink} modifiers={[frame({ width: 28 })]} />
         <NativeText textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'body' }), frame({ maxWidth: Infinity, alignment: 'leading' })]}>{label}</NativeText>
         <Icon name="chevron.right" size={13} color={Gallery.muted} />
       </Row>

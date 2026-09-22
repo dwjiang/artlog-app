@@ -1,4 +1,5 @@
 import { offlineResultQuery } from '@/db/repos/offline-scan-results';
+import { reportError } from '@/lib/observability';
 import { OfflineResultScreen } from './offline-result-screen';
 import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
@@ -9,7 +10,6 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
-import model from '../../../shared/model/model-version.json';
 
 import { CaptureCompletion } from './capture-completion';
 import { CaptureContextButton } from './capture-context-button';
@@ -34,6 +34,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   const router = useRouter();
   const isActive = useScreenActive();
   const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  useEffect(() => { if (loadError) reportError(loadError, 'result.load_local_scan'); }, [loadError]);
   const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [localId, owner]);
   const offlineResult = offlineResults?.find(result => result.owner === owner)?.result;
   const row = data.find((row) => row.owner === owner);
@@ -76,7 +77,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
     setRetrying(true);
     setRetryError(undefined);
     void retryPendingScan(localId)
-      .catch(() => setRetryError('Couldn’t retry this scan. Your photo is still here. Try again.'))
+      .catch((error: unknown) => { reportError(error, 'queue.retry'); setRetryError('Couldn’t retry this scan. Your photo is still here. Try again.'); })
       .finally(() => { retryPending.current = false; setRetrying(false); });
   }
 
@@ -103,7 +104,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
         keyboardDismissMode="interactive"
         contentContainerStyle={styles.content}
       >
-        {row && <CardHeader cropUri={captureFileUri(scanPreviewPath(row.cropPath))} inputSize={model.inputSize} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
+        {row && <CardHeader cropUri={captureFileUri(scanPreviewPath(row.cropPath))} kind={row.status === 'failed' ? 'failed' : 'loading'} />}
         {row && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={() => {
           if (hasDraft) Alert.alert('Adjust this crop?', 'Recognition will run again. Unsaved artwork details will be discarded.', [
             { text: 'Keep editing', style: 'cancel' }, { text: 'Adjust crop', onPress: () => { setHasDraft(false); setEditingCrop(true); } },

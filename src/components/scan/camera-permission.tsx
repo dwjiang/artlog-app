@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { LoadingRing } from '@/components/loading-ring';
 import { useState, type ReactNode } from 'react';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
@@ -17,7 +18,7 @@ export function CameraPermission({ children, onImport, notice, compact = false, 
       detail={canRequestPermission ? 'Point your camera at an artwork to learn more and keep it in your collection.' : 'Allow camera access in Settings, or choose a photo from your library.'}>
       <GalleryButton label={canRequestPermission ? 'Allow camera' : 'Open Settings'} variant="filled" fullWidth busy={busy} onPress={() => {
         setBusy(true); setError(undefined);
-        void (canRequestPermission ? requestPermission() : Linking.openSettings()).catch(() => setError('Could not open camera permissions. Try again.')).finally(() => setBusy(false));
+        void (canRequestPermission ? requestPermission() : Linking.openSettings()).catch((error: unknown) => { reportError(error, 'camera.request_permission'); setError('Could not open camera permissions. Try again.'); }).finally(() => setBusy(false));
       }} />
       {onImport && <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />}
       {(error ?? notice) && <ThemedText themeColor="error" accessibilityRole="alert">{error ?? notice}</ThemedText>}

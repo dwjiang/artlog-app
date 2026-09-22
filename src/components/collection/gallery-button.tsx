@@ -5,9 +5,10 @@ import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from 'react-
 import { Gallery, Radius, Spacing } from '@/constants/theme';
 import { LoadingRing } from '@/components/loading-ring';
 
-export function GalleryButton({ label, accessibilityLabel = label, icon, iconPosition = 'leading', onPress, disabled, busy = false, busyLabel = 'Working…', variant = 'text', inverse = false, fullWidth, destructive = false, tone = 'accent' }: {
+export function GalleryButton({ label, accessibilityLabel = label, icon, iconPosition = 'leading', contentAlignment = 'center', onPress, disabled, busy = false, busyLabel = 'Working…', variant = 'text', inverse = false, fullWidth, destructive = false, tone = 'accent' }: {
   label: string; accessibilityLabel?: string; icon?: ComponentProps<typeof Icon>['name']; onPress: () => void; disabled?: boolean; busy?: boolean;
   iconPosition?: 'leading' | 'trailing';
+  contentAlignment?: 'center' | 'leading';
   busyLabel?: string;
   variant?: ComponentProps<typeof Button>['variant'];
   inverse?: boolean;
@@ -36,9 +37,9 @@ export function GalleryButton({ label, accessibilityLabel = label, icon, iconPos
       modifiers={[accessibilityLabelModifier(accessibilityLabel), accessibilityValue(busy ? busyLabel : ''),
         frame({ minHeight, ...(expand ? { maxWidth: Infinity } : {}) }),
         buttonStyle('plain'), tint(accent)]}>
-        <Row spacing={Spacing.two} alignment="center" modifiers={[frame({ minHeight, minWidth: 44, ...(expand ? { maxWidth: Infinity } : {}) }), contentShape(shapes.rectangle()), opacity(busy ? 0 : 1)]}>
-          {icon && iconPosition === 'leading' && <Icon name={icon} size={17} color={foreground} />}
-          <NativeText textStyle={{ color: foreground }} modifiers={[font({ textStyle: 'body', weight: variant === 'filled' ? 'semibold' : 'regular' }), fixedSize({ horizontal: false, vertical: true }), multilineTextAlignment('center')]}>{label}</NativeText>
+        <Row spacing={Spacing.two} alignment="center" modifiers={[frame({ minHeight, minWidth: 44, alignment: contentAlignment, ...(expand ? { maxWidth: Infinity } : {}) }), contentShape(shapes.rectangle()), opacity(busy ? 0 : 1)]}>
+          {icon && iconPosition === 'leading' && <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 })]} />}
+          <NativeText textStyle={{ color: foreground }} modifiers={[font({ textStyle: 'body', weight: variant === 'filled' ? 'semibold' : 'regular' }), fixedSize({ horizontal: false, vertical: true }), multilineTextAlignment(contentAlignment)]}>{label}</NativeText>
           {icon && iconPosition === 'trailing' && <Icon name={icon} size={17} color={foreground} />}
         </Row>
     </Button>

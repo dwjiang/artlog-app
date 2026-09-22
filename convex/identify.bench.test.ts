@@ -35,5 +35,5 @@ it.skipIf(process.env.BENCH !== '1')('times identification over 2,000 vectors an
   const elapsed = performance.now() - started;
   stdout.write(`identify convex-test: ${elapsed.toFixed(1)} ms (2,000 vectors, 20 descriptor rows, top 10 ORB)\n`);
   expect(result.status).toBe('identified');
-  expect(result.best?.corners).toHaveLength(4);
+  expect((await t.run((ctx) => ctx.db.get(result.scanId)))?.best?.corners).toHaveLength(4);
 }, 30_000);

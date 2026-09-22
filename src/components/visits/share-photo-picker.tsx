@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
+import { reportError } from '@/lib/observability';
 import { PhotoStripSkeleton } from '@/components/loading-skeleton';
 import { LoadingImage } from '@/components/loading-image';
+import { Image } from 'expo-image';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { ThemedText as Text } from '@/components/themed-text';
@@ -14,6 +17,7 @@ export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: 
 }) {
   const { fontScale } = useWindowDimensions();
   const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [work.localId, visitId, work.owner]);
+  useEffect(() => { if (error) reportError(error, 'visit.share-photos.load'); }, [error]);
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
     <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
     <Text style={{ color: Gallery.ink, fontSize: 28, lineHeight: 33, fontWeight: '600', letterSpacing: -0.8 }}>Choose photos</Text>
@@ -26,7 +30,11 @@ export function SharePhotoPicker({ work, visitId, selected, onChange, onDone }: 
         style={{ width: fontScale > 1.4 ? '100%' : '47%', borderRadius: 2, overflow: 'hidden', borderWidth: 2, borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.fill, backgroundColor: Gallery.fill, padding: 8, gap: 8 }}>
         {photo.path ? <LoadingImage uri={captureFileUri(photo.path)} label={`${photo.kind} photo`} style={{ width: '100%', height: 155 }} contentFit="contain" />
           : <Text style={{ color: Gallery.muted }}>Photo unavailable on this iPhone.</Text>}
-        <Text style={{ fontSize: 13, color: Gallery.ink }}>{selected.includes(photo.localId) ? '✓ ' : ''}{photo.kind === 'full' ? 'Full artwork' : photo.kind === 'detail' ? 'Detail' : 'Museum label'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ flex: 1, fontSize: 13, color: Gallery.ink }}>{photo.kind === 'full' ? 'Full artwork' : photo.kind === 'detail' ? 'Detail' : 'Museum label'}</Text>
+          <Image source={selected.includes(photo.localId) ? 'sf:checkmark.circle.fill' : 'sf:circle'} accessible={false}
+            tintColor={selected.includes(photo.localId) ? Gallery.accent : Gallery.muted} style={{ width: 18, height: 18 }} />
+        </View>
         {!!photo.caption && <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>}
       </Pressable>)}
     </View>

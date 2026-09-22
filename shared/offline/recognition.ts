@@ -23,7 +23,7 @@ export function rankEntries(vector: number[], entries: MuseumEntry[], previous: 
 }
 export function recognizeEntries(payload: { modelVersion: string; descriptors: ArrayBuffer; keypoints: ArrayBuffer; venueId?: Id<'museums'> }, entries: MuseumEntry[]): OfflineResult | undefined {
   if (payload.modelVersion !== model.modelVersion || !entries.length) return;
-  const { decision, verifications } = runPipeline({ query: decodeOrbFeatures(payload.descriptors, payload.keypoints),
+  const { decision } = runPipeline({ query: decodeOrbFeatures(payload.descriptors, payload.keypoints),
     candidates: entries.map(entry => entry.candidate), venueId: payload.venueId, now: Date.now(), inputSize: model.inputSize });
   if (decision.outcome !== 'confident' || !decision.best) return;
   const display = ({ candidate, probability }: NonNullable<typeof decision.best>): ResultCandidate => ({
@@ -34,8 +34,6 @@ export function recognizeEntries(payload: { modelVersion: string; descriptors: A
     gallery: candidate.placement?.venueId === payload.venueId ? candidate.placement?.gallery : undefined,
   });
   const artwork = decision.best.candidate.artwork;
-  const verification = verifications.get(decision.best.candidate.object._id);
-  const best = { ...display(decision.best), corners: verification?.verified ? verification.corners ?? undefined : undefined };
-  return { outcome: 'confident', best, runnerUps: decision.runnerUps.map(display),
+  return { outcome: 'confident', best: display(decision.best), runnerUps: decision.runnerUps.map(display),
     calibratorVersion: decision.calibratorVersion, docent: artwork.docent, factSheet: artwork.factSheet };
 }

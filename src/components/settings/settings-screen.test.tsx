@@ -67,15 +67,24 @@ it('shows grouped settings and opens the matching detail', async () => {
   expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
   expect(screen.queryByText('YA', { includeHiddenElements: true })).toBeNull();
   for (const title of ['Settings', 'Your journal', 'Artlog', 'Developer']) expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
-  for (const [label, section] of [['Visits', 'visits'], ['Privacy', 'privacy'], ['Export journal', 'export'], ['About', 'about']]) {
+  expect(screen.queryByRole('button', { name: 'Export journal' })).toBeNull();
+  for (const [label, section] of [['General', 'general'], ['Visits', 'visits'], ['Privacy', 'privacy'], ['About', 'about']]) {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
   }
 });
 
+it('opens measurement units in General', async () => {
+  await render(<SettingsDetailScreen section="general" />);
+  expect(screen.getByRole('header', { name: 'Measurement units' })).toBeOnTheScreen();
+  expect(await screen.findByRole('button', { name: 'Metric', selected: true })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Imperial' })).toBeOnTheScreen();
+});
+
 it('opens account management from the profile row', async () => {
   mockAccount = { linked: true, deviceCount: 2 };
   await render(<SettingsScreen />);
+  expect(screen.queryByRole('button', { name: 'Export journal' })).toBeNull();
   expect(screen.getByText('A', { includeHiddenElements: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: /Alex/ }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/settings-detail', params: { section: 'account' } });

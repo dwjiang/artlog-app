@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import model from '../../../shared/model/model-version.json';
 
 import { getCoremlEmbed } from '../../../modules/coreml-embed/src';
@@ -61,6 +62,9 @@ export function warmUpEmbedder(): void {
     (result) => {
       if (__DEV__) console.debug('Embedding model ready', result);
     },
-    (error: unknown) => console.warn('Embedding model warm-up failed', error),
+    (error: unknown) => {
+      reportError(error, 'embedding.warm_up');
+      console.warn('Embedding model warm-up failed', error);
+    },
   );
 }

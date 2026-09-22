@@ -31,7 +31,7 @@ export function AccountSection() {
     <GroupedSection>
       <ActionRow label="Sign out" busy={operation === 'sign-out'} icon="rectangle.portrait.and.arrow.right" disabled={busy} onPress={() => Alert.alert('Sign out of Artlog?', 'Your saved artworks remain on this iPhone. Sign in again to share and connect.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => { void disconnect(false); } }])} />
     </GroupedSection>
-    <GroupedSection>
+    <GroupedSection destructive>
       <ActionRow label="Delete account" busy={operation === 'delete'} icon="trash" destructive disabled={busy} onPress={() => Alert.alert(
         'Delete account?', 'This disconnects all your devices. Saved works stay on each phone.',
         [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete account', style: 'destructive', onPress: () => { void disconnect(true); } }],

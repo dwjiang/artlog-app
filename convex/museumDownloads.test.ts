@@ -43,7 +43,6 @@ it('publishes an authenticated museum download only when all chunks are complete
   const ranked = rankEntries(testVector(), entries);
   const result = recognizeEntries({ modelVersion: model.modelVersion, venueId, ...encodeOrbFeatures(pair.query) }, ranked);
   expect(result).toMatchObject({ outcome: 'confident', best: { objectId: work.objectId, title: 'Water Lilies' }, docent: [{ sentence: 'Painted as part of a series.' }] });
-  expect(result?.best?.corners).toHaveLength(4);
   expect(recognizeEntries({ modelVersion: 'old-model', venueId, ...encodeOrbFeatures(pair.query) }, ranked)).toBeUndefined();
   expect(recognizeEntries({ modelVersion: model.modelVersion, venueId, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) }, ranked)).toBeUndefined();
   await expect(t.query(api.museumDownloads.catalog, { paginationOpts })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });

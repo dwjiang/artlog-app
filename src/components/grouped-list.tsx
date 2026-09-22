@@ -1,21 +1,33 @@
-import { Button, Host, Icon, ListItem, Row, Text } from '@expo/ui';
-import { LabeledContent, List, Section } from '@expo/ui/swift-ui';
-import { accessibilityLabel, accessibilityValue, background, buttonStyle, contentShape, font, foregroundStyle, frame, listRowBackground, listStyle, scrollContentBackground, shapes, tint } from '@expo/ui/swift-ui/modifiers';
-import type { ComponentProps, ReactNode } from 'react';
-import { Gallery } from '@/constants/theme';
+import { Button, Column, Host, Icon, ListItem, Row, Text } from '@expo/ui';
+import { LabeledContent, List, Rectangle, Section, Spacer } from '@expo/ui/swift-ui';
+import { accessibilityLabel, accessibilityValue, background, buttonStyle, contentShape, font, foregroundStyle, frame, listRowBackground, listRowInsets, listRowSeparator, listStyle, multilineTextAlignment, padding, scrollContentBackground, shapes, strokeBorder, tint } from '@expo/ui/swift-ui/modifiers';
+import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from 'react';
+import { Gallery, SettingsOutline, Spacing } from '@/constants/theme';
 import { NativeLoadingRing } from './native-loading-ring';
 
 type IconName = ComponentProps<typeof Icon>['name'];
 
 /** Render as a screen root: the native list needs the available screen frame. */
 export function GroupedList({ children }: { children: ReactNode }) {
+  // Inset-grouped lists clip custom card outlines to the system corner radius.
   return <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
-    <List modifiers={[listStyle('insetGrouped'), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
+    <List modifiers={[listStyle('grouped'), padding({ horizontal: Spacing.content }), scrollContentBackground('hidden'), background(Gallery.paper), foregroundStyle(Gallery.ink), tint(Gallery.accent)]}>{children}</List>
   </Host>;
 }
 
-export function GroupedSection({ modifiers = [], ...props }: ComponentProps<typeof Section>) {
-  return <Section {...props} modifiers={[listRowBackground(Gallery.surface), ...modifiers]} />;
+export function GroupedSection({ children, modifiers = [], destructive = false, ...props }: ComponentProps<typeof Section> & { destructive?: boolean }) {
+  return <Section {...props} modifiers={[listRowBackground('clear'), ...modifiers]}>
+    <Column spacing={0} modifiers={[
+      listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }), listRowSeparator('hidden'),
+      background(destructive ? Gallery.destructiveFill : Gallery.surface, shapes.roundedRectangle({ cornerRadius: SettingsOutline.borderRadius })),
+      strokeBorder({ color: SettingsOutline.borderColor, style: { lineWidth: SettingsOutline.borderWidth }, shape: 'roundedRectangle', cornerRadius: SettingsOutline.borderRadius }),
+    ]}>
+      {Children.toArray(children).filter(isValidElement).map((child, index) => <Fragment key={child.key}>
+        {index > 0 && <Rectangle modifiers={[foregroundStyle(SettingsOutline.borderColor), frame({ height: SettingsOutline.borderWidth }), padding({ horizontal: Spacing.compact })]} />}
+        <Row modifiers={[padding({ horizontal: Spacing.three, vertical: Spacing.compact }), frame({ maxWidth: Infinity, minHeight: 44, alignment: 'leading' })]}>{child}</Row>
+      </Fragment>)}
+    </Column>
+  </Section>;
 }
 
 export function GroupedFooter({ children, tone = 'muted' }: { children: string; tone?: 'muted' | 'destructive' }) {
@@ -38,10 +50,15 @@ export function ActionRow({ label, icon, onPress, disabled = false, destructive 
   label: string; icon?: IconName; onPress: () => void; disabled?: boolean; destructive?: boolean; busy?: boolean;
 }) {
   const color = destructive ? Gallery.destructive : Gallery.accent;
-  return <Button variant="text" disabled={disabled || busy} onPress={onPress} modifiers={[accessibilityLabel(label), accessibilityValue(busy ? 'In progress' : ''), buttonStyle('borderless'), tint(color), frame({ minHeight: 44 }), ...(destructive ? [listRowBackground(Gallery.destructiveFill)] : [])]}>
+  // The spacer lets SwiftUI measure a spinner inserted into an initially idle slot.
+  const indicator = <Row alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
+    {busy ? <NativeLoadingRing label={`${label} in progress`} color={color} /> : icon ? <Icon name={icon} size={20} color={color} /> : <Spacer />}
+  </Row>;
+  return <Button variant="text" disabled={disabled || busy} onPress={onPress} modifiers={[accessibilityLabel(label), accessibilityValue(busy ? 'In progress' : ''), buttonStyle('borderless'), tint(color), frame({ minHeight: 44 })]}>
     <Row spacing={12} alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), contentShape(shapes.rectangle())]}>
-      {busy ? <NativeLoadingRing label={`${label} in progress`} color={color} /> : icon ? <Icon name={icon} size={20} color={color} modifiers={[frame({ width: 28, height: 28 })]} /> : null}
-      <Text modifiers={[font({ textStyle: 'body' })]} textStyle={{ color }}>{label}</Text>
+      {icon && indicator}
+      <Text modifiers={[font({ textStyle: 'body' }), multilineTextAlignment('leading')]} textStyle={{ color }}>{label}</Text>
+      {!icon && indicator}
     </Row>
   </Button>;
 }

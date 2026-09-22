@@ -76,6 +76,14 @@
             ]
           }
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "artlog-app",
+          "organization": "daniel-jiang"
+        }
       ]
     ],
     "experiments": {

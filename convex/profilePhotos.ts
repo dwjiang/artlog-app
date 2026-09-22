@@ -1,5 +1,6 @@
 "use node";
 
+import { withErrorReporting } from './lib/observability';
 import { ConvexError, v, type Infer } from 'convex/values';
 import sharp from 'sharp';
 import { publicProfile, validateProfile } from '../shared/social/contracts';
@@ -10,7 +11,7 @@ import { action } from './_generated/server';
 export const save = action({
   args: { name: v.string(), bio: v.optional(v.string()), photo: v.optional(v.union(v.bytes(), v.null())) },
   returns: publicProfile,
-  handler: async (ctx, input): Promise<Infer<typeof publicProfile>> => {
+  handler: async (ctx, input): Promise<Infer<typeof publicProfile>> => withErrorReporting('profilePhotos.save', async () => {
     validateProfile(input);
     const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
     let photo: Id<'_storage'> | null | undefined = input.photo === null ? null : undefined;
@@ -28,5 +29,5 @@ export const save = action({
       if (photo) await ctx.storage.delete(photo);
       throw error;
     }
-  },
+  }),
 });

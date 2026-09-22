@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { retryPendingScan } from '@/lib/queue/queue';
 import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
@@ -10,7 +11,6 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
-import model from '../../../shared/model/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -62,6 +62,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
   const client = useConvex();
   const scan = useScan(scanId);
   const { data: captures, updatedAt: captureUpdatedAt, error: captureError } = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]);
+  useEffect(() => { if (captureError) reportError(captureError, 'result.load_capture'); }, [captureError]);
   const capture = captures.find((row) => row.owner === owner);
   const labelCapture = !startManual && !!capture && isLabelCapture(capture);
   const [selection, setSelection] = useState<ResultSelection>({});
@@ -108,6 +109,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
         return feedbackId;
       },
       (error: unknown) => {
+        reportError(error, 'result.reject_match');
         console.warn('Could not record the rejection', error);
         setSheet((current) => current.open ? { ...current, notice: 'Couldn’t record your feedback, but you can still pick a work.' } : current);
         return null;
@@ -122,7 +124,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
     if (!pending) return;
     rejection.current = undefined;
     void pending.then((feedbackId) => feedbackId && resolveWithRunnerUp(client, feedbackId, candidate.objectId))
-      .catch((error: unknown) => console.warn('Could not resolve the rejection', error));
+      .catch((error: unknown) => { reportError(error, 'result.resolve_feedback'); console.warn('Could not resolve the rejection', error); });
   }
 
   const saveProps = {
@@ -138,7 +140,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
 
   const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
   const header = <CardHeader cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined} artworkTitle={view.primary?.title}
-    loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
+    loading={!captureUpdatedAt && !captureError} kind={view.kind}
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>
     {capture && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />}
@@ -161,7 +163,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
             if (retrying) return;
             setRetrying(true); setRetryError(undefined);
             void markFailed(capture.localId, view.error ?? 'Identification failed', scanId, owner).then(() => retryPendingScan(capture.localId)).then(() => router.replace({ pathname: '/result/[scanId]', params: { scanId: `local-${capture.localId}` } }))
-              .catch(() => setRetryError('Couldn’t retry. Your photo is still here.')).finally(() => setRetrying(false));
+              .catch((error: unknown) => { reportError(error, 'queue.retry'); setRetryError('Couldn’t retry. Your photo is still here.'); }).finally(() => setRetrying(false));
           } : undefined} />{retryError && <ThemedText themeColor="error" accessibilityRole="alert">{retryError}</ThemedText>}{capture && <SaveAnywayForm {...saveProps} compact />}<GalleryButton label="Scan another artwork" fullWidth onPress={() => { router.dismissAll(); router.navigate('/(tabs)/(scan)/scan'); }} /></>}
           {search}
           {view.editable && view.kind !== 'confident' && <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={openLabel} />}

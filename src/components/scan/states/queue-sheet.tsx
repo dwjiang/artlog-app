@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { EmptyState } from '@/components/empty-state';
 import { ListSkeleton } from '@/components/loading-skeleton';
 import { Image } from 'expo-image';
@@ -41,7 +42,7 @@ function QueueContent() {
         setDiscarding((ids) => [...ids, item.localId]);
         setDiscardError(undefined);
         void discardCapture(item.localId, owner)
-          .catch(() => setDiscardError('Couldn’t finish removing this scan. Try again.'))
+          .catch((error: unknown) => { reportError(error, 'queue.discard'); setDiscardError('Couldn’t finish removing this scan. Try again.'); })
           .finally(() => {
             pending.current.delete(item.localId);
             setDiscarding((ids) => ids.filter((id) => id !== item.localId));
@@ -61,7 +62,7 @@ function QueueContent() {
     setRetrying([...pending.current]);
     setRetryError(undefined);
     void retryPendingScan(item.localId)
-      .catch(() => setRetryError('Couldn’t retry this scan. Your photo is still here. Tap retry again.'))
+      .catch((error: unknown) => { reportError(error, 'queue.retry'); setRetryError('Couldn’t retry this scan. Your photo is still here. Tap retry again.'); })
       .finally(() => {
         pending.current.delete(item.localId);
         setRetrying([...pending.current]);

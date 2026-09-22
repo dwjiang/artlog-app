@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { ScrollView, TextInput, View } from 'react-native';
 import { GalleryButton } from '../collection/gallery-button';
 import { ThemedText as Text } from '../themed-text';
@@ -41,7 +42,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       const next = await chooseProfilePhoto();
       if (!mounted.current) { removeProfilePhotoDraft(next); return; }
       if (next) { removeProfilePhotoDraft(draftFile.current); draftFile.current = next; setPhoto(next); }
-    } catch { if (mounted.current) setError('This photo could not be opened. Try another image.'); }
+    } catch (cause) { reportError(cause, 'profile.photo.choose'); if (mounted.current) setError('This photo could not be opened. Try another image.'); }
     finally { if (mounted.current) setOperation(undefined); }
   }
   async function submit() {
@@ -52,7 +53,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       if (!owner.isCurrent() || !mounted.current) return;
       await save({ name: name.trim(), bio: bio.trim(), ...(bytes !== undefined ? { photo: bytes } : {}) });
       if (owner.isCurrent() && mounted.current) { showToast('Profile updated. Your wall and visits are unchanged.'); router.back(); }
-    } catch (cause) { if (owner.isCurrent() && mounted.current) setError(socialErrorMessage(cause) ?? 'Your profile was not saved. Please try again.'); }
+    } catch (cause) { reportError(cause, 'profile.update'); if (owner.isCurrent() && mounted.current) setError(socialErrorMessage(cause) ?? 'Your profile was not saved. Please try again.'); }
     finally { if (owner.isCurrent() && mounted.current) setOperation(undefined); }
   }
   const shownPhoto = photo === undefined ? profile.photoUrl : photo ?? undefined;

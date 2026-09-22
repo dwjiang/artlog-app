@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat, type ImageRef, type ImageResult } from 'expo-image-manipulator';
 
@@ -17,7 +18,8 @@ export function removeFile(uri: string): void {
     const file = new File(uri);
     if (file.exists) file.delete();
   } catch (error) {
-    console.warn('Could not remove a temporary image', { uri, error });
+    reportError(error, 'label.remove_temporary_image', { level: 'warning' });
+    console.warn('Could not remove a temporary image', error);
   }
 }
 

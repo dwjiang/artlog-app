@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import type { ConvexReactClient } from 'convex/react';
 
 import { api } from '../../../convex/_generated/api';
@@ -21,7 +22,7 @@ export function resolveWithLabel(
   // Feedback may still be waiting for signal; neither navigation nor sharing waits on it.
   void rejection?.then((feedbackId) => feedbackId && client.mutation(api.feedback.resolveRejection, {
     feedbackId, resolution: { kind: 'label', contributionId },
-  })).catch((error: unknown) => console.warn('Could not resolve the rejection with this contribution', error));
+  })).catch((error: unknown) => { reportError(error, 'result.resolve_label_feedback'); console.warn('Could not resolve the rejection with this contribution', error); });
 }
 
 /** Records "Not right?" as an attested rejection; `null` when this device cannot attest. */

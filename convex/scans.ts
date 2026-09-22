@@ -15,7 +15,7 @@ const scanFields = schema.tables.scans.validator.fields;
 const displayCandidate = snapshotFields.extend({
   objectId: v.id('objects'), artworkId: v.id('artworks'), probability: v.number(),
   identityStatus: schema.tables.objects.validator.fields.identityStatus, rightsStatus, thumbnailUrl: v.optional(v.string()),
-  gallery: v.optional(v.string()), corners: v.optional(v.array(v.array(v.number()))),
+  gallery: v.optional(v.string()),
 });
 
 export const scanDisplay = v.object({
@@ -125,10 +125,12 @@ async function joinCandidate(
   const thumbnailUrl = object.thumbnailStorageId
     ? await ctx.storage.getUrl(object.thumbnailStorageId)
     : artwork.rightsStatus === 'public_domain' ? object.thumbnailUrl : undefined;
+  // The verifier's projected corners stay on the scan as evidence; the card no longer draws them.
+  const { corners, ...fields } = match;
   return {
     artwork,
     candidate: {
-      ...match, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
+      ...fields, title: artwork.title, artist: artwork.artist, date: artwork.date, medium: object.medium,
       institution: owner?.name, rightsStatus: artwork.rightsStatus, ...(thumbnailUrl ? { thumbnailUrl } : {}),
     },
   };

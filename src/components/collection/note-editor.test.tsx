@@ -1,9 +1,11 @@
+import { reportError } from '@/lib/observability';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { NoteEditor } from './note-editor';
 import * as notes from '@/db/repos/notes';
 import { insertSavedWork } from '@/db/repos/saved-works';
 
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn() }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 
 beforeAll(async () => {
@@ -11,6 +13,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.clearAllMocks();
   await notes.setNote('work', 'Original note');
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -33,6 +36,7 @@ it('ends loading with an error if the note read fails', async () => {
   jest.spyOn(notes, 'getNote').mockRejectedValueOnce(new Error('Read failed'));
   await render(<NoteEditor savedLocalId="work" />);
   expect(await screen.findByText('Your note could not load. Reopen this artwork to try again.')).toBeOnTheScreen();
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Read failed' }), 'collection.note.load');
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(screen.queryByText('Keep a private note about this work.')).toBeNull();
 });
@@ -50,6 +54,7 @@ it('keeps a failed draft visible and lets the user retry saving it', async () =>
   const { input } = await editNote();
   await fireEvent(input, 'blur');
   expect(await screen.findByText('Couldn’t save. Your draft is still here.')).toBeOnTheScreen();
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'SQLITE_BUSY' }), 'collection.note.save');
   expect(screen.getByDisplayValue('New note')).toBeOnTheScreen();
   expect(await notes.getNote('work')).toMatchObject({ text: 'Original note' });
   await fireEvent.press(screen.getByRole('button', { name: 'Retry save' }));

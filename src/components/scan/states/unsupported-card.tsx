@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -17,7 +18,7 @@ export function UnsupportedCard(save: SaveAnywayFormProps) {
 
   function openStore() {
     setNotice(undefined);
-    Linking.openURL(APP_STORE_URL).catch(() => setNotice('Couldn’t open the App Store.'));
+    Linking.openURL(APP_STORE_URL).catch((error: unknown) => { reportError(error, 'result.open_store', { level: 'warning' }); setNotice('Couldn’t open the App Store.'); });
   }
 
   return (

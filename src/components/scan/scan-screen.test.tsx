@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppStateStatus } from 'react-native';
@@ -6,6 +7,8 @@ import { ScanScreen } from './scan-screen';
 import type { CaptureFeedback, CaptureState } from '@/lib/capture/capture-controller';
 import type { CaptureTimings } from '@/lib/capture/stages';
 import type { VenueView } from '@/lib/venue/use-venue';
+
+jest.mock('@/lib/observability', () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
 let mockFocused = true;
 let mockGranted = true;
@@ -18,7 +21,7 @@ let mockMessage: string | undefined;
 let mockPresentation: { attempt: { id: string } } | undefined;
 let mockPending = 0;
 let mockVenueView: VenueView;
-let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onStopped: () => void; onError: () => void };
+let mockCameraProps: { isActive: boolean; outputs: unknown[]; orientationSource?: string; allowHapticsAndSystemSoundsPlayback?: boolean; onStarted: () => void; onStopped: () => void; onError: (error: Error) => void };
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
@@ -183,8 +186,9 @@ it('takes a still only when the controller accepts a detection', async () => {
 
 it('announces camera startup errors, keeps import available, and clears the error on recovery', async () => {
   await render(<ScanScreen />);
-  await act(() => mockCameraProps.onError());
+  await act(() => mockCameraProps.onError(new Error('Camera session failed')));
   expect(screen.getByRole('alert')).toHaveTextContent('Could not start the camera. You can import a photo.');
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'camera.start', { data: { screen: 'scan' } });
   expect(screen.getByRole('button', { name: 'Scan artwork' })).toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: 'Import' }));
   expect(mockImport).toHaveBeenCalledTimes(1);
@@ -197,7 +201,7 @@ it('announces camera startup errors, keeps import available, and clears the erro
 
 it('hides camera startup errors while an imported photo is processing or needs a retry', async () => {
   const view = await render(<ScanScreen />);
-  await act(() => mockCameraProps.onError());
+  await act(() => mockCameraProps.onError(new Error('Camera session failed')));
 
   mockState = { phase: 'processing', occupied: true, source: 'library' };
   await view.rerender(<ScanScreen />);
@@ -285,7 +289,7 @@ it('reveals an imported photo and reports its failure while camera access is den
   mockGranted = false; mockCanRequest = false;
   mockPresentation = { attempt: { id: 'import-1' } };
   mockState = { phase: 'retry', occupied: false, source: 'library' } as CaptureState;
-  mockMessage = 'Allow photo access in Settings to import a painting.';
+  mockMessage = 'Picker unavailable';
   await render(<ScanScreen />);
   expect(screen.getByLabelText('Capture reveal')).toBeOnTheScreen();
   expect(screen.getByRole('alert')).toHaveTextContent(mockMessage);

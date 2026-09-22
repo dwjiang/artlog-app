@@ -1,3 +1,4 @@
+import { reportError, addBreadcrumb } from '@/lib/observability';
 import { randomUUID } from 'expo-crypto';
 
 import { captureOwner } from '@/lib/account/owner-store';
@@ -45,7 +46,7 @@ export async function runCapture(
     const { cropUri } = prepared;
     const triage = await timed('triage', () => deps.triage.check(cropUri));
     if (!triage.ok) return { kind: 'retake', reason: triage.reason, message: triage.message, timings };
-    const presentationReady = Promise.resolve().then(() => deps.onPrepared?.(prepared)).catch(() => {});
+    const presentationReady = Promise.resolve().then(() => deps.onPrepared?.(prepared)).catch((error: unknown) => { reportError(error, 'capture.prepare_presentation', { level: 'warning' }); });
     const embedding = await timed('embed', () => deps.embedder.embed(cropUri));
     const features = await timed('orb', () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
@@ -66,7 +67,12 @@ export async function runCapture(
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
     if (online && payload.visitLocalId && !payload.visitId && payload.venueId && deps.resolveVisitId) {
       payload.visitId = await withTimeout(deps.resolveVisitId(payload.visitLocalId, payload.venueId), VISIT_SYNC_TIMEOUT_MS)
-        .catch((error: unknown) => { console.warn('The visit has not synced yet; queuing the scan', error); return undefined; });
+        .catch((error: unknown) => {
+          if (!(error instanceof Error && error.message === 'Visit sync timed out')) reportError(error, 'capture.sync_visit', { level: 'warning' });
+          addBreadcrumb('capture.queued', { reason: 'visit_sync' });
+          console.warn('The visit has not synced yet; queuing the scan', error);
+          return undefined;
+        });
       if (!current.isOwnerCurrent()) throw new Error('Journal owner changed');
     }
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
@@ -82,6 +88,7 @@ export async function runCapture(
       } catch (error) {
         await deps.store.requeue(payload.localId, errorMessage(error), current.owner);
         if (!isNetworkError(error)) throw error;
+        addBreadcrumb('capture.queued', { reason: 'offline' });
       }
     }
     // The result screen opens on the queued row and live-queries the local match, so a package scan never delays the shutter.

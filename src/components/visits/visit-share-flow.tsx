@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/observability';
 import { NotePaper } from '../note-paper';
 import { setStringAsync } from 'expo-clipboard';
 import { patchVisit } from '@/db/repos/visits';
@@ -78,6 +79,7 @@ export function VisitShareScreen() {
   const [photoWorkId, setPhotoWorkId] = useState<string>();
   const [creatingProfile, setCreatingProfile] = useState(false);
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
+  useEffect(() => { if (photos.error) reportError(photos.error, 'visit.share-photos.load'); }, [photos.error]);
   const { controller, draft } = sharing;
   if (!visit.owner.startsWith('account:')) return <GuestVisitSignIn visitId={visit.localId} />;
   if (sharing.profileRequired) return creatingProfile ? <ProfileForm introduction="Create a profile so people can recognize you. You will review this visit before sharing it." onCreated={() => { setCreatingProfile(false); void controller.load(); }} />
@@ -190,7 +192,7 @@ export function VisitSharePreviewScreen() {
       if (wasPrivate) await patchVisit(visit.localId, { visibility: 'public' }, visit.owner);
       if (await controller.publish()) { setPublished(ordered); router.replace({ pathname: '/visit-share/[visitId]/success', params: { visitId: visit.localId } }); return; }
       if (wasPrivate) await patchVisit(visit.localId, { visibility: 'private' }, visit.owner);
-    } catch { setPublicationError('Your visit could not be published. Your selection is kept. Try again.'); }
+    } catch (cause) { reportError(cause, 'visit.publish.visibility'); setPublicationError('Your visit could not be published. Your selection is kept. Try again.'); }
     finally { submitting.current = false; setPublishing(false); }
   }
   return <><GalleryBackToolbar /><VisitPage>
@@ -212,7 +214,7 @@ function CopyVisitLink({ postId }: { postId: string }) {
     setError(undefined);
     void setStringAsync(`artlog://visit/${encodeURIComponent(postId)}`).then((copied) => {
       if (copied) showToast('Visit link copied.'); else setError('Couldn’t copy the link. Try again.');
-    }).catch(() => setError('Couldn’t copy the link. Try again.'));
+    }).catch((cause) => { reportError(cause, 'visit.share.copy-link', { level: 'warning' }); setError('Couldn’t copy the link. Try again.'); });
   }} />{error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}</>;
 }
 
