@@ -55,10 +55,8 @@ export function SettingsScreen() {
       {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail('leaderboards')} />}
       {account?.linked && <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push('/public-notes')} />}
       <SettingsRow label="Contributions" icon="person.2" onPress={detail('contributions')} />
-      {!account?.linked && <SettingsRow label="Export journal" icon="square.and.arrow.down" onPress={detail('export')} />}
     </SettingsGroup>
     <SettingsGroup title={account?.linked ? 'Your data' : 'Artlog'}>
-      {account?.linked && <SettingsRow label="Export journal" icon="square.and.arrow.down" onPress={detail('export')} />}
       <SettingsRow label="Privacy" icon="lock" onPress={detail('privacy')} />
       <SettingsRow label="About" icon="info.circle" onPress={detail('about')} />
     </SettingsGroup>
@@ -79,7 +77,7 @@ function SettingsRow({ label, icon, onPress }: { label: string; icon: ComponentP
   return <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
     <Button variant="text" onPress={onPress} modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}>
       <Row spacing={16} alignment="center" modifiers={[frame({ maxWidth: Infinity, minHeight: 54 }), contentShape(shapes.rectangle())]}>
-        <Icon name={icon} size={22} color={Gallery.ink} />
+        <Icon name={icon} size={22} color={Gallery.ink} modifiers={[frame({ width: 28 })]} />
         <NativeText textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: 'body' }), frame({ maxWidth: Infinity, alignment: 'leading' })]}>{label}</NativeText>
         <Icon name="chevron.right" size={13} color={Gallery.muted} />
       </Row>

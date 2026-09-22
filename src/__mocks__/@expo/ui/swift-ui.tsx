@@ -10,6 +10,7 @@ export const List = View;
 export const VStack = View;
 export const HStack = View;
 export const ZStack = View;
+export const Spacer = View;
 export function ProgressView() { return <ActivityIndicator accessibilityRole="progressbar" />; }
 export const ScrollView = View;
 export const RNHostView = View;

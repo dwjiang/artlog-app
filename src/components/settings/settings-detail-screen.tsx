@@ -7,7 +7,6 @@ import { api } from '../../../convex/_generated/api';
 import { AboutSection } from './about-section';
 import { AccountSection } from './account-section';
 import { DevTools } from './dev-tools';
-import { ExportSection } from './export-section';
 import { LeaderboardPreference } from './leaderboard-preference';
 import { PrivacySection } from './privacy-section';
 import { ContributionsScreen } from './sharing-section';
@@ -18,7 +17,7 @@ import { LeaderboardParticipation } from '@/components/social/leaderboard-partic
 import { useDeviceReady } from '@/lib/use-device-ready';
 import model from '../../../shared/model/model-version.json';
 
-const titles = { account: 'Account', visits: 'Visits', leaderboards: 'Leaderboards', contributions: 'Contributions', export: 'Export journal', privacy: 'Privacy', about: 'About', developer: 'Developer tools' };
+const titles = { account: 'Account', visits: 'Visits', leaderboards: 'Leaderboards', contributions: 'Contributions', privacy: 'Privacy', about: 'About', developer: 'Developer tools' };
 
 export function SettingsDetailScreen({ section }: { section: string }) {
   // Sheets are React Native views, so they mount beside the SwiftUI list rather than inside a section.
@@ -35,7 +34,6 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   if (section === 'contributions') return <><Stack.Screen options={{ title }} /><ContributionsScreen contributions={contributions} offline={offline} /></>;
   if (section === 'privacy') return <><Stack.Screen options={{ title }} /><PrivacySection onRequestConsent={() => setSheet('consent')} /><SearchConsentSheet open={sheet === 'consent'} onGranted={close} onDismiss={close} /></>;
   if (section === 'about') return <><Stack.Screen options={{ title }} /><AboutSection /></>;
-  if (section === 'export') return <><Stack.Screen options={{ title }} /><ExportSection /></>;
   return <>
     <Stack.Screen options={{ title }} />
     <GroupedList>

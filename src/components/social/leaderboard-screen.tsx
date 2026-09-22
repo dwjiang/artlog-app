@@ -111,7 +111,8 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 9, marginTop: 13 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 60, paddingVertical: 7, marginHorizontal: 18, borderBottomWidth: 0.5, borderBottomColor: Gallery.separator },
-  ownRow: { backgroundColor: Gallery.highlight, borderRadius: 2, marginHorizontal: 18, paddingHorizontal: 12, marginVertical: 12, borderBottomWidth: 0 },
+  // Extend the highlight around the shared content column.
+  ownRow: { backgroundColor: Gallery.highlight, borderRadius: 2, marginHorizontal: 6, paddingHorizontal: 12, marginVertical: 12, borderBottomWidth: 0 },
   rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ['tabular-nums'] },
   ownRank: { color: Gallery.surface, backgroundColor: Gallery.ink, textAlign: 'center', paddingVertical: 4 },
   name: { fontSize: 16, lineHeight: 22, fontWeight: '600', color: Gallery.ink },

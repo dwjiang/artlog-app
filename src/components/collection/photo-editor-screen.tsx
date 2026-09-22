@@ -53,7 +53,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
     <GalleryButton label="Save photo details" variant="filled" fullWidth onPress={() => execute({ kind, caption })} />
     <View style={{ borderWidth: 1, borderColor: Gallery.softBorder, borderRadius: 8, paddingHorizontal: 12 }}>
-    <GalleryButton label="Move to another artwork" icon="arrow.right" onPress={() => setMoving(!moving)} />
+    <GalleryButton label="Move to another artwork" icon="arrow.right" fullWidth contentAlignment="leading" onPress={() => setMoving(!moving)} />
     {moving && <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}><ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}><Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
       {works.error ? <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>Couldn’t load your artworks. Close and reopen this photo to try again.</Text>
         : !works.updatedAt && !destinations.length ? <ListSkeleton label="Loading artworks…" rows={3} />
@@ -67,7 +67,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
       </Pressable>)}
       {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
       <Text style={{ color: Gallery.muted, fontSize: 13 }}>The photo’s type and caption move with it.</Text></ScrollView></WallSheet>}
-    <GalleryButton label="Delete photo" icon="trash" destructive onPress={() => Alert.alert('Delete this photo?', 'This removes the photo from your album, wall placements, and shared visits. Your artwork and visits stay.', [
+    <GalleryButton label="Delete photo" icon="trash" fullWidth contentAlignment="leading" destructive onPress={() => Alert.alert('Delete this photo?', 'This removes the photo from your album, wall placements, and shared visits. Your artwork and visits stay.', [
       { text: 'Cancel', style: 'cancel' }, { text: 'Delete photo', style: 'destructive', onPress: () => execute({ deletedAt: Date.now() }) },
     ])} /></View>
     {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}

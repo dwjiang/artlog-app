@@ -53,8 +53,8 @@ export function WallArtworkSheet({ piece, editing, disabled = false, color, onCh
       <WallArtworkSummary piece={piece} color={color} />
       {editing && <>
         {onChoosePhoto && <View style={styles.section}>
-          <GalleryButton label="Choose photo" icon="photo" disabled={disabled} onPress={onChoosePhoto} />
-          <GalleryButton label="Hang another photo" icon="plus" disabled={disabled || !onDuplicatePhoto} onPress={() => onDuplicatePhoto?.()} />
+          <GalleryButton label="Choose photo" icon="photo" fullWidth contentAlignment="leading" disabled={disabled} onPress={onChoosePhoto} />
+          <GalleryButton label="Hang another photo" icon="plus" fullWidth contentAlignment="leading" disabled={disabled || !onDuplicatePhoto} onPress={() => onDuplicatePhoto?.()} />
         </View>}
         <Text style={styles.sectionHeading}>Frame</Text>
         <WallFramePicker piece={piece} value={piece.layout.frame} disabled={disabled} onChange={(frame) => change({ frame })} />
