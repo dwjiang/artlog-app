@@ -21,6 +21,9 @@ url = "https://mcp.tavily.com/mcp/"
 [mcp_servers.mobbin]
 url = "https://api.mobbin.com/mcp"
 
+[mcp_servers.sentry]
+url = "https://mcp.sentry.dev/mcp"
+
 [mcp_servers.XcodeBuildMCP.env]
 XCODEBUILDMCP_ENABLED_WORKFLOWS = "simulator,ui-automation,debugging"
 

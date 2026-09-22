@@ -24,7 +24,7 @@ afterEach(() => jest.useRealTimers());
 
 it('returns to Scan after dismissing a picker opened by both a tap and a later venue prompt', async () => {
   const navigation = renderRouter({
-    _layout: { default: RootLayout, unstable_settings },
+    _layout: { default: () => <RootLayout />, unstable_settings },
     '(tabs)/index': () => <Text>Scan</Text>,
     'venue-picker': () => <Text>Museum picker</Text>,
   });

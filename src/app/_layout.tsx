@@ -1,4 +1,5 @@
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
+import * as Sentry from '@sentry/react-native';
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { useEffect } from 'react';
@@ -15,11 +16,14 @@ import { warmUpEmbedder } from '@/lib/embed/embedder';
 import { QueueFlusher } from '@/lib/queue/use-queue';
 import { VenueResolver } from '@/lib/venue/use-venue';
 
+// No session replay: it would record the unmasked camera preview, which README §Privacy rules out.
+Sentry.init({ dsn: 'https://f15d821481cbfc2a9bc7ffe64aadee16@o4512128707198976.ingest.us.sentry.io/4512128734986240' });
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function RootLayout() {
   useEffect(warmUpEmbedder, []);
   return (
     <DatabaseGate>
@@ -95,3 +99,5 @@ const visitSheet = { presentation: 'formSheet' as const, sheetAllowedDetents: [1
 
 const navigationTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, primary: Gallery.accent, background: Gallery.paper,
   card: Gallery.paper, text: Gallery.ink, border: Gallery.separator, notification: Gallery.destructive } };
+
+export default Sentry.wrap(RootLayout);
