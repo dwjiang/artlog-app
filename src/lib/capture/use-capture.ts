@@ -197,8 +197,6 @@ export function useCapture({ active = true, focused = true, visitLocalId, onVisi
     if (!attempt) return;
     let position: { lat: number; lng: number } | undefined;
     return capture(async () => {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) throw new Error('Allow photo access in Settings to import a painting.');
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], exif: true, quality: 1 });
       if (result.canceled || !result.assets[0]) return null;
       const photo = result.assets[0];

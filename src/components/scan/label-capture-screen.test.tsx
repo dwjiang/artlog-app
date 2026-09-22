@@ -150,7 +150,7 @@ beforeEach(() => {
   mockContribute.mockResolvedValue({ contributionId: 'contrib-1', status: 'tentative' });
   mockSave.mockResolvedValue({ localId: 'saved-1', synced: Promise.resolve() });
   mockHaptic.mockResolvedValue(undefined);
-  mockPermission.mockResolvedValue({ granted: true });
+  mockPermission.mockResolvedValue({ granted: false, status: 'denied', canAskAgain: false });
   mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: 'file:///picked/label.jpg' }] });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -223,17 +223,22 @@ it('saves the label result without a suggestion, then links to the collection', 
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/saved/[savedId]', params: { savedId: 'saved-1' } });
 });
 
-it('reads an imported label photo and ignores a cancelled picker', async () => {
+it.each([
+  { canceled: true, assets: null },
+  { canceled: false, assets: [] },
+])('imports a label despite denied library access and ignores an empty selection: %s', async (result) => {
   await start();
-  mockPicker.mockResolvedValueOnce({ canceled: true, assets: [] });
+  mockPicker.mockResolvedValueOnce(result);
   await fireEvent.press(screen.getByRole('button', { name: 'Import a label photo' }));
   expect(mockRun).not.toHaveBeenCalled();
+  expect(mockPersistLabel).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Read label' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Import a label photo' }));
   expect(mockPicker).toHaveBeenLastCalledWith({ mediaTypes: ['images'], quality: 1 });
   expect(mockRun).toHaveBeenCalledWith(scanId, { labelPhotoUri: 'file:///picked/label.jpg', qrUrl: undefined }, expect.any(Function));
   expect(await screen.findByLabelText('Title')).toBeOnTheScreen();
   expect(mockPhoto).not.toHaveBeenCalled();
+  expect(mockPermission).not.toHaveBeenCalled();
 });
 
 it('runs the flow from a scanned QR code at once', async () => {
@@ -430,17 +435,20 @@ it('locks the shutter and ignores QR callbacks while a native photo is being tak
 });
 
 it('locks input until the picker is dismissed and releases it after cancellation or failure', async () => {
-  let dismiss!: (result: { canceled: boolean; assets: never[] }) => void;
+  let dismiss!: (result: { canceled: true; assets: null }) => void;
   mockPicker.mockImplementationOnce(() => new Promise((resolve) => { dismiss = resolve; }));
   await start();
   await fireEvent.press(screen.getByRole('button', { name: 'Import a label photo' }));
   expect(screen.getByRole('button', { name: 'Import a label photo' })).toBeDisabled();
   await act(async () => mockQr.onCode('https://museum.example/work'));
   expect(mockRun).not.toHaveBeenCalled();
-  await act(async () => dismiss({ canceled: true, assets: [] }));
+  await act(async () => dismiss({ canceled: true, assets: null }));
   expect(screen.getByRole('button', { name: 'Import a label photo' })).toBeEnabled();
   mockPicker.mockRejectedValueOnce(new Error('Picker unavailable'));
   await fireEvent.press(screen.getByRole('button', { name: 'Import a label photo' }));
+  expect(await screen.findByText('Picker unavailable')).toBeOnTheScreen();
+  expect(mockRun).not.toHaveBeenCalled();
+  expect(mockPersistLabel).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Retake label' }));
   expect(screen.getByRole('button', { name: 'Import a label photo' })).toBeEnabled();
 });

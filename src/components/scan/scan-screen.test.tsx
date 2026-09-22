@@ -285,7 +285,7 @@ it('reveals an imported photo and reports its failure while camera access is den
   mockGranted = false; mockCanRequest = false;
   mockPresentation = { attempt: { id: 'import-1' } };
   mockState = { phase: 'retry', occupied: false, source: 'library' } as CaptureState;
-  mockMessage = 'Allow photo access in Settings to import a painting.';
+  mockMessage = 'Picker unavailable';
   await render(<ScanScreen />);
   expect(screen.getByLabelText('Capture reveal')).toBeOnTheScreen();
   expect(screen.getByRole('alert')).toHaveTextContent(mockMessage);
