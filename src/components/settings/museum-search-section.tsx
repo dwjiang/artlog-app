@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { View } from 'react-native';
 import { ThemedText } from '../themed-text';
-import { Gallery } from '@/constants/theme';
+import { Gallery, SettingsOutline } from '@/constants/theme';
 import { LoadingRing } from '@/components/loading-ring';
 import { SEARCH_CONSENT_BODY } from '@/components/scan/result/search-consent-sheet';
 import { useScreenActive } from '@/hooks/use-screen-active';
@@ -34,7 +34,7 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
     }
   }
 
-  return <View style={{ padding: 16, gap: 10, backgroundColor: Gallery.fill, borderRadius: 8 }}><Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
+  return <View style={{ padding: 16, gap: 10, backgroundColor: Gallery.surface, ...SettingsOutline }}><Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: '100%' }}>
     {consent === undefined && !failed ? <LoadingRing accessibilityLabel={`Loading ${MUSEUM_SEARCH_SETTING.toLowerCase()}`} /> : <Switch label={MUSEUM_SEARCH_SETTING} value={consent === 'granted'} disabled={saving || failed}
       onValueChange={(value) => { void change(value); }} />}
   </Host><ThemedText type="small" themeColor="textSecondary">{SEARCH_CONSENT_BODY}</ThemedText>

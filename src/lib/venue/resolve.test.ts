@@ -98,6 +98,20 @@ describe('pickVenue', () => {
 
 describe('formatDistance', () => {
   it.each([
+    [0, '10 ft'],
+    [3, '10 ft'],
+    [30.48, '100 ft'],
+    [124, '410 ft'],
+    [1609, '5280 ft'],
+    [1609.344, '1.0 mi'],
+    [3218.688, '2.0 mi'],
+    [Number.NaN, ''],
+    [Number.POSITIVE_INFINITY, ''],
+  ])('formats %s meters in imperial units as %s', (meters, text) => {
+    expect(formatDistance(meters, 'imperial')).toBe(text);
+  });
+
+  it.each([
     [3, '10 m'],
     [124, '120 m'],
     [999, '1000 m'],

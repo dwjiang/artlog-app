@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
-import { Gallery } from '@/constants/theme';
+import { Gallery, SettingsOutline } from '@/constants/theme';
 import { GalleryButton } from '@/components/collection/gallery-button';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { useAccount } from '@/lib/account/use-account';
@@ -51,6 +51,7 @@ export function SettingsScreen() {
       <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute('account'))} />
     </View>}
     <SettingsGroup title="Your journal">
+      <SettingsRow label="General" icon="gearshape" onPress={detail('general')} />
       <SettingsRow label="Visits" icon="chart.bar" onPress={detail('visits')} />
       {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail('leaderboards')} />}
       {account?.linked && <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push('/public-notes')} />}
@@ -67,8 +68,8 @@ export function SettingsScreen() {
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return <View style={{ gap: 8 }}><ThemedText variant="section" accessibilityRole="header">{title}</ThemedText>
-    <View style={{ paddingHorizontal: 12, backgroundColor: Gallery.surface, borderRadius: 12, borderWidth: 0.5, borderColor: Gallery.separator, overflow: 'hidden' }}>
-      {Children.toArray(children).map((row, index) => <Fragment key={index}>{index > 0 && <View style={{ height: 0.5, backgroundColor: Gallery.separator }} />}{row}</Fragment>)}
+    <View style={{ paddingHorizontal: 12, backgroundColor: Gallery.surface, ...SettingsOutline, overflow: 'hidden' }}>
+      {Children.toArray(children).map((row, index) => <Fragment key={index}>{index > 0 && <View style={{ height: SettingsOutline.borderWidth, backgroundColor: SettingsOutline.borderColor }} />}{row}</Fragment>)}
     </View>
   </View>;
 }
