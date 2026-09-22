@@ -10,6 +10,7 @@ import { switchOwner } from '@/lib/account/owner-store';
 import { CollectionWall } from './collection-wall';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { addArtworkPhoto } from '@/db/repos/artwork-album';
+import { scheduleRemoval, useRemovedWorkIds } from '@/lib/collection/pending-removals';
 
 jest.mock('expo-crypto', () => ({ randomUUID: () => jest.requireActual('node:crypto').randomUUID() }));
 jest.mock('@/db/client', () => ({ db: jest.requireActual('@/db/test-db').createTestDatabase() }));
@@ -142,6 +143,30 @@ it('hides pending deletions from the wall immediately and restores them on Undo'
   await view.rerender(<CollectionWall works={[]} hiddenIds={[]} />);
   expect(screen.getByRole('button', { name: 'The Milkmaid' })).toBeOnTheScreen();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
+});
+
+it('keeps the wall mounted and the artwork hidden when its Undo window expires', async () => {
+  const saveLocalId = 'wall-removal-expiry';
+  mockTransport.getMine.mockResolvedValue({ ...published, items: published.items.map((item) => ({ ...item, saveLocalId })) });
+  function RemovalAwareWall() {
+    return <CollectionWall works={[]} hiddenIds={useRemovedWorkIds('account:a')} />;
+  }
+  await render(<RemovalAwareWall />);
+  await fireEvent(screen.getByLabelText('Collection wall'), 'layout', { nativeEvent: { layout: { width: 393, height: 440, y: 60 } } });
+  expect(await screen.findByRole('button', { name: 'The Milkmaid' })).toBeOnTheScreen();
+  const canvas = screen.getByLabelText('Collection wall');
+  jest.useFakeTimers();
+  try {
+    await act(() => scheduleRemoval({ owner: 'account:a', localId: saveLocalId, title: 'The Milkmaid' }));
+    expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
+    await act(() => jest.advanceTimersByTime(6000));
+    expect(screen.queryByRole('button', { name: 'The Milkmaid' })).toBeNull();
+    expect(screen.getByLabelText('Collection wall')).toBe(canvas);
+    expect(screen.queryByRole('progressbar', { name: 'Opening your wall…' })).toBeNull();
+    expect(mockTransport.getMine).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it('does not republish deleted artworks from an older wall response', async () => {

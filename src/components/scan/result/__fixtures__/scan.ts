@@ -7,7 +7,6 @@ export const lilies: ResultCandidate = { identityStatus: 'established' as const,
   objectId: 'obj-lilies' as Id<'objects'>, artworkId: 'art-lilies' as Id<'artworks'>, probability: 0.97,
   title: 'Water Lilies', artist: 'Claude Monet', date: '1916', medium: 'Oil on canvas',
   institution: 'Metropolitan Museum of Art', rightsStatus: 'public_domain', gallery: 'Gallery 819',
-  corners: [[40, 40], [470, 50], [460, 480], [50, 470]],
 };
 
 export const bridge: ResultCandidate = { identityStatus: 'established' as const,

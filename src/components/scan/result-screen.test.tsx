@@ -205,6 +205,7 @@ it('shows a confident match with its fields, chip, prose, sources and news', asy
   expect(screen.queryByText('Other possibilities')).toBeNull();
   expect(screen.getByRole('button', { name: 'Not right?' })).toBeOnTheScreen();
   await waitFor(() => expect(screen.getByLabelText('Your photo of this painting').props.source).toEqual([{ uri: 'file:///documents/crops/c1.preview.jpg' }]));
+  expect(screen.getByRole('button', { name: 'Adjust crop' })).toBeEnabled();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
 });
 
