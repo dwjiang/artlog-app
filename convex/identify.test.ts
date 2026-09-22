@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import model from '../shared/model/model-version.json';
 import { api, internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import { encodeOrbFeatures } from '../shared/orb/features';
 import { makeSyntheticPair } from '../shared/orb/test-fixtures';
 import { completion, jsonResponse } from './lib/labelFixtures';
@@ -18,6 +19,8 @@ const capture = () => ({
   localId: crypto.randomUUID(), vector: testVector(), ...encodeOrbFeatures(pair.query),
   modelVersion: model.modelVersion, capturedAt: Date.now(),
 });
+
+const storedCorners = async (t: ReturnType<typeof harness>, scanId: Id<'scans'>) => (await t.run((ctx) => ctx.db.get(scanId)))?.best?.corners;
 
 async function fixture(withWork = true) {
   const t = harness();
@@ -48,7 +51,7 @@ describe('identify action', () => {
     });
     const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.status).toBe('identified');
-    expect(result.best?.corners).toHaveLength(4);
+    expect(await storedCorners(t, result.scanId)).toHaveLength(4);
   });
 
   it('reports a missing file among verified candidates as an error', async () => {
@@ -57,13 +60,14 @@ describe('identify action', () => {
     await expect(user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope })).rejects.toMatchObject({ data: { code: 'orb_file_missing' } });
   });
 
-  it('returns verified corners and display data, persists the embedding, and updates the visit gallery', async () => {
+  it('stores verified corners, returns display data, persists the embedding, and updates the visit gallery', async () => {
     const { t, user, visitId, args, work } = await fixture();
     const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'identified', outcome: 'confident', calibratorVersion: 'lr-v2', best: {
       objectId: work!.objectId, title: 'Water Lilies', artist: 'Claude Monet', rightsStatus: 'public_domain',
     } });
-    expect(result.best?.corners).toHaveLength(4);
+    expect(result.best).not.toHaveProperty('corners');
+    expect(await storedCorners(t, result.scanId)).toHaveLength(4);
     expect(await user.as.query(api.scans.get, { scanId: result.scanId })).toEqual(result);
     expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({ lastConfidentGallery: '4', lastConfidentAt: args.capturedAt });
     const scan = await t.run((ctx) => ctx.db.get(result.scanId));
@@ -173,13 +177,13 @@ describe('identify action', () => {
   });
 
   it('keeps a textured candidate soft when the query cannot verify it', async () => {
-    const { user, args } = await fixture();
+    const { t, user, args } = await fixture();
     const result = await user.as.action(api.identify.identify, { ...args, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0), scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result.outcome).toBe('soft');
-    expect(result.best?.corners).toBeUndefined();
+    expect(await storedCorners(t, result.scanId)).toBeUndefined();
   });
 
-  it.each([0, 120])('identifies a work with %s stored keypoints, returning corners only when verifiable', async (count) => {
+  it.each([0, 120])('identifies a work with %s stored keypoints, storing corners only when verifiable', async (count) => {
     const { t, user, venueId, args } = await fixture(false);
     const work = await t.run(async (ctx) => {
       const work = await seedArtworkWithObject(ctx, { placement: { venueId, onView: true, source: 'feed', confidence: 1 } });
@@ -192,8 +196,8 @@ describe('identify action', () => {
     });
     const result = await user.as.action(api.identify.identify, { ...args, scope: (await user.as.query(api.accounts.me, {})).scope });
     expect(result).toMatchObject({ status: 'identified', outcome: 'confident', best: { objectId: work.objectId } });
-    if (count === 0) expect(result.best?.corners).toBeUndefined();
-    else expect(result.best?.corners).toHaveLength(4);
+    if (count === 0) expect(await storedCorners(t, result.scanId)).toBeUndefined();
+    else expect(await storedCorners(t, result.scanId)).toHaveLength(4);
   });
 
   it('returns the same stored result on retry even if the index has since changed', async () => {

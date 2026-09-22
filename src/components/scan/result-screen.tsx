@@ -11,7 +11,6 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { isLabelCapture } from '@/lib/capture/photo-draft';
 import { useLocalOwner } from '@/lib/account/owner-store';
-import model from '../../../shared/model/model-version.json';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -146,7 +145,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<'scans'>; startM
 
   const showCard = view.editable && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
   const header = <CardHeader cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined} artworkTitle={view.primary?.title}
-    loading={!captureUpdatedAt && !captureError} corners={view.primary?.corners} inputSize={model.inputSize} kind={view.kind}
+    loading={!captureUpdatedAt && !captureError} kind={view.kind}
     onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined} />;
   const context = <>
     {capture && !savedId && <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />}
