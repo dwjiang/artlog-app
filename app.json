@@ -60,7 +60,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Artlog uses your location to work out which museum you are in. Coordinates never leave your phone.",
+          "locationWhenInUsePermission": "Artlog uses your location to find nearby museums.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false
         }
