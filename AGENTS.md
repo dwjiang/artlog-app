@@ -65,8 +65,9 @@ Code, types, tests, and configuration are the source of implementation details.
 
 - **Light mode only:** Do not implement, polish, or verify dark mode. Existing dark
   token values may remain to keep the token shape stable.
-- Follow existing UI patterns. Keep reusable design-language rules separate from
-  component behavior, which belongs in code, tests, or an applicable local guide.
+- Read `DESIGN.md` before UI work and follow existing UI patterns. It holds the
+  reusable design-language rules; token values live in `src/constants/theme.ts`,
+  and component behavior belongs in code, tests, or an applicable local guide.
 
 ## Test policy
 
