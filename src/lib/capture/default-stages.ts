@@ -3,6 +3,7 @@ import model from '../../../shared/model/model-version.json';
 import { getVisionRect } from '../../../modules/vision-rect/src';
 import { embedder } from '@/lib/embed/embedder';
 import { filePath } from '@/lib/file-uri';
+import { recognizeOfflineCapture } from '@/lib/museum-downloads/recognize-capture';
 import { captureStore } from '@/lib/queue/queue';
 import { orb } from './features';
 import { triage } from './triage';
@@ -36,11 +37,12 @@ export const warper: Warper = {
 
 export const captureOptions: CaptureOptions = { inputSize: model.inputSize, modelVersion: model.modelVersion };
 
-export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'store'> = {
+export const defaultStages: Pick<CaptureDependencies, 'warper' | 'triage' | 'embedder' | 'orb' | 'store' | 'recognizeOffline'> = {
   warper,
   triage,
   embedder,
   orb,
   store: captureStore,
+  recognizeOffline: recognizeOfflineCapture,
 };
 

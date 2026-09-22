@@ -215,3 +215,26 @@ it('preserves recognition when presentation decoding fails', async () => {
   expect(await runCapture(input, { ...deps, onPrepared: async () => { throw new Error('Image failed'); } }, options)).toMatchObject({ kind: 'sent' });
   expect(deps.identify).toHaveBeenCalledTimes(1);
 });
+
+it('recognizes a persisted offline capture locally without delaying the queued result or changing the reconnect queue', async () => {
+  const deps = dependencies(); deps.isOnline.mockReturnValue(false);
+  let finish!: () => void;
+  const recognizeOffline = jest.fn(() => { expect(deps.store.enqueue).toHaveBeenCalled(); return new Promise<void>(resolve => { finish = resolve; }); });
+  const result = await runCapture(input, { ...deps, recognizeOffline }, options);
+  expect(result).toMatchObject({ kind: 'queued', localId: 'capture-uuid' });
+  expect(recognizeOffline).toHaveBeenCalledWith(expect.objectContaining({ localId: 'capture-uuid', owner: 'device:test-installation' }));
+  expect(deps.identify).not.toHaveBeenCalled();
+  finish();
+});
+it('falls back to local recognition after connectivity fails during identification', async () => {
+  const deps = dependencies(); deps.identify.mockRejectedValue(new Error('Network request failed'));
+  const recognizeOffline = jest.fn(async () => {});
+  const result = await runCapture(input, { ...deps, recognizeOffline }, options);
+  expect(result.kind).toBe('queued'); expect(deps.store.requeue).toHaveBeenCalled(); expect(recognizeOffline).toHaveBeenCalled();
+});
+it('retains the reconnect queue if a downloaded package is unavailable', async () => {
+  const deps = dependencies(); deps.isOnline.mockReturnValue(false);
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const result = await runCapture(input, { ...deps, recognizeOffline: async () => { throw new Error('Missing file'); } }, options);
+  expect(result.kind).toBe('queued'); expect(deps.store.enqueue).toHaveBeenCalled();
+});

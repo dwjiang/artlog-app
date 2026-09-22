@@ -1,4 +1,6 @@
+import { offlineResultQuery } from '@/db/repos/offline-scan-results';
 import { reportError } from '@/lib/observability';
+import { OfflineResultScreen } from './offline-result-screen';
 import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
@@ -33,6 +35,8 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   const isActive = useScreenActive();
   const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   useEffect(() => { if (loadError) reportError(loadError, 'result.load_local_scan'); }, [loadError]);
+  const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [localId, owner]);
+  const offlineResult = offlineResults?.find(result => result.owner === owner)?.result;
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === 'queued' || row?.status === 'identifying';
@@ -43,7 +47,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string>();
   const retryPending = useRef(false);
-  const keepForm = manual || hasDraft || saving || !!savedId;
+  const keepForm = manual || hasDraft || saving || !!savedId || !!offlineResult;
 
   useEffect(() => {
     if (isActive && labelCapture) { router.replace({ pathname: '/label/[scanId]', params: { scanId: `local-${localId}` } }); return; }
@@ -88,6 +92,9 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   if (editingCrop && row) return <ScanCropEditor capture={row} onCancel={() => setEditingCrop(false)} />;
   if (labelCapture) return <ThemedView style={styles.container}><LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} /></ThemedView>;
   if (completion) return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
+
+  if (row && offlineResult && !manual) return <OfflineResultScreen key={`${owner}:${localId}`} capture={row} result={offlineResult}
+    onViewResult={scanId ? openResult : undefined} />;
 
   return (
     <ThemedView style={styles.container}>

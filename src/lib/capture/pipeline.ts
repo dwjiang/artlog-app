@@ -91,6 +91,10 @@ export async function runCapture(
         addBreadcrumb('capture.queued', { reason: 'offline' });
       }
     }
+    // The result screen opens on the queued row and live-queries the local match, so a package scan never delays the shutter.
+    if (current.isOwnerCurrent() && deps.recognizeOffline) {
+      void deps.recognizeOffline(payload).catch((error: unknown) => console.warn('Offline identification unavailable; capture stays queued', error));
+    }
     return { kind: 'queued', localId: payload.localId, timings };
   } finally {
     timings.total = performance.now() - started;

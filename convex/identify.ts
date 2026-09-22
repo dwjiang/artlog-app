@@ -13,7 +13,7 @@ import { requireDeviceFromAction } from './lib/auth';
 import type { ScoredCandidate } from './lib/calibrator/calibrate';
 import { featureIndex } from './lib/calibrator/features';
 import { DEFAULT_CALIBRATOR } from './lib/calibrator/weights';
-import { MAX_ORB_VERIFICATIONS, runPipeline } from './lib/identifyPipeline';
+import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from './lib/identifyPipeline';
 import { eligibleObject, eligibleVector, recognitionPartition } from './lib/recognitionEligibility';
 import { loadOrb } from './lib/orbStorage';
 import { isSupported, validateVector } from './lib/modelVersion';
@@ -126,7 +126,7 @@ function candidateSignals(
 
 async function runScan(ctx: ActionCtx, scan: Doc<'scans'>, query: OrbFeatures): Promise<ScanDisplay> {
   const search = (venueId?: Id<'museums'>) => ctx.vectorSearch('vectors', 'by_vector', {
-    vector: scan.vector, limit: 32, filter: q => q.eq('partition', recognitionPartition(scan.modelVersion, venueId)),
+    vector: scan.vector, limit: MAX_CANDIDATES, filter: q => q.eq('partition', recognitionPartition(scan.modelVersion, venueId)),
   });
   const [established, tentative] = await Promise.all([search(), scan.venueId ? search(scan.venueId) : []]);
   const now = Date.now();

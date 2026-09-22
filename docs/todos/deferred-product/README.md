@@ -43,7 +43,5 @@ for the current release. [Hub scoring](../hub-scoring/README.md) and the
 
 ## Stretch ideas
 
-- **Offline venue bundles:** download a venue's vectors and descriptors and match
-  locally, extending the existing on-device embedding and reconnect queue.
 - **Confusion pairs:** for recurring visually similar wrong/right pairs, offer a
   focused “Which of these two?” choice and evaluate whether it reduces mistakes.

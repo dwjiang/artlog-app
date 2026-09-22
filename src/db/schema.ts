@@ -1,5 +1,6 @@
 import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { OfflineResult } from '../../shared/offline/types';
 import type { Id } from '../../convex/_generated/dataModel';
 
 /** Binary features keep the `ArrayBuffer` shape of the Convex `v.bytes()` arguments they are sent as. */
@@ -128,6 +129,13 @@ export const pendingScans = sqliteTable(
     foreignKey({ columns: [table.owner, table.visitLocalId], foreignColumns: [visits.owner, visits.localId] }).onUpdate('cascade'),
     index('pendingScans_owner_status_capturedAt').on(table.owner, table.status, table.capturedAt)],
 );
+
+export const offlineScanResults = sqliteTable('offlineScanResults', {
+  owner: text().notNull(), localId: text().notNull(),
+  result: text({ mode: 'json' }).$type<OfflineResult>().notNull(),
+}, (table) => [primaryKey({ columns: [table.owner, table.localId] }),
+  foreignKey({ columns: [table.owner, table.localId], foreignColumns: [pendingScans.owner, pendingScans.localId] }).onUpdate('cascade').onDelete('cascade'),
+]);
 
 export const settings = sqliteTable('settings', {
   key: text().primaryKey(),

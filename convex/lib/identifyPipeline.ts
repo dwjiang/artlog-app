@@ -1,5 +1,4 @@
-import type { Id } from '../_generated/dataModel';
-import type { LoadedCandidate } from '../identify';
+import type { Doc, Id } from '../_generated/dataModel';
 import { decide, scoreCandidates, type Decision } from './calibrator/calibrate';
 import type { GalleryRelation } from './calibrator/features';
 import type { CalibratorConfig } from './calibrator/weights';
@@ -9,16 +8,32 @@ import { effectiveObjectPenalty } from './rejectionPenalty';
 
 const GALLERY_TTL_MS = 15 * 60_000;
 export const MAX_ORB_VERIFICATIONS = 10;
+/** Candidates scoring sees. The calibrator reads it as logCandidateCount, so every caller must offer the same pool. */
+export const MAX_CANDIDATES = 32;
 
-function runPartition(input: {
+/** Everything scoring reads, so an offline package can ship these fields instead of whole documents. */
+export type PipelineCandidate = {
+  object: Pick<Doc<'objects'>, '_id' | 'identityStatus' | 'ownerId' | 'calibratorPenalty' | 'rejectionPenalty'>;
+  placement: Pick<Doc<'placements'>, 'venueId' | 'gallery' | 'onView'> | null;
+  similarity: number;
+  keypointCount: number | null;
+  inputSize?: number;
+  descriptors?: ArrayBuffer;
+  keypoints?: ArrayBuffer;
+};
+
+type PipelineInput<T extends PipelineCandidate> = {
   query: OrbFeatures;
-  candidates: LoadedCandidate[];
+  candidates: T[];
   venueId?: string;
   visit?: { lastConfidentGallery?: string; lastConfidentAt?: number };
   now: number;
   inputSize: number;
   config?: CalibratorConfig;
-}): { decision: Decision<LoadedCandidate>; verifications: Map<Id<'objects'>, VerifyResult> } {
+};
+type PipelineResult<T> = { decision: Decision<T>; verifications: Map<Id<'objects'>, VerifyResult> };
+
+function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): PipelineResult<T> {
   const candidates = [...input.candidates].sort((a, b) => b.similarity - a.similarity);
   const verifications = new Map<Id<'objects'>, VerifyResult>();
   const lastAt = input.visit?.lastConfidentAt;
@@ -54,7 +69,7 @@ function runPartition(input: {
 }
 
 
-export function runPipeline(input: Parameters<typeof runPartition>[0]): ReturnType<typeof runPartition> {
+export function runPipeline<T extends PipelineCandidate>(input: PipelineInput<T>): PipelineResult<T> {
   const established = runPartition({ ...input, candidates: input.candidates.filter(c => c.object.identityStatus === 'established') });
   const tentative = runPartition({ ...input, candidates: input.candidates.filter(c =>
     c.object.identityStatus === 'tentative' && input.venueId !== undefined && c.object.ownerId === input.venueId) });

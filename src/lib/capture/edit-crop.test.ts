@@ -3,12 +3,16 @@ import { artworkPhotos, savedWorks, pendingScans, settings } from '@/db/schema';
 import { getSavedWork, insertSavedWork } from '@/db/repos/saved-works';
 import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from '@/db/repos/pending-scans';
 import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from './edit-crop';
+import { recognizeOfflineCapture } from '@/lib/museum-downloads/recognize-capture';
 import { readPhotoSession, updatePhotoSession } from './photo-draft';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
 jest.mock('../../../modules/vision-rect/src', () => ({ getVisionRect: jest.fn() }));
 jest.mock('@/lib/embed/embedder', () => ({ embedder: {} }));
+jest.mock('@/lib/museum-downloads/recognize-capture', () => ({ recognizeOfflineCapture: jest.fn(async () => {}) }));
+let mockReachable: boolean | undefined = true;
+jest.mock('expo-network', () => ({ getNetworkStateAsync: async () => ({ isInternetReachable: mockReachable }) }));
 const mockFeatures = jest.fn();
 jest.mock('./features', () => ({ extractFeatures: (...args: unknown[]) => mockFeatures(...args), orb: {} }));
 const mockFiles = new Set<string>();
@@ -31,7 +35,8 @@ const crop: EditedCrop = { modelUri: 'file:///tmp/model.jpg', previewUri: 'file:
 const features = { vector: [0.5], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4) };
 beforeEach(() => {
   for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) db.delete(table).run();
-  mockFiles.clear(); mockFailCopy = false;
+  mockFiles.clear(); mockFailCopy = false; mockReachable = true;
+  jest.mocked(recognizeOfflineCapture).mockClear();
   for (const path of [crop.modelUri, crop.previewUri, 'file:///documents/full.jpg', 'file:///documents/old.jpg', 'file:///documents/old.preview.jpg']) mockFiles.add(path);
   mockFeatures.mockReset().mockResolvedValue(features);
 });
@@ -81,6 +86,21 @@ it('recomputes scan features, preserves draft photos and context, and isolates l
   await markIdentified('scan', 'late-old-result' as Id<'scans'>);
   expect((await getPendingScan(nextId))?.scanId).toBeNull();
   await expect(recordAttemptFailure('scan', 'late network error', { countAttempt: true })).resolves.toEqual({ status: 'failed', attempts: 0 });
+});
+
+it('matches the new crop against downloaded museums only when the queue cannot send it', async () => {
+  await seedScan();
+  expect(await saveEditedScanCrop('scan', crop, owner)).toBe('new-crop-id');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(recognizeOfflineCapture).not.toHaveBeenCalled();
+});
+
+it('matches the new crop against downloaded museums while offline, after the editor has its new scan id', async () => {
+  mockReachable = false;
+  await seedScan();
+  await saveEditedScanCrop('scan', crop, owner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(recognizeOfflineCapture).toHaveBeenCalledWith(expect.objectContaining({ ...features, owner, localId: 'new-crop-id' }));
 });
 
 it('leaves the old scan intact when extraction fails or the editor closes during extraction', async () => {
