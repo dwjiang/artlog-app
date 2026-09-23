@@ -4,6 +4,7 @@ export const signInContexts = {
   wall: { title: 'Sign in to share your wall', detail: 'Create a public profile, then choose which artworks to show.' },
   leaderboards: { title: 'Sign in to see friends’ rankings', detail: 'Find your friends on the leaderboards. You choose whether to share your activity totals.' },
   visit: { title: 'Sign in to share this visit', detail: 'You choose what to include before it’s published.' },
+  reactions: { title: 'Sign in to join the conversation', detail: 'Like museum visits and leave comments with your public profile.' },
 } as const;
 
 export type SignInContext = keyof typeof signInContexts;

@@ -11,6 +11,7 @@ import { VisitArtworks } from './visit-card';
 
 const mockPush = jest.fn(), mockDismissAll = jest.fn(), mockRefresh = jest.fn(), mockLoadMore = jest.fn(), mockPages = jest.fn(), mockQuery = jest.fn();
 const mockSignIn = jest.fn();
+jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), useMutation: () => jest.fn() }));
 jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ ready: true, available: true, busy: false, signInWithApple: mockSignIn }) }));
 jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 }, AppleAuthenticationButtonStyle: { BLACK: 0 },
@@ -63,7 +64,7 @@ it('opens visits, authors, and people from Home', async () => {
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
   expect(screen.queryByText('Newest visit first')).toBeNull();
-  expect(screen.getByText('1+ artworks')).toBeOnTheScreen();
+  expect(screen.queryByText('1+ artworks')).toBeNull();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
@@ -287,11 +288,12 @@ it('shows a direct invitation for guest Friends and keeps public discovery one t
   expect(screen.queryByText('EXAMPLE')).toBeNull();
 });
 
-it('shows the artwork count and omits an empty art stage for a reflection-only visit', async () => {
+it('keeps the date and reflection without count metadata, including reflection-only visits', async () => {
   mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 6 }] }));
   const view = await render(<HomeScreen />);
   expect(screen.queryByText('+5 more')).toBeNull();
-  expect(screen.getByText('6 artworks')).toBeOnTheScreen();
+  expect(screen.queryByText('6 artworks')).toBeNull();
+  expect(screen.getByLabelText('September 12, 2026')).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'View visit' }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/visit/[postId]', params: { postId: visit.postId } });
   mockPages.mockReturnValue(pages({ items: [{ ...visit, artworkCount: 0, artworks: { page: [], cursor: null, isDone: true } }] }));

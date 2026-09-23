@@ -6,6 +6,7 @@ export const ERROR_MESSAGES = {
   invalid_save: 'Check the artwork details and note.', invalid_venue: 'Choose a valid museum.',
   visit_private: 'Make this visit Public before publishing.',
   invalid_wall: 'Check the wall layout.', invalid_post: 'Check the selected artworks and notes.',
+  invalid_comment: 'Write a comment between 1 and 1,000 characters.',
   invalid_relationship: 'This connection is not valid.', invalid_report: 'Check the report reason and details.',
   friend_limit: 'One of these profiles has reached the friend limit.',
   invalid_media: 'This image is not available.', invalid_pagination: 'Refresh and try again.',

@@ -1,6 +1,7 @@
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { deleteUnreferencedPhoto } from './collectionPhotos';
+import { changeEngagement, engagement } from './visitReactions';
 
 const BATCH = 50;
 export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts'>): Promise<boolean> {
@@ -17,11 +18,35 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<'accounts
   }
   const profile = await ctx.db.query('profiles').withIndex('by_accountId', (q) => q.eq('accountId', accountId)).unique();
   if (!profile) return false;
+  const likes = await ctx.db.query('visitLikes').withIndex('by_profile', (q) => q.eq('profileId', profile._id)).take(BATCH);
+  if (likes.length) {
+    for (const like of likes) {
+      await ctx.db.delete(like._id);
+      await changeEngagement(ctx, like.publicationId, 'likeCount', -1);
+    }
+    return true;
+  }
+  const comments = await ctx.db.query('visitComments').withIndex('by_profile_request', (q) => q.eq('profileId', profile._id)).take(BATCH);
+  if (comments.length) {
+    for (const comment of comments) {
+      await ctx.db.delete(comment._id);
+      await changeEngagement(ctx, comment.publicationId, 'commentCount', -1);
+    }
+    return true;
+  }
   const publication = await ctx.db.query('sharedVisits').withIndex('by_profile_visit', (q) => q.eq('profileId', profile._id)).first();
   if (publication) {
+    const reactions = await ctx.db.query('visitLikes').withIndex('by_publication', (q) => q.eq('publicationId', publication._id)).take(BATCH);
+    const discussion = await ctx.db.query('visitComments').withIndex('by_publication', (q) => q.eq('publicationId', publication._id)).take(BATCH);
+    for (const row of [...reactions, ...discussion]) await ctx.db.delete(row._id);
+    if (reactions.length === BATCH || discussion.length === BATCH) return true;
     const items = await ctx.db.query('sharedVisitItems').withIndex('by_publication_position', (q) => q.eq('publicationId', publication._id)).take(BATCH);
     for (const item of items) await ctx.db.delete(item._id);
-    if (items.length < BATCH) await ctx.db.delete(publication._id);
+    if (items.length < BATCH) {
+      const counts = await engagement(ctx, publication._id);
+      if (counts) await ctx.db.delete(counts._id);
+      await ctx.db.delete(publication._id);
+    }
     return true;
   }
   const wall = await ctx.db.query('walls').withIndex('by_profileId', (q) => q.eq('profileId', profile._id)).first();

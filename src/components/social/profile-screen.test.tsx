@@ -3,6 +3,7 @@ import { getFunctionName as mockGetFunctionName } from 'convex/server';
 import { ProfileScreen } from './profile-screen';
 import type { SharedVisit } from '@/lib/social/types';
 const mockPages = jest.fn();
+jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), useMutation: () => jest.fn() }));
 let mockRelationship: { state: string; blocked: boolean } = { state: 'none', blocked: false };
 const mockPerson = { profileId: 'friend' as never, username: 'friend', name: 'Jamie Chen', publishedWallCount: 0 };
 jest.mock('expo-router', () => {
@@ -16,7 +17,8 @@ jest.mock('./friendship-controls', () => ({ FriendshipControls: () => null }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ key: 'a', status: 'ready', profileId: 'owner', offline: false }) }));
 jest.mock('@/lib/social/use-social-query', () => ({
   useSocialQuery: (query: Parameters<typeof mockGetFunctionName>[0]) => ({ data: mockGetFunctionName(query) === 'profiles:getPublic' ? mockPerson
-    : mockGetFunctionName(query) === 'friendships:getState' ? mockRelationship : { color: '#45524B', items: [] } }),
+    : mockGetFunctionName(query) === 'friendships:getState' ? mockRelationship
+      : mockGetFunctionName(query) === 'visitReactions:getSummary' ? { likeCount: 0, commentCount: 0, liked: false } : { color: '#45524B', items: [] } }),
   useCursorPages: (...args: unknown[]) => { mockPages(...args); return { items: mockVisits, done: true, loading: false }; },
 }));
 let mockVisits: SharedVisit[] = [];
@@ -46,7 +48,7 @@ it('uses the same shared visit card as Home', async () => {
     venue: { venueId: 'museum' as never, name: 'Museum of Modern Art', city: 'New York' }, visitedOn: '2026-09-12', artworks: { page: [], cursor: null, isDone: true } }];
   await render(<ProfileScreen profileId="friend" />);
   await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
-  expect(screen.getByText('Museum of Modern Art')).toBeOnTheScreen();
+  expect(screen.getByText('Museum of Modern Art · New York')).toBeOnTheScreen();
   expect(screen.getByLabelText('September 12, 2026')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'View visit' })).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'View Jamie Chen’s profile' })).toBeOnTheScreen();

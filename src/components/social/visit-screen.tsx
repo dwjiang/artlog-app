@@ -18,6 +18,7 @@ import { PageFooter, SocialGate, SocialState } from './social-state';
 import { socialStyles } from './social-styles';
 import { ThemedText as Text } from '@/components/themed-text';
 import { LoadingRing } from '@/components/loading-ring';
+import { VisitReactions } from './visit-reactions';
 
 type Media = SharedArtwork['artwork']['media'];
 const artworksPage = (visit: SharedVisit) => visit.artworks;
@@ -54,6 +55,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
       <SharedVisitHeading venue={visit.first.venue} visitedOn={visit.first.visitedOn}
         owner={{ name: author.name, username: author.username, photoUrl: author.photoUrl, onPress: () => router.push({ pathname: '/profile/[profileId]', params: { profileId: author.profileId } }) }} />
       {!!visit.first.reflection && <Text selectable style={styles.reflection}>{visit.first.reflection}</Text>}
+      <View style={{ marginBottom: 12 }}><VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} /></View>
       <SharedCountHeading label={`${countLabel} ${countLabel === '1' ? 'artwork' : 'artworks'} shared`} />
       {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}
     </> : null}
@@ -115,9 +117,10 @@ export function SharedArtworkTile({ title, artist, photos, token, onPress }: {
 export type ProjectedArtwork = { key: string; title: string; artist: string | null; photos: Media[] };
 
 /** A complete shared visit the way its audience sees it, for previews and the owner's shared version. */
-export function SharedVisitProjection({ postId, author, venue, visitedOn, reflection, artworks, token, footer, note }: {
+export function SharedVisitProjection({ postId, author, venue, visitedOn, reflection, artworks, token, footer, note, reactions }: {
   postId: string; author: Pick<PublicProfile, 'profileId' | 'name' | 'photoUrl' | 'username'>; venue: { name: string; city?: string }; visitedOn: string;
   reflection: string; artworks: ProjectedArtwork[]; token?: string | null; footer?: ReactElement; note?: string;
+  reactions?: ReactElement;
 }) {
   const [search, setSearch] = useState('');
   const { fontScale } = useWindowDimensions();
@@ -132,6 +135,7 @@ export function SharedVisitProjection({ postId, author, venue, visitedOn, reflec
     ListHeaderComponent={<>
       <SharedVisitHeading venue={venue} visitedOn={visitedOn} owner={{ ...author, onPress: () => router.push({ pathname: '/profile/[profileId]', params: { profileId: author.profileId } }) }} />
       {!!reflection && <Text selectable style={styles.reflection}>{reflection}</Text>}
+      {reactions && <View style={{ marginBottom: 12 }}>{reactions}</View>}
       <SharedCountHeading label={`${artworks.length} ${artworks.length === 1 ? 'artwork' : 'artworks'} shared`} />
       {artworks.length >= 5 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
     </>}

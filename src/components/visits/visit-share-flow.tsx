@@ -24,6 +24,7 @@ import { SavedWorkImage } from '../collection/saved-work-image';
 import { ProfileForm } from '../social/profile-form';
 import { SocialState } from '../social/social-state';
 import { SharedVisitProjection } from '../social/visit-screen';
+import { VisitReactions } from '../social/visit-reactions';
 import { signInRoute } from '@/lib/account/sign-in-context';
 import { ToastLayer } from '../toast';
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from './visit-ui';
@@ -198,7 +199,7 @@ export function VisitSharePreviewScreen() {
   return <><GalleryBackToolbar /><VisitPage>
     <Text style={{ alignSelf: 'flex-start', backgroundColor: Gallery.highlight, paddingHorizontal: 6, paddingVertical: 3 }}>2 · Review your visit</Text>
     <VisitFeedCard author={preview.author} venue={preview.venue} visitedOn={preview.visitedOn} notes={preview.reflection}
-      artworks={ordered} artworkCount={ordered.length} token={sharing.token} inset={false} />
+      artworks={ordered} token={sharing.token} inset={false} />
     <PrivacyNote>Publishing makes these selected photos and visit notes public, including to people without an account. Your other visits and artwork notes stay private.</PrivacyNote>
     <ShareError sharing={sharing} />
     {publicationError && <Text style={styles.error} accessibilityRole="alert">{publicationError}</Text>}
@@ -254,6 +255,7 @@ export function VisitSharedScreen() {
     {!unavailable && <ShareError sharing={sharing} />}
   </VisitPage>;
   return <SharedVisitProjection postId={shared.postId}
+    reactions={<VisitReactions visit={{ ...shared, media: shared.artworks.page[0]?.artwork.media }} />}
     author={shared.author} venue={shared.venue} visitedOn={shared.visitedOn} reflection={shared.reflection} token={sharing.token}
     artworks={shared.artworks.page.map((item) => ({ key: item.itemId, title: item.artwork.title, artist: item.artwork.artist, photos: item.photos ?? [] }))}
     footer={<><CopyVisitLink postId={shared.postId} /><ShareError sharing={sharing} /></>} />;
