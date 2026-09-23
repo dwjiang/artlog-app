@@ -84,7 +84,29 @@
           "project": "artlog-app",
           "organization": "daniel-jiang"
         }
-      ]
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "app.artlog.ios.widgets",
+          "groupIdentifier": "group.app.artlog.ios.widgets",
+          "widgets": [
+            {
+              "name": "ArtlogWidget",
+              "displayName": "Saved paintings",
+              "description": "Bring your collection and past museum visits to your Home Screen.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ],
+                "contentMarginsDisabled": true
+              }
+            }
+          ]
+        }
+      ],
+      "./plugins/with-artlog-widget"
     ],
     "experiments": {
       "typedRoutes": true,

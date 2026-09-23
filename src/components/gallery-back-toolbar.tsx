@@ -11,7 +11,7 @@ type RouteState = { index?: number; routes: { name: string; state?: RouteState }
 const ROUTE_LABELS: Record<string, string> = {
   '(home)': 'Home', '(scan)': 'Scan', '(collection)': 'Collection', 'visit-place': 'Visits',
   'saved/[savedId]': 'Artwork', 'journal/[visitId]': 'Visit', 'visit/[postId]': 'Visit', 'result/[scanId]': 'Result',
-  leaderboards: 'Leaderboards', people: 'Friends', 'profile/[profileId]': 'Profile', settings: 'Settings', 'all-artworks': 'All artworks',
+  leaderboards: 'Leaderboards', people: 'Friends', 'profile/[profileId]': 'Profile', settings: 'Settings', widgets: 'Widgets', 'all-artworks': 'All artworks',
 };
 
 const focused = (state: RouteState) => state.routes[state.index ?? state.routes.length - 1];
