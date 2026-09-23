@@ -1,4 +1,4 @@
-import { VisitShareLayout } from '@/components/visits/visit-share-flow';
+import { VisitShareLayout } from "@/components/visits/visit-share-flow";
 
 export default function Route() {
   return <VisitShareLayout />;

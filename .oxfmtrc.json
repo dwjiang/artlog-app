@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Generated, vendored, or exported by tools that rewrite them.
+  "ignorePatterns": [
+    ".agents/",
+    ".claude/",
+    "convex/_generated/",
+    "src/db/migrations/",
+    "*.mlmodelc/",
+    "scripts/data/calibration/"
+  ]
+}

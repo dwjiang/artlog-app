@@ -1,12 +1,19 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError } from "convex/values";
 
-import model from '../../shared/model/model-version.json';
+import model from "../../shared/model/model-version.json";
 
 export function supportedModelVersions(): string[] {
   const configured: string | undefined = process.env.SUPPORTED_MODEL_VERSIONS;
   return configured === undefined
     ? [model.modelVersion]
-    : [...new Set(configured.split(',').map((version) => version.trim()).filter(Boolean))];
+    : [
+        ...new Set(
+          configured
+            .split(",")
+            .map((version) => version.trim())
+            .filter(Boolean),
+        ),
+      ];
 }
 
 export function isSupported(version: string): boolean {
@@ -23,6 +30,6 @@ export function validateVector(vector: number[]): void {
     !vector.every(Number.isFinite) ||
     !vector.some((value) => value !== 0)
   ) {
-    throw new ConvexError({ code: 'bad_vector' });
+    throw new ConvexError({ code: "bad_vector" });
   }
 }

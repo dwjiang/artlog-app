@@ -1,11 +1,11 @@
-import * as Device from 'expo-device';
+import * as Device from "expo-device";
 
-import { api } from '../../convex/_generated/api';
-import { stableStringify } from '../../shared/attestation/stable-stringify';
+import { api } from "../../convex/_generated/api";
+import { stableStringify } from "../../shared/attestation/stable-stringify";
 
-import { APP_ATTEST_KEY_ID, getAppAttest } from '@/lib/app-attest';
-import { convex } from '@/lib/convex-client';
-import { installationStorage } from '@/lib/installation-storage';
+import { APP_ATTEST_KEY_ID, getAppAttest } from "@/lib/app-attest";
+import { convex } from "@/lib/convex-client";
+import { installationStorage } from "@/lib/installation-storage";
 
 export type SignedPayload = { nonce: string; assertionBase64: string; payloadJson: string };
 
@@ -18,14 +18,14 @@ export async function signPayload(payload: object | string): Promise<SignedPaylo
   const appAttest = getAppAttest();
   if (!appAttest && Device.isDevice) return null;
 
-  const payloadJson = typeof payload === 'string' ? payload : stableStringify(payload);
+  const payloadJson = typeof payload === "string" ? payload : stableStringify(payload);
   if (!appAttest) {
-    const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: 'assert' });
-    return { nonce, assertionBase64: '', payloadJson };
+    const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: "assert" });
+    return { nonce, assertionBase64: "", payloadJson };
   }
   const keyId = await installationStorage.getItem(APP_ATTEST_KEY_ID);
-  if (keyId === null) throw new Error('Device attestation is not ready');
-  const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: 'assert' });
+  if (keyId === null) throw new Error("Device attestation is not ready");
+  const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: "assert" });
   const assertionBase64 = await appAttest.generateAssertion(keyId, `${nonce}.${payloadJson}`);
   return { nonce, assertionBase64, payloadJson };
 }

@@ -1,7 +1,7 @@
 # Letterbox parity fixture
 
 `test-painting-512.png` is `scripts/data/pipeline/letterbox.py` applied at size 512 to
-`scripts/data/fixtures/test-painting.jpg` (Vincent van Gogh, *Wheat Field with Cypresses*, The Met,
+`scripts/data/fixtures/test-painting.jpg` (Vincent van Gogh, _Wheat Field with Cypresses_, The Met,
 CC0). It is the reference the phone's Swift letterbox (`modules/vision-rect`) must reproduce.
 
 Regenerate after any change to `letterbox.py` or the pinned Pillow version:

@@ -20,14 +20,14 @@ export type OrbFeatures = {
 export class OrbFormatError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'OrbFormatError';
+    this.name = "OrbFormatError";
   }
 }
 
 export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
   if (descriptors.byteLength % DESCRIPTOR_BYTES !== 0) {
     throw new OrbFormatError(
-      `descriptors byte length ${descriptors.byteLength} is not a multiple of ${DESCRIPTOR_BYTES}`
+      `descriptors byte length ${descriptors.byteLength} is not a multiple of ${DESCRIPTOR_BYTES}`,
     );
   }
   const count = descriptors.byteLength / DESCRIPTOR_BYTES;
@@ -37,7 +37,7 @@ export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuff
   if (keypoints.byteLength !== count * KEYPOINT_BYTES) {
     throw new OrbFormatError(
       `keypoints byte length ${keypoints.byteLength} does not match ${count} descriptors ` +
-        `(expected ${count * KEYPOINT_BYTES})`
+        `(expected ${count * KEYPOINT_BYTES})`,
     );
   }
   // Float32Array reads platform byte order; every runtime this ships on (V8 servers, iOS arm64)

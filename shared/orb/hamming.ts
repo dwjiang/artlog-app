@@ -1,4 +1,4 @@
-import type { OrbFeatures } from './features';
+import type { OrbFeatures } from "./features";
 
 export const DESCRIPTOR_WORDS = 8;
 
@@ -14,7 +14,7 @@ export function descriptorWords(features: OrbFeatures): Uint32Array {
     return new Uint32Array(
       bytes.buffer,
       bytes.byteOffset,
-      bytes.byteLength / Uint32Array.BYTES_PER_ELEMENT
+      bytes.byteLength / Uint32Array.BYTES_PER_ELEMENT,
     );
   }
   return new Uint32Array(bytes.slice().buffer);
@@ -24,7 +24,7 @@ export function hammingDistance32(
   a: Uint32Array,
   aWord: number,
   b: Uint32Array,
-  bWord: number
+  bWord: number,
 ): number {
   return (
     popcount32(a[aWord] ^ b[bWord]) +

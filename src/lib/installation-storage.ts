@@ -1,14 +1,14 @@
-import { randomUUID } from 'expo-crypto';
-import { File, Paths } from 'expo-file-system';
-import * as SecureStore from 'expo-secure-store';
+import { randomUUID } from "expo-crypto";
+import { File, Paths } from "expo-file-system";
+import * as SecureStore from "expo-secure-store";
 
 let installationId: string | undefined;
 
 export function getInstallationId(): string {
   if (installationId === undefined) {
     // Documents survive updates but are removed on uninstall; Keychain entries are not.
-    const file = new File(Paths.document, 'installation-id');
-    const stored = file.exists ? file.textSync() : '';
+    const file = new File(Paths.document, "installation-id");
+    const stored = file.exists ? file.textSync() : "";
     const id = stored || randomUUID();
     if (!stored) file.write(id);
     installationId = id;

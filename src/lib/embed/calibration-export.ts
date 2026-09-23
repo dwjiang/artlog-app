@@ -15,7 +15,10 @@ export type CalibrationEmbeddings = {
 };
 
 export function parseCalibrationUrls(text: string): string[] {
-  return text.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 export async function collectCalibrationEmbeddings(
@@ -23,8 +26,9 @@ export async function collectCalibrationEmbeddings(
   onProgress?: (done: number, total: number) => void,
 ): Promise<CalibrationEmbeddings> {
   const urls = await steps.urls();
-  if (urls.length === 0) throw new Error('The calibration URL list is empty');
-  if (new Set(urls).size !== urls.length) throw new Error('The calibration URL list contains duplicates');
+  if (urls.length === 0) throw new Error("The calibration URL list is empty");
+  if (new Set(urls).size !== urls.length)
+    throw new Error("The calibration URL list contains duplicates");
   const embeddings: Record<string, number[]> = {};
   const timings: number[] = [];
   for (const [index, url] of urls.entries()) {

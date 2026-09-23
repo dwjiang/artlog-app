@@ -10,13 +10,13 @@ tests become the implementation source of truth when those features are built.
 
 ## Decisions
 
-| Decision | Contract | Status |
-| --- | --- | --- |
+| Decision            | Contract                                                                                                                                                                                                  | Status         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Publishing identity | A linked Apple account and an explicitly created profile are required to publish a wall, share visits, or connect with people. Scanning, private collecting, and public browsing remain account-optional. | Agreed by user |
-| Friendship | A request must be accepted by its recipient before either person gets friends-only access. | Agreed by user |
-| Visibility | Wall selections are public; visit posts are friends-only; the complete journal is private. | From mock |
-| Public note edits | A selected note displays its current text. Editing it updates the public wall; removing its visibility prevents subsequent edits from publishing it. | From mock |
-| Feed order | Descending visit date, with a stable tie-breaker; publication and edit timestamps never bump a visit. | From mock |
+| Friendship          | A request must be accepted by its recipient before either person gets friends-only access.                                                                                                                | Agreed by user |
+| Visibility          | Wall selections are public; visit posts are friends-only; the complete journal is private.                                                                                                                | From mock      |
+| Public note edits   | A selected note displays its current text. Editing it updates the public wall; removing its visibility prevents subsequent edits from publishing it.                                                      | From mock      |
+| Feed order          | Descending visit date, with a stable tie-breaker; publication and edit timestamps never bump a visit.                                                                                                     | From mock      |
 
 ## Identity and ownership
 
@@ -26,13 +26,13 @@ Give each account at most one `profiles` record; its document ID is the stable
 public `profileId`. Keep Apple identifiers, email, account IDs, and device IDs
 out of public profile responses.
 
-| Identifier | Meaning | Boundary |
-| --- | --- | --- |
-| `profileId` | One person's public identity | Profiles, relationships, public reads |
-| `venueId` | Existing `Id<'museums'>` | Catalog, visits, geographic summaries |
-| `visitLocalId` | UUID generated when a particular visit is created | Journal and sync; survives device changes |
-| `saveLocalId` | Existing saved-work `localId` UUID | Journal, wall selection, visit selection |
-| `artworkId` / `objectId` | Existing catalog artwork / physical object IDs | Recognition and enrichment; optional on a save |
+| Identifier               | Meaning                                           | Boundary                                       |
+| ------------------------ | ------------------------------------------------- | ---------------------------------------------- |
+| `profileId`              | One person's public identity                      | Profiles, relationships, public reads          |
+| `venueId`                | Existing `Id<'museums'>`                          | Catalog, visits, geographic summaries          |
+| `visitLocalId`           | UUID generated when a particular visit is created | Journal and sync; survives device changes      |
+| `saveLocalId`            | Existing saved-work `localId` UUID                | Journal, wall selection, visit selection       |
+| `artworkId` / `objectId` | Existing catalog artwork / physical object IDs    | Recognition and enrichment; optional on a save |
 
 The owner-scoped pair `(owner, localId)` identifies a journal record. Anonymous
 records belong to their device; account-linked records belong to the account.
@@ -109,22 +109,22 @@ silently, including a note explicitly selected for public display.
 
 ## Publication and read contracts
 
-| Reader | Public profile and wall | Published visit | Complete journal |
-| --- | --- | --- | --- |
-| Signed-out visitor / stranger | Yes | No | No |
-| Pending connection | Yes | No | No |
-| Accepted friend, neither side blocking | Yes | Yes | No |
-| Owner | Yes, with owner controls in separate responses | Yes | Yes |
+| Reader                                 | Public profile and wall                        | Published visit | Complete journal |
+| -------------------------------------- | ---------------------------------------------- | --------------- | ---------------- |
+| Signed-out visitor / stranger          | Yes                                            | No              | No               |
+| Pending connection                     | Yes                                            | No              | No               |
+| Accepted friend, neither side blocking | Yes                                            | Yes             | No               |
+| Owner                                  | Yes, with owner controls in separate responses | Yes             | Yes              |
 
 Build explicit response allowlists. Never serialize an owner record and rely on
 the client to hide fields. The four shared response shapes are:
 
-| Shape | Allowed content |
-| --- | --- |
-| `PublicProfile` | Profile ID, username, name, bio, published-wall count |
-| `WallArtwork` | Public item ID, layout, frame, artwork metadata, display media, explicitly selected public note |
-| `SharedVisit` | Public post ID, author profile, museum/city/country, visit date, selected artwork cards, shared reflection, publication/edit timestamps |
-| `OwnerVisit` / `OwnerSavedWork` | Owner-scoped journal fields, including private notes and source associations |
+| Shape                           | Allowed content                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `PublicProfile`                 | Profile ID, username, name, bio, published-wall count                                                                                   |
+| `WallArtwork`                   | Public item ID, layout, frame, artwork metadata, display media, explicitly selected public note                                         |
+| `SharedVisit`                   | Public post ID, author profile, museum/city/country, visit date, selected artwork cards, shared reflection, publication/edit timestamps |
+| `OwnerVisit` / `OwnerSavedWork` | Owner-scoped journal fields, including private notes and source associations                                                            |
 
 Public wall artwork metadata can include title, artist, artwork date, medium,
 and available sourced enrichment. It excludes the owner's save/visit UUIDs,
@@ -245,12 +245,12 @@ These are planned module boundaries, not existing callable endpoints. Owner
 arguments are implicit. Generated Convex argument/return types will be consumed
 directly; no second set of handwritten client DTOs.
 
-| Stream | Planned operations | Shared dependency |
-| --- | --- | --- |
-| Identity | `profiles.create`, `update`, `getPublic`, `search`; authenticated profile resolution | Account linkage and publication policy |
-| Journal | `visits.upsertJournal`, `getMine`, `listMine`; visit/save sync and private note writes | Owner scope, visit/save UUIDs, calendar date |
-| Wall | `walls.getMine`, `getPublic`, `setLayout`, `setNoteVisibility`; item/media reads | Profile, owned saves, public artwork projection |
-| Social | `friendships.request`, `accept`, `decline`, `cancel`, `remove`, `block`, `unblock`; `sharedVisits.preview`, `publish`, `unshare`, `get`, `listFeed`, `listByProfile` | Profile, journal membership, current relationship checks |
+| Stream   | Planned operations                                                                                                                                                   | Shared dependency                                        |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Identity | `profiles.create`, `update`, `getPublic`, `search`; authenticated profile resolution                                                                                 | Account linkage and publication policy                   |
+| Journal  | `visits.upsertJournal`, `getMine`, `listMine`; visit/save sync and private note writes                                                                               | Owner scope, visit/save UUIDs, calendar date             |
+| Wall     | `walls.getMine`, `getPublic`, `setLayout`, `setNoteVisibility`; item/media reads                                                                                     | Profile, owned saves, public artwork projection          |
+| Social   | `friendships.request`, `accept`, `decline`, `cancel`, `remove`, `block`, `unblock`; `sharedVisits.preview`, `publish`, `unshare`, `get`, `listFeed`, `listByProfile` | Profile, journal membership, current relationship checks |
 
 All list/search APIs are bounded and cursor-paginated. Normalize search queries
 consistently, including case and accents. Responses expose only the reader's

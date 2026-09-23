@@ -1,22 +1,30 @@
-import { readBody, userAgent } from './politeFetch';
+import { readBody, userAgent } from "./politeFetch";
 
 export type CollectionSite = {
   collectionSiteUrl: string;
-  platform: 'emuseum' | 'iiif' | 'collectionspace' | 'generic';
+  platform: "emuseum" | "iiif" | "collectionspace" | "generic";
 };
 
-const PATHS = ['/', '/collection', '/collections', '/art/collection', '/objects', '/sitemap.xml'];
+const PATHS = ["/", "/collection", "/collections", "/art/collection", "/objects", "/sitemap.xml"];
 const MAX_BODY_BYTES = 1024 * 1024;
 
 export function websiteUrl(value: string): URL | null {
   try {
     const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/\.$/, '');
-    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password ||
-      (url.port && !['80', '443'].includes(url.port)) || !host.includes('.') ||
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (
+      !["https:", "http:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      (url.port && !["80", "443"].includes(url.port)) ||
+      !host.includes(".") ||
       /(^|\.)(localhost|local|internal|test|invalid)$/.test(host) ||
-      host.includes(':') || /^[\d.]+$/.test(host) || value.length > 2048) return null;
-    url.hash = '';
+      host.includes(":") ||
+      /^[\d.]+$/.test(host) ||
+      value.length > 2048
+    )
+      return null;
+    url.hash = "";
     return url;
   } catch {
     return null;
@@ -25,36 +33,54 @@ export function websiteUrl(value: string): URL | null {
 
 function sameHostUrl(value: string, base: URL): URL | null {
   const url = websiteUrl(new URL(value, base).href);
-  return url && url.hostname === base.hostname &&
-    !(base.protocol === 'https:' && url.protocol === 'http:') ? url : null;
+  return url &&
+    url.hostname === base.hostname &&
+    !(base.protocol === "https:" && url.protocol === "http:")
+    ? url
+    : null;
 }
 
 function detectCollection(body: string, page: URL): CollectionSite | null {
   const links: URL[] = [];
-  const rawLinks = body.matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))|<loc\b[^>]*>\s*([^<]+)\s*<\/loc>/gi);
+  const rawLinks = body.matchAll(
+    /\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))|<loc\b[^>]*>\s*([^<]+)\s*<\/loc>/gi,
+  );
   for (const match of rawLinks) {
     try {
-      const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, '&').trim(), page);
+      const link = sameHostUrl(
+        (match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(),
+        page,
+      );
       if (link) links.push(link);
-    } catch { /* Malformed markup is not a probe target. */ }
+    } catch {
+      /* Malformed markup is not a probe target. */
+    }
   }
   const collectionPath = /\/(?:objects?|artworks?|collections?)(?:\/|$)/i;
   const target = links.find((link) => collectionPath.test(link.pathname));
   const collectionSiteUrl = /sitemap\.xml$/i.test(page.pathname)
-    ? target ? new URL(target.pathname.replace(/\/[^/]+\/?$/, '/'), target).href : page.origin
+    ? target
+      ? new URL(target.pathname.replace(/\/[^/]+\/?$/, "/"), target).href
+      : page.origin
     : page.href;
-  if (/\bcollectionspace\b/i.test(body)) return { collectionSiteUrl, platform: 'collectionspace' };
-  if (links.some((link) => /\/iiif\//i.test(link.pathname))) return { collectionSiteUrl, platform: 'iiif' };
+  if (/\bcollectionspace\b/i.test(body)) return { collectionSiteUrl, platform: "collectionspace" };
+  if (links.some((link) => /\/iiif\//i.test(link.pathname)))
+    return { collectionSiteUrl, platform: "iiif" };
   if (/\bemuseum\b/i.test(body) || links.some((link) => /\/objects\//i.test(link.pathname))) {
-    return { collectionSiteUrl, platform: 'emuseum' };
+    return { collectionSiteUrl, platform: "emuseum" };
   }
-  if (new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname)).size >= 20) {
-    return { collectionSiteUrl, platform: 'generic' };
+  if (
+    new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname))
+      .size >= 20
+  ) {
+    return { collectionSiteUrl, platform: "generic" };
   }
   return null;
 }
 
-export async function probeCollectionSite(website: string): Promise<CollectionSite | null | 'retry'> {
+export async function probeCollectionSite(
+  website: string,
+): Promise<CollectionSite | null | "retry"> {
   const root = websiteUrl(website);
   if (!root) return null;
   const pending = PATHS.map((path) => new URL(path, root));
@@ -68,18 +94,20 @@ export async function probeCollectionSite(website: string): Promise<CollectionSi
     const timeout = setTimeout(() => controller.abort(), 5000);
     try {
       const response = await fetch(url.href, {
-        redirect: 'manual', signal: controller.signal,
-        headers: { 'User-Agent': userAgent(), Accept: 'text/html, application/xml;q=0.9' },
+        redirect: "manual",
+        signal: controller.signal,
+        headers: { "User-Agent": userAgent(), Accept: "text/html, application/xml;q=0.9" },
       });
       if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location');
+        const location = response.headers.get("location");
         const next = location && sameHostUrl(location, url);
         if (next) pending.unshift(next);
         await response.body?.cancel();
         continue;
       }
       if (!response.ok) {
-        if (response.status === 408 || response.status === 429 || response.status >= 500) retryable = true;
+        if (response.status === 408 || response.status === 429 || response.status >= 500)
+          retryable = true;
         await response.body?.cancel();
         continue;
       }
@@ -91,5 +119,5 @@ export async function probeCollectionSite(website: string): Promise<CollectionSi
       clearTimeout(timeout);
     }
   }
-  return retryable ? 'retry' : null;
+  return retryable ? "retry" : null;
 }

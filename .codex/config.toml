@@ -35,7 +35,9 @@ XCODEBUILDMCP_ENABLED_WORKFLOWS = "simulator,ui-automation,debugging"
 [mcp_servers.nebius]
 command = "uvx"
 args = [
-  "--python", "3.13",
-  "--refresh-package", "nebius-mcp-server",
-  "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main"
+  "--python",
+  "3.13",
+  "--refresh-package",
+  "nebius-mcp-server",
+  "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main",
 ]

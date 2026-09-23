@@ -5,20 +5,11 @@
     "allowImportingTsExtensions": true,
     "types": ["jest"],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
+      "@/*": ["./src/*"],
       "@/shared/*": ["./shared/*"],
-      "@/assets/*": [
-        "./assets/*"
-      ]
+      "@/assets/*": ["./assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
   "exclude": ["node_modules"]
 }

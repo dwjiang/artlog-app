@@ -15,28 +15,13 @@
       "image_sha1_original": null,
       "sha256": "5de64bf73edf1ff11c8a5b56e545e97898f0544056072e4a2795b27034506912",
       "expected": {
-        "title": [
-          "George Washington on a White Charger"
-        ],
-        "artist": [
-          "Anonymous"
-        ],
-        "artist_dates": [
-          null
-        ],
-        "work_date": [
-          "ca. 1830",
-          "ca.1830"
-        ],
-        "medium": [
-          "Oil on wood panel"
-        ],
-        "accession": [
-          "1981.4.7"
-        ],
-        "credit_line": [
-          "Gift of Edgar William and Bernice Chrysler Garbisch"
-        ]
+        "title": ["George Washington on a White Charger"],
+        "artist": ["Anonymous"],
+        "artist_dates": [null],
+        "work_date": ["ca. 1830", "ca.1830"],
+        "medium": ["Oil on wood panel"],
+        "accession": ["1981.4.7"],
+        "credit_line": ["Gift of Edgar William and Bernice Chrysler Garbisch"]
       }
     },
     {
@@ -51,27 +36,13 @@
       "image_sha1_original": null,
       "sha256": "09a0c33360a13e65d4e508256994bb164f2cb5f27dd3154d0350d89c8620ec4e",
       "expected": {
-        "title": [
-          "Flying female shaman"
-        ],
-        "artist": [
-          null
-        ],
-        "artist_dates": [
-          null
-        ],
-        "work_date": [
-          "ca. 1850"
-        ],
-        "medium": [
-          "Wood and ivory"
-        ],
-        "accession": [
-          "2007.21.231"
-        ],
-        "credit_line": [
-          "Bequest of Thomas G. Fowler"
-        ]
+        "title": ["Flying female shaman"],
+        "artist": [null],
+        "artist_dates": [null],
+        "work_date": ["ca. 1850"],
+        "medium": ["Wood and ivory"],
+        "accession": ["2007.21.231"],
+        "credit_line": ["Bequest of Thomas G. Fowler"]
       }
     },
     {
@@ -86,27 +57,13 @@
       "image_sha1_original": null,
       "sha256": "d1090e792960d7fd24684bcf6c5262d9fd01b6d2f2eacafad0d81153738892c2",
       "expected": {
-        "title": [
-          "Corset"
-        ],
-        "artist": [
-          null
-        ],
-        "artist_dates": [
-          null
-        ],
-        "work_date": [
-          "Ca. 1775–1790"
-        ],
-        "medium": [
-          "Linen and whalebone"
-        ],
-        "accession": [
-          "60.15.2"
-        ],
-        "credit_line": [
-          "Gift of Mrs. Charles Rucker Wayland"
-        ]
+        "title": ["Corset"],
+        "artist": [null],
+        "artist_dates": [null],
+        "work_date": ["Ca. 1775–1790"],
+        "medium": ["Linen and whalebone"],
+        "accession": ["60.15.2"],
+        "credit_line": ["Gift of Mrs. Charles Rucker Wayland"]
       }
     },
     {
@@ -125,22 +82,11 @@
           "Fog over San Quentin State Prison, San Quentin, California (from the Prisonation series)",
           "Fog over San Quentin State Prison, San Quentin, California"
         ],
-        "artist": [
-          "Sandow Birk"
-        ],
-        "artist_dates": [
-          "b. 1962",
-          "1962"
-        ],
-        "work_date": [
-          "2001"
-        ],
-        "medium": [
-          "Oil and acrylic on canvas"
-        ],
-        "accession": [
-          "2002.7"
-        ],
+        "artist": ["Sandow Birk"],
+        "artist_dates": ["b. 1962", "1962"],
+        "work_date": ["2001"],
+        "medium": ["Oil and acrylic on canvas"],
+        "accession": ["2002.7"],
         "credit_line": [
           "Museum purchase, American Art Trust Fund",
           "Museum purchase. American Art Trust Fund"
@@ -159,28 +105,13 @@
       "image_sha1_original": null,
       "sha256": "95eee00e8b370ec2195cd9e6f01c44c07ed12f889899c2b14c91ce346790264f",
       "expected": {
-        "title": [
-          "Union Rave"
-        ],
-        "artist": [
-          "Andreas Gursky"
-        ],
-        "artist_dates": [
-          "b. 1955",
-          "1955"
-        ],
-        "work_date": [
-          "1995"
-        ],
-        "medium": [
-          "Digital color coupler print"
-        ],
-        "accession": [
-          null
-        ],
-        "credit_line": [
-          "Collection of Trevor Traina"
-        ]
+        "title": ["Union Rave"],
+        "artist": ["Andreas Gursky"],
+        "artist_dates": ["b. 1955", "1955"],
+        "work_date": ["1995"],
+        "medium": ["Digital color coupler print"],
+        "accession": [null],
+        "credit_line": ["Collection of Trevor Traina"]
       }
     },
     {
@@ -195,28 +126,13 @@
       "image_sha1_original": null,
       "sha256": "122399a2ddad686595b01cf2f4297c9d123e371c0b8f53eed2b2a54fcb61c0e0",
       "expected": {
-        "title": [
-          "River and Farms"
-        ],
-        "artist": [
-          "Wayne Thiebaud"
-        ],
-        "artist_dates": [
-          "b. 1920",
-          "1920"
-        ],
-        "work_date": [
-          "1996"
-        ],
-        "medium": [
-          "Oil on canvas"
-        ],
-        "accession": [
-          "L05.103"
-        ],
-        "credit_line": [
-          "Collection of Nan McEvoy"
-        ]
+        "title": ["River and Farms"],
+        "artist": ["Wayne Thiebaud"],
+        "artist_dates": ["b. 1920", "1920"],
+        "work_date": ["1996"],
+        "medium": ["Oil on canvas"],
+        "accession": ["L05.103"],
+        "credit_line": ["Collection of Nan McEvoy"]
       }
     },
     {
@@ -231,28 +147,13 @@
       "image_sha1_original": null,
       "sha256": "a13d53a87d3710dc55b119b49a4c1fafb4269362cac7f105906ce3cbac45faf0",
       "expected": {
-        "title": [
-          "Diagonal Freeway"
-        ],
-        "artist": [
-          "Wayne Thiebaud"
-        ],
-        "artist_dates": [
-          "b. 1920",
-          "1920"
-        ],
-        "work_date": [
-          "1993"
-        ],
-        "medium": [
-          "Acrylic on canvas"
-        ],
-        "accession": [
-          "1998.186"
-        ],
-        "credit_line": [
-          "Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg"
-        ]
+        "title": ["Diagonal Freeway"],
+        "artist": ["Wayne Thiebaud"],
+        "artist_dates": ["b. 1920", "1920"],
+        "work_date": ["1993"],
+        "medium": ["Acrylic on canvas"],
+        "accession": ["1998.186"],
+        "credit_line": ["Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg"]
       }
     },
     {
@@ -267,27 +168,13 @@
       "image_sha1_original": null,
       "sha256": "ef9d11b74b8066c41c354cda4f82409271c81e473efba75cd66eab7da36711c1",
       "expected": {
-        "title": [
-          "Skeleton bear (in shamanic transformation)"
-        ],
-        "artist": [
-          null
-        ],
-        "artist_dates": [
-          null
-        ],
-        "work_date": [
-          "n.d."
-        ],
-        "medium": [
-          "Ivory, brass, and pigment"
-        ],
-        "accession": [
-          "2007.21.268"
-        ],
-        "credit_line": [
-          "Bequest of Thomas G. Fowler"
-        ]
+        "title": ["Skeleton bear (in shamanic transformation)"],
+        "artist": [null],
+        "artist_dates": [null],
+        "work_date": ["n.d."],
+        "medium": ["Ivory, brass, and pigment"],
+        "accession": ["2007.21.268"],
+        "credit_line": ["Bequest of Thomas G. Fowler"]
       }
     },
     {
@@ -302,25 +189,12 @@
       "image_sha1_original": null,
       "sha256": "b6d905a88d1cbc7e7b6e81ad49787a6456ba93f20a8d9b2e586e1110ff48ce6a",
       "expected": {
-        "title": [
-          "Kanbara"
-        ],
-        "artist": [
-          "Utagawa Hiroshige II"
-        ],
-        "artist_dates": [
-          "active 1840–1866",
-          "1840–1866"
-        ],
-        "work_date": [
-          "1863"
-        ],
-        "medium": [
-          "Woodblock print"
-        ],
-        "accession": [
-          "2006.19.10"
-        ],
+        "title": ["Kanbara"],
+        "artist": ["Utagawa Hiroshige II"],
+        "artist_dates": ["active 1840–1866", "1840–1866"],
+        "work_date": ["1863"],
+        "medium": ["Woodblock print"],
+        "accession": ["2006.19.10"],
         "credit_line": [
           "Tacoma Art Museum, Gift of Al and Betsy Buck in memory of Alfred Eliab Buck and Ellen Baker Buck",
           "Gift of Al and Betsy Buck in memory of Alfred Eliab Buck and Ellen Baker Buck"
@@ -339,25 +213,12 @@
       "image_sha1_original": null,
       "sha256": "de543f0a03f29b733614a713c6cadff97080ddc18713d2705e2218fec0ea78d1",
       "expected": {
-        "title": [
-          "Bush Warbler [Uguisu]",
-          "Bush Warbler"
-        ],
-        "artist": [
-          "Utagawa Hiroshige"
-        ],
-        "artist_dates": [
-          "1797–1858"
-        ],
-        "work_date": [
-          "1830–1837"
-        ],
-        "medium": [
-          "Woodblock print"
-        ],
-        "accession": [
-          "1971.131.19"
-        ],
+        "title": ["Bush Warbler [Uguisu]", "Bush Warbler"],
+        "artist": ["Utagawa Hiroshige"],
+        "artist_dates": ["1797–1858"],
+        "work_date": ["1830–1837"],
+        "medium": ["Woodblock print"],
+        "accession": ["1971.131.19"],
         "credit_line": [
           "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
           "Gift of Mrs. James W. Lyon"
@@ -376,24 +237,12 @@
       "image_sha1_original": null,
       "sha256": "ac935c72a6110926cd18bd3a6901a380ab9d062eb36068ce0d7cc16315990ce3",
       "expected": {
-        "title": [
-          "Children Playing on New Years"
-        ],
-        "artist": [
-          "Totoya Hokkei"
-        ],
-        "artist_dates": [
-          "1780–1850"
-        ],
-        "work_date": [
-          "1831"
-        ],
-        "medium": [
-          "Woodblock print"
-        ],
-        "accession": [
-          "1971.143.4"
-        ],
+        "title": ["Children Playing on New Years"],
+        "artist": ["Totoya Hokkei"],
+        "artist_dates": ["1780–1850"],
+        "work_date": ["1831"],
+        "medium": ["Woodblock print"],
+        "accession": ["1971.143.4"],
         "credit_line": [
           "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
           "Gift of Mrs. James W. Lyon"
@@ -412,9 +261,7 @@
       "image_sha1_original": null,
       "sha256": "14faf5e698f173d8a0b5e7045117b26ff3817f23fa29d72781a98bf35f35ebc8",
       "expected": {
-        "title": [
-          "Cinderella Table"
-        ],
+        "title": ["Cinderella Table"],
         "artist": [
           "Demakersvan; Jeroen Verhoeven",
           "Jeroen Verhoeven (Demakersvan)",
@@ -425,15 +272,9 @@
           "1976",
           "Demakersvan: est. 2004; Jeroen Verhoeven: born 1976"
         ],
-        "work_date": [
-          "2004"
-        ],
-        "medium": [
-          "Birch"
-        ],
-        "accession": [
-          null
-        ],
+        "work_date": ["2004"],
+        "medium": ["Birch"],
+        "accession": [null],
         "credit_line": [
           "Gift of Marie-Josée and Henry R. Kravis in honor of Patricia Phelps de Cisneros, 2006"
         ]
@@ -451,9 +292,7 @@
       "image_sha1_original": null,
       "sha256": "a71681c5e3db1132870c0ae2707ac995eba326b2fdef51eece451c03e55de59e",
       "expected": {
-        "title": [
-          "Kinematics Dress"
-        ],
+        "title": ["Kinematics Dress"],
         "artist": [
           "Jessica Rosenkrantz; Jesse Louis-Rosenberg; Nervous System",
           "Jessica Rosenkrantz and Jesse Louis-Rosenberg (Nervous System)",
@@ -463,15 +302,9 @@
           "Jessica Rosenkrantz: born 1983; Jesse Louis-Rosenberg: born 1986; Nervous System: est. 2007",
           "Jessica Rosenkrantz (born 1983); Jesse Louis-Rosenberg (born 1986)"
         ],
-        "work_date": [
-          "2013"
-        ],
-        "medium": [
-          "Laser-sintered nylon and digital applications"
-        ],
-        "accession": [
-          null
-        ],
+        "work_date": ["2013"],
+        "medium": ["Laser-sintered nylon and digital applications"],
+        "accession": [null],
         "credit_line": [
           "Committee on Architecture and Design Funds, 2014; Video courtesy the designers",
           "Committee on Architecture and Design Funds, 2014"
@@ -490,25 +323,12 @@
       "image_sha1_original": null,
       "sha256": "000ac80de5a694ddf5046c6bf78f44569c743b8a2a03afb8b06d9335f0cbdf09",
       "expected": {
-        "title": [
-          "Sonata Primitive"
-        ],
-        "artist": [
-          "Saul L. Baizerman"
-        ],
-        "artist_dates": [
-          "1899–1957"
-        ],
-        "work_date": [
-          "1940–48",
-          "1940–1948"
-        ],
-        "medium": [
-          "Copper"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Sonata Primitive"],
+        "artist": ["Saul L. Baizerman"],
+        "artist_dates": ["1899–1957"],
+        "work_date": ["1940–48", "1940–1948"],
+        "medium": ["Copper"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"
         ]
@@ -526,25 +346,12 @@
       "image_sha1_original": null,
       "sha256": "848278ce966ab435aecc5ddcf61c63135b1b6eef93c335e67966b3e41b1647ae",
       "expected": {
-        "title": [
-          "Border Crossing / Cruzando el Río Bravo",
-          "Border Crossing"
-        ],
-        "artist": [
-          "Luis Jiménez"
-        ],
-        "artist_dates": [
-          "1940–2006"
-        ],
-        "work_date": [
-          "1989"
-        ],
-        "medium": [
-          "Fiberglass with acrylic urethane finish"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Border Crossing / Cruzando el Río Bravo", "Border Crossing"],
+        "artist": ["Luis Jiménez"],
+        "artist_dates": ["1940–2006"],
+        "work_date": ["1989"],
+        "medium": ["Fiberglass with acrylic urethane finish"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Joint purchase with the Museum of Contemporary Art San Diego in honor of Jackie and Rea Axline, 2002"
         ]
@@ -562,24 +369,12 @@
       "image_sha1_original": null,
       "sha256": "ba078a573374c86df68d40d3a553d67eea92743970514e8f827ebf6df0b45965",
       "expected": {
-        "title": [
-          "Night Presence II"
-        ],
-        "artist": [
-          "Louise Nevelson"
-        ],
-        "artist_dates": [
-          "1899–1988"
-        ],
-        "work_date": [
-          "1976"
-        ],
-        "medium": [
-          "Cor-Ten steel"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Night Presence II"],
+        "artist": ["Louise Nevelson"],
+        "artist_dates": ["1899–1988"],
+        "work_date": ["1976"],
+        "medium": ["Cor-Ten steel"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Museum purchase through the Earle W. Grant Endowment Fund, 1976"
         ]
@@ -597,24 +392,12 @@
       "image_sha1_original": null,
       "sha256": "7c2cc6f27c128c8afb2075a65a0b18a2023a1a2165753ee810a1efb24b76261e",
       "expected": {
-        "title": [
-          "Two Lines Oblique: San Diego"
-        ],
-        "artist": [
-          "George Rickey"
-        ],
-        "artist_dates": [
-          "1907–2002"
-        ],
-        "work_date": [
-          "1993"
-        ],
-        "medium": [
-          "Stainless steel"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Two Lines Oblique: San Diego"],
+        "artist": ["George Rickey"],
+        "artist_dates": ["1907–2002"],
+        "work_date": ["1993"],
+        "medium": ["Stainless steel"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Museum purchase with matching sculpture fund, 1994"
         ]
@@ -632,25 +415,12 @@
       "image_sha1_original": null,
       "sha256": "ef97b424433e925cda5f7fa34f0149d90ddf7b2ccffc55f3db027785ea214ce7",
       "expected": {
-        "title": [
-          "Cubi XV"
-        ],
-        "artist": [
-          "David Smith"
-        ],
-        "artist_dates": [
-          "1906–1965"
-        ],
-        "work_date": [
-          "1963–64",
-          "1963–1964"
-        ],
-        "medium": [
-          "Stainless steel"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Cubi XV"],
+        "artist": ["David Smith"],
+        "artist_dates": ["1906–1965"],
+        "work_date": ["1963–64", "1963–1964"],
+        "medium": ["Stainless steel"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"
         ]
@@ -668,27 +438,13 @@
       "image_sha1_original": null,
       "sha256": "cab612348eb4ea2d102db739b766dee29394ad63d2031b0a615ff9e418f7bfb9",
       "expected": {
-        "title": [
-          "Figure for Landscape"
-        ],
-        "artist": [
-          "Barbara Hepworth"
-        ],
-        "artist_dates": [
-          "1903–1975"
-        ],
-        "work_date": [
-          "1960"
-        ],
-        "medium": [
-          "Bronze"
-        ],
-        "accession": [
-          null
-        ],
-        "credit_line": [
-          "The San Diego Museum of Art; Museum purchase, 1968"
-        ]
+        "title": ["Figure for Landscape"],
+        "artist": ["Barbara Hepworth"],
+        "artist_dates": ["1903–1975"],
+        "work_date": ["1960"],
+        "medium": ["Bronze"],
+        "accession": [null],
+        "credit_line": ["The San Diego Museum of Art; Museum purchase, 1968"]
       }
     },
     {
@@ -703,24 +459,12 @@
       "image_sha1_original": null,
       "sha256": "a79d190f36f380f39669dcf65bcab1732d0cb332ea38787ccbbb695de9d32a30",
       "expected": {
-        "title": [
-          "Reclining Figure: Arch Leg"
-        ],
-        "artist": [
-          "Henry Moore"
-        ],
-        "artist_dates": [
-          "1898–1986"
-        ],
-        "work_date": [
-          "1969"
-        ],
-        "medium": [
-          "Bronze"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Reclining Figure: Arch Leg"],
+        "artist": ["Henry Moore"],
+        "artist_dates": ["1898–1986"],
+        "work_date": ["1969"],
+        "medium": ["Bronze"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1971"
         ]
@@ -738,24 +482,12 @@
       "image_sha1_original": null,
       "sha256": "0d8bf719ac05f914ae78501e003ad1869aa9bab506454af8dedf581285a41730",
       "expected": {
-        "title": [
-          "Odyssey III"
-        ],
-        "artist": [
-          "Tony Rosenthal"
-        ],
-        "artist_dates": [
-          "1914–2009"
-        ],
-        "work_date": [
-          "1973"
-        ],
-        "medium": [
-          "Aluminum"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Odyssey III"],
+        "artist": ["Tony Rosenthal"],
+        "artist_dates": ["1914–2009"],
+        "work_date": ["1973"],
+        "medium": ["Aluminum"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Museum purchase with matching funds from the National Endowment for the Arts, 1974"
         ]
@@ -773,24 +505,12 @@
       "image_sha1_original": null,
       "sha256": "839f27f9dc781a990b2b2af57bcb41ca835e04f7937587730662de0556604fed",
       "expected": {
-        "title": [
-          "The Prodigal Son"
-        ],
-        "artist": [
-          "Auguste Rodin"
-        ],
-        "artist_dates": [
-          "1840–1917"
-        ],
-        "work_date": [
-          "1905"
-        ],
-        "medium": [
-          "Bronze"
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["The Prodigal Son"],
+        "artist": ["Auguste Rodin"],
+        "artist_dates": ["1840–1917"],
+        "work_date": ["1905"],
+        "medium": ["Bronze"],
+        "accession": [null],
         "credit_line": [
           "The San Diego Museum of Art; Museum purchase through the Earle W. Grant Acquisition Fund, 1975"
         ]
@@ -811,26 +531,12 @@
         "title": [
           "Presentación de Colón a los Reyes Católicos en el Salón del Tinell de Barcelona"
         ],
-        "artist": [
-          "Antonio Susillo"
-        ],
-        "artist_dates": [
-          "1857 - 1896",
-          "1857–1896",
-          "Sevilla 1857 - 1896"
-        ],
-        "work_date": [
-          "1893"
-        ],
-        "medium": [
-          null
-        ],
-        "accession": [
-          null
-        ],
-        "credit_line": [
-          "Donación Amigos del Museo (1993)"
-        ]
+        "artist": ["Antonio Susillo"],
+        "artist_dates": ["1857 - 1896", "1857–1896", "Sevilla 1857 - 1896"],
+        "work_date": ["1893"],
+        "medium": [null],
+        "accession": [null],
+        "credit_line": ["Donación Amigos del Museo (1993)"]
       }
     },
     {
@@ -845,26 +551,12 @@
       "image_sha1_original": null,
       "sha256": "93500d7259292483290c6f122417334173a3de1397dcfabef39b124c58e3ad00",
       "expected": {
-        "title": [
-          "Retrato de D. Alfonso XIII"
-        ],
-        "artist": [
-          "Gonzalo Bilbao"
-        ],
-        "artist_dates": [
-          "1860 - 1938",
-          "1860–1938",
-          "Sevilla 1860 - Madrid 1938"
-        ],
-        "work_date": [
-          "1929"
-        ],
-        "medium": [
-          null
-        ],
-        "accession": [
-          null
-        ],
+        "title": ["Retrato de D. Alfonso XIII"],
+        "artist": ["Gonzalo Bilbao"],
+        "artist_dates": ["1860 - 1938", "1860–1938", "Sevilla 1860 - Madrid 1938"],
+        "work_date": ["1929"],
+        "medium": [null],
+        "accession": [null],
         "credit_line": [
           "Depósito de la Exma. Diputación Provincial de Sevilla. (1934)",
           "Depósito de la Exma. Diputación Provincial de Sevilla (1934)"
@@ -883,30 +575,13 @@
       "image_sha1_original": null,
       "sha256": "8cfa642315f91b94debd805948e64f0642599671fd65dc0ea3217238fd5797c1",
       "expected": {
-        "title": [
-          "Hasta verte Cristo mío"
-        ],
-        "artist": [
-          "José García Ramos"
-        ],
-        "artist_dates": [
-          "1852–1912",
-          "1852 - 1912",
-          "Sevilla 1852–1912"
-        ],
-        "work_date": [
-          "1895"
-        ],
-        "medium": [
-          null
-        ],
-        "accession": [
-          null
-        ],
-        "credit_line": [
-          "Depósito del Museo del Prado(1962)",
-          "Depósito del Museo del Prado (1962)"
-        ]
+        "title": ["Hasta verte Cristo mío"],
+        "artist": ["José García Ramos"],
+        "artist_dates": ["1852–1912", "1852 - 1912", "Sevilla 1852–1912"],
+        "work_date": ["1895"],
+        "medium": [null],
+        "accession": [null],
+        "credit_line": ["Depósito del Museo del Prado(1962)", "Depósito del Museo del Prado (1962)"]
       }
     }
   ]

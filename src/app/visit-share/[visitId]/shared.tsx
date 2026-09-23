@@ -1,4 +1,4 @@
-import { VisitSharedScreen } from '@/components/visits/visit-share-flow';
+import { VisitSharedScreen } from "@/components/visits/visit-share-flow";
 
 export default function Route() {
   return <VisitSharedScreen />;

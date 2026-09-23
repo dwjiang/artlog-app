@@ -1,11 +1,11 @@
-import { getSetting, setSetting } from '@/db/repos/settings';
+import { getSetting, setSetting } from "@/db/repos/settings";
 
-export type MeasurementUnits = 'metric' | 'imperial';
-const KEY = 'measurement-units';
+export type MeasurementUnits = "metric" | "imperial";
+const KEY = "measurement-units";
 const listeners = new Set<(units: MeasurementUnits) => void>();
 
 export async function getMeasurementUnits(): Promise<MeasurementUnits> {
-  return await getSetting(KEY) === 'imperial' ? 'imperial' : 'metric';
+  return (await getSetting(KEY)) === "imperial" ? "imperial" : "metric";
 }
 
 export async function setMeasurementUnits(units: MeasurementUnits): Promise<void> {
@@ -15,5 +15,7 @@ export async function setMeasurementUnits(units: MeasurementUnits): Promise<void
 
 export function subscribeMeasurementUnits(listener: (units: MeasurementUnits) => void): () => void {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }

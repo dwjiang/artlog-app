@@ -1,2 +1,4 @@
-import { CaptureContextScreen } from '@/components/scan/capture-context-screen';
-export default function CaptureContextRoute() { return <CaptureContextScreen />; }
+import { CaptureContextScreen } from "@/components/scan/capture-context-screen";
+export default function CaptureContextRoute() {
+  return <CaptureContextScreen />;
+}

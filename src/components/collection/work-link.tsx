@@ -1,20 +1,27 @@
-import { Link } from 'expo-router';
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Link } from "expo-router";
+import type { ReactNode } from "react";
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 
-import type { SavedWork } from '@/db/schema';
+import type { SavedWork } from "@/db/schema";
 
 type WorkLinkProps = {
   visitId?: string;
-  work: Pick<SavedWork, 'localId' | 'title' | 'artist'>;
+  work: Pick<SavedWork, "localId" | "title" | "artist">;
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 };
 
 export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
   return (
-    <Link href={{ pathname: '/saved/[savedId]', params: { savedId: work.localId, visitId } }} asChild>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${work.title}, ${work.artist}`} style={StyleSheet.flatten(style)}>
+    <Link
+      href={{ pathname: "/saved/[savedId]", params: { savedId: work.localId, visitId } }}
+      asChild
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${work.title}, ${work.artist}`}
+        style={StyleSheet.flatten(style)}
+      >
         {children}
       </Pressable>
     </Link>

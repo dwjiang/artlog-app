@@ -4,22 +4,22 @@ version = "0.1.0"
 description = "Batch jobs that build and maintain the artlog index and write it to Convex"
 requires-python = ">=3.12"
 dependencies = [
-    "beautifulsoup4>=4.12,<5",
-    "convex>=0.7,<0.8",
-    "einops>=0.8.2",
-    "httpx>=0.28,<0.29",
-    "numpy>=2,<3",
-    "opencv-python-headless>=4.10,<5",
-    "pillow>=11,<12",
-    "pydantic>=2.9,<3",
-    "pydantic-settings>=2.6,<3",
-    "pyyaml>=6,<7",
-    "requests>=2.32,<3",
-    "scikit-learn>=1.7,<2",
-    "tenacity>=9,<10",
-    "timm>=1.0,<2",
-    "torch>=2.6,<3",
-    "torchvision>=0.21,<1",
+  "beautifulsoup4>=4.12,<5",
+  "convex>=0.7,<0.8",
+  "einops>=0.8.2",
+  "httpx>=0.28,<0.29",
+  "numpy>=2,<3",
+  "opencv-python-headless>=4.10,<5",
+  "pillow>=11,<12",
+  "pydantic>=2.9,<3",
+  "pydantic-settings>=2.6,<3",
+  "pyyaml>=6,<7",
+  "requests>=2.32,<3",
+  "scikit-learn>=1.7,<2",
+  "tenacity>=9,<10",
+  "timm>=1.0,<2",
+  "torch>=2.6,<3",
+  "torchvision>=0.21,<1",
 ]
 
 [dependency-groups]

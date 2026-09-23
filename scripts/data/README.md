@@ -22,14 +22,14 @@ runs with `caffeinate -i` to prevent idle sleep on macOS.
 Settings read the process environment, then the root `.env.local`. See
 [`.env.example`](../../.env.example) for placeholders; keep credentials out of git.
 
-| Variable | Purpose / default |
-| --- | --- |
-| `CONVEX_URL` | Target deployment URL; match the app's `EXPO_PUBLIC_CONVEX_URL` |
-| `CONVEX_DEPLOY_KEY` | Admin deploy key for that same deployment |
-| `SCRATCH_DIR` | Downloads, metadata, features, and checkpoints; defaults to `scripts/data/scratch` |
-| `DEVICE` | Torch device; defaults to MPS, then CUDA, then CPU, depending on availability |
-| `CRAWLER_CONTACT`, `USER_AGENT` | Optional crawler contact or full User-Agent override |
-| `LOG_LEVEL` | Defaults to `INFO` |
+| Variable                        | Purpose / default                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `CONVEX_URL`                    | Target deployment URL; match the app's `EXPO_PUBLIC_CONVEX_URL`                    |
+| `CONVEX_DEPLOY_KEY`             | Admin deploy key for that same deployment                                          |
+| `SCRATCH_DIR`                   | Downloads, metadata, features, and checkpoints; defaults to `scripts/data/scratch` |
+| `DEVICE`                        | Torch device; defaults to MPS, then CUDA, then CPU, depending on availability      |
+| `CRAWLER_CONTACT`, `USER_AGENT` | Optional crawler contact or full User-Agent override                               |
+| `LOG_LEVEL`                     | Defaults to `INFO`                                                                 |
 
 Before live jobs, confirm the target and deploy this workspace's backend functions.
 Worktrees share the dev deployment and can replace one another's function set.

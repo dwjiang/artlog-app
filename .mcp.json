@@ -7,12 +7,7 @@
     "convex": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "convex@latest",
-        "mcp",
-        "start"
-      ],
+      "args": ["-y", "convex@latest", "mcp", "start"],
       "env": {
         "CONVEX_DEPLOY_KEY": "",
         "CONVEX_DEPLOYMENT_TOKEN": ""
@@ -29,11 +24,7 @@
     "XcodeBuildMCP": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "xcodebuildmcp@latest",
-        "mcp"
-      ],
+      "args": ["-y", "xcodebuildmcp@latest", "mcp"],
       "env": {
         "XCODEBUILDMCP_ENABLED_WORKFLOWS": "simulator,ui-automation,debugging"
       }

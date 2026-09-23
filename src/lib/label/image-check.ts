@@ -1,8 +1,8 @@
-import { reportError } from '@/lib/observability';
-import { decodeOrbFeatures } from '@/shared/orb/features';
-import { verifyOrb } from '@/shared/orb/verify';
-import type { ImageCheck } from '../../../convex/lib/validators';
-import type { ScanFeatures } from '@/lib/capture/features';
+import { reportError } from "@/lib/observability";
+import { decodeOrbFeatures } from "@/shared/orb/features";
+import { verifyOrb } from "@/shared/orb/verify";
+import type { ImageCheck } from "../../../convex/lib/validators";
+import type { ScanFeatures } from "@/lib/capture/features";
 
 /** Mirrors `IMAGE_MATCH_COSINE` in convex/lib/labelVerify.ts: the server ignores checks below it. */
 export const IMAGE_MATCH_COSINE = 0.85;
@@ -19,7 +19,8 @@ export type ImageCheckDeps = {
 };
 
 export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): number {
-  if (a.length !== b.length) throw new Error(`Cannot compare vectors of ${a.length} and ${b.length} values`);
+  if (a.length !== b.length)
+    throw new Error(`Cannot compare vectors of ${a.length} and ${b.length} values`);
   let dot = 0;
   let normA = 0;
   let normB = 0;
@@ -53,8 +54,8 @@ export async function checkImages(
         const cosine = cosineSimilarity(scan.vector, await deps.embed(letterboxed));
         if (!best || cosine > best.cosine) best = { url, cosine, uri: letterboxed };
       } catch (error) {
-        reportError(error, 'label.check_museum_image', { level: 'warning' });
-        console.warn('Could not check a museum image', error);
+        reportError(error, "label.check_museum_image", { level: "warning" });
+        console.warn("Could not check a museum image", error);
       }
     }
     if (!best || best.cosine < IMAGE_MATCH_COSINE) return null;

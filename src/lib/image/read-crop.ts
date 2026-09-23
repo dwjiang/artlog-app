@@ -1,7 +1,7 @@
-import { File } from 'expo-file-system';
-import type { Mat } from 'react-native-fast-opencv';
+import { File } from "expo-file-system";
+import type { Mat } from "react-native-fast-opencv";
 
-import { loadOpenCV, type FastOpenCV } from './opencv';
+import { loadOpenCV, type FastOpenCV } from "./opencv";
 
 export type GrayImage = { gray: Mat; width: number; height: number };
 

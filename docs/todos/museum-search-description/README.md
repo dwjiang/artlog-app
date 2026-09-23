@@ -126,8 +126,8 @@ Each step ends with a check; stop and report on a mismatch instead of improvisin
 
 - [ ] `npx tsc --noEmit`, `npm run lint`, `npm run test:convex`, `npm run test:app` pass.
 - [ ] A miss at a venue with object pages reaches `stage: 'candidates'` on the dev
-  deployment and the phone confirms a page image (or reports `no_match`).
+      deployment and the phone confirms a page image (or reports `no_match`).
 - [ ] Spend counters reconcile: a capped day writes `{ stage: 'none', reason: 'cap' }`
-  without a model or search call.
+      without a model or search call.
 - [ ] README model table and `docs/hackathon/README.md` remain consistent.
 - [ ] Update this todo's status.

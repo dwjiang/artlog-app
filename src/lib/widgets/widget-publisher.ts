@@ -1,6 +1,6 @@
-import type { PreparedWidgetArtwork, WidgetArtwork } from './widget-collection';
-import { widgetPresentation, type WidgetPresentation } from './widget-layout';
-import type { WidgetSettings } from './widget-settings';
+import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
+import { widgetPresentation, type WidgetPresentation } from "./widget-layout";
+import type { WidgetSettings } from "./widget-settings";
 
 export const widgetRotationSeconds = 6 * 60 * 60;
 export function currentWidgetIndex(count: number, now = Date.now()): number {
@@ -15,8 +15,14 @@ export function createWidgetPublisher(dependencies: {
 }) {
   let generation = 0;
   return {
-    cancel() { generation++; },
-    async publish(owner: string, artworks: WidgetArtwork[], settings: WidgetSettings): Promise<PreparedWidgetArtwork[] | undefined> {
+    cancel() {
+      generation++;
+    },
+    async publish(
+      owner: string,
+      artworks: WidgetArtwork[],
+      settings: WidgetSettings,
+    ): Promise<PreparedWidgetArtwork[] | undefined> {
       const version = ++generation;
       const current = () => generation === version && owner === dependencies.currentOwner();
       const ready: PreparedWidgetArtwork[] = [];
@@ -27,7 +33,11 @@ export function createWidgetPublisher(dependencies: {
         if (prepared) ready.push(prepared);
       }
       if (!current()) return;
-      dependencies.write(ready.length ? ready.map((artwork) => widgetPresentation(artwork, settings)) : [widgetPresentation(undefined, settings)]);
+      dependencies.write(
+        ready.length
+          ? ready.map((artwork) => widgetPresentation(artwork, settings))
+          : [widgetPresentation(undefined, settings)],
+      );
       dependencies.prune(ready);
       return ready;
     },

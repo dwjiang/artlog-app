@@ -1,4 +1,3 @@
-
 import {
   applyHomography,
   isDegenerateSample,
@@ -6,9 +5,9 @@ import {
   type Point,
   ransacHomography,
   solveHomography,
-} from './homography';
-import type { Match } from './match';
-import { makeSyntheticPair } from './test-fixtures';
+} from "./homography";
+import type { Match } from "./match";
+import { makeSyntheticPair } from "./test-fixtures";
 
 const known = [1.1, 0.2, 30, -0.15, 0.95, -20, 2e-4, -1e-4, 1];
 const square: Point[] = [
@@ -30,8 +29,8 @@ function maxReprojectionError(H: ArrayLike<number>, truth: ArrayLike<number>): n
   return worst;
 }
 
-describe('solveHomography', () => {
-  it('recovers a known homography from four exact correspondences', () => {
+describe("solveHomography", () => {
+  it("recovers a known homography from four exact correspondences", () => {
     const dst = square.map(([x, y]) => applyHomography(known, x, y));
 
     const H = solveHomography(square, dst);
@@ -40,7 +39,7 @@ describe('solveHomography', () => {
     expect(maxReprojectionError(H!, known)).toBeLessThan(1e-6);
   });
 
-  it('returns null for collinear or coincident points', () => {
+  it("returns null for collinear or coincident points", () => {
     const line: Point[] = [
       [0, 0],
       [10, 10],
@@ -54,14 +53,19 @@ describe('solveHomography', () => {
       [5, 5],
     ];
 
-    expect(solveHomography(line, line.map(([x, y]) => applyHomography(known, x, y)))).toBeNull();
+    expect(
+      solveHomography(
+        line,
+        line.map(([x, y]) => applyHomography(known, x, y)),
+      ),
+    ).toBeNull();
     expect(solveHomography(same, square)).toBeNull();
     expect(solveHomography(square.slice(0, 3), square.slice(0, 3))).toBeNull();
   });
 });
 
-describe('applyHomography', () => {
-  it('returns NaN for a point that projects to infinity', () => {
+describe("applyHomography", () => {
+  it("returns NaN for a point that projects to infinity", () => {
     const [x, y] = applyHomography([1, 0, 0, 0, 1, 0, 0, 0, 0], 3, 4);
 
     expect(Number.isNaN(x)).toBe(true);
@@ -69,8 +73,8 @@ describe('applyHomography', () => {
   });
 });
 
-describe('isDegenerateSample', () => {
-  it('flags three collinear points and duplicates, accepts a general quadrilateral', () => {
+describe("isDegenerateSample", () => {
+  it("flags three collinear points and duplicates, accepts a general quadrilateral", () => {
     expect(isDegenerateSample(square)).toBe(false);
     expect(
       isDegenerateSample([
@@ -78,7 +82,7 @@ describe('isDegenerateSample', () => {
         [100, 100],
         [200, 200],
         [50, 300],
-      ])
+      ]),
     ).toBe(true);
     expect(
       isDegenerateSample([
@@ -86,7 +90,7 @@ describe('isDegenerateSample', () => {
         [0, 0],
         [200, 30],
         [50, 300],
-      ])
+      ]),
     ).toBe(true);
   });
 });
@@ -110,8 +114,8 @@ function matchesWithOutliers(seed: number, outlierFraction: number) {
   return { ...pair, matches, trueCount: pair.truth.correspondences.length };
 }
 
-describe('ransacHomography', () => {
-  it('recovers the homography under 30% outliers and 1 px noise', () => {
+describe("ransacHomography", () => {
+  it("recovers the homography under 30% outliers and 1 px noise", () => {
     const { ref, query, matches, truth, trueCount } = matchesWithOutliers(5, 0.3);
 
     const result = ransacHomography(matches, query, ref, { seed: 1 });
@@ -131,7 +135,7 @@ describe('ransacHomography', () => {
     expect(totalError / result.inlierCount).toBeLessThan(2);
   });
 
-  it('is byte-identical across runs with the same seed', () => {
+  it("is byte-identical across runs with the same seed", () => {
     const { ref, query, matches } = matchesWithOutliers(6, 0.3);
 
     const first = ransacHomography(matches, query, ref, { seed: 21 });
@@ -142,7 +146,7 @@ describe('ransacHomography', () => {
     expect(first.iterations).toBe(second.iterations);
   });
 
-  it('returns a null homography for fewer than four matches without throwing', () => {
+  it("returns a null homography for fewer than four matches without throwing", () => {
     const { ref, query, matches } = matchesWithOutliers(7, 0);
 
     const result = ransacHomography(matches.slice(0, 3), query, ref);
@@ -155,7 +159,7 @@ describe('ransacHomography', () => {
     });
   });
 
-  it('finds only a handful of inliers among unrelated matches', () => {
+  it("finds only a handful of inliers among unrelated matches", () => {
     const { ref, query } = makeSyntheticPair({ seed: 8, count: 200 });
     const rand = mulberry32(9);
     const matches: Match[] = Array.from({ length: 100 }, () => ({

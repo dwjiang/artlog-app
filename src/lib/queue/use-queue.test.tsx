@@ -1,6 +1,6 @@
-import { renderHook } from '@testing-library/react-native';
+import { renderHook } from "@testing-library/react-native";
 
-import type { PendingScan } from '@/db/schema';
+import type { PendingScan } from "@/db/schema";
 
 const mockAuth = { isAuthenticated: false };
 const mockStart = jest.fn();
@@ -9,14 +9,16 @@ const mockStartShares = jest.fn();
 const mockStopShares = jest.fn();
 let mockRows: Partial<PendingScan>[] = [];
 
-jest.mock('convex/react', () => ({ useConvexAuth: () => mockAuth }));
-jest.mock('drizzle-orm/expo-sqlite', () => ({ useLiveQuery: () => ({ data: mockRows }) }));
-jest.mock('@/db/repos/pending-scans', () => ({ pendingScansQuery: () => 'query' }));
-jest.mock('./queue', () => ({ startQueueFlusher: () => mockStart() }));
-jest.mock('@/lib/label/share-saved-label', () => ({ startPendingShareFlusher: () => mockStartShares() }));
+jest.mock("convex/react", () => ({ useConvexAuth: () => mockAuth }));
+jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: () => ({ data: mockRows }) }));
+jest.mock("@/db/repos/pending-scans", () => ({ pendingScansQuery: () => "query" }));
+jest.mock("./queue", () => ({ startQueueFlusher: () => mockStart() }));
+jest.mock("@/lib/label/share-saved-label", () => ({
+  startPendingShareFlusher: () => mockStartShares(),
+}));
 
-// eslint-disable-next-line import/first
-import { useQueue, useQueueFlusher } from './use-queue';
+// oxlint-disable-next-line import/first
+import { useQueue, useQueueFlusher } from "./use-queue";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -25,14 +27,19 @@ beforeEach(() => {
   mockStartShares.mockReturnValue(mockStopShares);
 });
 
-it('counts queued and identifying rows as pending while keeping failed and ready scans listed', async () => {
-  mockRows = [{ owner: 'device:test-installation', localId: 'a', status: 'queued' }, { owner: 'device:test-installation', localId: 'b', status: 'identifying' }, { owner: 'device:test-installation', localId: 'c', status: 'failed' }, { owner: 'device:test-installation', localId: 'd', status: 'identified' }];
+it("counts queued and identifying rows as pending while keeping failed and ready scans listed", async () => {
+  mockRows = [
+    { owner: "device:test-installation", localId: "a", status: "queued" },
+    { owner: "device:test-installation", localId: "b", status: "identifying" },
+    { owner: "device:test-installation", localId: "c", status: "failed" },
+    { owner: "device:test-installation", localId: "d", status: "identified" },
+  ];
   const hook = await renderHook(useQueue);
   expect(hook.result.current.pending).toBe(2);
-  expect(hook.result.current.items.map((row) => row.localId)).toEqual(['a', 'b', 'c', 'd']);
+  expect(hook.result.current.items.map((row) => row.localId)).toEqual(["a", "b", "c", "d"]);
 });
 
-it('starts the scan and share flushers only once the session is authenticated and stops both on unmount', async () => {
+it("starts the scan and share flushers only once the session is authenticated and stops both on unmount", async () => {
   const hook = await renderHook(useQueueFlusher);
   expect(mockStart).not.toHaveBeenCalled();
   expect(mockStartShares).not.toHaveBeenCalled();

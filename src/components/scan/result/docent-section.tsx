@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import type { DocentSentence, FactChip } from '../../../../convex/lib/validators';
+import type { DocentSentence, FactChip } from "../../../../convex/lib/validators";
 
-import { SourceChip } from './source-chip';
-import { ThemedText } from '@/components/themed-text';
-import { HighlightHeading } from '@/components/highlight-heading';
-import { Spacing } from '@/constants/theme';
-import { ParagraphSkeleton } from '@/components/loading-skeleton';
+import { SourceChip } from "./source-chip";
+import { ThemedText } from "@/components/themed-text";
+import { HighlightHeading } from "@/components/highlight-heading";
+import { Spacing } from "@/constants/theme";
+import { ParagraphSkeleton } from "@/components/loading-skeleton";
 
 /** How long to wait before explaining that background information is unavailable. */
 export const DOCENT_WAIT_MS = 10_000;
@@ -38,7 +38,11 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
       {title ? <HighlightHeading>{title}</HighlightHeading> : null}
       {waiting ? (
         <ParagraphSkeleton />
-      ) : !docent?.length ? <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText> : (
+      ) : !docent?.length ? (
+        <ThemedText themeColor="textSecondary">
+          Background information isn’t available for this work yet.
+        </ThemedText>
+      ) : (
         <View style={styles.prose}>
           {docent?.map((line, index) => {
             const chips = new Map<string, FactChip>();
@@ -51,7 +55,13 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
                 <ThemedText>{line.sentence}</ThemedText>
                 {chips.size > 0 && (
                   <View style={styles.chips}>
-                    {[...chips.values()].map((chip) => <SourceChip key={chip.sourceUrl} label={chip.sourceLabel} url={chip.sourceUrl} />)}
+                    {[...chips.values()].map((chip) => (
+                      <SourceChip
+                        key={chip.sourceUrl}
+                        label={chip.sourceLabel}
+                        url={chip.sourceUrl}
+                      />
+                    ))}
                   </View>
                 )}
               </View>
@@ -67,5 +77,5 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.two, paddingTop: Spacing.one },
   prose: { gap: Spacing.two },
   sentence: { gap: Spacing.one },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two },
 });

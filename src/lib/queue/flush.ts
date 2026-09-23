@@ -1,14 +1,14 @@
-import { reportError, addBreadcrumb } from '@/lib/observability';
-import type { FunctionArgs } from 'convex/server';
+import { reportError, addBreadcrumb } from "@/lib/observability";
+import type { FunctionArgs } from "convex/server";
 
-import type { api } from '../../../convex/_generated/api';
-import type { Id } from '../../../convex/_generated/dataModel';
-import type { PendingScan, PendingScanStatus } from '@/db/schema';
-import type { ScanFeatures } from '@/lib/capture/features';
-import type { IdentifyResponse } from '@/lib/capture/stages';
-import { errorMessage, isTransientError, rateLimitRetryAfterMs } from '@/lib/network-error';
+import type { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { PendingScan, PendingScanStatus } from "@/db/schema";
+import type { ScanFeatures } from "@/lib/capture/features";
+import type { IdentifyResponse } from "@/lib/capture/stages";
+import { errorMessage, isTransientError, rateLimitRetryAfterMs } from "@/lib/network-error";
 
-export type IdentifyArgs = Omit<FunctionArgs<typeof api.identify.identify>, 'scope'>;
+export type IdentifyArgs = Omit<FunctionArgs<typeof api.identify.identify>, "scope">;
 export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 
 export type FlushDependencies = {
@@ -17,7 +17,7 @@ export type FlushDependencies = {
   listFlushable(modelVersion: string): Promise<PendingScan[]>;
   listPendingLabels(): Promise<PendingScan[]>;
   clearPendingLabel(localId: string, label: LabelInput): Promise<void>;
-  recordLabelFailure: FlushDependencies['recordFailure'];
+  recordLabelFailure: FlushDependencies["recordFailure"];
   markIdentifying(localId: string): Promise<void>;
   recordResult(localId: string, response: IdentifyResponse): Promise<void>;
   recordFailure(
@@ -27,9 +27,9 @@ export type FlushDependencies = {
   ): Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
   updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
-  resolveVisitId(localId: string, venueId: Id<'museums'>): Promise<Id<'visits'>>;
+  resolveVisitId(localId: string, venueId: Id<"museums">): Promise<Id<"visits">>;
   identify(args: IdentifyArgs): Promise<IdentifyResponse>;
-  runLabelFlow(scanId: Id<'scans'>, label: LabelInput): Promise<void>;
+  runLabelFlow(scanId: Id<"scans">, label: LabelInput): Promise<void>;
   reembed(cropPath: string): Promise<ScanFeatures>;
   isOnline(): Promise<boolean>;
   modelVersion: string;
@@ -59,10 +59,13 @@ export function createFlusher(deps: FlushDependencies): Flusher {
 
   function scheduleRetry(delayMs: number): void {
     clearTimeout(retryTimer);
-    retryTimer = setTimeout(() => {
-      retryTimer = undefined;
-      void flush();
-    }, Math.max(0, delayMs));
+    retryTimer = setTimeout(
+      () => {
+        retryTimer = undefined;
+        void flush();
+      },
+      Math.max(0, delayMs),
+    );
   }
 
   async function processRow(row: PendingScan, isCurrent: () => boolean): Promise<void> {
@@ -71,7 +74,10 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       if (!isCurrent()) return;
     }
     let features: ScanFeatures & { modelVersion: string } = {
-      vector: row.vector, descriptors: row.descriptors, keypoints: row.keypoints, modelVersion: row.modelVersion,
+      vector: row.vector,
+      descriptors: row.descriptors,
+      keypoints: row.keypoints,
+      modelVersion: row.modelVersion,
     };
     if (row.modelVersion !== deps.modelVersion) {
       features = { ...(await deps.reembed(row.cropPath)), modelVersion: deps.modelVersion };
@@ -80,30 +86,45 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     }
     let visitId = row.visitId ?? undefined;
     if (row.visitLocalId) {
-      if (!row.venueId) throw new Error('The capture visit is missing its venue');
+      if (!row.venueId) throw new Error("The capture visit is missing its venue");
       visitId = await deps.resolveVisitId(row.visitLocalId, row.venueId);
     }
     if (!isCurrent()) return;
     await deps.markIdentifying(row.localId);
     if (!isCurrent()) {
-      await deps.recordFailure(row.localId, 'Identification interrupted', { countAttempt: false });
+      await deps.recordFailure(row.localId, "Identification interrupted", { countAttempt: false });
       return;
     }
     const response = await deps.identify({
-      localId: row.localId, ...features,
-      venueId: row.venueId ?? undefined, visitId, capturedAt: row.capturedAt,
+      localId: row.localId,
+      ...features,
+      venueId: row.venueId ?? undefined,
+      visitId,
+      capturedAt: row.capturedAt,
     });
     if (!isCurrent()) return;
     await deps.recordResult(row.localId, response);
-    const label: LabelInput = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
-    if (response.status === 'identified' && response.outcome === 'confident' && !deps.isLabelCapture?.(row) && isCurrent() && (label.labelPhotoPath || label.qrUrl)) {
+    const label: LabelInput = {
+      labelPhotoPath: row.labelPhotoPath ?? undefined,
+      qrUrl: row.qrUrl ?? undefined,
+    };
+    if (
+      response.status === "identified" &&
+      response.outcome === "confident" &&
+      !deps.isLabelCapture?.(row) &&
+      isCurrent() &&
+      (label.labelPhotoPath || label.qrUrl)
+    ) {
       await deps.clearPendingLabel(row.localId, label);
     }
   }
 
   async function processLabel(row: PendingScan, isCurrent: () => boolean): Promise<void> {
     if (!row.scanId) return;
-    const label = { labelPhotoPath: row.labelPhotoPath ?? undefined, qrUrl: row.qrUrl ?? undefined };
+    const label = {
+      labelPhotoPath: row.labelPhotoPath ?? undefined,
+      qrUrl: row.qrUrl ?? undefined,
+    };
     await deps.runLabelFlow(row.scanId, label);
     if (isCurrent()) await deps.clearPendingLabel(row.localId, label);
   }
@@ -114,7 +135,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     const ids = new Set<string>();
     let nextRetryAt = Infinity;
     async function runRows(rows: PendingScan[], task: keyof typeof backoff): Promise<void> {
-      const labelTask = task === 'label';
+      const labelTask = task === "label";
       const taskBackoff = backoff[task];
       for (const row of rows) ids.add(`${task}:${row.localId}`);
       if (rows.length && taskBackoff.pauseUntil > Date.now()) {
@@ -140,15 +161,22 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           if (!isCurrent()) return;
           const transient = isTransientError(error);
           const recordFailure = labelTask ? deps.recordLabelFailure : deps.recordFailure;
-          const { status, attempts } = await recordFailure(row.localId, errorMessage(error), { countAttempt: !transient });
+          const { status, attempts } = await recordFailure(row.localId, errorMessage(error), {
+            countAttempt: !transient,
+          });
           if (!transient) reportError(error, `queue.${task}`, { data: { attempts, status } });
           if (transient) {
-            addBreadcrumb('queue.paused', { task, reason: 'transient_failure' });
-            taskBackoff.pauseUntil = Date.now() + Math.max(backoffMs(++taskBackoff.transientFailures), rateLimitRetryAfterMs(error) ?? 0);
+            addBreadcrumb("queue.paused", { task, reason: "transient_failure" });
+            taskBackoff.pauseUntil =
+              Date.now() +
+              Math.max(
+                backoffMs(++taskBackoff.transientFailures),
+                rateLimitRetryAfterMs(error) ?? 0,
+              );
             nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
             return;
           }
-          if (status === 'queued') {
+          if (status === "queued") {
             const deadline = Date.now() + backoffMs(attempts);
             retryAt.set(key, deadline);
             nextRetryAt = Math.min(nextRetryAt, deadline);
@@ -158,10 +186,10 @@ export function createFlusher(deps: FlushDependencies): Flusher {
         }
       }
     }
-    await runRows(await deps.listFlushable(deps.modelVersion), 'identify');
+    await runRows(await deps.listFlushable(deps.modelVersion), "identify");
     if (isCurrent()) {
       // Read again after identification so labels attached while identify was in flight are included.
-      await runRows(await deps.listPendingLabels(), 'label');
+      await runRows(await deps.listPendingLabels(), "label");
       for (const id of retryAt.keys()) if (!ids.has(id)) retryAt.delete(id);
     }
     if (isCurrent() && nextRetryAt !== Infinity) scheduleRetry(nextRetryAt - Date.now());
@@ -183,8 +211,8 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           await run(() => active && generation === runGeneration && (deps.isCurrent?.() ?? true));
         } while (active && rerun);
       } catch (error) {
-        reportError(error, 'queue.flush');
-        console.warn('Queue flush failed', error);
+        reportError(error, "queue.flush");
+        console.warn("Queue flush failed", error);
       } finally {
         inFlight = undefined;
       }

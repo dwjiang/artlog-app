@@ -8,14 +8,14 @@ the submission eligible.
 
 ## Event facts
 
-| Item | Value |
-|---|---|
-| Submission period | 2026-08-26 09:00 PT to **2026-10-30 10:00 PT** |
-| Judging | 2026-12-01 09:00 PT to 2026-12-15 12:00 PT; winners on or around 2027-01-11 |
-| Track | **Best Apps and Agents**: "Build any app or agent someone would actually use, from a productivity tool or copilot to a workflow that runs itself." |
-| Bonus award | **Best Use of Tavily** ($3,000): "a functional, runtime call to the Tavily API as part of its solution" |
-| Other awards | Grand $20,000, 2nd $10,000, 3rd $6,000, track winners (Jetson Orin Nano), City Winner ($500, 20), Most Valuable Feedback ($100, 10). One project may win one Overall or Track award plus one Bonus award |
-| Project start | Repository created 2026-09-07, inside the submission period, so no prior-work disclosure is needed as long as that stays true |
+| Item              | Value                                                                                                                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Submission period | 2026-08-26 09:00 PT to **2026-10-30 10:00 PT**                                                                                                                                                           |
+| Judging           | 2026-12-01 09:00 PT to 2026-12-15 12:00 PT; winners on or around 2027-01-11                                                                                                                              |
+| Track             | **Best Apps and Agents**: "Build any app or agent someone would actually use, from a productivity tool or copilot to a workflow that runs itself."                                                       |
+| Bonus award       | **Best Use of Tavily** ($3,000): "a functional, runtime call to the Tavily API as part of its solution"                                                                                                  |
+| Other awards      | Grand $20,000, 2nd $10,000, 3rd $6,000, track winners (Jetson Orin Nano), City Winner ($500, 20), Most Valuable Feedback ($100, 10). One project may win one Overall or Track award plus one Bonus award |
+| Project start     | Repository created 2026-09-07, inside the submission period, so no prior-work disclosure is needed as long as that stays true                                                                            |
 
 ## Hard requirements
 

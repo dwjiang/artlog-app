@@ -1,6 +1,6 @@
-import * as AppIntegrity from '@expo/app-integrity';
+import * as AppIntegrity from "@expo/app-integrity";
 
-export const APP_ATTEST_KEY_ID = 'appAttestKeyId';
+export const APP_ATTEST_KEY_ID = "appAttestKeyId";
 
 export type AppAttest = {
   isSupported(): boolean;

@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { GalleryButton } from '@/components/collection/gallery-button';
-import { StyleSheet, View } from 'react-native';
+import { useState } from "react";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { StyleSheet, View } from "react-native";
 
-import type { LabelFieldName, LabelWarning } from '../../../../convex/lib/validators';
+import type { LabelFieldName, LabelWarning } from "../../../../convex/lib/validators";
 
-import { FieldInput } from '../field-input';
-import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
-import { LABEL_FIELD_LABELS, WARNING_MESSAGES, type LabelFormState } from '@/lib/label/fields';
+import { FieldInput } from "../field-input";
+import { ThemedText } from "@/components/themed-text";
+import { Colors, Spacing } from "@/constants/theme";
+import { LABEL_FIELD_LABELS, WARNING_MESSAGES, type LabelFormState } from "@/lib/label/fields";
 
 export type VerifiedFieldsFormProps = {
   state: LabelFormState;
@@ -16,14 +16,29 @@ export type VerifiedFieldsFormProps = {
   onChange: (name: LabelFieldName, value: string) => void;
 };
 
-export function VerifiedFieldsForm({ state, warnings, editable, onChange }: VerifiedFieldsFormProps) {
+export function VerifiedFieldsForm({
+  state,
+  warnings,
+  editable,
+  onChange,
+}: VerifiedFieldsFormProps) {
   const [more, setMore] = useState(false);
-  const names: LabelFieldName[] = ['title', 'artist', 'date', 'medium', ...(more ? ['accession', 'creditLine'] as const : [])];
+  const names: LabelFieldName[] = [
+    "title",
+    "artist",
+    "date",
+    "medium",
+    ...(more ? (["accession", "creditLine"] as const) : []),
+  ];
   return (
     <View style={styles.form}>
       {warnings.length > 0 && (
         <View accessible accessibilityRole="alert" style={styles.warnings}>
-          {warnings.map((warning) => <ThemedText key={warning} type="small">{WARNING_MESSAGES[warning]}</ThemedText>)}
+          {warnings.map((warning) => (
+            <ThemedText key={warning} type="small">
+              {WARNING_MESSAGES[warning]}
+            </ThemedText>
+          ))}
         </View>
       )}
       {names.map((name) => {
@@ -32,16 +47,27 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange }: Veri
         return (
           <View key={name} style={styles.field}>
             <View style={styles.header}>
-              <ThemedText type="small" themeColor="textSecondary">{label}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {label}
+              </ThemedText>
             </View>
             <View style={styles.inputRow}>
-              <FieldInput label={label} defaultValue={field.value} editable={editable} style={styles.input}
-                autoCapitalize={name === 'date' || name === 'accession' ? 'none' : 'words'} onChangeText={(value) => onChange(name, value)} />
+              <FieldInput
+                label={label}
+                defaultValue={field.value}
+                editable={editable}
+                style={styles.input}
+                autoCapitalize={name === "date" || name === "accession" ? "none" : "words"}
+                onChangeText={(value) => onChange(name, value)}
+              />
             </View>
           </View>
         );
       })}
-      <GalleryButton label={more ? 'Fewer details' : 'More details'} onPress={() => setMore((value) => !value)} />
+      <GalleryButton
+        label={more ? "Fewer details" : "More details"}
+        onPress={() => setMore((value) => !value)}
+      />
     </View>
   );
 }
@@ -49,11 +75,15 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange }: Veri
 const styles = StyleSheet.create({
   form: { gap: Spacing.three },
   warnings: {
-    gap: Spacing.one, padding: Spacing.three, borderRadius: Spacing.two, borderLeftWidth: 3,
-    borderLeftColor: Colors.light.warning, backgroundColor: Colors.light.backgroundElement,
+    gap: Spacing.one,
+    padding: Spacing.three,
+    borderRadius: Spacing.two,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.light.warning,
+    backgroundColor: Colors.light.backgroundElement,
   },
   field: { gap: Spacing.one },
-  header: { alignItems: 'flex-start', gap: Spacing.one },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  header: { alignItems: "flex-start", gap: Spacing.one },
+  inputRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   input: { flex: 1 },
 });

@@ -1,11 +1,11 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from "react-native";
 
-import type { RightNowCard } from '../../../../convex/lib/validators';
+import type { RightNowCard } from "../../../../convex/lib/validators";
 
-import { SourceChip } from './source-chip';
-import { ThemedText } from '@/components/themed-text';
-import { HighlightHeading } from '@/components/highlight-heading';
-import { Gallery, Spacing } from '@/constants/theme';
+import { SourceChip } from "./source-chip";
+import { ThemedText } from "@/components/themed-text";
+import { HighlightHeading } from "@/components/highlight-heading";
+import { Gallery, Spacing } from "@/constants/theme";
 
 /** A web-sourced line about the artist, labelled so it reads as a different kind of claim. */
 export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {
@@ -20,5 +20,10 @@ export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two, paddingTop: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
+  section: {
+    gap: Spacing.two,
+    paddingTop: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Gallery.separator,
+  },
 });

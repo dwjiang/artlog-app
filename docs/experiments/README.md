@@ -181,21 +181,21 @@ are context, not resources created by the probes:
 `project-e00e99pgpr007wyskm60bb` in `eu-north1`,
 `tenant-e00zsd0b8gb0g2c66g`, and `vpcsubnet-e00nvse36bxzs46x2m`.
 
-| Probe resource | Recorded ID |
-| --- | --- |
-| Scratch bucket `artlog-scratch` | `storagebucket-e007391623532510352106` |
-| Service account `artlog-jobs-sa` | `serviceaccount-e00bryft11k8ek0qs9` |
-| Group `artlog-jobs` | `group-e00a015x4pjexywxcb` |
-| Project editor permit for the group | `accesspermit-e00s6vs5wygzxmad6v` |
-| Service-account group membership | `groupmembership-e00yt3qwt7m6hmpv07` |
-| S3 access key `artlog-scratch-s3` | `accesskey-e00j6txnxsmq2h6w8z` |
-| Secret created with the access key | `mbsec-e00gw97dkda15bb9gm` |
-| Mount secret `artlog-scratch-s3` | `mbsec-e00xz63wx5x9tnkym8` |
-| Mount secret version with the required S3 fields | `mbsecver-e00xt7vcv7fsegscdb` |
-| REST probe authorized key (recorded September 10 expiry) | `publickey-e00vh7f19v9m88p9bf` |
-| Completed GPU probe | `aijob-e00rf43r04r7k04gs5` |
-| Completed bucket-ID mount probe | `aijob-e00qayrgs3n2x2bc8n` |
-| Completed S3 mount probe | `aijob-e00r5qetvwz0301ss5` |
+| Probe resource                                           | Recorded ID                            |
+| -------------------------------------------------------- | -------------------------------------- |
+| Scratch bucket `artlog-scratch`                          | `storagebucket-e007391623532510352106` |
+| Service account `artlog-jobs-sa`                         | `serviceaccount-e00bryft11k8ek0qs9`    |
+| Group `artlog-jobs`                                      | `group-e00a015x4pjexywxcb`             |
+| Project editor permit for the group                      | `accesspermit-e00s6vs5wygzxmad6v`      |
+| Service-account group membership                         | `groupmembership-e00yt3qwt7m6hmpv07`   |
+| S3 access key `artlog-scratch-s3`                        | `accesskey-e00j6txnxsmq2h6w8z`         |
+| Secret created with the access key                       | `mbsec-e00gw97dkda15bb9gm`             |
+| Mount secret `artlog-scratch-s3`                         | `mbsec-e00xz63wx5x9tnkym8`             |
+| Mount secret version with the required S3 fields         | `mbsecver-e00xt7vcv7fsegscdb`          |
+| REST probe authorized key (recorded September 10 expiry) | `publickey-e00vh7f19v9m88p9bf`         |
+| Completed GPU probe                                      | `aijob-e00rf43r04r7k04gs5`             |
+| Completed bucket-ID mount probe                          | `aijob-e00qayrgs3n2x2bc8n`             |
+| Completed S3 mount probe                                 | `aijob-e00r5qetvwz0301ss5`             |
 
 ## Calibrator v2
 

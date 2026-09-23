@@ -1,92 +1,287 @@
-import { reportError } from '@/lib/observability';
-import { EmptyState } from '../empty-state';
-import { LoadingRing } from '../loading-ring';
-import { ThemedText as Text } from '@/components/themed-text';
-import { Image } from 'expo-image';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Gallery } from '@/constants/theme';
-import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from '@/db/repos/artwork-album';
-import { listVisits } from '@/db/repos/visits';
-import type { SavedWork } from '@/db/schema';
-import { formatVisitDate } from '@/lib/journal/history';
-import { showToast } from '@/lib/ui/toast';
-import { GalleryButton } from './gallery-button';
-import { NoteHeading } from './note-editor';
+import { reportError } from "@/lib/observability";
+import { EmptyState } from "../empty-state";
+import { LoadingRing } from "../loading-ring";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Image } from "expo-image";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Gallery } from "@/constants/theme";
+import {
+  editEncounter,
+  selectArtworkEncounters,
+  selectArtworkPhotos,
+} from "@/db/repos/artwork-album";
+import { listVisits } from "@/db/repos/visits";
+import type { SavedWork } from "@/db/schema";
+import { formatVisitDate } from "@/lib/journal/history";
+import { showToast } from "@/lib/ui/toast";
+import { GalleryButton } from "./gallery-button";
+import { NoteHeading } from "./note-editor";
 
 export function useArtworkEncounters(work: SavedWork) {
   const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
   const visits = useLiveQuery(listVisits(work.owner), [work.owner]);
-  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
+  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
+    work.localId,
+    work.owner,
+  ]);
   const queryError = encounters.error ?? visits.error ?? photos.error;
-  useEffect(() => { if (queryError) reportError(queryError, 'collection.encounters.load'); }, [queryError]);
-  const rows = visits.data.filter((visit) => visit.owner === work.owner).flatMap((visit) => {
-    const encounter = encounters.data.find((row) => row.owner === work.owner && row.savedLocalId === work.localId && row.visitLocalId === visit.localId && row.deletedAt === null);
-    return encounter ? [{ visit, note: encounter.note, photoCount: photos.data.filter((photo) => photo.owner === work.owner && photo.savedLocalId === work.localId && photo.visitLocalId === visit.localId).length }] : [];
-  });
-  return { encounters: rows, loading: !visits.updatedAt || !encounters.updatedAt, error: visits.error ?? encounters.error };
+  useEffect(() => {
+    if (queryError) reportError(queryError, "collection.encounters.load");
+  }, [queryError]);
+  const rows = visits.data
+    .filter((visit) => visit.owner === work.owner)
+    .flatMap((visit) => {
+      const encounter = encounters.data.find(
+        (row) =>
+          row.owner === work.owner &&
+          row.savedLocalId === work.localId &&
+          row.visitLocalId === visit.localId &&
+          row.deletedAt === null,
+      );
+      return encounter
+        ? [
+            {
+              visit,
+              note: encounter.note,
+              photoCount: photos.data.filter(
+                (photo) =>
+                  photo.owner === work.owner &&
+                  photo.savedLocalId === work.localId &&
+                  photo.visitLocalId === visit.localId,
+              ).length,
+            },
+          ]
+        : [];
+    });
+  return {
+    encounters: rows,
+    loading: !visits.updatedAt || !encounters.updatedAt,
+    error: visits.error ?? encounters.error,
+  };
 }
 
-type Encounter = ReturnType<typeof useArtworkEncounters>['encounters'][number];
+type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
-  const [editing, setEditing] = useState(false), [note, setNote] = useState(''), [error, setError] = useState<string>();
-  return <View style={styles.context}>
-    <NoteHeading title="Note from this visit">
-      {!editing && <GalleryButton label={encounter.note ? 'Edit' : 'Add'} accessibilityLabel={encounter.note ? 'Edit encounter note' : 'Add an encounter note'}
-        onPress={() => { setNote(encounter.note ?? ''); setEditing(true); }} />}
-    </NoteHeading>
-    {editing ? <>
-      <TextInput accessibilityLabel="Private encounter note" value={note} onChangeText={setNote} multiline maxLength={2000}
-        placeholder="Add a note about this visit…" placeholderTextColor={Gallery.muted} style={styles.input} />
-      <View style={styles.actions}>
-        <GalleryButton label="Save encounter note" onPress={() => {
-          try { editEncounter(work.localId, encounter.visit.localId, { note }, work.owner); setEditing(false); setError(undefined); showToast('Private note saved for this encounter.'); }
-          catch (cause) { reportError(cause, 'collection.encounter.note.save'); setError('Your note could not be saved. Try again.'); }
-        }} />
-        <GalleryButton label="Cancel" onPress={() => { setEditing(false); setError(undefined); }} />
-      </View>
-    </> : !!encounter.note && <Text selectable style={styles.note}>{encounter.note}</Text>}
-    {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
-  </View>;
+  const [editing, setEditing] = useState(false),
+    [note, setNote] = useState(""),
+    [error, setError] = useState<string>();
+  return (
+    <View style={styles.context}>
+      <NoteHeading title="Note from this visit">
+        {!editing && (
+          <GalleryButton
+            label={encounter.note ? "Edit" : "Add"}
+            accessibilityLabel={encounter.note ? "Edit encounter note" : "Add an encounter note"}
+            onPress={() => {
+              setNote(encounter.note ?? "");
+              setEditing(true);
+            }}
+          />
+        )}
+      </NoteHeading>
+      {editing ? (
+        <>
+          <TextInput
+            accessibilityLabel="Private encounter note"
+            value={note}
+            onChangeText={setNote}
+            multiline
+            maxLength={2000}
+            placeholder="Add a note about this visit…"
+            placeholderTextColor={Gallery.muted}
+            style={styles.input}
+          />
+          <View style={styles.actions}>
+            <GalleryButton
+              label="Save encounter note"
+              onPress={() => {
+                try {
+                  editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
+                  setEditing(false);
+                  setError(undefined);
+                  showToast("Private note saved for this encounter.");
+                } catch (cause) {
+                  reportError(cause, "collection.encounter.note.save");
+                  setError("Your note could not be saved. Try again.");
+                }
+              }}
+            />
+            <GalleryButton
+              label="Cancel"
+              onPress={() => {
+                setEditing(false);
+                setError(undefined);
+              }}
+            />
+          </View>
+        </>
+      ) : (
+        !!encounter.note && (
+          <Text selectable style={styles.note}>
+            {encounter.note}
+          </Text>
+        )
+      )}
+      {error && (
+        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+          {error}
+        </Text>
+      )}
+    </View>
+  );
 }
 
 /** One row per visit the artwork was seen on, each opening that visit in the journal. */
-export function ArtworkEncounterList({ work, encounters, visitId, loading, loadError }: { work: SavedWork; encounters: Encounter[]; visitId?: string; loading?: boolean; loadError?: Error }) {
+export function ArtworkEncounterList({
+  work,
+  encounters,
+  visitId,
+  loading,
+  loadError,
+}: {
+  work: SavedWork;
+  encounters: Encounter[];
+  visitId?: string;
+  loading?: boolean;
+  loadError?: Error;
+}) {
   const [error, setError] = useState<string>();
   const current = encounters.find(({ visit }) => visit.localId === visitId);
-  return <View>
-    {encounters.map(({ visit }) => <Pressable key={visit.localId} accessibilityRole="button"
-      accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
-      onPress={() => router.push({ pathname: '/journal/[visitId]', params: { visitId: visit.localId } })} style={styles.visit}>
-      <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={{ width: 16, height: 16 }} accessible={false} />
-      <Text style={styles.visitName} numberOfLines={2}>{visit.venueName}</Text><Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
-      <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
-    </Pressable>)}
-    {!encounters.length && (loadError ? <Text accessibilityRole="alert" style={styles.caption}>Visits couldn’t load. Close and reopen this artwork to try again.</Text>
-      : loading ? <LoadingRing accessibilityLabel="Loading artwork visits…" />
-        : <EmptyState compact title="No linked visits." detail="This artwork was saved without a visit. Link one to remember where you saw it.">
-          <GalleryButton label="Link a visit" icon="plus" onPress={() => router.push({ pathname: '/link-artwork', params: { savedId: work.localId } })} />
-        </EmptyState>)}
-    {current && <GalleryButton label="Unlink from this visit" onPress={() => Alert.alert('Unlink this visit?', 'Your artwork, photos, and visit stay in your journal.', [
-      { text: 'Cancel', style: 'cancel' }, { text: 'Unlink', onPress: () => {
-        try { editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner); router.replace({ pathname: '/saved/[savedId]', params: { savedId: work.localId } }); }
-        catch (cause) { reportError(cause, 'collection.encounter.unlink'); setError('This visit could not be unlinked. Try again.'); }
-      } },
-    ])} />}
-    {error && <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>{error}</Text>}
-  </View>;
+  return (
+    <View>
+      {encounters.map(({ visit }) => (
+        <Pressable
+          key={visit.localId}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
+          onPress={() =>
+            router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })
+          }
+          style={styles.visit}
+        >
+          <Image
+            source="sf:mappin.and.ellipse"
+            tintColor={Gallery.ink}
+            style={{ width: 16, height: 16 }}
+            accessible={false}
+          />
+          <Text style={styles.visitName} numberOfLines={2}>
+            {visit.venueName}
+          </Text>
+          <Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
+          <Image
+            source="sf:chevron.right"
+            tintColor={Gallery.muted}
+            style={{ width: 13, height: 13 }}
+            accessible={false}
+          />
+        </Pressable>
+      ))}
+      {!encounters.length &&
+        (loadError ? (
+          <Text accessibilityRole="alert" style={styles.caption}>
+            Visits couldn’t load. Close and reopen this artwork to try again.
+          </Text>
+        ) : loading ? (
+          <LoadingRing accessibilityLabel="Loading artwork visits…" />
+        ) : (
+          <EmptyState
+            compact
+            title="No linked visits."
+            detail="This artwork was saved without a visit. Link one to remember where you saw it."
+          >
+            <GalleryButton
+              label="Link a visit"
+              icon="plus"
+              onPress={() =>
+                router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })
+              }
+            />
+          </EmptyState>
+        ))}
+      {current && (
+        <GalleryButton
+          label="Unlink from this visit"
+          onPress={() =>
+            Alert.alert(
+              "Unlink this visit?",
+              "Your artwork, photos, and visit stay in your journal.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Unlink",
+                  onPress: () => {
+                    try {
+                      editEncounter(
+                        work.localId,
+                        current.visit.localId,
+                        { deletedAt: Date.now() },
+                        work.owner,
+                      );
+                      router.replace({
+                        pathname: "/saved/[savedId]",
+                        params: { savedId: work.localId },
+                      });
+                    } catch (cause) {
+                      reportError(cause, "collection.encounter.unlink");
+                      setError("This visit could not be unlinked. Try again.");
+                    }
+                  },
+                },
+              ],
+            )
+          }
+        />
+      )}
+      {error && (
+        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+          {error}
+        </Text>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   context: { gap: 8 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   note: { fontSize: 17, lineHeight: 25, color: Gallery.ink, marginLeft: 24 },
-  input: { marginLeft: 24, minHeight: 96, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Gallery.controlBorder, color: Gallery.ink, backgroundColor: Gallery.surface, fontSize: 17, textAlignVertical: 'top' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginLeft: 24 },
-  visit: { minHeight: 64, padding: 14, marginBottom: 8, borderRadius: 4, borderWidth: 1, borderColor: Gallery.softBorder, backgroundColor: Gallery.surface, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  input: {
+    marginLeft: 24,
+    minHeight: 96,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Gallery.controlBorder,
+    color: Gallery.ink,
+    backgroundColor: Gallery.surface,
+    fontSize: 17,
+    textAlignVertical: "top",
+  },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    marginLeft: 24,
+  },
+  visit: {
+    minHeight: 64,
+    padding: 14,
+    marginBottom: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Gallery.softBorder,
+    backgroundColor: Gallery.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   visitName: { flex: 1, fontSize: 15, lineHeight: 20, color: Gallery.ink },
   visitDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
 });
