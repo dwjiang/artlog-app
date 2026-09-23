@@ -1,7 +1,9 @@
 import { getStateFromPath } from 'expo-router/build/fork/getStateFromPath';
 import { getMockConfig } from 'expo-router/testing-library';
+import type { PropsWithChildren } from 'react';
 
 jest.mock('./visits/visit-share-flow', () => ({ VisitShareLayout: () => null }));
+jest.mock('@/lib/widgets/widget-provider', () => ({ WidgetProvider: ({ children }: PropsWithChildren) => children }));
 
 const config = getMockConfig('src/app');
 
@@ -31,7 +33,7 @@ describe('App navigation', () => {
     });
   });
 
-  it.each(['settings', 'people', 'create-profile', 'artwork', 'venue-picker', 'queue', 'visit-create', 'visit-globe'])('keeps the tabs underneath a directly opened %s', (sheet) => {
+  it.each(['settings', 'widgets', 'people', 'create-profile', 'artwork', 'venue-picker', 'queue', 'visit-create', 'visit-globe'])('keeps the tabs underneath a directly opened %s', (sheet) => {
     const root = getRootState(`/${sheet}`);
     expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', sheet]);
     expect(root?.index).toBe(1);
@@ -44,6 +46,12 @@ describe('App navigation', () => {
       params: { visitId: 'demo' },
       state: { routes: [{ name: 'preview' }] },
     });
+  });
+
+  it('opens a widget artwork at its visit with Home underneath for Back', () => {
+    const root = getRootState('/saved/painting?visitId=museum-visit');
+    expect(root?.routes.map((route) => route.name)).toEqual(['(tabs)', 'saved/[savedId]']);
+    expect(root?.routes[1].params).toMatchObject({ savedId: 'painting', visitId: 'museum-visit' });
   });
 
   // Artwork and visit details open above whichever tab is active, so a scan never switches to Collection.

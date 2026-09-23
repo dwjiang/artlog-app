@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="112" viewBox="0 0 128 112" font-family="Helvetica,Arial,sans-serif">
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white"/><stop offset=".35" stop-color="white"/><stop offset="1" stop-color="black"/></linearGradient>
+    <mask id="ghost" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="80"><rect width="128" height="80" fill="url(#fade)"/></mask>
+    <linearGradient id="phone-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white"/><stop offset=".55" stop-color="white"/><stop offset="1" stop-color="black"/></linearGradient>
+    <mask id="phone-ghost" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="112"><rect width="128" height="112" fill="url(#phone-fade)"/></mask>
+  </defs>
+  <g mask="url(#phone-ghost)" fill="none" stroke-linejoin="round">
+    <rect x="5.5" y="1.5" width="117" height="246" rx="19" stroke="#CBD0C4" stroke-width="1"/>
+    <rect x="53" y="7" width="22" height="4" rx="2" stroke="#DADDD5" stroke-width=".8"/>
+  </g>
+  <g mask="url(#ghost)">
+    <rect x="40" y="18" width="48" height="48" rx="11" fill="#E3E6DC"/>
+    <rect x="50" y="25" width="28" height="34" fill="#C3C8BC"/>
+  </g>
+  <circle cx="60" cy="73" r="1.5" fill="#73796D"/><circle cx="67" cy="73" r="1.5" fill="#D7DACF"/>
+  <rect x="10" y="81" width="108" height="22" rx="11" fill="#111111"/>
+  <circle cx="33" cy="92" r="4" fill="#FCFCF9"/>
+  <path d="M33 89.8v4.4m-2.2-2.2h4.4" stroke="#111111" stroke-width="1" stroke-linecap="round"/>
+  <text x="41" y="95.5" font-size="9.5" fill="#FCFCF9" font-weight="500">Add Widget</text>
+</svg>

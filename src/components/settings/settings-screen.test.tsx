@@ -72,6 +72,8 @@ it('shows grouped settings and opens the matching detail', async () => {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/settings-detail', params: { section } });
   }
+  await fireEvent.press(screen.getByRole('button', { name: 'Widgets' }));
+  expect(mockPush).toHaveBeenLastCalledWith('/widgets');
 });
 
 it('opens measurement units in General', async () => {

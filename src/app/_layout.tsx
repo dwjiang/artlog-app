@@ -19,6 +19,7 @@ import { warmUpEmbedder } from '@/lib/embed/embedder';
 import { MuseumDownloadLifecycle } from '@/lib/museum-downloads/use-museum-downloads';
 import { QueueFlusher } from '@/lib/queue/use-queue';
 import { VenueResolver } from '@/lib/venue/use-venue';
+import { WidgetProvider } from '@/lib/widgets/widget-provider';
 
 export function ErrorBoundary(props: ErrorBoundaryProps) {
   return <AppErrorBoundary {...props} />;
@@ -38,7 +39,7 @@ function RootLayout() {
         <QueueFlusher />
         <MuseumDownloadLifecycle />
         <VenueResolver />
-        <ThemeProvider value={navigationTheme}>
+        <WidgetProvider><ThemeProvider value={navigationTheme}>
           <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'default' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
             <Stack.Screen name="result/[scanId]"
@@ -55,6 +56,7 @@ function RootLayout() {
             <Stack.Screen name="settings-detail" options={{ title: 'Settings' }} />
             <Stack.Screen name="museum-downloads" options={{ presentation: 'fullScreenModal', headerShown: false }} />
             <Stack.Screen name="settings" options={{ title: '', headerBackTitle: 'Collection' }} />
+            <Stack.Screen name="widgets" options={{ title: '', headerBackTitle: 'Settings' }} />
             <Stack.Screen name="saved/[savedId]" options={{ title: '' }} />
             <Stack.Screen name="wall-display" options={{ title: '' }} />
             <Stack.Screen name="journal/[visitId]" options={{ title: 'Visit' }} />
@@ -96,7 +98,7 @@ function RootLayout() {
             />
           </Stack>
           <ToastLayer><RemovalToast /></ToastLayer>
-        </ThemeProvider>
+        </ThemeProvider></WidgetProvider>
       </ConvexAuthProvider>
     </DatabaseGate></>
   );
