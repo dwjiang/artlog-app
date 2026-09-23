@@ -7,7 +7,12 @@ const workspace = process.env.CONDUCTOR_WORKSPACE_PATH;
 if (process.env.CONDUCTOR_IS_LOCAL !== "1" || !workspace) process.exit(0);
 
 function output(command, args) {
-  return execFileSync(command, args, { encoding: "utf8", timeout: 15_000 });
+  // Compiler jobs carry long command lines, so `ps` can exceed Node's 1 MiB default buffer.
+  return execFileSync(command, args, {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: 15_000,
+  });
 }
 
 function processes() {
