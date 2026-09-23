@@ -6,10 +6,10 @@ verification tasks are in the [release todo](../todos/release/README.md).
 
 ## Recorded deployment state
 
-| Purpose | Deployment | Client URL |
-| --- | --- | --- |
-| Development | `usable-owl-256` | `https://usable-owl-256.convex.cloud` |
-| Production | `admired-goldfinch-660` | `https://admired-goldfinch-660.convex.cloud` |
+| Purpose     | Deployment              | Client URL                                   |
+| ----------- | ----------------------- | -------------------------------------------- |
+| Development | `usable-owl-256`        | `https://usable-owl-256.convex.cloud`        |
+| Production  | `admired-goldfinch-660` | `https://admired-goldfinch-660.convex.cloud` |
 
 Both belong to `daniel-jiang/artlog` and were deployed with `lr-v2`. Production
 has the verified 10,000-painting sample. Import readback matched all metadata,
@@ -18,14 +18,14 @@ Roses, Wheat Field with Cypresses, and The Bedroom; missing geometry returned
 soft and an unsupported model was refused. Those checks used exact indexed
 reference features through the API, not the production iPhone camera.
 
-| Table | Verified production rows |
-| --- | ---: |
-| museums | 42,452 |
-| artworks | 11,721 |
-| objects | 15,427 |
-| placements | 14,256 |
-| vectors | 13,616 |
-| descriptors | 10,000 |
+| Table       | Verified production rows |
+| ----------- | -----------------------: |
+| museums     |                   42,452 |
+| artworks    |                   11,721 |
+| objects     |                   15,427 |
+| placements  |                   14,256 |
+| vectors     |                   13,616 |
+| descriptors |                   10,000 |
 
 The imported package contains canonical paintings, merged aliases, alternate
 embedding views, and selected ORB references. All 793 required museum keys
@@ -44,20 +44,20 @@ The [full corpus upload](../todos/production-upload/README.md) and
 
 ## Recorded production configuration
 
-| Setting | Value |
-| --- | --- |
-| `APPLE_BUNDLE_ID` | `app.artlog.ios` |
-| `APP_ATTEST_APP_ID` | `J4UW2CVVY4.app.artlog.ios` |
-| `APP_ATTEST_REQUIRED` | `true` |
-| `APP_ATTEST_ALLOW_DEV` | `false` |
-| `SUPPORTED_MODEL_VERSIONS` | `c-radiov3-b-int8-512-dinov2-v1` |
-| `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH` | `on` |
-| `FLAG_RIGHT_NOW` | `off` |
-| `DAILY_TOKEN_FACTORY_CALL_CAP` | `2000` |
-| `DAILY_TAVILY_CREDIT_CAP` | `20` |
-| `SITE_URL` | `https://admired-goldfinch-660.convex.site` |
-| `LABEL_MODEL`, `FACT_SHEET_MODEL` | `nvidia/nemotron-3-super-120b-a12b` |
-| `DOCENT_MODEL`, `MODERATION_MODEL` | `nvidia/Nemotron-3_5-Lightning` |
+| Setting                                 | Value                                       |
+| --------------------------------------- | ------------------------------------------- |
+| `APPLE_BUNDLE_ID`                       | `app.artlog.ios`                            |
+| `APP_ATTEST_APP_ID`                     | `J4UW2CVVY4.app.artlog.ios`                 |
+| `APP_ATTEST_REQUIRED`                   | `true`                                      |
+| `APP_ATTEST_ALLOW_DEV`                  | `false`                                     |
+| `SUPPORTED_MODEL_VERSIONS`              | `c-radiov3-b-int8-512-dinov2-v1`            |
+| `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH` | `on`                                        |
+| `FLAG_RIGHT_NOW`                        | `off`                                       |
+| `DAILY_TOKEN_FACTORY_CALL_CAP`          | `2000`                                      |
+| `DAILY_TAVILY_CREDIT_CAP`               | `20`                                        |
+| `SITE_URL`                              | `https://admired-goldfinch-660.convex.site` |
+| `LABEL_MODEL`, `FACT_SHEET_MODEL`       | `nvidia/nemotron-3-super-120b-a12b`         |
+| `DOCENT_MODEL`, `MODERATION_MODEL`      | `nvidia/Nemotron-3_5-Lightning`             |
 
 Production has independent `JWT_PRIVATE_KEY` and `JWKS` plus provider credentials
 `NEBIUS_API_KEY` and `TAVILY_API_KEY`, all outside source control. All 19 values
@@ -94,4 +94,3 @@ Python imports use production `CONVEX_URL` and `CONVEX_DEPLOY_KEY` in the job
 process with a production-specific checkpoint. Keep the dev `.env.local` intact;
 the [upload todo](../todos/production-upload/README.md) owns import preparation and
 verification.
-

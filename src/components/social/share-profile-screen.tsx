@@ -1,43 +1,67 @@
-import { reportError } from '@/lib/observability';
-import { File } from 'expo-file-system';
-import { Image } from 'expo-image';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import * as Sharing from 'expo-sharing';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import createQrCode from 'qrcode-generator';
-import { ThemedText as Text } from '@/components/themed-text';
-import type { Id } from '../../../convex/_generated/dataModel';
-import { api } from '../../../convex/_generated/api';
-import { GalleryButton } from '../collection/gallery-button';
-import { Gallery, Radius, Spacing } from '@/constants/theme';
-import { useSocialQuery } from '@/lib/social/use-social-query';
-import { useSocialSession } from '@/lib/social/use-social-session';
-import type { PublicProfile } from '@/lib/social/types';
-import { ProfileAvatar } from './profile-avatar';
-import { SocialGate, SocialState } from './social-state';
+import { reportError } from "@/lib/observability";
+import { File } from "expo-file-system";
+import { Image } from "expo-image";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import * as Sharing from "expo-sharing";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useMemo, useRef, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import createQrCode from "qrcode-generator";
+import { ThemedText as Text } from "@/components/themed-text";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { api } from "../../../convex/_generated/api";
+import { GalleryButton } from "../collection/gallery-button";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useSocialQuery } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
+import type { PublicProfile } from "@/lib/social/types";
+import { ProfileAvatar } from "./profile-avatar";
+import { SocialGate, SocialState } from "./social-state";
 
 export function ShareProfileScreen() {
-  const session = useSocialSession(), router = useRouter();
+  const session = useSocialSession(),
+    router = useRouter();
   const { profileId } = useLocalSearchParams<{ profileId?: string }>();
-  const profile = useSocialQuery(api.profiles.getPublic, profileId || session.profileId ? { profileId: (profileId ?? session.profileId!) as Id<'profiles'> } : 'skip', session.key);
-  if (!profileId && session.status !== 'ready') return <SocialGate session={session} />;
-  if (profile.data === null) return <SocialState title="Profile unavailable." detail="This public profile is no longer available."
-    action="Back" onAction={() => router.back()} />;
-  if (!profile.data) return <SocialState title={profile.error ? 'Couldn’t load your profile.' : 'Opening your profile…'}
-    loading={!profile.error} action={profile.error ? 'Try again' : undefined} onAction={profile.refresh} />;
-  return <ShareProfileContent key={`${session.key}:${profile.data.profileId}`} person={profile.data} />;
+  const profile = useSocialQuery(
+    api.profiles.getPublic,
+    profileId || session.profileId
+      ? { profileId: (profileId ?? session.profileId!) as Id<"profiles"> }
+      : "skip",
+    session.key,
+  );
+  if (!profileId && session.status !== "ready") return <SocialGate session={session} />;
+  if (profile.data === null)
+    return (
+      <SocialState
+        title="Profile unavailable."
+        detail="This public profile is no longer available."
+        action="Back"
+        onAction={() => router.back()}
+      />
+    );
+  if (!profile.data)
+    return (
+      <SocialState
+        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
+        loading={!profile.error}
+        action={profile.error ? "Try again" : undefined}
+        onAction={profile.refresh}
+      />
+    );
+  return (
+    <ShareProfileContent key={`${session.key}:${profile.data.profileId}`} person={profile.data} />
+  );
 }
 
 function ShareProfileContent({ person }: { person: PublicProfile }) {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const [busy, setBusy] = useState(false), [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState<string>();
   const sharing = useRef(false);
   const code = useMemo(() => {
-    const qr = createQrCode(0, 'M');
+    const qr = createQrCode(0, "M");
     qr.addData(`artlog://profile/${encodeURIComponent(person.profileId)}`);
     qr.make();
     // 24 px per module keeps the code crisp at 3x display scale and in the shared PNG; the margin is the four-module quiet zone.
@@ -45,49 +69,114 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
   }, [person.profileId]);
   async function share() {
     if (sharing.current) return;
-    sharing.current = true; setBusy(true); setError(undefined);
+    sharing.current = true;
+    setBusy(true);
+    setError(undefined);
     let uri: string | undefined;
     let context: ReturnType<typeof ImageManipulator.manipulate> | undefined;
     try {
       context = ImageManipulator.manipulate(code);
       const image = await context.renderAsync();
-      try { uri = (await image.saveAsync({ format: SaveFormat.PNG })).uri; }
-      finally { image.release(); }
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: `${person.name}’s Artlog profile` });
-    } catch (cause) { reportError(cause, 'profile.share'); setError('Your QR code could not be shared. Try again.'); }
-    finally {
+      try {
+        uri = (await image.saveAsync({ format: SaveFormat.PNG })).uri;
+      } finally {
+        image.release();
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: "image/png",
+        UTI: "public.png",
+        dialogTitle: `${person.name}’s Artlog profile`,
+      });
+    } catch (cause) {
+      reportError(cause, "profile.share");
+      setError("Your QR code could not be shared. Try again.");
+    } finally {
       context?.release();
-      if (uri) { try { new File(uri).delete(); } catch { /* The cache can already have been cleared by iOS. */ } }
-      sharing.current = false; setBusy(false);
+      if (uri) {
+        try {
+          new File(uri).delete();
+        } catch {
+          /* The cache can already have been cleared by iOS. */
+        }
+      }
+      sharing.current = false;
+      setBusy(false);
     }
   }
-  return <View collapsable={false} style={styles.root}>
-    <ScrollView style={{ flex: 1 }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
-        <View style={styles.identity}><Text variant="display" accessibilityRole="header" style={styles.center}>{person.name}</Text>
-          <Text variant="metadata" themeColor="textSecondary" style={styles.center}>@{person.username}</Text></View>
-        <Image accessible accessibilityLabel={`QR code for ${person.name}’s Artlog profile`} source={{ uri: code }} contentFit="contain" style={styles.code} />
-        <Text variant="display">Artlog</Text>
-        <Text variant="secondary" themeColor="textSecondary" style={styles.center}>Scan to view this profile in Artlog.</Text>
+  return (
+    <View collapsable={false} style={styles.root}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.card}>
+          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
+          <View style={styles.identity}>
+            <Text variant="display" accessibilityRole="header" style={styles.center}>
+              {person.name}
+            </Text>
+            <Text variant="metadata" themeColor="textSecondary" style={styles.center}>
+              @{person.username}
+            </Text>
+          </View>
+          <Image
+            accessible
+            accessibilityLabel={`QR code for ${person.name}’s Artlog profile`}
+            source={{ uri: code }}
+            contentFit="contain"
+            style={styles.code}
+          />
+          <Text variant="display">Artlog</Text>
+          <Text variant="secondary" themeColor="textSecondary" style={styles.center}>
+            Scan to view this profile in Artlog.
+          </Text>
+        </View>
+        {error && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {error}
+          </Text>
+        )}
+      </ScrollView>
+      <View
+        collapsable={false}
+        style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}
+      >
+        <GalleryButton
+          label="Share QR code"
+          icon="square.and.arrow.up"
+          variant="filled"
+          fullWidth
+          busy={busy}
+          busyLabel="Preparing QR code…"
+          onPress={() => {
+            void share();
+          }}
+        />
+        <GalleryButton label="Done" fullWidth onPress={() => router.back()} />
       </View>
-      {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    </ScrollView>
-    <View collapsable={false} style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}>
-      <GalleryButton label="Share QR code" icon="square.and.arrow.up" variant="filled" fullWidth busy={busy} busyLabel="Preparing QR code…" onPress={() => { void share(); }} />
-      <GalleryButton label="Done" fullWidth onPress={() => router.back()} />
     </View>
-  </View>;
+  );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  content: { padding: Spacing.content, gap: Spacing.four, alignItems: 'center', flexGrow: 1 },
-  card: { width: '100%', maxWidth: 400, padding: Spacing.three, gap: Spacing.two, alignItems: 'center', backgroundColor: Gallery.surface,
-    borderRadius: Radius.sheet, borderCurve: 'continuous', borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.softBorder },
-  identity: { gap: Spacing.one, alignItems: 'center', width: '100%' },
-  center: { textAlign: 'center' },
-  code: { width: '100%', maxWidth: 236, aspectRatio: 1, marginVertical: Spacing.one },
+  content: { padding: Spacing.content, gap: Spacing.four, alignItems: "center", flexGrow: 1 },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    padding: Spacing.three,
+    gap: Spacing.two,
+    alignItems: "center",
+    backgroundColor: Gallery.surface,
+    borderRadius: Radius.sheet,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.softBorder,
+  },
+  identity: { gap: Spacing.one, alignItems: "center", width: "100%" },
+  center: { textAlign: "center" },
+  code: { width: "100%", maxWidth: 236, aspectRatio: 1, marginVertical: Spacing.one },
   actions: { paddingHorizontal: Spacing.content, paddingTop: Spacing.compact, gap: Spacing.two },
-  error: { color: Gallery.destructive, textAlign: 'center' },
+  error: { color: Gallery.destructive, textAlign: "center" },
 });

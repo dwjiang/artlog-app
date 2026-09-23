@@ -1,5 +1,5 @@
-import { extractOrb } from '@/lib/orb/extract';
-import type { Embedder, OrbExtractor } from './stages';
+import { extractOrb } from "@/lib/orb/extract";
+import type { Embedder, OrbExtractor } from "./stages";
 
 export const orb: OrbExtractor = { extract: (cropUri) => extractOrb(cropUri) };
 
@@ -16,5 +16,9 @@ export async function extractFeatures(
 ): Promise<ScanFeatures> {
   const embedding = await stages.embedder.embed(cropUri);
   const features = await stages.orb.extract(cropUri);
-  return { vector: roundVector(embedding), descriptors: features.descriptors, keypoints: features.keypoints };
+  return {
+    vector: roundVector(embedding),
+    descriptors: features.descriptors,
+    keypoints: features.keypoints,
+  };
 }

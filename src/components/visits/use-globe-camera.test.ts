@@ -1,25 +1,35 @@
-import { act, render, renderHook } from '@testing-library/react-native';
-import { createElement } from 'react';
-import { ReduceMotion, ReducedMotionConfig, setUpTests } from 'react-native-reanimated';
-import { useGlobeCamera } from './use-globe-camera';
-import type { GlobeCamera } from '@/lib/journal/globe-geometry';
+import { act, render, renderHook } from "@testing-library/react-native";
+import { createElement } from "react";
+import { ReduceMotion, ReducedMotionConfig, setUpTests } from "react-native-reanimated";
+import { useGlobeCamera } from "./use-globe-camera";
+import type { GlobeCamera } from "@/lib/journal/globe-geometry";
 
-jest.unmock('react-native-reanimated');
-jest.mock('react-native-worklets', () => ({
-  ...jest.requireActual('react-native-worklets/src/mock'),
+jest.unmock("react-native-reanimated");
+jest.mock("react-native-worklets", () => ({
+  ...jest.requireActual("react-native-worklets/src/mock"),
   scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
   scheduleOnUI: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
 }));
 
 setUpTests();
-beforeEach(() => { jest.useFakeTimers(); });
-afterEach(() => { jest.useRealTimers(); });
+beforeEach(() => {
+  jest.useFakeTimers();
+});
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 type Controls = ReturnType<typeof useGlobeCamera>;
-type PanEvent = Parameters<NonNullable<Controls['pan']['handlers']['onBegin']>>[0];
+type PanEvent = Parameters<NonNullable<Controls["pan"]["handlers"]["onBegin"]>>[0];
 
 function panEvent(overrides: Partial<PanEvent> = {}): PanEvent {
-  return { translationX: 50, translationY: 20, velocityX: 600, velocityY: 200, ...overrides } as PanEvent;
+  return {
+    translationX: 50,
+    translationY: 20,
+    velocityX: 600,
+    velocityY: 200,
+    ...overrides,
+  } as PanEvent;
 }
 function flick(controls: Controls, event = panEvent()) {
   controls.pan.handlers.onBegin?.(event);
@@ -29,10 +39,13 @@ function flick(controls: Controls, event = panEvent()) {
   controls.pan.handlers.onFinalize?.(event, true);
 }
 async function renderCamera(initialCamera: GlobeCamera, onChange = jest.fn()) {
-  return renderHook<Controls, { camera: GlobeCamera }>(({ camera }) => useGlobeCamera(camera, onChange), { initialProps: { camera: initialCamera } });
+  return renderHook<Controls, { camera: GlobeCamera }>(
+    ({ camera }) => useGlobeCamera(camera, onChange),
+    { initialProps: { camera: initialCamera } },
+  );
 }
 
-it('continues rotating after release, slows down, and saves the settled camera', async () => {
+it("continues rotating after release, slows down, and saves the settled camera", async () => {
   const onChange = jest.fn();
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
   await act(() => flick(result.current));
@@ -51,7 +64,7 @@ it('continues rotating after release, slows down, and saves the settled camera',
   expect(result.current.camera.get()).toEqual(settled);
 });
 
-it('stops on touch down and starts the next drag from the interrupted position', async () => {
+it("stops on touch down and starts the next drag from the interrupted position", async () => {
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 });
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
@@ -67,7 +80,7 @@ it('stops on touch down and starts the next drag from the interrupted position',
   expect(result.current.camera.get().pitch).toBe(stopped.pitch);
 });
 
-it('crosses the date line continuously and keeps a vertical flick within the poles', async () => {
+it("crosses the date line continuously and keeps a vertical flick within the poles", async () => {
   const { result } = await renderCamera({ yaw: 359, pitch: 70, zoom: 1 });
   await act(() => flick(result.current));
   const released = result.current.camera.get();
@@ -77,20 +90,25 @@ it('crosses the date line continuously and keeps a vertical flick within the pol
   expect(result.current.camera.get().pitch).toBe(75);
 });
 
-it('scales drag and release speed with the zoom level', async () => {
+it("scales drag and release speed with the zoom level", async () => {
   const normal = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 });
   const zoomed = await renderCamera({ yaw: 0, pitch: 0, zoom: 2 });
-  await act(() => { flick(normal.result.current); flick(zoomed.result.current); });
+  await act(() => {
+    flick(normal.result.current);
+    flick(zoomed.result.current);
+  });
   await act(() => jest.advanceTimersByTime(100));
-  expect(zoomed.result.current.camera.get().yaw).toBeCloseTo(normal.result.current.camera.get().yaw / 2);
+  expect(zoomed.result.current.camera.get().yaw).toBeCloseTo(
+    normal.result.current.camera.get().yaw / 2,
+  );
 });
 
-it('lets a pinch take over without resuming rotation or saving an unfinished camera', async () => {
+it("lets a pinch take over without resuming rotation or saving an unfinished camera", async () => {
   const onChange = jest.fn();
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
-  type PinchEvent = Parameters<NonNullable<Controls['pinch']['handlers']['onStart']>>[0];
+  type PinchEvent = Parameters<NonNullable<Controls["pinch"]["handlers"]["onStart"]>>[0];
   const pinch = { scale: 1.5 } as PinchEvent;
   await act(() => {
     // A recognizer that loses to the pan must not persist a mid-flight camera.
@@ -111,7 +129,7 @@ it('lets a pinch take over without resuming rotation or saving an unfinished cam
   expect(onChange).toHaveBeenLastCalledWith(pinched);
 });
 
-it('cancels momentum when the camera is reset or focused on a museum', async () => {
+it("cancels momentum when the camera is reset or focused on a museum", async () => {
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 });
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
@@ -121,7 +139,7 @@ it('cancels momentum when the camera is reset or focused on a museum', async () 
   expect(result.current.camera.get()).toEqual(destination);
 });
 
-it('settles on demand: stops momentum and saves the position reached', async () => {
+it("settles on demand: stops momentum and saves the position reached", async () => {
   const onChange = jest.fn();
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
   await act(() => flick(result.current));
@@ -136,7 +154,7 @@ it('settles on demand: stops momentum and saves the position reached', async () 
   expect(onChange).toHaveBeenCalledTimes(1);
 });
 
-it('saves the current position when switching away during momentum', async () => {
+it("saves the current position when switching away during momentum", async () => {
   const onChange = jest.fn();
   const { result, unmount } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
   await act(() => flick(result.current));
@@ -146,7 +164,7 @@ it('saves the current position when switching away during momentum', async () =>
   expect(onChange).toHaveBeenLastCalledWith(interrupted);
 });
 
-it('keeps direct dragging but skips momentum when Reduce Motion is enabled', async () => {
+it("keeps direct dragging but skips momentum when Reduce Motion is enabled", async () => {
   await render(createElement(ReducedMotionConfig, { mode: ReduceMotion.Always }));
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 });
   await act(() => flick(result.current));

@@ -1,31 +1,31 @@
-import { LoadingRing } from '@/components/loading-ring';
-import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { LoadingRing } from "@/components/loading-ring";
+import { Image } from "expo-image";
+import { StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
-import type { LabelStage } from '@/lib/label/flow';
+import { ThemedText } from "@/components/themed-text";
+import { Colors, Spacing } from "@/constants/theme";
+import type { LabelStage } from "@/lib/label/flow";
 
 export const STEP_LABELS = {
-  read: 'Reading the label…',
-  qr: 'Fetching the museum’s page…',
-  records: 'Checking the museum’s records…',
-  wikidata: 'Checking Wikidata…',
-  web: 'Searching the web…',
-  images: 'Comparing images…',
+  read: "Reading the label…",
+  qr: "Fetching the museum’s page…",
+  records: "Checking the museum’s records…",
+  wikidata: "Checking Wikidata…",
+  web: "Searching the web…",
+  images: "Comparing images…",
 } as const;
 
 // The server runs the three verification checks inside one call, so their rows advance together.
-const ORDER: Record<LabelStage, number> = { qr: 0, read: 0, verify: 1, 'image-check': 2, done: 3 };
+const ORDER: Record<LabelStage, number> = { qr: 0, read: 0, verify: 1, "image-check": 2, done: 3 };
 const ICON_SIZE = 20;
 
 function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
   return [
-    qr ? { stage: 'qr', label: STEP_LABELS.qr } : { stage: 'read', label: STEP_LABELS.read },
-    { stage: 'verify', label: STEP_LABELS.records },
-    { stage: 'verify', label: STEP_LABELS.wikidata },
-    { stage: 'verify', label: STEP_LABELS.web },
-    { stage: 'image-check', label: STEP_LABELS.images },
+    qr ? { stage: "qr", label: STEP_LABELS.qr } : { stage: "read", label: STEP_LABELS.read },
+    { stage: "verify", label: STEP_LABELS.records },
+    { stage: "verify", label: STEP_LABELS.wikidata },
+    { stage: "verify", label: STEP_LABELS.web },
+    { stage: "image-check", label: STEP_LABELS.images },
   ];
 }
 
@@ -41,13 +41,28 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
         const active = ORDER[step] === current;
         const spinner = index === firstActive;
         return (
-          <View key={label} style={styles.row} accessibilityLabel={label} accessibilityState={{ checked: done, busy: active }}>
+          <View
+            key={label}
+            style={styles.row}
+            accessibilityLabel={label}
+            accessibilityState={{ checked: done, busy: active }}
+          >
             <View style={styles.icon}>
-              {done ? <Image source="sf:checkmark.circle.fill" tintColor={Colors.light.success} style={styles.glyph} />
-                : spinner ? <LoadingRing color={Colors.light.accent} />
-                : <View style={[styles.dot, active && styles.dotActive]} />}
+              {done ? (
+                <Image
+                  source="sf:checkmark.circle.fill"
+                  tintColor={Colors.light.success}
+                  style={styles.glyph}
+                />
+              ) : spinner ? (
+                <LoadingRing color={Colors.light.accent} />
+              ) : (
+                <View style={[styles.dot, active && styles.dotActive]} />
+              )}
             </View>
-            <ThemedText style={{ flex: 1 }} themeColor={done || active ? 'text' : 'textSecondary'}>{label}</ThemedText>
+            <ThemedText style={{ flex: 1 }} themeColor={done || active ? "text" : "textSecondary"}>
+              {label}
+            </ThemedText>
           </View>
         );
       })}
@@ -57,9 +72,14 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
 
 const styles = StyleSheet.create({
   list: { gap: Spacing.three },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  icon: { width: ICON_SIZE, height: ICON_SIZE, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
+  icon: { width: ICON_SIZE, height: ICON_SIZE, alignItems: "center", justifyContent: "center" },
   glyph: { width: ICON_SIZE, height: ICON_SIZE },
-  dot: { width: Spacing.two, height: Spacing.two, borderRadius: Spacing.one, backgroundColor: Colors.light.separator },
+  dot: {
+    width: Spacing.two,
+    height: Spacing.two,
+    borderRadius: Spacing.one,
+    backgroundColor: Colors.light.separator,
+  },
   dotActive: { backgroundColor: Colors.light.accent },
 });

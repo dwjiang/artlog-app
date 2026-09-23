@@ -1,8 +1,11 @@
-import scores from '../../shared/sources/source-scores.json';
+import scores from "../../shared/sources/source-scores.json";
 
 function bareHost(url: string): string | null {
   try {
-    return new URL(url).hostname.toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
+    return new URL(url).hostname
+      .toLowerCase()
+      .replace(/\.$/, "")
+      .replace(/^www\./, "");
   } catch {
     return null;
   }
@@ -27,5 +30,7 @@ export function sourceScore(url: string): number | null {
 }
 
 export function admissibleDomains(): string[] {
-  return Object.entries(scores.domains).filter(([, score]) => score >= scores.threshold).map(([domain]) => domain);
+  return Object.entries(scores.domains)
+    .filter(([, score]) => score >= scores.threshold)
+    .map(([domain]) => domain);
 }

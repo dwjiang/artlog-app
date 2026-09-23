@@ -2,46 +2,25 @@
   "type": "object",
   "properties": {
     "title": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "artist": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "artist_dates": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "work_date": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "medium": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "accession": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "credit_line": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "confidence": {
       "type": "object",
@@ -72,13 +51,7 @@
           "maximum": 1
         }
       },
-      "required": [
-        "title",
-        "artist",
-        "work_date",
-        "medium",
-        "accession"
-      ],
+      "required": ["title", "artist", "work_date", "medium", "accession"],
       "additionalProperties": false
     }
   },

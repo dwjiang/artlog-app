@@ -98,15 +98,15 @@ the embeddings as `scripts/data/calibration/iphone-embeddings.json` whenever the
 
 ## Results, 2026-09-10 (Apple M5 Pro, macOS 26.5, Xcode 26.6)
 
-| Check | Result |
-| --- | --- |
-| Export | `weightsSha256` equals the evaluated int8 package; 53 quantized weights; 20 s after the cached download |
-| Asset | `CRadioV3B-c-radiov3-b-int8-512-dinov2-v1.zip` 112 MB; `.mlmodelc` 114 MB |
-| Mac harness, 200 calibration crops (PNG) vs PyTorch fake-quant MPS fp16 | mean cosine 0.99704, min 0.99268 (the original evaluation measured 0.99701 / 0.99292 on its black-letterbox pixels) |
-| Same crops after a JPEG q0.95 round trip (the phone's crop file format) | mean 0.99689, min 0.99268 against PyTorch; 0.99891 / 0.98993 against the PNG embeddings |
-| Mac `CPU_AND_NE` latency | load 2.7 s cold, ~60–70 ms per 512×512 crop |
-| Unsigned Release archive | `artlog.app` 170 MB, of which the model is 114 MB (under the 200 MB target) |
-| iPhone 17 Pro simulator, CPU only | warm-up load 408 ms, first predict 1.9 s; later predictions ~1.1 s |
+| Check                                                                                             | Result                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export                                                                                            | `weightsSha256` equals the evaluated int8 package; 53 quantized weights; 20 s after the cached download                                                                                                                                   |
+| Asset                                                                                             | `CRadioV3B-c-radiov3-b-int8-512-dinov2-v1.zip` 112 MB; `.mlmodelc` 114 MB                                                                                                                                                                 |
+| Mac harness, 200 calibration crops (PNG) vs PyTorch fake-quant MPS fp16                           | mean cosine 0.99704, min 0.99268 (the original evaluation measured 0.99701 / 0.99292 on its black-letterbox pixels)                                                                                                                       |
+| Same crops after a JPEG q0.95 round trip (the phone's crop file format)                           | mean 0.99689, min 0.99268 against PyTorch; 0.99891 / 0.98993 against the PNG embeddings                                                                                                                                                   |
+| Mac `CPU_AND_NE` latency                                                                          | load 2.7 s cold, ~60–70 ms per 512×512 crop                                                                                                                                                                                               |
+| Unsigned Release archive                                                                          | `artlog.app` 170 MB, of which the model is 114 MB (under the 200 MB target)                                                                                                                                                               |
+| iPhone 17 Pro simulator, CPU only                                                                 | warm-up load 408 ms, first predict 1.9 s; later predictions ~1.1 s                                                                                                                                                                        |
 | In-app calibration export on the simulator (download → vision-rect letterbox → JPEG crop → embed) | 200 vectors keyed by the exact `urls.txt` set, median 972 ms each, shared as a 6.5 MB JSON; cosine vs the Mac harness PNG vectors mean 0.99560, min 0.98288 (CPU compute plus the JPEG crop; the phone's Neural Engine matches the Mac's) |
 
 Not yet measured here: physical-iPhone warm-up and latency (the original evaluation: ~4.1 s load, 66.6 ms

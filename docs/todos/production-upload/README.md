@@ -7,7 +7,7 @@
 > done when an upload is merely running. Record completion in this todo.
 >
 > **Drift check:** run `git diff -M --stat 1fe0c14..HEAD -- jobs/artlog_jobs jobs/scripts scripts/data/pipeline
-> scripts/data/letterbox-parity.py convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md`
+scripts/data/letterbox-parity.py convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md`
 > (1fe0c14 predates the move of `jobs/` to `scripts/data/`; `-M` with both paths pairs the renames) and
 > `git diff --stat -- scripts/data/pipeline convex shared/model/model-version.json`.
 > This plan was written against an already dirty working tree. HEAD alone does

@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from 'expo';
+import { requireOptionalNativeModule } from "expo";
 
 export type WarmUpResult = { loadMs: number; predictMs: number; alreadyLoaded: boolean };
 
@@ -17,7 +17,8 @@ export interface CoremlEmbed {
 let instance: CoremlEmbed | null | undefined;
 
 export function getCoremlEmbed(): CoremlEmbed {
-  instance ??= requireOptionalNativeModule<CoremlEmbed>('CoremlEmbed');
-  if (!instance) throw new Error('The CoremlEmbed native module is unavailable; rebuild the dev client');
+  instance ??= requireOptionalNativeModule<CoremlEmbed>("CoremlEmbed");
+  if (!instance)
+    throw new Error("The CoremlEmbed native module is unavailable; rebuild the dev client");
   return instance;
 }

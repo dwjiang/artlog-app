@@ -1,5 +1,5 @@
-import { DESCRIPTOR_BYTES, KEYPOINT_FLOATS, type OrbFeatures } from './features';
-import { applyHomography, mat3mul, mulberry32 } from './homography';
+import { DESCRIPTOR_BYTES, KEYPOINT_FLOATS, type OrbFeatures } from "./features";
+import { applyHomography, mat3mul, mulberry32 } from "./homography";
 
 export type SyntheticPairOptions = {
   seed?: number;
@@ -20,7 +20,7 @@ export type SyntheticPair = {
 export function makeRandomFeatures(
   rand: () => number,
   count: number,
-  inputSize: number
+  inputSize: number,
 ): OrbFeatures {
   const descriptors = new Uint8Array(count * DESCRIPTOR_BYTES);
   for (let i = 0; i < descriptors.length; i++) descriptors[i] = Math.floor(rand() * 256);
@@ -105,11 +105,11 @@ export function makeSyntheticPair(opts: SyntheticPairOptions = {}): SyntheticPai
     const i = order[k];
     query.descriptors.set(
       unshuffled.descriptors.subarray(i * DESCRIPTOR_BYTES, (i + 1) * DESCRIPTOR_BYTES),
-      k * DESCRIPTOR_BYTES
+      k * DESCRIPTOR_BYTES,
     );
     query.keypoints.set(
       unshuffled.keypoints.subarray(i * KEYPOINT_FLOATS, (i + 1) * KEYPOINT_FLOATS),
-      k * KEYPOINT_FLOATS
+      k * KEYPOINT_FLOATS,
     );
     if (i < count) correspondences.push([i, k]);
   }

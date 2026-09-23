@@ -71,9 +71,7 @@
         "expo-font",
         {
           "ios": {
-            "fonts": [
-              "./assets/fonts/anton-regular.ttf"
-            ]
+            "fonts": ["./assets/fonts/anton-regular.ttf"]
           }
         }
       ],
@@ -96,10 +94,7 @@
               "displayName": "Saved paintings",
               "description": "Bring your collection and past museum visits to your Home Screen.",
               "ios": {
-                "supportedFamilies": [
-                  "systemSmall",
-                  "systemMedium"
-                ],
+                "supportedFamilies": ["systemSmall", "systemMedium"],
                 "contentMarginsDisabled": true
               }
             }

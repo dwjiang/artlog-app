@@ -11,15 +11,15 @@ The data relocation is complete: all 7,290 files retained their original
 inodes, sizes, and timestamps, and the full corpus passed a local dry-run from
 Documents. Production was not contacted or changed during that work.
 
-| Local asset | Durable path under `/Users/dwjiang/Documents/Artlog Data/` |
-| --- | --- |
-| Complete merged corpus, feature shards, indexes, and hashes | `jobs/scratch/merged/` |
-| Original metadata, raw feature shards, source snapshots, samples | `jobs/scratch/` |
-| Dedupe provenance and audits | `jobs/out/02-05-2026-09-12-dedupe/` |
-| v2 model, training rows, metrics, and development import audits | `jobs/out/02-09-2026-09-12-calibrator/` |
-| Completed initial production import and its audits | `jobs/out/06-01-2026-09-13-production/` |
-| Full local import plan after relocation | `full-corpus-dry-run-2026-09-13.json` |
-| SHA-256 file inventory and relocation result | `relocation-manifest-2026-09-13.json`, `relocation-report-2026-09-13.json` |
+| Local asset                                                      | Durable path under `/Users/dwjiang/Documents/Artlog Data/`                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Complete merged corpus, feature shards, indexes, and hashes      | `jobs/scratch/merged/`                                                     |
+| Original metadata, raw feature shards, source snapshots, samples | `jobs/scratch/`                                                            |
+| Dedupe provenance and audits                                     | `jobs/out/02-05-2026-09-12-dedupe/`                                        |
+| v2 model, training rows, metrics, and development import audits  | `jobs/out/02-09-2026-09-12-calibrator/`                                    |
+| Completed initial production import and its audits               | `jobs/out/06-01-2026-09-13-production/`                                    |
+| Full local import plan after relocation                          | `full-corpus-dry-run-2026-09-13.json`                                      |
+| SHA-256 file inventory and relocation result                     | `relocation-manifest-2026-09-13.json`, `relocation-report-2026-09-13.json` |
 
 The original workspace linked `jobs/scratch` and `jobs/out` to these durable
 directories, with links excluded through its local Git exclude file. Existing
@@ -28,15 +28,15 @@ data; other checkouts can pass absolute `--in` and `--checkpoint` paths directly
 
 ## Corpus and production counts
 
-| Table/stage | Full corpus input | Last verified production count |
-| --- | ---: | ---: |
-| museums | 3,924 required keys; not an import stage | 42,452 |
-| artworks | 404,653 | 11,721 |
-| objects | 409,973 | 15,427 |
-| placements | 296,344 | 14,256 |
-| vectors | 402,139 | 13,616 |
-| descriptors | 397,047 | 10,000 |
-| penalties | 409,973 zero assignments; not a table | 15,427 zero assignments verified |
+| Table/stage |                        Full corpus input |   Last verified production count |
+| ----------- | ---------------------------------------: | -------------------------------: |
+| museums     | 3,924 required keys; not an import stage |                           42,452 |
+| artworks    |                                  404,653 |                           11,721 |
+| objects     |                                  409,973 |                           15,427 |
+| placements  |                                  296,344 |                           14,256 |
+| vectors     |                                  402,139 |                           13,616 |
+| descriptors |                                  397,047 |                           10,000 |
+| penalties   |    409,973 zero assignments; not a table | 15,427 zero assignments verified |
 
 There are 7,019 merged aliases and 402,954 metadata survivors; 397,047 survivors
 have recognition features. Keep the metadata-only objects too. Do not invent

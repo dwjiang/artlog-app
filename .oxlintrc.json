@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "import"],
+  "jsPlugins": ["eslint-plugin-expo", "./oxlint-plugin.js"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": [
+    ".agents/**",
+    ".claude/**",
+    "convex/_generated/**",
+    "src/db/migrations/**",
+    "scripts/data/**"
+  ],
+  "rules": {
+    "eqeqeq": ["error", "smart"],
+    "no-extend-native": "error",
+    "no-extra-bind": "error",
+    "no-redeclare": "error",
+    "no-unused-expressions": ["error", { "allowShortCircuit": true, "enforceForJSX": true }],
+    "no-unused-vars": [
+      "error",
+      { "args": "none", "ignoreRestSiblings": true, "caughtErrors": "all" }
+    ],
+    "no-useless-constructor": "error",
+    "no-var": "error",
+    "unicode-bom": "error",
+    "import/first": "error",
+    "import/no-duplicates": "error",
+    "import/no-named-as-default": "error",
+    "import/no-named-as-default-member": "error",
+    "react/display-name": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/no-unescaped-entities": "error",
+    "react/no-unknown-property": "error",
+    "react/rules-of-hooks": "error",
+    "react/unsupported-syntax": "error",
+    "typescript/array-type": ["error", { "default": "array" }],
+    "typescript/consistent-type-assertions": [
+      "error",
+      { "assertionStyle": "as", "objectLiteralTypeAssertions": "allow" }
+    ],
+    "typescript/no-empty-object-type": "error",
+    "expo/no-dynamic-env-var": "error",
+    "expo/no-env-var-destructuring": "error",
+    "expo/use-dom-exports": "error",
+    "artlog/no-re-exports": "error"
+  },
+  "overrides": [
+    {
+      // Metro bundles `require` calls for assets only.
+      "files": ["**/*.ts", "**/*.tsx"],
+      "rules": {
+        "typescript/no-require-imports": [
+          "error",
+          {
+            "allow": [
+              "\\.(aac|aiff|avif|bmp|caf|db|gif|heic|html|jpeg|jpg|json|m4a|m4v|mov|mp3|mp4|mpeg|mpg|otf|pdf|png|psd|svg|ttf|wav|webm|webp|xml|yaml|yml|zip)$"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Convex functions read real server env vars; Metro's static inlining does not apply.
+      "files": ["convex/**"],
+      "rules": { "expo/no-dynamic-env-var": "off" }
+    },
+    {
+      // Jest manual mocks mirror the mocked package's surface, so forwarding is their job.
+      "files": ["src/__mocks__/**"],
+      "rules": { "artlog/no-re-exports": "off" }
+    }
+  ]
+}

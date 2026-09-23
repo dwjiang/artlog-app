@@ -1,4 +1,4 @@
-import { KEYPOINT_FLOATS } from '@/shared/orb/features';
+import { KEYPOINT_FLOATS } from "@/shared/orb/features";
 
 export type Keypoint = { x: number; y: number; size: number; angle: number };
 

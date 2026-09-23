@@ -30,9 +30,9 @@ The About screen has a "Terms" row that opens `https://google.com` as a placehol
 - `src/components/settings/about-section.tsx` — the About list. Its link constants:
 
   ```ts
-  const SOURCE_URL = 'https://github.com/dwjiang/artlog-app';
+  const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
   // Placeholder until terms exist; tracked in docs/todos.
-  const TERMS_URL = 'https://google.com';
+  const TERMS_URL = "https://google.com";
   const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
   ```
 
@@ -45,34 +45,37 @@ The About screen has a "Terms" row that opens `https://google.com` as a placehol
   ```
 
   `open(url)` wraps `Linking.openURL` and shows a footer error on failure.
+
 - `src/components/settings/privacy-section.tsx` — exports `PRIVACY_COPY`, one paragraph describing what leaves the phone (fingerprints, label photos, consented crops, private backups without metadata, on-phone location). This is the authoritative plain-language privacy summary; reuse its wording rather than inventing a new description.
 - `convex/http.ts` — the Convex HTTP router. It already serves app routes:
 
   ```ts
   const http = httpRouter();
-  http.route({ path: '/collection-photo', method: 'POST', handler: upload });
-  http.route({ path: '/collection-photo', method: 'GET', handler: download });
-  http.route({ path: '/display-media', method: 'GET', handler: displayMedia });
+  http.route({ path: "/collection-photo", method: "POST", handler: upload });
+  http.route({ path: "/collection-photo", method: "GET", handler: download });
+  http.route({ path: "/display-media", method: "GET", handler: displayMedia });
   ```
 
   The app reads the router's public origin from `process.env.EXPO_PUBLIC_CONVEX_SITE_URL` (see `src/lib/account/photo-transfer.ts:9-10`, which throws when it is unset). Serving `/terms` and `/privacy` from this router gives public URLs with no new hosting.
+
 - `README.md` — has a `## Data sources and terms` section and a `## Privacy` section. The hackathon guide says README setup and model claims must stay accurate; adding links to the new pages is additive and safe.
 - `docs/todos/release/README.md` — the release checklist mentions confirming "current privacy/export declarations" before building.
 - Conventions: Convex modules use camelCase filenames; new source files elsewhere use kebab-case. Tests are co-located as `*.test.ts(x)`. Convex tests use `vitest` (`npm run test:convex`) and app tests use Jest. After adding any module under `convex/`, run `npx convex codegen` and commit `convex/_generated/`. Copy in the app is sentence case with short sentences; match `PRIVACY_COPY`'s register.
 
 ## Commands you will need
 
-| Purpose | Command | Expected on success |
-|---------|---------|---------------------|
-| Typecheck | `npx tsc --noEmit` | exit 0, no output |
-| Lint | `npm run lint` | exit 0, 0 problems |
-| App tests | `npx jest src/components/settings` | all pass |
-| Convex tests | `npm run test:convex` | all pass |
-| Codegen | `npx convex codegen` | regenerates `convex/_generated/` |
+| Purpose      | Command                            | Expected on success              |
+| ------------ | ---------------------------------- | -------------------------------- |
+| Typecheck    | `npx tsc --noEmit`                 | exit 0, no output                |
+| Lint         | `npm run lint`                     | exit 0, 0 problems               |
+| App tests    | `npx jest src/components/settings` | all pass                         |
+| Convex tests | `npm run test:convex`              | all pass                         |
+| Codegen      | `npx convex codegen`               | regenerates `convex/_generated/` |
 
 ## Scope
 
 **In scope** (the only files you should modify):
+
 - `shared/legal/terms.ts` (create) — the Terms of Service text as a string constant
 - `shared/legal/privacy.ts` (create) — the Privacy Policy text, built from `PRIVACY_COPY`'s facts
 - `convex/legal.ts` (create) — two `httpAction`s returning the pages as HTML
@@ -85,6 +88,7 @@ The About screen has a "Terms" row that opens `https://google.com` as a placehol
 - `docs/todos/release/README.md` — record the URLs for App Store Connect
 
 **Out of scope** (do NOT touch):
+
 - `LICENSE` and the README's setup, model, and license claims (hackathon eligibility).
 - `src/components/settings/privacy-section.tsx` — keep the in-app Privacy settings and its copy; the Settings "Privacy" row still opens it.
 - Any legal review. Mark both pages "Draft — review before public release" in their headings; do not remove that marker.
@@ -110,14 +114,20 @@ Create `shared/legal/privacy.ts` exporting `PRIVACY_TITLE` and `PRIVACY_SECTIONS
 Create `convex/legal.ts`:
 
 ```ts
-import { httpAction } from './_generated/server';
-import { TERMS_SECTIONS, TERMS_TITLE } from '../shared/legal/terms';
-import { PRIVACY_SECTIONS, PRIVACY_TITLE } from '../shared/legal/privacy';
+import { httpAction } from "./_generated/server";
+import { TERMS_SECTIONS, TERMS_TITLE } from "../shared/legal/terms";
+import { PRIVACY_SECTIONS, PRIVACY_TITLE } from "../shared/legal/privacy";
 
 function page(title: string, sections: { heading: string; body: string }[]): Response {
-  const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} · Artlog</title></head><body style="font-family: -apple-system, system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #111; background: #FCFCF9;"><h1>${escape(title)}</h1>${sections.map((section) => `<h2>${escape(section.heading)}</h2><p>${escape(section.body)}</p>`).join('')}</body></html>`;
-  return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
+  const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} · Artlog</title></head><body style="font-family: -apple-system, system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #111; background: #FCFCF9;"><h1>${escape(title)}</h1>${sections.map((section) => `<h2>${escape(section.heading)}</h2><p>${escape(section.body)}</p>`).join("")}</body></html>`;
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
 }
 
 export const terms = httpAction(async () => page(TERMS_TITLE, TERMS_SECTIONS));
@@ -127,8 +137,8 @@ export const privacy = httpAction(async () => page(PRIVACY_TITLE, PRIVACY_SECTIO
 In `convex/http.ts`, import `{ privacy, terms } from './legal'` and add:
 
 ```ts
-http.route({ path: '/terms', method: 'GET', handler: terms });
-http.route({ path: '/privacy', method: 'GET', handler: privacy });
+http.route({ path: "/terms", method: "GET", handler: terms });
+http.route({ path: "/privacy", method: "GET", handler: privacy });
 ```
 
 Run `npx convex codegen`.
@@ -144,6 +154,7 @@ Create `convex/legal.test.ts` with `vitest` and `convex-test` (model after any e
 ### Step 4: Point About at the hosted pages
 
 In `src/components/settings/about-section.tsx`:
+
 - Replace the `TERMS_URL` placeholder and its comment with:
 
   ```ts

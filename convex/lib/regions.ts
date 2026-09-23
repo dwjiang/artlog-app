@@ -1,4 +1,4 @@
-import regions from '../../shared/sources/regions.json';
+import regions from "../../shared/sources/regions.json";
 
 type Region = { name: string; domains: string[] };
 

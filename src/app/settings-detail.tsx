@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { SettingsDetailScreen } from '@/components/settings/settings-detail-screen';
+import { useLocalSearchParams } from "expo-router";
+import { SettingsDetailScreen } from "@/components/settings/settings-detail-screen";
 
 export default function SettingsDetailRoute() {
   const { section } = useLocalSearchParams<{ section: string }>();

@@ -15,10 +15,7 @@
         }
       }
     },
-    "required": [
-      "sentence",
-      "fact_ids"
-    ],
+    "required": ["sentence", "fact_ids"],
     "additionalProperties": false
   }
 }

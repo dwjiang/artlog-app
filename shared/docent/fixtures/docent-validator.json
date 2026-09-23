@@ -6,11 +6,17 @@
       "factIds": ["f1", "f2", "f3"],
       "sentences": [
         { "sentence": "Harbor at Dawn is an oil painting by Mira Vale.", "factIds": ["f1"] },
-        { "sentence": "It was painted in 1912 and depicts three fishing boats.", "factIds": ["f2", "f3"] }
+        {
+          "sentence": "It was painted in 1912 and depicts three fishing boats.",
+          "factIds": ["f2", "f3"]
+        }
       ],
       "expectedKept": [
         { "sentence": "Harbor at Dawn is an oil painting by Mira Vale.", "factIds": ["f1"] },
-        { "sentence": "It was painted in 1912 and depicts three fishing boats.", "factIds": ["f2", "f3"] }
+        {
+          "sentence": "It was painted in 1912 and depicts three fishing boats.",
+          "factIds": ["f2", "f3"]
+        }
       ]
     },
     {
@@ -52,7 +58,10 @@
       "name": "too long dropped",
       "factIds": ["f1", "f2"],
       "sentences": [
-        { "sentence": "This sentence keeps going far beyond what a docent would ever say on a wall label, listing the provenance, the exhibitions, the conservation campaigns, the loans, the publications, the catalogue numbers, the frame history and every gallery the painting has hung in since it was acquired.", "factIds": ["f1"] },
+        {
+          "sentence": "This sentence keeps going far beyond what a docent would ever say on a wall label, listing the provenance, the exhibitions, the conservation campaigns, the loans, the publications, the catalogue numbers, the frame history and every gallery the painting has hung in since it was acquired.",
+          "factIds": ["f1"]
+        },
         { "sentence": "A pale orange sun appears above the harbor.", "factIds": ["f2"] }
       ],
       "expectedKept": [
@@ -66,9 +75,7 @@
         { "sentence": "Painted in 1912.", "factIds": ["f1"] },
         { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
       ],
-      "expectedKept": [
-        { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
-      ]
+      "expectedKept": [{ "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }]
     },
     {
       "name": "at most four kept",
@@ -110,9 +117,7 @@
         { "sentence": "  The  painting was cleaned\nin 1988. ", "factIds": ["f1", "f1", "f2"] },
         { "sentence": "The painting was cleaned in 1988.", "factIds": ["f2"] }
       ],
-      "expectedKept": [
-        { "sentence": "The painting was cleaned in 1988.", "factIds": ["f1", "f2"] }
-      ]
+      "expectedKept": [{ "sentence": "The painting was cleaned in 1988.", "factIds": ["f1", "f2"] }]
     },
     {
       "name": "blank sentence dropped",
@@ -121,31 +126,28 @@
         { "sentence": "   ", "factIds": ["f1"] },
         { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
-      ]
+      "expectedKept": [{ "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }]
     },
     {
       "name": "UTF-16 character limit includes surrogate pairs",
       "factIds": ["f1"],
       "sentences": [
-        {"sentence": "A painting shows boats \ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8", "factIds": ["f1"]},
-        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
+        {
+          "sentence": "A painting shows boats \ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8\ud83c\udfa8",
+          "factIds": ["f1"]
+        },
+        { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
-      ]
+      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
     },
     {
       "name": "ECMAScript whitespace includes BOM and excludes NEL",
       "factIds": ["f1"],
       "sentences": [
-        {"sentence": "\ufeffThe\u00a0painting\u2028shows\tthree boats.\ufeff", "factIds": ["f1"]},
-        {"sentence": "The\u0085painting shows boats.", "factIds": ["f1"]}
+        { "sentence": "\ufeffThe\u00a0painting\u2028shows\tthree boats.\ufeff", "factIds": ["f1"] },
+        { "sentence": "The\u0085painting shows boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        {"sentence": "The painting shows three boats.", "factIds": ["f1"]}
-      ]
+      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
     }
   ]
 }

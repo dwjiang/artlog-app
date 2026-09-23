@@ -17,7 +17,7 @@
   and websites. Wikidata structured data is CC0; this fixture tests parsing,
   Unicode names, coordinates, and duplicate collapse without live requests.
 
-- `test-painting.jpg` — Vincent van Gogh, *Wheat Field with Cypresses* (1889),
+- `test-painting.jpg` — Vincent van Gogh, _Wheat Field with Cypresses_ (1889),
   The Metropolitan Museum of Art, accession 1993.132, Met object 436535
   (<https://www.metmuseum.org/art/collection/search/436535>). Open Access,
   CC0 1.0. Re-encoded from the Met's `web-large` rendition (599×477, JPEG
