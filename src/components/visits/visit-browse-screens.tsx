@@ -1,3 +1,4 @@
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { SavedWorkImage } from "../collection/saved-work-image";
 import { formatVisitDate, placeIdentity } from "@/lib/journal/history";
 import { useState } from "react";
@@ -16,6 +17,7 @@ import { VisitRow } from "./visit-timeline";
 import { VisitMessage, VisitPage } from "./visit-ui";
 
 export function VisitPlaceScreen() {
+  const dockInset = useListeningDockInset();
   const { placeKey, name, venueId } = useLocalSearchParams<{
     placeKey: string;
     name: string;
@@ -26,7 +28,7 @@ export function VisitPlaceScreen() {
     (visit) => !venueId || visit.venueId === venueId,
   );
   return (
-    <>
+    <View style={{ flex: 1, paddingBottom: dockInset }}>
       <Stack.Screen options={{ title: name || "Visits by museum" }} />
       {error || loading ? (
         <VisitPage>
@@ -111,7 +113,7 @@ export function VisitPlaceScreen() {
           }
         />
       )}
-    </>
+    </View>
   );
 }
 export function VisitGlobeScreen() {

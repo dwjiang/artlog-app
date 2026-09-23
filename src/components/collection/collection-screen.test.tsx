@@ -8,6 +8,7 @@ import { CollectionScreen } from "./collection-screen";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
+jest.mock("@/lib/audio/use-listening");
 
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));

@@ -29,7 +29,7 @@ item disqualifies the submission.
    actions (`convex/lib/tokenFactory.ts`). Do not remove or stub the runtime Token Factory
    path, and do not move all model calls to another provider.
 2. **Uses at least one NVIDIA open source model.** Artlog uses C-RADIOv3-B on the phone
-   and Nemotron 3 Super and Nemotron 3.5 Lightning on Token Factory. Nemotron is the
+   and Nemotron 3 Ultra, Nemotron 3 Super and Nemotron 3.5 Lightning on Token Factory. Nemotron is the
    organizers' preferred family for this track; keep at least one Nemotron model on a
    live request path and keep the root README's model table accurate.
 3. **Working, free demo for judges.** A URL to "a working demo, hosted application, or

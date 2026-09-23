@@ -1,8 +1,7 @@
 import { Image } from "expo-image";
 import { useState } from "react";
 import { signInRoute } from "@/lib/account/sign-in-context";
-import { useVenue } from "@/lib/venue/use-venue";
-import { activeVisit } from "@/lib/venue/venue-reducer";
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { SocialInvitation } from "./social-invitation";
 import { GalleryButton } from "../collection/gallery-button";
 import { WelcomePrompt } from "../account/welcome-prompt";
@@ -27,7 +26,7 @@ const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
-  const visitBar = !!activeVisit(useVenue());
+  const dockInset = useListeningDockInset();
   const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const guest = session.status === "signed-out";
@@ -45,7 +44,7 @@ export function HomeScreen() {
       <WelcomePrompt />
       <FlatList
         style={socialStyles.root}
-        contentContainerStyle={[socialStyles.content, visitBar && { paddingBottom: 110 }]}
+        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 + dockInset }]}
         contentInsetAdjustmentBehavior="automatic"
         data={ready ? feed.items : []}
         keyExtractor={visitId}

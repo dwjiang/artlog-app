@@ -35,6 +35,10 @@ import { contributeLabel } from "@/lib/label/contribute";
 import { clearLabelDraft, saveLabelDraft } from "@/lib/label/draft";
 import * as labelDrafts from "@/lib/label/draft";
 import { formStateFromFlow, unlockField } from "@/lib/label/fields";
+jest.mock("@/lib/audio/use-listening");
+jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
+  useCachedNarrationDuration: () => undefined,
+}));
 jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => true }));
 jest.mock("./capture-context-button", () => ({ CaptureContextButton: () => null }));
 jest.mock("./capture-photos-button", () => ({

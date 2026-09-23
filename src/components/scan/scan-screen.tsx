@@ -1,3 +1,5 @@
+import { useHasListeningTrack } from "@/lib/audio/use-listening";
+import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { reportError } from "@/lib/observability";
 import { introArtworks } from "../guest/artwork-preview";
 import { GalleryButton } from "../collection/gallery-button";
@@ -29,6 +31,7 @@ import { useRectDetector } from "@/lib/capture/use-rect-detector";
 const IMPORT_SIZE = 56;
 
 export function ScanScreen() {
+  const audioInset = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
@@ -42,9 +45,9 @@ export function ScanScreen() {
   const revealInsets = useMemo(
     () => ({
       top: top + Spacing.three + controls.top + Spacing.four,
-      bottom: bottom + BottomTabInset + Spacing.three + controls.bottom + Spacing.four,
+      bottom: bottom + BottomTabInset + audioInset + Spacing.three + controls.bottom + Spacing.four,
     }),
-    [top, bottom, controls],
+    [top, bottom, controls, audioInset],
   );
   const active = isFocused && appState === "active";
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
@@ -113,6 +116,7 @@ export function ScanScreen() {
       }
     >
       <CameraPermission
+        bottomInset={audioInset}
         onImport={() => {
           void capture.importPhoto();
         }}
@@ -141,7 +145,10 @@ export function ScanScreen() {
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
         <View
           pointerEvents="box-none"
-          style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}
+          style={[
+            styles.overlay,
+            { paddingBottom: bottom + BottomTabInset + audioInset + Spacing.three },
+          ]}
         >
           <View
             pointerEvents="box-none"

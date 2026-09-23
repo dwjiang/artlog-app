@@ -13,6 +13,7 @@ import { ScanScreen } from "./scan-screen";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
 import type { CaptureTimings } from "@/lib/capture/stages";
 import type { VenueView } from "@/lib/venue/use-venue";
+jest.mock("@/lib/audio/use-listening");
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 

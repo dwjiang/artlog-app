@@ -101,7 +101,16 @@
           ]
         }
       ],
-      "./plugins/with-artlog-widget"
+      "./plugins/with-artlog-widget",
+      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

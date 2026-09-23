@@ -1,3 +1,5 @@
+import { MiniPlayer } from "@/components/audio/mini-player";
+import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -43,6 +45,7 @@ function useSelectedTab(): string | undefined {
 }
 
 export default function TabsLayout() {
+  const listening = useHasListeningTrack();
   const { bottom } = useSafeAreaInsets();
   const [hidden, setHidden] = useState(false);
   const { venue, visit } = useVenue();
@@ -73,17 +76,23 @@ export default function TabsLayout() {
             />
           </NativeTabs.Trigger>
         </NativeTabs>
-        {showVisitBar && (
+        {!hidden && (showVisitBar || listening) && (
           <View
-            pointerEvents="box-none"
             style={{
               position: "absolute",
               left: 20,
               right: 20,
               bottom: bottom + BottomTabInset + 12,
+              borderWidth: 1,
+              borderColor: "#C8C9C1",
+              borderRadius: 12,
+              overflow: "hidden",
+              backgroundColor: Gallery.surface,
+              boxShadow: "0 3px 12px #24271414",
             }}
           >
-            <VisitBar />
+            {showVisitBar && <VisitBar />}
+            {listening && <MiniPlayer />}
           </View>
         )}
       </View>

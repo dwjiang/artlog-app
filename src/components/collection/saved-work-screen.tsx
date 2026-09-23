@@ -1,3 +1,5 @@
+import { ListenActions } from "@/components/audio/listen-actions";
+import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -151,7 +153,17 @@ function SavedArtwork({
           work={work}
           visitId={currentEncounter?.visit.localId}
           photoId={photoId}
-        />
+        >
+          {work.artworkId && (
+            <ListenActions
+              artworkId={work.artworkId}
+              title={work.title}
+              artist={work.artist}
+              savedId={work.localId}
+              imageUri={work.cropPath ? captureFileUri(work.cropPath) : undefined}
+            />
+          )}
+        </ArtworkAlbum>
         {wall.signedIn && !work.syncedAt && (
           <View style={{ padding: 14, gap: 12, backgroundColor: "#EEF2FF" }}>
             <Text style={{ fontSize: 14, lineHeight: 21 }}>

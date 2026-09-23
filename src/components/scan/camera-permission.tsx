@@ -15,12 +15,14 @@ export function CameraPermission({
   notice,
   compact = false,
   loading = false,
+  bottomInset = 0,
 }: {
   children: ReactNode;
   onImport?: () => void;
   notice?: string;
   compact?: boolean;
   loading?: boolean;
+  bottomInset?: number;
 }) {
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [error, setError] = useState<string>();
@@ -77,6 +79,7 @@ export function CameraPermission({
     <View style={{ paddingVertical: 12 }}>{invitation}</View>
   ) : (
     <ScrollView
+      style={{ marginBottom: bottomInset }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20 }}
     >

@@ -466,7 +466,7 @@ describe("enrichment after identification", () => {
             ? [
                 {
                   id: "f1",
-                  text: "Monet painted Water Lilies in 1916.",
+                  text: "Claude Monet painted this canvas in 1916.",
                   sourceUrl: SOURCE,
                   sourceLabel: "x",
                   sourceScore: 1,

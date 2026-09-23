@@ -6,7 +6,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -20,10 +20,12 @@ export function ArtworkAlbum({
   work,
   visitId,
   photoId,
+  children,
 }: {
   work: SavedWork;
   visitId?: string;
   photoId?: string;
+  children?: ReactNode;
 }) {
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
     work.localId,
@@ -183,6 +185,7 @@ export function ArtworkAlbum({
           </Text>
         )}
       </View>
+      {children}
       {rows.length > 1 && (
         <View style={styles.thumbnails}>
           <ScrollView

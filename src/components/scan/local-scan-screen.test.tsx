@@ -25,6 +25,7 @@ import type { NewPendingScan } from "@/db/schema";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
 import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
 import { confidentScan } from "./result/__fixtures__/scan";
+jest.mock("@/components/audio/listen-actions", () => ({ ListenActions: () => null }));
 jest.mock("./capture-context-button", () => ({ CaptureContextButton: () => null }));
 jest.mock("./capture-photos-button", () => ({
   CapturePhotosButton: () => null,

@@ -16,6 +16,7 @@ export type ChatJsonRequest<T> = {
   maxTokens: number;
   parse: (value: unknown) => T | null;
   timeoutMs?: number;
+  reasoning?: "low";
 };
 
 // `calls` counts every request sent, including the retry, for spend reconciliation.
@@ -85,8 +86,11 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
       },
       temperature: 0,
       max_tokens: request.maxTokens,
-      // Nemotron's template parameter; thinking would eat the small output budgets.
-      chat_template_kwargs: { enable_thinking: false },
+      // Short tasks skip reasoning; longer grounded guides opt in with a larger token budget.
+      chat_template_kwargs:
+        request.reasoning === "low"
+          ? { enable_thinking: true, low_effort: true }
+          : { enable_thinking: false },
     }),
   };
   let calls = 0;

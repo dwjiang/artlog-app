@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from .prompts import FACT_SHEET_MAX_TOKENS, FACT_SHEET_PROMPT, FACT_SHEET_SCHEMA, MAX_FACTS
@@ -16,6 +19,10 @@ class RawFact(BaseModel):
 FACTS = TypeAdapter(list[RawFact])
 
 
+def source_passage(text: str) -> str:
+    return normalize(re.sub(r"[\"'‘’“”]", "", unicodedata.normalize("NFKC", text)))
+
+
 def build_fact_sheet(raw: list[dict], sources: list[dict]) -> list[dict]:
     by_url = {source["url"]: source for source in sources}
     seen = set()
@@ -23,7 +30,12 @@ def build_fact_sheet(raw: list[dict], sources: list[dict]) -> list[dict]:
     for fact in raw:
         source = by_url.get(fact["sourceUrl"].strip())
         text = normalize(fact["text"])
-        if not source or not text or text.lower() in seen:
+        if (
+            not source
+            or not text
+            or text.lower() in seen
+            or source_passage(text) not in source_passage(source["text"])
+        ):
             continue
         seen.add(text.lower())
         facts.append(

@@ -16,6 +16,10 @@ import {
   editEncounter,
   linkArtworkVisit,
 } from "@/db/repos/artwork-album";
+jest.mock("@/lib/audio/use-listening");
+jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
+  useCachedNarrationDuration: () => undefined,
+}));
 
 let mockWall: Partial<
   ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>

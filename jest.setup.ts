@@ -16,6 +16,14 @@ jest.mock("react-native-reanimated", () => ({
   getUseOfValueInStyleWarning: () => "",
 }));
 
+// expo-audio patches its native player class on import, which jest-expo does not mock; route tests load it through the root layout.
+jest.mock("expo-audio", () => ({
+  createAudioPlayer: jest.fn(),
+  setAudioModeAsync: jest.fn(async () => {}),
+  useAudioPlayer: jest.fn(() => ({ id: 0 })),
+  useAudioPlayerStatus: jest.fn(() => ({ id: 0, isLoaded: false, duration: 0 })),
+}));
+
 // Jest does not load .env files; route modules construct the Convex client at import time.
 process.env.EXPO_PUBLIC_CONVEX_URL ??= "https://test.convex.cloud";
 

@@ -1,7 +1,9 @@
+import { ListenActions } from "@/components/audio/listen-actions";
 import { Stack } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
@@ -128,6 +130,20 @@ export function ResultCard({
             </>
           )}
         </View>
+        {view.kind === "confident" && view.primary && (
+          <ListenActions
+            artworkId={view.primary.artworkId}
+            title={draft.title}
+            artist={draft.artist}
+            scanId={captureInput?.scanId}
+            savedId={savedId}
+            imageUri={
+              captureInput?.capture
+                ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath))
+                : undefined
+            }
+          />
+        )}
         {!view.primary && !editingDetails && (
           <ThemedText themeColor="textSecondary">
             We couldn’t identify this artwork yet. Keep the photo and add what you know.

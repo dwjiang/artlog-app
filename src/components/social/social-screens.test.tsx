@@ -16,6 +16,7 @@ const mockPush = jest.fn(),
   mockPages = jest.fn(),
   mockQuery = jest.fn();
 const mockSignIn = jest.fn();
+jest.mock("@/lib/audio/use-listening");
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),

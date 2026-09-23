@@ -1,7 +1,6 @@
 import { useNetworkState } from "expo-network";
 import { ThemedText as Text } from "@/components/themed-text";
-import { useVenue } from "@/lib/venue/use-venue";
-import { activeVisit } from "@/lib/venue/venue-reducer";
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
@@ -74,7 +73,7 @@ function OwnedCollection({
   const data = useCollectionData();
   const network = useNetworkState();
   // The tab layout floats the visit bar only while the phone is at the visit's museum; pad for it on the same terms.
-  const visitBar = !!activeVisit(useVenue()) && !editing;
+  const dockInset = useListeningDockInset();
   const guest = !data.owner.startsWith("account:");
   const controls = (
     <View style={{ paddingHorizontal: 20, paddingBottom: 12, backgroundColor: Gallery.paper }}>
@@ -117,7 +116,7 @@ function OwnedCollection({
   return (
     <SafeAreaView
       edges={["top"]}
-      style={{ flex: 1, backgroundColor: Gallery.paper, paddingBottom: visitBar ? 80 : 0 }}
+      style={{ flex: 1, backgroundColor: Gallery.paper, paddingBottom: editing ? 0 : dockInset }}
     >
       <View style={{ flex: 1, display: mode === "collection" ? "flex" : "none" }}>
         {guest ? (
