@@ -3,8 +3,9 @@ import type { SharedArtwork, SharedVisit } from '@/lib/social/types';
 import { VisitScreen } from './visit-screen';
 
 const mockPush = jest.fn(), mockLoadMore = jest.fn(), mockRefresh = jest.fn(), mockPages = jest.fn();
+jest.mock('convex/react', () => ({ ...jest.requireActual('convex/react'), useMutation: () => jest.fn() }));
 jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'ready', key: 'viewer', token: 'visit-token' }) }));
-jest.mock('@/lib/social/use-social-query', () => ({ useCursorPages: (...args: unknown[]) => mockPages(...args) }));
+jest.mock('@/lib/social/use-social-query', () => ({ useCursorPages: (...args: unknown[]) => mockPages(...args), useSocialQuery: () => ({ data: undefined }) }));
 jest.mock('@/components/settings/account-section', () => ({ AccountSection: () => null }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('expo-image', () => ({ Image: (props: object) => {

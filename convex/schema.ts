@@ -547,6 +547,16 @@ export default defineSchema({
     photoLocalIds: v.optional(v.array(v.string())), highlighted: v.optional(v.boolean()),
   }).index('by_publication_position', ['publicationId', 'position']).index('by_publication_save', ['publicationId', 'saveId'])
     .index('by_saveId', ['saveId']),
+  visitEngagement: defineTable({
+    publicationId: v.id('sharedVisits'), likeCount: v.number(), commentCount: v.number(),
+  }).index('by_publication', ['publicationId']),
+  visitLikes: defineTable({
+    publicationId: v.id('sharedVisits'), profileId: v.id('profiles'),
+  }).index('by_publication_profile', ['publicationId', 'profileId']).index('by_profile', ['profileId'])
+    .index('by_publication', ['publicationId']),
+  visitComments: defineTable({
+    publicationId: v.id('sharedVisits'), profileId: v.id('profiles'), body: v.string(), requestId: v.string(),
+  }).index('by_publication', ['publicationId']).index('by_profile_request', ['profileId', 'requestId']),
   mediaAssets: defineTable({
     saveId: v.id('collections'), source: mediaSource, storageId: v.optional(v.id('_storage')),
     provenance: v.union(

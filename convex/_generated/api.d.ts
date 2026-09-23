@@ -94,6 +94,7 @@ import type * as lib_tokenFactory from "../lib/tokenFactory.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_venueFetch from "../lib/venueFetch.js";
 import type * as lib_venueOptOut from "../lib/venueOptOut.js";
+import type * as lib_visitReactions from "../lib/visitReactions.js";
 import type * as lib_wallFixtures from "../lib/wallFixtures.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as museumSearch from "../museumSearch.js";
@@ -115,6 +116,7 @@ import type * as sharedVisits from "../sharedVisits.js";
 import type * as spend from "../spend.js";
 import type * as sync from "../sync.js";
 import type * as venueTable from "../venueTable.js";
+import type * as visitReactions from "../visitReactions.js";
 import type * as visits from "../visits.js";
 import type * as walls from "../walls.js";
 
@@ -211,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "lib/venueFetch": typeof lib_venueFetch;
   "lib/venueOptOut": typeof lib_venueOptOut;
+  "lib/visitReactions": typeof lib_visitReactions;
   "lib/wallFixtures": typeof lib_wallFixtures;
   "lib/wikidata": typeof lib_wikidata;
   museumSearch: typeof museumSearch;
@@ -232,6 +235,7 @@ declare const fullApi: ApiFromModules<{
   spend: typeof spend;
   sync: typeof sync;
   venueTable: typeof venueTable;
+  visitReactions: typeof visitReactions;
   visits: typeof visits;
   walls: typeof walls;
 }>;
