@@ -1,9 +1,10 @@
-import model from '../../../shared/model/model-version.json';
+import { reportError } from "@/lib/observability";
+import model from "../../../shared/model/model-version.json";
 
-import { getCoremlEmbed } from '../../../modules/coreml-embed/src';
-import type { CoremlEmbed, WarmUpResult } from '../../../modules/coreml-embed/src';
-import type { Embedder } from '@/lib/capture/stages';
-import { filePath } from '@/lib/file-uri';
+import { getCoremlEmbed } from "../../../modules/coreml-embed/src";
+import type { CoremlEmbed, WarmUpResult } from "../../../modules/coreml-embed/src";
+import type { Embedder } from "@/lib/capture/stages";
+import { filePath } from "@/lib/file-uri";
 
 export type ModelEmbedder = Embedder & { warmUp(): Promise<WarmUpResult> };
 
@@ -20,7 +21,9 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
     if (checked) return checked;
     const candidate = native();
     if (candidate.modelVersion === null) {
-      throw new Error('The CoreML model asset is missing from this build; run `git lfs pull` and rebuild');
+      throw new Error(
+        "The CoreML model asset is missing from this build; run `git lfs pull` and rebuild",
+      );
     }
     if (candidate.modelVersion !== model.modelVersion) {
       throw new Error(
@@ -37,16 +40,20 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
       return model.modelVersion;
     },
     warmUp() {
-      warming ??= Promise.resolve().then(() => nativeModule().warmUp()).catch((error: unknown) => {
-        warming = undefined;
-        throw error;
-      });
+      warming ??= Promise.resolve()
+        .then(() => nativeModule().warmUp())
+        .catch((error: unknown) => {
+          warming = undefined;
+          throw error;
+        });
       return warming;
     },
     async embed(cropUri) {
       const values = await nativeModule().embed(filePath(cropUri));
       if (values.length !== model.embeddingDim) {
-        throw new Error(`The embedding has ${values.length} values, expected ${model.embeddingDim}`);
+        throw new Error(
+          `The embedding has ${values.length} values, expected ${model.embeddingDim}`,
+        );
       }
       return Float32Array.from(values);
     },
@@ -59,8 +66,11 @@ export const embedder = createEmbedder();
 export function warmUpEmbedder(): void {
   embedder.warmUp().then(
     (result) => {
-      if (__DEV__) console.debug('Embedding model ready', result);
+      if (__DEV__) console.debug("Embedding model ready", result);
     },
-    (error: unknown) => console.warn('Embedding model warm-up failed', error),
+    (error: unknown) => {
+      reportError(error, "embedding.warm_up");
+      console.warn("Embedding model warm-up failed", error);
+    },
   );
 }

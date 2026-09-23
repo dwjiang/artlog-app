@@ -5,8 +5,6 @@
       "type": "boolean"
     }
   },
-  "required": [
-    "flagged"
-  ],
+  "required": ["flagged"],
   "additionalProperties": false
 }

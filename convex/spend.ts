@@ -1,9 +1,16 @@
-import { v } from 'convex/values';
+import { v } from "convex/values";
 
-import { internalMutation, internalQuery } from './_generated/server';
-import { assertUnderCap, dailyCap, reconcileSpend, recordSpend, reserveSpend, spentToday } from './lib/spend';
+import { internalMutation, internalQuery } from "./_generated/server";
+import {
+  assertUnderCap,
+  dailyCap,
+  reconcileSpend,
+  recordSpend,
+  reserveSpend,
+  spentToday,
+} from "./lib/spend";
 
-const spendKind = v.union(v.literal('tokenFactory'), v.literal('tavily'));
+const spendKind = v.union(v.literal("tokenFactory"), v.literal("tavily"));
 
 export const record = internalMutation({
   args: { tokenFactoryCalls: v.optional(v.number()), tavilyCredits: v.optional(v.number()) },

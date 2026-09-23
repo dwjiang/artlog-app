@@ -1,11 +1,11 @@
-import type { Mat } from 'react-native-fast-opencv';
+import type { Mat } from "react-native-fast-opencv";
 
-import { DESCRIPTOR_BYTES, encodeOrbFeatures } from '@/shared/orb/features';
-import model from '../../../shared/model/model-version.json';
+import { DESCRIPTOR_BYTES, encodeOrbFeatures } from "@/shared/orb/features";
+import model from "../../../shared/model/model-version.json";
 
-import type { FastOpenCV } from '@/lib/image/opencv';
-import { withGray } from '@/lib/image/read-crop';
-import { packKeypoints, type Keypoint } from './pack';
+import type { FastOpenCV } from "@/lib/image/opencv";
+import { withGray } from "@/lib/image/read-crop";
+import { packKeypoints, type Keypoint } from "./pack";
 
 export type OrbDetection = {
   keypoints: Keypoint[];
@@ -23,7 +23,8 @@ export function extractOrb(
   cv?: FastOpenCV,
 ): Promise<OrbFeatureBuffers> {
   return withGray(cropUri, cv, ({ gray, width, height }, opencv) => {
-    if (width !== height) throw new Error(`ORB expects the letterboxed square crop, got ${width}×${height}`);
+    if (width !== height)
+      throw new Error(`ORB expects the letterboxed square crop, got ${width}×${height}`);
     return toOrbFeatures(detectOrb(gray, maxKeypoints, opencv), maxKeypoints);
   });
 }
@@ -34,9 +35,14 @@ function detectOrb(gray: Mat, maxKeypoints: number, { OpenCV }: FastOpenCV): Orb
     const { keypoints, descriptors } = OpenCV.detectAndCompute(detector, gray);
     try {
       const points = keypoints.toArray();
-      if (points.length === 0) return { keypoints: [], descriptors: new Uint8Array(0), descriptorBytes: DESCRIPTOR_BYTES };
-      const rows = descriptors.toBuffer('uint8');
-      return { keypoints: points, descriptors: rows.buffer, descriptorBytes: rows.cols * rows.channels };
+      if (points.length === 0)
+        return { keypoints: [], descriptors: new Uint8Array(0), descriptorBytes: DESCRIPTOR_BYTES };
+      const rows = descriptors.toBuffer("uint8");
+      return {
+        keypoints: points,
+        descriptors: rows.buffer,
+        descriptorBytes: rows.cols * rows.channels,
+      };
     } finally {
       keypoints.release();
       descriptors.release();
@@ -49,10 +55,14 @@ function detectOrb(gray: Mat, maxKeypoints: number, { OpenCV }: FastOpenCV): Orb
 export function toOrbFeatures(detection: OrbDetection, maxKeypoints: number): OrbFeatureBuffers {
   const { keypoints, descriptors, descriptorBytes } = detection;
   if (descriptorBytes !== DESCRIPTOR_BYTES) {
-    throw new Error(`ORB produced ${descriptorBytes}-byte descriptors, expected ${DESCRIPTOR_BYTES}`);
+    throw new Error(
+      `ORB produced ${descriptorBytes}-byte descriptors, expected ${DESCRIPTOR_BYTES}`,
+    );
   }
   if (descriptors.length !== keypoints.length * DESCRIPTOR_BYTES) {
-    throw new Error(`ORB produced ${descriptors.length} descriptor bytes for ${keypoints.length} keypoints`);
+    throw new Error(
+      `ORB produced ${descriptors.length} descriptor bytes for ${keypoints.length} keypoints`,
+    );
   }
   // ORB's retainBest keeps ties past the cap; truncating in output order matches orb.py.
   const count = Math.min(keypoints.length, maxKeypoints);

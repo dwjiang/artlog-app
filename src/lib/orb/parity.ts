@@ -1,4 +1,4 @@
-import { DESCRIPTOR_BYTES } from '@/shared/orb/features';
+import { DESCRIPTOR_BYTES } from "@/shared/orb/features";
 
 export type OrbParity = {
   count: number;
@@ -19,7 +19,12 @@ export function compareDescriptors(actual: ArrayBuffer, expected: ArrayBuffer): 
     if (row === expectedRows[index]) rowsInOrder += 1;
     if (expectedSet.has(row)) rowsAnywhere += 1;
   });
-  return { count: actualRows.length, expectedCount: expectedRows.length, rowsInOrder, rowsAnywhere };
+  return {
+    count: actualRows.length,
+    expectedCount: expectedRows.length,
+    rowsInOrder,
+    rowsAnywhere,
+  };
 }
 
 function rowsOf(bytes: Uint8Array): string[] {

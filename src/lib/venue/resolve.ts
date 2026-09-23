@@ -1,4 +1,5 @@
-import type { Id } from '../../../convex/_generated/dataModel';
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 
 /** A single seeded row this close is the venue. */
 export const AUTO_RADIUS_M = 150;
@@ -10,7 +11,7 @@ export type Coordinate = { lat: number; lng: number };
 
 /** One row of the bundled `venues` table. */
 export type VenueRow = {
-  id: Id<'museums'>;
+  id: Id<"museums">;
   key: string;
   name: string;
   lat: number;
@@ -25,13 +26,14 @@ export type VenueRow = {
 export type VenueCandidate = VenueRow & { distanceM: number };
 
 export type VenueResolution =
-  | { kind: 'auto'; venue: VenueCandidate; options: VenueCandidate[] }
-  | { kind: 'choose'; options: VenueCandidate[] }
-  | { kind: 'none' };
+  | { kind: "auto"; venue: VenueCandidate; options: VenueCandidate[] }
+  | { kind: "choose"; options: VenueCandidate[] }
+  | { kind: "none" };
 
 export function haversineMeters(a: Coordinate, b: Coordinate): number {
   const rad = Math.PI / 180;
-  const h = Math.sin(((b.lat - a.lat) * rad) / 2) ** 2 +
+  const h =
+    Math.sin(((b.lat - a.lat) * rad) / 2) ** 2 +
     Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(Math.min(1, h)));
 }
@@ -51,7 +53,11 @@ export function boundingBox({ lat, lng }: Coordinate, radiusM: number): Bounding
 }
 
 /** Rows within `radiusM` of `origin`, nearest first. */
-export function rankCandidates(rows: VenueRow[], origin: Coordinate, radiusM: number): VenueCandidate[] {
+export function rankCandidates(
+  rows: VenueRow[],
+  origin: Coordinate,
+  radiusM: number,
+): VenueCandidate[] {
   return rows
     .map((row) => ({ ...row, distanceM: haversineMeters(origin, row) }))
     .filter((row) => row.distanceM <= radiusM)
@@ -65,15 +71,19 @@ export function rankCandidates(rows: VenueRow[], origin: Coordinate, radiusM: nu
  */
 export function pickVenue(candidates: VenueCandidate[]): VenueResolution {
   const options = candidates.filter((row) => row.distanceM <= CHOOSE_RADIUS_M);
-  if (options.length >= 2) return { kind: 'choose', options };
+  if (options.length >= 2) return { kind: "choose", options };
   const [nearest] = options;
-  if (!nearest) return { kind: 'none' };
-  if (nearest.distanceM <= AUTO_RADIUS_M) return { kind: 'auto', venue: nearest, options };
-  return { kind: 'choose', options };
+  if (!nearest) return { kind: "none" };
+  if (nearest.distanceM <= AUTO_RADIUS_M) return { kind: "auto", venue: nearest, options };
+  return { kind: "choose", options };
 }
 
-export function formatDistance(distanceM: number): string {
-  if (!Number.isFinite(distanceM)) return '';
+export function formatDistance(distanceM: number, units: MeasurementUnits = "metric"): string {
+  if (!Number.isFinite(distanceM)) return "";
+  if (units === "imperial") {
+    if (distanceM < 1609.344) return `${Math.max(10, Math.round(distanceM / 0.3048 / 10) * 10)} ft`;
+    return `${(distanceM / 1609.344).toFixed(1)} mi`;
+  }
   if (distanceM < 1000) return `${Math.max(10, Math.round(distanceM / 10) * 10)} m`;
   return `${(distanceM / 1000).toFixed(1)} km`;
 }

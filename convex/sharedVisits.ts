@@ -1,160 +1,331 @@
-import { selectedPhotoMedia } from './lib/albumMedia';
-import { ConvexError, v } from 'convex/values';
-import { pageArgs, pagination } from '../shared/journal/contracts';
-import { isUuid, LIMITS, utf8Bytes } from '../shared/journal/limits';
-import { visitAudience, displayMedia, publicArtwork, publicProfile, sharedSelection, sharedVisitCard } from '../shared/social/contracts';
-import { mutation, query, type QueryCtx } from './_generated/server';
-import type { Doc, Id } from './_generated/dataModel';
-import { activeProfile, optionalProfile, requireProfile } from './lib/ownership';
-import { projectArtwork, projectProfile } from './lib/projections';
-import { acceptedRelationships, relationshipSnapshot } from './lib/friendships';
-import { readablePublication, requireSharedVisit, requireSharedVisitItem } from './lib/publicationAccess';
-import { limitKey } from './lib/rateLimits';
-import { resolveDisplayAsset } from './lib/displayMedia';
-import { projectArtworkStory, publicArtworkStory } from './lib/publicArtworkStory';
-import { checkPublicationRevision, compareHistory, header, historyCursor, historyHead, type HistoryStream, ownedVisit, PAGE_ARTWORKS, PAGE_BYTES,
-  parseHistoryCursor, profileHistory, projectArtworkPage, publicationForVisit, publicationItems, publicationState, publicationView, publicHistory,
-  readHeadroom, SAVE_READ_RESERVE, selectedSaves, projectVisitAlbum, stateForPublication } from './lib/sharedPublications';
+import { selectedPhotoMedia } from "./lib/albumMedia";
+import { ConvexError, v } from "convex/values";
+import { pageArgs, pagination } from "../shared/journal/contracts";
+import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
+import {
+  visitAudience,
+  displayMedia,
+  publicArtwork,
+  publicProfile,
+  sharedSelection,
+  sharedVisitCard,
+} from "../shared/social/contracts";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
+import { projectArtwork, projectProfile } from "./lib/projections";
+import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
+import {
+  readablePublication,
+  requireSharedVisit,
+  requireSharedVisitItem,
+} from "./lib/publicationAccess";
+import { limitKey } from "./lib/rateLimits";
+import { resolveDisplayAsset } from "./lib/displayMedia";
+import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
+import {
+  checkPublicationRevision,
+  compareHistory,
+  header,
+  historyCursor,
+  historyHead,
+  type HistoryStream,
+  ownedVisit,
+  PAGE_ARTWORKS,
+  PAGE_BYTES,
+  parseHistoryCursor,
+  profileHistory,
+  projectArtworkPage,
+  publicationForVisit,
+  publicationItems,
+  publicationState,
+  publicationView,
+  publicHistory,
+  readHeadroom,
+  SAVE_READ_RESERVE,
+  selectedSaves,
+  projectVisitAlbum,
+  stateForPublication,
+} from "./lib/sharedPublications";
 
 const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
 export const getState = query({
-  args: { visitLocalId: v.string() }, returns: publicationState,
+  args: { visitLocalId: v.string() },
+  returns: publicationState,
   handler: async (ctx, { visitLocalId }) => {
     const { profile, owner } = await requireProfile(ctx);
     const visit = await ownedVisit(ctx, owner, visitLocalId);
-    return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId), visit);
+    return stateForPublication(
+      ctx,
+      await publicationForVisit(ctx, profile._id, visitLocalId),
+      visit,
+    );
   },
 });
 // Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit.
 export const listShared = query({
-  args: {}, returns: v.array(v.string()),
+  args: {},
+  returns: v.array(v.string()),
   handler: async (ctx) => {
     const { profile } = await requireProfile(ctx);
-    const publications = await ctx.db.query('sharedVisits')
-      .withIndex('by_profile_status_history', (q) => q.eq('profileId', profile._id).eq('status', 'active')).take(1000);
-    return publications.filter((publication) => !publication.removal).map((publication) => publication.visitLocalId);
+    const publications = await ctx.db
+      .query("sharedVisits")
+      .withIndex("by_profile_status_history", (q) =>
+        q.eq("profileId", profile._id).eq("status", "active"),
+      )
+      .take(1000);
+    return publications
+      .filter((publication) => !publication.removal)
+      .map((publication) => publication.visitLocalId);
   },
 });
 export const preview = query({
   args: selectionArgs,
-  returns: v.object({ audience: visitAudience, author: publicProfile, venue: v.object({ venueId: v.id('museums'), name: v.string() }), visitedOn: v.string(),
-    reflection: v.string(), artworks: v.array(v.object({ saveLocalId: v.string(), artwork: publicArtwork, photos: v.optional(v.array(displayMedia)) })) }),
+  returns: v.object({
+    audience: visitAudience,
+    author: publicProfile,
+    venue: v.object({ venueId: v.id("museums"), name: v.string() }),
+    visitedOn: v.string(),
+    reflection: v.string(),
+    artworks: v.array(
+      v.object({
+        saveLocalId: v.string(),
+        artwork: publicArtwork,
+        photos: v.optional(v.array(displayMedia)),
+      }),
+    ),
+  }),
   handler: async (ctx, input) => {
     const { profile, owner } = await requireProfile(ctx);
     const { visit, saves } = await selectedSaves(ctx, owner, input, true);
     const artworks = [];
     for (const save of saves) {
-      if (!await readHeadroom(ctx, SAVE_READ_RESERVE)) throw new ConvexError({ code: 'invalid_post' });
-      const reference = { kind: 'sharedVisitPreview' as const, visitLocalId: visit.localId, saveLocalId: save.localId };
-      const photos = await Promise.all((input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds ?? []).map((id) => selectedPhotoMedia(ctx, save, id, reference)));
+      if (!(await readHeadroom(ctx, SAVE_READ_RESERVE)))
+        throw new ConvexError({ code: "invalid_post" });
+      const reference = {
+        kind: "sharedVisitPreview" as const,
+        visitLocalId: visit.localId,
+        saveLocalId: save.localId,
+      };
+      const photos = await Promise.all(
+        (
+          input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds ??
+          []
+        ).map((id) => selectedPhotoMedia(ctx, save, id, reference)),
+      );
       const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
-      artworks.push({ saveLocalId: save.localId, artwork: photos.length ? { ...artwork, media: photos[0] } : artwork, ...(photos.length ? { photos } : {}) });
+      artworks.push({
+        saveLocalId: save.localId,
+        artwork: photos.length ? { ...artwork, media: photos[0] } : artwork,
+        ...(photos.length ? { photos } : {}),
+      });
     }
-    return { audience: input.audience, author: await projectProfile(ctx, profile), venue: { venueId: visit.venueId, name: visit.venueName }, visitedOn: visit.visitedOn,
-      reflection: visit.reflection ?? '', artworks };
+    return {
+      audience: input.audience,
+      author: await projectProfile(ctx, profile),
+      venue: { venueId: visit.venueId, name: visit.venueName },
+      visitedOn: visit.visitedOn,
+      reflection: visit.reflection ?? "",
+      artworks,
+    };
   },
 });
 export const publish = mutation({
-  args: selectionArgs, returns: publicationState,
+  args: selectionArgs,
+  returns: publicationState,
   handler: async (ctx, input) => {
     const { profile, owner, accountId } = await requireProfile(ctx);
     const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
-    if (publication?.removal) throw new ConvexError({ code: 'not_found' });
+    if (publication?.removal) throw new ConvexError({ code: "not_found" });
     checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
     const { visit, saves } = await selectedSaves(ctx, owner, input);
-    await limitKey(ctx, 'publishVisit', accountId);
-    const fields = { audience: input.audience, status: 'active' as const, reflection: visit.reflection ?? '', visitedOn: visit.visitedOn,
-      publicationRevision: input.revision + 1, updatedAt: Date.now(), publishedAt: publication?.publishedAt || Date.now() };
-    const publicationId = publication?._id ?? await ctx.db.insert('sharedVisits', { ...fields,
-      profileId: profile._id, postId: crypto.randomUUID(), visitId: visit._id, visitLocalId: visit.localId });
+    await limitKey(ctx, "publishVisit", accountId);
+    const fields = {
+      audience: input.audience,
+      status: "active" as const,
+      reflection: visit.reflection ?? "",
+      visitedOn: visit.visitedOn,
+      publicationRevision: input.revision + 1,
+      updatedAt: Date.now(),
+      publishedAt: publication?.publishedAt || Date.now(),
+    };
+    const publicationId =
+      publication?._id ??
+      (await ctx.db.insert("sharedVisits", {
+        ...fields,
+        profileId: profile._id,
+        postId: crypto.randomUUID(),
+        visitId: visit._id,
+        visitLocalId: visit.localId,
+      }));
     if (publication) await ctx.db.patch(publicationId, fields);
     const previous = await publicationItems(ctx, publicationId);
     const selected = new Set(saves.map((save) => save._id));
     for (const item of previous) if (!selected.has(item.saveId)) await ctx.db.delete(item._id);
-    const ordered = [...(input.highlightLocalIds ?? []).flatMap((id) => saves.filter((save) => save.localId === id)), ...saves.filter((save) => !input.highlightLocalIds?.includes(save.localId))];
+    const ordered = [
+      ...(input.highlightLocalIds ?? []).flatMap((id) =>
+        saves.filter((save) => save.localId === id),
+      ),
+      ...saves.filter((save) => !input.highlightLocalIds?.includes(save.localId)),
+    ];
     for (const [position, save] of ordered.entries()) {
       const item = previous.find((item) => item.saveId === save._id);
-      const photoLocalIds = input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds;
+      const photoLocalIds = input.photoSelections?.find(
+        (row) => row.saveLocalId === save.localId,
+      )?.photoLocalIds;
       const highlighted = input.highlightLocalIds?.includes(save.localId) ?? position < 3;
       if (item) await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
-      else await ctx.db.insert('sharedVisitItems', { publicationId, saveId: save._id, saveLocalId: save.localId, position, photoLocalIds, highlighted });
+      else
+        await ctx.db.insert("sharedVisitItems", {
+          publicationId,
+          saveId: save._id,
+          saveLocalId: save.localId,
+          position,
+          photoLocalIds,
+          highlighted,
+        });
     }
     return stateForPublication(ctx, (await ctx.db.get(publicationId))!, visit);
   },
 });
 export const get = query({
-  args: { postId: v.string(), ...pageArgs }, returns: publicationView,
+  args: { postId: v.string(), ...pageArgs },
+  returns: publicationView,
   handler: async (ctx, input) => {
     const profile = await optionalProfile(ctx);
-    if (!isUuid(input.postId)) throw new ConvexError({ code: 'not_found' });
-    const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile?._id);
-    return { ...await header(ctx, publication, author, visit), artworks: await projectArtworkPage(ctx, publication, visit, input) };
+    if (!isUuid(input.postId)) throw new ConvexError({ code: "not_found" });
+    const {
+      publication,
+      profile: author,
+      visit,
+    } = await requireSharedVisit(ctx, input.postId, profile?._id);
+    return {
+      ...(await header(ctx, publication, author, visit)),
+      artworks: await projectArtworkPage(ctx, publication, visit, input),
+    };
   },
 });
 export const getArtwork = query({
-  args: { postId: v.string(), itemId: v.id('sharedVisitItems') }, returns: v.object({ ...sharedVisitCard.fields, enrichment: v.optional(publicArtworkStory) }),
+  args: { postId: v.string(), itemId: v.id("sharedVisitItems") },
+  returns: v.object({ ...sharedVisitCard.fields, enrichment: v.optional(publicArtworkStory) }),
   handler: async (ctx, { postId, itemId }) => {
     const profile = await optionalProfile(ctx);
     const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
     const enrichment = await projectArtworkStory(ctx, save);
-    return { ...await projectVisitAlbum(ctx, item, save, postId), ...(enrichment ? { enrichment } : {}) };
+    return {
+      ...(await projectVisitAlbum(ctx, item, save, postId)),
+      ...(enrichment ? { enrichment } : {}),
+    };
   },
 });
 
-async function historyPage(ctx: QueryCtx, viewerId: Id<'profiles'> | undefined, sources: HistoryStream[], scope: string,
-  input: { cursor?: string | null; limit?: number }) {
+async function historyPage(
+  ctx: QueryCtx,
+  viewerId: Id<"profiles"> | undefined,
+  sources: HistoryStream[],
+  scope: string,
+  input: { cursor?: string | null; limit?: number },
+) {
   const { numItems } = pagination(input);
   const before = parseHistoryCursor(scope, input.cursor);
-  const streams = await Promise.all(sources.map(async (source) => ({ source, head: await historyHead(source, before) })));
+  const streams = await Promise.all(
+    sources.map(async (source) => ({ source, head: await historyHead(source, before) })),
+  );
   const page = [];
-  let scanned = 0, projected = 0, bytes = 0, last = before;
+  let scanned = 0,
+    projected = 0,
+    bytes = 0,
+    last = before;
   while (scanned < LIMITS.maxPage && page.length < numItems) {
-    const stream = streams.filter((s): s is { source: HistoryStream; head: Doc<'sharedVisits'> } => !!s.head)
+    const stream = streams
+      .filter((s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } => !!s.head)
       .sort((a, b) => -compareHistory(a.head, b.head))[0];
-    if (!stream || !await readHeadroom(ctx) || projected + 3 > PAGE_ARTWORKS) break;
+    if (!stream || !(await readHeadroom(ctx)) || projected + 3 > PAGE_ARTWORKS) break;
     const candidate = stream.head;
     const access = await readablePublication(ctx, candidate, viewerId);
     if (access) {
-      const artworks = await projectArtworkPage(ctx, candidate, access.visit, { limit: 3, highlightsOnly: true });
-      const result = { ...await header(ctx, candidate, access.profile, access.visit), artworks };
+      const artworks = await projectArtworkPage(ctx, candidate, access.visit, {
+        limit: 3,
+        highlightsOnly: true,
+      });
+      const result = { ...(await header(ctx, candidate, access.profile, access.visit)), artworks };
       const size = utf8Bytes(result);
       if (page.length && bytes + size > PAGE_BYTES) break;
-      page.push(result); bytes += size; projected += artworks.page.length;
+      page.push(result);
+      bytes += size;
+      projected += artworks.page.length;
     }
-    last = candidate; scanned++;
-    streams.find((s) => s.source === stream.source)!.head = await historyHead(stream.source, candidate);
+    last = candidate;
+    scanned++;
+    streams.find((s) => s.source === stream.source)!.head = await historyHead(
+      stream.source,
+      candidate,
+    );
   }
   const isDone = streams.every((s) => !s.head);
-  return { page, isDone, cursor: isDone ? null : last ? historyCursor(scope, last) : input.cursor ?? null };
+  return {
+    page,
+    isDone,
+    cursor: isDone ? null : last ? historyCursor(scope, last) : (input.cursor ?? null),
+  };
 }
-const historyResult = v.object({ page: v.array(publicationView), cursor: v.union(v.string(), v.null()), isDone: v.boolean() });
+const historyResult = v.object({
+  page: v.array(publicationView),
+  cursor: v.union(v.string(), v.null()),
+  isDone: v.boolean(),
+});
 export const listPublic = query({
-  args: pageArgs, returns: historyResult,
+  args: pageArgs,
+  returns: historyResult,
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    return historyPage(ctx, viewer?._id, [publicHistory(ctx)], `public:${viewer?._id ?? 'guest'}`, input);
+    return historyPage(
+      ctx,
+      viewer?._id,
+      [publicHistory(ctx)],
+      `public:${viewer?._id ?? "guest"}`,
+      input,
+    );
   },
 });
 export const listFeed = query({
-  args: pageArgs, returns: historyResult,
+  args: pageArgs,
+  returns: historyResult,
   handler: async (ctx, input) => {
     const { profile } = await requireProfile(ctx);
     // Each candidate is re-authorized in historyPage, so the edge list alone selects the streams.
     const edges = await acceptedRelationships(ctx, profile._id);
-    const authors = edges.slice(0, LIMITS.friends).map((edge) => edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId);
-    return historyPage(ctx, profile._id, authors.map((id) => profileHistory(ctx, id)), `feed:${profile._id}`, input);
+    const authors = edges
+      .slice(0, LIMITS.friends)
+      .map((edge) =>
+        edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId,
+      );
+    return historyPage(
+      ctx,
+      profile._id,
+      authors.map((id) => profileHistory(ctx, id)),
+      `feed:${profile._id}`,
+      input,
+    );
   },
 });
 export const listByProfile = query({
-  args: { profileId: v.id('profiles'), ...pageArgs }, returns: historyResult,
+  args: { profileId: v.id("profiles"), ...pageArgs },
+  returns: historyResult,
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    if (!await activeProfile(ctx, input.profileId)) throw new ConvexError({ code: 'not_found' });
+    if (!(await activeProfile(ctx, input.profileId))) throw new ConvexError({ code: "not_found" });
     if (viewer && viewer._id !== input.profileId) {
       // A block in either direction hides every post, so skip the per-candidate scan that would reject them all.
       const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
       if (block?.active || reverseBlock?.active) return { page: [], cursor: null, isDone: true };
     }
-    return historyPage(ctx, viewer?._id, [profileHistory(ctx, input.profileId)], `profile:${viewer?._id ?? 'guest'}:${input.profileId}`, input);
+    return historyPage(
+      ctx,
+      viewer?._id,
+      [profileHistory(ctx, input.profileId)],
+      `profile:${viewer?._id ?? "guest"}:${input.profileId}`,
+      input,
+    );
   },
 });

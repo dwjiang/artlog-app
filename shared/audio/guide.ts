@@ -1,7 +1,7 @@
-import type { DocentSentence, FactSheetEntry } from '../../convex/lib/validators';
+import type { DocentSentence, FactSheetEntry } from "../../convex/lib/validators";
 
-export const GUIDE_MODEL = 'nvidia/Nemotron-3-Ultra-550b-a55b';
-export const GUIDE_REASONING = 'low';
+export const GUIDE_MODEL = "nvidia/Nemotron-3-Ultra-550b-a55b";
+export const GUIDE_REASONING = "low";
 export const GUIDE_PROMPT = `You write the spoken script for one stop of a museum audio guide. One visitor is standing in front of this artwork with earphones in. Say what a good gallery guide would say to them, using only the supplied research.
 
 The supplied opening states the title, artist and date and is spoken first. Write only the continuation; do not repeat or rephrase it, and do not add a welcome.
@@ -31,21 +31,25 @@ OUTPUT
 Return only a JSON array matching the supplied schema: one spoken sentence per item with the fact_ids that support it and, in support, the exact words copied from one of those facts that the sentence rests on: at least eight characters, verbatim, no paraphrase, no ellipsis. Every other claim in the sentence must sit in another cited fact. If no such span exists, the sentence is unsupported; cut it. No headings, stage directions, IDs, markdown or SSML in the spoken text. Before returning, check each sentence against its cited passages and cut every unsupported phrase: "painted outdoors" does not mean "worked quickly"; "cypresses" does not establish flame-like shapes or a position in the composition. Then check that every person besides the artist is introduced as role plus name, and that no sentence says where its fact came from; a bare name or a source tag is an error.`;
 
 export const GUIDE_SCHEMA = {
-  type: 'array', minItems: 8, maxItems: 14,
+  type: "array",
+  minItems: 8,
+  maxItems: 14,
   items: {
-    type: 'object',
+    type: "object",
     properties: {
-      sentence: { type: 'string', minLength: 40, maxLength: 400 },
-      fact_ids: { type: 'array', minItems: 1, items: { type: 'string' } },
-      support: { type: 'string', minLength: 8, maxLength: 300 },
+      sentence: { type: "string", minLength: 40, maxLength: 400 },
+      fact_ids: { type: "array", minItems: 1, items: { type: "string" } },
+      support: { type: "string", minLength: 8, maxLength: 300 },
     },
-    required: ['sentence', 'fact_ids', 'support'], additionalProperties: false,
+    required: ["sentence", "fact_ids", "support"],
+    additionalProperties: false,
   },
 };
 
 // Wikidata summary lines and museum label-value rows restate the opening or read as a catalogue,
 // and the model pads with them when a stop runs short; the guide only ever sees prose.
-const CATALOGUE_LINE = /^(?:label|title|creator|artist|maker|date|inception|material|medium|height|width|dimensions|movement|genre|depicts|location|collection|inventory number|accession number|object number|copyright status|rights|credit line|provenance|classification|culture|period|department)\s*:/i;
+const CATALOGUE_LINE =
+  /^(?:label|title|creator|artist|maker|date|inception|material|medium|height|width|dimensions|movement|genre|depicts|location|collection|inventory number|accession number|object number|copyright status|rights|credit line|provenance|classification|culture|period|department)\s*:/i;
 
 export function guideResearch(facts: FactSheetEntry[]): FactSheetEntry[] {
   return facts.filter((fact) => !CATALOGUE_LINE.test(fact.text.trim()));
@@ -57,8 +61,15 @@ export function parseGuideLines(value: unknown): GuideLine[] | null {
   if (!Array.isArray(value)) return null;
   const lines: GuideLine[] = [];
   for (const entry of value) {
-    if (!entry || typeof entry !== 'object' || typeof entry.sentence !== 'string' || typeof entry.support !== 'string' ||
-      !Array.isArray(entry.fact_ids) || !entry.fact_ids.every((id: unknown) => typeof id === 'string')) return null;
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      typeof entry.sentence !== "string" ||
+      typeof entry.support !== "string" ||
+      !Array.isArray(entry.fact_ids) ||
+      !entry.fact_ids.every((id: unknown) => typeof id === "string")
+    )
+      return null;
     lines.push({ sentence: entry.sentence, fact_ids: entry.fact_ids, support: entry.support });
   }
   return lines;
@@ -66,12 +77,19 @@ export function parseGuideLines(value: unknown): GuideLine[] | null {
 
 // Quote marks and spacing vary between a page and its copy; the words must not.
 export function normalizePassage(text: string): string {
-  return text.normalize('NFKC').replace(/["'‘’“”]/g, '').replace(/\s+/g, ' ').trim();
+  return text
+    .normalize("NFKC")
+    .replace(/["'‘’“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // A sentence is grounded only if the model can point at the evidence: its support span must
 // appear verbatim in one of the facts it cites. Paraphrase and invention have no such span.
-export function unsupportedLines(lines: GuideLine[], facts: readonly { id: string; text: string }[]): GuideLine[] {
+export function unsupportedLines(
+  lines: GuideLine[],
+  facts: readonly { id: string; text: string }[],
+): GuideLine[] {
   const texts = new Map(facts.map((fact) => [fact.id, normalizePassage(fact.text)]));
   return lines.filter((line) => {
     const span = normalizePassage(line.support);
@@ -80,19 +98,29 @@ export function unsupportedLines(lines: GuideLine[], facts: readonly { id: strin
 }
 
 export function guideOpening(artwork: { title: string; artist: string; date?: string }): string {
-  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
   const identity = `This is ${normalize(artwork.title)}, by ${normalize(artwork.artist)}`;
-  const date = normalize(artwork.date ?? '');
+  const date = normalize(artwork.date ?? "");
   return date ? `${identity}, dated ${date}.` : `${identity}. Its date is unknown.`;
 }
 
-export function validateGuide(value: unknown, factIds: ReadonlySet<string>, opening: string): DocentSentence[] | null {
-  if (!Array.isArray(value) || value[0]?.sentence !== opening || !Array.isArray(value[0]?.factIds) || value[0].factIds.length) return null;
+export function validateGuide(
+  value: unknown,
+  factIds: ReadonlySet<string>,
+  opening: string,
+): DocentSentence[] | null {
+  if (
+    !Array.isArray(value) ||
+    value[0]?.sentence !== opening ||
+    !Array.isArray(value[0]?.factIds) ||
+    value[0].factIds.length
+  )
+    return null;
   const body = validateGuideBody(value.slice(1), factIds);
   if (!body || body.some((line) => line.sentence === opening)) return null;
   // Identification comes from the artwork record; only the researched body needs fact citations.
   const sentences = [{ sentence: opening, factIds: [] }, ...body];
-  return sentences.map((line) => line.sentence).join(' ').length <= 4000 ? sentences : null;
+  return sentences.map((line) => line.sentence).join(" ").length <= 4000 ? sentences : null;
 }
 
 // Thin research (under eight prose facts) may run shorter than the 150-word target rather than pad.
@@ -102,22 +130,40 @@ export function guideWordFloor(factCount: number): number {
   return factCount < THIN_RESEARCH_FACTS ? 110 : 150;
 }
 
-export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): DocentSentence[] | null {
+export function validateGuideBody(
+  value: unknown,
+  factIds: ReadonlySet<string>,
+): DocentSentence[] | null {
   if (!Array.isArray(value) || !value.length || value.length > 24) return null;
   const sentences: DocentSentence[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
-    if (!entry || typeof entry.sentence !== 'string' || !Array.isArray(entry.factIds) || !entry.factIds.length ||
-      entry.factIds.some((id: unknown) => typeof id !== 'string' || !factIds.has(id))) return null;
-    const sentence = entry.sentence.replace(/\s+/g, ' ').trim();
+    if (
+      !entry ||
+      typeof entry.sentence !== "string" ||
+      !Array.isArray(entry.factIds) ||
+      !entry.factIds.length ||
+      entry.factIds.some((id: unknown) => typeof id !== "string" || !factIds.has(id))
+    )
+      return null;
+    const sentence = entry.sentence.replace(/\s+/g, " ").trim();
     // Braces, brackets and tags never belong in speech; they mean JSON or markup leaked into a sentence,
     // and a sentence without closing punctuation was cut off mid-thought.
-    if (!sentence || sentence.length > 500 || seen.has(sentence) || /[{}[\]<>]|\bfact_ids\b/.test(sentence) || !/[.!?…]["'”’)]*$/.test(sentence)) return null;
+    if (
+      !sentence ||
+      sentence.length > 500 ||
+      seen.has(sentence) ||
+      /[{}[\]<>]|\bfact_ids\b/.test(sentence) ||
+      !/[.!?…]["'”’)]*$/.test(sentence)
+    )
+      return null;
     seen.add(sentence);
     sentences.push({ sentence, factIds: [...new Set<string>(entry.factIds)] });
   }
-  const text = sentences.map((entry) => entry.sentence).join(' ');
+  const text = sentences.map((entry) => entry.sentence).join(" ");
   const words = text.split(/\s+/).length;
   // Shimmer reads 143–162 words a minute with these instructions: 150–200 words is about 60 to 90 seconds, 110 about 45.
-  return text.length <= 3500 && words >= guideWordFloor(factIds.size) && words <= GUIDE_MAX_WORDS ? sentences : null;
+  return text.length <= 3500 && words >= guideWordFloor(factIds.size) && words <= GUIDE_MAX_WORDS
+    ? sentences
+    : null;
 }

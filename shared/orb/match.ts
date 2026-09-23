@@ -1,5 +1,5 @@
-import type { OrbFeatures } from './features';
-import { DESCRIPTOR_WORDS, descriptorWords, hammingDistance32 } from './hamming';
+import type { OrbFeatures } from "./features";
+import { DESCRIPTOR_WORDS, descriptorWords, hammingDistance32 } from "./hamming";
 
 export type Match = { queryIdx: number; refIdx: number; distance: number };
 export type MatchOptions = { ratio?: number; maxDistance?: number; crossCheck?: boolean };
@@ -10,7 +10,7 @@ const NO_MATCH = 257;
 export function matchDescriptors(
   query: OrbFeatures,
   ref: OrbFeatures,
-  opts: MatchOptions = {}
+  opts: MatchOptions = {},
 ): Match[] {
   const ratio = opts.ratio ?? 0.8;
   const maxDistance = opts.maxDistance ?? 64;

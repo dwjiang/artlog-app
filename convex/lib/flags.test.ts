@@ -1,30 +1,30 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isEnabled } from './flags';
+import { isEnabled } from "./flags";
 
 afterEach(() => vi.unstubAllEnvs());
 
-describe('feature flags', () => {
-  it('defaults the label flow and museum-site search on and Right now off', () => {
-    expect(isEnabled('labelFlow')).toBe(true);
-    expect(isEnabled('museumSearch')).toBe(true);
-    expect(isEnabled('rightNow')).toBe(false);
+describe("feature flags", () => {
+  it("defaults the label flow and museum-site search on and Right now off", () => {
+    expect(isEnabled("labelFlow")).toBe(true);
+    expect(isEnabled("museumSearch")).toBe(true);
+    expect(isEnabled("rightNow")).toBe(false);
   });
 
-  it('honors explicit on and off values', () => {
-    vi.stubEnv('FLAG_LABEL_FLOW', 'off');
-    vi.stubEnv('FLAG_RIGHT_NOW', 'on');
-    expect(isEnabled('labelFlow')).toBe(false);
-    expect(isEnabled('rightNow')).toBe(true);
+  it("honors explicit on and off values", () => {
+    vi.stubEnv("FLAG_LABEL_FLOW", "off");
+    vi.stubEnv("FLAG_RIGHT_NOW", "on");
+    expect(isEnabled("labelFlow")).toBe(false);
+    expect(isEnabled("rightNow")).toBe(true);
 
-    vi.stubEnv('FLAG_RIGHT_NOW', 'off');
-    expect(isEnabled('rightNow')).toBe(false);
-    vi.stubEnv('FLAG_MUSEUM_SEARCH', 'off');
-    expect(isEnabled('museumSearch')).toBe(false);
+    vi.stubEnv("FLAG_RIGHT_NOW", "off");
+    expect(isEnabled("rightNow")).toBe(false);
+    vi.stubEnv("FLAG_MUSEUM_SEARCH", "off");
+    expect(isEnabled("museumSearch")).toBe(false);
   });
 
-  it('falls back to the default for unrecognized values', () => {
-    vi.stubEnv('FLAG_LABEL_FLOW', 'maybe');
-    expect(isEnabled('labelFlow')).toBe(true);
+  it("falls back to the default for unrecognized values", () => {
+    vi.stubEnv("FLAG_LABEL_FLOW", "maybe");
+    expect(isEnabled("labelFlow")).toBe(true);
   });
 });

@@ -30,7 +30,7 @@ expected behavior, observed behavior, and a concrete improvement for submission.
   with `response_format: json_schema` (`strict: true`) returned schema-valid JSON across Kimi,
   Lightning, Nano and Super. But Lightning with default thinking and a 128-token ceiling spent the
   whole budget on reasoning and returned nothing; `chat_template_kwargs: {"enable_thinking":
-  false}` (Kimi: `{"thinking": false}`) fixed it. The JSON guide should say that thinking must be
+false}` (Kimi: `{"thinking": false}`) fixed it. The JSON guide should say that thinking must be
   disabled, or the output ceiling raised, for small structured responses.
 - **2026-09-08 — Rate limits are undocumented as entitlements.** The docs describe dynamic limits
   with illustrative 60 RPM / 400k TPM figures; there is no per-account view of the current limit.
@@ -65,7 +65,7 @@ expected behavior, observed behavior, and a concrete improvement for submission.
   A default of a few vCPUs in the region that holds the GPUs would let small jobs run cheaply.
 - **2026-09-09 — Job overhead and logs.** About two minutes from create to `RUNNING` (`STARTING`
   at ~75 s, then image pull: ~30 s for the 3 GB CUDA image, ~2 s for `python:3.12-slim`); `job
-  logs --timestamps` works after completion. Fine for batch work, too slow for anything
+logs --timestamps` works after completion. Fine for batch work, too slow for anything
   interactive. The billing CLI offers only calculator estimates and one-time exports, so the
   console is the only authority on what a job cost.
 - **2026-09-09 — Scratch storage.** Bucket lifecycle rules are native to the CLI (no AWS CLI

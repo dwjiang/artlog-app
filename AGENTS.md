@@ -33,6 +33,9 @@ Code, types, tests, and configuration are the source of implementation details.
 - Prefer established libraries when they reduce total complexity. Check existing
   dependencies, docs, and types before adding a package or rebuilding common behavior.
 - Keep route modules thin; extract route-independent UI and behavior.
+- Report unexpected failures in new or changed critical flows, including background
+  work, through the shared Sentry helpers. Exclude expected cancellations, validation
+  and offline retries; never attach user content or credentials or disrupt the operation.
 - Use names, types, and tests to explain code. Comments should capture only
   non-obvious reasons, invariants, tradeoffs, platform quirks, or safety boundaries
   those cannot express. Keep comments concise and remove redundant ones; reserve

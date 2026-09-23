@@ -92,14 +92,14 @@ already trained external models.
 
 ## Commands
 
-| Purpose | Command | Expected result |
-| --- | --- | --- |
-| Generate types | `npx convex codegen` | Generated output included in the diff |
-| Typecheck | `npx tsc --noEmit` | Exit 0 |
-| Backend tests | `npm run test:convex` | All non-live tests pass |
-| App tests | `npm run test:app -- --runInBand src/components/scan src/components/settings src/lib/result src/lib/museum-search src/lib/label` | All pass |
-| Lint | `npm run lint` | Exit 0, no new warnings |
-| iOS | `npm run ios` | App builds and launches in light mode |
+| Purpose        | Command                                                                                                                          | Expected result                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Generate types | `npx convex codegen`                                                                                                             | Generated output included in the diff |
+| Typecheck      | `npx tsc --noEmit`                                                                                                               | Exit 0                                |
+| Backend tests  | `npm run test:convex`                                                                                                            | All non-live tests pass               |
+| App tests      | `npm run test:app -- --runInBand src/components/scan src/components/settings src/lib/result src/lib/museum-search src/lib/label` | All pass                              |
+| Lint           | `npm run lint`                                                                                                                   | Exit 0, no new warnings               |
+| iOS            | `npm run ios`                                                                                                                    | App builds and launches in light mode |
 
 Use an explicitly classified development or isolated local backend for runtime
 verification. Do not weaken the schema or reset a shared corpus just to make

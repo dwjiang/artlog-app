@@ -85,13 +85,13 @@ Files and their roles:
   table, so a table exported before a column was added is rejected.
 - `src/lib/journal/history.ts:36–42` — the fallback this plan improves:
 
-    ```ts
-    export function placeIdentity(visit: JournalVisit): { key: string; name: string } {
-      if (visit.cityKey) return { key: visit.cityKey, name: visit.city || visit.venueName };
-      if (visit.city) return { key: `venue:${visit.venueId}`, name: visit.city };
-      ...
-    }
-    ```
+  ```ts
+  export function placeIdentity(visit: JournalVisit): { key: string; name: string } {
+    if (visit.cityKey) return { key: visit.cityKey, name: visit.city || visit.venueName };
+    if (visit.city) return { key: `venue:${visit.venueId}`, name: visit.city };
+    ...
+  }
+  ```
 
 - `assets/venues.db` — bundled table, meta version `1788955449` (2026-09-09), 42,452 rows,
   `cityKey` column present but every value null.
@@ -115,15 +115,15 @@ Conventions to match:
 
 Run Python commands from `scripts/data/`.
 
-| Purpose | Command | Expected on success |
-|---|---|---|
-| Install pipeline env | `uv sync` | exit 0 (fast; the uv cache is warm on this Mac) |
-| Pipeline tests | `uv run pytest -q pipeline/seed_venues_test.py` | all pass |
-| Pipeline lint | `uv run ruff check .` | `All checks passed!` |
-| Full census + publish | `caffeinate -i uv run python -m pipeline.seed_venues --all --refresh --out out/ --publish` | two JSON lines; the second has `published_id` |
-| Export-only republish (after step 1) | `uv run python -m pipeline.seed_venues --export-only --out out/ --publish` | same two JSON lines, no census log lines |
-| Published version (repo root) | `npx convex run venueTable:latest` | JSON with `version`, `rowCount`, `url` |
-| App typecheck / lint / tests (repo root) | `npx tsc --noEmit`, `npm run lint`, `npx jest src/lib/venue src/lib/journal src/db` | exit 0 |
+| Purpose                                  | Command                                                                                    | Expected on success                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| Install pipeline env                     | `uv sync`                                                                                  | exit 0 (fast; the uv cache is warm on this Mac) |
+| Pipeline tests                           | `uv run pytest -q pipeline/seed_venues_test.py`                                            | all pass                                        |
+| Pipeline lint                            | `uv run ruff check .`                                                                      | `All checks passed!`                            |
+| Full census + publish                    | `caffeinate -i uv run python -m pipeline.seed_venues --all --refresh --out out/ --publish` | two JSON lines; the second has `published_id`   |
+| Export-only republish (after step 1)     | `uv run python -m pipeline.seed_venues --export-only --out out/ --publish`                 | same two JSON lines, no census log lines        |
+| Published version (repo root)            | `npx convex run venueTable:latest`                                                         | JSON with `version`, `rowCount`, `url`          |
+| App typecheck / lint / tests (repo root) | `npx tsc --noEmit`, `npm run lint`, `npx jest src/lib/venue src/lib/journal src/db`        | exit 0                                          |
 
 Do not `source .env.local` before `npx convex …`: its unquoted deploy-key line exports a stray
 variable that breaks the CLI. The CLI and the Python settings both read the file themselves.

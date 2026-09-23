@@ -5,15 +5,15 @@ description = "Exports the C-RADIOv3-B embedding model to CoreML for the artlog 
 requires-python = ">=3.11,<3.12"
 # Changing coremltools or torch can change the exported numerics and therefore the model version.
 dependencies = [
-    "torch==2.7.0",
-    "torchvision==0.22.0",
-    "timm==1.0.15",
-    "coremltools==9.0",
-    "huggingface_hub==0.34.4",
-    "numpy==1.26.4",
-    "pillow==11.3.0",
-    "requests==2.34.2",
-    "einops==0.8.1",
+  "torch==2.7.0",
+  "torchvision==0.22.0",
+  "timm==1.0.15",
+  "coremltools==9.0",
+  "huggingface_hub==0.34.4",
+  "numpy==1.26.4",
+  "pillow==11.3.0",
+  "requests==2.34.2",
+  "einops==0.8.1",
 ]
 
 [dependency-groups]

@@ -1,21 +1,40 @@
-import { api } from '../_generated/api';
-import type { Harness } from '../test.helpers';
-import { seedDevice } from './testFactories';
+import { api } from "../_generated/api";
+import type { Harness } from "../test.helpers";
+import { seedDevice } from "./testFactories";
 
 export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().slice(0, 8)) {
   const device = await seedDevice(t);
-  await t.run((ctx) => ctx.db.patch(device.deviceId, { appleLinkProof: { sub, expiresAt: Date.now() + 10000 } }));
-  const accountId = await device.as.mutation(api.accounts.linkAccount, { appleUserId: sub,
-    nonce: (await device.as.mutation(api.devices.createChallenge, { purpose: 'assert' })).nonce, assertionBase64: '' });
+  await t.run((ctx) =>
+    ctx.db.patch(device.deviceId, { appleLinkProof: { sub, expiresAt: Date.now() + 10000 } }),
+  );
+  const accountId = await device.as.mutation(api.accounts.linkAccount, {
+    appleUserId: sub,
+    nonce: (await device.as.mutation(api.devices.createChallenge, { purpose: "assert" })).nonce,
+    assertionBase64: "",
+  });
   const { scope } = await device.as.query(api.accounts.me, {});
-  while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) { /* Finish the fixture's claim. */ }
-  const profile = await device.as.mutation(api.profiles.create, { username: `reader-${sub}`, name: 'Reader' });
+  while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {
+    /* Finish the fixture's claim. */
+  }
+  const profile = await device.as.mutation(api.profiles.create, {
+    username: `reader-${sub}`,
+    name: "Reader",
+  });
   const saveLocalId = crypto.randomUUID();
-  const saveId = await t.run((ctx) => ctx.db.insert('collections', { owner: { kind: 'account', accountId }, localId: saveLocalId,
-    snapshot: { title: 'Saved title', artist: 'Saved artist', date: '1900', medium: 'Oil' }, savedAt: 1,
-    note: 'Private journal note', updatedAt: 1, updatedBy: device.deviceId, changeVersion: 1 }));
-  const layout = { x: 0, y: 0, width: 0.5, layer: 0, frame: 'oak' as const };
+  const saveId = await t.run((ctx) =>
+    ctx.db.insert("collections", {
+      owner: { kind: "account", accountId },
+      localId: saveLocalId,
+      snapshot: { title: "Saved title", artist: "Saved artist", date: "1900", medium: "Oil" },
+      savedAt: 1,
+      note: "Private journal note",
+      updatedAt: 1,
+      updatedBy: device.deviceId,
+      changeVersion: 1,
+    }),
+  );
+  const layout = { x: 0, y: 0, width: 0.5, layer: 0, frame: "oak" as const };
   const selection = { placementId: crypto.randomUUID(), saveLocalId, layout };
-  const input = { scope, revision: 0, color: '#45524B', items: [selection] };
+  const input = { scope, revision: 0, color: "#45524B", items: [selection] };
   return { ...device, accountId, scope, profile, saveId, saveLocalId, layout, selection, input };
 }

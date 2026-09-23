@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from 'expo';
+import { requireOptionalNativeModule } from "expo";
 
 export type PoiRecord = {
   name: string;
@@ -23,7 +23,8 @@ export interface PoiSearch {
 let instance: PoiSearch | null | undefined;
 
 export function getPoiSearch(): PoiSearch {
-  instance ??= requireOptionalNativeModule<PoiSearch>('PoiSearch');
-  if (!instance) throw new Error('The PoiSearch native module is unavailable; rebuild the dev client');
+  instance ??= requireOptionalNativeModule<PoiSearch>("PoiSearch");
+  if (!instance)
+    throw new Error("The PoiSearch native module is unavailable; rebuild the dev client");
   return instance;
 }

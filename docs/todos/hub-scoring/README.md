@@ -67,14 +67,14 @@ calibrator weights.
 ## Verification and completion
 
 - [ ] Add integration coverage for alternate views mapping to one survivor,
-  zero penalties on other objects, and rejection of mismatched input hashes.
+      zero penalties on other objects, and rejection of mismatched input hashes.
 - [ ] Exercise the 0.5% cap with more eligible outliers than the cap, including
-  tied scores; preserve deterministic output.
+      tied scores; preserve deterministic output.
 - [ ] Run the existing numerical and repeatability tests plus relevant import tests.
 - [ ] Score the full verified corpus and audit flagged objects and artifact hashes.
 - [ ] Evaluate the penalty's effect with a configuration that gives it weight;
-  the current v2 should remain unchanged until a separately authorized retrain.
-  Preserve ORB and venue eligibility rules.
+      the current v2 should remain unchanged until a separately authorized retrain.
+      Preserve ORB and venue eligibility rules.
 - [ ] Archive the output and evaluation results, then update this todo.
 
 Future scoring command, from `scripts/data/`, after this task is resumed:

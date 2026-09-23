@@ -1,209 +1,326 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import type { ReactNode } from 'react';
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import type { ReactNode } from "react";
 
-import type { Id } from '../../../convex/_generated/dataModel';
+import type { Id } from "../../../convex/_generated/dataModel";
 
-import { AllArtworksScreen } from './all-artworks-screen';
-import { CollectionScreen } from './collection-screen';
-import { anonymousOwner, switchOwner } from '@/lib/account/owner-store';
-import { insertSavedWork } from '@/db/repos/saved-works';
-import { upsertVisit } from '@/db/repos/visits';
-jest.mock('@/lib/audio/use-listening');
+import { AllArtworksScreen } from "./all-artworks-screen";
+import { CollectionScreen } from "./collection-screen";
+import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+import { insertSavedWork } from "@/db/repos/saved-works";
+import { upsertVisit } from "@/db/repos/visits";
+jest.mock("@/lib/audio/use-listening");
 
-jest.mock('expo-network', () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
-jest.mock('@/lib/venue/use-venue', () => ({ useVenue: () => ({}) }));
-jest.mock('./collection-header', () => ({ CollectionHeader: () => null }));
-jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => ({ signedIn: false, draft: null }) }));
-jest.mock('@/lib/social/use-social-session', () => ({ useSocialSession: () => ({ status: 'signed-out', key: 'guest' }) }));
-jest.mock('@/lib/social/use-social-query', () => ({ useSocialQuery: () => ({}) }));
+jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
+jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
+jest.mock("./collection-header", () => ({ CollectionHeader: () => null }));
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: () => ({ signedIn: false, draft: null }),
+}));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => ({ status: "signed-out", key: "guest" }),
+}));
+jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({}) }));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
-jest.mock('../visits/globe-canvas', () => ({ GlobeCanvas: () => null }));
-jest.mock('@/lib/venue/venue-db', () => ({ venueMetadataForIds: async () => [], onVenueMetadataChange: () => () => {} }));
+jest.mock("../visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
+jest.mock("@/lib/venue/venue-db", () => ({
+  venueMetadataForIds: async () => [],
+  onVenueMetadataChange: () => () => {},
+}));
 
-jest.mock('@/db/client', () => ({ db: jest.requireActual('../../db/test-db').createTestDatabase() }));
-jest.mock('@/lib/files/photos', () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
-jest.mock('expo-router', () => {
-  const { Pressable, TextInput, View, Text } = jest.requireActual('react-native');
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+}));
+jest.mock("@/lib/files/photos", () => ({
+  captureFileUri: (path: string) => `file:///documents/${path}`,
+}));
+jest.mock("expo-router", () => {
+  const { Pressable, TextInput, View, Text } = jest.requireActual("react-native");
   return {
-    router: { push: jest.fn(), setParams: (params: { view?: string }) => { mockParams = params; } },
+    router: {
+      push: jest.fn(),
+      setParams: (params: { view?: string }) => {
+        mockParams = params;
+      },
+    },
     useLocalSearchParams: () => mockParams,
-    useFocusEffect: (callback: () => void) => jest.requireActual('react').useEffect(callback, [callback]),
-    Link: ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
+    useFocusEffect: (callback: () => void) =>
+      jest.requireActual("react").useEffect(callback, [callback]),
+    Link: ({
+      href,
+      asChild,
+      children,
+    }: {
+      href: unknown;
+      asChild?: boolean;
+      children: ReactNode;
+    }) => {
       mockHrefs.push(href);
       return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
     },
     Stack: {
-      Toolbar: Object.assign(View, { Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => <Pressable accessibilityRole="button" onPress={onPress}><Text>{children}</Text></Pressable> }),
-      SearchBar: ({ placeholder, onChangeText }: { placeholder: string; onChangeText: (event: { nativeEvent: { text: string } }) => void }) => (
-        <TextInput placeholder={placeholder} onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} />
+      Toolbar: Object.assign(View, {
+        Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => (
+          <Pressable accessibilityRole="button" onPress={onPress}>
+            <Text>{children}</Text>
+          </Pressable>
+        ),
+      }),
+      SearchBar: ({
+        placeholder,
+        onChangeText,
+      }: {
+        placeholder: string;
+        onChangeText: (event: { nativeEvent: { text: string } }) => void;
+      }) => (
+        <TextInput
+          placeholder={placeholder}
+          onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })}
+        />
       ),
     },
   };
 });
-jest.mock('./collection-wall', () => {
-  const { Text, View } = jest.requireActual('react-native');
-  return { CollectionWall: ({ header, controls }: { header: ReactNode; controls: ReactNode }) => <View>{header}{controls}<Text>Collection wall</Text></View> };
+jest.mock("./collection-wall", () => {
+  const { Text, View } = jest.requireActual("react-native");
+  return {
+    CollectionWall: ({ header, controls }: { header: ReactNode; controls: ReactNode }) => (
+      <View>
+        {header}
+        {controls}
+        <Text>Collection wall</Text>
+      </View>
+    ),
+  };
 });
-async function renderArchive() { await render(<AllArtworksScreen />); }
+async function renderArchive() {
+  await render(<AllArtworksScreen />);
+}
 
-it('opens the local artwork collection for guests without a sign-in gate', async () => {
+it("opens the local artwork collection for guests without a sign-in gate", async () => {
   await render(<CollectionScreen />);
-  expect(await screen.findByText('No saved artworks yet.')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Artworks' })).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Visits' })).toBeOnTheScreen();
-  expect(screen.queryByText('Collection wall')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
-  expect(screen.queryByText('Keep your collection across devices')).toBeNull();
+  expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Artworks" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Visits" })).toBeOnTheScreen();
+  expect(screen.queryByText("Collection wall")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  expect(screen.queryByText("Keep your collection across devices")).toBeNull();
 });
 
-const venueId = 'museum-1' as Id<'museums'>;
+const venueId = "museum-1" as Id<"museums">;
 const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Search your visits/);
 
-beforeEach(() => { mockParams = {}; mockHrefs.length = 0; switchOwner(anonymousOwner(), 'scope-anonymous'); });
+beforeEach(() => {
+  mockParams = {};
+  mockHrefs.length = 0;
+  switchOwner(anonymousOwner(), "scope-anonymous");
+});
 
-it('keeps the public wall as the account collection view', async () => {
-  switchOwner('account:a', 'scope-a');
+it("keeps the public wall as the account collection view", async () => {
+  switchOwner("account:a", "scope-a");
   await render(<CollectionScreen />);
-  expect(screen.getByText('Collection wall')).toBeOnTheScreen();
-  expect(screen.getByRole('button', { name: 'Wall' })).toBeOnTheScreen();
-  expect(screen.queryByText('Keep your collection across devices')).toBeNull();
+  expect(screen.getByText("Collection wall")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Wall" })).toBeOnTheScreen();
+  expect(screen.queryByText("Keep your collection across devices")).toBeNull();
 });
 
-it('invites the first scan while the collection is empty', async () => {
+it("invites the first scan while the collection is empty", async () => {
   await renderArchive();
-  expect(await screen.findByText('No saved artworks yet.')).toBeOnTheScreen();
-  expect(screen.getByText('Scan an artwork to add it to your collection.')).toBeOnTheScreen();
+  expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
+  expect(screen.getByText("Scan an artwork to add it to your collection.")).toBeOnTheScreen();
 });
 
-it('shows the first saved artwork without a sync prompt', async () => {
-  switchOwner('device:first-save', 'scope-first-save');
+it("shows the first saved artwork without a sync prompt", async () => {
+  switchOwner("device:first-save", "scope-first-save");
   const empty = await render(<CollectionScreen />);
-  expect(await screen.findByText('No saved artworks yet.')).toBeOnTheScreen();
-  expect(screen.queryByText('Keep your collection across devices')).toBeNull();
+  expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
+  expect(screen.queryByText("Keep your collection across devices")).toBeNull();
   await empty.unmount();
-  await act(async () => { await insertSavedWork({ localId: 'first-artwork', savedAt: 1, title: 'First artwork', artist: 'First artist' }); });
+  await act(async () => {
+    await insertSavedWork({
+      localId: "first-artwork",
+      savedAt: 1,
+      title: "First artwork",
+      artist: "First artist",
+    });
+  });
   await render(<CollectionScreen />);
-  expect(await screen.findByRole('button', { name: 'First artwork, First artist' })).toBeOnTheScreen();
-  expect(screen.queryByText('Keep your collection across devices')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+  expect(
+    await screen.findByRole("button", { name: "First artwork, First artist" }),
+  ).toBeOnTheScreen();
+  expect(screen.queryByText("Keep your collection across devices")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
 });
 
-describe('with saved works', () => {
+describe("with saved works", () => {
   beforeAll(async () => {
-    switchOwner(anonymousOwner(), 'scope-anonymous');
-    await upsertVisit({ visitedOn: '2026-09-08', timeZone: 'UTC', localId: '7e5de765-90f8-5015-b60d-2652d64b650f', venueId, venueName: 'Metropolitan Museum of Art', startedAt: new Date(2026, 8, 8, 14).getTime() });
-    await upsertVisit({ visitedOn: '2026-09-01', timeZone: 'UTC', localId: 'b00e1cd6-0fef-559f-88cc-0b73a2c7ae58', venueId, venueName: 'de Young', startedAt: new Date(2026, 8, 1, 11).getTime() });
-    await insertSavedWork({ localId: 'lilies', visitLocalId: '7e5de765-90f8-5015-b60d-2652d64b650f', venueId, savedAt: 3, title: 'Water Lilies', artist: 'Claude Monet', institution: "Musée d'Orsay", cropPath: 'crops/lilies.jpg' });
-    await insertSavedWork({ localId: 'cotton', visitLocalId: 'b00e1cd6-0fef-559f-88cc-0b73a2c7ae58', venueId, savedAt: 2, title: '100% Cotton', artist: 'Anon', institution: 'de Young', cropPath: 'crops/cotton.jpg' });
-    await insertSavedWork({ localId: 'import', savedAt: 1, title: 'Untitled', artist: 'Unknown', cropPath: 'crops/import.jpg' });
+    switchOwner(anonymousOwner(), "scope-anonymous");
+    await upsertVisit({
+      visitedOn: "2026-09-08",
+      timeZone: "UTC",
+      localId: "7e5de765-90f8-5015-b60d-2652d64b650f",
+      venueId,
+      venueName: "Metropolitan Museum of Art",
+      startedAt: new Date(2026, 8, 8, 14).getTime(),
+    });
+    await upsertVisit({
+      visitedOn: "2026-09-01",
+      timeZone: "UTC",
+      localId: "b00e1cd6-0fef-559f-88cc-0b73a2c7ae58",
+      venueId,
+      venueName: "de Young",
+      startedAt: new Date(2026, 8, 1, 11).getTime(),
+    });
+    await insertSavedWork({
+      localId: "lilies",
+      visitLocalId: "7e5de765-90f8-5015-b60d-2652d64b650f",
+      venueId,
+      savedAt: 3,
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      institution: "Musée d'Orsay",
+      cropPath: "crops/lilies.jpg",
+    });
+    await insertSavedWork({
+      localId: "cotton",
+      visitLocalId: "b00e1cd6-0fef-559f-88cc-0b73a2c7ae58",
+      venueId,
+      savedAt: 2,
+      title: "100% Cotton",
+      artist: "Anon",
+      institution: "de Young",
+      cropPath: "crops/cotton.jpg",
+    });
+    await insertSavedWork({
+      localId: "import",
+      savedAt: 1,
+      title: "Untitled",
+      artist: "Unknown",
+      cropPath: "crops/import.jpg",
+    });
   });
 
-  it('shows every work in artist order, each linking to its detail', async () => {
+  it("shows every work in artist order, each linking to its detail", async () => {
     await renderArchive();
-    await fireEvent.press(screen.getByRole('button', { name: 'Artist' }));
-    expect(await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
-    expect(screen.getAllByRole('button', { name: /, / }).map((cell) => cell.props.accessibilityLabel)).toEqual([
-      '100% Cotton, Anon', 'Water Lilies, Claude Monet', 'Untitled, Unknown',
-    ]);
-    expect(mockHrefs).toContainEqual({ pathname: '/saved/[savedId]', params: { savedId: 'lilies' } });
-    expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
-    expect(screen.getByText('Claude Monet')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
+    expect(
+      await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getAllByRole("button", { name: /, / }).map((cell) => cell.props.accessibilityLabel),
+    ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
+    expect(mockHrefs).toContainEqual({
+      pathname: "/saved/[savedId]",
+      params: { savedId: "lilies" },
+    });
+    expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
+    expect(screen.getByText("Claude Monet")).toBeOnTheScreen();
   });
 
-  it('narrows the grid with the header search and explains an empty match', async () => {
+  it("narrows the grid with the header search and explains an empty match", async () => {
     await renderArchive();
-    await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' });
-    await fireEvent.changeText(search(), 'MONET');
-    expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(1);
-    await fireEvent.changeText(search(), 'orsay');
-    expect(screen.getByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
-    await fireEvent.changeText(search(), 'vermeer ');
-    expect(screen.getByText('No artworks found.')).toBeOnTheScreen();
-    await fireEvent.changeText(search(), '');
-    expect(screen.getAllByRole('button', { name: /, / })).toHaveLength(3);
+    await screen.findByRole("button", { name: "Water Lilies, Claude Monet" });
+    await fireEvent.changeText(search(), "MONET");
+    expect(screen.getAllByRole("button", { name: /, / })).toHaveLength(1);
+    await fireEvent.changeText(search(), "orsay");
+    expect(screen.getByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
+    await fireEvent.changeText(search(), "vermeer ");
+    expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
+    await fireEvent.changeText(search(), "");
+    expect(screen.getAllByRole("button", { name: /, / })).toHaveLength(3);
   });
 
-  it('shows saved art directly for guests and retains artwork search across visit browsing', async () => {
+  it("shows saved art directly for guests and retains artwork search across visit browsing", async () => {
     await render(<CollectionScreen />);
-    expect(await screen.findByRole('button', { name: 'Water Lilies, Claude Monet' })).toBeOnTheScreen();
-    expect(screen.queryByText('Keep your collection across devices')).toBeNull();
-    await fireEvent.changeText(search(), 'Monet');
-    expect(screen.queryByText('100% Cotton')).toBeNull();
-    await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'List' }));
-    expect(screen.getByText('de Young')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Artworks' }));
-    expect(search()).toHaveDisplayValue('Monet');
-    expect(screen.getByText('Water Lilies')).toBeOnTheScreen();
-    expect(screen.queryByText('100% Cotton')).toBeNull();
-    await fireEvent.press(screen.getByRole('button', { name: 'Clear search' }));
-    expect(search()).toHaveDisplayValue('');
-    expect(screen.getByText('100% Cotton')).toBeOnTheScreen();
+    expect(
+      await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("Keep your collection across devices")).toBeNull();
+    await fireEvent.changeText(search(), "Monet");
+    expect(screen.queryByText("100% Cotton")).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+    await fireEvent.press(screen.getByRole("button", { name: "List" }));
+    expect(screen.getByText("de Young")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Artworks" }));
+    expect(search()).toHaveDisplayValue("Monet");
+    expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
+    expect(screen.queryByText("100% Cotton")).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+    expect(search()).toHaveDisplayValue("");
+    expect(screen.getByText("100% Cotton")).toBeOnTheScreen();
   });
 
-  it('opens a visit timeline with whole visits and keeps imports in All artworks', async () => {
+  it("opens a visit timeline with whole visits and keeps imports in All artworks", async () => {
     await render(<CollectionScreen />);
-    await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'List' }));
-    expect(screen.getByText('Metropolitan Museum of Art')).toBeOnTheScreen();
-    expect(screen.getByText('de Young')).toBeOnTheScreen();
-    expect(screen.queryByText('Imported')).toBeNull();
-    expect(mockHrefs).toContainEqual({ pathname: '/journal/[visitId]', params: { visitId: '7e5de765-90f8-5015-b60d-2652d64b650f' } });
-    await fireEvent.changeText(search(), 'cotton');
-    expect(screen.queryByText('Metropolitan Museum of Art')).toBeNull();
-    expect(screen.getByText('de Young')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+    await fireEvent.press(screen.getByRole("button", { name: "List" }));
+    expect(screen.getByText("Metropolitan Museum of Art")).toBeOnTheScreen();
+    expect(screen.getByText("de Young")).toBeOnTheScreen();
+    expect(screen.queryByText("Imported")).toBeNull();
+    expect(mockHrefs).toContainEqual({
+      pathname: "/journal/[visitId]",
+      params: { visitId: "7e5de765-90f8-5015-b60d-2652d64b650f" },
+    });
+    await fireEvent.changeText(search(), "cotton");
+    expect(screen.queryByText("Metropolitan Museum of Art")).toBeNull();
+    expect(screen.getByText("de Young")).toBeOnTheScreen();
   });
-
-
 });
 
-it('immediately hides account works on sign-out and restores them on sign-in', async () => {
-  await insertSavedWork({ localId: 'account-work', savedAt: 10, title: 'Private account work', artist: 'Reader' }, 'account:a');
-  switchOwner('account:a', 'scope-a');
+it("immediately hides account works on sign-out and restores them on sign-in", async () => {
+  await insertSavedWork(
+    { localId: "account-work", savedAt: 10, title: "Private account work", artist: "Reader" },
+    "account:a",
+  );
+  switchOwner("account:a", "scope-a");
   await renderArchive();
-  expect(await screen.findByText('Private account work')).toBeOnTheScreen();
-  await act(() => switchOwner(anonymousOwner(), 'scope-anonymous'));
-  expect(screen.queryByText('Private account work')).toBeNull();
-  await act(() => switchOwner('account:a', 'scope-a2'));
-  expect(await screen.findByText('Private account work')).toBeOnTheScreen();
+  expect(await screen.findByText("Private account work")).toBeOnTheScreen();
+  await act(() => switchOwner(anonymousOwner(), "scope-anonymous"));
+  expect(screen.queryByText("Private account work")).toBeNull();
+  await act(() => switchOwner("account:a", "scope-a2"));
+  expect(await screen.findByText("Private account work")).toBeOnTheScreen();
 });
 
-it('shows empty visits and calendar month groups, and searches them by country or date', async () => {
-  switchOwner('account:empty', 'scope-empty');
-  await upsertVisit({ localId: '00000000-0000-4000-8000-000000000001', venueId, venueName: 'Empty Museum', visitedOn: '2024-02-29', timeZone: 'UTC' });
+it("shows empty visits and calendar month groups, and searches them by country or date", async () => {
+  switchOwner("account:empty", "scope-empty");
+  await upsertVisit({
+    localId: "00000000-0000-4000-8000-000000000001",
+    venueId,
+    venueName: "Empty Museum",
+    visitedOn: "2024-02-29",
+    timeZone: "UTC",
+  });
   await render(<CollectionScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'List' }));
-  expect(screen.getByText('February 2024')).toBeOnTheScreen();
-  expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  await fireEvent.press(screen.getByRole("button", { name: "List" }));
+  expect(screen.getByText("February 2024")).toBeOnTheScreen();
+  expect(screen.getByText("Empty Museum")).toBeOnTheScreen();
   expect(screen.getByText(/Location unavailable · 0 artworks/)).toBeOnTheScreen();
-  await fireEvent.changeText(search(), '2024-02-29');
-  expect(screen.getByText('Empty Museum')).toBeOnTheScreen();
-  await fireEvent.changeText(search(), 'missing');
-  expect(screen.getByText('No visits found.')).toBeOnTheScreen();
+  await fireEvent.changeText(search(), "2024-02-29");
+  expect(screen.getByText("Empty Museum")).toBeOnTheScreen();
+  await fireEvent.changeText(search(), "missing");
+  expect(screen.getByText("No visits found.")).toBeOnTheScreen();
 });
-it('shows the A–Z collection in artist order', async () => {
-  switchOwner(anonymousOwner(), 'scope-anonymous');
+it("shows the A–Z collection in artist order", async () => {
+  switchOwner(anonymousOwner(), "scope-anonymous");
   await renderArchive();
-  await screen.findByText('Water Lilies');
-  await fireEvent.press(screen.getByRole('button', { name: 'Artist' }));
-  expect(screen.getAllByRole('button', { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
-    '100% Cotton, Anon', 'Water Lilies, Claude Monet', 'Untitled, Unknown',
-  ]);
+  await screen.findByText("Water Lilies");
+  await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
+  expect(
+    screen.getAllByRole("button", { name: /, / }).map((row) => row.props.accessibilityLabel),
+  ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
 });
 
-
-it('opens the requested collection section even after another section was selected', async () => {
-  switchOwner('account:section', 'scope-section');
+it("opens the requested collection section even after another section was selected", async () => {
+  switchOwner("account:section", "scope-section");
   const view = await render(<CollectionScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Visits' }));
-  expect(screen.getByRole('button', { name: 'Visits' })).toBeSelected();
-  mockParams = { view: 'wall' };
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  expect(screen.getByRole("button", { name: "Visits" })).toBeSelected();
+  mockParams = { view: "wall" };
   await view.rerender(<CollectionScreen />);
-  expect(screen.getByRole('button', { name: 'Wall' })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Wall" })).toBeSelected();
   expect(mockParams.view).toBeUndefined();
-  mockParams = { view: 'visits' };
+  mockParams = { view: "visits" };
   await view.rerender(<CollectionScreen />);
-  expect(screen.getByRole('button', { name: 'Visits' })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Visits" })).toBeSelected();
 });

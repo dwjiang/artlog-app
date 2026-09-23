@@ -22,13 +22,7 @@
         "maximum": 1
       }
     },
-    "required": [
-      "id",
-      "text",
-      "sourceUrl",
-      "sourceLabel",
-      "sourceScore"
-    ],
+    "required": ["id", "text", "sourceUrl", "sourceLabel", "sourceScore"],
     "additionalProperties": false
   }
 }

@@ -16,13 +16,8 @@
       "48hills.org"
     ],
     "country": "US",
-    "center": [
-      37.7749,
-      -122.4194
-    ],
-    "adminQids": [
-      "Q62"
-    ]
+    "center": [37.7749, -122.4194],
+    "adminQids": ["Q62"]
   },
   "new-york": {
     "name": "New York",
@@ -41,13 +36,8 @@
       "ny1.com"
     ],
     "country": "US",
-    "center": [
-      40.7128,
-      -74.006
-    ],
-    "adminQids": [
-      "Q60"
-    ]
+    "center": [40.7128, -74.006],
+    "adminQids": ["Q60"]
   },
   "london": {
     "name": "London",
@@ -66,13 +56,8 @@
       "theartnewspaper.com"
     ],
     "country": "GB",
-    "center": [
-      51.5074,
-      -0.1278
-    ],
-    "adminQids": [
-      "Q84"
-    ]
+    "center": [51.5074, -0.1278],
+    "adminQids": ["Q84"]
   },
   "paris": {
     "name": "Paris",
@@ -91,13 +76,8 @@
       "franceinfo.fr"
     ],
     "country": "FR",
-    "center": [
-      48.8566,
-      2.3522
-    ],
-    "adminQids": [
-      "Q90"
-    ]
+    "center": [48.8566, 2.3522],
+    "adminQids": ["Q90"]
   },
   "country:US": {
     "name": "United States",

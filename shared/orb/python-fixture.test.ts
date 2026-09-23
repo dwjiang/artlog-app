@@ -1,8 +1,8 @@
 // Cross-language guard for the ORB wire format: the bytes in
 // shared/orb/fixtures/orb-features-v1.json were produced by scripts/data/pipeline/orb.py.
 
-import fixture from './fixtures/orb-features-v1.json';
-import model from '../model/model-version.json';
+import fixture from "./fixtures/orb-features-v1.json";
+import model from "../model/model-version.json";
 
 const DESCRIPTOR_BYTES = 32;
 const KEYPOINT_FLOATS = 4;
@@ -15,11 +15,11 @@ function decodeBase64(text: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-describe('ORB fixture written by the Python extractor', () => {
+describe("ORB fixture written by the Python extractor", () => {
   const descriptors = decodeBase64(fixture.descriptorsBase64);
   const keypoints = decodeBase64(fixture.keypointsBase64);
 
-  it('has count×32 descriptor bytes and count×16 keypoint bytes within the cap', () => {
+  it("has count×32 descriptor bytes and count×16 keypoint bytes within the cap", () => {
     expect(fixture.count).toBeGreaterThan(0);
     expect(fixture.count).toBeLessThanOrEqual(Math.min(MAX_KEYPOINTS, model.orbMaxKeypoints));
     expect(descriptors.byteLength).toBe(fixture.count * DESCRIPTOR_BYTES);
@@ -27,7 +27,7 @@ describe('ORB fixture written by the Python extractor', () => {
     expect(fixture.inputSize).toBe(model.inputSize);
   });
 
-  it('decodes keypoints as little-endian float32 [x, y, size, angle] in letterboxed pixels', () => {
+  it("decodes keypoints as little-endian float32 [x, y, size, angle] in letterboxed pixels", () => {
     const view = new DataView(keypoints);
     for (let i = 0; i < fixture.count; i += 1) {
       const x = view.getFloat32(i * 16, true);
@@ -44,7 +44,7 @@ describe('ORB fixture written by the Python extractor', () => {
     }
   });
 
-  it('carries non-trivial binary descriptors', () => {
+  it("carries non-trivial binary descriptors", () => {
     const bytes = new Uint8Array(descriptors);
     const distinct = new Set(bytes);
     expect(distinct.size).toBeGreaterThan(16);

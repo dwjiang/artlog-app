@@ -1,6 +1,6 @@
-import type { MatchOutcome } from '../validators';
-import { type CandidateSignals, FEATURE_NAMES, featureIndex, featurize } from './features';
-import { type CalibratorConfig, DEFAULT_CALIBRATOR } from './weights';
+import type { MatchOutcome } from "../validators";
+import { type CandidateSignals, FEATURE_NAMES, featureIndex, featurize } from "./features";
+import { type CalibratorConfig, DEFAULT_CALIBRATOR } from "./weights";
 
 export type ScoredCandidate<T> = {
   candidate: T;
@@ -19,8 +19,8 @@ export type Decision<T> = {
   calibratorVersion: string;
 };
 
-const SIMILARITY = featureIndex('similarity');
-const MARGIN = featureIndex('margin');
+const SIMILARITY = featureIndex("similarity");
+const MARGIN = featureIndex("margin");
 
 export function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
@@ -28,11 +28,11 @@ export function sigmoid(x: number): number {
 
 export function scoreCandidates<T>(
   items: { candidate: T; signals: CandidateSignals }[],
-  config: CalibratorConfig = DEFAULT_CALIBRATOR
+  config: CalibratorConfig = DEFAULT_CALIBRATOR,
 ): ScoredCandidate<T>[] {
   if (config.weights.length !== FEATURE_NAMES.length) {
     throw new RangeError(
-      `calibrator ${config.version} has ${config.weights.length} weights for ${FEATURE_NAMES.length} features`
+      `calibrator ${config.version} has ${config.weights.length} weights for ${FEATURE_NAMES.length} features`,
     );
   }
   const scored = items.map(({ candidate, signals }) => {
@@ -49,22 +49,22 @@ export function scoreCandidates<T>(
     };
   });
   scored.sort(
-    (a, b) => b.probability - a.probability || b.features[SIMILARITY] - a.features[SIMILARITY]
+    (a, b) => b.probability - a.probability || b.features[SIMILARITY] - a.features[SIMILARITY],
   );
   return scored;
 }
 
 export function decide<T>(
   scored: ScoredCandidate<T>[],
-  config: CalibratorConfig = DEFAULT_CALIBRATOR
+  config: CalibratorConfig = DEFAULT_CALIBRATOR,
 ): Decision<T> {
   const best = scored[0] ?? null;
-  let outcome: MatchOutcome = 'miss';
+  let outcome: MatchOutcome = "miss";
   if (best !== null) {
     if (best.probability >= config.thresholds.confident && best.eligibleForConfident) {
-      outcome = 'confident';
+      outcome = "confident";
     } else if (best.probability >= config.thresholds.soft) {
-      outcome = 'soft';
+      outcome = "soft";
     }
   }
   return { outcome, best, runnerUps: scored.slice(1, 6), calibratorVersion: config.version };
@@ -73,17 +73,19 @@ export function decide<T>(
 function confidenceBlockers(
   signals: CandidateSignals,
   features: Float64Array,
-  config: CalibratorConfig
+  config: CalibratorConfig,
 ): string[] {
-  if (signals.keypointCount === null) return ['reference:unknown-texture'];
+  if (signals.keypointCount === null) return ["reference:unknown-texture"];
   const reasons: string[] = [];
   if (signals.keypointCount >= config.lowTextureKeypoints) {
-    if (!signals.homographyValid) reasons.push('textured:no-homography');
-    else if (signals.orbInliers < config.textured.minInliers) reasons.push('textured:few-inliers');
+    if (!signals.homographyValid) reasons.push("textured:no-homography");
+    else if (signals.orbInliers < config.textured.minInliers) reasons.push("textured:few-inliers");
     return reasons;
   }
-  if (features[SIMILARITY] < config.lowTexture.minSimilarity) reasons.push('low-texture:similarity');
-  if (features[MARGIN] < config.lowTexture.minMargin) reasons.push('low-texture:margin');
-  if (config.lowTexture.requireVenueAgreement && !signals.atVenue) reasons.push('low-texture:venue');
+  if (features[SIMILARITY] < config.lowTexture.minSimilarity)
+    reasons.push("low-texture:similarity");
+  if (features[MARGIN] < config.lowTexture.minMargin) reasons.push("low-texture:margin");
+  if (config.lowTexture.requireVenueAgreement && !signals.atVenue)
+    reasons.push("low-texture:venue");
   return reasons;
 }

@@ -10,6 +10,11 @@
   "works": [
     { "objectKey": "example:object" },
     { "wikidataId": "Q123", "ownerKey": "example:lender" },
-    { "title": "Example painting", "artist": "Example artist", "ownerKey": "example:lender", "accession": "2026.1" }
+    {
+      "title": "Example painting",
+      "artist": "Example artist",
+      "ownerKey": "example:lender",
+      "accession": "2026.1"
+    }
   ]
 }

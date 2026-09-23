@@ -1,23 +1,27 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE, WaitingForSignalCard } from './waiting-for-signal-card';
-
+import {
+  IDENTIFYING_TITLE,
+  LABEL_NOW,
+  WAITING_LINE,
+  WAITING_TITLE,
+  WaitingForSignalCard,
+} from "./waiting-for-signal-card";
 
 const handlers = { onLabel: jest.fn() };
 beforeEach(() => jest.clearAllMocks());
 
-it('says it is waiting for signal and asks for the label now', async () => {
+it("says it is waiting for signal and asks for the label now", async () => {
   await render(<WaitingForSignalCard status="queued" {...handlers} />);
   expect(screen.getByText(WAITING_TITLE)).toBeOnTheScreen();
   expect(screen.getByText(WAITING_LINE)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: LABEL_NOW }));
+  await fireEvent.press(screen.getByRole("button", { name: LABEL_NOW }));
   expect(handlers.onLabel).toHaveBeenCalledTimes(1);
-
 });
 
-it('reads as identifying while the scan is in flight and keeps the label handy', async () => {
+it("reads as identifying while the scan is in flight and keeps the label handy", async () => {
   await render(<WaitingForSignalCard status="identifying" {...handlers} />);
   expect(screen.getByLabelText(IDENTIFYING_TITLE)).toBeOnTheScreen();
   expect(screen.queryByText(WAITING_TITLE)).toBeNull();
-  expect(screen.getByRole('button', { name: LABEL_NOW })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: LABEL_NOW })).toBeOnTheScreen();
 });

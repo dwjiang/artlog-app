@@ -1,20 +1,19 @@
-
-import { mulberry32 } from './homography';
-import { matchDescriptors } from './match';
+import { mulberry32 } from "./homography";
+import { matchDescriptors } from "./match";
 import {
   featuresFromDescriptors,
   makeRandomFeatures,
   makeSyntheticPair,
   withFlippedBits,
-} from './test-fixtures';
+} from "./test-fixtures";
 
 const bits = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
 
-describe('matchDescriptors', () => {
-  it('recovers most true correspondences on a synthetic pair with few false matches', () => {
+describe("matchDescriptors", () => {
+  it("recovers most true correspondences on a synthetic pair with few false matches", () => {
     const { ref, query, truth } = makeSyntheticPair({ seed: 3 });
     const truthByQuery = new Map(
-      truth.correspondences.map(([refIdx, queryIdx]) => [queryIdx, refIdx])
+      truth.correspondences.map(([refIdx, queryIdx]) => [queryIdx, refIdx]),
     );
 
     const matches = matchDescriptors(query, ref);
@@ -24,7 +23,7 @@ describe('matchDescriptors', () => {
     expect((matches.length - correct) / matches.length).toBeLessThanOrEqual(0.05);
   });
 
-  it('returns matches sorted by ascending distance', () => {
+  it("returns matches sorted by ascending distance", () => {
     const { ref, query } = makeSyntheticPair({ seed: 4, count: 50 });
 
     const distances = matchDescriptors(query, ref).map((m) => m.distance);
@@ -33,7 +32,7 @@ describe('matchDescriptors', () => {
     expect(distances).toEqual([...distances].sort((a, b) => a - b));
   });
 
-  it('rejects a match whose second-best candidate is nearly as close', () => {
+  it("rejects a match whose second-best candidate is nearly as close", () => {
     const rand = mulberry32(5);
     const q = makeRandomFeatures(rand, 1, 512).descriptors;
     const ref = featuresFromDescriptors([
@@ -48,7 +47,7 @@ describe('matchDescriptors', () => {
     ]);
   });
 
-  it('accepts a lone reference descriptor and drops matches beyond maxDistance', () => {
+  it("accepts a lone reference descriptor and drops matches beyond maxDistance", () => {
     const rand = mulberry32(6);
     const q = makeRandomFeatures(rand, 1, 512).descriptors;
     const query = featuresFromDescriptors([q]);
@@ -59,7 +58,7 @@ describe('matchDescriptors', () => {
     expect(matchDescriptors(query, at65)).toEqual([]);
   });
 
-  it('keeps only mutual best matches with crossCheck', () => {
+  it("keeps only mutual best matches with crossCheck", () => {
     const rand = mulberry32(7);
     const r = makeRandomFeatures(rand, 3, 512);
     const r0 = r.descriptors.subarray(0, 32);
@@ -78,7 +77,7 @@ describe('matchDescriptors', () => {
     expect(mutual).toEqual([{ queryIdx: 1, refIdx: 0, distance: 3 }]);
   });
 
-  it('returns no matches when either side is empty', () => {
+  it("returns no matches when either side is empty", () => {
     const rand = mulberry32(8);
     const some = makeRandomFeatures(rand, 10, 512);
     const none = makeRandomFeatures(rand, 0, 512);
@@ -87,7 +86,7 @@ describe('matchDescriptors', () => {
     expect(matchDescriptors(some, none)).toEqual([]);
   });
 
-  it('matches 500×500 descriptors within the time budget', () => {
+  it("matches 500×500 descriptors within the time budget", () => {
     const rand = mulberry32(9);
     const query = makeRandomFeatures(rand, 500, 512);
     const ref = makeRandomFeatures(rand, 500, 512);

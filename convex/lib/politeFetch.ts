@@ -1,22 +1,22 @@
-const REPO_URL = 'https://github.com/dwjiang/artlog-app';
+const REPO_URL = "https://github.com/dwjiang/artlog-app";
 
 export function userAgent(): string {
   const contact = process.env.CRAWLER_CONTACT;
-  return `artlog-bot/0.1 (+${REPO_URL}${contact ? `; mailto:${contact}` : ''})`;
+  return `artlog-bot/0.1 (+${REPO_URL}${contact ? `; mailto:${contact}` : ""})`;
 }
 
 export async function readBody(response: Response, maxBytes: number): Promise<string> {
   const reader = response.body?.getReader();
-  if (!reader) return '';
+  if (!reader) return "";
   const decoder = new TextDecoder();
   let size = 0;
-  let body = '';
+  let body = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) return body + decoder.decode();
       size += value.byteLength;
-      if (size > maxBytes) throw new Error('Response too large');
+      if (size > maxBytes) throw new Error("Response too large");
       body += decoder.decode(value, { stream: true });
     }
   } finally {

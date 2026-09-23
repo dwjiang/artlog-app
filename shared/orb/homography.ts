@@ -1,5 +1,5 @@
-import { KEYPOINT_FLOATS, type OrbFeatures } from './features';
-import type { Match } from './match';
+import { KEYPOINT_FLOATS, type OrbFeatures } from "./features";
+import type { Match } from "./match";
 
 export type Point = [number, number];
 
@@ -104,14 +104,26 @@ export function solveHomography(src: Point[], dst: Point[]): Float64Array | null
 
   const normalized = new Float64Array([h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1]);
   const toSrc = new Float64Array([
-    srcNorm.scale, 0, -srcNorm.scale * srcNorm.cx,
-    0, srcNorm.scale, -srcNorm.scale * srcNorm.cy,
-    0, 0, 1,
+    srcNorm.scale,
+    0,
+    -srcNorm.scale * srcNorm.cx,
+    0,
+    srcNorm.scale,
+    -srcNorm.scale * srcNorm.cy,
+    0,
+    0,
+    1,
   ]);
   const fromDst = new Float64Array([
-    1 / dstNorm.scale, 0, dstNorm.cx,
-    0, 1 / dstNorm.scale, dstNorm.cy,
-    0, 0, 1,
+    1 / dstNorm.scale,
+    0,
+    dstNorm.cx,
+    0,
+    1 / dstNorm.scale,
+    dstNorm.cy,
+    0,
+    0,
+    1,
   ]);
   const H = mat3mul(fromDst, mat3mul(normalized, toSrc));
   if (Math.abs(H[8]) > PIVOT_EPSILON) {
@@ -140,7 +152,7 @@ function accumulateNormalEquations(
   m: Float64Array,
   rhs: Float64Array,
   row: Float64Array,
-  b: number
+  b: number,
 ): void {
   for (let r = 0; r < 8; r++) {
     const rv = row[r];
@@ -194,7 +206,7 @@ export function ransacHomography(
   matches: Match[],
   query: OrbFeatures,
   ref: OrbFeatures,
-  opts: RansacOptions = {}
+  opts: RansacOptions = {},
 ): RansacResult {
   const threshold = opts.threshold ?? 5;
   const maxIterations = opts.maxIterations ?? 1000;
@@ -219,8 +231,18 @@ export function ransacHomography(
   const rand = mulberry32(seed);
   const threshold2 = threshold * threshold;
   const sample = new Int32Array(4);
-  const src: Point[] = [[0, 0], [0, 0], [0, 0], [0, 0]];
-  const dst: Point[] = [[0, 0], [0, 0], [0, 0], [0, 0]];
+  const src: Point[] = [
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+  ];
+  const dst: Point[] = [
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+  ];
   let bestH: Float64Array | null = null;
   let bestCount = 0;
   let bound = maxIterations;
@@ -247,10 +269,7 @@ export function ransacHomography(
   if (bestH === null || bestCount < 4) return { H: null, inlierMask, inlierCount: 0, iterations };
 
   countInliers(bestH, sx, sy, dx, dy, threshold2, inlierMask);
-  const refit = solveHomography(
-    maskedPoints(sx, sy, inlierMask),
-    maskedPoints(dx, dy, inlierMask)
-  );
+  const refit = solveHomography(maskedPoints(sx, sy, inlierMask), maskedPoints(dx, dy, inlierMask));
   const H = refit ?? bestH;
   const inlierCount = countInliers(H, sx, sy, dx, dy, threshold2, inlierMask);
   return { H, inlierMask, inlierCount, iterations };
@@ -276,7 +295,7 @@ function countInliers(
   dx: Float64Array,
   dy: Float64Array,
   threshold2: number,
-  mask: Uint8Array | null
+  mask: Uint8Array | null,
 ): number {
   let count = 0;
   for (let i = 0; i < sx.length; i++) {

@@ -7,13 +7,11 @@
     "convex": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "convex@latest",
-        "mcp",
-        "start"
-      ],
-      "env": {}
+      "args": ["-y", "convex@latest", "mcp", "start"],
+      "env": {
+        "CONVEX_DEPLOY_KEY": "",
+        "CONVEX_DEPLOYMENT_TOKEN": ""
+      }
     },
     "huggingface": {
       "type": "http",
@@ -26,11 +24,7 @@
     "XcodeBuildMCP": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "xcodebuildmcp@latest",
-        "mcp"
-      ],
+      "args": ["-y", "xcodebuildmcp@latest", "mcp"],
       "env": {
         "XCODEBUILDMCP_ENABLED_WORKFLOWS": "simulator,ui-automation,debugging"
       }
@@ -46,6 +40,10 @@
         "nebius-mcp-server@git+https://github.com/nebius/mcp-server@main"
       ],
       "env": {}
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
     },
     "mobbin": {
       "type": "http",

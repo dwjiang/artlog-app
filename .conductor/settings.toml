@@ -11,7 +11,7 @@ Title the pull request as a Conventional Commit: `type(scope): summary`. Keep th
   - `src/components/<area>/`, `src/lib/<area>/`, `shared/<area>/` → `<area>`, for example `scan`, `social`, `visits`, `collection`, `settings`, `account`, `venue`, `capture`, `label`, `journal`, `wall`, `queue`.
   - `src/app/` → `routes`. Top-level files in `src/components/` plus `src/constants/` → `ui`.
   - `convex/` → `convex`; `src/db/` → `db`; `modules/<name>/` → `<name>`; `scripts/` → `scripts`; `docs/` → `docs`.
-  - `AGENTS.md` and `.agents/` → `agents`; `.conductor/` → `conductor`; `app.json`, `tsconfig.json`, `eslint.config.js`, `.env.example` → `config`; `package.json` and the lockfile → `deps`.
+  - `AGENTS.md` and `.agents/` → `agents`; `.conductor/` → `conductor`; `app.json`, `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json`, `oxlint-plugin.js`, `.env.example` → `config`; `package.json` and the lockfile → `deps`.
   - Any other path: the directory or subsystem that owns it.
 - Use the area the summary is about. When the summary spans several areas, use the area holding at least half of the changed files; when none does, use `ui` for a restyle and omit the scope for any other repository-wide change.
 - `app` is not a scope. Do not use it or any other catch-all.
@@ -19,7 +19,12 @@ Title the pull request as a Conventional Commit: `type(scope): summary`. Keep th
 
 [scripts]
 setup = "npm ci --no-audit --no-fund"
-archive = "[ ! -f ./.conductor/archive-ios-simulators.sh ] || ./.conductor/archive-ios-simulators.sh"
+archive = '''
+set -e
+[ "${CONDUCTOR_IS_LOCAL:-0}" = "1" ] || exit 0
+archive_source=$(git show "origin/${CONDUCTOR_DEFAULT_BRANCH:-main}:.conductor/archive-workspace.cjs")
+printf '%s\n' "$archive_source" | node
+'''
 # Switching workspaces should replace the server used by the shared development client.
 run_mode = "nonconcurrent"
 

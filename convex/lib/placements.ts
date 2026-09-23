@@ -1,5 +1,5 @@
-import type { Doc, Id } from '../_generated/dataModel';
-import type { QueryCtx } from '../_generated/server';
+import type { Doc, Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 
 export type PlacementLike = {
   venueId: string;
@@ -32,16 +32,18 @@ export function currentPlacement<T extends PlacementLike>(placements: T[], now: 
 
 export async function loadCurrentPlacement(
   ctx: QueryCtx,
-  objectId: Id<'objects'>,
-  now: number
-): Promise<Doc<'placements'> | null> {
-  let placement: Doc<'placements'> | null = null;
-  for await (const row of ctx.db.query('placements').withIndex('by_objectId', (q) => q.eq('objectId', objectId))) {
+  objectId: Id<"objects">,
+  now: number,
+): Promise<Doc<"placements"> | null> {
+  let placement: Doc<"placements"> | null = null;
+  for await (const row of ctx.db
+    .query("placements")
+    .withIndex("by_objectId", (q) => q.eq("objectId", objectId))) {
     if (row.proposalId) {
       const proposal = await ctx.db.get(row.proposalId);
       if (!proposal || proposal.revertedAt !== undefined) continue;
-      const devices = await Promise.all(proposal.deviceIds.map(id => ctx.db.get(id)));
-      if (devices.some(device => !device || device.banned)) continue;
+      const devices = await Promise.all(proposal.deviceIds.map((id) => ctx.db.get(id)));
+      if (devices.some((device) => !device || device.banned)) continue;
     }
     placement = currentPlacement(placement ? [placement, row] : [row], now);
   }
@@ -63,7 +65,7 @@ function comparePlacements(a: PlacementLike, b: PlacementLike): number {
 
 function placementRank(placement: PlacementLike): number {
   // An off-view feed doesn't establish where a loan hangs; a checklist does.
-  return placement.source === 'feed' && !placement.onView ? 4 : (sourceRank[placement.source] ?? 0);
+  return placement.source === "feed" && !placement.onView ? 4 : (sourceRank[placement.source] ?? 0);
 }
 
 // An open-ended start sorts before any dated start.

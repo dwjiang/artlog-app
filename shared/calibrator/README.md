@@ -13,9 +13,19 @@ One JSON document shaped exactly like `CalibratorConfig`:
 ```json
 {
   "version": "lr-v2",
-  "featureNames": ["similarity", "margin", "logCandidateCount", "atVenue", "gallerySame",
-                   "galleryDifferent", "onView", "logKeypointCount", "logInliers",
-                   "homographyValid", "objectPenalty"],
+  "featureNames": [
+    "similarity",
+    "margin",
+    "logCandidateCount",
+    "atVenue",
+    "gallerySame",
+    "galleryDifferent",
+    "onView",
+    "logKeypointCount",
+    "logInliers",
+    "homographyValid",
+    "objectPenalty"
+  ],
   "weights": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   "bias": 0,
   "thresholds": { "confident": 0.85, "soft": 0.45 },

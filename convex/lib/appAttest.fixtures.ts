@@ -1,4 +1,4 @@
-import { bytesToBase64, concat, sha256 } from './appAttest';
+import { bytesToBase64, concat, sha256 } from "./appAttest";
 
 // Definite-length CBOR, the layout Apple uses for `{ signature, authenticatorData }`.
 function cborBytes(bytes: Uint8Array): Uint8Array {
@@ -19,10 +19,10 @@ function cborText(text: string): Uint8Array {
 export function encodeAssertion(signature: Uint8Array, authenticatorData: Uint8Array): Uint8Array {
   return concat(
     Uint8Array.from([0xa2]),
-    cborText('signature'),
+    cborText("signature"),
     cborBytes(signature),
-    cborText('authenticatorData'),
-    cborBytes(authenticatorData)
+    cborText("authenticatorData"),
+    cborBytes(authenticatorData),
   );
 }
 
@@ -49,22 +49,26 @@ export function authenticatorData(rpIdHash: Uint8Array, counter: number): Uint8A
 export type Signer = { privateKey: CryptoKey; publicKeySpkiBase64: string };
 
 export async function makeSigner(): Promise<Signer> {
-  const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
-    'sign',
-    'verify',
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+    "sign",
+    "verify",
   ]);
-  const spki = new Uint8Array(await crypto.subtle.exportKey('spki', pair.publicKey));
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
   return { privateKey: pair.privateKey, publicKeySpkiBase64: bytesToBase64(spki) };
 }
 
 export async function signAssertion(
   signer: Signer,
   authData: Uint8Array,
-  clientData: string
+  clientData: string,
 ): Promise<string> {
   const nonce = await sha256(concat(authData, await sha256(clientData)));
   const raw = new Uint8Array(
-    await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signer.privateKey, nonce as BufferSource)
+    await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      signer.privateKey,
+      nonce as BufferSource,
+    ),
   );
   return bytesToBase64(encodeAssertion(rawToDer(raw), authData));
 }

@@ -1,12 +1,17 @@
-import * as Haptics from 'expo-haptics';
-import type { CaptureCompletion } from '../capture/completion';
-import { useRef, useState } from 'react';
+import { reportError, addBreadcrumb } from "@/lib/observability";
+import * as Haptics from "expo-haptics";
+import type { CaptureCompletion } from "../capture/completion";
+import { useRef, useState } from "react";
 
-import { saveErrorMessage, saveResult, type SaveResultInput } from './save';
-import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from '../label/contribute';
-import { shareSavedLabel, type ContributionAttempt } from '../label/share-saved-label';
+import { saveErrorMessage, saveResult, type SaveResultInput } from "./save";
+import {
+  contributionErrorMessage,
+  type ContributionOutcome,
+  type ContributeInput,
+} from "../label/contribute";
+import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
 
-export type SaveInput = Omit<SaveResultInput, 'capture'> & { capture?: SaveResultInput['capture'] };
+export type SaveInput = Omit<SaveResultInput, "capture"> & { capture?: SaveResultInput["capture"] };
 
 /** A card's save state; a capture missing from this phone or a failed write leaves the draft editable with a message. */
 export function useSaveResult() {
@@ -23,12 +28,15 @@ export function useSaveResult() {
 
   async function trackContribution(attempt: Promise<ContributionAttempt>) {
     sharingNow.current = true;
-    setSharing(true); setShareError(undefined);
+    setSharing(true);
+    setShareError(undefined);
     try {
       const outcome = await attempt;
-      setShared(outcome.result); setShareError(outcome.error);
+      setShared(outcome.result);
+      setShareError(outcome.error);
     } catch (cause) {
-      console.warn('Could not save the work to the shared index', cause);
+      reportError(cause, "result.share");
+      console.warn("Could not save the work to the shared index", cause);
       setShareError(contributionErrorMessage(cause));
     } finally {
       sharingNow.current = false;
@@ -44,7 +52,7 @@ export function useSaveResult() {
   async function save({ capture, ...input }: SaveInput): Promise<void> {
     if (inFlight.current) return;
     if (!capture) {
-      setError('Your photo of this scan isn’t on this phone, so it can’t be saved.');
+      setError("Your photo of this scan isn’t on this phone, so it can’t be saved.");
       return;
     }
     inFlight.current = true;
@@ -52,6 +60,7 @@ export function useSaveResult() {
     setError(undefined);
     try {
       const { localId, completion, contribution } = await saveResult({ ...input, capture });
+      addBreadcrumb("result.saved", { hasContribution: !!contribution });
       setSavedId(localId);
       setCompletion(completion);
       if (contribution && input.contribution) {
@@ -60,7 +69,8 @@ export function useSaveResult() {
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (cause) {
-      console.warn('Could not save the work', cause);
+      reportError(cause, "result.save");
+      console.warn("Could not save the work", cause);
       setError(saveErrorMessage(cause));
     } finally {
       inFlight.current = false;

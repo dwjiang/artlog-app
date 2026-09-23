@@ -169,8 +169,8 @@ def test_versioned_system_prompts_match_convex():
     ts = (REPO_ROOT / "convex/lib/docentPrompts.ts").read_text()
     for name in ("FACT_SHEET_PROMPT", "DOCENT_PROMPT"):
         block = ts.split(f"export const {name} =", 1)[1].split(";\n", 1)[0]
-        assert "".join(re.findall(r"'([^']*)'", block)) == getattr(prompts, name)
-    assert f"PROMPT_VERSION = '{prompts.PROMPT_VERSION}'" in ts
+        assert "".join(re.findall(r'"([^"]*)"', block)) == getattr(prompts, name)
+    assert f'PROMPT_VERSION = "{prompts.PROMPT_VERSION}"' in ts
 
 
 @pytest.mark.parametrize(

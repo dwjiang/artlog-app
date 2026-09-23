@@ -1,13 +1,14 @@
-import { Asset } from 'expo-asset';
-import * as Device from 'expo-device';
+import { Asset } from "expo-asset";
+import * as Device from "expo-device";
 
-import fixture from '../../../shared/orb/fixtures/orb-features-v1.json';
+import fixture from "../../../shared/orb/fixtures/orb-features-v1.json";
 
-import { measureCrop, type TriageMetrics } from '@/lib/capture/triage';
-import { extractOrb } from './extract';
-import { compareDescriptors, decodeBase64, type OrbParity } from './parity';
+import { measureCrop, type TriageMetrics } from "@/lib/capture/triage";
+import { extractOrb } from "./extract";
+import { compareDescriptors, decodeBase64, type OrbParity } from "./parity";
 
-export type OrbParityReport = OrbParity & TriageMetrics & { extractMs: number; triageMs: number; device: string };
+export type OrbParityReport = OrbParity &
+  TriageMetrics & { extractMs: number; triageMs: number; device: string };
 
 /**
  * Dev-only tripwire for the phone ↔ Python ORB contract: extracts from the Python letterbox fixture
@@ -16,8 +17,10 @@ export type OrbParityReport = OrbParity & TriageMetrics & { extractMs: number; t
  * the thresholds against Python's numbers.
  */
 export async function runOrbParityCheck(): Promise<OrbParityReport> {
-  const asset = await Asset.fromModule(require('../../../shared/model/fixtures/letterbox/test-painting-512.png')).downloadAsync();
-  if (!asset.localUri) throw new Error('The ORB parity fixture is not bundled');
+  const asset = await Asset.fromModule(
+    require("../../../shared/model/fixtures/letterbox/test-painting-512.png"),
+  ).downloadAsync();
+  if (!asset.localUri) throw new Error("The ORB parity fixture is not bundled");
   const extractStarted = performance.now();
   const features = await extractOrb(asset.localUri);
   const extractMs = performance.now() - extractStarted;
@@ -29,8 +32,8 @@ export async function runOrbParityCheck(): Promise<OrbParityReport> {
     ...metrics,
     extractMs,
     triageMs,
-    device: Device.modelId ?? Device.modelName ?? 'unknown',
+    device: Device.modelId ?? Device.modelName ?? "unknown",
   };
-  console.debug('ORB parity', report);
+  console.debug("ORB parity", report);
   return report;
 }

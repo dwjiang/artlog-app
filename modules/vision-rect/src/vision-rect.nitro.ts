@@ -1,5 +1,5 @@
-import type { HybridObject } from 'react-native-nitro-modules';
-import type { Frame } from 'react-native-vision-camera';
+import type { HybridObject } from "react-native-nitro-modules";
+import type { Frame } from "react-native-vision-camera";
 
 /** A point in normalized upright-image coordinates: origin top-left, x to the right, y down. */
 export interface RectPoint {
@@ -78,7 +78,7 @@ export interface TextRecognition {
   lines: TextLine[];
 }
 
-export interface VisionRect extends HybridObject<{ ios: 'swift' }> {
+export interface VisionRect extends HybridObject<{ ios: "swift" }> {
   /**
    * Runs rectangle detection on every `stride`-th call and returns `undefined` for the calls in between.
    * Call from the frame worklet; the caller disposes the frame.
@@ -86,7 +86,11 @@ export interface VisionRect extends HybridObject<{ ios: 'swift' }> {
   detect(frame: Frame, stride: number): RectDetection | undefined;
   /** Rectangle detection and subject lifting on a captured still or library photo. */
   detectStill(photoPath: string): Promise<StillDetection>;
-  warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;
+  warpAndLetterbox(
+    photoPath: string,
+    quad: RectPoint[] | undefined,
+    size: number,
+  ): Promise<LetterboxResult>;
   /** Reads printed text on a captured still or library photo with Apple Vision; nothing leaves the phone. */
   recognizeText(photoPath: string): Promise<TextRecognition>;
 }

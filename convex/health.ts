@@ -1,7 +1,7 @@
-import { v } from 'convex/values';
+import { v } from "convex/values";
 
-import model from '../shared/model/model-version.json';
-import { query } from './_generated/server';
+import model from "../shared/model/model-version.json";
+import { query } from "./_generated/server";
 
 export const ping = query({
   args: {},

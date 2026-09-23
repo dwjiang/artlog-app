@@ -1,7 +1,7 @@
-import { KEYPOINT_BYTES } from '@/shared/orb/features';
-import { packKeypoints } from './pack';
+import { KEYPOINT_BYTES } from "@/shared/orb/features";
+import { packKeypoints } from "./pack";
 
-it('packs [x, y, size, angle] per keypoint as little-endian float32 in input order', () => {
+it("packs [x, y, size, angle] per keypoint as little-endian float32 in input order", () => {
   const packed = packKeypoints([
     { x: 10.5, y: 20.25, size: 31, angle: 359.5 },
     { x: 0, y: 511, size: 62, angle: 0 },
@@ -14,6 +14,6 @@ it('packs [x, y, size, angle] per keypoint as little-endian float32 in input ord
   expect(view.getFloat32(4 * 7, true)).toBe(0);
 });
 
-it('packs no keypoints into an empty array', () => {
+it("packs no keypoints into an empty array", () => {
   expect(packKeypoints([]).byteLength).toBe(0);
 });
