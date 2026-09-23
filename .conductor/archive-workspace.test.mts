@@ -49,7 +49,11 @@ else if (args[2] === process.env.TEST_FAIL_DEVICE) process.exit(1);
       : command === "ps"
         ? `
 if (process.env.TEST_FAIL_PS) process.exit(1);
-if (process.env.TEST_REAL_PROCESSES) process.stdout.write(require('node:child_process').execFileSync('/bin/ps', args));
+if (process.env.TEST_LONG_PROCESS_LIST) {
+  const line = '  1 0 Wed Sep 23 04:24:00 2026 S swift-frontend ' + '-Xcc '.repeat(4000) + '\\n';
+  process.stdout.write(line.repeat(100));
+}
+if (process.env.TEST_REAL_PROCESSES) require('node:child_process').spawnSync('/bin/ps', args, { stdio: 'inherit' });
 `
         : `
 if (process.env.TEST_FAIL_WINDOWS) process.exit(1);
@@ -244,6 +248,12 @@ test("reports window cleanup failures", () => {
   const result = runArchive(["Artlog Ndjamena"], { TEST_FAIL_WINDOWS: "1" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Workspace cleanup failed/);
+});
+
+test("reads process lists larger than Node's default output buffer", () => {
+  const result = runArchive([], { TEST_LONG_PROCESS_LIST: "1" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
 });
 
 test("still closes simulators when process discovery fails", () => {
