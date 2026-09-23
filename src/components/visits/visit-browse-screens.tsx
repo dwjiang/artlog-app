@@ -1,3 +1,4 @@
+import { useListeningDockInset } from '@/components/audio/use-listening-dock-inset';
 import { SavedWorkImage } from '../collection/saved-work-image';
 import { formatVisitDate, placeIdentity } from '@/lib/journal/history';
 import { useState } from 'react';
@@ -16,10 +17,11 @@ import { VisitRow } from './visit-timeline';
 import { VisitMessage, VisitPage } from './visit-ui';
 
 export function VisitPlaceScreen() {
+  const dockInset = useListeningDockInset();
   const { placeKey, name, venueId } = useLocalSearchParams<{ placeKey: string; name: string; venueId?: string }>();
   const { visits, loading, error } = useVisits();
   const matches = visitsAtPlace(visits, placeKey).filter((visit) => !venueId || visit.venueId === venueId);
-  return <><Stack.Screen options={{ title: name || 'Visits by museum' }} />
+  return <View style={{ flex: 1, paddingBottom: dockInset }}><Stack.Screen options={{ title: name || 'Visits by museum' }} />
     {error || loading ? <VisitPage><VisitMessage loading={loading && !error} skeleton="list" action="Back to Collection" onAction={() => router.back()}>
       {error ? 'Visits could not load.' : 'Loading visits…'}
     </VisitMessage></VisitPage> : !matches.length ? <VisitPage><EmptyState inset={false} title="No visits here yet." detail="Your saved visits to this place will appear here." visual={<EmptySymbol name="building.columns" />}>
@@ -31,7 +33,7 @@ export function VisitPlaceScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1 }}><Text style={{ fontWeight: '600' }}>{formatVisitDate(visit.visitedOn)}</Text><Text style={{ color: Gallery.muted, fontSize: 13 }}>{visit.works.length} {visit.works.length === 1 ? 'artwork' : 'artworks'}</Text></View><Text style={{ color: Gallery.accent }}>View visit →</Text></View>
         {visit.works[0] && <SavedWorkImage path={visit.works[0].cropPath} title={visit.works[0].title} contain style={{ width: '100%', height: 220, backgroundColor: Gallery.fill }} />}
       </Pressable>}
-      ListFooterComponent={<GalleryButton label="Add another visit" icon="plus" variant="outlined" fullWidth onPress={() => router.push({ pathname: '/visit-create', params: { venueId: matches[0].venueId } })} />} />}</>;
+      ListFooterComponent={<GalleryButton label="Add another visit" icon="plus" variant="outlined" fullWidth onPress={() => router.push({ pathname: '/visit-create', params: { venueId: matches[0].venueId } })} />} />}</View>;
 }
 export function VisitGlobeScreen() {
   const owner = useLocalOwner();

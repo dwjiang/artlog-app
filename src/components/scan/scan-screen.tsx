@@ -1,3 +1,5 @@
+import { useHasListeningTrack } from '@/lib/audio/use-listening';
+import { MINI_PLAYER_HEIGHT } from '@/components/audio/mini-player';
 import { introArtworks } from '../guest/artwork-preview';
 import { GalleryButton } from '../collection/gallery-button';
 import { WallSheet } from '../collection/wall-sheet';
@@ -28,6 +30,7 @@ import { useRectDetector } from '@/lib/capture/use-rect-detector';
 const IMPORT_SIZE = 56;
 
 export function ScanScreen() {
+  const audioInset = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
@@ -40,8 +43,8 @@ export function ScanScreen() {
   const { top, bottom } = useSafeAreaInsets();
   const revealInsets = useMemo(() => ({
     top: top + Spacing.three + controls.top + Spacing.four,
-    bottom: bottom + BottomTabInset + Spacing.three + controls.bottom + Spacing.four,
-  }), [top, bottom, controls]);
+    bottom: bottom + BottomTabInset + audioInset + Spacing.three + controls.bottom + Spacing.four,
+  }), [top, bottom, controls, audioInset]);
   const active = isFocused && appState === 'active';
   const photoOutput = usePhotoOutput({ containerFormat: 'jpeg', quality: 1 });
   const capture = useCapture({ active, focused: isFocused, visitLocalId: visitId, onVisitUnavailable: () => navigation.setParams({ visitId: undefined }) });
@@ -82,7 +85,7 @@ export function ScanScreen() {
 
   return (
     <View style={styles.container} onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}>
-      <CameraPermission onImport={() => { void capture.importPhoto(); }} notice={message} loading={cameraActive && !cameraReady && !cameraError}>
+      <CameraPermission bottomInset={audioInset} onImport={() => { void capture.importPhoto(); }} notice={message} loading={cameraActive && !cameraReady && !cameraError}>
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
@@ -96,7 +99,7 @@ export function ScanScreen() {
           onError={() => { setCameraReady(false); setCameraError('Could not start the camera. You can import a photo.'); }}
         />
       {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-      <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + Spacing.three }]}>
+      <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: bottom + BottomTabInset + audioInset + Spacing.three }]}>
         <View pointerEvents="box-none" style={styles.bottom} onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}>
           <DevTimings timings={busy ? undefined : capture.timings} />
           {message ? <View accessible accessibilityRole="alert"><OverlayCaption hint={retryHint}>{message}</OverlayCaption></View>

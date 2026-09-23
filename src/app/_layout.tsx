@@ -1,3 +1,5 @@
+import { ListeningProvider } from '@/lib/audio/listening-provider';
+import { ListeningRoot } from '@/components/audio/listening-root';
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router/stack';
@@ -29,7 +31,9 @@ export default function RootLayout() {
         <QueueFlusher />
         <VenueResolver />
         <ThemeProvider value={navigationTheme}>
+          <ListeningProvider><ListeningRoot>
           <Stack screenOptions={{ ...NavigationTheme, headerBackButtonDisplayMode: 'default' }}>
+            <Stack.Screen name="now-playing" dangerouslySingular options={{ presentation: 'modal', headerShown: false, contentStyle: { backgroundColor: Gallery.paper } }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
             <Stack.Screen name="result/[scanId]"
               options={({ route }) => ({ title: '', animation: (route.params as { entrance?: string } | undefined)?.entrance === 'capture' ? 'fade' : 'default' })}
@@ -84,6 +88,7 @@ export default function RootLayout() {
               }}
             />
           </Stack>
+          </ListeningRoot></ListeningProvider>
           <ToastLayer><RemovalToast /></ToastLayer>
         </ThemeProvider>
       </ConvexAuthProvider>

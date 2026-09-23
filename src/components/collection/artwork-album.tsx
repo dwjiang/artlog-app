@@ -5,7 +5,7 @@ import { ThemedText as Text } from '@/components/themed-text';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gallery } from '@/constants/theme';
 import { selectArtworkPhotos } from '@/db/repos/artwork-album';
@@ -15,7 +15,7 @@ import { NativeSegmentedPicker } from './native-segmented-picker';
 import { ImageSkeleton } from '@/components/loading-skeleton';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
-export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
+export function ArtworkAlbum({ work, visitId, photoId, children }: { work: SavedWork; visitId?: string; photoId?: string; children?: ReactNode }) {
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
   const [scope, setScope] = useState<'all' | 'visit'>(visitId ? 'visit' : 'all');
   const [requestedPhoto, setRequestedPhoto] = useState(photoId);
@@ -58,6 +58,7 @@ export function ArtworkAlbum({ work, visitId, photoId }: { work: SavedWork; visi
       <Text selectable style={styles.title}>{work.artist || 'Artist unknown'}{work.date ? `, ${work.date}` : ''}</Text>
       {(work.medium || work.institution || work.venueName) && <Text selectable style={styles.medium}>{[work.medium, work.institution || work.venueName].filter(Boolean).join(' · ')}</Text>}
     </View>
+    {children}
     {rows.length > 1 && <View style={styles.thumbnails}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ flex: 1 }}>
         {rows.map((photo, index) => <Pressable key={photo.localId} accessibilityRole="button" accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}

@@ -8,7 +8,7 @@ import { ArtworkCollage } from '@/components/guest/artwork-preview';
 import { ThemedText } from '@/components/themed-text';
 
 /** `notice` is the capture's own retry message, shown here because the camera overlay that normally carries it is not mounted. */
-export function CameraPermission({ children, onImport, notice, compact = false, loading = false }: { children: ReactNode; onImport?: () => void; notice?: string; compact?: boolean; loading?: boolean }) {
+export function CameraPermission({ children, onImport, notice, compact = false, loading = false, bottomInset = 0 }: { children: ReactNode; onImport?: () => void; notice?: string; compact?: boolean; loading?: boolean; bottomInset?: number }) {
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -22,5 +22,5 @@ export function CameraPermission({ children, onImport, notice, compact = false, 
       {onImport && <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />}
       {(error ?? notice) && <ThemedText themeColor="error" accessibilityRole="alert">{error ?? notice}</ThemedText>}
     </EmptyState>;
-  return compact ? <View style={{ paddingVertical: 12 }}>{invitation}</View> : <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>{invitation}</ScrollView>;
+  return compact ? <View style={{ paddingVertical: 12 }}>{invitation}</View> : <ScrollView style={{ marginBottom: bottomInset }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>{invitation}</ScrollView>;
 }

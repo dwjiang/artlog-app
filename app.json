@@ -76,6 +76,15 @@
             ]
           }
         }
+      ],
+      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
       ]
     ],
     "experiments": {

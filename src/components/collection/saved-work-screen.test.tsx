@@ -11,6 +11,8 @@ import { upsertVisit } from '@/db/repos/visits';
 import { getNote, setNote } from '@/db/repos/notes';
 import { insertSavedWork } from '@/db/repos/saved-works';
 import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from '@/db/repos/artwork-album';
+jest.mock('@/lib/audio/use-listening');
+jest.mock('@/lib/audio/use-cached-narration-duration', () => ({ useCachedNarrationDuration: () => undefined }));
 
 let mockWall: Partial<ReturnType<typeof import('@/lib/wall/use-collection-wall').useCollectionWall>> = { pieces: [], signedIn: false };
 jest.mock('@/lib/wall/use-collection-wall', () => ({ useCollectionWall: () => mockWall }));

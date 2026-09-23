@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { openingFixture } from '../shared/audio/guide-fixtures';
 
 import { api } from './_generated/api';
 import { seedArtworkWithObject, seedDevice } from './lib/testFactories';
@@ -9,17 +10,21 @@ const factSheet = [
   { id: 'f1', text: 'Painted in 1916.', sourceUrl: 'https://www.wikidata.org/wiki/Q1', sourceLabel: 'Wikidata', sourceScore: 0.8 },
   { id: 'f2', text: 'The pond is at Giverny.', sourceUrl: 'https://museum.example/lilies', sourceLabel: 'Test Museum', sourceScore: 1 },
 ];
+const chips = [
+  { id: 'f1', sourceUrl: 'https://www.wikidata.org/wiki/Q1', sourceLabel: 'Wikidata' },
+  { id: 'f2', sourceUrl: 'https://museum.example/lilies', sourceLabel: 'Test Museum' },
+];
 
-it('returns docent sentences, source chips and the public-domain thumbnail to a registered device', async () => {
+it('returns docent sentences, source chips and the public-domain thumbnail to a registered device, keeping fact text on the artwork', async () => {
   const t = harness();
   const { as } = await seedDevice(t);
-  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { docent: { en: docent }, factSheet } }));
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { docent: { en: docent }, factSheet, factSheetUpdatedAt: 5 } }));
   expect(await as.query(api.artworks.enrichment, { artworkId })).toEqual({
     docent,
-    factSheet: [
-      { id: 'f1', sourceUrl: 'https://www.wikidata.org/wiki/Q1', sourceLabel: 'Wikidata' },
-      { id: 'f2', sourceUrl: 'https://museum.example/lilies', sourceLabel: 'Test Museum' },
-    ],
+    narrationFacts: chips,
+    narrationResearchUpdatedAt: 5,
+    narrationOpening: openingFixture,
+    factSheet: chips,
     rightsStatus: 'public_domain',
     thumbnailUrl: 'https://museum.example/work.jpg',
   });
@@ -29,9 +34,9 @@ it('omits the thumbnail for in-copyright works and reverted objects, and returns
   const t = harness();
   const { as } = await seedDevice(t);
   const inCopyright = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { rightsStatus: 'in_copyright' } }));
-  expect(await as.query(api.artworks.enrichment, { artworkId: inCopyright.artworkId })).toEqual({ rightsStatus: 'in_copyright' });
+  expect(await as.query(api.artworks.enrichment, { artworkId: inCopyright.artworkId })).toEqual({ rightsStatus: 'in_copyright', narrationOpening: openingFixture });
   const reverted = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { reverted: true } }));
-  expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({ rightsStatus: 'public_domain' });
+  expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({ rightsStatus: 'public_domain', narrationOpening: openingFixture });
   const gone = await t.run((ctx) => seedArtworkWithObject(ctx));
   await t.run((ctx) => ctx.db.delete(gone.artworkId));
   expect(await as.query(api.artworks.enrichment, { artworkId: gone.artworkId })).toBeNull();
@@ -43,4 +48,23 @@ it('rejects anonymous and unregistered callers', async () => {
   await expect(t.query(api.artworks.enrichment, { artworkId })).rejects.toMatchObject({ data: { code: 'unauthenticated' } });
   const user = await signIn(t);
   await expect(user.as.query(api.artworks.enrichment, { artworkId })).rejects.toMatchObject({ data: { code: 'device_not_registered' } });
+});
+
+it('keeps catalogue lines as source chips but out of the narration research', async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const catalogue = { id: 'f3', text: 'Material: oil paint, canvas', sourceUrl: 'https://www.wikidata.org/wiki/Q1', sourceLabel: 'Wikidata', sourceScore: 0.8 };
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet: [...factSheet, catalogue] } }));
+  const enrichment = await as.query(api.artworks.enrichment, { artworkId });
+  expect(enrichment?.narrationFacts).toEqual(chips);
+  expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual(['f1', 'f2', 'f3']);
+  const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }));
+  expect((await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts).toBeUndefined();
+});
+
+it('withholds additional narration facts while their sources need review', async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { docent: { en: docent }, factSheet, factSheetNeedsReview: true } }));
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();
 });

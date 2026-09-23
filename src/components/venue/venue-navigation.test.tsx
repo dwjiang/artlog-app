@@ -6,6 +6,8 @@ import { Text } from 'react-native';
 
 import RootLayout, { unstable_settings } from '@/app/_layout';
 
+jest.mock('@/lib/audio/listening-provider', () => ({ ListeningProvider: ({ children }: { children: import('react').ReactNode }) => children }));
+jest.mock('@/components/audio/listening-root', () => ({ ListeningRoot: ({ children }: { children: import('react').ReactNode }) => children }));
 jest.mock('@convex-dev/auth/react', () => ({
   ConvexAuthProvider: ({ children }: PropsWithChildren) => children,
 }));

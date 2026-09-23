@@ -3,7 +3,7 @@ import logging
 import re
 from collections.abc import Callable
 from typing import TypedDict
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -13,7 +13,7 @@ from pipeline.polite_http import PoliteClient, RetryLater, RobotsDisallowed
 
 log = logging.getLogger(__name__)
 SCORES = json.loads((REPO_ROOT / "shared/sources/source-scores.json").read_text())
-MAX_CHARS = 6000
+MAX_CHARS = 24_000
 PROPERTIES = {
     "P1476": "Title",
     "P170": "Creator",
@@ -42,6 +42,17 @@ def host(url: str) -> str:
 
 def source_identity(url: str) -> str:
     parts = urlsplit(url)
+    if host(url) == "metmuseum.org":
+        match = re.fullmatch(r"/(?:[a-z]{2}/)?art/collection/search/(\d+)/?", parts.path)
+        object_id = (
+            match[1]
+            if match
+            else dict(parse_qsl(parts.query)).get("oid")
+            if parts.path == "/exhibitions/view"
+            else None
+        )
+        if object_id and object_id.isdigit():
+            return f"metmuseum.org/art/collection/search/{object_id}"
     query = [
         (k, v)
         for k, v in parse_qsl(parts.query)
@@ -49,6 +60,31 @@ def source_identity(url: str) -> str:
     ]
     path = unquote(parts.path).replace(" ", "_").rstrip("/")
     return host(url) + path + ("?" + urlencode(sorted(query)) if query else "")
+
+
+def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
+    if not re.search(
+        r"/(?:essays|perspectives|exhibitions|press|press-releases|stories|articles|blog)/",
+        urlsplit(page_url).path,
+    ):
+        return False
+    for link in re.findall(r"\]\(([^\s)]+)\)", text):
+        try:
+            if source_identity(urljoin(page_url, link)) in anchors:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+# Search pages as plain prose, so facts copied verbatim match (convex/lib/docentSources.ts).
+def plain_markdown(text: str) -> str:
+    text = re.sub(r"!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)", "", text)
+    text = re.sub(r"\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)", r"\1", text)
+    text = re.sub(r"^#{1,6}[ \t]+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1", r"\2", text)
+    text = re.sub(r"(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])", r"\2", text)
+    return re.sub(r"\n{3,}", "\n\n", text)
 
 
 def source_score(url: str) -> float | None:
@@ -236,9 +272,18 @@ class SourceGatherer:
 
         def add(url, label, text, score=None):
             score = source_score(url) if score is None else score
-            if score is not None and text.strip() and url not in sources:
+            previous = sources.get(url)
+            if (
+                score is not None
+                and text.strip()
+                and (not previous or len(text.strip()) > len(previous["text"]))
+            ):
+                # The longer text wins; the owner's page keeps its label and score.
                 sources[url] = SourceDoc(
-                    url=url, label=label, score=score, text=text.strip()[:MAX_CHARS]
+                    url=url,
+                    label=previous["label"] if previous else label,
+                    score=previous["score"] if previous else score,
+                    text=text.strip()[:MAX_CHARS],
                 )
 
         page_url, owner = context.get("pageUrl"), context.get("owner")
@@ -272,11 +317,16 @@ class SourceGatherer:
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
                 log.warning("Wikidata/Wikipedia unavailable: %s", error)
         title = artwork["title"].replace('"', "")
-        for result in self.search(f'"{title}" {artwork["artist"]} painting'):
-            url, content = result.get("url"), result.get("content")
+        owner_name = (owner or {}).get("name", "painting")
+        for result in self.search(f'"{title}" {artwork["artist"]} {owner_name}'):
+            url, content = result.get("url"), result.get("raw_content") or result.get("content")
             if isinstance(url, str) and isinstance(content, str) and content.strip():
                 # Domain trust cannot distinguish multiple paintings called Sunflowers or Bathers.
-                if anchors and source_identity(url) not in anchors:
+                if (
+                    anchors
+                    and source_identity(url) not in anchors
+                    and not links_to_artwork(content, url, anchors)
+                ):
                     continue
-                add(url, host(url), f"{result.get('title', '')}\n{content}")
+                add(url, host(url), f"{result.get('title', '')}\n{plain_markdown(content)}")
         return sorted(sources.values(), key=lambda s: -s["score"])

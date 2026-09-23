@@ -1,3 +1,4 @@
+import { ListenActions } from '@/components/audio/listen-actions';
 import { retryPendingScan } from '@/lib/queue/queue';
 import { ScanCropEditor } from './scan-crop-editor';
 import { LoadingRing } from '@/components/loading-ring';
@@ -234,6 +235,7 @@ function ResultCard({ manual = false, captureInput, view, saving, savedId, saveE
           {view.kind === 'confident' && <ThemedText variant="metadata" themeColor="textSecondary">{[draft.medium, draft.institution].filter(Boolean).join(' · ')}</ThemedText>}
         </>}
       </View>
+      {view.kind === 'confident' && view.primary && <ListenActions artworkId={view.primary.artworkId} title={draft.title} artist={draft.artist} scanId={captureInput?.scanId} savedId={savedId} imageUri={captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined} />}
       {!view.primary && !editingDetails && <ThemedText themeColor="textSecondary">We couldn’t identify this artwork yet. Keep the photo and add what you know.</ThemedText>}
       {view.kind === 'soft' && <><ThemedText themeColor="textSecondary">The image looks similar, but we’re not sure. Scan the museum label to confirm the details.</ThemedText><ThemedText variant="metadata" themeColor="textSecondary">Possible artist · {draft.artist || 'Unknown'}</ThemedText></>}
       {view.primary?.identityStatus === 'tentative' && <TentativeOriginNotice />}

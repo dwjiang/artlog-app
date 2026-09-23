@@ -7,9 +7,14 @@ def test_grounding_sort_dedupe_ids_and_cap():
             "url": "https://en.wikipedia.org/wiki/Art",
             "score": 0.7,
             "label": "Wikipedia",
-            "text": "A",
+            "text": " ".join(f"Fact {i}" for i in range(0, 20, 2)),
         },
-        {"url": "https://metmuseum.org/art/1", "score": 1, "label": "Met", "text": "B"},
+        {
+            "url": "https://metmuseum.org/art/1",
+            "score": 1,
+            "label": "Met",
+            "text": " ".join(f"Fact {i}" for i in range(1, 20, 2)),
+        },
     ]
     raw = [{"text": "Unsupported claim", "sourceUrl": "https://invented.test"}]
     raw += [{"text": f"Fact {i}", "sourceUrl": sources[i % 2]["url"]} for i in range(20)]
@@ -18,9 +23,27 @@ def test_grounding_sort_dedupe_ids_and_cap():
         {"text": " ", "sourceUrl": sources[1]["url"]},
     ]
     facts = build_fact_sheet(raw, sources)
-    assert len(facts) == 14
-    assert [f["id"] for f in facts] == [f"f{i}" for i in range(1, 15)]
-    assert [f["sourceScore"] for f in facts] == [1] * 10 + [0.7] * 4
-    assert len({f["text"] for f in facts}) == 14
+    assert len(facts) == 20
+    assert [f["id"] for f in facts] == [f"f{i}" for i in range(1, 21)]
+    assert [f["sourceScore"] for f in facts] == [1] * 10 + [0.7] * 10
+    assert len({f["text"] for f in facts}) == 20
     assert all(f["sourceUrl"] in {s["url"] for s in sources} for f in facts)
     assert all(f["sourceLabel"] == ("Met" if f["sourceScore"] == 1 else "Wikipedia") for f in facts)
+
+
+def test_rejects_invented_details_even_with_a_valid_source_url():
+    sources = [
+        {
+            "url": "https://metmuseum.org/art/1",
+            "label": "Met",
+            "score": 1,
+            "text": "Visible brushwork conveys wind.",
+        }
+    ]
+    raw = [
+        {"sourceUrl": sources[0]["url"], "text": "Visible brushwork conveys wind."},
+        {"sourceUrl": sources[0]["url"], "text": "The artist was feeling hopeful."},
+    ]
+    assert [fact["text"] for fact in build_fact_sheet(raw, sources)] == [
+        "Visible brushwork conveys wind."
+    ]

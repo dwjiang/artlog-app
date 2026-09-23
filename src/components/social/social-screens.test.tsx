@@ -11,6 +11,7 @@ import { VisitArtworks } from './visit-card';
 
 const mockPush = jest.fn(), mockDismissAll = jest.fn(), mockRefresh = jest.fn(), mockLoadMore = jest.fn(), mockPages = jest.fn(), mockQuery = jest.fn();
 const mockSignIn = jest.fn();
+jest.mock('@/lib/audio/use-listening');
 jest.mock('@/lib/account/use-account', () => ({ useAccount: () => ({ ready: true, available: true, busy: false, signInWithApple: mockSignIn }) }));
 jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 }, AppleAuthenticationButtonStyle: { BLACK: 0 },

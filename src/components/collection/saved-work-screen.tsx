@@ -1,3 +1,5 @@
+import { ListenActions } from '@/components/audio/listen-actions';
+import { captureFileUri } from '@/lib/files/photos';
 import { LoadingRing } from '@/components/loading-ring';
 import { ThemedText as Text } from '@/components/themed-text';
 import { randomUUID } from 'expo-crypto';
@@ -56,7 +58,9 @@ function SavedArtwork({ work, visitId, photoId, editNote }: { work: SavedWork; v
   return <ScrollView style={{ flex: 1, backgroundColor: Gallery.paper }} contentInsetAdjustmentBehavior="automatic" automaticallyAdjustKeyboardInsets
     keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 35 }}>
     <View style={{ paddingHorizontal: 20, gap: 8 }}>
-      <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId} />
+      <ArtworkAlbum key={currentEncounter?.visit.localId ?? 'all'} work={work} visitId={currentEncounter?.visit.localId} photoId={photoId}>
+      {work.artworkId && <ListenActions artworkId={work.artworkId} title={work.title} artist={work.artist} savedId={work.localId} imageUri={work.cropPath ? captureFileUri(work.cropPath) : undefined} />}
+      </ArtworkAlbum>
       {wall.signedIn && !work.syncedAt && <View style={{ padding: 14, gap: 12, backgroundColor: '#EEF2FF' }}><Text style={{ fontSize: 14, lineHeight: 21 }}>Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.</Text><Text variant="metadata">On your wall · Waiting for sync</Text><GalleryButton label="Back" onPress={() => router.back()} /></View>}
       <GalleryButton label="Adjust crop" icon="crop" onPress={() => router.push({ pathname: '/adjust-crop', params: { savedId: work.localId } })} />
       <Divider />

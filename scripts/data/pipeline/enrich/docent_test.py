@@ -142,7 +142,7 @@ def test_search_request_and_reported_credit_reconciliation(factory):
     provider = factory(respond)
     assert provider.search("painting") == []
     assert requests[0]["search_depth"] == "basic" and requests[0]["max_results"] == 8
-    assert requests[0]["include_raw_content"] is False
+    assert requests[0]["include_raw_content"] == "markdown"
     assert provider.usage.tavily_credits == 0
     provider.writer.mutation.assert_any_call(
         "spend:reconcile", {"kind": "tavily", "day": "2026-09-11", "reserved": 1, "actual": 0}

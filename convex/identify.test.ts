@@ -257,7 +257,7 @@ describe('enrichment after identification', () => {
       const body = JSON.parse(String(init?.body));
       if (url === TOKEN_FACTORY) {
         return completion(body.model === 'super'
-          ? [{ id: 'f1', text: 'Monet painted Water Lilies in 1916.', sourceUrl: SOURCE, sourceLabel: 'x', sourceScore: 1 }]
+          ? [{ id: 'f1', text: 'Claude Monet painted this canvas in 1916.', sourceUrl: SOURCE, sourceLabel: 'x', sourceScore: 1 }]
           : [{ sentence: 'Claude Monet painted these water lilies in 1916.', fact_ids: ['f1'] }]);
       }
       if (url === TAVILY && body.topic === 'news') {

@@ -56,6 +56,19 @@ describe('Tavily search', () => {
     });
   });
 
+  it('returns full research content from the same basic search, tolerating unavailable extraction', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ results: [
+      { url: 'https://museum.example/one', content: 'Snippet', raw_content: 'Full curatorial essay' },
+      { url: 'https://museum.example/two', content: 'Usable snippet', raw_content: null },
+    ], usage: { credits: 1 } }));
+    const response = await search({ query: 'painting history', includeDomains: ['museum.example'], includeRawContent: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ search_depth: 'basic', include_raw_content: 'markdown' });
+    expect(response.results[0].rawContent).toBe('Full curatorial essay');
+    expect(response.results[1]).toMatchObject({ content: 'Usable snippet', rawContent: undefined });
+    expect(response.credits).toBe(1);
+  });
+
   it('maps failures to search_error and refuses to run without a key', async () => {
     fetchMock.mockResolvedValueOnce(new Response('nope', { status: 432 }));
     await expect(search({ query: 'q', includeDomains: ['a.example'] })).rejects.toMatchObject({ data: { code: 'search_error', reason: 'http_432' } });

@@ -13,6 +13,7 @@ export type TavilySearchRequest = {
   timeRange?: 'day' | 'week' | 'month' | 'year';
   includeAnswer?: 'basic' | 'advanced';
   includeImages?: boolean;
+  includeRawContent?: boolean;
   maxResults?: number;
 };
 
@@ -20,6 +21,7 @@ export type TavilyResult = {
   url: string;
   title: string;
   content: string;
+  rawContent?: string;
   score: number;
   publishedDate?: string;
   images: string[];
@@ -57,6 +59,7 @@ export function parseSearchResponse(json: unknown): TavilySearchResponse {
         url: row.url,
         title: typeof row.title === 'string' ? row.title : '',
         content: typeof row.content === 'string' ? row.content : '',
+        rawContent: typeof row.raw_content === 'string' ? row.raw_content : undefined,
         score: typeof row.score === 'number' ? row.score : 0,
         publishedDate: typeof row.published_date === 'string' ? row.published_date : undefined,
         images: imageUrls(row.images),
@@ -81,6 +84,7 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
     include_images: request.includeImages ?? false,
     max_results: request.maxResults ?? 5,
     include_usage: true,
+    ...(request.includeRawContent ? { include_raw_content: 'markdown' } : {}),
     ...(request.timeRange ? { time_range: request.timeRange } : {}),
     ...(request.includeAnswer ? { include_answer: request.includeAnswer } : {}),
   };
@@ -93,7 +97,7 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
         'User-Agent': userAgent(),
       },
       body: JSON.stringify(body),
-    }, { timeoutMs: TIMEOUT_MS, maxBytes: MAX_RESPONSE_BYTES });
+    }, { timeoutMs: request.includeRawContent ? 20_000 : TIMEOUT_MS, maxBytes: MAX_RESPONSE_BYTES });
   } catch {
     throw new ConvexError({ code: 'search_error', reason: 'fetch_failed' });
   }

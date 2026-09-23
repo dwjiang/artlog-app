@@ -49,6 +49,19 @@ const rightsRequest = {
 export default defineSchema({
   ...authTables,
 
+  narrationAudio: defineTable({
+    artworkId: v.id('artworks'),
+    claim: v.string(),
+    claimedAt: v.number(),
+    factSheetUpdatedAt: v.optional(v.number()),
+    opening: v.string(),
+    guideModel: v.string(),
+    speechModel: v.string(),
+    voice: v.string(),
+    storageId: v.optional(v.id('_storage')),
+    sentences: v.optional(v.array(docentSentence)),
+  }).index('by_artworkId', ['artworkId']),
+
   artworks: defineTable({
     identityStatus,
     retiredAt: v.optional(v.number()),

@@ -87,11 +87,14 @@ export const writeEnrichment = internalMutation({
 });
 
 export const invalidateDocent = internalMutation({
-  args: { artworkId: v.id('artworks') },
+  args: { artworkId: v.id('artworks'), includeResearch: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx, { artworkId }) => {
+  handler: async (ctx, { artworkId, includeResearch }) => {
     const artwork = await ctx.db.get(artworkId);
-    if (artwork) await clearDocent(ctx, artwork);
+    if (artwork) {
+      await clearDocent(ctx, artwork);
+      if (includeResearch) await ctx.db.patch(artworkId, { factSheet: undefined, factSheetUpdatedAt: undefined });
+    }
     return null;
   },
 });

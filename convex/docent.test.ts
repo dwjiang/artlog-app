@@ -1,6 +1,8 @@
+import { guideOpening, guideResearch } from '../shared/audio/guide';
+import { guideBodyFixture } from '../shared/audio/guide-fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { internal } from './_generated/api';
+import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { completion, jsonResponse } from './lib/labelFixtures';
 import { seedArtworkWithObject, seedDevice, seedMuseum } from './lib/testFactories';
@@ -18,7 +20,7 @@ const DOCENT_MODEL = 'nvidia/Nemotron-3_5-Lightning';
 const ownerPage = `<!doctype html><html><head><title>Wheat Field with Cypresses</title><script>var x = 1;</script></head>
 <body><nav>Visit Exhibitions Shop</nav><main><h1>Wheat Field with Cypresses</h1>
 <p>Vincent van Gogh (Dutch, 1853–1890). 1889. Oil on canvas. Purchase, The Annenberg Foundation Gift, 1993. Accession Number: 1993.132.</p>
-<p>Van Gogh painted this wheat field with cypresses in late June 1889 while at the asylum in Saint-Rémy.</p></main>
+<p>Vincent van Gogh painted Wheat Field with Cypresses in 1889.</p><p>Van Gogh painted this wheat field with cypresses in late June 1889 while at the asylum in Saint-Rémy.</p></main>
 <footer>Copyright</footer></body></html>`;
 
 const entity = {
@@ -35,7 +37,7 @@ const museumEntity = { id: 'Q160236', type: 'item', labels: { en: { language: 'e
 
 const searchResponse = {
   results: [
-    { url: SEARCH_HIT, title: 'Wheat Field with Cypresses', content: 'The Met acquired the painting in 1993.', score: 0.9 },
+    { url: SEARCH_HIT, title: 'Wheat Field with Cypresses', content: 'Short snippet.', raw_content: 'The painting was acquired in 1993. The lively brushwork conveys wind through the wheat field.', score: 0.9 },
     { url: 'https://www.metmuseum.org/art/collection/search/99999', title: 'Wheat Field with Cypresses', content: 'Another version was made in a different year.', score: 0.99 },
     { url: 'https://www.metmuseum.org/art/collection/search/caf%E9', title: 'Latin-1 escape', content: 'Malformed percent escape must not abort the action.', score: 0.9 },
     { url: 'https://www.pinterest.com/pin/1', title: 'Wheat field', content: 'Pinned image', score: 0.95 },
@@ -49,7 +51,7 @@ const searchResponse = {
 const facts = [
   { id: 'f1', text: 'Vincent van Gogh painted Wheat Field with Cypresses in 1889.', sourceUrl: PAGE, sourceLabel: 'x', sourceScore: 0.1 },
   { id: 'f2', text: 'The painting was acquired in 1993.', sourceUrl: SEARCH_HIT, sourceLabel: 'x', sourceScore: 0.1 },
-  { id: 'f3', text: 'Its inventory number is 1993.132.', sourceUrl: WIKIDATA_PAGE, sourceLabel: 'x', sourceScore: 0.1 },
+  { id: 'f3', text: 'Inventory number: 1993.132', sourceUrl: WIKIDATA_PAGE, sourceLabel: 'x', sourceScore: 0.1 },
   { id: 'f4', text: 'It hung in a Paris salon.', sourceUrl: 'https://invented.example/salon', sourceLabel: 'x', sourceScore: 1 },
   { id: 'f5', text: 'The painting was acquired in 1993.', sourceUrl: PAGE, sourceLabel: 'x', sourceScore: 1 },
 ];
@@ -145,7 +147,7 @@ describe('docent.ensure', () => {
     expect(stored?.factSheet).toEqual([
       { id: 'f1', text: 'Vincent van Gogh painted Wheat Field with Cypresses in 1889.', sourceUrl: PAGE, sourceLabel: 'The Metropolitan Museum of Art', sourceScore: 1 },
       { id: 'f2', text: 'The painting was acquired in 1993.', sourceUrl: SEARCH_HIT, sourceLabel: 'metmuseum.org', sourceScore: 1 },
-      { id: 'f3', text: 'Its inventory number is 1993.132.', sourceUrl: WIKIDATA_PAGE, sourceLabel: 'Wikidata', sourceScore: 0.8 },
+      { id: 'f3', text: 'Inventory number: 1993.132', sourceUrl: WIKIDATA_PAGE, sourceLabel: 'Wikidata', sourceScore: 0.8 },
     ]);
     expect(stored?.docent).toEqual({ en: [
       { sentence: 'Vincent van Gogh painted this wheat field in 1889.', factIds: ['f1'] },
@@ -158,13 +160,13 @@ describe('docent.ensure', () => {
 
     const [search] = bodies(TAVILY);
     expect(search).toMatchObject({
-      query: '"Wheat Field with Cypresses" Vincent van Gogh painting', topic: 'general', search_depth: 'basic', max_results: 5,
+      query: '"Wheat Field with Cypresses" Vincent van Gogh The Metropolitan Museum of Art', include_raw_content: 'markdown', topic: 'general', search_depth: 'basic', max_results: 8,
       include_domains_mode: 'filter',
     });
     expect(search.include_domains).toContain('metmuseum.org');
     expect(search.include_domains).not.toContain('pinterest.com');
     const [sheet, docent] = bodies(TOKEN_FACTORY);
-    expect(sheet).toMatchObject({ model: FACT_SHEET_MODEL, temperature: 0, max_tokens: 4096, chat_template_kwargs: { enable_thinking: false } });
+    expect(sheet).toMatchObject({ model: FACT_SHEET_MODEL, temperature: 0, max_tokens: 6000, chat_template_kwargs: { enable_thinking: false } });
     expect(JSON.parse(sheet.messages[1].content).input.target).toEqual({
       title: 'Wheat Field with Cypresses', artist: 'Vincent van Gogh', date: '1889', wikidataId: 'Q18689458',
     });
@@ -175,6 +177,8 @@ describe('docent.ensure', () => {
       { url: WIKIDATA_PAGE, label: 'Wikidata', score: 0.8 },
     ]);
     expect(input[0].text).toContain('Saint-Rémy');
+    expect(input[1].text).toContain('lively brushwork');
+    expect(calls(TAVILY)).toHaveLength(1);
     expect(input[0].text).not.toContain('Visit Exhibitions Shop');
     expect(input[2].text).toContain('Inception: 1889');
     expect(input[2].text).toContain('Collection: Metropolitan Museum of Art');
@@ -339,4 +343,77 @@ it('rejects late writes and releases after a claim is reclaimed or invalidated',
   await t.mutation(internal.docent.invalidateDocent, { artworkId });
   expect(await t.mutation(internal.docent.writeEnrichment, { ...result, generation: next })).toBe(false);
   expect((await t.run((ctx) => ctx.db.get(artworkId)))?.docent).toBeUndefined();
+});
+
+it('shares a single research search between independent docent and audio scripts', async () => {
+  const { t, work, ensure, artwork } = await fixture();
+  everything(); await ensure();
+  const researched = await artwork();
+  vi.stubEnv('OPENAI_API_KEY', 'speech-test');
+  routes.unshift((url) => url.href === TOKEN_FACTORY ? completion(guideBodyFixture.map(({ sentence, factIds }) => ({ sentence, fact_ids: factIds, support: researched!.factSheet!.find((fact) => fact.id === factIds[0])!.text.slice(0, 30) }))) : undefined);
+  routes.push((url) => url.href.includes('api.openai.com') ? new Response(new Uint8Array([73, 68, 51]), { headers: { 'Content-Type': 'audio/mpeg' } }) : undefined);
+  const { as } = await seedDevice(t);
+  const spoken = await as.action(api.narration.render, { artworkId: work.artworkId });
+  expect(spoken.sentences).toEqual([{ sentence: guideOpening(researched!), factIds: [] }, ...guideBodyFixture]);
+  expect((await artwork())?.docent).toEqual(researched?.docent);
+  expect(calls(TAVILY)).toHaveLength(1);
+  expect(JSON.parse(bodies(TOKEN_FACTORY)[2].messages[1].content).research).toEqual(guideResearch(researched!.factSheet!));
+});
+
+it('refreshes the shared research when explicitly invalidated', async () => {
+  const { t, work, ensure, artwork } = await fixture();
+  everything(); await ensure();
+  await t.mutation(internal.docent.invalidateDocent, { artworkId: work.artworkId, includeResearch: true });
+  expect((await artwork())?.factSheet).toBeUndefined();
+  expect((await artwork())?.docent).toBeUndefined();
+  await ensure();
+  expect(calls(TAVILY)).toHaveLength(2);
+  expect((await artwork())?.factSheet?.length).toBeGreaterThan(0);
+});
+
+it('includes museum essays linked to the exact artwork while excluding another version', async () => {
+  const { ensure } = await fixture({ pageUrl: PAGE.replace('https:', 'http:') });
+  page(PAGE, ownerPage); wikidata(); models();
+  tavily({ results: [
+    { url: 'https://www.metmuseum.org/exhibitions/listings/2015/van-gogh', raw_content: 'Historical context for [this painting](/exhibitions/view?oid=436535&exhibitionId=one).' },
+    { url: 'https://www.metmuseum.org/perspectives/another-version', raw_content: 'Another version: [painting](/exhibitions/view?oid=99999).' },
+    { url: 'https://www.metmuseum.org/art/collection/search/99999', raw_content: 'Another painting. Related work: [target](/art/collection/search/436535).' },
+  ], usage: { credits: 1 } });
+  await ensure();
+  const sources = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
+  expect(sources.map((source: { url: string }) => source.url)).toEqual([PAGE, 'https://www.metmuseum.org/exhibitions/listings/2015/van-gogh', WIKIDATA_PAGE]);
+  expect(calls(PAGE)).toHaveLength(1);
+  expect(calls(TAVILY)).toHaveLength(1);
+});
+
+it('sends markdown search pages as plain prose, so a fact copied from an essay survives the verbatim check', async () => {
+  const { ensure, artwork } = await fixture();
+  const essay = 'https://www.metmuseum.org/perspectives/van-gogh-cypresses';
+  const quoted = { id: 'f1', text: 'He described the cypresses in Wheat Field with Cypresses as a splash of black.', sourceUrl: essay, sourceLabel: 'x', sourceScore: 1 };
+  page(PAGE, ownerPage); wikidata(); models([quoted]);
+  tavily({ results: [{
+    url: essay, title: 'Cypresses', content: 'Snippet',
+    raw_content: '## Letters\n\n![Detail](https://images.example/detail_(crop).jpg)\n\nHe described the cypresses in *Wheat Field with Cypresses* as a **splash of black**. See [the painting](/art/collection/search/436535).',
+  }], usage: { credits: 1 } });
+  await ensure();
+  const sources: { url: string; text: string }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
+  expect(sources.find((source) => source.url === essay)?.text)
+    .toBe('Cypresses\nLetters\n\nHe described the cypresses in Wheat Field with Cypresses as a splash of black. See the painting.');
+  expect((await artwork())?.factSheet?.map((fact) => fact.text)).toEqual([quoted.text]);
+});
+
+it.each([
+  ['a shorter', 'Wheat Field with Cypresses, a painting.', 'Saint-Rémy'],
+  ['a fuller', `Vincent van Gogh (Dutch, 1853–1890). ${'The lively brushwork conveys wind through the wheat field. '.repeat(20)}`, 'lively brushwork'],
+])('sends the owner page once when search returns %s copy of it, and keeps facts quoted from the text sent', async (_, rawContent, kept) => {
+  const { ensure, artwork } = await fixture();
+  const quoted = { id: 'f1', text: 'Vincent van Gogh (Dutch, 1853–1890).', sourceUrl: PAGE, sourceLabel: 'x', sourceScore: 1 };
+  page(PAGE, ownerPage); wikidata(); models([quoted]);
+  tavily({ results: [{ url: PAGE, title: 'Wheat Field with Cypresses', content: 'Snippet', raw_content: rawContent }], usage: { credits: 1 } });
+  await ensure();
+  const sources: { url: string; label: string; score: number; text: string }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
+  const owner = sources.filter((source) => source.url === PAGE);
+  expect(owner).toEqual([expect.objectContaining({ label: 'The Metropolitan Museum of Art', score: 1 })]);
+  expect(owner[0].text).toContain(kept);
+  expect((await artwork())?.factSheet?.map((fact) => fact.text)).toEqual([quoted.text]);
 });

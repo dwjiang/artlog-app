@@ -33,11 +33,13 @@ seconds.
 |---|---|---|---|
 | Image embedding, every scan | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, 1,536-d output, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-v1`) | `modules/coreml-embed/`, export recipe in `scripts/model/` | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. Normal identification sends features without uploading the crop |
 | Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build | `scripts/data/pipeline/model.py`, `embed.py`, `drift_check.py` | On the operator's Mac (see below) |
-| Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) writes discrete facts, each citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
+| Fact sheets | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) extracts visual, technical and historical research from full page content, each fact citing the owner's page, Wikidata or a score-filtered Tavily result | `convex/docent.ts`, sources in `convex/lib/docentSources.ts` | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards |
 | Docent prose | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation | `convex/docent.ts`, `convex/lib/docentValidator.ts` | Token Factory, once per artwork, then cached and served with the card |
+| Audio-guide scripts | **NVIDIA Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`) writes an independent 45- to 90-second audio-guide stop from the shared research: a hook, what to look at, the strongest supported story and a takeaway, every sentence cited with an evidence span that Convex checks verbatim against the research | `convex/narration.ts`, `shared/audio/guide.ts` | Token Factory with low-effort reasoning on first listen; scripts and their citations are cached with the audio |
+| Spoken narration | **OpenAI GPT-4o mini TTS** (`gpt-4o-mini-tts-2025-12-15`), **Shimmer** voice, with museum-guide delivery instructions | `convex/narration.ts`, `shared/audio/speech.ts` | Convex generates MP3 audio from the spoken guide and keeps one rendering per artwork, re-rendering when its research, title, model or voice changes (`npx convex run narration:clear` re-renders everything after a prompt change); the phone caches audio with its matching transcript for repeat listening |
 | Text moderation | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index | `convex/lib/moderation.ts` | Token Factory, live on every label read, museum-site candidate and contribution |
 | Label reading | Apple Vision text recognition on the phone reads the wall label; **NVIDIA Nemotron 3 Super** (`LABEL_MODEL`) sorts the printed lines into title, artist, dates, medium, accession and credit line. Title and artist both correct on 21 of 25 test labels from the recognizer's lines (Mac harness, same Vision recognizer as the phone), against 24 of 25 for the retired vision model reading the photo; two of the four misses are OCR errors (`II` read as `I|`, a dropped accent) and two are labels naming several makers ([model evaluation](docs/experiments/README.md#token-factory-models)) | `modules/vision-rect/ios/TextRecognizer.swift`, `convex/label.ts`, prompt in `convex/lib/labelPrompt.ts` | OCR on the phone (median 121 ms on the Mac harness; not yet timed on an iPhone); the sort on Token Factory, live on every label capture. The label photo never leaves the phone |
-| Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output and thinking disabled; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
+| Token Factory client | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output; thinking is disabled except for low-effort reasoning on audio-guide scripts; per-device rate limits and a global daily call cap | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts` | From Convex actions only; the phone never calls a model provider |
 | Nebius Serverless AI Jobs | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/experiments/README.md#batch-infrastructure)) | [archived probes](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/nebius-jobs) | **Not on any production path.** See the next paragraph |
 
 **Where the index was actually built.** The corpus build ran on the operator's Mac (Apple M5 Pro, PyTorch on the
@@ -48,7 +50,8 @@ has embedded, enriched or migrated the index; the only Nebius compute spent was 
 probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
 Convex, and what runs on Nebius is Token Factory, live, on every label read, every museum-site
 image the page can only caption, every moderation check and the first identification of every
-uncached artwork. Every model on a live request path is an NVIDIA model.
+uncached artwork. These identification and enrichment paths use NVIDIA models; audio-guide
+scripts also use Nemotron, with OpenAI TTS speaking the resulting cited script.
 
 ## Tavily
 
@@ -61,7 +64,7 @@ does not depend on Tavily.
 |---|---|---|
 | Museum-site search | `convex/museumSearch.ts`, client in `convex/lib/tavily.ts` | On a miss, with consent: one search of the venue's current exhibitions with source-linked images. The phone checks up to six images on each of three pages by embedding and homography. A match is identified only from artwork metadata or a caption attached to that image; otherwise, and when no image matches, the visitor is asked for the label. One credit per attempt. `FLAG_MUSEUM_SEARCH`, on by default |
 | Label verification | `convex/label.ts` | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default |
-| Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | On the first identification of an uncached artwork, results filtered by per-domain source scores (`shared/sources/source-scores.json`) become sources Nemotron 3 Super must cite |
+| Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts` | One basic search requests full page content for the first identification of an uncached artwork. Trusted artwork pages and museum essays linking to the identified work supply shared visual, technical and historical research. Extracted passages are checked against the source text. The short docent and 45- to 90-second audio guide use that same cached research; listening does not run another Tavily search |
 | "Right now" | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/experiments/README.md#tavily-and-right-now) |
 
 ## Architecture
@@ -156,7 +159,8 @@ Convex environment variables, set with `npx convex env set NAME value`
 
 | Variable | What it does |
 |---|---|
-| `NEBIUS_API_KEY` | Token Factory key for the label flow, museum-site search, moderation, fact sheets and docent prose |
+| `NEBIUS_API_KEY` | Token Factory key for the label flow, museum-site search, moderation, fact sheets, docent prose and audio-guide scripts |
+| `OPENAI_API_KEY` | OpenAI key for Shimmer narration; set on the Convex deployment with `npx convex env set OPENAI_API_KEY` (paste the key at the prompt). A local `.env.local` entry alone does not configure the deployed backend |
 | `LABEL_MODEL`, `FACT_SHEET_MODEL`, `DOCENT_MODEL`, `MODERATION_MODEL` | Model IDs: `nvidia/nemotron-3-super-120b-a12b`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3_5-Lightning`, `nvidia/Nemotron-3_5-Lightning` |
 | `TAVILY_API_KEY` | Tavily key for the four calls above |
 | `DAILY_TOKEN_FACTORY_CALL_CAP`, `DAILY_TAVILY_CREDIT_CAP` | Global daily spend caps; defaults are 2,000 calls and 20 credits |
@@ -331,7 +335,7 @@ moderation call about $0.00001. Tavily: one credit per search. Nebius compute fo
 | Wikidata and Wikimedia Commons | Wikidata is CC0; Commons files carry their own rights. Paintings with a `P18` image are embedded from standard thumbnail renditions fetched under the Wikimedia robot policy (two connections, at most 25 Mbps, never an original) and deleted after embedding. Commons thumbnails are hotlinked only for artworks the rights rule classifies as public domain |
 | Museum websites | Never crawled. One page is fetched on a visitor's request (a QR code, an accession lookup, a search candidate), only on the venue's own hosts, with an identified User-Agent, per-device rate limits and the daily cap; the per-museum opt-out registry is checked before every fetch. Nothing fetched is stored |
 | WikiArt (`huggan/wikiart`) | Not used: unknown license limited to non-commercial research, and no stable artwork identities |
-| Tavily, Convex, Nebius Token Factory | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local` |
+| Tavily, Convex, Nebius Token Factory, OpenAI | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local`. OpenAI receives the artwork narration text; the player discloses that its voice is AI-generated |
 
 Museum images are retained only in temporary build scratch and deleted after embedding.
 Rights classification is implemented in `scripts/data/pipeline/rights.py`;

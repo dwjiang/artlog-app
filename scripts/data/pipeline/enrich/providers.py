@@ -71,7 +71,7 @@ class Providers:
                 "search_depth": "basic",
                 "auto_parameters": False,
                 "max_results": 8,
-                "include_raw_content": False,
+                "include_raw_content": "markdown",
                 "include_usage": True,
                 "include_domains": [
                     d for d, score in SCORES["domains"].items() if score >= SCORES["threshold"]

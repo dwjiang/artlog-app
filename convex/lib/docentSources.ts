@@ -13,7 +13,8 @@ import {
 } from './wikidata';
 
 const MIN_PAGE_CHARS = 80;
-const SEARCH_RESULTS = 5;
+const SEARCH_RESULTS = 8;
+const MAX_SOURCE_CHARS = 24_000;
 
 const SUMMARY_PROPERTIES: { property: string; name: string; kind: 'item' | 'time' | 'string' | 'monolingual' | 'quantity' }[] = [
   { property: 'P1476', name: 'Title', kind: 'monolingual' },
@@ -64,6 +65,11 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
 
 function sourceIdentity(value: string): string {
   const url = new URL(value);
+  if (bareHost(value) === 'metmuseum.org') {
+    const objectId = url.pathname.match(/^\/(?:[a-z]{2}\/)?art\/collection\/search\/(\d+)\/?$/)?.[1]
+      ?? (url.pathname === '/exhibitions/view' ? url.searchParams.get('oid') : null);
+    if (objectId && /^\d+$/.test(objectId)) return `metmuseum.org/art/collection/search/${objectId}`;
+  }
   const query = [...url.searchParams.entries()]
     .filter(([key]) => !key.startsWith('utm_') && !['lang', 'fbclid', 'gclid'].includes(key)).sort();
   const suffix = new URLSearchParams(query).toString();
@@ -76,6 +82,26 @@ function sourceIdentity(value: string): string {
   return `${bareHost(value)}${path.replace(/ /g, '_').replace(/\/$/, '')}${suffix ? `?${suffix}` : ''}`;
 }
 
+function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): boolean {
+  if (!/\/(?:essays|perspectives|exhibitions|press|press-releases|stories|articles|blog)\//.test(new URL(pageUrl).pathname)) return false;
+  return [...text.matchAll(/\]\(([^\s)]+)\)/g)].some((match) => {
+    try { return anchors.has(sourceIdentity(new URL(match[1], pageUrl).href)); }
+    catch { return false; }
+  });
+}
+
+// Search pages arrive as markdown so their links can identify the artwork. The model gets plain
+// prose: facts must be copied verbatim, and a copy that drops `*` or `[text](url)` would not match.
+function plainMarkdown(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, '')
+    .replace(/\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g, '$1')
+    .replace(/^#{1,6}[ \t]+/gm, '')
+    .replace(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, '$2')
+    .replace(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, '$2')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 // The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
 // are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
@@ -83,8 +109,10 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
   let failures = 0;
   if (input.pageUrl && input.owner) {
     try {
-      const page = await fetchVenuePage(input.pageUrl, venueHosts(input.owner));
-      const text = pageText(page.html);
+      const pageUrl = new URL(input.pageUrl);
+      if (pageUrl.protocol === 'http:') pageUrl.protocol = 'https:';
+      const page = await fetchVenuePage(pageUrl.href, venueHosts(input.owner));
+      const text = pageText(page.html, MAX_SOURCE_CHARS);
       if (text.length >= MIN_PAGE_CHARS) sources.push({ url: page.url, label: input.owner.name, score: 1, text });
     } catch (error) {
       if (!(error instanceof ConvexError && error.data.code === 'qr_host_not_allowed')) failures++;
@@ -102,8 +130,8 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     }
   }
   const response = await searchWithCredit(ctx, {
-    query: `"${input.artwork.title.replace(/"/g, '')}" ${input.artwork.artist} painting`,
-    includeDomains: admissibleDomains(), maxResults: SEARCH_RESULTS,
+    query: `"${input.artwork.title.replace(/"/g, '')}" ${input.artwork.artist} ${input.owner?.name ?? 'painting'}`,
+    includeDomains: admissibleDomains(), maxResults: SEARCH_RESULTS, includeRawContent: true,
   });
   if (!response) failures++;
   const anchors = new Set([
@@ -112,10 +140,16 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
   ]);
   for (const result of response?.results ?? []) {
     const score = sourceScore(result.url);
-    if (score === null || !result.content.trim()) continue;
+    const content = result.rawContent?.trim() || result.content.trim();
+    if (score === null || !content) continue;
     // A trusted domain can describe another work with the same title; require the known identity.
-    if (anchors.size && !anchors.has(sourceIdentity(result.url))) continue;
-    sources.push({ url: result.url, label: bareHost(result.url), score, text: `${result.title}\n${result.content}`.trim() });
+    if (anchors.size && !anchors.has(sourceIdentity(result.url)) && !linksToArtwork(content, result.url, anchors)) continue;
+    const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
+    // Search can return the owner's page again. Facts resolve their source by URL, so keep one
+    // source per URL: the longer text, under the first label and score.
+    const existing = sources.find((source) => source.url === result.url);
+    if (!existing) sources.push({ url: result.url, label: bareHost(result.url), score, text });
+    else if (text.length > existing.text.length) existing.text = text;
   }
   return { sources: sources.sort((a, b) => b.score - a.score), failures };
 }

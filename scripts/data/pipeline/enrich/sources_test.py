@@ -1,7 +1,13 @@
 import httpx
 import pytest
 
-from pipeline.enrich.sources import SourceGatherer, source_score, wikipedia_lead
+from pipeline.enrich.sources import (
+    SourceGatherer,
+    links_to_artwork,
+    source_identity,
+    source_score,
+    wikipedia_lead,
+)
 from pipeline.polite_http import PoliteClient
 
 
@@ -40,7 +46,7 @@ def test_owner_text_search_filter_and_character_limits():
                 {
                     "url": "https://en.wikipedia.org/wiki/Test",
                     "title": "Test",
-                    "content": "x" * 7000,
+                    "content": "x" * 25000,
                 },
                 {"url": "https://pinterest.com/a", "content": "Bad"},
                 {"url": "https://www.metmuseum.org/art/1", "content": "duplicate"},
@@ -56,7 +62,7 @@ def test_owner_text_search_filter_and_character_limits():
     assert len(sources) == 1
     assert sources[0]["label"] == "The Met"
     assert sources[0]["url"] == "https://www.metmuseum.org/art/1"
-    assert all(len(s["text"]) <= 6000 for s in sources)
+    assert all(len(s["text"]) <= 24000 for s in sources)
     assert "Buy tickets" not in sources[0]["text"]
     assert "TRACKING" not in sources[0]["text"]
 
@@ -276,8 +282,80 @@ def test_unanchored_search_still_applies_scores_and_text_limits():
         sources = SourceGatherer(
             http,
             lambda _: [
-                {"url": "https://www.metmuseum.org/art/1", "content": "x" * 8000},
+                {"url": "https://www.metmuseum.org/art/1", "content": "x" * 25000},
                 {"url": "https://random.test/art", "content": "untrusted"},
             ],
         ).gather({"title": "Harbor", "artist": "Mira"}, {})
-    assert len(sources) == 1 and len(sources[0]["text"]) == 6000
+    assert len(sources) == 1 and len(sources[0]["text"]) == 24000
+
+
+def test_search_full_content_replaces_a_short_owner_page():
+    def respond(request):
+        return httpx.Response(200, text="<main>A short wall label.</main>")
+
+    with PoliteClient(
+        user_agent="test", robots=False, transport=httpx.MockTransport(respond)
+    ) as http:
+        sources = SourceGatherer(
+            http,
+            lambda _: [
+                {
+                    "url": "https://www.metmuseum.org/art/1",
+                    "content": "Snippet",
+                    "raw_content": "Full research describing brushwork and the circumstances of the painting.",
+                }
+            ],
+        ).gather(
+            {"title": "Harbor", "artist": "Mira"},
+            {
+                "pageUrl": "https://www.metmuseum.org/art/1",
+                "owner": {"name": "Met", "website": "https://www.metmuseum.org"},
+            },
+        )
+    assert len(sources) == 1
+    assert "Full research" in sources[0]["text"]
+    assert (sources[0]["label"], sources[0]["score"]) == ("Met", 1.0)
+
+
+def test_markdown_search_pages_reach_the_model_as_plain_prose():
+    with PoliteClient(user_agent="test", robots=False) as http:
+        sources = SourceGatherer(
+            http,
+            lambda _: [
+                {
+                    "url": "https://www.metmuseum.org/perspectives/van-gogh-cypresses",
+                    "title": "Cypresses",
+                    "raw_content": "## Letters\n\n![Detail](https://images.example/detail_(crop).jpg)\n\n"
+                    "He described the cypresses in *Wheat Field with Cypresses* as a **splash of black**. "
+                    "See [the painting](/art/collection/search/436535).",
+                }
+            ],
+        ).gather(
+            {"title": "Wheat Field with Cypresses", "artist": "Vincent van Gogh"},
+            {"pageUrl": "https://www.metmuseum.org/art/collection/search/436535"},
+        )
+    assert [source["text"] for source in sources] == [
+        (
+            "Cypresses\nLetters\n\nHe described the cypresses in Wheat Field with Cypresses "
+            "as a splash of black. See the painting."
+        )
+    ]
+
+
+def test_curatorial_links_identify_the_exact_work_across_museum_url_formats():
+    anchors = {source_identity("https://www.metmuseum.org/art/collection/search/436534")}
+    assert links_to_artwork(
+        "[Roses](/exhibitions/view?oid=436534)",
+        "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",
+        anchors,
+    )
+    assert not links_to_artwork(
+        "[Other](/exhibitions/view?oid=436535)",
+        "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",
+        anchors,
+    )
+    assert not links_to_artwork(
+        "[Roses](/art/collection/search/436534)",
+        "https://www.metmuseum.org/art/collection/search/436535",
+        anchors,
+    )
