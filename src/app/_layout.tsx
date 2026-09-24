@@ -7,6 +7,7 @@ import { DefaultTheme, ThemeProvider, type ErrorBoundaryProps } from "expo-route
 import { Stack } from "expo-router/stack";
 import { useEffect } from "react";
 
+import { ProfileSetupPrompt } from "@/components/account/profile-setup-prompt";
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { AppDiagnostics } from "@/components/app-diagnostics";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
@@ -40,6 +41,7 @@ function RootLayout() {
         <ConvexAuthProvider client={convex} storage={installationStorage}>
           <DeviceIdentity />
           <CollectionSync />
+          <ProfileSetupPrompt />
           <QueueFlusher />
           <MuseumDownloadLifecycle />
           <VenueResolver />
@@ -128,10 +130,9 @@ function RootLayout() {
                     <Stack.Screen
                       name="create-profile"
                       options={{
-                        title: "Your profile",
-                        presentation: "formSheet",
-                        sheetAllowedDetents: [1],
-                        sheetGrabberVisible: true,
+                        presentation: "fullScreenModal",
+                        headerShown: false,
+                        gestureEnabled: false,
                       }}
                     />
                     <Stack.Screen name="artwork" options={{ title: "" }} />

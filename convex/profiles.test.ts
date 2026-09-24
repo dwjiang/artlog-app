@@ -440,6 +440,18 @@ it("checks username availability for an account without reserving it", async () 
   await expect(t.query(api.profiles.usernameAvailable, { username: "available-name" })).rejects.toThrow();
 });
 
+it("suggests the first free username for a display name without reserving it", async () => {
+  const { t, account } = await fixture();
+  const a = await account("suggest-a"),
+    b = await account("suggest-b");
+  expect(await a.as.query(api.profiles.suggestUsername, { name: " Élodie Martin " })).toBe("elodie-martin");
+  await b.as.mutation(api.profiles.create, { username: "elodie-martin", name: "B" });
+  expect(await a.as.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).toBe("elodie-martin-2");
+  expect(await a.as.query(api.profiles.suggestUsername, { name: "张伟" })).toBeNull();
+  expect(await a.as.query(api.profiles.suggestUsername, { name: "x".repeat(61) })).toBeNull();
+  await expect(t.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).rejects.toThrow();
+});
+
 it("lists incoming requests only, removing accepted and blocked connections", async () => {
   const { t, account } = await fixture();
   const a = await account("requests-a"),

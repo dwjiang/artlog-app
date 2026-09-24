@@ -24,6 +24,9 @@ jest.mock("@/lib/device-identity", () => ({ DeviceIdentity: () => null }));
 jest.mock("@/lib/account/collection-sync", () => ({
   CollectionSync: () => null,
 }));
+jest.mock("@/components/account/profile-setup-prompt", () => ({
+  ProfileSetupPrompt: () => null,
+}));
 jest.mock("@/lib/embed/embedder", () => ({ warmUpEmbedder: () => {} }));
 jest.mock("@/lib/queue/use-queue", () => ({ QueueFlusher: () => null }));
 jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({

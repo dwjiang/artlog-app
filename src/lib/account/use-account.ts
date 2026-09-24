@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 
 import { anonymousOwner, switchOwner } from "./owner-store";
+import { offerProfileSetup } from "./profile-setup-offer";
 import { setSetting } from "@/db/repos/settings";
 import { socialErrorMessage } from "../../../shared/social/errors";
 import { api } from "../../../convex/_generated/api";
@@ -89,6 +90,8 @@ export function useAccount() {
         nonce: signed.nonce,
         assertionBase64: signed.assertionBase64,
       });
+      const name = credential.fullName ? AppleAuthentication.formatFullName(credential.fullName).trim() : "";
+      offerProfileSetup(name ? { name } : {});
     });
 
   const disconnect = (remove: boolean) =>

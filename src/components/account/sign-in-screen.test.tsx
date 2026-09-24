@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { offerProfileSetup, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { SignInScreen } from "./sign-in-screen";
 
 const mockBack = jest.fn(),
@@ -8,7 +9,7 @@ const mockRouter = { back: mockBack, replace: mockReplace };
 let mockOwner = "device:guest";
 let mockOnline = true;
 let mockAccount = {
-  account: { linked: false, accountId: "account-a" },
+  account: { linked: false, accountId: "account-a", hasProfile: false },
   available: true,
   busy: false,
   error: undefined as string | undefined,
@@ -48,11 +49,12 @@ jest.mock("expo-apple-authentication", () => ({
 }));
 beforeEach(() => {
   jest.clearAllMocks();
+  takeProfileSetupOffer();
   mockOwner = "device:guest";
   mockOnline = true;
   mockAccount = {
     ...mockAccount,
-    account: { linked: false, accountId: "account-a" },
+    account: { linked: false, accountId: "account-a", hasProfile: false },
     busy: false,
     ready: true,
     available: true,
@@ -75,7 +77,7 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   mockAccount = {
     ...mockAccount,
     busy: true,
-    account: { linked: true, accountId: "account-a" },
+    account: { linked: true, accountId: "account-a", hasProfile: false },
   };
   await view.rerender(<SignInScreen />);
   expect(screen.getByRole("button", { name: "Not now" })).toBeDisabled();
@@ -122,4 +124,26 @@ it("continues to the visit editor only after the linked account has its local jo
     params: { visitId: "museum-visit" },
   });
   expect(mockBack).not.toHaveBeenCalled();
+});
+
+it("hands a first sign-in without a profile to setup, carrying Apple’s name and the visit", async () => {
+  const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
+  mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: false } };
+  await act(() => offerProfileSetup({ name: "Alex Morgan" }));
+  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
+  expect(mockReplace).toHaveBeenCalledTimes(1);
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: "/create-profile",
+    params: { name: "Alex Morgan", visitId: "museum-visit" },
+  });
+  expect(takeProfileSetupOffer()).toBeUndefined();
+  expect(mockBack).not.toHaveBeenCalled();
+});
+
+it("closes as before when the signed-in account already has a profile", async () => {
+  offerProfileSetup({ name: "Alex Morgan" });
+  mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: true } };
+  await render(<SignInScreen />);
+  expect(mockBack).toHaveBeenCalledTimes(1);
+  expect(mockReplace).not.toHaveBeenCalled();
 });

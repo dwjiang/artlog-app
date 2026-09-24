@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
+import { usernameCandidates } from "../shared/social/username";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
@@ -157,6 +158,23 @@ export const usernameAvailable = query({
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", username))
       .unique());
+  },
+});
+
+export const suggestUsername = query({
+  args: { name: v.string() },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, { name }) => {
+    await requireAccount(ctx);
+    if (name.length > LIMITS.name) return null;
+    for (const username of usernameCandidates(name)) {
+      const taken = await ctx.db
+        .query("profiles")
+        .withIndex("by_username", (q) => q.eq("username", username))
+        .unique();
+      if (!taken) return username;
+    }
+    return null;
   },
 });
 
