@@ -1,7 +1,6 @@
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { reportError } from "@/lib/observability";
-import { introArtworks } from "../guest/artwork-preview";
 import { GalleryButton } from "../collection/gallery-button";
 import { WallSheet } from "../collection/wall-sheet";
 import { ThemedText } from "../themed-text";
@@ -12,7 +11,7 @@ import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } f
 import { useIsFocused } from "expo-router/react-navigation";
 import type { ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppState, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
@@ -251,7 +250,7 @@ export function ScanScreen() {
       {help && (
         <WallSheet
           title="Camera tips"
-          tall
+          size="fit"
           presented={help === "open"}
           onDismiss={() => setHelp((current) => (current === "import" ? current : undefined))}
           onDismissed={() => {
@@ -259,24 +258,21 @@ export function ScanScreen() {
             if (help === "import") void capture.importPhoto();
           }}
         >
-          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32, gap: 14 }}>
+          <View style={styles.tipsContent}>
             <Image
-              source={introArtworks.stars.source}
-              contentFit="contain"
-              style={{
-                width: "100%",
-                height: 180,
-                backgroundColor: Gallery.fill,
-              }}
+              source={require("../../../assets/images/onboarding/water-lilies-in-gallery.jpg")}
+              style={styles.tipsPhoto}
               accessibilityLabel="Example of an artwork framed straight on"
             />
             <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
             <ThemedText themeColor="textSecondary">
               Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.
             </ThemedText>
-            <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
-            <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp("import")} />
-          </ScrollView>
+            <View style={styles.tipsActions}>
+              <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
+              <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp("import")} />
+            </View>
+          </View>
         </WallSheet>
       )}
     </View>
@@ -327,4 +323,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dimmed: { opacity: 0.7 },
+  tipsContent: { padding: Spacing.content, gap: 14 },
+  tipsPhoto: { width: "100%", aspectRatio: 3 / 2, backgroundColor: Gallery.fill },
+  tipsActions: { gap: Spacing.two },
 });

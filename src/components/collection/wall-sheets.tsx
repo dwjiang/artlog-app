@@ -109,7 +109,7 @@ export function WallArtworkSheet({
       onDismiss={onDismiss}
       onDismissed={onDismissed}
       presented={presented}
-      tall
+      size="large"
     >
       <ScrollView contentContainerStyle={{ paddingBottom: Spacing.five }}>
         <WallArtworkSummary piece={piece} color={color} />

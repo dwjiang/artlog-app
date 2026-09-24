@@ -185,7 +185,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
           onPress={() => setMoving(!moving)}
         />
         {moving && (
-          <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}>
+          <WallSheet title="Move photo" size="large" onDismiss={() => setMoving(false)}>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
               <Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
               {works.error ? (

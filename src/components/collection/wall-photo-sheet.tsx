@@ -26,7 +26,7 @@ export function WallPhotoSheet({
     <WallSheet
       title={duplicate ? "Hang another photo" : "Choose wall photo"}
       onDismiss={onDismiss}
-      tall
+      size="large"
       dismissLabel="Cancel"
     >
       <View style={{ flex: 1 }}>
