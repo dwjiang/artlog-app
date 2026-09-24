@@ -17,9 +17,7 @@ export function PublicProfileHeader({
   actions,
   children,
   visitCount,
-  compact = false,
 }: {
-  compact?: boolean;
   person: PublicProfile;
   visitCount?: number;
   actions?: ReactNode;
@@ -35,33 +33,29 @@ export function PublicProfileHeader({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-        <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={compact ? 44 : 64} />
+        <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={64} />
         <View style={{ flex: 1, gap: 4 }}>
-          <Text variant={compact ? "section" : "display"} accessibilityRole="header">
+          <Text variant="display" accessibilityRole="header">
             {person.name}
           </Text>
           <Text style={socialStyles.caption}>@{person.username}</Text>
         </View>
       </View>
-      {!compact && (
-        <>
-          <ProfileBio text={person.bio} />
-          <View style={{ flexDirection: "row", gap: 36 }}>
-            <View>
-              <Text variant="display">{person.publishedWallCount}</Text>
-              <Text style={socialStyles.caption}>artworks</Text>
-            </View>
-            {visitCount !== undefined && (
-              <View>
-                <Text variant="display">{visitCount}</Text>
-                <Text style={socialStyles.caption}>visits</Text>
-              </View>
-            )}
+      <ProfileBio text={person.bio} />
+      <View style={{ flexDirection: "row", gap: 36 }}>
+        <View>
+          <Text variant="display">{person.publishedWallCount}</Text>
+          <Text style={socialStyles.caption}>artworks</Text>
+        </View>
+        {visitCount !== undefined && (
+          <View>
+            <Text variant="display">{visitCount}</Text>
+            <Text style={socialStyles.caption}>visits</Text>
           </View>
-        </>
-      )}
-      {!compact && actions && <View>{actions}</View>}
-      {!compact && children}
+        )}
+      </View>
+      {actions && <View>{actions}</View>}
+      {children}
     </View>
   );
 }
