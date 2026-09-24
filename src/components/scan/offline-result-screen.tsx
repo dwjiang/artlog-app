@@ -107,27 +107,23 @@ export function OfflineResultScreen({
             onNotRight={
               !saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined
             }
+            onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />
         }
         context={
-          saved.savedId ? undefined : (
-            <>
-              {viewResult && (
-                <GalleryButton
-                  label="View the online result"
-                  icon="antenna.radiowaves.left.and.right"
-                  onPress={viewResult}
-                  disabled={saved.saving}
-                />
-              )}
-              <GalleryButton
-                label="Adjust crop"
-                icon="crop"
-                onPress={adjustCrop}
-                disabled={saved.saving}
-              />
-              <CaptureContextButton capture={capture} disabled={saved.saving} />
-            </>
+          viewResult &&
+          !saved.savedId && (
+            <GalleryButton
+              label="View the online result"
+              icon="antenna.radiowaves.left.and.right"
+              onPress={viewResult}
+              disabled={saved.saving}
+            />
+          )
+        }
+        visit={
+          !saved.savedId && (
+            <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />
           )
         }
         onLabel={onLabel}

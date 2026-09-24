@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 
 import { DocentSection } from "./docent-section";
 
@@ -21,16 +21,45 @@ beforeEach(() => {
   mockOpenBrowser.mockResolvedValue(undefined);
 });
 
-it("renders each sentence with one chip per source and opens the source on tap", async () => {
+it("lists each cited page once, in citation order, and opens it on tap", async () => {
   await render(<DocentSection docent={docent} factSheet={factSheet} />);
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByText("It entered the collection in 1959.")).toBeOnTheScreen();
-  expect(
-    screen.getAllByRole("link").map((chip) => chip.props.accessibilityLabel ?? undefined),
-  ).toHaveLength(2);
-  expect(screen.getByRole("link", { name: "Wikidata" })).toBeOnTheScreen();
+  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual([
+    "Wikidata",
+    "Test Museum",
+  ]);
   await fireEvent.press(screen.getByRole("link", { name: "Test Museum" }));
   expect(mockOpenBrowser).toHaveBeenCalledWith("https://museum.example/lilies");
+});
+
+it("marks only the last sentence of each run that rests on the same pages", async () => {
+  const sentences = ["One.", "Two.", "Three.", "Four."];
+  await render(
+    <DocentSection
+      docent={[
+        { sentence: "One.", factIds: ["f2"] },
+        { sentence: "Two.", factIds: ["f3"] },
+        { sentence: "Three.", factIds: ["f1"] },
+        { sentence: "Four.", factIds: ["f2"] },
+      ]}
+      factSheet={factSheet}
+    />,
+  );
+  const paragraph = screen.getByLabelText(
+    "One. Two. Source: Test Museum. Three. Source: Wikidata. Four. Source: Test Museum.",
+  );
+  for (const sentence of sentences) {
+    expect(within(paragraph).getByText(sentence)).toBeOnTheScreen();
+  }
+  const markers = within(paragraph)
+    .getAllByText(/^\d+$/, { includeHiddenElements: true })
+    .map((marker) => marker.props.children);
+  expect(markers).toEqual([1, 2, 1]);
+  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual([
+    "Test Museum",
+    "Wikidata",
+  ]);
 });
 
 it("renders nothing without sentences", async () => {

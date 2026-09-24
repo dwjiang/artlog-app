@@ -43,7 +43,6 @@ export function ConfidenceChip({
 
 const styles = StyleSheet.create({
   chip: {
-    alignSelf: "flex-start",
     paddingHorizontal: Spacing.compact,
     paddingVertical: Spacing.one,
     borderRadius: 3,

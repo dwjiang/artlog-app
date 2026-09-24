@@ -1,13 +1,23 @@
 import { openBrowserAsync } from "expo-web-browser";
 import { reportError } from "@/lib/observability";
-import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 
-/** A tappable citation: the source's label, opening its page in the in-app browser. */
-export function SourceChip({ label, url }: { label: string; url: string }) {
+/** A tappable citation that opens the source's page in the in-app browser. */
+export function SourceLink({
+  label,
+  url,
+  style,
+  children,
+}: {
+  label: string;
+  url: string;
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
   async function openSource() {
     setFailed(false);
@@ -22,14 +32,13 @@ export function SourceChip({ label, url }: { label: string; url: string }) {
     <View>
       <Pressable
         accessibilityRole="link"
+        accessibilityLabel={label}
         onPress={() => {
           void openSource();
         }}
-        style={styles.chip}
+        style={style}
       >
-        <ThemedText type="small" themeColor="accent">
-          {label}
-        </ThemedText>
+        {children}
       </Pressable>
       {failed && (
         <ThemedText type="small" themeColor="error" accessibilityRole="alert">
@@ -37,6 +46,17 @@ export function SourceChip({ label, url }: { label: string; url: string }) {
         </ThemedText>
       )}
     </View>
+  );
+}
+
+/** A citation shown as the source's label. */
+export function SourceChip({ label, url }: { label: string; url: string }) {
+  return (
+    <SourceLink label={label} url={url} style={styles.chip}>
+      <ThemedText type="small" themeColor="accent">
+        {label}
+      </ThemedText>
+    </SourceLink>
   );
 }
 

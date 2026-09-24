@@ -90,6 +90,25 @@ export function LocalScanScreen({
     }
   }
 
+  function adjustCrop() {
+    if (hasDraft)
+      Alert.alert(
+        "Adjust this crop?",
+        "Recognition will run again. Unsaved artwork details will be discarded.",
+        [
+          { text: "Keep editing", style: "cancel" },
+          {
+            text: "Adjust crop",
+            onPress: () => {
+              setHasDraft(false);
+              setEditingCrop(true);
+            },
+          },
+        ],
+      );
+    else setEditingCrop(true);
+  }
+
   function openLabel() {
     router.push({
       pathname: "/label/[scanId]",
@@ -161,31 +180,7 @@ export function LocalScanScreen({
           <CardHeader
             cropUri={captureFileUri(scanPreviewPath(row.cropPath))}
             kind={row.status === "failed" ? "failed" : "loading"}
-          />
-        )}
-        {row && !savedId && (
-          <GalleryButton
-            label="Adjust crop"
-            icon="crop"
-            disabled={saving}
-            onPress={() => {
-              if (hasDraft)
-                Alert.alert(
-                  "Adjust this crop?",
-                  "Recognition will run again. Unsaved artwork details will be discarded.",
-                  [
-                    { text: "Keep editing", style: "cancel" },
-                    {
-                      text: "Adjust crop",
-                      onPress: () => {
-                        setHasDraft(false);
-                        setEditingCrop(true);
-                      },
-                    },
-                  ],
-                );
-              else setEditingCrop(true);
-            }}
+            onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
           />
         )}
         {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}

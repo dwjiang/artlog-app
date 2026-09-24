@@ -225,20 +225,13 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
       onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined}
+      onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
-  const context = (
-    <>
-      {capture && !savedId && (
-        <GalleryButton label="Adjust crop" icon="crop" disabled={saving} onPress={adjustCrop} />
-      )}
-      {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
-      {captureError && (
-        <ThemedText themeColor="error" accessibilityRole="alert">
-          Couldn’t load the photo saved on this phone.
-        </ThemedText>
-      )}
-    </>
+  const photoError = captureError && (
+    <ThemedText themeColor="error" accessibilityRole="alert">
+      Couldn’t load the photo saved on this phone.
+    </ThemedText>
   );
   const search =
     view.editable && showMuseumSearch ? (
@@ -257,8 +250,12 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           manual={manual}
           view={view}
           header={header}
-          context={context}
+          context={photoError}
           search={search}
+          visit={
+            capture &&
+            !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />
+          }
           onSearchMuseum={
             showMuseumSearch && museumSearch.available && searchIdle
               ? () => {
@@ -284,7 +281,8 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           contentContainerStyle={styles.content}
         >
           {header}
-          {context}
+          {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
+          {photoError}
           {view.kind === "loading" && (
             <View style={styles.loading} accessibilityState={{ busy: true }}>
               <LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" />
