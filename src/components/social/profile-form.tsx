@@ -135,12 +135,12 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
           change: setUsername,
           max: LIMITS.usernameMax,
         },
-        { label: "Introduction", value: bio, change: setBio, max: LIMITS.bio },
+        { label: "Bio", value: bio, change: setBio, max: LIMITS.bio },
       ].map((field) => (
         <View key={field.label} style={{ gap: 8 }}>
           <Text style={{ fontSize: 14, color: Gallery.ink }}>
             {field.label}
-            {field.label === "Introduction" ? " (optional)" : ""}
+            {field.label === "Bio" ? " (optional)" : ""}
           </Text>
           <TextInput
             accessibilityLabel={field.label}
@@ -148,14 +148,14 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
             onChangeText={field.change}
             editable={!busy && !profileCreated}
             maxLength={field.max}
-            multiline={field.label === "Introduction"}
+            multiline={field.label === "Bio"}
             autoCapitalize={field.label === "Username" ? "none" : "sentences"}
             autoCorrect={field.label !== "Username"}
             keyboardAppearance="light"
             selectionColor={Gallery.accent}
             style={{
               padding: 14,
-              minHeight: field.label === "Introduction" ? 100 : 48,
+              minHeight: field.label === "Bio" ? 100 : 48,
               textAlignVertical: "top",
               borderRadius: 8,
               borderWidth: 1,
@@ -184,7 +184,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         </View>
       ))}
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
-        Your name, photo and introduction appear on your public profile. Visits and private notes are separate.
+        Your name, photo and bio appear on your public profile. Visits and private notes are separate.
       </Text>
       {error && (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>

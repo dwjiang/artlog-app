@@ -154,7 +154,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
         {[
           { label: "Name", value: name, change: setName, max: LIMITS.name },
           {
-            label: "Introduction",
+            label: "Bio",
             value: bio,
             change: setBio,
             max: LIMITS.bio,
@@ -167,12 +167,12 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
               value={field.value}
               onChangeText={field.change}
               maxLength={field.max}
-              multiline={field.label === "Introduction"}
+              multiline={field.label === "Bio"}
               editable={!busy}
               keyboardAppearance="light"
               selectionColor={Gallery.accent}
               style={{
-                minHeight: field.label === "Introduction" ? 100 : 48,
+                minHeight: field.label === "Bio" ? 100 : 48,
                 padding: 14,
                 borderRadius: 8,
                 borderWidth: 1,
@@ -190,7 +190,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
           <Text style={{ color: Gallery.muted, fontSize: 13 }}>Usernames can’t be changed.</Text>
         </View>
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
-          Your photo, name and introduction appear on your public profile.
+          Your photo, name and bio appear on your public profile.
         </Text>
         {error && (
           <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>

@@ -58,7 +58,7 @@ beforeEach(() => {
 it("saves trimmed profile text while preserving an unchanged photo", async () => {
   await render(<EditProfileForm profile={profile} />);
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex Chen ");
-  await fireEvent.changeText(screen.getByLabelText("Introduction"), " A love of art. ");
+  await fireEvent.changeText(screen.getByLabelText("Bio"), " A love of art. ");
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   expect(mockSave).toHaveBeenCalledWith({
     name: "Alex Chen",
