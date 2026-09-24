@@ -40,8 +40,7 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("@expo/ui/swift-ui", () => {
-  const React = jest.requireActual("react");
-  const { Pressable, Text, View } = jest.requireActual("react-native");
+  const { View } = jest.requireActual("react-native");
   return {
     ...jest.requireActual("@/__mocks__/@expo/ui/swift-ui"),
     Host: ({ children }: { children: ReactNode }) => <View>{children}</View>,
@@ -63,29 +62,6 @@ jest.mock("@expo/ui/swift-ui", () => {
       <View>
         {label}
         {children}
-      </View>
-    ),
-    Picker: ({ children, onSelectionChange }: { children: ReactNode; onSelectionChange: (value: string) => void }) => (
-      <View>
-        {React.Children.map(
-          children,
-          (child: {
-            props: {
-              children: string;
-              modifiers: { $type: string; tag?: string }[];
-            };
-          }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Choose ${child.props.children}`}
-              onPress={() =>
-                onSelectionChange(child.props.modifiers.find((modifier) => modifier.$type === "tag")?.tag ?? "")
-              }
-            >
-              <Text>{child.props.children}</Text>
-            </Pressable>
-          ),
-        )}
       </View>
     ),
   };
@@ -197,8 +173,8 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
 it("changes category and period independently using the dropdowns", async () => {
   mockSession.status = "ready";
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Choose Artworks" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Choose All time" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "All time" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "friends",
     metric: "artworks",
@@ -308,10 +284,10 @@ it("offers creation for the selected metric while preserving actual participatio
   await fireEvent.press(await screen.findByRole("button", { name: "Add visit" }));
   expect(mockPush).toHaveBeenLastCalledWith("/visit-create");
   expect(screen.queryByText("LOGGED VISITS")).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Choose Artworks" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
-  await fireEvent.press(screen.getByRole("button", { name: "Choose All time" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "All time" }));
   expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
 });

@@ -98,18 +98,16 @@ export function CollectionArtworks({
               </Text>
             )}
           </View>
-          <View style={{ minWidth: 96 }}>
-            <ChoiceMenu
-              plain
-              label="Sort artworks"
-              value={sort}
-              onChange={setSort}
-              options={[
-                { value: "recent", label: "Recent" },
-                { value: "artist", label: "Artist" },
-              ]}
-            />
-          </View>
+          <ChoiceMenu
+            label="Sort by"
+            icon="arrow.up.arrow.down"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: "recent", label: "Recent" },
+              { value: "artist", label: "Artist" },
+            ]}
+          />
         </View>
       ),
     });

@@ -109,8 +109,9 @@ export function DatePicker({ title, selection, onDateChange }: DatePickerProps) 
   );
 }
 
-export function Toggle({ isOn, onIsOnChange, modifiers, children }: ToggleProps) {
-  const label = modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as string | undefined;
+export function Toggle({ isOn, onIsOnChange, modifiers, label: title, children }: ToggleProps) {
+  const label =
+    (modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as string | undefined) ?? title;
   const disabled = modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
   return (
     <Pressable
