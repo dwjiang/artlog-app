@@ -8,10 +8,9 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { GalleryButton } from "../collection/gallery-button";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
-import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { validateProfile } from "@/shared/social/contracts";
 import { LIMITS } from "@/shared/journal/limits";
 import { ProfileAvatar } from "./profile-avatar";
 
@@ -34,41 +33,13 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   const [name, setName] = useState(""),
     [username, setUsername] = useState(""),
     [bio, setBio] = useState("");
-  const [checkedUsername, setCheckedUsername] = useState("");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string>();
   const submitting = useRef(false);
   const normalized = username.trim().toLowerCase();
-  let validUsername = true;
-  try {
-    validateProfile({ name: "Validation", username: normalized });
-  } catch {
-    validUsername = false;
-  }
-  useEffect(() => {
-    const timer = setTimeout(() => setCheckedUsername(normalized), 300);
-    return () => clearTimeout(timer);
-  }, [normalized]);
-  const available = useSocialQuery(
-    api.profiles.usernameAvailable,
-    validUsername && normalized === checkedUsername ? { username: normalized } : "skip",
-    session.key,
-  );
-  const usernameMessage = profileCreated
-    ? "Username saved"
-    : !username
-      ? `Use ${LIMITS.usernameMin}–${LIMITS.usernameMax} lowercase letters, numbers or hyphens.`
-      : !validUsername
-        ? "Use lowercase letters, numbers and single hyphens between words."
-        : normalized !== checkedUsername || available.loading
-          ? "Checking username…"
-          : available.error
-            ? "Couldn’t check. You can try creating your profile."
-            : available.data === false
-              ? "That username is taken. Try another."
-              : available.data
-                ? "Username available"
-                : "Checking username…";
+  const check = useUsernameCheck(normalized, session.key);
+  const usernameBlocked = check === "empty" || check === "invalid" || check === "taken";
+  const usernameMessage = profileCreated ? "Username saved" : usernameMessages[check];
   async function choose() {
     if (busy) return;
     setBusy(true);
@@ -94,7 +65,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     }
   }
   async function submit() {
-    if (submitting.current || !name.trim() || (!created.current && (!validUsername || available.data === false))) {
+    if (submitting.current || !name.trim() || (!created.current && usernameBlocked)) {
       return;
     }
     const owner = captureOwner();
@@ -187,10 +158,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
               borderRadius: 8,
               borderWidth: 1,
               borderColor:
-                field.label === "Username"
-                && !profileCreated
-                && username
-                && (!validUsername || available.data === false)
+                field.label === "Username" && !profileCreated && (check === "invalid" || check === "taken")
                   ? Gallery.destructive
                   : Gallery.controlBorder,
               color: Gallery.ink,
@@ -205,9 +173,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
                 fontSize: 13,
                 lineHeight: 18,
                 color:
-                  !profileCreated && (available.data === false || (!!username && !validUsername))
-                    ? Gallery.destructive
-                    : Gallery.muted,
+                  !profileCreated && (check === "invalid" || check === "taken") ? Gallery.destructive : Gallery.muted,
               }}
             >
               {usernameMessage}
@@ -228,7 +194,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         variant="filled"
         fullWidth
         busy={busy}
-        disabled={!name.trim() || (!profileCreated && (!validUsername || available.data === false))}
+        disabled={!name.trim() || (!profileCreated && usernameBlocked)}
         onPress={() => {
           void submit();
         }}

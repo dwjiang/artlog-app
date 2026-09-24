@@ -12,6 +12,7 @@ import { Gallery, Typography } from "@/constants/theme";
 import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { profileSetupRoute, takeProfileSetupOffer, useProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { AppleSignInAction } from "./apple-sign-in-action";
 
 export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
@@ -25,15 +26,23 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
   const initialDetent = height < 760 ? 0.8 : context === "visit" ? 0.5 : 0.62;
   const continuingVisit = context === "visit" && !!visitId;
   const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
+  const setupOffer = useProfileSetupOffer();
   useEffect(() => {
-    if (!account?.linked || busy || waitingForJournal) return;
+    if (!account?.linked || busy) return;
+    // A first sign-in continues into profile setup; setup itself carries the visit on afterwards.
+    if (setupOffer && account.hasProfile === false) {
+      takeProfileSetupOffer();
+      router.replace(profileSetupRoute(setupOffer, continuingVisit ? visitId : undefined));
+      return;
+    }
+    if (waitingForJournal) return;
     if (continuingVisit) {
       router.replace({
         pathname: "/visit-share/[visitId]",
         params: { visitId },
       });
     } else router.back();
-  }, [account?.linked, busy, continuingVisit, router, visitId, waitingForJournal]);
+  }, [account?.hasProfile, account?.linked, busy, continuingVisit, router, setupOffer, visitId, waitingForJournal]);
 
   return (
     <>

@@ -213,16 +213,24 @@ export const me = query({
     deviceCount: v.number(),
     accountId: v.union(v.id("accounts"), v.null()),
     email: v.union(v.string(), v.null()),
+    hasProfile: v.boolean(),
     scope: v.string(),
   }),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
     const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    const profile = account
+      ? await ctx.db
+          .query("profiles")
+          .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
+          .unique()
+      : null;
     return {
       linked: !!account,
       deviceCount: account?.deviceIds.length ?? 0,
       accountId: account?._id ?? null,
       email: account?.email ?? null,
+      hasProfile: !!profile,
       scope: deviceScope(device, await ownerForDevice(ctx, device)),
     };
   },

@@ -143,6 +143,16 @@ it("aggregates trust on linking while leaving rate limits per device", async () 
   await expect(t.run((ctx) => limitDevice(ctx, "sync", b.deviceId))).resolves.toBeNull();
 });
 
+it("reports whether the linked account has a profile so first sign-in can offer setup", async () => {
+  const t = harness();
+  const { a, b } = await pair(t);
+  expect(await a.as.query(api.accounts.me, {})).toMatchObject({ linked: true, hasProfile: false });
+  await a.as.mutation(api.profiles.create, { username: "first-reader", name: "Reader" });
+  expect(await b.as.query(api.accounts.me, {})).toMatchObject({ linked: true, hasProfile: true });
+  const guest = await seedDevice(t);
+  expect(await guest.as.query(api.accounts.me, {})).toMatchObject({ linked: false, hasProfile: false });
+});
+
 it("unlink removes only this device and clears pending proof so it cannot silently relink", async () => {
   const t = harness();
   const { a, b } = await pair(t);

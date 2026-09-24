@@ -1,5 +1,6 @@
 import { ConvexError, type Infer, v } from "convex/values";
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
+import { isUsername } from "./username";
 
 export const publicProfile = v.object({
   profileId: v.id("profiles"),
@@ -175,10 +176,7 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
     !name
     || name.length > LIMITS.name
     || (bio?.length ?? 0) > LIMITS.bio
-    || (input.username !== undefined
-      && (input.username.length < LIMITS.usernameMin
-        || input.username.length > LIMITS.usernameMax
-        || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.username)))
+    || (input.username !== undefined && !isUsername(input.username))
   ) {
     throw new ConvexError({ code: "invalid_profile" });
   }

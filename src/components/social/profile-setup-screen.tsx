@@ -1,0 +1,484 @@
+import { useAction, useMutation } from "convex/react";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
+import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api } from "../../../convex/_generated/api";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { captureOwner } from "@/lib/account/owner-store";
+import { convexErrorCode } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
+import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
+import { useSocialQuery } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
+import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
+import { LIMITS } from "@/shared/journal/limits";
+import { socialErrorMessage } from "@/shared/social/errors";
+import { ProfileAvatar } from "./profile-avatar";
+import { SocialGate } from "./social-state";
+
+const STEPS = ["username", "name", "photo"] as const;
+
+export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedName?: string; visitId?: string }) {
+  const router = useRouter();
+  const session = useSocialSession();
+  const create = useMutation(api.profiles.create);
+  const saveProfile = useAction(api.profilePhotos.save);
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState(suggestedName.slice(0, LIMITS.name));
+  // Undefined follows the suggestion from Apple's name until the person types a username.
+  const [username, setUsername] = useState<string>();
+  const [photo, setPhoto] = useState<string>();
+  const [operation, setOperation] = useState<"username" | "name" | "choose" | "photo">();
+  const [error, setError] = useState<string>();
+  const [created, setCreated] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [savedName, setSavedName] = useState("");
+  const photoDraft = useRef<string>(undefined),
+    mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      removeProfilePhotoDraft(photoDraft.current);
+    };
+  }, []);
+  const trimmedName = name.trim();
+  const appleName = suggestedName.trim().slice(0, LIMITS.name);
+  const suggestion = useSocialQuery(
+    api.profiles.suggestUsername,
+    username === undefined && appleName ? { name: appleName } : "skip",
+    session.key,
+  );
+  const chosenUsername = username ?? suggestion.data ?? "";
+  const check = useUsernameCheck(chosenUsername, session.key);
+  // A profile that existed before setup opened needs no setup; the one claimed on the first step keeps the steps going.
+  const done = finished || (session.status === "ready" && !created && operation !== "username");
+  const mine = useSocialQuery(api.profiles.mine, done ? {} : "skip", session.key);
+  const busy = operation !== undefined;
+
+  function close() {
+    router.back();
+  }
+  function finish() {
+    session.refresh();
+    setFinished(true);
+  }
+  function goTo(next: number) {
+    setError(undefined);
+    setStep(next);
+  }
+  // Claiming the username creates the profile, so a name taken by someone else surfaces on this step.
+  async function claimUsername() {
+    if (busy || session.status !== "profile-required" || (check !== "available" && check !== "unchecked")) return;
+    const owner = captureOwner();
+    const initialName = appleName || chosenUsername;
+    setOperation("username");
+    setError(undefined);
+    try {
+      await create({ name: initialName, username: chosenUsername });
+      if (!owner.isCurrent() || !mounted.current) return;
+      setSavedName(initialName);
+      setUsername(chosenUsername);
+      setCreated(true);
+      setStep(1);
+    } catch (cause) {
+      const taken = convexErrorCode(cause) === "username_taken";
+      if (!taken) reportError(cause, "profile.create");
+      if (owner.isCurrent() && mounted.current) {
+        setError(
+          taken ? usernameMessages.taken : (socialErrorMessage(cause) ?? "Your username couldn’t be saved. Try again."),
+        );
+      }
+    } finally {
+      if (mounted.current) setOperation(undefined);
+    }
+  }
+  async function confirmName() {
+    if (busy || !trimmedName) return;
+    if (trimmedName === savedName) {
+      goTo(2);
+      return;
+    }
+    const owner = captureOwner();
+    setOperation("name");
+    setError(undefined);
+    try {
+      await saveProfile({ name: trimmedName });
+      if (!owner.isCurrent() || !mounted.current) return;
+      setSavedName(trimmedName);
+      setStep(2);
+    } catch (cause) {
+      reportError(cause, "profile.update");
+      if (owner.isCurrent() && mounted.current) {
+        setError(socialErrorMessage(cause) ?? "Your name wasn’t saved. Try again.");
+      }
+    } finally {
+      if (mounted.current) setOperation(undefined);
+    }
+  }
+  async function choosePhoto() {
+    if (busy) return;
+    setOperation("choose");
+    setError(undefined);
+    try {
+      const next = await chooseProfilePhoto();
+      if (!mounted.current) {
+        removeProfilePhotoDraft(next);
+        return;
+      }
+      if (next) {
+        removeProfilePhotoDraft(photoDraft.current);
+        photoDraft.current = next;
+        setPhoto(next);
+      }
+    } catch (cause) {
+      reportError(cause, "profile.photo.choose");
+      if (mounted.current) setError("This photo could not be opened. Try another image.");
+    } finally {
+      if (mounted.current) setOperation(undefined);
+    }
+  }
+  async function savePhoto() {
+    if (busy) return;
+    if (!photo) {
+      finish();
+      return;
+    }
+    const owner = captureOwner();
+    setOperation("photo");
+    setError(undefined);
+    try {
+      const bytes = await profilePhotoBytes(photo);
+      if (!owner.isCurrent() || !mounted.current) return;
+      await saveProfile({ name: savedName, photo: bytes });
+      if (owner.isCurrent() && mounted.current) finish();
+    } catch (cause) {
+      reportError(cause, "profile.photo.save");
+      if (owner.isCurrent() && mounted.current) {
+        setError("The photo couldn’t upload. Try again or continue without it.");
+      }
+    } finally {
+      if (mounted.current) setOperation(undefined);
+    }
+  }
+
+  if (done) {
+    const profile = mine.data;
+    const shownUsername = profile?.username ?? (created ? chosenUsername : undefined);
+    return (
+      <SetupPage>
+        <View style={styles.summary}>
+          <ProfileAvatar name={profile?.name ?? trimmedName} photoUrl={profile?.photoUrl ?? photo} size={112} />
+          <View style={styles.identity}>
+            <Text variant="section" style={styles.centered}>
+              {profile?.name ?? (savedName || trimmedName)}
+            </Text>
+            {shownUsername && (
+              <Text themeColor="textSecondary" style={styles.centered}>
+                @{shownUsername}
+              </Text>
+            )}
+          </View>
+        </View>
+        <Heading
+          centered
+          title="Your profile is ready."
+          detail={
+            visitId
+              ? "Next, choose what to share from your visit."
+              : "Find friends to see the museum visits they share."
+          }
+        />
+        <View style={styles.actions}>
+          {visitId ? (
+            <GalleryButton
+              label="Continue to sharing"
+              variant="filled"
+              fullWidth
+              onPress={() => router.replace({ pathname: "/visit-share/[visitId]", params: { visitId } })}
+            />
+          ) : (
+            <GalleryButton
+              label="Find friends"
+              variant="filled"
+              fullWidth
+              onPress={() => router.dismissTo("/people")}
+            />
+          )}
+          <GalleryButton label="Done" fullWidth onPress={close} />
+        </View>
+      </SetupPage>
+    );
+  }
+
+  const bar = (
+    <View style={styles.bar}>
+      {/* The username is claimed on the first step, so only the photo step can go back. */}
+      {STEPS[step] === "photo" ? (
+        <GalleryIconButton
+          label="Back"
+          icon="chevron.left"
+          tone="accent"
+          disabled={busy}
+          onPress={() => goTo(step - 1)}
+        />
+      ) : (
+        <View style={styles.barSpacer} />
+      )}
+      <View style={styles.chip}>
+        <Text style={styles.chipText}>{`Step ${step + 1} of ${STEPS.length}`}</Text>
+      </View>
+      <GalleryButton label="Not now" fullWidth={false} disabled={busy} onPress={close} />
+    </View>
+  );
+
+  if (session.status === "signed-out" || session.status === "error") {
+    return (
+      <SetupPage bar={bar}>
+        <SocialGate session={session} context="account" />
+      </SetupPage>
+    );
+  }
+
+  const errorText = error && (
+    <Text accessibilityRole="alert" style={styles.error}>
+      {error}
+    </Text>
+  );
+
+  if (STEPS[step] === "username") {
+    const problem = check === "invalid" || check === "taken";
+    const waiting = session.status === "loading";
+    return (
+      <SetupPage bar={bar}>
+        <Heading title="Your username" detail="Friends can find you by it. You can’t change it later." />
+        <View style={styles.field}>
+          <Text style={styles.label}>Username</Text>
+          <View style={[styles.input, styles.usernameInput, problem && { borderColor: Gallery.destructive }]}>
+            <Text style={styles.at}>@</Text>
+            <TextInput
+              accessibilityLabel="Username"
+              value={chosenUsername}
+              placeholder={suggestion.loading ? "Finding a username…" : "username"}
+              placeholderTextColor={Gallery.muted}
+              onChangeText={(value) => {
+                setError(undefined);
+                setUsername(value.toLowerCase().replace(/\s+/g, ""));
+              }}
+              maxLength={LIMITS.usernameMax}
+              editable={!busy}
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="none"
+              autoComplete="off"
+              keyboardAppearance="light"
+              selectionColor={Gallery.accent}
+              returnKeyType="next"
+              onSubmitEditing={() => {
+                void claimUsername();
+              }}
+              style={styles.usernameText}
+            />
+          </View>
+          <View style={styles.status} accessibilityLiveRegion="polite">
+            {check === "available" && (
+              <Image source="sf:checkmark.circle.fill" tintColor={Gallery.success} style={styles.statusIcon} />
+            )}
+            <Text
+              style={[
+                styles.statusText,
+                problem && { color: Gallery.destructive },
+                check === "available" && { color: Gallery.success },
+              ]}
+            >
+              {usernameMessages[check]}
+            </Text>
+          </View>
+        </View>
+        {check !== "taken" && errorText}
+        {session.offline && <Text style={styles.footnote}>Connect to the internet to choose a username.</Text>}
+        <GalleryButton
+          label="Continue"
+          variant="filled"
+          fullWidth
+          busy={operation === "username" || waiting}
+          busyLabel={waiting ? "Finishing sign-in…" : "Saving username…"}
+          disabled={session.offline || (check !== "available" && check !== "unchecked")}
+          onPress={() => {
+            void claimUsername();
+          }}
+        />
+      </SetupPage>
+    );
+  }
+
+  if (STEPS[step] === "name") {
+    return (
+      <SetupPage bar={bar}>
+        <Heading title="Your name" detail="It appears on your profile and on visits you share." />
+        <Field
+          label="Name"
+          value={name}
+          onChangeText={(value) => {
+            setError(undefined);
+            setName(value);
+          }}
+          maxLength={LIMITS.name}
+          editable={!busy}
+          autoFocus
+          textContentType="name"
+          autoComplete="name"
+          onSubmitEditing={() => {
+            void confirmName();
+          }}
+        />
+        {errorText}
+        <GalleryButton
+          label="Continue"
+          variant="filled"
+          fullWidth
+          busy={operation === "name"}
+          busyLabel="Saving name…"
+          disabled={!trimmedName}
+          onPress={() => {
+            void confirmName();
+          }}
+        />
+      </SetupPage>
+    );
+  }
+
+  return (
+    <SetupPage bar={bar}>
+      <Heading title="Add a photo" detail="Optional. It appears on your public profile." />
+      <View style={styles.photo}>
+        <ProfileAvatar name={savedName} photoUrl={photo} size={112} />
+        <GalleryButton
+          label={photo ? "Change photo" : "Choose photo"}
+          busy={operation === "choose"}
+          disabled={busy}
+          onPress={() => {
+            void choosePhoto();
+          }}
+        />
+      </View>
+      {errorText}
+      <GalleryButton
+        label={photo ? "Save photo" : "Skip for now"}
+        variant="filled"
+        fullWidth
+        busy={operation === "photo"}
+        busyLabel="Uploading photo…"
+        disabled={operation === "choose"}
+        onPress={() => {
+          void savePhoto();
+        }}
+      />
+      {error && photo && <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />}
+    </SetupPage>
+  );
+}
+
+function SetupPage({ bar, children }: { bar?: ReactNode; children: ReactNode }) {
+  const { top, bottom } = useSafeAreaInsets();
+  return (
+    <ScrollView
+      style={styles.root}
+      contentInsetAdjustmentBehavior="never"
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) },
+      ]}
+    >
+      {bar}
+      {children}
+    </ScrollView>
+  );
+}
+
+function Heading({ title, detail, centered = false }: { title: string; detail: string; centered?: boolean }) {
+  const { fontScale } = useWindowDimensions();
+  return (
+    <View style={styles.heading}>
+      <Text
+        accessibilityRole="header"
+        variant={fontScale > 1.3 ? "display" : "pageTitle"}
+        style={centered && styles.centered}
+      >
+        {title}
+      </Text>
+      <Text themeColor="textSecondary" style={centered && styles.centered}>
+        {detail}
+      </Text>
+    </View>
+  );
+}
+
+function Field({ label, ...input }: Omit<ComponentProps<typeof TextInput>, "style"> & { label: string }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        keyboardAppearance="light"
+        selectionColor={Gallery.accent}
+        placeholderTextColor={Gallery.muted}
+        returnKeyType="next"
+        {...input}
+        style={[styles.input, styles.inputText]}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Gallery.paper },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.content,
+    gap: Spacing.four,
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
+  },
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
+  barSpacer: { width: 44, height: 44 },
+  chip: {
+    backgroundColor: Gallery.highlight,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+  },
+  chipText: { ...Typography.metadata, fontWeight: "600", color: Gallery.ink },
+  heading: { gap: Spacing.compact },
+  field: { gap: Spacing.two },
+  label: { ...Typography.secondary, color: Gallery.ink },
+  input: {
+    minHeight: 48,
+    borderRadius: Radius.input,
+    borderWidth: 1,
+    borderColor: Gallery.controlBorder,
+    backgroundColor: Gallery.surface,
+  },
+  inputText: { padding: 14, color: Gallery.ink, fontSize: 17 },
+  usernameInput: { flexDirection: "row", alignItems: "center", paddingLeft: 14 },
+  at: { fontSize: 17, color: Gallery.muted },
+  usernameText: { flex: 1, paddingVertical: 14, paddingLeft: 2, paddingRight: 14, color: Gallery.ink, fontSize: 17 },
+  status: { flexDirection: "row", alignItems: "center", gap: Spacing.one },
+  statusIcon: { width: 16, height: 16 },
+  statusText: { flexShrink: 1, fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  photo: { alignItems: "center", gap: Spacing.two },
+  footnote: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  error: { fontSize: 14, lineHeight: 20, color: Gallery.destructive },
+  summary: { alignItems: "center", gap: Spacing.three, paddingTop: Spacing.five },
+  identity: { alignItems: "center", gap: Spacing.half },
+  centered: { textAlign: "center" },
+  actions: { gap: Spacing.two },
+});

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 
+import { takeProfileSetupOffer } from "./profile-setup-offer";
 import { useAccount } from "./use-account";
 
 const mockMutation = jest.fn();
@@ -29,6 +30,8 @@ jest.mock("expo-apple-authentication", () => ({
   isAvailableAsync: () => mockAvailable(),
   signInAsync: (args: unknown) => mockApple(args),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  formatFullName: (name: { givenName: string | null; familyName: string | null }) =>
+    [name.givenName, name.familyName].filter(Boolean).join(" "),
 }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
@@ -56,6 +59,7 @@ jest.mock("@/lib/observability", () => ({
 
 beforeEach(() => {
   jest.resetAllMocks();
+  takeProfileSetupOffer();
   mockAccount = { linked: false, deviceCount: 0 };
   mockAvailable.mockResolvedValue(true);
   mockMutation.mockResolvedValue({ nonce: "apple-nonce" });
@@ -96,6 +100,24 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
+it("offers profile setup with the name Apple shares only on first authorization", async () => {
+  mockApple.mockResolvedValueOnce({
+    identityToken: "apple-token",
+    user: "apple-user",
+    fullName: { givenName: "Alex", familyName: "Morgan" },
+  });
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(takeProfileSetupOffer()).toEqual({ name: "Alex Morgan" });
+  mockApple.mockResolvedValueOnce({
+    identityToken: "apple-token",
+    user: "apple-user",
+    fullName: { givenName: null, familyName: null },
+  });
+  await act(() => result.current.signInWithApple());
+  expect(takeProfileSetupOffer()).toEqual({});
+});
+
 it("treats Apple cancellation as a normal dismissal without linking", async () => {
   mockApple.mockRejectedValueOnce({ code: "ERR_REQUEST_CANCELED" });
   const { result } = await renderHook(useAccount);
@@ -106,6 +128,7 @@ it("treats Apple cancellation as a normal dismissal without linking", async () =
   expect(mockSignPayload).not.toHaveBeenCalled();
   expect(mockReportError).not.toHaveBeenCalled();
   expect(mockBreadcrumb).not.toHaveBeenCalledWith("auth.apple_sign_in.success");
+  expect(takeProfileSetupOffer()).toBeUndefined();
 });
 
 it("does not link when token verification fails", async () => {

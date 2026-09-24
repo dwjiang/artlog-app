@@ -1,11 +1,7 @@
-import { CreateProfileScreen } from "@/components/social/create-profile-screen";
-import { SheetToolbar } from "@/components/social/sheet-toolbar";
+import { useLocalSearchParams } from "expo-router";
+import { ProfileSetupScreen } from "@/components/social/profile-setup-screen";
 
 export default function CreateProfileRoute() {
-  return (
-    <>
-      <CreateProfileScreen />
-      <SheetToolbar />
-    </>
-  );
+  const { name, visitId } = useLocalSearchParams<{ name?: string; visitId?: string }>();
+  return <ProfileSetupScreen suggestedName={name} visitId={visitId} />;
 }
