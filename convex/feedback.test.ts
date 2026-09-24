@@ -1,3 +1,4 @@
+import { readVector } from "./lib/vectorStore";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -54,7 +55,7 @@ async function fixture() {
     probability,
     homographyValid: true,
   });
-  const seedRejectableScan = (overrides: Partial<Doc<"scans">> = {}) =>
+  const seedRejectableScan = (overrides: Partial<Doc<"scans">> & { vector?: number[] } = {}) =>
     t.run((ctx) =>
       seedScan(ctx, {
         deviceId: user.deviceId,
@@ -121,7 +122,7 @@ describe("rejectMatch", () => {
         _id: feedbackId,
         scanId,
         deviceId: user.deviceId,
-        vector: testVector(),
+        embeddingId: expect.any(String),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: best.objectId,
@@ -386,7 +387,10 @@ describe("resolveRejection", () => {
     await resolve(user.as, (await reject(best.objectId)).feedbackId);
     expect(await views()).toEqual([]);
     await resolve(visitor.as, (await reject(best.objectId, visitorScanId, visitor.as)).feedbackId);
-    expect((await views()).map((row) => row.vector)).toEqual([testVector(), testVector(0.8)]);
+    expect(await Promise.all((await views()).map((row) => t.run((ctx) => readVector(ctx, row))))).toEqual([
+      testVector(),
+      testVector(0.8),
+    ]);
   });
 
   it("resolves to the device’s own label contribution for the same scan", async () => {

@@ -4,6 +4,12 @@ import { PhotoEditorScreen } from "./photo-editor-screen";
 import { IdentifyArtworkScreen } from "./identify-artwork-screen";
 import { editSavedWork } from "@/db/repos/saved-works";
 
+jest.mock("@/lib/collection/saved-recognition", () => ({
+  identifySavedArtwork: jest.fn(),
+  acceptSavedRecognition: jest.fn(),
+  savedRecognitionError: jest.fn(),
+}));
+
 let mockQuery: { data: unknown[]; updatedAt?: Date; error?: Error };
 let mockOwner = "device:guest";
 const mockBack = jest.fn();

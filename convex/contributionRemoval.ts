@@ -1,3 +1,5 @@
+import { deleteVector } from "./lib/vectorStore";
+import { deleteEmbedding } from "./scanEmbeddings";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -15,6 +17,7 @@ export async function removeContribution(
   row: Doc<"contributions">,
   reason: "withdrawn" | "device_reverted" | "object_reverted",
 ): Promise<void> {
+  await deleteEmbedding(ctx, row.embeddingId);
   if (row.status === "rejected" && !row.cropStorageId && !row.orbStorageId) {
     return;
   }
@@ -24,7 +27,7 @@ export async function removeContribution(
     .withIndex("by_contributionId", (q) => q.eq("contributionId", row._id))
     .unique();
   if (vector) {
-    await ctx.db.delete(vector._id);
+    await deleteVector(ctx, vector);
     await bumpCounter(ctx, "vectors", -1);
   }
   if (object) {

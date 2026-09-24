@@ -199,13 +199,13 @@ it.each([false, true])(
         },
       }),
     );
-    const scanId = await t.run((ctx) =>
+    const scanId = await t.run(async (ctx) =>
       ctx.db.insert("scans", {
         deviceId: user.deviceId,
         localId: "race",
         generation: 0,
         modelVersion: model.modelVersion,
-        vector: testVector(),
+        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
         capturedAt: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now(),

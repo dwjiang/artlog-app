@@ -1,3 +1,4 @@
+import { insertVector } from "./lib/vectorStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -126,7 +127,8 @@ describe("identify action", () => {
       lastConfidentAt: args.capturedAt,
     });
     const scan = await t.run((ctx) => ctx.db.get(result.scanId));
-    expect(scan?.vector).toEqual(args.vector);
+    expect(scan).not.toHaveProperty("vector");
+    expect((await t.run((ctx) => ctx.db.get(scan!.embeddingId)))!.vector).toEqual(args.vector);
     expect(scan?.candidateSignals).toHaveLength(1);
     const [signals] = scan!.candidateSignals!;
     expect(signals).toMatchObject({
@@ -175,8 +177,9 @@ describe("identify action", () => {
     expect(updated.error).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.get(old.scanId))).toMatchObject({
       modelVersion: model.modelVersion,
-      vector: args.vector,
     });
+    const saved = (await t.run((ctx) => ctx.db.get(old.scanId)))!;
+    expect((await t.run((ctx) => ctx.db.get(saved.embeddingId)))!.vector).toEqual(args.vector);
     expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(1);
   });
 
@@ -615,7 +618,7 @@ describe("candidate loading", () => {
         object: { mergedInto: target.objectId },
       });
       const second = await seedArtworkWithObject(ctx);
-      const duplicate = await ctx.db.insert("vectors", {
+      const duplicate = await insertVector(ctx, {
         partition: JSON.stringify([model.modelVersion, "established"]),
         objectId: target.objectId,
         modelVersion: model.modelVersion,
@@ -625,7 +628,12 @@ describe("candidate loading", () => {
       return { target, merged, second, duplicate };
     });
     const candidates = await t.query(internal.identify.loadCandidates, {
-      vectorIds: [target.vectorId, merged.vectorId, second.vectorId, duplicate],
+      embeddingIds: [
+        target.embeddingId,
+        merged.embeddingId,
+        second.embeddingId,
+        (await t.run((ctx) => ctx.db.get(duplicate)))!.embeddingId,
+      ],
       scores: [0.9, 0.99, 0.8, 0.95],
       now: Date.now(),
     });
@@ -656,7 +664,7 @@ describe("candidate loading", () => {
     });
     expect(
       await t.query(internal.identify.loadCandidates, {
-        vectorIds: rows.map((r) => r.vectorId),
+        embeddingIds: rows.map((r) => r.embeddingId),
         scores: rows.map(() => 0.99),
         now: Date.now(),
       }),
@@ -687,7 +695,7 @@ describe("candidate loading", () => {
       return { venueId, rows };
     });
     const candidates = await t.query(internal.identify.loadCandidates, {
-      vectorIds: rows.map((r) => r.vectorId),
+      embeddingIds: rows.map((r) => r.embeddingId),
       scores: rows.map((_, i) => 0.9 - i / 100),
       now: Date.now(),
       venueId: await t.run((ctx) => seedMuseum(ctx)),

@@ -1,3 +1,4 @@
+import { SavedRecognition } from "./saved-recognition";
 import { reportError } from "@/lib/observability";
 import { SavedWorkImage } from "./saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
@@ -52,8 +53,10 @@ function Editor({ work }: { work: SavedWork }) {
     [medium, setMedium] = useState(work.medium ?? "");
   const [search, setSearch] = useState(""),
     [choosing, setChoosing] = useState(false),
-    [busy, setBusy] = useState(false),
+    [merging, setBusy] = useState(false),
     [error, setError] = useState<string>();
+  const [recognizing, setRecognizing] = useState(false);
+  const busy = merging || recognizing;
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
   useEffect(() => {
     if (works.error) {
@@ -114,6 +117,7 @@ function Editor({ work }: { work: SavedWork }) {
         contain
         style={{ width: "100%", height: 160, backgroundColor: Gallery.fill }}
       />
+      <SavedRecognition work={work} disabled={merging} onBusyChange={setRecognizing} onAccepted={() => router.back()} />
       <Text variant="section" accessibilityRole="header">
         Artwork details
       </Text>
@@ -216,7 +220,7 @@ function Editor({ work }: { work: SavedWork }) {
             ))}
           </View>
         )}
-        {busy && <LoadingRing accessibilityLabel="Combining artworks…" />}
+        {merging && <LoadingRing accessibilityLabel="Combining artworks…" />}
       </View>
       <GalleryButton
         label="Save details"

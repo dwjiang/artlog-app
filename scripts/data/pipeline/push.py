@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import logging
+import math
 import time
 from collections import Counter, defaultdict
 from itertools import zip_longest
@@ -183,7 +184,65 @@ class Corpus:
         return rows
 
 
-def run(corpus: Corpus, writer: ConvexWriter, *, checkpoint: Path, deployment_url: str) -> dict:
+def sample_indices(corpus: Corpus, stage: str, fraction: float) -> list[int]:
+    if not 0 < fraction <= 1:
+        raise ValueError("Verification fraction must be within (0, 1]")
+    groups = defaultdict(list)
+    for index, row in enumerate(corpus.rows[stage]):
+        identity = corpus.identity(stage, row)
+        groups[identity["key"].split(":", 1)[0]].append(
+            (hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).digest(), index)
+        )
+    return sorted(
+        index
+        for group in groups.values()
+        for _, index in sorted(group)[: math.ceil(len(group) * fraction)]
+    )
+
+
+def verify_sample(corpus: Corpus, writer: ConvexWriter, fraction: float) -> dict:
+    report = {"fraction": fraction, "verifiedAt": time.time(), "stages": {}, "matches": True}
+    for stage in STAGES:
+        indices = sample_indices(corpus, stage, fraction)
+        mismatches = []
+        for start in range(0, len(indices), 32):
+            batch = indices[start : start + 32]
+            expected = [corpus.batch(stage, index, 1)[0] for index in batch]
+            actual = writer.action(
+                "ingest:readSample",
+                {"table": stage, "rows": [corpus.identity(stage, row) for row in expected]},
+            )
+            if len(actual) != len(expected):
+                raise RuntimeError(f"{stage} readback did not return every sampled row")
+            for wanted, stored in zip(expected, actual, strict=True):
+                if wanted != stored:
+                    mismatches.append(corpus.identity(stage, wanted))
+        report["stages"][stage] = {"checked": len(indices), "mismatches": mismatches}
+        report["matches"] &= not mismatches
+    audit = {"mode": "sample", "checked": 0, "violations": 0}
+    keys = [
+        corpus.rows["objects"][index]["key"]
+        for index in sample_indices(corpus, "objects", fraction)
+    ]
+    for start in range(0, len(keys), 500):
+        page = writer.query("ingest:auditThumbnails", {"objectKeys": keys[start : start + 500]})
+        for key in ("checked", "violations"):
+            audit[key] += page[key]
+    report["thumbnailAudit"] = audit
+    report["matches"] &= not audit["violations"]
+    return report
+
+
+def run(
+    corpus: Corpus,
+    writer: ConvexWriter,
+    *,
+    checkpoint: Path,
+    deployment_url: str,
+    verify_fraction: float = 0.02,
+) -> dict:
+    if not 0 < verify_fraction <= 1:
+        raise ValueError("Verification fraction must be within (0, 1]")
     checkpoint = Path(checkpoint)
     if checkpoint.exists():
         state = json.loads(checkpoint.read_text())
@@ -254,21 +313,19 @@ def run(corpus: Corpus, writer: ConvexWriter, *, checkpoint: Path, deployment_ur
             write_json(checkpoint, state)
             log.info("%s: %d/%d", stage, progress["offset"], total)
     actual = writer.query("ingest:counts")
-    audit = {"checked": 0, "violations": 0}
-    cursor = None
-    while True:
-        page = writer.query("ingest:auditThumbnails", {"cursor": cursor} if cursor else {})
-        for key in audit:
-            audit[key] += page[key]
-        if page["isDone"]:
-            break
-        cursor = page["continueCursor"]
+    verification = state.get("verification")
+    if not verification or verification["fraction"] != verify_fraction:
+        verification = verify_sample(corpus, writer, verify_fraction)
+        if verification["matches"]:
+            state["verification"] = verification
+            write_json(checkpoint, state)
     report = {
         "deployment": deployment_url,
         "expected": state["expected"],
         "actual": actual,
         "countsMatch": actual == state["expected"],
-        "thumbnailAudit": audit,
+        "thumbnailAudit": verification["thumbnailAudit"],
+        "readback": verification,
         "inputCounts": {s: len(corpus.rows[s]) for s in STAGES},
         "merges": corpus.stats["merges"],
         "stages": {},
@@ -280,7 +337,7 @@ def run(corpus: Corpus, writer: ConvexWriter, *, checkpoint: Path, deployment_ur
             "rowsPerSecond": progress["offset"] / progress["seconds"] if progress["seconds"] else 0,
         }
     write_json(checkpoint.with_suffix(".report.json"), report)
-    if not report["countsMatch"] or audit["violations"]:
+    if not report["countsMatch"] or not verification["matches"]:
         raise RuntimeError(f"Import audit failed; see {checkpoint.with_suffix('.report.json')}")
     return report
 
@@ -303,8 +360,16 @@ def main(argv: list[str] | None = None):
     mode.add_argument(
         "--export", type=Path, help="write a portable small corpus locally; no upload"
     )
+    parser.add_argument(
+        "--verify-fraction",
+        type=float,
+        default=0.02,
+        help="deterministic readback fraction per source and stage (default: 0.02; 1 checks all imported rows)",
+    )
     parser.add_argument("--checkpoint", type=Path)
     args = parser.parse_args(argv)
+    if not 0 < args.verify_fraction <= 1:
+        parser.error("--verify-fraction must be within (0, 1]")
     limit = None if args.full else args.limit
     if limit is not None and limit < 1:
         parser.error("--limit must be positive")
@@ -326,7 +391,11 @@ def main(argv: list[str] | None = None):
     print(
         json.dumps(
             run(
-                corpus, ConvexWriter(settings), checkpoint=path, deployment_url=settings.convex_url
+                corpus,
+                ConvexWriter(settings),
+                checkpoint=path,
+                deployment_url=settings.convex_url,
+                verify_fraction=args.verify_fraction,
             ),
             indent=2,
         )

@@ -1,3 +1,4 @@
+import { insertVector } from "./lib/vectorStore";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -64,7 +65,7 @@ async function seedUserObject(
     calibratorPenalty: 0,
     reverted: false,
   });
-  await ctx.db.insert("vectors", {
+  await insertVector(ctx, {
     partition: JSON.stringify([model.modelVersion, "established"]),
     objectId,
     modelVersion: model.modelVersion,
@@ -381,7 +382,7 @@ describe("cascade transaction limits", () => {
         for (let i = 0; i < 60; i++) {
           const vector = Array<number>(model.embeddingDim).fill(0);
           vector[i] = 1;
-          await ctx.db.insert("vectors", {
+          await insertVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -413,7 +414,7 @@ describe("object cleanup resumption", () => {
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = 0; i < 50; i++) {
-          await ctx.db.insert("vectors", {
+          await insertVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -496,7 +497,7 @@ it.each(["first", "second"] as const)("removes views when their %s agreement wit
       await ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        vector,
+        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -541,7 +542,7 @@ it("reconsiders duplicate views across witness pages and restores them with clea
       return ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        vector,
+        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -642,7 +643,7 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
       await ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        vector,
+        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -699,7 +700,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
         await ctx.db.insert("feedback", {
           scanId,
           deviceId,
-          vector,
+          embeddingId: await ctx.db.insert("scanEmbeddings", { vector: vector }),
           modelVersion: model.modelVersion,
           venueId,
           rejectedObjectId: wrong.objectId,
@@ -808,7 +809,7 @@ it("removes every scan-owned vector across pages while preserving corpus vectors
   for (let page = 0; page < 3; page++) {
     await t.run(async (ctx) => {
       for (let i = 0; i < 25; i++) {
-        await ctx.db.insert("vectors", {
+        await insertVector(ctx, {
           objectId: work.objectId,
           scanId,
           partition: JSON.stringify([model.modelVersion, "established"]),
@@ -858,7 +859,7 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
     });
     const objectId = await publishContribution(ctx, (await ctx.db.get(contributionId))!);
     const object = (await ctx.db.get(objectId))!;
-    await ctx.db.insert("vectors", {
+    await insertVector(ctx, {
       objectId: work.objectId,
       scanId,
       partition: JSON.stringify([model.modelVersion, "established"]),

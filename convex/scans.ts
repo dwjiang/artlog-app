@@ -8,11 +8,12 @@ import { eligibleObject } from "./lib/recognitionEligibility";
 import { requireDevice } from "./lib/auth";
 import { isSupported } from "./lib/modelVersion";
 import { displayLabelFlow } from "./lib/labelVerify";
-import { docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from "./lib/validators";
+import { embedding, docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from "./lib/validators";
 import schema from "./schema";
+import { deleteEmbedding } from "./scanEmbeddings";
 
 const scanFields = schema.tables.scans.validator.fields;
-const displayCandidate = snapshotFields.extend({
+export const displayCandidate = snapshotFields.extend({
   objectId: v.id("objects"),
   artworkId: v.id("artworks"),
   probability: v.number(),
@@ -53,7 +54,7 @@ export const create = internalMutation({
     visitId: scanFields.visitId,
     gallery: scanFields.gallery,
     modelVersion: v.string(),
-    vector: scanFields.vector,
+    vector: embedding,
     capturedAt: v.number(),
   },
   returns: v.object({ scan: schema.doc("scans"), existing: v.boolean() }),
@@ -92,9 +93,12 @@ export const create = internalMutation({
     }
     if (existing && !restart) return { scan: existing, existing: true };
     const now = Date.now();
-    const { scope: _scope, ...scanArgs } = args;
+    const { scope: _scope, vector, ...scanArgs } = args;
+    if (existing) await deleteEmbedding(ctx, existing.embeddingId);
+    const embeddingId = await ctx.db.insert("scanEmbeddings", { vector });
     const fields = {
       ...scanArgs,
+      embeddingId,
       generation: existing ? existing.generation + 1 : 0,
       status: "pending" as const,
       createdAt: existing?.createdAt ?? now,
@@ -175,7 +179,7 @@ export const setResult = internalMutation({
   },
 });
 
-async function joinCandidate(
+export async function joinCandidate(
   ctx: QueryCtx,
   match: NonNullable<Doc<"scans">["best"]>,
   venueId?: Doc<"scans">["venueId"],

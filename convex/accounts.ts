@@ -1,3 +1,4 @@
+import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { ConvexError, v } from "convex/values";
 
 import { stableStringify } from "../shared/attestation/stable-stringify";
@@ -180,6 +181,7 @@ export const purgeJournal = internalMutation({
         });
         return null;
       }
+      await deleteSavedRecognition(ctx, save._id);
       await ctx.db.delete(save._id);
       await deleteUnreferencedCollectionPhotos(ctx, save);
     }

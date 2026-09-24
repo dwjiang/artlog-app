@@ -1,3 +1,5 @@
+import { requireEmbedding } from "./scanEmbeddings";
+import { insertVector } from "./lib/vectorStore";
 import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
@@ -257,12 +259,13 @@ export const reviewPlacement = internalMutation({
           reverted: false,
         });
         for (const scan of scans) {
-          validateVector(scan.vector);
-          await ctx.db.insert("vectors", {
+          const vector = await requireEmbedding(ctx, scan.embeddingId);
+          validateVector(vector);
+          await insertVector(ctx, {
             objectId,
             modelVersion: scan.modelVersion,
             source: "user_scan",
-            vector: scan.vector,
+            vector,
             partition: recognitionPartition(scan.modelVersion),
             scanId: scan._id,
             proposalId,

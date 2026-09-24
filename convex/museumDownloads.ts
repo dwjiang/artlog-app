@@ -1,3 +1,4 @@
+import { readVector } from "./lib/vectorStore";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, convexToJson, v, type Infer, type Value } from "convex/values";
 import model from "../shared/model/model-version.json";
@@ -186,7 +187,7 @@ export const readPage = internalQuery({
         )
         .take(32)) {
         if (vector.source !== "user_scan" && vector.source !== "user" && (await eligibleVector(ctx, vector))) {
-          vectors.push(vector.vector);
+          vectors.push(await readVector(ctx, vector));
         }
       }
       if (vectors.length) {

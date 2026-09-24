@@ -1,3 +1,4 @@
+import { insertVector, readVector } from "./lib/vectorStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -56,7 +57,7 @@ async function seedFeedback(
   return ctx.db.insert("feedback", {
     scanId,
     deviceId: row.deviceId,
-    vector: row.vector ?? testVector(0.9),
+    embeddingId: await ctx.db.insert("scanEmbeddings", { vector: row.vector ?? testVector(0.9) }),
     modelVersion: model.modelVersion,
     venueId: row.venueId,
     rejectedObjectId: row.rejectedObjectId,
@@ -118,7 +119,9 @@ describe("multi-view vectors from resolved rejections", () => {
     });
     await promote();
     const vectors = await userScanVectors();
-    expect(vectors).toMatchObject([
+    expect(
+      await Promise.all(vectors.map(async (row) => ({ ...row, vector: await t.run((ctx) => readVector(ctx, row)) }))),
+    ).toMatchObject([
       {
         objectId: work.objectId,
         modelVersion: model.modelVersion,
@@ -316,7 +319,7 @@ describe("multi-view paginated validation", () => {
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = batch * 50; i < (batch + 1) * 50; i++) {
-          await ctx.db.insert("vectors", {
+          await insertVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -385,6 +388,9 @@ describe("multi-view paginated validation", () => {
     expect((await t.run((ctx) => ctx.db.get(first)))?.multiViewAt).toBeUndefined();
     await add(carol.deviceId, testVector(0.7));
     await promoteGroup(t, work.objectId, venueId);
-    expect((await views()).map((row) => row.vector)).toEqual([testVector(0.9), testVector(0.7)]);
+    expect(await Promise.all((await views()).map((row) => t.run((ctx) => readVector(ctx, row))))).toEqual([
+      testVector(0.9),
+      testVector(0.7),
+    ]);
   });
 });

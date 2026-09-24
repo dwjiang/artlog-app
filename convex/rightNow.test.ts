@@ -63,14 +63,14 @@ function tavily(fixture: RightNowFixture) {
 
 async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museums">) {
   const now = Date.now();
-  return t.run((ctx) =>
+  return t.run(async (ctx) =>
     ctx.db.insert("scans", {
       deviceId,
       localId: crypto.randomUUID(),
       generation: 0,
       venueId,
       modelVersion: model.modelVersion,
-      vector: testVector(),
+      embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
       capturedAt: now,
       status: "identified",
       outcome: "confident",

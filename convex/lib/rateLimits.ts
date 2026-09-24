@@ -30,6 +30,8 @@ const limits = {
   correctFact: { kind: "fixed window", rate: 5, period: DAY },
   sync: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 10 },
   photoUpload: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
+  // Separate from `sync` so a backlog of saved scans cannot starve journal and album sync; capacity covers one client batch.
+  recognitionUpload: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 20 },
 } satisfies Record<string, RateLimitConfig>;
 
 export type RateLimitName = keyof typeof limits;

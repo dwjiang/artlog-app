@@ -1,3 +1,4 @@
+import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
 import { withErrorReporting } from "./lib/observability";
 import { ConvexError, type Infer, v } from "convex/values";
 
@@ -154,12 +155,13 @@ export const checkDuplicatePage = internalQuery({
         numItems: DUPLICATE_PAGE_SIZE,
         maximumBytesRead: DUPLICATE_PAGE_BYTES,
       });
-    return {
-      duplicate: page.page.some(
-        (row) => row.status !== "rejected" && cosine(row.vector, scan.vector) >= DUPLICATE_COSINE,
-      ),
-      cursor: page.isDone ? null : page.continueCursor,
-    };
+    const vector = await requireEmbedding(ctx, scan.embeddingId);
+    for (const row of page.page) {
+      if (row.status === "rejected") continue;
+      const previous = await readEmbedding(ctx, row.embeddingId);
+      if (previous && cosine(previous, vector) >= DUPLICATE_COSINE) return { duplicate: true, cursor: null };
+    }
+    return { duplicate: false, cursor: page.isDone ? null : page.continueCursor };
   },
 });
 
@@ -202,6 +204,7 @@ const authorizationResult = v.union(
   v.object({
     kind: v.literal("authorized"),
     scan: schema.doc("scans"),
+    vector: v.array(v.number()),
     previousContributionId: v.union(v.id("contributions"), v.null()),
   }),
 );
@@ -252,6 +255,7 @@ export const authorize = internalMutation({
     return {
       kind: "authorized",
       scan,
+      vector: await requireEmbedding(ctx, scan.embeddingId),
       previousContributionId: device.lastContributionId ?? null,
     };
   },
@@ -275,7 +279,7 @@ export const findGroupPage = internalQuery({
     const candidate = {
       venueId: scan.venueId,
       modelVersion: scan.modelVersion,
-      vector: scan.vector,
+      vector: await requireEmbedding(ctx, scan.embeddingId),
       fields: resolveFields(scan.labelFlow, fields),
     };
     const page = await ctx.db
@@ -373,11 +377,12 @@ export const commit = internalMutation({
       throw new ConvexError({ code: "crop_already_shared" });
     }
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId);
+    const vector = await requireEmbedding(ctx, scan.embeddingId);
     const contributionId = await ctx.db.insert("contributions", {
       deviceId: device._id,
       venueId: scan.venueId,
       scanId,
-      vector: scan.vector,
+      embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
       modelVersion: scan.modelVersion,
       orbStorageId: duplicate ? undefined : args.orbStorageId,
       orbSha256: duplicate ? undefined : args.orbSha256,
@@ -430,15 +435,15 @@ export const contribute = action({
         assertionBase64,
       });
       if (authorization.kind === "existing") return authorization.result;
-      const { scan } = authorization;
+      const { scan, vector } = authorization;
       let previousContributionId = authorization.previousContributionId;
-      const matches = await ctx.vectorSearch("vectors", "by_vector", {
-        vector: scan.vector,
+      const matches = await ctx.vectorSearch("embeddings", "by_vector", {
+        vector,
         limit: 3,
         filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion)),
       });
       const established = await ctx.runQuery(internal.identify.loadCandidates, {
-        vectorIds: matches.map((match) => match._id),
+        embeddingIds: matches.map((match) => match._id),
         scores: matches.map((match) => match._score),
         venueId: scan.venueId,
         now: Date.now(),

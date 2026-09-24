@@ -43,7 +43,6 @@ it("creates one pending scan per device and local capture id", async () => {
   });
   expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({
     status: "pending",
-    vector: args.vector,
   });
   const other = await seedDevice(t);
   expect(

@@ -7,6 +7,7 @@ import { internalQuery, mutation, type MutationCtx } from "./_generated/server";
 import { feedbackChanged } from "./feedbackReplay";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import schema from "./schema";
+import { requireEmbedding } from "./scanEmbeddings";
 import { requireAttestedWrite } from "./devices";
 import { proposePlacementFromScan } from "./placements";
 import { queueMultiView } from "./promotion";
@@ -67,10 +68,13 @@ export const rejectMatch = mutation({
     const flagged =
       rejectCount >= FLAG_MIN_REJECTIONS && rejectCount / (object.confirmCount + rejectCount) >= FLAG_REJECT_RATIO;
     const penaltyAdded = flagged ? PENALTY_STEP : 0;
+    const embeddingId = await ctx.db.insert("scanEmbeddings", {
+      vector: await requireEmbedding(ctx, scan.embeddingId),
+    });
     const feedbackId = await ctx.db.insert("feedback", {
       scanId,
       deviceId: device._id,
-      vector: scan.vector,
+      embeddingId,
       modelVersion: scan.modelVersion,
       venueId: scan.venueId,
       rejectedObjectId: objectId,

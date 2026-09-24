@@ -1,3 +1,4 @@
+import { syncSavedRecognition } from "./recognition-sync";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { addNetworkStateListener } from "expo-network";
@@ -30,7 +31,7 @@ let authToken: string | null = null;
 
 type Queue = {
   label: string;
-  operation: "sync.photos" | "sync.journal";
+  operation: "sync.photos" | "sync.journal" | "sync.recognition";
   run: (context: SyncContext, token: string, isCurrent: () => boolean) => Promise<void>;
   running: Promise<void> | null;
   requested: boolean;
@@ -99,6 +100,14 @@ const transfers: Queue = {
     );
   },
 };
+// Saved-scan uploads get their own queue too: flushCollectionMedia waits on transfers, never on this backlog.
+const recognition: Queue = {
+  label: "Saved scan upload",
+  operation: "sync.recognition",
+  running: null,
+  requested: false,
+  run: (context, _token, isCurrent) => syncSavedRecognition(context, isCurrent),
+};
 const sync: Queue = {
   label: "Collection sync",
   operation: "sync.journal",
@@ -119,7 +128,10 @@ const sync: Queue = {
       context,
       isCurrent,
     );
-    if (isCurrent()) schedule(transfers, 0);
+    if (isCurrent()) {
+      schedule(transfers, 0);
+      schedule(recognition, 0);
+    }
   },
 };
 
@@ -150,7 +162,7 @@ function scheduleSync(delay = 500): void {
 
 function stop(): void {
   generation++;
-  for (const queue of [sync, transfers]) {
+  for (const queue of [sync, transfers, recognition]) {
     clearTimeout(queue.timer);
     queue.timer = undefined;
   }

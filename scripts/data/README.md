@@ -133,6 +133,23 @@ Repeat the same command to resume. Changed inputs or a different deployment
 require a separate checkpoint. Imports upsert: existing rows remain, and
 different selections accumulate. Reports are written beside the checkpoint.
 
+Unchanged metadata, vector payloads, descriptor references, and zero penalties
+are not rewritten. Vector overlap checks read small identity rows. Each import
+verifies a deterministic 2% sample per source and stage, including actual vector
+and ORB bytes, and audits thumbnails for sampled objects. This is a sample, not
+proof that every stored row matches. The report records its fraction, timestamp,
+checked counts, and mismatches. A completed checkpoint reuses its successful
+verification; use a new checkpoint to verify the same inputs again.
+
+Use `--verify-fraction 1` for an explicit full readback, or another fraction in
+`(0, 1]`. A failed readback is not cached. Counts must still match the full
+baseline plus input overlap calculation.
+
+The vector schema now separates `vectors` identities from `embeddings` and
+`tentativeEmbeddings` payloads. Deploy to a fresh database, or reset and reseed
+the pre-release deployment before using it; old inline-vector rows are incompatible.
+Start a new import checkpoint after a reset.
+
 Full imports use `push --in "$SCRATCH_DIR/merged" --full` and require every shard
 from a full build; pilots and exported subsets are refused. The
 [full production upload](../../docs/todos/production-upload/README.md) remains deferred.

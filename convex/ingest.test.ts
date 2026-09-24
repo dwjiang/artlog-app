@@ -1,13 +1,23 @@
+import { insertVector, readVector } from "./lib/vectorStore";
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
 import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "convex/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
-import type { ActionCtx } from "./_generated/server";
-import { EXPORT_PAGE_SIZE, MAX_BATCH_ROWS, TRAINING_EXPORT_PAGE_SIZE, upsertDescriptors } from "./ingest";
+import type { ActionCtx, MutationCtx } from "./_generated/server";
+import {
+  upsertArtworks,
+  upsertObjects,
+  upsertPlacements,
+  setObjectPenalty,
+  EXPORT_PAGE_SIZE,
+  MAX_BATCH_ROWS,
+  TRAINING_EXPORT_PAGE_SIZE,
+  upsertDescriptors,
+} from "./ingest";
 import { loadOrb } from "./lib/orbStorage";
 import schema from "./schema";
 
@@ -92,6 +102,74 @@ async function errorData(promise: Promise<unknown>) {
   throw new Error("expected a ConvexError");
 }
 
+it("does not rewrite unchanged artwork, object, placement or zero-penalty rows", async () => {
+  const { t } = await seeded();
+  const placement = {
+    objectKey: metObject.key,
+    venueKey: met.key,
+    onView: true,
+    source: "feed" as const,
+    confidence: 1,
+  };
+  await t.mutation(internal.ingest.upsertPlacements, { rows: [placement] });
+  await t.run(async (ctx) => {
+    const patch = vi.spyOn(ctx.db, "patch");
+    const replace = vi.spyOn(ctx.db, "replace");
+    const insert = vi.spyOn(ctx.db, "insert");
+    for (const [fn, rows] of [
+      [upsertArtworks, [wheatField]],
+      [upsertObjects, [metObject]],
+      [upsertPlacements, [placement]],
+      [setObjectPenalty, [{ objectKey: metObject.key, calibratorPenalty: 0 }]],
+    ] as const) {
+      const handler = (fn as unknown as { _handler: (ctx: MutationCtx, args: { rows: unknown }) => Promise<unknown> })
+        ._handler;
+      await handler(ctx, { rows });
+    }
+    expect(patch).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+});
+
+it("reads only requested sample identities, including actual vector and ORB bytes", async () => {
+  const { t } = await seeded();
+  const row = {
+    objectKey: metObject.key,
+    source: "corpus" as const,
+    modelVersion: model.modelVersion,
+    viewKey: "met:alternate",
+    vector: vector(1),
+  };
+  await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
+  await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
+  expect(
+    await t.action(internal.ingest.readSample, {
+      table: "artworks",
+      rows: [{ key: wheatField.key }, { key: "missing" }],
+    }),
+  ).toEqual([wheatField, null]);
+  expect(await t.action(internal.ingest.readSample, { table: "objects", rows: [{ key: metObject.key }] })).toEqual([
+    metObject,
+  ]);
+  expect(
+    await t.action(internal.ingest.readSample, {
+      table: "vectors",
+      rows: [{ key: row.viewKey, viewKey: row.viewKey, source: row.source, modelVersion: row.modelVersion }],
+    }),
+  ).toEqual([row]);
+  expect(await t.action(internal.ingest.readSample, { table: "descriptors", rows: [{ key: metObject.key }] })).toEqual([
+    orbRow,
+  ]);
+  await expect(
+    t.query(internal.ingest.readSampleRows, {
+      table: "artworks",
+      rows: Array.from({ length: 33 }, () => ({ key: wheatField.key })),
+    }),
+  ).rejects.toMatchObject({ data: { code: "batch_too_large" } });
+});
+
 describe("calibrator training exports", () => {
   it("exports only the requested model, resolves merged views and retains sampling rights and penalties", async () => {
     const { t, objectId } = await seeded();
@@ -107,7 +185,7 @@ describe("calibrator training exports", () => {
         [objectId, "old"],
         [ids["met:alias"], model.modelVersion],
       ] as const) {
-        await ctx.db.insert("vectors", {
+        await insertVector(ctx, {
           partition: JSON.stringify([version, "established"]),
           objectId: id,
           modelVersion: version,
@@ -144,7 +222,7 @@ describe("calibrator training exports", () => {
     const { t, objectId } = await seeded();
     await t.run(async (ctx) => {
       for (let i = 0; i < TRAINING_EXPORT_PAGE_SIZE + 1; i++) {
-        await ctx.db.insert("vectors", {
+        await insertVector(ctx, {
           partition: JSON.stringify([model.modelVersion, "established"]),
           objectId,
           modelVersion: model.modelVersion,
@@ -411,7 +489,16 @@ describe("placements, vectors and descriptors", () => {
         .collect(),
     );
     expect(vectors).toHaveLength(2);
-    expect(vectors.find((vec) => vec.viewKey === "primary")?.vector[1]).toBe(vector(2)[1]);
+    expect(
+      (
+        await t.run((ctx) =>
+          readVector(
+            ctx,
+            vectors.find((vec) => vec.viewKey === "primary")!,
+          ),
+        )
+      )[1],
+    ).toBe(vector(2)[1]);
 
     expect(
       await errorData(
@@ -472,9 +559,30 @@ describe("placements, vectors and descriptors", () => {
           .collect(),
       );
       expect(vectors).toHaveLength(3);
-      expect(vectors.find((row) => row.viewKey === object.key)?.vector).toEqual(vector(2));
-      expect(vectors.find((row) => row.viewKey === `${object.key}:second`)?.vector).toEqual(vector(1));
-      expect(vectors.find((row) => row.viewKey === `${object.key}:third`)?.vector).toEqual(vector(1));
+      expect(
+        await t.run((ctx) =>
+          readVector(
+            ctx,
+            vectors.find((row) => row.viewKey === object.key)!,
+          ),
+        ),
+      ).toEqual(vector(2));
+      expect(
+        await t.run((ctx) =>
+          readVector(
+            ctx,
+            vectors.find((row) => row.viewKey === `${object.key}:second`)!,
+          ),
+        ),
+      ).toEqual(vector(1));
+      expect(
+        await t.run((ctx) =>
+          readVector(
+            ctx,
+            vectors.find((row) => row.viewKey === `${object.key}:third`)!,
+          ),
+        ),
+      ).toEqual(vector(1));
     }
   });
 
@@ -757,8 +865,22 @@ describe("corpus import invariants", () => {
         .collect(),
     );
     expect(stored).toHaveLength(2);
-    expect(stored.find((row) => row.viewKey === "met:1")?.vector).toEqual(vector(0));
-    expect(stored.find((row) => row.viewKey === "wikidata:Q1")?.vector).toEqual(vector(9));
+    expect(
+      await t.run((ctx) =>
+        readVector(
+          ctx,
+          stored.find((row) => row.viewKey === "met:1")!,
+        ),
+      ),
+    ).toEqual(vector(0));
+    expect(
+      await t.run((ctx) =>
+        readVector(
+          ctx,
+          stored.find((row) => row.viewKey === "wikidata:Q1")!,
+        ),
+      ),
+    ).toEqual(vector(9));
     expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   });
 

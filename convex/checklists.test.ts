@@ -196,7 +196,7 @@ it.each([
       ["2026-10-31T07:00:00Z", ownerId],
     ] as const) {
       const [candidate] = await t.query(internal.identify.loadCandidates, {
-        vectorIds: [vectorId],
+        embeddingIds: [(await t.run((ctx) => ctx.db.get(vectorId)))!.embeddingId],
         scores: [1],
         now: Date.parse(instant),
       });

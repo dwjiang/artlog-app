@@ -1,3 +1,5 @@
+import { deleteVector } from "./lib/vectorStore";
+import { deleteEmbedding } from "./scanEmbeddings";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -63,7 +65,7 @@ export const cleanupObjectPage = internalMutation({
           .query("vectors")
           .withIndex("by_objectId_modelVersion_source", (q) => q.eq("objectId", objectId))
           .paginate(options);
-        for (const row of page.page) await ctx.db.delete(row._id);
+        for (const row of page.page) await deleteVector(ctx, row);
         await bumpCounter(ctx, "vectors", -page.page.length);
         return page.isDone ? null : page.continueCursor;
       }
@@ -145,7 +147,7 @@ function paging(cursor: string | null) {
 async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
   const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
   if (vector) {
-    await ctx.db.delete(vector._id);
+    await deleteVector(ctx, vector);
     await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
       vectorId: vector._id,
       cursor: null,
@@ -502,12 +504,20 @@ export const cleanupScanVectors = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { scanId, jobId, cursor }) => {
+    const scan = await ctx.db.get(scanId);
+    if (scan) await deleteEmbedding(ctx, scan.embeddingId);
+    for (const feedback of await ctx.db
+      .query("feedback")
+      .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
+      .take(32)) {
+      await deleteEmbedding(ctx, feedback.embeddingId);
+    }
     const page = await ctx.db
       .query("vectors")
       .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
       .paginate(paging(cursor));
     for (const vector of page.page) {
-      await ctx.db.delete(vector._id);
+      await deleteVector(ctx, vector);
       await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
         vectorId: vector._id,
         cursor: null,

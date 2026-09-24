@@ -1,3 +1,5 @@
+import { readEmbedding } from "./scanEmbeddings";
+import { deleteVector, insertVector, readVector } from "./lib/vectorStore";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -102,6 +104,11 @@ async function applyMultiView(
     await ctx.db.patch(row._id, { multiViewAt: now });
     return done;
   }
+  const embedding = await readEmbedding(ctx, row.embeddingId);
+  if (!embedding) {
+    await ctx.db.patch(row._id, { multiViewAt: now });
+    return done;
+  }
   if (agreementIds.length !== 2) return stale;
   const devices = new Set<Id<"devices">>();
   for (const id of agreementIds) {
@@ -126,17 +133,23 @@ async function applyMultiView(
       q.eq("objectId", object._id).eq("modelVersion", row.modelVersion).eq("source", "user_scan"),
     )
     .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES });
-  const duplicate = page.page.find((vector) => cosine(vector.vector, row.vector) >= MULTI_VIEW_DUPLICATE_COSINE);
+  let duplicate: Doc<"vectors"> | undefined;
+  for (const vector of page.page) {
+    if (cosine(await readVector(ctx, vector), embedding) >= MULTI_VIEW_DUPLICATE_COSINE) {
+      duplicate = vector;
+      break;
+    }
+  }
   if (!duplicate && !page.isDone) {
     return { kind: "page", cursor: page.continueCursor };
   }
   const multiViewVectorId = duplicate
     ? undefined
-    : await ctx.db.insert("vectors", {
+    : await insertVector(ctx, {
         objectId: object._id,
         modelVersion: row.modelVersion,
         source: "user_scan",
-        vector: row.vector,
+        vector: embedding,
         partition: recognitionPartition(row.modelVersion),
         scanId: row.scanId,
         feedbackId: row._id,
@@ -328,7 +341,7 @@ export const replaceWitnesses = internalMutation({
     } else {
       const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
       if (vector) {
-        await ctx.db.delete(vector._id);
+        await deleteVector(ctx, vector);
         await bumpCounter(ctx, "vectors", -1);
         await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
           vectorId: vector._id,

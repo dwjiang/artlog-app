@@ -10,6 +10,7 @@
 - [Production release](todos/release/README.md)
 - [Hackathon submission](todos/hackathon/README.md)
 - [Full corpus upload](todos/production-upload/README.md) — deferred
+- [Upstash vector migration](../plans/001-upstash-vector-migration.md) — deferred; follows the Convex storage and import fixes
 - [Independent-evidence promotion](todos/independent-evidence-promotion/README.md) — deferred; tentative labels stay tentative in this release
 - [Hub scoring](todos/hub-scoring/README.md) — deferred
 - [Museum-search painting description](todos/museum-search-description/README.md) — deferred; re-add the vision-model query round once an NVIDIA vision endpoint exists
