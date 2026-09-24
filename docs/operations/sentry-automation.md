@@ -1,6 +1,6 @@
 # Scheduled Sentry fixes
 
-The **Sentry fixes** GitHub Actions workflow runs every 6 hours (03:00, 09:00, 15:00 and 21:00 America/Los_Angeles) once merged into `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
+The **Sentry fixes** GitHub Actions workflow runs every 4 hours (00:17, 04:17, 08:17, 12:17, 16:17 and 20:17 America/Los_Angeles) once merged into `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
 
 ## Setup
 
