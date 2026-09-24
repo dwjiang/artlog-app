@@ -22,7 +22,13 @@ export function WidgetDrawing({ layout, scale = 1 }: { layout: WidgetLayout; sca
         <View key={i} style={[position(rect), { backgroundColor: rect.color }]} />
       ))}
       {layout.image && (
-        <Image source={layout.image.uri} contentFit="contain" transition={0} style={position(layout.image)} />
+        <Image
+          cachePolicy="memory"
+          source={layout.image.uri}
+          contentFit="contain"
+          transition={0}
+          style={position(layout.image)}
+        />
       )}
       {layout.texts.map((row, i) => (
         <Text

@@ -19,6 +19,8 @@ import { convex } from "@/lib/convex-client";
 import { installationStorage } from "@/lib/installation-storage";
 import { DeviceIdentity } from "@/lib/device-identity";
 import { warmUpEmbedder } from "@/lib/embed/embedder";
+import { limitImageCache } from "@/lib/image-cache";
+import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
 import { QueueFlusher } from "@/lib/queue/use-queue";
 import { VenueResolver } from "@/lib/venue/use-venue";
@@ -34,10 +36,12 @@ export const unstable_settings = {
 
 function RootLayout() {
   useEffect(warmUpEmbedder, []);
+  useEffect(limitImageCache, []);
   return (
     <>
       <AppDiagnostics />
       <DatabaseGate>
+        <PhotoMaintenance />
         <ConvexAuthProvider client={convex} storage={installationStorage}>
           <DeviceIdentity />
           <CollectionSync />

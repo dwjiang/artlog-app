@@ -30,14 +30,16 @@ const mockWarning = jest.fn();
 const mockVenueIdAt = jest.fn();
 const mockResolveVenue = jest.fn();
 const mockImageLoad = jest.fn();
+const mockShrinkLibraryPhoto = jest.fn();
 const mockRelease = jest.fn();
+const mockRemoveCameraTempFile = jest.fn();
 let mockReachable: boolean | undefined = true;
 
 jest.mock("@/lib/venue/visit-sync", () => ({ resolveScanVisit: jest.fn() }));
 jest.mock("convex/react", () => ({ useAction: () => mockIdentify }));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("expo-image", () => ({
-  Image: { loadAsync: (...args: unknown[]) => mockImageLoad(...args) },
+jest.mock("@/lib/files/local-image", () => ({
+  loadLocalImage: (...args: unknown[]) => mockImageLoad(...args),
 }));
 jest.mock("@/lib/venue/use-venue", () => ({
   resolveVenueForScan: (...args: unknown[]) => mockResolveVenue(...args),
@@ -52,6 +54,12 @@ jest.mock("expo-haptics", () => ({
 jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(),
   launchImageLibraryAsync: (...args: unknown[]) => mockPicker(...args),
+}));
+jest.mock("@/lib/files/kept-photos", () => ({
+  shrinkLibraryPhoto: (...args: unknown[]) => mockShrinkLibraryPhoto(...args),
+}));
+jest.mock("@/lib/files/camera-temp", () => ({
+  removeCameraTempFile: (...args: unknown[]) => mockRemoveCameraTempFile(...args),
 }));
 jest.mock("./pipeline", () => ({
   runCapture: (...args: unknown[]) => mockPipeline(...args),
@@ -86,6 +94,7 @@ const input: CaptureInput = {
 beforeEach(() => {
   jest.resetAllMocks();
   mockReachable = true;
+  mockShrinkLibraryPhoto.mockImplementation(async (uri: string) => uri);
   mockWarning.mockResolvedValue(undefined);
   mockPermission.mockResolvedValue({
     granted: false,
@@ -157,7 +166,8 @@ it("shows retake guidance without navigating", async () => {
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
-it("imports despite denied library access without requesting permission and preserves EXIF capture time", async () => {
+it("imports a kept-size copy despite denied library access, without requesting permission, and preserves EXIF capture time", async () => {
+  mockShrinkLibraryPhoto.mockResolvedValue("file:///library-kept.jpg");
   mockPicker.mockResolvedValue({
     canceled: false,
     assets: [
@@ -178,8 +188,9 @@ it("imports despite denied library access without requesting permission and pres
     exif: true,
     quality: 1,
   });
+  expect(mockShrinkLibraryPhoto).toHaveBeenCalledWith("file:///library.jpg");
   expect(mockPipeline.mock.calls[0][0]).toEqual({
-    photoUri: "file:///library.jpg",
+    photoUri: "file:///library-kept.jpg",
     quad: null,
     source: "library",
     capturedAt: new Date(2020, 0, 2, 3, 4, 5).getTime(),
@@ -666,4 +677,66 @@ it("reports an unavailable visit before taking the photo instead of assigning th
   expect(onVisitUnavailable).toHaveBeenCalledTimes(1);
   expect(hook.result.current.state.message).toContain("This visit is no longer available.");
   expect(hook.result.current.state.rearm).toBe("shutter");
+});
+
+it.each(["retake", "error", "queued", "sent"])("releases the camera temporary file after %s", async (outcome) => {
+  mockPipeline.mockImplementation(async () => {
+    if (outcome === "error") throw new Error("Processing failed");
+    return { kind: outcome, timings: { total: 1 } };
+  });
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.capture(async () => input);
+  });
+  expect(mockRemoveCameraTempFile).toHaveBeenCalledWith(input.photoUri);
+});
+
+it("cleans a photo delivered after leaving the screen without starting processing", async () => {
+  let finish!: (input: CaptureInput) => void;
+  const photo = new Promise<CaptureInput>((resolve) => {
+    finish = resolve;
+  });
+  const hook = await renderHook(useCapture);
+  let pending: Promise<void> | undefined;
+  await act(async () => {
+    pending = hook.result.current.capture(() => photo);
+  });
+  await hook.unmount();
+  await act(async () => {
+    finish(input);
+    await pending;
+  });
+  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(mockRemoveCameraTempFile).toHaveBeenCalledWith(input.photoUri);
+});
+
+it("waits for processing to settle before cleaning an abandoned capture", async () => {
+  let finish!: (result: CaptureResult) => void;
+  mockPipeline.mockReturnValue(
+    new Promise<CaptureResult>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const hook = await renderHook(useCapture);
+  let pending: Promise<void> | undefined;
+  await act(async () => {
+    pending = hook.result.current.capture(async () => input);
+  });
+  await hook.unmount();
+  expect(mockRemoveCameraTempFile).not.toHaveBeenCalled();
+  await act(async () => {
+    finish({ kind: "queued", localId: "id", timings: { total: 1 } });
+    await pending;
+  });
+  expect(mockRemoveCameraTempFile).toHaveBeenCalledWith(input.photoUri);
+});
+
+it("keeps a rejected library image available for its retry preview", async () => {
+  mockPipeline.mockResolvedValue({ kind: "retake", message: "Retry", timings: { total: 1 } });
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.capture(async () => ({ ...input, source: "library" }));
+  });
+  expect(mockRemoveCameraTempFile).not.toHaveBeenCalled();
+  expect(hook.result.current.presentation?.photoUri).toBe(input.photoUri);
 });

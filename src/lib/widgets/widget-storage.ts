@@ -1,10 +1,10 @@
 import { Asset } from "expo-asset";
 import { digestStringAsync, CryptoDigestAlgorithm } from "expo-crypto";
 import { Directory, File } from "expo-file-system";
-import { Image } from "expo-image";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { widgetsDirectory } from "expo-widgets";
 import { captureFileUri } from "@/lib/files/photos";
+import { loadLocalImage } from "@/lib/files/local-image";
 import { artlogWidget } from "./artlog-widget";
 import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 import { widgetPresentation, type WidgetPresentation } from "./widget-layout";
@@ -42,14 +42,11 @@ export async function prepareWidgetArtwork(
         /* Rebuild incomplete cached metadata from the original photo. */
       }
     }
-    let loaded: Awaited<ReturnType<typeof Image.loadAsync>> | undefined;
+    let loaded: Awaited<ReturnType<typeof loadLocalImage>> | undefined;
     let context: ReturnType<typeof ImageManipulator.manipulate> | undefined;
     let image: Awaited<ReturnType<ReturnType<typeof ImageManipulator.manipulate>["renderAsync"]>> | undefined;
     try {
-      loaded = await Image.loadAsync(source.uri, {
-        maxWidth: 1024,
-        maxHeight: 1024,
-      });
+      loaded = await loadLocalImage(source.uri, 1024);
       if (!loaded.width || !loaded.height) continue;
       context = ImageManipulator.manipulate(loaded);
       image = await context.renderAsync();

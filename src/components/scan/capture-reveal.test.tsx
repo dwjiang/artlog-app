@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import type { ImageRef } from "expo-image";
+import type { ImageRef } from "expo-image-manipulator";
 import type { CapturePresentation } from "@/lib/capture/use-capture";
 import {
   CaptureReveal,

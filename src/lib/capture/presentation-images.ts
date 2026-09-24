@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/observability";
-import { Image, type ImageRef } from "expo-image";
+import type { ImageRef } from "expo-image-manipulator";
+import { loadLocalImage } from "@/lib/files/local-image";
 
 export const PRESENTATION_LOAD_TIMEOUT_MS = 1500;
 
@@ -12,7 +13,7 @@ export class PresentationImages {
     let expired = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const loading = Promise.resolve()
-      .then(() => Image.loadAsync(uri, { maxWidth: 2048, maxHeight: 2048 }))
+      .then(() => loadLocalImage(uri, 2048))
       .then((image) => {
         if (this.released || expired) {
           image.release();

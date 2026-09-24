@@ -38,6 +38,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
       ) : (
         <Image
           source={uri}
+          cachePolicy={uri.startsWith("file:") ? "memory" : "disk"}
           accessibilityLabel={label}
           contentFit={contentFit}
           style={StyleSheet.absoluteFill}

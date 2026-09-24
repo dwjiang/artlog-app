@@ -24,6 +24,7 @@ export function CaptureCompletion({
     <>
       {!!completion.photoPaths[0] && (
         <Image
+          cachePolicy="memory"
           source={{ uri: captureFileUri(completion.photoPaths[0]) }}
           contentFit="contain"
           style={{ width: "100%", height: 220, backgroundColor: Gallery.fill }}

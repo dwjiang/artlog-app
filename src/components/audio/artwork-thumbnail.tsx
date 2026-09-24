@@ -16,7 +16,12 @@ export function ArtworkThumbnail({ uri, size = 44 }: { uri?: string; size?: numb
       }}
     >
       {uri ? (
-        <Image source={uri} contentFit="cover" style={{ width: "100%", height: "100%" }} />
+        <Image
+          source={uri}
+          cachePolicy={uri.startsWith("file:") ? "memory" : "disk"}
+          contentFit="cover"
+          style={{ width: "100%", height: "100%" }}
+        />
       ) : (
         <AudioIcon name="photo" color={Gallery.muted} />
       )}

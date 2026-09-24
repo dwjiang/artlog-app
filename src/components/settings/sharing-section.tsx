@@ -177,6 +177,7 @@ function ContributionPhoto({ scanId }: { scanId: NonNullable<Contribution["scanI
   const capture = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]).data[0];
   return (
     <Image
+      cachePolicy="memory"
       source={capture?.cropPath ? { uri: captureFileUri(capture.cropPath) } : "sf:photo"}
       contentFit="contain"
       style={{ width: 64, height: 64, backgroundColor: Gallery.fill }}

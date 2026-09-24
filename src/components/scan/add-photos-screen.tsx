@@ -26,6 +26,7 @@ import {
 } from "@/lib/capture/photo-draft";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { visitForSave } from "@/lib/venue/use-venue";
+import { keepPhotos, shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { captureFileUri, persistArtworkPhoto } from "@/lib/files/photos";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
@@ -162,7 +163,7 @@ function PhotoSession({
       for (const { uri, capturedAt } of sources) {
         if (!session.isOwnerCurrent()) return;
         const localId = randomUUID(),
-          path = await persistArtworkPhoto(uri, localId);
+          path = await persistArtworkPhoto(source === "library" ? await shrinkLibraryPhoto(uri) : uri, localId);
         if (!session.isOwnerCurrent()) return;
         // Each recognition check is a full identify round trip; past the cap, full views wait for the user's confirmation instead.
         const check = kind === "full" && checks < MAX_CHECKS_PER_BATCH;
@@ -242,6 +243,7 @@ function PhotoSession({
           owner,
         );
         clearPhotoDraft(owner, draftId);
+        void keepPhotos(photos);
         setCompletion({
           savedId,
           title: title || "Unidentified artwork",
@@ -315,6 +317,7 @@ function PhotoSession({
         visit?.localId,
         owner,
       );
+      void keepPhotos([photo]);
       update(photos.filter((row) => row.localId !== photo.localId));
       setSelected(undefined);
     } catch (error) {

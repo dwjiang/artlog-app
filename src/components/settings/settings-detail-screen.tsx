@@ -9,6 +9,7 @@ import { AccountSection } from "./account-section";
 import { DevTools } from "./dev-tools";
 import { GeneralPreference } from "./general-preference";
 import { LeaderboardPreference } from "./leaderboard-preference";
+import { PhotoLibraryPreference } from "./photo-library-preference";
 import { PrivacySection } from "./privacy-section";
 import { ContributionsScreen } from "./sharing-section";
 import { VisitPreference } from "./visit-preference";
@@ -79,7 +80,12 @@ export function SettingsDetailScreen({ section }: { section: string }) {
           </GroupedSection>
         )}
         {section === "account" && <AccountSection />}
-        {section === "general" && <GeneralPreference />}
+        {section === "general" && (
+          <>
+            <GeneralPreference />
+            <PhotoLibraryPreference />
+          </>
+        )}
         {section === "visits" && <VisitPreference />}
         {section === "leaderboards" && <LeaderboardPreference onManage={() => setSheet("participation")} />}
         {section === "developer" && __DEV__ && (

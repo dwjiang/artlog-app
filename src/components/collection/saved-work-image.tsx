@@ -49,6 +49,7 @@ export function SavedWorkImage({
     >
       {path && failedPath !== path ? (
         <Image
+          cachePolicy="memory"
           source={captureFileUri(path)}
           contentFit={contain ? "contain" : "cover"}
           onLoad={({ source }) => {

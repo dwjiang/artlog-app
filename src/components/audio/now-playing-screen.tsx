@@ -94,6 +94,7 @@ export function NowPlayingScreen() {
       {work.imageUri ? (
         <Image
           source={work.imageUri}
+          cachePolicy={work.imageUri.startsWith("file:") ? "memory" : "disk"}
           contentFit="contain"
           style={{ width: "100%", height: "100%" }}
           accessible
