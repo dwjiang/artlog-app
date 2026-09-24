@@ -4,7 +4,7 @@ import { contributionPayload } from "../shared/attestation/attested-payloads";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from "../shared/orb/features";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, type MutationCtx } from "./_generated/server";
 import { removeContribution } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
 import { decodeQuery } from "./identify";
@@ -33,7 +33,6 @@ export const DUPLICATE_COSINE = 0.995;
 // The phone resizes the contribution crop to ≤ 256 px JPEG; anything larger is not a crop.
 export const MAX_CROP_BYTES = 200 * 1024;
 const CROP_CONTENT_TYPE = "image/jpeg";
-const MAX_LISTED = 200;
 const DUPLICATE_PAGE_SIZE = 64;
 const DUPLICATE_PAGE_BYTES = 1024 * 1024;
 const MAX_COMMIT_ATTEMPTS = 3;
@@ -57,19 +56,6 @@ const contributionResult = v.object({
   reason: v.optional(contributionRejectedReason),
 });
 type ContributionResult = Infer<typeof contributionResult>;
-
-const contributionSummary = v.object({
-  contributionId: v.id("contributions"),
-  status: contributionFields.status,
-  rejectedReason: contributionFields.rejectedReason,
-  venueId: contributionFields.venueId,
-  scanId: contributionFields.scanId,
-  fields: contributionFields.fields,
-  evidence: contributionFields.evidence,
-  wikidataId: contributionFields.wikidataId,
-  indexedObjectId: contributionFields.indexedObjectId,
-  createdAt: contributionFields.createdAt,
-});
 
 export const requestCropUpload = mutation({
   args: {},
@@ -522,30 +508,5 @@ export const withdraw = mutation({
     }
     await removeContribution(ctx, row, "withdrawn");
     return null;
-  },
-});
-
-export const mine = query({
-  args: {},
-  returns: v.array(contributionSummary),
-  handler: async (ctx) => {
-    const device = await requireDevice(ctx);
-    const rows = await ctx.db
-      .query("contributions")
-      .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
-      .order("desc")
-      .take(MAX_LISTED);
-    return rows.map((row) => ({
-      contributionId: row._id,
-      status: row.status,
-      rejectedReason: row.rejectedReason,
-      venueId: row.venueId,
-      scanId: row.scanId,
-      fields: row.fields,
-      evidence: row.evidence,
-      wikidataId: row.wikidataId,
-      indexedObjectId: row.indexedObjectId,
-      createdAt: row.createdAt,
-    }));
   },
 });

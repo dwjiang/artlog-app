@@ -144,7 +144,6 @@ export function SettingsScreen() {
         {account?.linked && (
           <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push("/public-notes")} />
         )}
-        <SettingsRow label="Contributions" icon="person.2" onPress={detail("contributions")} />
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
