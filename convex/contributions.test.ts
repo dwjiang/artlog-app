@@ -184,7 +184,6 @@ describe("contribute", () => {
       deviceId: user.deviceId,
       venueId,
       scanId,
-      vector: testVector(),
       keypointCount: pair.query.count,
       cropStorageId,
       status: "tentative",
@@ -197,6 +196,8 @@ describe("contribute", () => {
         date: { value: "1916", edited: false, evidence: "ocr" },
       },
     });
+    expect(row).not.toHaveProperty("vector");
+    expect((await t.run((ctx) => ctx.db.get(row.embeddingId)))!.vector).toEqual(testVector());
     expect(row).not.toHaveProperty("descriptors");
     expect(row).not.toHaveProperty("keypoints");
     expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
@@ -784,13 +785,13 @@ describe("immediate tentative recognition", () => {
         trustWeight: 0.5,
       });
       const visitor = await seedDevice(t);
-      const identify = (museum?: Id<"museums">) =>
+      const identify = async (museum?: Id<"museums">) =>
         visitor.as.action(api.identify.identify, {
           scope: visitor.scope,
           localId: crypto.randomUUID(),
           venueId: museum,
           capturedAt: Date.now(),
-          vector: shared.row.vector,
+          vector: (await t.run((ctx) => ctx.db.get(shared.row.embeddingId)))!.vector,
           ...features,
           modelVersion: model.modelVersion,
         });
@@ -848,7 +849,9 @@ describe("immediate tentative recognition", () => {
       reason: "duplicate",
     });
     // Another device replaying the second backer’s photo is the same view, not a third one.
-    const replay = await shareAs(t, venueId, { vector: second.row.vector });
+    const replay = await shareAs(t, venueId, {
+      vector: (await t.run((ctx) => ctx.db.get(second.row.embeddingId)))!.vector,
+    });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
     expect(await t.run((ctx) => ctx.storage.get(replay.cropStorageId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.query("vectors").collect())).toHaveLength(2);
@@ -963,7 +966,7 @@ describe("immediate tentative recognition", () => {
           .collect(),
       );
       const candidates = await t.query(internal.identify.loadCandidates, {
-        vectorIds: vectors.map((row) => row._id),
+        embeddingIds: vectors.map((row) => row.embeddingId),
         scores: vectors.map(() => 1),
         venueId,
         now: Date.now(),
@@ -1013,7 +1016,7 @@ describe("immediate tentative recognition", () => {
     );
     const candidates = () =>
       t.query(internal.identify.loadCandidates, {
-        vectorIds: [vector!._id],
+        embeddingIds: [vector!.embeddingId],
         scores: [1],
         venueId,
         now: Date.now(),
@@ -1070,7 +1073,7 @@ describe("precise contribution removal", () => {
       }
       const vectors = await t.run((ctx) => ctx.db.query("vectors").collect());
       const during = await t.query(internal.identify.loadCandidates, {
-        vectorIds: vectors.map((row) => row._id),
+        embeddingIds: vectors.map((row) => row.embeddingId),
         scores: vectors.map(() => 1),
         venueId,
         now: Date.now(),
@@ -1273,4 +1276,23 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
   expect(await t.run((ctx) => ctx.db.get(theirs.row.indexedObjectId!))).toMatchObject({
     reverted: false,
   });
+});
+
+it("groups a second view with a published contribution, rejects its replay, and deletes a withdrawn view's payloads", async () => {
+  vi.useFakeTimers();
+  vi.stubEnv("ALLOW_SIMULATOR_DEVICES", "true");
+  const t = harness();
+  const venueId = await t.run((ctx) => seedMuseum(ctx));
+  const first = await shareAs(t, venueId, { vector: testVector(0.9) });
+  const second = await shareAs(t, venueId, { vector: testVector(0.95) });
+  expect(second.status).toBe("tentative");
+  expect(second.row.indexedObjectId).toBe(first.row.indexedObjectId);
+  const replay = await shareAs(t, venueId, { vector: testVector(0.9) });
+  expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
+  await second.user.as.mutation(api.contributions.withdraw, { contributionId: second.contributionId });
+  expect(await t.run((ctx) => ctx.db.get(second.row.embeddingId))).toBeNull();
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const remaining = await t.run((ctx) => ctx.db.query("vectors").collect());
+  expect(remaining).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("tentativeEmbeddings").collect())).toHaveLength(1);
 });

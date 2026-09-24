@@ -26,7 +26,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
         scanId: scans[who],
         deviceId,
         rejectedObjectId: work.objectId,
-        vector: testVector(),
+        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
         modelVersion: model.modelVersion,
         venueId,
         score: 1,

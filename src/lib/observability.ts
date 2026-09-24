@@ -53,6 +53,9 @@ const expectedCodes = new Set([
   "label_unverified",
   "field_mismatch",
   "invalid_scan",
+  "recognition_unavailable",
+  "recognition_model_retired",
+  "saved_artwork_changed",
 ]);
 const reported = new WeakSet<object>();
 const recent = new Map<string, number>();

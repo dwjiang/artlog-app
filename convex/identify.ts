@@ -23,6 +23,8 @@ import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
 import { proposePlacementFromScan } from "./placements";
 import { scanDisplay, type ScanDisplay } from "./scans";
+import { readEmbedding } from "./scanEmbeddings";
+import { embedding } from "./lib/validators";
 import schema from "./schema";
 
 const loadedCandidate = v.object({
@@ -43,19 +45,22 @@ export type LoadedCandidate = Infer<typeof loadedCandidate> & {
 
 export const loadCandidates = internalQuery({
   args: {
-    vectorIds: v.array(v.id("vectors")),
+    embeddingIds: v.array(v.union(v.id("embeddings"), v.id("tentativeEmbeddings"))),
     scores: v.array(v.number()),
     venueId: v.optional(v.id("museums")),
     now: v.number(),
   },
   returns: v.array(loadedCandidate),
-  handler: async (ctx, { vectorIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
-    if (vectorIds.length !== scores.length || vectorIds.length > 32) {
+  handler: async (ctx, { embeddingIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
+    if (embeddingIds.length !== scores.length || embeddingIds.length > 32) {
       throw new ConvexError({ code: "bad_candidates" });
     }
     const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
-    for (let i = 0; i < vectorIds.length; i++) {
-      const vector = await ctx.db.get(vectorIds[i]);
+    for (let i = 0; i < embeddingIds.length; i++) {
+      const vector = await ctx.db
+        .query("vectors")
+        .withIndex("by_embeddingId", (q) => q.eq("embeddingId", embeddingIds[i]))
+        .unique();
       if (!vector || !(await eligibleVector(ctx, vector))) continue;
       let object = await ctx.db.get(vector.objectId);
       if (!object || object.reverted) continue;
@@ -100,13 +105,14 @@ export const loadCandidates = internalQuery({
 
 export const loadContext = internalQuery({
   args: { scanId: v.id("scans") },
-  returns: v.object({ visit: v.union(schema.doc("visits"), v.null()) }),
+  returns: v.object({ visit: v.union(schema.doc("visits"), v.null()), vector: embedding }),
   handler: async (ctx, { scanId }) => {
     const scan = await ctx.db.get(scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
-    const [visit, device] = await Promise.all([
+    const [visit, device, vector] = await Promise.all([
       scan.visitId ? ctx.db.get(scan.visitId) : null,
       ctx.db.get(scan.deviceId),
+      readEmbedding(ctx, scan.embeddingId),
     ]);
     if (!device || device.banned) {
       throw new ConvexError({ code: "device_banned" });
@@ -117,7 +123,8 @@ export const loadContext = internalQuery({
     ) {
       throw new ConvexError({ code: "not_found" });
     }
-    return { visit };
+    if (!vector) throw new ConvexError({ code: "scan_not_found" });
+    return { visit, vector };
   },
 });
 
@@ -169,27 +176,32 @@ function candidateSignals(scored: ScoredCandidate<LoadedCandidate>[], verificati
   });
 }
 
-async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): Promise<ScanDisplay> {
+export async function matchArtwork(
+  ctx: ActionCtx,
+  input: {
+    vector: number[];
+    modelVersion: string;
+    venueId?: Id<"museums">;
+    query: OrbFeatures;
+    visit?: Pick<Doc<"visits">, "lastConfidentGallery" | "lastConfidentAt">;
+  },
+) {
   const search = (venueId?: Id<"museums">) =>
-    ctx.vectorSearch("vectors", "by_vector", {
-      vector: scan.vector,
+    ctx.vectorSearch(venueId ? "tentativeEmbeddings" : "embeddings", "by_vector", {
+      vector: input.vector,
       limit: MAX_CANDIDATES,
-      filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion, venueId)),
+      filter: (q) => q.eq("partition", recognitionPartition(input.modelVersion, venueId)),
     });
-  const [established, tentative] = await Promise.all([search(), scan.venueId ? search(scan.venueId) : []]);
+  const [established, tentative] = await Promise.all([search(), input.venueId ? search(input.venueId) : []]);
   const now = Date.now();
   const load = (matches: typeof established) =>
     ctx.runQuery(internal.identify.loadCandidates, {
-      vectorIds: matches.map((match) => match._id),
+      embeddingIds: matches.map((match) => match._id),
       scores: matches.map((match) => match._score),
-      venueId: scan.venueId,
+      venueId: input.venueId,
       now,
     });
-  const [establishedCandidates, tentativeCandidates, context] = await Promise.all([
-    load(established),
-    load(tentative),
-    ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
-  ]);
+  const [establishedCandidates, tentativeCandidates] = await Promise.all([load(established), load(tentative)]);
   const candidates = [...establishedCandidates, ...tentativeCandidates];
   const references = [establishedCandidates, tentativeCandidates].flatMap((group) =>
     group.filter((candidate) => candidate.orbStorageId !== undefined).slice(0, MAX_ORB_VERIFICATIONS),
@@ -200,10 +212,10 @@ async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): 
     }),
   );
   const { decision, verifications } = runPipeline({
-    query,
+    query: input.query,
     candidates,
-    venueId: scan.venueId,
-    visit: context.visit ?? undefined,
+    venueId: input.venueId,
+    visit: input.visit,
     now,
     inputSize: model.inputSize,
   });
@@ -215,10 +227,23 @@ async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): 
         objectId: top.candidate.object._id,
         artworkId: top.candidate.artwork._id,
         probability: top.probability,
-        gallery: top.candidate.placement?.venueId === scan.venueId ? top.candidate.placement?.gallery : undefined,
+        gallery: top.candidate.placement?.venueId === input.venueId ? top.candidate.placement?.gallery : undefined,
         corners: verification?.verified ? (verification.corners ?? undefined) : undefined,
       }
     : undefined;
+  return { decision, verifications, best };
+}
+
+async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): Promise<ScanDisplay> {
+  const { visit, vector } = await ctx.runQuery(internal.identify.loadContext, { scanId: scan._id });
+  const { decision, verifications, best } = await matchArtwork(ctx, {
+    vector,
+    modelVersion: scan.modelVersion,
+    venueId: scan.venueId,
+    query,
+    visit: visit ?? undefined,
+  });
+  const top = decision.best;
   await ctx.runMutation(internal.scans.setResult, {
     scanId: scan._id,
     generation: scan.generation,

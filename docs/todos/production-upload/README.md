@@ -137,7 +137,7 @@ Starter spike, or treat its Pro assumptions as established capacity.
 **Gate:** proceed only within the user's accepted cost envelope. Prepare concrete
 costs before requesting any additional paid plan/limit change. Never purchase an
 upgrade or raise limits silently. Stop if current capacity cannot support the
-import, full readback, and continued serving within that envelope.
+import, sampled readback, and continued serving within that envelope.
 
 Create an import-only production key after this gate. Keep it in a private
 temporary directory outside the durable data archive; do not print it or use
@@ -178,45 +178,35 @@ reimport all museums, or reset `ingestCounters`. If an approved repair changes
 the directory, regenerate/publish the SQLite using `export_asset` and
 `publish_asset`, and verify downloaded bytes and **production** IDs.
 
-For `readback`, implement these bounded checks, with no all-corpus ORB list or
-cache of every response page in memory:
+For `readback`, reuse `pipeline.push.verify_sample` and the internal
+`ingest:readSample` action. Default to fraction `0.02`, sampled deterministically
+by natural identity within each source and stage. Do not export the entire
+vector index or every ORB file for routine verification.
 
-1. Paginate raw `artworks`, `objects`, `placements`, `vectors`, and `descriptors`
-   via an admin one-off **query** (`/api/run_test_function`) so natural identities
-   and stored fields are visible. Use `numItems: 500`, `maximumBytesRead: 3000000`,
-   and advancing cursors. Define a single static query accepting a table enum and
-   cursor as args; import `query` from `convex:/_system/repl/wrappers.js`. The
-   request envelope has `adminKey`, `args`, `bundle: {path, source}`, and
-   `format: 'convex_encoded_json'`; send admin authorization only to the fixed
-   production host. If this installed API is unavailable, revise the plan for
-   an equivalent bounded administrative export, not a public bypass endpoint.
-2. Compare every corpus metadata field. Resolve `artworkKey`, `ownerKey`,
-   `mergedIntoKey`, and placement keys through the **production** ID maps.
-   Require direct surviving merge targets and zero missing or duplicate keys.
-3. Match vectors by `(modelVersion, source, viewKey)`, with the correct canonical
-   object ID. Hash `np.asarray(vector, dtype='<f8').tobytes()` on both sides;
-   compare every view, including aliases' alternate views. Handle unrelated
-   pre-existing rows separately using baseline/overlap evidence; don't delete
-   them or silently count them as corpus views.
-4. For each canonical object's descriptor row, compare `keypointCount`,
-   `inputSize`, and `extractedFrom` against its selected local `viewKey`.
-   Page `ingest:exportDescriptors` to read stored bytes. Compare both byte arrays
-   and SHA-256 of `descriptors + keypoints` against the stored `sha256`. Keep only
-   a page of ORB bytes in memory; record missing, duplicated, or corrupt files.
-5. Compare independently counted raw rows with `ingest:counts` and the import
-   checkpoint's expected totals. Verify zero corpus `calibratorPenalty` values
-   and zero violations from the paginated `ingest:auditThumbnails` query.
-6. Write `readback-audit.json` only after all stages finish. Include deployment,
-   input fingerprint, matched counts, actual/expected counters, mismatch counts,
-   elapsed time, and `complete: true`. On failure persist progress with
-   `complete: false` and a bounded diagnostic; do not label a partial pass complete.
+1. Revalidate local corpus fingerprints, deployment selection, baseline/overlap,
+   expected counters, and completed import offsets before issuing sample requests.
+2. Request only selected identities, at most 32 per batch. Compare metadata,
+   resolved natural-key references, every coordinate of selected vector views,
+   and both selected ORB byte arrays against the local shards. Missing or
+   mismatched samples fail the audit. Multi-view identities include `viewKey`.
+3. Check `ingest:counts` against the checkpoint's full expected totals. The sample
+   includes zero penalties and targeted thumbnail-rights auditing; it does not
+   claim an independent full-table count or prove every row is correct.
+4. Write `readback-audit.json` with deployment, input fingerprint, sampling
+   fraction, verification timestamp, per-stage checked counts and mismatches,
+   actual/expected counters, and `complete: true` only when all selected checks
+   pass. Mark `coverage: sampled`; retain failures with `complete: false`.
+5. A new readback audit runs the sample once. A resumed importer may reuse its
+   completed checkpoint's timestamped verification. On a failed sample,
+   investigate the affected source/stage; an explicit `--verify-fraction 1`
+   requests a full readback. Re-estimate traffic before increasing coverage.
 
 Use existing `push_test.py` fake-writer fixtures for the new script's tests.
 Cover a valid multiview/alias corpus, an omitted alternate view, a dangling
 museum/object reference, a corrupt vector/ORB byte, count drift, repeated cursors,
 and preservation of unrelated baseline rows. Assert preflight/readback make no
-mutations and a wrong target is rejected before any request. This is meaningful
-auditor coverage; the existing importer does not need to be rewritten.
+mutations and a wrong target is rejected before any request. The importer already implements sampled readback; reuse its contract instead
+of creating a second all-corpus export path.
 
 **Verify** from `scripts/data/`:
 
@@ -299,8 +289,8 @@ PY
 
 ## Step 5: Verify the database, search index, and recognition
 
-Run the complete bounded readback once; include its traffic in the cost estimate.
-Do not repeat an entire multi-GB readback without a changed input, failure, or
+Run the deterministic 2% readback once; include its traffic in the cost estimate.
+Do not expand it to a multi-GB readback without a changed input, failure, or
 specific unresolved concern.
 
 ```sh
@@ -308,9 +298,9 @@ specific unresolved concern.
 uv run python audit-production-corpus.py --mode readback --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
 ```
 
-Expected: exit 0, `complete: true`, 402,139 embedding views and 397,047 ORB files
-byte-matched, 409,973 corpus objects checked for zero penalties, every metadata
-reference correct, and independently counted rows equal the importer totals.
+Expected: exit 0, `complete: true`, `coverage: sampled`, fraction `0.02`, no
+sampled metadata/vector/ORB/penalty/rights mismatches, and full expected counters
+equal the importer totals. Unsampled payloads have not been read back.
 
 Confirm the live vector index is ready in the dashboard and save its state in
 `index-status.json`; committed rows alone do not prove search is ready. Record
@@ -383,7 +373,7 @@ with `npm run ios`. No extra app build is needed for documentation alone.
 - [ ] Local full-corpus fingerprint and counts match step 1.
 - [ ] Live production preflight has zero missing museum keys.
 - [ ] Every stage offset equals its full input count; the report has `countsMatch: true` and zero thumbnail violations.
-- [ ] Complete readback matches all corpus metadata, references, 402,139 vector views, and 397,047 ORB byte payloads.
+- [ ] Deterministic 2% readback passes for every source/stage, including sampled metadata/references/vector/ORB payloads; full expected counters match and the report explicitly records sampled coverage.
 - [ ] Search index is ready; known and newly added objects pass the public API smoke checks with `lr-v2`.
 - [ ] Actual DB/search/file storage and usage are recorded within the accepted envelope.
 - [ ] Focused verification-script tests, Ruff, TypeScript, lint, and diff checks pass.

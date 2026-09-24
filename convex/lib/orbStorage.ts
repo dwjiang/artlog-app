@@ -57,7 +57,11 @@ export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: Id<"_
     .query("contributions")
     .withIndex("by_orbStorageId", (q) => q.eq("orbStorageId", storageId))
     .first();
-  if (!descriptor && !contribution && (await ctx.db.system.get("_storage", storageId))) {
+  const saved = await ctx.db
+    .query("savedRecognition")
+    .withIndex("by_orbStorageId", (q) => q.eq("orbStorageId", storageId))
+    .first();
+  if (!descriptor && !contribution && !saved && (await ctx.db.system.get("_storage", storageId))) {
     await ctx.storage.delete(storageId);
   }
 }

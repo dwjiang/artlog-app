@@ -1,3 +1,4 @@
+import { mergeSavedRecognition } from "./lib/savedRecognition";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { invalidateDeletedSave } from "./lib/publicationAccess";
 import { ConvexError, v } from "convex/values";
@@ -291,6 +292,7 @@ export const merge = mutation({
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
+      await mergeSavedRecognition(ctx, source._id, target._id);
       await ctx.db.patch(source._id, {
         deletedAt: Date.now(),
         updatedAt: Date.now(),

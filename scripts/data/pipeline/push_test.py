@@ -12,6 +12,7 @@ from pipeline.push import (
     Corpus,
     main,
     run,
+    sample_indices,
     select_objects,
 )
 from pipeline.sources.fetch import write_json
@@ -22,6 +23,8 @@ class Writer:
         self.calls = []
         self.fail = fail
         self.stored = {stage: set() for stage in STAGES}
+        self.values = {stage: {} for stage in STAGES}
+        self.readbacks = []
         self.after_commit = False
 
     def query(self, name, args=None):
@@ -34,7 +37,7 @@ class Writer:
             )
         if name == "ingest:auditThumbnails":
             return {
-                "checked": len(self.stored["objects"]),
+                "checked": len(args["objectKeys"]),
                 "violations": 0,
                 "isDone": True,
                 "continueCursor": "",
@@ -42,6 +45,12 @@ class Writer:
         raise AssertionError(name)
 
     def action(self, name, args):
+        if name == "ingest:readSample":
+            self.readbacks.append(args)
+            return [
+                self.values[args["table"]].get(json.dumps(row, sort_keys=True))
+                for row in args["rows"]
+            ]
         assert name == "ingest:upsertDescriptors"
         return self._write(name, args)
 
@@ -59,6 +68,9 @@ class Writer:
             json.dumps(Corpus.identity(stage, row), sort_keys=True): "id" for row in args["rows"]
         }
         self.stored[stage].update(ids)
+        self.values[stage].update(
+            {json.dumps(Corpus.identity(stage, row), sort_keys=True): row for row in args["rows"]}
+        )
         if self.fail == stage:
             self.fail = None
             raise RuntimeError("response lost after commit")
@@ -203,6 +215,9 @@ def test_export_refuses_to_overwrite_an_existing_directory(merged_corpus, tmp_pa
     "flags",
     [
         ["--limit", "0"],
+        ["--verify-fraction", "0"],
+        ["--verify-fraction", "nan"],
+        ["--verify-fraction", "1.1"],
         ["--limit", "-1"],
         ["--limit", "5", "--full"],
         ["--full", "--export", "sample"],
@@ -363,3 +378,45 @@ def test_system_operation_timeout_reduces_batch_and_replays_without_skipping(mer
     assert attempts == [500, 250, 250, 3]
     assert result["countsMatch"]
     assert result["stages"]["objects"]["batchSize"] == 250
+
+
+def test_readback_samples_each_source_and_does_not_repeat_on_resume(merged_corpus):
+    directory = merged_corpus(1002)
+    corpus = Corpus(directory)
+    writer = Writer()
+    report = push(directory, writer)
+    assert report["readback"]["matches"]
+    assert report["readback"]["stages"]["vectors"]["checked"] < 30
+    assert {
+        corpus.rows["vectors"][i]["viewKey"].split(":")[0]
+        for i in sample_indices(corpus, "vectors", 0.02)
+    } == {"met", "wikidata"}
+    assert all(len(call["rows"]) <= 32 for call in writer.readbacks)
+    before = len(writer.readbacks)
+    push(directory, writer)
+    assert len(writer.readbacks) == before
+    full = run(
+        corpus,
+        writer,
+        checkpoint=directory / "push.json",
+        deployment_url="https://dev.test",
+        verify_fraction=1,
+    )
+    assert full["readback"]["stages"]["vectors"]["checked"] == len(corpus.rows["vectors"])
+
+
+@pytest.mark.parametrize("stage", STAGES)
+def test_readback_detects_corruption_without_rewriting_on_resume(merged_corpus, stage):
+    directory = merged_corpus()
+    writer = Writer()
+    push(directory, writer)
+    state = json.loads((directory / "push.json").read_text())
+    state.pop("verification")
+    write_json(directory / "push.json", state)
+    writer.values[stage].clear()
+    before = len(writer.calls)
+    with pytest.raises(RuntimeError, match="Import audit failed"):
+        push(directory, writer)
+    assert len(writer.calls) == before
+    assert not json.loads((directory / "push.report.json").read_text())["readback"]["matches"]
+    assert "verification" not in json.loads((directory / "push.json").read_text())

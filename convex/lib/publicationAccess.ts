@@ -1,3 +1,4 @@
+import { deleteSavedRecognition } from "./savedRecognition";
 import { ConvexError } from "convex/values";
 import { sameOwner } from "../../shared/journal/contracts";
 import { LIMITS } from "../../shared/journal/limits";
@@ -51,6 +52,7 @@ export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<"collectio
   }
 }
 export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collections">): Promise<void> {
+  await deleteSavedRecognition(ctx, save._id);
   await invalidateWallSave(ctx, save._id);
   const photos = await ctx.db
     .query("artworkPhotos")

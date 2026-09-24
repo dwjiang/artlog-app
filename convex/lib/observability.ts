@@ -47,6 +47,9 @@ const expectedCodes = new Set([
   "sync_scope_changed",
   "claim_required",
   "invalid_scan",
+  "recognition_unavailable",
+  "recognition_model_retired",
+  "saved_artwork_changed",
   "invalid_venue",
   "bad_features",
   "bad_vector",
@@ -77,6 +80,7 @@ const diagnosticCodes = new Set([
   "attest_unconfigured",
   "apple_unconfigured",
   "orb_file_missing",
+  "vector_payload_missing",
   "bad_candidates",
 ]);
 const errorTypes = new Set([

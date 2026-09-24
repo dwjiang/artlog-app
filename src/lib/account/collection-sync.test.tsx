@@ -11,6 +11,8 @@ import {
 } from "./collection-sync";
 import { SyncUnavailableError } from "@/lib/network-error";
 import { requestCollectionSync } from "./sync-events";
+const mockRecognition = jest.fn();
+jest.mock("./recognition-sync", () => ({ syncSavedRecognition: (...args: unknown[]) => mockRecognition(...args) }));
 jest.mock("./album-sync", () => ({ syncArtworkAlbums: async () => {} }));
 
 const mockSync = jest.fn();
@@ -67,6 +69,7 @@ jest.mock("@/lib/observability", () => ({
 beforeEach(() => {
   jest.useFakeTimers();
   mockSync.mockReset().mockResolvedValue(undefined);
+  mockRecognition.mockReset().mockResolvedValue(undefined);
   mockPhotos.mockReset().mockResolvedValue(undefined);
   mockClaim.mockReset().mockResolvedValue({ claimId: null, complete: true });
   mockReportError.mockReset();
@@ -254,6 +257,32 @@ it("reports a failed owner persistence without exposing the owner or stopping th
   await tick();
   expect(mockReportError).toHaveBeenCalledWith(failure, "sync.persist_owner");
   expect(mockSync).toHaveBeenCalledTimes(1);
+});
+
+it("uploads saved scans on their own queue, so media flushes never wait for them and failures retry alone", async () => {
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  let failUpload!: (error: Error) => void;
+  mockRecognition.mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        failUpload = reject;
+      }),
+  );
+  await render(<CollectionSync />);
+  await tick();
+  await tick();
+  expect(mockRecognition).toHaveBeenCalledTimes(1);
+  expect(mockPhotos).toHaveBeenCalledTimes(1);
+  mockPending = true;
+  await expect(flushCollectionMedia({ photoLocalIds: ["photo"] })).resolves.toBeUndefined();
+  expect(mockPhotos).toHaveBeenCalledTimes(2);
+  const failure = new Error("Network request failed");
+  await act(async () => failUpload(failure));
+  expect(mockReportError).toHaveBeenCalledWith(failure, "sync.recognition");
+  await act(() => jest.advanceTimersByTimeAsync(29_000));
+  expect(mockRecognition).toHaveBeenCalledTimes(1);
+  await act(() => jest.advanceTimersByTimeAsync(1_000));
+  expect(mockRecognition).toHaveBeenCalledTimes(2);
 });
 
 it("keeps a linked scope across a token refresh but suspends it again when the account scope changes", async () => {

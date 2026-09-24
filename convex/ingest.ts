@@ -1,6 +1,7 @@
 // The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // scripts/data/pipeline in the same PR.
+import { insertVector, readVector, replaceVector } from "./lib/vectorStore";
 import { withErrorReporting } from "./lib/observability";
 import { validateGeography } from "../shared/social/contracts";
 import { ConvexError, type Infer, v } from "convex/values";
@@ -18,9 +19,9 @@ import { multiplicity, objectSource, placementSource, rightsStatus, seedSource }
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
-export const TRAINING_EXPORT_PAGE_SIZE = 500;
 // Bound vector reads and exported ORB bytes as well as row counts.
 const TRAINING_EXPORT_BYTES = 5_000_000;
+export const TRAINING_EXPORT_PAGE_SIZE = Math.min(500, Math.floor(TRAINING_EXPORT_BYTES / (model.embeddingDim * 8)));
 
 const museumRow = v.object({
   key: v.string(),
@@ -98,6 +99,22 @@ const penaltyRow = v.object({
   calibratorPenalty: v.number(),
 });
 
+const importTable = v.union(
+  v.literal("artworks"),
+  v.literal("objects"),
+  v.literal("placements"),
+  v.literal("vectors"),
+  v.literal("descriptors"),
+  v.literal("penalties"),
+);
+const importIdentity = v.object({
+  key: v.string(),
+  venueKey: v.optional(v.string()),
+  modelVersion: v.optional(v.string()),
+  source: v.optional(v.string()),
+  viewKey: v.optional(v.string()),
+});
+
 const countsShape = {
   museums: v.number(),
   artworks: v.number(),
@@ -134,6 +151,15 @@ async function findByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: str
     .withIndex("by_key", (q) => q.eq("key", key))
     .unique();
   return doc as Doc<T> | null;
+}
+
+function fieldsChanged(existing: object, fields: object): boolean {
+  return Object.entries(fields).some(([key, value]) => (existing as Record<string, unknown>)[key] !== value);
+}
+
+function documentChanged(existing: { _id: unknown; _creationTime: number }, fields: object): boolean {
+  const { _id, _creationTime, ...stored } = existing;
+  return fieldsChanged(stored, fields) || fieldsChanged(fields, stored);
 }
 
 async function requireByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: string) {
@@ -179,7 +205,7 @@ export const upsertMuseums = internalMutation({
       };
       const existing = await findByKey(ctx, "museums", row.key);
       if (existing) {
-        await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("museums", {
@@ -218,7 +244,7 @@ export const upsertArtworks = internalMutation({
       };
       const existing = await findByKey(ctx, "artworks", row.key);
       if (existing) {
-        await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("artworks", fields);
@@ -263,7 +289,7 @@ export const upsertObjects = internalMutation({
       };
       const existing = await findByKey(ctx, "objects", row.key);
       if (existing) {
-        await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("objects", {
@@ -314,7 +340,7 @@ export const upsertPlacements = internalMutation({
         .unique();
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
       if (existing) {
-        await ctx.db.replace(existing._id, doc);
+        if (documentChanged(existing, doc)) await ctx.db.replace(existing._id, doc);
         ids[naturalKey] = existing._id;
       } else {
         ids[naturalKey] = await ctx.db.insert("placements", doc);
@@ -359,10 +385,10 @@ export const upsertVectors = internalMutation({
         .unique();
       const naturalKey = `${row.modelVersion}|${row.source}|${row.viewKey}`;
       if (existing) {
-        await ctx.db.replace(existing._id, doc);
+        await replaceVector(ctx, existing, doc);
         ids[naturalKey] = existing._id;
       } else {
-        ids[naturalKey] = await ctx.db.insert("vectors", doc);
+        ids[naturalKey] = await insertVector(ctx, doc);
         inserted += 1;
       }
     }
@@ -435,7 +461,7 @@ export const commitDescriptors = internalMutation({
         .unique();
       const doc = { objectId: object._id, ...reference };
       if (existing) {
-        await ctx.db.replace(existing._id, doc);
+        if (documentChanged(existing, doc)) await ctx.db.replace(existing._id, doc);
         ids[objectKey] = existing._id;
         if (existing.storageId !== reference.storageId) {
           replaced.push(existing.storageId);
@@ -531,9 +557,9 @@ export const setObjectPenalty = internalMutation({
     const ids: Record<string, Id<"objects">> = {};
     for (const row of rows) {
       const object = await requireByKey(ctx, "objects", row.objectKey);
-      await ctx.db.patch(object._id, {
-        calibratorPenalty: row.calibratorPenalty,
-      });
+      if (object.calibratorPenalty !== row.calibratorPenalty) {
+        await ctx.db.patch(object._id, { calibratorPenalty: row.calibratorPenalty });
+      }
       ids[row.objectKey] = object._id;
     }
     return { ids };
@@ -646,7 +672,7 @@ export const exportVectors = internalQuery({
       if (!artwork) continue;
       page.push({
         vectorId: row._id,
-        vector: row.vector,
+        vector: await readVector(ctx, row),
         object: {
           objectId: object._id,
           key: object.key,
@@ -745,18 +771,25 @@ export const exportDescriptors = internalAction({
 });
 
 export const auditThumbnails = internalQuery({
-  args: { cursor: v.optional(v.string()) },
+  args: { cursor: v.optional(v.string()), objectKeys: v.optional(v.array(v.string())) },
   returns: v.object({
     checked: v.number(),
     violations: v.number(),
     continueCursor: v.string(),
     isDone: v.boolean(),
   }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query("objects")
-      .withIndex("by_key")
-      .paginate({ cursor: cursor ?? null, numItems: 500 });
+  handler: async (ctx, { cursor, objectKeys }) => {
+    if (objectKeys) checkBatch(objectKeys);
+    const page = objectKeys
+      ? {
+          page: await Promise.all(objectKeys.map((key) => requireByKey(ctx, "objects", key))),
+          isDone: true,
+          continueCursor: "",
+        }
+      : await ctx.db
+          .query("objects")
+          .withIndex("by_key")
+          .paginate({ cursor: cursor ?? null, numItems: 500 });
     let violations = 0;
     for (const object of page.page) {
       if (object.thumbnailUrl !== undefined) {
@@ -851,4 +884,128 @@ export const countExisting = internalQuery({
     }
     return count;
   },
+});
+
+function pickFields<T extends object, F extends Record<string, unknown>>(
+  row: T,
+  fields: F,
+): Pick<T, Extract<keyof T, keyof F>> {
+  return Object.fromEntries(
+    Object.keys(fields)
+      .filter((key) => row[key as keyof T] !== undefined)
+      .map((key) => [key, row[key as keyof T]]),
+  ) as Pick<T, Extract<keyof T, keyof F>>;
+}
+
+const sampleArgs = { table: importTable, rows: v.array(importIdentity) };
+const storedSample = v.array(
+  v.union(v.null(), artworkRow, objectRow, placementRow, vectorRow, descriptorReference, penaltyRow),
+);
+
+// Only the selected natural keys are read; a sample never pages through the corpus.
+export const readSampleRows = internalQuery({
+  args: sampleArgs,
+  returns: storedSample,
+  handler: async (ctx, { table, rows }): Promise<Infer<typeof storedSample>> => {
+    if (rows.length > 32) throw new ConvexError({ code: "batch_too_large", max: 32 });
+    const result: Infer<typeof storedSample> = [];
+    for (const row of rows) {
+      if (table === "artworks") {
+        const artwork = await findByKey(ctx, "artworks", row.key);
+        result.push(artwork ? pickFields(artwork, artworkRow.fields) : null);
+        continue;
+      }
+      if (table === "vectors") {
+        if (!row.modelVersion || row.source !== "corpus" || !row.viewKey) {
+          throw new ConvexError({ code: "bad_vector_identity" });
+        }
+        const vector = await ctx.db
+          .query("vectors")
+          .withIndex("by_modelVersion_source_viewKey", (q) =>
+            q.eq("modelVersion", row.modelVersion!).eq("source", "corpus").eq("viewKey", row.viewKey),
+          )
+          .unique();
+        const object = vector ? await ctx.db.get(vector.objectId) : null;
+        result.push(
+          vector && object
+            ? {
+                objectKey: object.key,
+                modelVersion: vector.modelVersion,
+                source: "corpus" as const,
+                viewKey: vector.viewKey!,
+                vector: await readVector(ctx, vector),
+              }
+            : null,
+        );
+        continue;
+      }
+      const object = await findByKey(ctx, "objects", row.key);
+      if (!object) {
+        result.push(null);
+        continue;
+      }
+      if (table === "objects") {
+        const artwork = await ctx.db.get(object.artworkId);
+        const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
+        const mergedInto = object.mergedInto ? await ctx.db.get(object.mergedInto) : null;
+        result.push(
+          artwork
+            ? {
+                ...pickFields(object, objectRow.fields),
+                artworkKey: artwork.key,
+                ownerKey: owner?.key,
+                mergedIntoKey: mergedInto?.key,
+              }
+            : null,
+        );
+      } else if (table === "penalties") {
+        result.push({ objectKey: object.key, calibratorPenalty: object.calibratorPenalty });
+      } else if (table === "descriptors") {
+        const descriptor = await ctx.db
+          .query("descriptors")
+          .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
+          .unique();
+        result.push(
+          descriptor ? { ...pickFields(descriptor, descriptorReference.fields), objectKey: object.key } : null,
+        );
+      } else {
+        const venue = row.venueKey ? await findByKey(ctx, "museums", row.venueKey) : null;
+        const placement = venue
+          ? await ctx.db
+              .query("placements")
+              .withIndex("by_object_venue_source", (q) =>
+                q
+                  .eq("objectId", object._id)
+                  .eq("venueId", venue._id)
+                  .eq("source", row.source as Doc<"placements">["source"]),
+              )
+              .unique()
+          : null;
+        result.push(
+          placement && venue
+            ? { ...pickFields(placement, placementRow.fields), objectKey: object.key, venueKey: venue.key }
+            : null,
+        );
+      }
+    }
+    return result;
+  },
+});
+
+const readback = v.array(v.union(v.null(), artworkRow, objectRow, placementRow, vectorRow, descriptorRow, penaltyRow));
+export const readSample = internalAction({
+  args: sampleArgs,
+  returns: readback,
+  handler: (ctx, args): Promise<Infer<typeof readback>> =>
+    withErrorReporting("ingest.readSample", async () => {
+      const rows = await ctx.runQuery(internal.ingest.readSampleRows, args);
+      const result = [];
+      for (const row of rows) {
+        if (row && "storageId" in row) {
+          const { storageId, sha256: _sha256, ...fields } = row;
+          result.push({ ...fields, ...(await loadOrb(ctx, storageId, row.keypointCount)) });
+        } else result.push(row);
+      }
+      return result;
+    }),
 });

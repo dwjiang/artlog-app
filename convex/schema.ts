@@ -194,7 +194,35 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_status_readyForReview", ["status", "readyForReview"]),
 
+  embeddings: defineTable({ vector: embedding, partition: v.string() }).vectorIndex("by_vector", {
+    vectorField: "vector",
+    dimensions: model.embeddingDim,
+    filterFields: ["partition"],
+  }),
+  tentativeEmbeddings: defineTable({ vector: embedding, partition: v.string() }).vectorIndex("by_vector", {
+    vectorField: "vector",
+    dimensions: model.embeddingDim,
+    filterFields: ["partition"],
+  }),
+  scanEmbeddings: defineTable({ vector: embedding }),
+
+  savedRecognition: defineTable({
+    saveId: v.id("collections"),
+    sourceLocalId: v.string(),
+    modelVersion: v.string(),
+    vector: embedding,
+    orbStorageId: v.id("_storage"),
+    keypointCount: v.number(),
+    attempt: v.number(),
+    saveUpdatedAt: v.optional(v.number()),
+    candidateIds: v.array(v.id("objects")),
+  })
+    .index("by_saveId", ["saveId"])
+    .index("by_orbStorageId", ["orbStorageId"]),
+
   vectors: defineTable({
+    embeddingId: v.union(v.id("embeddings"), v.id("tentativeEmbeddings")),
+    contentHash: v.string(),
     partition: v.string(),
     contributionId: v.optional(v.id("contributions")),
     scanId: v.optional(v.id("scans")),
@@ -204,13 +232,8 @@ export default defineSchema({
     modelVersion: v.string(),
     source: vectorSource,
     viewKey: v.optional(v.string()),
-    vector: embedding,
   })
-    .vectorIndex("by_vector", {
-      vectorField: "vector",
-      dimensions: model.embeddingDim,
-      filterFields: ["partition"],
-    })
+    .index("by_embeddingId", ["embeddingId"])
     .index("by_objectId_modelVersion_source", ["objectId", "modelVersion", "source"])
     .index("by_modelVersion_source_viewKey", ["modelVersion", "source", "viewKey"])
     .index("by_contributionId", ["contributionId"])
@@ -299,7 +322,7 @@ export default defineSchema({
     deviceId: v.id("devices"),
     venueId: v.id("museums"),
     scanId: v.optional(v.id("scans")),
-    vector: embedding,
+    embeddingId: v.id("scanEmbeddings"),
     modelVersion: v.string(),
     orbStorageId: v.optional(v.id("_storage")),
     orbSha256: v.optional(v.string()),
@@ -337,7 +360,7 @@ export default defineSchema({
   feedback: defineTable({
     scanId: v.id("scans"),
     deviceId: v.id("devices"),
-    vector: embedding,
+    embeddingId: v.id("scanEmbeddings"),
     modelVersion: v.string(),
     venueId: v.optional(v.id("museums")),
     rejectedObjectId: v.id("objects"),
@@ -458,7 +481,7 @@ export default defineSchema({
     visitId: v.optional(v.id("visits")),
     gallery: v.optional(v.string()),
     modelVersion: v.string(),
-    vector: embedding,
+    embeddingId: v.id("scanEmbeddings"),
     capturedAt: v.number(),
     status: scanStatus,
     calibratorVersion: v.optional(v.string()),

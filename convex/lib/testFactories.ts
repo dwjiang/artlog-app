@@ -1,3 +1,4 @@
+import { insertVector } from "./vectorStore";
 import model from "../../shared/model/model-version.json";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
@@ -98,7 +99,7 @@ export async function seedArtworkWithObject(
     ownerId: options.placement?.venueId,
     ...options.object,
   });
-  const vectorId = await ctx.db.insert("vectors", {
+  const vectorId = await insertVector(ctx, {
     partition: JSON.stringify([options.modelVersion ?? model.modelVersion, "established"]),
     objectId,
     modelVersion: options.modelVersion ?? model.modelVersion,
@@ -121,28 +122,31 @@ export async function seedArtworkWithObject(
       ...options.placement,
     });
   }
-  return { artworkId, objectId, vectorId };
+  const embeddingId = (await ctx.db.get(vectorId))!.embeddingId;
+  return { artworkId, objectId, vectorId, embeddingId };
 }
 
 export async function seedScan(
   ctx: MutationCtx,
   overrides: Partial<Omit<Doc<"scans">, "_id" | "_creationTime">> & {
     deviceId: Id<"devices">;
+    vector?: number[];
   },
 ): Promise<Id<"scans">> {
   const now = Date.now();
+  const { vector = testVector(), ...fields } = overrides;
   return ctx.db.insert("scans", {
     localId: crypto.randomUUID(),
     generation: 0,
     modelVersion: model.modelVersion,
-    vector: testVector(),
+    embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
     capturedAt: now,
     status: "identified",
     outcome: "miss",
     calibratorVersion: "lr-v1",
     createdAt: now,
     updatedAt: now,
-    ...overrides,
+    ...fields,
   });
 }
 
@@ -151,6 +155,7 @@ export async function seedContribution(
   overrides: Partial<Omit<Doc<"contributions">, "_id" | "_creationTime">> & {
     deviceId: Id<"devices">;
     venueId: Id<"museums">;
+    vector?: number[];
     descriptors?: ArrayBuffer;
     keypoints?: ArrayBuffer;
   },
@@ -158,11 +163,12 @@ export async function seedContribution(
   const {
     descriptors = new ArrayBuffer((overrides.keypointCount ?? 0) * 32),
     keypoints = new ArrayBuffer((overrides.keypointCount ?? 0) * 16),
+    vector = testVector(),
     ...fields
   } = overrides;
   const orb = await storeOrb(ctx, descriptors, keypoints);
   return ctx.db.insert("contributions", {
-    vector: testVector(),
+    embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
     modelVersion: model.modelVersion,
     orbStorageId: orb.storageId,
     orbSha256: orb.sha256,

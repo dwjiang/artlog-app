@@ -1,3 +1,4 @@
+import { readVector } from "./lib/vectorStore";
 import { afterEach, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -188,7 +189,7 @@ it("approving a move closes active placements elsewhere and preserves ownership,
   expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(before);
   expect(
     await t.query(internal.identify.loadCandidates, {
-      vectorIds: [(await t.run((ctx) => ctx.db.query("vectors").first()))!._id],
+      embeddingIds: [(await t.run((ctx) => ctx.db.query("vectors").first()))!.embeddingId],
       scores: [1],
       now: NOW + DAY,
     }),
@@ -234,11 +235,15 @@ it.each(["multiple", "unknown"] as const)(
         .collect(),
     );
     expect(
-      vectors.map(({ source, vector, modelVersion }) => ({
-        source,
-        vector,
-        modelVersion,
-      })),
+      await t.run(async (ctx) =>
+        Promise.all(
+          vectors.map(async (row) => ({
+            source: row.source,
+            vector: await readVector(ctx, row),
+            modelVersion: row.modelVersion,
+          })),
+        ),
+      ),
     ).toEqual([
       {
         source: "user_scan",
@@ -252,7 +257,7 @@ it.each(["multiple", "unknown"] as const)(
       },
     ]);
     const candidates = await t.query(internal.identify.loadCandidates, {
-      vectorIds: [vectors[0]._id],
+      embeddingIds: [vectors[0].embeddingId],
       scores: [0.99],
       now: NOW + DAY,
     });
@@ -742,7 +747,7 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
       scanId: scan._id,
       deviceId: scan.deviceId,
       venueId: scan.venueId,
-      vector: scan.vector,
+      embeddingId: await ctx.db.insert("scanEmbeddings", { vector: (await ctx.db.get(scan.embeddingId))!.vector }),
       modelVersion: scan.modelVersion,
       rejectedObjectId: objectId,
       score: 0.9,
@@ -906,7 +911,7 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
           scanId,
           deviceId: scan.deviceId,
           venueId: scan.venueId,
-          vector: scan.vector,
+          embeddingId: await ctx.db.insert("scanEmbeddings", { vector: (await ctx.db.get(scan.embeddingId))!.vector }),
           modelVersion: scan.modelVersion,
           rejectedObjectId: rejected.objectId,
           score: 0.9,
