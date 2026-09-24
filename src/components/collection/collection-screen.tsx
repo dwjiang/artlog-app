@@ -1,9 +1,9 @@
 import { useNetworkState } from "expo-network";
 import { ThemedText as Text } from "@/components/themed-text";
 import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -119,6 +119,57 @@ function OwnedCollection({
       )}
     </>
   );
+  const collection = (
+    <CollectionSection key="collection" shown={mode === "collection"}>
+      {guest ? (
+        <CollectionArtworks
+          {...data}
+          search={artworkSearch}
+          onClearSearch={() => setArtworkSearch("")}
+          onRetry={onRetry}
+          header={header}
+          controls={
+            <View style={{ backgroundColor: Gallery.paper }}>
+              {controls}
+              {data.works.length > 0 && (
+                <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
+                  <CollectionSearchField
+                    filled
+                    showLabel={false}
+                    value={artworkSearch}
+                    label="Search your artworks"
+                    placeholder="Title, artist, date or place"
+                    onChange={setArtworkSearch}
+                    onClear={() => setArtworkSearch("")}
+                  />
+                </View>
+              )}
+            </View>
+          }
+        />
+      ) : (
+        <CollectionWall
+          works={data.works}
+          hiddenIds={data.hiddenIds}
+          onEditingChange={setEditing}
+          header={header}
+          controls={controls}
+        />
+      )}
+    </CollectionSection>
+  );
+  const visits = (
+    <CollectionSection key="visits" shown={mode === "visits"}>
+      <CollectionVisits
+        {...data}
+        header={header}
+        collectionControls={controls}
+        search={search}
+        onSearchChange={setSearch}
+        clearSearch={() => setSearch("")}
+      />
+    </CollectionSection>
+  );
   return (
     <SafeAreaView
       edges={["top"]}
@@ -128,53 +179,22 @@ function OwnedCollection({
         paddingBottom: editing ? 0 : dockInset,
       }}
     >
-      <View style={{ flex: 1, display: mode === "collection" ? "flex" : "none" }}>
-        {guest ? (
-          <CollectionArtworks
-            {...data}
-            search={artworkSearch}
-            onClearSearch={() => setArtworkSearch("")}
-            onRetry={onRetry}
-            header={header}
-            controls={
-              <View style={{ backgroundColor: Gallery.paper }}>
-                {controls}
-                {data.works.length > 0 && (
-                  <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
-                    <CollectionSearchField
-                      filled
-                      showLabel={false}
-                      value={artworkSearch}
-                      label="Search your artworks"
-                      placeholder="Title, artist, date or place"
-                      onChange={setArtworkSearch}
-                      onClear={() => setArtworkSearch("")}
-                    />
-                  </View>
-                )}
-              </View>
-            }
-          />
-        ) : (
-          <CollectionWall
-            works={data.works}
-            hiddenIds={data.hiddenIds}
-            onEditingChange={setEditing}
-            header={header}
-            controls={controls}
-          />
-        )}
-      </View>
-      <View style={{ flex: 1, display: mode === "visits" ? "flex" : "none" }}>
-        <CollectionVisits
-          {...data}
-          header={header}
-          collectionControls={controls}
-          search={search}
-          onSearchChange={setSearch}
-          clearSearch={() => setSearch("")}
-        />
-      </View>
+      {/* The shown section comes first: react-native-screens scrolls the first subview chain to the top on a tab re-tap. */}
+      <View style={{ flex: 1 }}>{mode === "collection" ? [collection, visits] : [visits, collection]}</View>
     </SafeAreaView>
+  );
+}
+
+// Fabric never mounts `display: "none"` views, so a section shown for the first time sized its SwiftUI controls only
+// then and pushed the page down. The hidden section stays mounted, invisible and out of reach instead.
+function CollectionSection({ shown, children }: { shown: boolean; children: ReactNode }) {
+  return (
+    <View
+      accessibilityElementsHidden={!shown}
+      pointerEvents={shown ? "auto" : "none"}
+      style={[StyleSheet.absoluteFill, { opacity: shown ? 1 : 0 }]}
+    >
+      {children}
+    </View>
   );
 }
