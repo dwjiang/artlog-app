@@ -12,7 +12,7 @@ import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import type { SharedVisit } from "@/lib/social/types";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { FriendshipControls } from "./friendship-controls";
+import { FriendshipControls, ProfileActionRow } from "./friendship-controls";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { PublicProfileHeader, PublicWallView } from "./public-wall-view";
 import { VisitCard } from "./visit-card";
@@ -80,25 +80,24 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     );
   }
   const person = profile.data;
+  const share = (
+    <GalleryButton
+      label="Share profile"
+      icon="square.and.arrow.up"
+      iconOnly
+      variant="outlined"
+      tone="ink"
+      onPress={() =>
+        router.push({
+          pathname: "/share-profile",
+          params: { profileId: person.profileId },
+        })
+      }
+    />
+  );
   return (
     <GestureHandlerRootView style={socialStyles.root}>
       <Stack.Screen options={{ title: "" }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="square.and.arrow.up"
-          accessibilityLabel="Share profile"
-          tintColor={Gallery.ink}
-          hidesSharedBackground
-          onPress={() =>
-            router.push({
-              pathname: "/share-profile",
-              params: { profileId: person.profileId },
-            })
-          }
-        >
-          Share
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
       <ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
@@ -119,16 +118,23 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
                   key={`${session.key}:${profileId}`}
                   profileId={person.profileId}
                   session={session}
+                  trailing={share}
                 />
               ) : undefined
             }
           >
             {session.profileId === profileId && (
-              <GalleryButton
-                label="Edit profile"
-                variant="outlined"
-                fullWidth
-                onPress={() => router.push("/edit-profile")}
+              <ProfileActionRow
+                actions={[
+                  <GalleryButton
+                    key="edit"
+                    label="Edit profile"
+                    variant="outlined"
+                    fullWidth
+                    onPress={() => router.push("/edit-profile")}
+                  />,
+                ]}
+                trailing={share}
               />
             )}
           </PublicProfileHeader>

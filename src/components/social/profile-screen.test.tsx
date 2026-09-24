@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
+import type { ReactNode } from "react";
 import { ProfileScreen } from "./profile-screen";
 import type { SharedVisit } from "@/lib/social/types";
 const mockPages = jest.fn();
@@ -18,30 +19,27 @@ const mockPerson = {
   bio: "Chasing Rothkos.",
   publishedWallCount: 0,
 };
-jest.mock("expo-router", () => {
-  const { Pressable, Text, View } = jest.requireActual("react-native");
-  const Button = ({
-    children,
-    accessibilityLabel,
-    onPress,
-  }: {
-    children: string;
-    accessibilityLabel?: string;
-    onPress: () => void;
-  }) => (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
-      <Text>{children}</Text>
-    </Pressable>
-  );
-  return {
-    Stack: { Screen: () => null, Toolbar: Object.assign(View, { Button }) },
-    useRouter: () => ({ push: jest.fn() }),
-  };
-});
+jest.mock("expo-router", () => ({
+  Stack: { Screen: () => null },
+  useRouter: () => ({ push: jest.fn() }),
+}));
 jest.mock("../collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => {
   const { Text } = jest.requireActual("react-native");
-  return { FriendshipControls: () => <Text>Friendship controls</Text> };
+  return {
+    FriendshipControls: ({ trailing }: { trailing: ReactNode }) => (
+      <>
+        <Text>Friendship controls</Text>
+        {trailing}
+      </>
+    ),
+    ProfileActionRow: ({ actions, trailing }: { actions: ReactNode[]; trailing: ReactNode }) => (
+      <>
+        {actions}
+        {trailing}
+      </>
+    ),
+  };
 });
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({
@@ -97,6 +95,7 @@ it("keeps the full header when switching between Wall and Visits", async () => {
     screen.getByText("artworks"),
     screen.getByText("visits"),
     screen.getByText("Friendship controls"),
+    screen.getByRole("button", { name: "Share profile" }),
   ];
   header().forEach((element) => expect(element).toBeOnTheScreen());
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
@@ -104,8 +103,9 @@ it("keeps the full header when switching between Wall and Visits", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
   header().forEach((element) => expect(element).toBeOnTheScreen());
 });
-it("offers Share in the header", async () => {
-  await render(<ProfileScreen profileId="friend" />);
+it("offers Share beside Edit profile on your own profile", async () => {
+  await render(<ProfileScreen profileId="owner" />);
+  expect(screen.getByRole("button", { name: "Edit profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
 });
 it("uses the same shared visit card as Home", async () => {
