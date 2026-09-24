@@ -631,7 +631,7 @@ export function CollectionWallContent({
         </View>
       )}
       {picker && (
-        <WallSheet title="Choose artworks" tall onDismiss={() => setPicker(undefined)}>
+        <WallSheet title="Choose artworks" size="large" onDismiss={() => setPicker(undefined)}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
             <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
             {available.map((item) => {

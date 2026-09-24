@@ -36,7 +36,12 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
       )}
       <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
       {selected && (
-        <WallSheet title="Visitor preview" dismissLabel="Back to wall" tall onDismiss={() => setSelectedId(undefined)}>
+        <WallSheet
+          title="Visitor preview"
+          dismissLabel="Back to wall"
+          size="large"
+          onDismiss={() => setSelectedId(undefined)}
+        >
           <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
             <PublishedArtwork
               key={selected.itemId}

@@ -163,7 +163,7 @@ function WorkNoteEditor({
       {editing && draft !== undefined && (
         <WallSheet
           title="Notes"
-          tall
+          size="large"
           onDismiss={() => {
             persist(latest.current);
             setEditing(false);

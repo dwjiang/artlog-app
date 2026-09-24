@@ -5,9 +5,10 @@ import {
   presentationBackground,
   presentationDetents,
   presentationDragIndicator,
+  type PresentationDetent,
 } from "@expo/ui/swift-ui/modifiers";
-import type { ReactNode } from "react";
-import { View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { ScrollView, View } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { GalleryButton } from "./gallery-button";
 
@@ -17,18 +18,26 @@ export function WallSheet({
   onDismiss,
   onDismissed,
   presented = true,
-  tall = false,
+  size,
   dismissLabel = "Done",
 }: {
   title: string;
   children: ReactNode;
   onDismiss: () => void;
-  tall?: boolean;
+  /** `fit` sizes the sheet to its header and children, and scrolls the children once they outgrow the screen. */
+  size?: "fit" | "large";
   dismissLabel?: string;
   /** `presented={false}` animates the sheet out while it stays mounted; `onDismissed` fires once the presentation has fully ended. */
   presented?: boolean;
   onDismissed?: () => void;
 }) {
+  const [fitted, setFitted] = useState({ header: 0, content: 0 });
+  const fit = size === "fit";
+  const detents: PresentationDetent[] = fit
+    ? [fitted.content ? { height: fitted.header + fitted.content } : "medium"]
+    : size === "large"
+      ? ["large"]
+      : [{ height: 300 }, "large"];
   return (
     <Host style={{ position: "absolute" }} pointerEvents="none">
       <BottomSheet
@@ -42,20 +51,36 @@ export function WallSheet({
           modifiers={[
             frame({ maxWidth: Infinity, alignment: "topLeading" }),
             presentationDragIndicator("visible"),
-            presentationDetents(tall ? ["large"] : [{ height: 300 }, "large"]),
+            presentationDetents(detents),
             presentationBackground(Gallery.paper),
           ]}
         >
           {/* Presented content needs its own React Native touch and measurement root. */}
           <RNHostView>
             <View style={{ flex: 1 }}>
-              <View style={styles.sheetHeader}>
+              <View
+                style={styles.sheetHeader}
+                onLayout={
+                  fit
+                    ? ({ nativeEvent: { layout } }) => setFitted((value) => ({ ...value, header: layout.height }))
+                    : undefined
+                }
+              >
                 <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
                   {title}
                 </Text>
                 <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
               </View>
-              {children}
+              {fit ? (
+                <ScrollView
+                  alwaysBounceVertical={false}
+                  onContentSizeChange={(_, height) => setFitted((value) => ({ ...value, content: height }))}
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                children
+              )}
             </View>
           </RNHostView>
         </Group>
