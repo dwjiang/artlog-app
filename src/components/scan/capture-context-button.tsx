@@ -22,11 +22,22 @@ function dayLabel(visitedOn: string, today: boolean): string {
   return today ? "Today" : formatVisitDate(visitedOn);
 }
 
-export function captureVisitLabel(
+type VisitSummary = { name: string; day: string } | "none" | "unavailable";
+
+function visitSummary(
   visit: Pick<Visit, "venueName" | "visitedOn" | "timeZone">,
   now = Date.now(),
-): string {
-  return `${visit.venueName} · ${dayLabel(visit.visitedOn, isVisitToday(visit, now))}`;
+): VisitSummary {
+  return { name: visit.venueName, day: dayLabel(visit.visitedOn, isVisitToday(visit, now)) };
+}
+
+// The row leads with the day so a long museum name truncates before the date does.
+function formatVisit(summary: VisitSummary, variant: "chip" | "row"): string {
+  if (summary === "none") return variant === "chip" ? "No visit" : "None";
+  if (summary === "unavailable") return variant === "chip" ? "Visit unavailable" : "Unavailable";
+  return variant === "chip"
+    ? `${summary.name} · ${summary.day}`
+    : `${summary.day} · ${summary.name}`;
 }
 
 /** The museum a save starts or joins a visit at, with the visit's day taken from the capture in the museum's time zone. */
@@ -50,16 +61,18 @@ export type CaptureContextCapture = {
   capturedAt?: number;
 };
 
-/** The visit this capture will save to: its own, the museum it was scanned at, or the draft's override. Tapping picks another for this shot only. */
+/** The visit this capture will save to: its own, the museum it was scanned at, or the draft's override. Tapping picks another for this shot only. The row variant sits in a save bar. */
 export function CaptureContextButton({
   capture,
   disabled,
+  variant = "chip",
 }: {
   capture: CaptureContextCapture;
   disabled?: boolean;
+  variant?: "chip" | "row";
 }) {
   const owner = useLocalOwner(),
-    [label, setLabel] = useState<string>();
+    [summary, setSummary] = useState<VisitSummary>();
   const { photoPath: draftId, visitLocalId, venueId, capturedAt } = capture;
   useFocusEffect(
     useCallback(() => {
@@ -69,29 +82,31 @@ export function CaptureContextButton({
           { visitLocalId, venueId, capturedAt },
           readPhotoSession(owner, draftId),
         );
-        let next = "No visit";
+        let next: VisitSummary = "none";
         if (choice.kind === "visit") {
           const visit = await getVisit(choice.localId, owner);
-          next = visit ? captureVisitLabel(visit) : "Visit unavailable";
+          next = visit ? visitSummary(visit) : "unavailable";
         } else if (choice.kind === "venue") {
           const venue = await venueVisitLabel(choice.venueId, capturedAt ?? Date.now());
-          next = venue ? `${venue.name} · ${venue.day}` : "Visit unavailable";
+          next = venue ? { name: venue.name, day: venue.day } : "unavailable";
         }
-        if (active) setLabel(next);
+        if (active) setSummary(next);
       }
       void load().catch((error: unknown) => {
         reportError(error, "capture.load_visit_context", { level: "warning" });
-        if (active) setLabel("Visit unavailable");
+        if (active) setSummary("unavailable");
       });
       return () => {
         active = false;
       };
     }, [owner, draftId, visitLocalId, venueId, capturedAt]),
   );
+  const label = summary && formatVisit(summary, variant);
+  const row = variant === "row";
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label ? `${label} · Change` : "Loading visit…"}
+      accessibilityLabel={label ? `${row ? `Visit: ${label}` : label} · Change` : "Loading visit…"}
       accessibilityHint="Chooses the visit for this artwork"
       accessibilityState={{ disabled: !!disabled || !label, busy: !label }}
       disabled={disabled || !label}
@@ -106,8 +121,17 @@ export function CaptureContextButton({
           },
         })
       }
-      style={({ pressed }) => [styles.chip, pressed && styles.pressed, disabled && styles.disabled]}
+      style={({ pressed }) => [
+        row ? styles.row : styles.chip,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
+      {row && (
+        <ThemedText variant="secondary" themeColor="textSecondary">
+          Visit
+        </ThemedText>
+      )}
       <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
       {label ? (
         <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>
@@ -137,6 +161,7 @@ const styles = StyleSheet.create({
     borderColor: Gallery.ink,
     backgroundColor: Gallery.surface,
   },
+  row: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: Spacing.two },
   pressed: { opacity: 0.6 },
   disabled: { opacity: 0.5 },
   icon: { width: 16, height: 16 },

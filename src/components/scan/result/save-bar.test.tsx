@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { Text } from "react-native";
 
 import { LABEL_BUTTON, SaveBar } from "./save-bar";
 
@@ -57,4 +58,14 @@ it("offers label confirmation first for uncertain matches while retaining manual
   );
   expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Save with these details" })).toBeDisabled();
+});
+
+it("shows the visit above the actions until the work is saved", async () => {
+  const visit = <Text>Visit: Today · The Met</Text>;
+  const view = await render(<SaveBar canSave saving={false} {...handlers} visit={visit} />);
+  expect(screen.getByText("Visit: Today · The Met")).toBeOnTheScreen();
+  await view.rerender(
+    <SaveBar canSave saving={false} savedId="saved-1" {...handlers} visit={visit} />,
+  );
+  expect(screen.queryByText("Visit: Today · The Met")).toBeNull();
 });

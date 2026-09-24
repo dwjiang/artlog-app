@@ -30,6 +30,7 @@ type ResultCardProps = {
   header: ReactNode;
   context?: ReactNode;
   search?: ReactNode;
+  visit?: ReactNode;
   onLabel: () => void;
   onSearchMuseum?: () => void;
   onPick: (candidate: ResultCandidate) => void;
@@ -52,6 +53,7 @@ export function ResultCard({
   header,
   context,
   search,
+  visit,
   onLabel,
   onSearchMuseum,
   onPick,
@@ -236,6 +238,7 @@ export function ResultCard({
           onSave={() => (savePhotoOnly ? onSavePhoto() : onSave(draft))}
           onLabel={view.kind === "confident" ? undefined : onLabel}
           onViewSaved={onViewSaved}
+          visit={visit}
         />
       </View>
     </>

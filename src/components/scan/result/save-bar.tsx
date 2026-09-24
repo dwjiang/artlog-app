@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -17,6 +18,7 @@ export type SaveBarProps = {
   onLabel?: () => void;
   labelFirst?: boolean;
   onViewSaved: () => void;
+  visit?: ReactNode;
 };
 
 export function SaveBar({
@@ -29,6 +31,7 @@ export function SaveBar({
   onLabel,
   labelFirst = false,
   onViewSaved,
+  visit,
 }: SaveBarProps) {
   return (
     <View style={styles.bar}>
@@ -50,6 +53,7 @@ export function SaveBar({
         </View>
       ) : (
         <>
+          {visit}
           {onLabel && labelFirst && (
             <GalleryButton
               label={LABEL_BUTTON}
