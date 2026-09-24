@@ -65,7 +65,8 @@ the decision without destroying independent support or private journal records.
 - `convex/feedbackReplay.ts`, `convex/revert.ts`, `convex/placements.ts`, and
   `convex/promotion.ts`: replay attributable feedback, run durable device cleanup,
   reassess placement evidence, and reassess alternate-view witnesses. The
-  ten-minute job only learns alternate views of established identities.
+  multi-view promotion that each runner-up resolution queues only learns alternate
+  views of established identities.
 - `convex/docent.ts`, `convex/enrich.ts`, `convex/ingest.ts`, and `convex/feedback.ts`:
   tentative identities are excluded from enrichment and training exports.
 - `src/components/scan/result/tentative-origin-notice.tsx` says:

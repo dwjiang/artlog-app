@@ -19,6 +19,7 @@ import { harness, signIn } from "./test.helpers";
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 async function fixture() {
@@ -359,6 +360,33 @@ describe("resolveRejection", () => {
       resolution: { kind: "runner_up", objectId: best.objectId },
     });
     expect(await proposals()).toEqual([]);
+  });
+
+  it("adds both views to recognition as soon as a second device resolves to the same runner-up", async () => {
+    vi.useFakeTimers();
+    const { t, user, best, runnerUp, reject, seedRejectableScan } = await fixture();
+    const visitor = await seedDevice(t);
+    const visitorScanId = await seedRejectableScan({ deviceId: visitor.deviceId, vector: testVector(0.8) });
+    const resolve = async (as: typeof user.as, feedbackId: Id<"feedback">) => {
+      await as.mutation(api.feedback.resolveRejection, {
+        feedbackId,
+        resolution: { kind: "runner_up", objectId: runnerUp.objectId },
+      });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+    };
+    const views = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("vectors")
+          .withIndex("by_objectId_modelVersion_source", (q) =>
+            q.eq("objectId", runnerUp.objectId).eq("modelVersion", model.modelVersion).eq("source", "user_scan"),
+          )
+          .collect(),
+      );
+    await resolve(user.as, (await reject(best.objectId)).feedbackId);
+    expect(await views()).toEqual([]);
+    await resolve(visitor.as, (await reject(best.objectId, visitorScanId, visitor.as)).feedbackId);
+    expect((await views()).map((row) => row.vector)).toEqual([testVector(), testVector(0.8)]);
   });
 
   it("resolves to the device’s own label contribution for the same scan", async () => {
