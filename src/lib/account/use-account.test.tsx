@@ -14,6 +14,7 @@ const mockClaim = jest.fn();
 const mockAvailable = jest.fn();
 const mockReportError = jest.fn();
 const mockBreadcrumb = jest.fn();
+const mockClearImages = jest.fn();
 let mockAccount: {
   linked: boolean;
   deviceCount: number;
@@ -29,6 +30,9 @@ jest.mock("expo-apple-authentication", () => ({
   isAvailableAsync: () => mockAvailable(),
   signInAsync: (args: unknown) => mockApple(args),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));
+jest.mock("expo-image", () => ({
+  Image: { clearMemoryCache: () => mockClearImages() },
 }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
@@ -144,14 +148,16 @@ it.each(["signOut", "deleteAccount"] as const)("reports failed %s without ending
   expect(mockResume).toHaveBeenCalledTimes(1);
 });
 
-it("unlinks before ending the session and restoring the anonymous device identity", async () => {
+it("unlinks, ends the session, and drops cached social photos before restoring the anonymous identity", async () => {
   const { result } = await renderHook(useAccount);
   await act(() => result.current.signOut());
   expect(mockMutation).toHaveBeenCalledWith("accounts:unlink", {});
   expect(mockEndSession).toHaveBeenCalledTimes(1);
+  expect(mockClearImages).toHaveBeenCalledTimes(1);
   expect(mockAnonymous).toHaveBeenCalledWith(mockSignIn);
   expect(mockMutation.mock.invocationCallOrder[0]).toBeLessThan(mockEndSession.mock.invocationCallOrder[0]);
-  expect(mockEndSession.mock.invocationCallOrder[0]).toBeLessThan(mockAnonymous.mock.invocationCallOrder[0]);
+  expect(mockEndSession.mock.invocationCallOrder[0]).toBeLessThan(mockClearImages.mock.invocationCallOrder[0]);
+  expect(mockClearImages.mock.invocationCallOrder[0]).toBeLessThan(mockAnonymous.mock.invocationCallOrder[0]);
 });
 
 it("leaves the session intact when unlink fails", async () => {
@@ -159,6 +165,7 @@ it("leaves the session intact when unlink fails", async () => {
   const { result } = await renderHook(useAccount);
   await act(() => result.current.signOut());
   expect(mockEndSession).not.toHaveBeenCalled();
+  expect(mockClearImages).not.toHaveBeenCalled();
   expect(mockAnonymous).not.toHaveBeenCalled();
   expect(result.current.error).toContain("try again");
 });
@@ -167,6 +174,7 @@ it("deletes the account before restoring the anonymous device identity", async (
   const { result } = await renderHook(useAccount);
   await act(() => result.current.deleteAccount());
   expect(mockMutation).toHaveBeenCalledWith("accounts:deleteAccount", {});
+  expect(mockClearImages).toHaveBeenCalledTimes(1);
   expect(mockAnonymous).toHaveBeenCalledWith(mockSignIn);
 });
 

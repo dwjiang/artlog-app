@@ -344,7 +344,7 @@ it.each([false, true])(
     const image = screen.getByRole("image", { name: "Blue afternoon" });
     expect(image.props.style.height / image.props.style.width).toBe(2);
     expect(image.props.contentFit).toBe("contain");
-    expect(image.props.cachePolicy).toBe("none");
+    expect(image.props.cachePolicy).toBe("memory");
     expect(image.props.source.headers).toEqual({
       Authorization: "Bearer private-token",
     });

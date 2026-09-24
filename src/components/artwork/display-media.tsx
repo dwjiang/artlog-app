@@ -92,7 +92,9 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
         }}
         style={size}
         contentFit="contain"
-        cachePolicy={media.kind === "derivative" || media.kind === "photo" ? "none" : "memory-disk"}
+        // Protected photos stay in RAM so the wall→detail push reuses the bytes, but never persist to disk;
+        // sign-out clears them.
+        cachePolicy={media.kind === "derivative" || media.kind === "photo" ? "memory" : "memory-disk"}
         recyclingKey={uri}
         onLoad={() => setLoaded(true)}
         onError={(event) => {

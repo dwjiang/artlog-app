@@ -1,6 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import * as AppleAuthentication from "expo-apple-authentication";
+import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 
 import { anonymousOwner, switchOwner } from "./owner-store";
@@ -97,6 +98,7 @@ export function useAccount() {
       switchOwner(anonymousOwner());
       await setSetting("activeJournalOwner", anonymousOwner());
       await endSession();
+      await Image.clearMemoryCache();
       await signInAnonymously(signIn);
     });
 

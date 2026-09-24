@@ -54,11 +54,11 @@ it("sizes eligible catalog images by dimensions and allows normal caching", asyn
   });
   expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
 });
-it("serves derivatives through the context route with caching disabled", async () => {
+it("serves derivatives through the context route from memory only", async () => {
   await render(<DisplayMedia media={derivative} label="Saved title" width={100} />);
   const image = screen.getByRole("image", { name: "Saved title" });
   expect(image).toHaveStyle({ width: 100, height: 200 });
-  expect(image.props.cachePolicy).toBe("none");
+  expect(image.props.cachePolicy).toBe("memory");
   expect(image.props.source.uri).toBe("https://test.convex.site/display-media?kind=wallItem&itemId=item-a");
 });
 it("renders accessible square placeholders for absent and broken images and recovers for a new source", async () => {
