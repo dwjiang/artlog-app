@@ -1,9 +1,10 @@
+import type * as repository from "@/db/repos/saved-works";
+import type { SavedWork } from "@/db/schema";
+import { reportError } from "@/lib/observability";
+import type { CollectionPhotoKind } from "@/shared/collection/photo-limits";
+
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { CollectionPhotoKind } from "../../../shared/collection/photo-limits";
-import type * as repository from "../../db/repos/saved-works";
-import type { SavedWork } from "../../db/schema";
 import type { PhotoUpload } from "./photo-transfer";
-import { reportError } from "../observability";
 
 export type PhotoSyncDependencies = Pick<
   typeof repository,
@@ -26,7 +27,7 @@ export const cropSyncing = (work: Pick<SavedWork, "cropPath" | "cropStorageId">)
 export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurrent = () => true): Promise<void> {
   while (isCurrent()) {
     const deleted = await deps.listDeletedPhotoFiles();
-    if (!deleted.length) break;
+    if (deleted.length === 0) break;
     for (const work of deleted) {
       for (const path of new Set([work.photoPath, work.cropPath])) {
         if (!isCurrent()) return;
@@ -39,7 +40,7 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
   }
   while (isCurrent()) {
     const pending = await deps.listPhotoTransfers();
-    if (!pending.length) return;
+    if (pending.length === 0) return;
     let failure: unknown;
     // Only the crop travels with the save; the full photo is an album row and transfers with the album.
     for (const work of pending) {

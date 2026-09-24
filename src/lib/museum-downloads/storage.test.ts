@@ -1,4 +1,5 @@
 import type { MuseumManifest } from "@/shared/offline/types";
+
 import { museumDownloads, previewUri } from "./storage";
 
 const mockFiles = new Map<string, Uint8Array | true>();
@@ -57,7 +58,7 @@ jest.mock("@/db/repos/settings", () => ({
   },
 }));
 
-const model = jest.requireActual<{ modelVersion: string }>("../../../shared/model/model-version.json");
+const model = jest.requireActual<{ modelVersion: string }>("@/shared/model/model-version.json");
 const manifest: MuseumManifest = {
   id: "museum-1" as never,
   key: "one",

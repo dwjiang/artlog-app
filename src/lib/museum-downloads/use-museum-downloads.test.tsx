@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
+
 import { MuseumDownloadLifecycle } from "./use-museum-downloads";
 
 const mockPauseAll = jest.fn(async () => {});

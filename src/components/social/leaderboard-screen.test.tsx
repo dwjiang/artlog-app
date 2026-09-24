@@ -1,18 +1,20 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
-import type { Id } from "../../../convex/_generated/dataModel";
+
 import type { SocialSession } from "@/lib/social/use-social-session";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { LeaderboardScreen } from "./leaderboard-screen";
 
 jest.mock("@/lib/account/use-account", () => ({
   useAccount: () => ({ ready: true, available: false, busy: false }),
 }));
 
-const mockPush = jest.fn(),
-  mockDismissAll = jest.fn(),
-  mockChange = jest.fn(),
-  mockRefresh = jest.fn(),
-  mockQuery = jest.fn();
+const mockPush = jest.fn();
+const mockDismissAll = jest.fn();
+const mockChange = jest.fn();
+const mockRefresh = jest.fn();
+const mockQuery = jest.fn();
 const mockSession = {
   status: "signed-out" as SocialSession["status"],
   key: "guest",
@@ -38,8 +40,8 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("@expo/ui/swift-ui", () => {
-  const React = jest.requireActual("react"),
-    { Pressable, Text, View } = jest.requireActual("react-native");
+  const React = jest.requireActual("react");
+  const { Pressable, Text, View } = jest.requireActual("react-native");
   return {
     ...jest.requireActual("@/__mocks__/@expo/ui/swift-ui"),
     Host: ({ children }: { children: ReactNode }) => <View>{children}</View>,
@@ -145,7 +147,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
   },
 }));
 jest.mock("convex/react", () => ({ useMutation: () => mockChange }));
-jest.mock("../settings/account-section", () => ({
+jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
 

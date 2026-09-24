@@ -1,5 +1,7 @@
 import { act, renderHook } from "@testing-library/react-native";
+
 import { useGlobeSession } from "./globe-session";
+
 it("shares the camera and museum between compact and expanded views without sharing across accounts", async () => {
   const compact = await renderHook(() => useGlobeSession("owner-a"));
   const expanded = await renderHook(() => useGlobeSession("owner-a"));

@@ -2,13 +2,15 @@ import type { FunctionReturnType } from "convex/server";
 import { jsonToConvex } from "convex/values";
 import { digest, CryptoDigestAlgorithm } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
-import { fetch } from "expo/fetch";
 import { getNetworkStateAsync } from "expo-network";
-import { api } from "../../../convex/_generated/api";
-import model from "../../../shared/model/model-version.json";
-import type { MuseumEntry, MuseumSummary } from "@/shared/offline/types";
+import { fetch } from "expo/fetch";
+
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
+import model from "@/shared/model/model-version.json";
+import type { MuseumEntry, MuseumSummary } from "@/shared/offline/types";
+
+import { api } from "../../../convex/_generated/api";
 import { MuseumDownloadsController, type DownloadDependencies } from "./controller";
 import type { LocalPackage } from "./model";
 

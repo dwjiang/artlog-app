@@ -1,17 +1,18 @@
-import { deleteSavedRecognition } from "./savedRecognition";
 import { ConvexError } from "convex/values";
+
 import { sameOwner } from "../../shared/journal/contracts";
 import { LIMITS } from "../../shared/journal/limits";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./collectionPhotos";
-import { activeProfile, nextChangeVersion, requireMembership } from "./ownership";
-import { relationshipSnapshot } from "./friendships";
 import { revokeSaveMedia } from "./displayMedia";
+import { relationshipSnapshot } from "./friendships";
+import { activeProfile, nextChangeVersion, requireMembership } from "./ownership";
+import { deleteSavedRecognition } from "./savedRecognition";
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
-  const save = await ctx.db.get(saveId);
+  const save = await ctx.db.get("collections", saveId);
   if (!save || save.note?.trim()) return;
   const items = await ctx.db
     .query("wallItems")
@@ -19,7 +20,7 @@ export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<"col
     .take(LIMITS.wallItems + 1);
   for (const item of items) {
     if (item.noteResetVersion !== save.changeVersion) {
-      await ctx.db.patch(item._id, {
+      await ctx.db.patch("wallItems", item._id, {
         noteVisible: false,
         noteRevision: item.noteRevision + 1,
         noteResetVersion: save.changeVersion,
@@ -34,18 +35,18 @@ export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<"collectio
     .take(LIMITS.wallItems + 1);
   for (const item of items) {
     if (!item.active && !item.noteVisible) continue;
-    await ctx.db.patch(item._id, {
+    await ctx.db.patch("wallItems", item._id, {
       active: false,
       noteVisible: false,
       noteRevision: item.noteRevision + 1,
     });
-    const wall = await ctx.db.get(item.wallId);
+    const wall = await ctx.db.get("walls", item.wallId);
     if (wall) {
-      await ctx.db.patch(wall._id, { layoutRevision: wall.layoutRevision + 1 });
+      await ctx.db.patch("walls", wall._id, { layoutRevision: wall.layoutRevision + 1 });
     }
-    const profile = await ctx.db.get(item.profileId);
+    const profile = await ctx.db.get("profiles", item.profileId);
     if (profile && item.active) {
-      await ctx.db.patch(profile._id, {
+      await ctx.db.patch("profiles", profile._id, {
         publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
       });
     }
@@ -62,13 +63,13 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collect
     .query("artworkEncounters")
     .withIndex("by_save_deletedAt", (q) => q.eq("saveId", save._id).eq("deletedAt", undefined))
     .take(101);
-  for (const child of [...photos, ...encounters]) {
-    await ctx.db.patch(child._id, {
-      deletedAt: save.deletedAt ?? Date.now(),
-      updatedAt: Date.now(),
-      changeVersion: await nextChangeVersion(ctx, save.owner),
-    });
-  }
+  const tombstone = async () => ({
+    deletedAt: save.deletedAt ?? Date.now(),
+    updatedAt: Date.now(),
+    changeVersion: await nextChangeVersion(ctx, save.owner),
+  });
+  for (const photo of photos) await ctx.db.patch("artworkPhotos", photo._id, await tombstone());
+  for (const encounter of encounters) await ctx.db.patch("artworkEncounters", encounter._id, await tombstone());
   for (const photo of photos) {
     if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
   }
@@ -77,10 +78,10 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collect
     .withIndex("by_saveId", (q) => q.eq("saveId", save._id))
     .take(101);
   for (const item of selections) {
-    await ctx.db.delete(item._id);
-    const publication = await ctx.db.get(item.publicationId);
+    await ctx.db.delete("sharedVisitItems", item._id);
+    const publication = await ctx.db.get("sharedVisits", item.publicationId);
     if (publication) {
-      await ctx.db.patch(publication._id, {
+      await ctx.db.patch("sharedVisits", publication._id, {
         publicationRevision: publication.publicationRevision + 1,
         updatedAt: Date.now(),
       });
@@ -90,10 +91,10 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collect
   await deleteUnreferencedCollectionPhotos(ctx, save);
 }
 export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<"wallItems">) {
-  const item = await ctx.db.get(itemId);
+  const item = await ctx.db.get("wallItems", itemId);
   const profile = item ? await activeProfile(ctx, item.profileId) : null;
-  const save = item ? await ctx.db.get(item.saveId) : null;
-  const wall = item ? await ctx.db.get(item.wallId) : null;
+  const save = item ? await ctx.db.get("collections", item.saveId) : null;
+  const wall = item ? await ctx.db.get("walls", item.wallId) : null;
   if (
     !wall
     || wall.profileId !== item?.profileId
@@ -116,7 +117,7 @@ export async function readablePublication(ctx: ReadCtx, publication: Doc<"shared
     if (block?.active || reverseBlock?.active) return null;
   }
   const profile = await activeProfile(ctx, publication.profileId);
-  const visit = await ctx.db.get(publication.visitId);
+  const visit = await ctx.db.get("visits", publication.visitId);
   if (
     !profile
     || !visit
@@ -147,8 +148,8 @@ export async function requireSharedVisitItem(
   viewerId?: Id<"profiles">,
 ) {
   const { publication, visit } = await requireSharedVisit(ctx, postId, viewerId);
-  const item = await ctx.db.get(itemId);
-  const save = item ? await ctx.db.get(item.saveId) : null;
+  const item = await ctx.db.get("sharedVisitItems", itemId);
+  const save = item ? await ctx.db.get("collections", item.saveId) : null;
   if (
     !item
     || item.publicationId !== publication._id

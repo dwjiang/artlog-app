@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Pressable, Text } from "react-native";
 import { useEffect } from "react";
+import { Pressable, Text } from "react-native";
+
 import { ListeningProvider } from "./listening-provider";
 import { useListening } from "./use-listening";
+
 let mockOwner = "device:one";
 const mockCancel = jest.fn();
 const mockMounted = jest.fn();
@@ -54,6 +56,7 @@ function Screen() {
     </>
   );
 }
+
 it("clears private playback and pending synthesis when the owner changes without remounting navigation", async () => {
   const view = await render(
     <ListeningProvider>

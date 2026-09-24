@@ -1,6 +1,7 @@
-import type { CapturePayload } from "@/lib/capture/stages";
-import { captureOwner } from "@/lib/account/owner-store";
 import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
+import { captureOwner } from "@/lib/account/owner-store";
+import type { CapturePayload } from "@/lib/capture/stages";
+
 import { identifyOffline } from "./identify-offline";
 
 export async function recognizeOfflineCapture(

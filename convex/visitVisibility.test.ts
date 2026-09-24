@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 it("saves Public without publishing and prevents publication while Private", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner, 0);
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner, 0);
   const input = {
     localId: draft.visit.localId,
     venueId: draft.visit.venueId,
@@ -36,9 +37,9 @@ it("saves Public without publishing and prevents publication while Private", asy
 });
 
 it("syncing Private withdraws the entire publication and Public does not restore it until republished", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner, 1);
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner, 1);
   const published = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
   const postId = published.postId!;
   const visible = await t.query(api.sharedVisits.get, { postId });

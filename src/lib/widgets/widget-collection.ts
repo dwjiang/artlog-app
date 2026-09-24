@@ -1,4 +1,5 @@
 import type { ArtworkEncounter, ArtworkPhoto, SavedWork, Visit } from "@/db/schema";
+
 import type { WidgetSource } from "./widget-settings";
 
 export type WidgetArtwork = {

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
-import { SearchConsentSheet } from "./search-consent-sheet";
 import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
+
+import { SearchConsentSheet } from "./search-consent-sheet";
 
 jest.mock("@/lib/settings/museum-search", () => ({
   setMuseumSearchConsent: jest.fn(),

@@ -1,14 +1,15 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 async function fixture() {
-  const t = harness(),
-    owner = await socialUser(t),
-    outsider = await socialUser(t);
-  const first = await socialVisit(t, owner, 1),
-    second = await socialVisit(t, owner, 0);
+  const t = harness();
+  const owner = await socialUser(t);
+  const outsider = await socialUser(t);
+  const first = await socialVisit(t, owner, 1);
+  const second = await socialVisit(t, owner, 0);
   const savedLocalId = first.saves[0].localId;
   const photos = ["full", "detail", "label"].map((kind, i) => ({
     localId: crypto.randomUUID(),
@@ -25,6 +26,7 @@ async function fixture() {
   const input = { scope: owner.scope, since: 0, photos, encounters };
   return { t, owner, outsider, first, second, photos, input };
 }
+
 it("syncs three private photos and two unique encounters on one artwork", async () => {
   const { owner, input } = await fixture();
   const first = await owner.as.mutation(api.artworkAlbums.sync, input);
@@ -36,6 +38,7 @@ it("syncs three private photos and two unique encounters on one artwork", async 
   expect(repeated.encounters).toHaveLength(2);
   expect(repeated.checkpoint).toBe(first.checkpoint);
 });
+
 it("rejects foreign parents and never returns another owner’s album", async () => {
   const { owner, outsider, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
@@ -56,6 +59,7 @@ it("rejects foreign parents and never returns another owner’s album", async ()
     ).photos,
   ).toEqual([]);
 });
+
 it("serves each private photo only to its owner and revokes bytes when the artwork is deleted", async () => {
   const { t, owner, outsider, first, photos, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
@@ -83,6 +87,7 @@ it("serves each private photo only to its owner and revokes bytes when the artwo
   expect(deleted.photos.every((row) => row.deletedAt !== undefined)).toBe(true);
   expect(deleted.encounters.every((row) => row.deletedAt !== undefined)).toBe(true);
 });
+
 it("publishes only explicitly selected photos, permits repeated wall placements, and revokes deleted photos", async () => {
   const { t, owner, first, photos, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
@@ -137,11 +142,12 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
   expect((await owner.as.query(api.walls.getMine, {})).items).toHaveLength(1);
   expect((await owner.as.query(api.sharedVisits.get, { postId: published.postId! })).artworks.page).toEqual([]);
 });
+
 it("merges only on explicit owner request and preserves photos, encounters, and both private notes", async () => {
   const { t, owner, outsider, first, second, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
   const target = await socialVisit(t, owner, 1);
-  await t.run((ctx) => ctx.db.patch(target.saves[0].id, { note: "Target note" }));
+  await t.run((ctx) => ctx.db.patch("collections", target.saves[0].id, { note: "Target note" }));
   const wall = await owner.as.mutation(api.walls.setLayout, {
     scope: owner.scope,
     revision: 0,
@@ -180,7 +186,7 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
   expect(JSON.stringify(await owner.as.query(api.walls.getPublic, { profileId: owner.profileId }))).not.toMatch(
     /PRIVATE NOTE|Target note/,
   );
-  expect(await t.run((ctx) => ctx.db.get(second.visit._id))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("visits", second.visit._id))).not.toBeNull();
 });
 
 it("reuses capacity after deletion and refuses moving a photo into a full album", async () => {
@@ -189,7 +195,7 @@ it("reuses capacity after deletion and refuses moving a photo into a full album"
   const target = await socialVisit(t, owner, 1);
   const targetPhotos = Array.from({ length: 100 }, () => crypto.randomUUID());
   await t.run(async (ctx) => {
-    const save = (await ctx.db.get(target.saves[0].id))!;
+    const save = (await ctx.db.get("collections", target.saves[0].id))!;
     for (const localId of targetPhotos) {
       await ctx.db.insert("artworkPhotos", {
         owner: save.owner,
@@ -237,7 +243,7 @@ it("reuses capacity after deletion and refuses moving a photo into a full album"
 it("merges and deletes live photos even after more than 100 older photos were deleted", async () => {
   const { t, owner, first, input } = await fixture();
   await t.run(async (ctx) => {
-    const save = (await ctx.db.get(first.saves[0].id))!;
+    const save = (await ctx.db.get("collections", first.saves[0].id))!;
     for (let i = 0; i < 110; i++) {
       await ctx.db.insert("artworkPhotos", {
         owner: save.owner,

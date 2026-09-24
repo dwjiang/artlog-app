@@ -1,7 +1,10 @@
 import { Image } from "expo-image";
 import { View } from "react-native";
+
 import { Gallery } from "@/constants/theme";
+
 import { AudioIcon } from "./audio-icon";
+
 export function ArtworkThumbnail({ uri, size = 44 }: { uri?: string; size?: number }) {
   return (
     <View

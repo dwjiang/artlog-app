@@ -1,10 +1,11 @@
-import { reportError } from "@/lib/observability";
 import type { FunctionArgs } from "convex/server";
+
+import { errorMessage, isNetworkError } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { ImageCheck, LabelFields, LabelFlowDisplay } from "../../../convex/lib/validators";
-import { errorMessage, isNetworkError } from "@/lib/network-error";
 
 export type LabelStage = "qr" | "read" | "verify" | "image-check" | "done";
 export type LabelInput = FunctionArgs<typeof api.label.verifyLabel>["fields"];
@@ -23,10 +24,10 @@ export type LabelFlowInput = {
   qrUrl?: string;
   api: LabelApi;
   /** The label's printed lines, read on the phone (label-ocr.ts); the photo itself never leaves the device. */
-  readText(uri: string): Promise<OcrLine[]>;
+  readText: (uri: string) => Promise<OcrLine[]>;
   /** The phone's verdict on the verifier's museum images; absent when the scan's features are not on this phone. */
-  checkImages?(urls: string[]): Promise<ImageCheck | null>;
-  onStage?(stage: LabelStage): void;
+  checkImages?: (urls: string[]) => Promise<ImageCheck | null>;
+  onStage?: (stage: LabelStage) => void;
 };
 
 export const LABEL_ERROR_MESSAGES: Record<string, string> = {
@@ -87,7 +88,7 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
     } else if (input.labelPhotoUri) {
       onStage?.("read");
       const lines = await input.readText(input.labelPhotoUri);
-      if (!lines.length) throw new LabelFlowError("nothing_read");
+      if (lines.length === 0) throw new LabelFlowError("nothing_read");
       flow = await api.readLabel({ scanId, lines });
     } else {
       throw new LabelFlowError("nothing_read");

@@ -1,13 +1,14 @@
-import { LoadingRing } from "@/components/loading-ring";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { CaptureCompletion } from "../capture-completion";
 import { GalleryButton } from "@/components/collection/gallery-button";
-import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
-import { ContributeResult } from "./contribute-result";
+import { LoadingRing } from "@/components/loading-ring";
+import { CaptureCompletion } from "@/components/scan/capture-completion";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import type { ContributionOutcome } from "@/lib/label/contribute";
+
+import { ContributeResult } from "./contribute-result";
 
 export const SHARE_BUTTON = "Retry saving to the shared index";
 // The pre-save notice: wording changes need the operator's review.

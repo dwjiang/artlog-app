@@ -7,7 +7,7 @@ import { limitDevice } from "./lib/rateLimits";
 import { seedDevice } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
-vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn() }));
+vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn<typeof verifyAppleIdentityToken>() }));
 let privateKey: string;
 beforeAll(async () => {
   privateKey = await exportPKCS8((await generateKeyPair("RS256", { extractable: true })).privateKey);
@@ -45,8 +45,8 @@ async function link(device: Awaited<ReturnType<typeof seedDevice>>, appleUserId 
 }
 
 async function pair(t: Harness) {
-  const a = await seedDevice(t),
-    b = await seedDevice(t);
+  const a = await seedDevice(t);
+  const b = await seedDevice(t);
   await appleSignIn(a);
   await appleSignIn(b);
   await link(a);
@@ -60,8 +60,8 @@ async function pair(t: Harness) {
 
 it("keeps distinct device users when both sign into the same Apple account, including repeat sign-in", async () => {
   const t = harness();
-  const a = await seedDevice(t),
-    b = await seedDevice(t);
+  const a = await seedDevice(t);
+  const b = await seedDevice(t);
   for (const device of [a, b, a]) {
     const result = await appleSignIn(device);
     expect(decodeJwt(result.tokens!.token).sub?.split("|")[0]).toBe(device.userId);
@@ -77,7 +77,7 @@ it("requires a device session and a valid Apple token", async () => {
       provider: "apple-native",
       params: { identityToken: "token", nonce: "nonce" },
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("unauthenticated");
   const device = await seedDevice(t);
   vi.mocked(verifyAppleIdentityToken).mockRejectedValueOnce(new Error("wrong audience"));
   await expect(appleSignIn(device)).rejects.toThrow("wrong audience");
@@ -94,8 +94,8 @@ it("rejects a forged Apple subject even with a valid device assertion", async ()
 
 it("consumes Apple challenges and rejects replay, expiration and another deviceâ€™s challenge", async () => {
   const t = harness();
-  const a = await seedDevice(t),
-    b = await seedDevice(t);
+  const a = await seedDevice(t);
+  const b = await seedDevice(t);
   const { nonce } = await a.as.mutation(api.devices.createChallenge, {
     purpose: "apple",
   });
@@ -104,7 +104,7 @@ it("consumes Apple challenges and rejects replay, expiration and another deviceâ
   await a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args);
   await expect(a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await t.run((ctx) =>
-    ctx.db.patch(a.deviceId, {
+    ctx.db.patch("devices", a.deviceId, {
       appleLinkProof: { sub: "apple-user", expiresAt: 0 },
     }),
   );
@@ -126,14 +126,14 @@ it("links idempotently and reports two devices without exposing the Apple subjec
 
 it("aggregates trust on linking while leaving rate limits per device", async () => {
   const t = harness();
-  const a = await seedDevice(t),
-    b = await seedDevice(t);
-  await t.run((ctx) => ctx.db.patch(a.deviceId, { trustWeight: 0.9 }));
+  const a = await seedDevice(t);
+  const b = await seedDevice(t);
+  await t.run((ctx) => ctx.db.patch("devices", a.deviceId, { trustWeight: 0.9 }));
   await appleSignIn(a);
   await link(a);
   await appleSignIn(b);
   await link(b);
-  expect(await t.run((ctx) => ctx.db.get(b.deviceId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("devices", b.deviceId))).toMatchObject({
     trustWeight: 0.9,
   });
   for (let i = 0; i < 10; i++) {
@@ -166,7 +166,7 @@ it("unlink removes only this device and clears pending proof so it cannot silent
     deviceCount: 1,
   });
   await expect(link(a)).rejects.toThrow("apple_sign_in_required");
-  expect(await t.run((ctx) => ctx.db.get(a.deviceId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("devices", a.deviceId))).toMatchObject({
     authUserId: a.userId,
   });
 });

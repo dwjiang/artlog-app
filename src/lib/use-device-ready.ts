@@ -1,6 +1,7 @@
 import { useConvexAuth, useQueries, type RequestForQueries } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useEffect, useMemo } from "react";
+
 import { reportError } from "@/lib/observability";
 
 import { api } from "../../convex/_generated/api";

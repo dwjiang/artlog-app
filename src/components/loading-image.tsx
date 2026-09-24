@@ -1,8 +1,10 @@
 import { Image, type ImageProps } from "expo-image";
 import { useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+
 import { Gallery } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
+
 import { ImageSkeleton } from "./loading-skeleton";
 
 type Props = Pick<ImageProps, "contentFit" | "onLoad" | "onError"> & {

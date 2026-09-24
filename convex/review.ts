@@ -110,21 +110,21 @@ export const replaceFactSheet = internalMutation({
     if (correctionIds.length > MAX_ROWS) {
       throw new ConvexError({ code: "too_many_corrections" });
     }
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     for (const correctionId of new Set(correctionIds)) {
-      const correction = await ctx.db.get(correctionId);
+      const correction = await ctx.db.get("factCorrections", correctionId);
       if (!correction || correction.artworkId !== artworkId) {
         throw new ConvexError({ code: "invalid_correction" });
       }
-      await ctx.db.patch(correctionId, { status: "resolved" });
+      await ctx.db.patch("factCorrections", correctionId, { status: "resolved" });
     }
     const outstanding = await ctx.db
       .query("factCorrections")
       .withIndex("by_artworkId_status", (q) => q.eq("artworkId", artworkId).eq("status", "open"))
       .first();
     await clearDocent(ctx, artwork);
-    await ctx.db.patch(artworkId, {
+    await ctx.db.patch("artworks", artworkId, {
       factSheet,
       factSheetUpdatedAt: Date.now(),
       factSheetNeedsReview: outstanding ? true : undefined,
@@ -177,7 +177,7 @@ export const listReports = internalQuery({
 export const getReport = internalQuery({
   args: { reportId: v.id("reports") },
   returns: v.union(schema.doc("reports"), v.null()),
-  handler: (ctx, { reportId }) => ctx.db.get(reportId),
+  handler: (ctx, { reportId }) => ctx.db.get("reports", reportId),
 });
 export const decideReport = internalMutation({
   args: {
@@ -191,7 +191,7 @@ export const decideReport = internalMutation({
     if (!operator.trim() || operator.length > 120 || !reason.trim() || reason.length > 2000) {
       throw new ConvexError({ code: "invalid_report" });
     }
-    const report = await ctx.db.get(reportId);
+    const report = await ctx.db.get("reports", reportId);
     if (!report) throw new ConvexError({ code: "not_found" });
     if (report.status === "resolved") {
       if (
@@ -203,14 +203,14 @@ export const decideReport = internalMutation({
       }
       throw new ConvexError({ code: "conflict" });
     }
-    const now = Date.now(),
-      removal = { reportId, removedAt: now };
+    const now = Date.now();
+    const removal = { reportId, removedAt: now };
     if (decision === "remove") {
-      const target = report.target;
+      const { target } = report;
       if (target.kind === "profile") {
-        const profile = await ctx.db.get(target.profileId);
+        const profile = await ctx.db.get("profiles", target.profileId);
         if (profile && !profile.removal) {
-          await ctx.db.patch(profile._id, {
+          await ctx.db.patch("profiles", profile._id, {
             active: false,
             removal,
             publishedWallCount: 0,
@@ -221,29 +221,29 @@ export const decideReport = internalMutation({
             .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
             .unique();
           if (wall) {
-            await ctx.db.patch(wall._id, {
+            await ctx.db.patch("walls", wall._id, {
               layoutRevision: wall.layoutRevision + 1,
             });
           }
         }
       } else if (target.kind === "wallItem") {
-        const item = await ctx.db.get(target.itemId);
+        const item = await ctx.db.get("wallItems", target.itemId);
         if (item && !item.removal) {
-          await ctx.db.patch(item._id, {
+          await ctx.db.patch("wallItems", item._id, {
             active: false,
             noteVisible: false,
             noteRevision: item.noteRevision + 1,
             removal,
           });
-          const wall = await ctx.db.get(item.wallId),
-            profile = await ctx.db.get(item.profileId);
+          const wall = await ctx.db.get("walls", item.wallId);
+          const profile = await ctx.db.get("profiles", item.profileId);
           if (wall) {
-            await ctx.db.patch(wall._id, {
+            await ctx.db.patch("walls", wall._id, {
               layoutRevision: wall.layoutRevision + 1,
             });
           }
           if (profile && item.active) {
-            await ctx.db.patch(profile._id, {
+            await ctx.db.patch("profiles", profile._id, {
               publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
             });
           }
@@ -254,7 +254,7 @@ export const decideReport = internalMutation({
           .withIndex("by_postId", (q) => q.eq("postId", target.postId))
           .unique();
         if (publication && !publication.removal) {
-          await ctx.db.patch(publication._id, {
+          await ctx.db.patch("sharedVisits", publication._id, {
             status: "private",
             removal,
             publicationRevision: publication.publicationRevision + 1,
@@ -263,7 +263,7 @@ export const decideReport = internalMutation({
         }
       }
     }
-    await ctx.db.patch(reportId, {
+    await ctx.db.patch("reports", reportId, {
       status: "resolved",
       review: { operator, decision, reason, reviewedAt: now },
     });

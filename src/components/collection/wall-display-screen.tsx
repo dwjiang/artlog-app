@@ -1,22 +1,24 @@
-import { reportError } from "@/lib/observability";
-import { LoadingRing } from "@/components/loading-ring";
-import { FormSkeleton } from "@/components/loading-skeleton";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { LoadingRing } from "@/components/loading-ring";
+import { FormSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { useLocalOwner } from "@/lib/account/owner-store";
 import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
-import { WallArtwork } from "./wall-artwork";
-import { wallFrames } from "./wall-frame";
+
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
 import { NoteVisibility } from "./note-visibility";
 import { PhotoVisibility } from "./photo-visibility";
+import { WallArtwork } from "./wall-artwork";
+import { wallFrames } from "./wall-frame";
 import { WallFramePicker } from "./wall-options";
 import { WallPhotoPicker } from "./wall-photo-picker";
 

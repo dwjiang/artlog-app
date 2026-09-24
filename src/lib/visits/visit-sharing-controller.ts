@@ -1,9 +1,11 @@
-import { addBreadcrumb, reportError } from "@/lib/observability";
 import { ConvexError } from "convex/values";
+
+import { convexErrorCode } from "@/lib/network-error";
+import { addBreadcrumb, reportError } from "@/lib/observability";
+import type { RequestContext } from "@/lib/wall/wall-transport";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { convexErrorCode } from "../network-error";
-import type { RequestContext } from "../wall/wall-transport";
+
 import type {
   SharePreview,
   ShareSelection,
@@ -227,7 +229,7 @@ export function createVisitSharingController({
       if (!state.preview || !state.draft || state.conflict || state.acknowledged?.removed) {
         return Promise.resolve(false);
       }
-      const draft = state.draft;
+      const { draft } = state;
       return run("publish", async (context, current) => {
         const result = await transport.publish(draft, context);
         if (current()) {
@@ -248,7 +250,7 @@ export function createVisitSharingController({
         let result = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage }, context);
         const pages = new Set<string>();
         while (current() && !result.artworks.isDone && result.artworks.cursor) {
-          const cursor = result.artworks.cursor;
+          const { cursor } = result.artworks;
           if (pages.has(cursor)) {
             throw new Error("The artwork page did not advance");
           }

@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { harness, type Harness } from "../test.helpers";
@@ -27,17 +28,17 @@ async function addStory(t: Harness, saveId: Id<"collections">, patch: Partial<Do
       },
       ...patch,
     });
-    await ctx.db.patch(saveId, { artworkId: id });
+    await ctx.db.patch("collections", saveId, { artworkId: id });
     return id;
   });
 }
 
 it("exposes only cited story fields through an active public wall item", async () => {
-  const t = harness(),
-    owner = await wallFixture(t);
+  const t = harness();
+  const owner = await wallFixture(t);
   await addStory(t, owner.saveId);
-  const wall = await owner.as.mutation(api.walls.setLayout, owner.input),
-    itemId = wall.items[0].itemId;
+  const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
+  const { itemId } = wall.items[0];
   const detail = await t.query(api.walls.getArtwork, { itemId });
   expect(detail?.enrichment).toEqual(enrichment);
   expect(JSON.stringify(detail)).not.toMatch(
@@ -60,23 +61,23 @@ it.each([
   { factSheetNeedsReview: true },
   { docent: { en: [] } },
 ])("omits stories that are unavailable or need review: %j", async (patch) => {
-  const t = harness(),
-    owner = await wallFixture(t);
+  const t = harness();
+  const owner = await wallFixture(t);
   await addStory(t, owner.saveId, patch);
   const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
   expect(await t.query(api.walls.getArtwork, { itemId: wall.items[0].itemId })).not.toHaveProperty("enrichment");
 });
 
 it("returns public visit stories without friendship and revokes access when made private", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    reader = await socialUser(t),
-    draft = await socialVisit(t, owner, 1);
+  const t = harness();
+  const owner = await socialUser(t);
+  const reader = await socialUser(t);
+  const draft = await socialVisit(t, owner, 1);
   await addStory(t, draft.saves[0].id);
-  const publication = await owner.as.mutation(api.sharedVisits.publish, draft.selection),
-    postId = publication.postId!;
-  const post = await owner.as.query(api.sharedVisits.get, { postId }),
-    itemId = post.artworks.page[0].itemId;
+  const publication = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
+  const postId = publication.postId!;
+  const post = await owner.as.query(api.sharedVisits.get, { postId });
+  const { itemId } = post.artworks.page[0];
   expect(post.artworks.page[0]).not.toHaveProperty("enrichment");
   expect((await t.query(api.sharedVisits.getArtwork, { postId, itemId })).enrichment).toEqual(enrichment);
   const detail = await reader.as.query(api.sharedVisits.getArtwork, {

@@ -1,5 +1,6 @@
-import { guideBodyFixture, guideFixture, researchFixture } from "../shared/audio/guide-fixtures";
 import { afterEach, expect, it, vi } from "vitest";
+
+import { guideBodyFixture, guideFixture, researchFixture } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -45,7 +46,7 @@ async function setup() {
   );
   vi.stubEnv("OPENAI_API_KEY", "test-only-secret");
   vi.stubEnv("NEBIUS_API_KEY", "test-nebius-secret");
-  const fetcher = vi.fn(async (url: string) =>
+  const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) =>
     url.includes("tokenfactory")
       ? completion()
       : new Response(new Uint8Array([73, 68, 51, 1]), {
@@ -96,7 +97,7 @@ it("rejects unauthenticated, unregistered and banned callers before spending", a
   await expect(unknown.as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "device_not_registered" },
   });
-  await t.run((ctx) => ctx.db.patch(deviceId, { banned: true }));
+  await t.run((ctx) => ctx.db.patch("devices", deviceId, { banned: true }));
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "device_banned" },
   });
@@ -105,12 +106,12 @@ it("rejects unauthenticated, unregistered and banned callers before spending", a
 
 it("rejects facts under review, catalogue-only research and retired artworks before spending", async () => {
   const { t, as, args, artworkId, fetcher } = await setup();
-  await t.run((ctx) => ctx.db.patch(artworkId, { factSheetNeedsReview: true }));
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetNeedsReview: true }));
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
   });
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, {
+    ctx.db.patch("artworks", artworkId, {
       factSheetNeedsReview: undefined,
       factSheet: [catalogueFact],
     }),
@@ -119,7 +120,7 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
     data: { code: "narration_unavailable" },
   });
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, {
+    ctx.db.patch("artworks", artworkId, {
       factSheet: researchFixture,
       retiredAt: Date.now(),
     }),
@@ -132,10 +133,10 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
 
 it("is independent of the written docent and re-renders only when the research is rewritten", async () => {
   const { t, as, args, artworkId, fetcher, rows } = await setup();
-  await t.run((ctx) => ctx.db.patch(artworkId, { docent: undefined }));
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { docent: undefined }));
   const first = await as.action(api.narration.render, args);
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, {
+    ctx.db.patch("artworks", artworkId, {
       docent: {
         en: [{ sentence: "Changed written docent.", factIds: ["f1"] }],
       },
@@ -147,7 +148,7 @@ it("is independent of the written docent and re-renders only when the research i
     ...fact,
     text: `${fact.text} Corrected evidence.`,
   }));
-  await t.run((ctx) => ctx.db.patch(artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }));
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }));
   const updated = await as.action(api.narration.render, args);
   expect(updated.renderId).not.toBe(first.renderId);
   expect(
@@ -163,7 +164,7 @@ it("re-renders from corrected artwork metadata even when the research is unchang
   const { t, as, args, artworkId, fetcher } = await setup();
   const first = await as.action(api.narration.render, args);
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, {
+    ctx.db.patch("artworks", artworkId, {
       title: "Nymphéas",
       artist: "Attributed to Claude Monet",
       date: "1917",
@@ -183,11 +184,11 @@ it("re-renders audio that was made with another voice or model", async () => {
   const { t, as, args, fetcher, rows } = await setup();
   const first = await as.action(api.narration.render, args);
   const entry = (await rows())[0];
-  await t.run((ctx) => ctx.db.patch(entry._id, { voice: "previous-voice" }));
+  await t.run((ctx) => ctx.db.patch("narrationAudio", entry._id, { voice: "previous-voice" }));
   expect((await as.action(api.narration.render, args)).renderId).not.toBe(first.renderId);
   await t.run(async (ctx) => {
     const row = (await ctx.db.query("narrationAudio").take(1))[0];
-    await ctx.db.patch(row._id, { guideModel: "previous-model" });
+    await ctx.db.patch("narrationAudio", row._id, { guideModel: "previous-model" });
   });
   await as.action(api.narration.render, args);
   expect(fetcher).toHaveBeenCalledTimes(6);
@@ -198,7 +199,7 @@ it("tells the client which render is current only while it is fresh", async () =
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
   const first = await as.action(api.narration.render, args);
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBe(first.renderId);
-  await t.run((ctx) => ctx.db.patch(artworkId, { factSheetUpdatedAt: 6 }));
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
 });
 
@@ -240,7 +241,7 @@ it("allows only one generation claim and rejects a late completion after a stale
   expect(second.owned).toBe(false);
   await t.run(async (ctx) => {
     const row = (await ctx.db.query("narrationAudio").take(1))[0];
-    await ctx.db.patch(row._id, { claimedAt: Date.now() - 181_000 });
+    await ctx.db.patch("narrationAudio", row._id, { claimedAt: Date.now() - 181_000 });
   });
   expect(
     (
@@ -280,7 +281,7 @@ it("deletes its audio when the research changes while it is being spoken", async
   const { t, as, args, artworkId, fetcher, rows } = await setup();
   fetcher.mockResolvedValueOnce(completion());
   fetcher.mockImplementationOnce(async () => {
-    await t.run((ctx) => ctx.db.patch(artworkId, { factSheetUpdatedAt: 6 }));
+    await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
     return new Response(new Uint8Array([73, 68, 51, 1]), {
       headers: { "Content-Type": "audio/mpeg" },
     });

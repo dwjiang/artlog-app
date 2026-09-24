@@ -1,13 +1,16 @@
 import Slider from "@react-native-community/slider";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { useListening } from "@/lib/audio/use-listening";
 import { audioTime } from "@/lib/audio/narration";
-import { AudioIcon, AudioIconButton } from "./audio-icon";
-import { LoadingRing } from "@/components/loading-ring";
+import { useListening } from "@/lib/audio/use-listening";
+
 import { SystemVolumeSlider } from "../../../modules/system-volume/src";
+import { AudioIcon, AudioIconButton } from "./audio-icon";
+
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();

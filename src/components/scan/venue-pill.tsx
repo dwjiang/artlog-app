@@ -1,10 +1,10 @@
-import { TextSkeleton } from "@/components/loading-skeleton";
-import { LoadingRing } from "@/components/loading-ring";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet } from "react-native";
 
 import { GlassSurface } from "@/components/glass-surface";
+import { LoadingRing } from "@/components/loading-ring";
+import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";

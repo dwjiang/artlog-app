@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { View, useWindowDimensions } from "react-native";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 

@@ -88,8 +88,8 @@ export function parseGuideLines(value: unknown): GuideLine[] | null {
 export function normalizePassage(text: string): string {
   return text
     .normalize("NFKC")
-    .replace(/["'‘’“”]/g, "")
-    .replace(/\s+/g, " ")
+    .replaceAll(/["'‘’“”]/g, "")
+    .replaceAll(/\s+/g, " ")
     .trim();
 }
 
@@ -104,7 +104,7 @@ export function unsupportedLines(lines: GuideLine[], facts: readonly { id: strin
 }
 
 export function guideOpening(artwork: { title: string; artist: string; date?: string }): string {
-  const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
+  const normalize = (value: string) => value.replaceAll(/\s+/g, " ").trim();
   const identity = `This is ${normalize(artwork.title)}, by ${normalize(artwork.artist)}`;
   const date = normalize(artwork.date ?? "");
   return date ? `${identity}, dated ${date}.` : `${identity}. Its date is unknown.`;
@@ -115,7 +115,7 @@ export function validateGuide(value: unknown, factIds: ReadonlySet<string>, open
     !Array.isArray(value)
     || value[0]?.sentence !== opening
     || !Array.isArray(value[0]?.factIds)
-    || value[0].factIds.length
+    || value[0].factIds.length > 0
   ) {
     return null;
   }
@@ -134,7 +134,7 @@ export function guideWordFloor(factCount: number): number {
 }
 
 export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): DocentSentence[] | null {
-  if (!Array.isArray(value) || !value.length || value.length > 24) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 24) return null;
   const sentences: DocentSentence[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
@@ -142,12 +142,12 @@ export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>):
       !entry
       || typeof entry.sentence !== "string"
       || !Array.isArray(entry.factIds)
-      || !entry.factIds.length
+      || entry.factIds.length === 0
       || entry.factIds.some((id: unknown) => typeof id !== "string" || !factIds.has(id))
     ) {
       return null;
     }
-    const sentence = entry.sentence.replace(/\s+/g, " ").trim();
+    const sentence = entry.sentence.replaceAll(/\s+/g, " ").trim();
     // Braces, brackets and tags never belong in speech; they mean JSON or markup leaked into a sentence,
     // and a sentence without closing punctuation was cut off mid-thought.
     if (

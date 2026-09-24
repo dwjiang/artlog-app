@@ -32,12 +32,12 @@ export function globeCamera(latitude: number, longitude: number): GlobeCamera {
 export function projectGlobePin(pin: GlobePin, camera: GlobeCamera, width: number, height: number) {
   "worklet";
   const { cx, cy, radius } = globeGeometry(width, height, camera.zoom);
-  const latitude = pin.latitude * radians,
-    longitude = (pin.longitude + camera.yaw) * radians,
-    pitch = camera.pitch * radians;
-  const x = Math.cos(latitude) * Math.sin(longitude),
-    y = Math.sin(latitude),
-    z = Math.cos(latitude) * Math.cos(longitude);
+  const latitude = pin.latitude * radians;
+  const longitude = (pin.longitude + camera.yaw) * radians;
+  const pitch = camera.pitch * radians;
+  const x = Math.cos(latitude) * Math.sin(longitude);
+  const y = Math.sin(latitude);
+  const z = Math.cos(latitude) * Math.cos(longitude);
   return {
     x: cx + radius * x,
     y: cy - radius * (y * Math.cos(pitch) - z * Math.sin(pitch)),
@@ -66,8 +66,8 @@ export function globeClusters(pins: GlobePin[], camera: GlobeCamera, width: numb
 }
 export function hitGlobePin(groups: GlobeCluster[], x: number, y: number) {
   "worklet";
-  let nearest: GlobeCluster | undefined,
-    distance = 24;
+  let nearest: GlobeCluster | undefined;
+  let distance = 24;
   for (const group of groups) {
     const next = Math.hypot(group.x - x, group.y - y);
     if (next < distance) {

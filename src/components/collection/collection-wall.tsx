@@ -1,22 +1,25 @@
-import { reportError } from "@/lib/observability";
-import { LoadingSkeleton, Ghost } from "../loading-skeleton";
-import { WallSheet } from "./wall-sheet";
-import { EmptyState } from "../empty-state";
-import { ArtworkCollage } from "../guest/artwork-preview";
-import { LoadingRing } from "@/components/loading-ring";
-import { ThemedText as Text } from "@/components/themed-text";
-import { DEFAULT_WALL_COLOR, DEFAULT_THUMBNAIL_FRAME } from "@/shared/wall/defaults";
 import { randomUUID } from "expo-crypto";
-import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Gallery, Radius } from "@/constants/theme";
+
+import { EmptyState } from "@/components/empty-state";
+import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { LoadingRing } from "@/components/loading-ring";
+import { LoadingSkeleton, Ghost } from "@/components/loading-skeleton";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery, Radius } from "@/constants/theme";
+import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
+import { captureOwner } from "@/lib/account/owner-store";
+import { cropSyncing } from "@/lib/account/photo-sync";
+import { signInRoute } from "@/lib/account/sign-in-context";
+import { convexErrorCode } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
+import { showToast } from "@/lib/ui/toast";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import {
   constrainLayout,
@@ -27,19 +30,17 @@ import {
   type WallLayout,
   type WallPiece,
 } from "@/lib/wall/wall-layout";
-import { captureOwner } from "@/lib/account/owner-store";
 import { LIMITS } from "@/shared/journal/limits";
-import { convexErrorCode } from "@/lib/network-error";
-import { showToast } from "@/lib/ui/toast";
+import { DEFAULT_WALL_COLOR, DEFAULT_THUMBNAIL_FRAME } from "@/shared/wall/defaults";
+
 import { GalleryButton } from "./gallery-button";
-import { signInRoute } from "@/lib/account/sign-in-context";
-import { WallArtworkSheet } from "./wall-sheets";
-import { WallProfileSheet } from "./wall-profile-sheet";
-import { WallGallery } from "./wall-gallery";
 import { SavedWorkImage } from "./saved-work-image";
-import { cropSyncing } from "@/lib/account/photo-sync";
 import { WallFrame, wallFrameInset } from "./wall-frame";
+import { WallGallery } from "./wall-gallery";
 import { WallPhotoSheet } from "./wall-photo-sheet";
+import { WallProfileSheet } from "./wall-profile-sheet";
+import { WallSheet } from "./wall-sheet";
+import { WallArtworkSheet } from "./wall-sheets";
 
 type CollectionWallProps = {
   works: SavedWork[];
@@ -73,13 +74,13 @@ export function CollectionWallContent({
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [editing, setEditing] = useState(false),
-    [width, setWidth] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [width, setWidth] = useState(0);
   useHideTabBar(editing);
-  const [viewportHeight, setViewportHeight] = useState(0),
-    [canvasTop, setCanvasTop] = useState(0);
-  const [profile, setProfile] = useState(false),
-    [options, setOptions] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [canvasTop, setCanvasTop] = useState(0);
+  const [profile, setProfile] = useState(false);
+  const [options, setOptions] = useState(false);
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
   // The photo sheet waits for the artwork sheet to finish dismissing: iOS drops a sheet presented while another animates out.
@@ -87,9 +88,9 @@ export function CollectionWallContent({
     kind: "choose" | "duplicate";
     presented: boolean;
   }>();
-  const scroll = useRef<ScrollView>(null),
-    wallTop = useRef(0),
-    controlsHeight = useRef(0);
+  const scroll = useRef<ScrollView>(null);
+  const wallTop = useRef(0);
+  const controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
   const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
@@ -235,8 +236,8 @@ export function CollectionWallContent({
       if (!selection || items.some((item) => item.saveLocalId === localId) || items.length >= LIMITS.wallItems) {
         continue;
       }
-      const placementId = randomUUID(),
-        layout = nextWallLayout(nextPieces);
+      const placementId = randomUUID();
+      const layout = nextWallLayout(nextPieces);
       const photoLocalId = selectArtworkPhotos(localId)
         .all()
         .find((photo) => photo.kind !== "label")?.localId;
@@ -467,8 +468,9 @@ export function CollectionWallContent({
                 onRemove={remove}
                 onMove={move}
                 onSelect={(piece) => {
-                  if (editing) setSelectedId(piece.localId);
-                  else if (works.some((work) => work.localId === piece.saveLocalId)) {
+                  if (editing) {
+                    setSelectedId(piece.localId);
+                  } else if (works.some((work) => work.localId === piece.saveLocalId)) {
                     router.push({
                       pathname: "/saved/[savedId]",
                       params: {
@@ -601,7 +603,7 @@ export function CollectionWallContent({
                   void wall.loadSelections();
                 }}
               />
-            ) : !available.length ? (
+            ) : available.length === 0 ? (
               <Text style={styles.caption}>Save an artwork to add it to your wall.</Text>
             ) : null}
           </ScrollView>
@@ -683,7 +685,7 @@ export function CollectionWallContent({
                   void wall.loadSelections();
                 }}
               />
-            ) : !available.length ? (
+            ) : available.length === 0 ? (
               <Text style={styles.caption}>Your artworks appear here once they have synced.</Text>
             ) : null}
             {wall.error && (
@@ -700,13 +702,13 @@ export function CollectionWallContent({
             }}
           >
             <GalleryButton
-              label={`Add ${picker.length || ""} ${picker.length === 1 ? "artwork" : "artworks"} to wall`.replace(
+              label={`Add ${picker.length > 0 ? picker.length : ""} ${picker.length === 1 ? "artwork" : "artworks"} to wall`.replace(
                 "  ",
                 " ",
               )}
               fullWidth
               variant="filled"
-              disabled={!picker.length || blocked}
+              disabled={picker.length === 0 || blocked}
               onPress={addSelection}
             />
           </View>

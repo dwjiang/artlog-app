@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 
+import { getLocalOwner } from "@/lib/account/owner-store";
+
 import { db } from "./client";
 import { ensureSavedWorkPhotoTimestamp } from "./ensure-saved-work-photo-timestamp";
 import { listUnsynced } from "./repos/saved-works";
-import { getLocalOwner } from "@/lib/account/owner-store";
 
 jest.mock("./client", () => ({
   db: jest.requireActual("./test-db").createTestDatabase(),

@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
+
 import { ProfileSetupScreen } from "@/components/social/profile-setup-screen";
 
 export default function CreateProfileRoute() {

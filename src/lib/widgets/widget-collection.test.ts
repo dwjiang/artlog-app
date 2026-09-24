@@ -1,4 +1,5 @@
 import type { ArtworkEncounter, ArtworkPhoto, SavedWork, Visit } from "@/db/schema";
+
 import { widgetArtworkUrl, widgetCollection, widgetVisitDate } from "./widget-collection";
 import { defaultWidgetSettings, readWidgetSettings, widgetSettingsKey } from "./widget-settings";
 

@@ -1,14 +1,15 @@
-import { db } from "../client";
-import { notes, pendingScans, savedWorks, settings, visits } from "../schema";
-import { claimLocalJournal } from "./journal-claim";
-import * as saves from "./saved-works";
-import * as visitRepo from "./visits";
-import { getNote, setNote } from "./notes";
-import { getSetting, setSetting } from "./settings";
-import { anonymousOwner, initializeOwner, switchOwner } from "../../lib/account/owner-store";
+import { db } from "@/db/client";
+import { notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
+import { anonymousOwner, initializeOwner, switchOwner } from "@/lib/account/owner-store";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+import { claimLocalJournal } from "./journal-claim";
+import { getNote, setNote } from "./notes";
+import * as saves from "./saved-works";
+import { getSetting, setSetting } from "./settings";
+import * as visitRepo from "./visits";
+
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 beforeEach(async () => {
   await db.delete(notes);
@@ -18,6 +19,7 @@ beforeEach(async () => {
   await db.delete(settings);
   initializeOwner("test-installation");
 });
+
 it("claims associations, notes, photos and tombstones atomically and safely repeats", async () => {
   const source = anonymousOwner();
   await visitRepo.upsertVisit({
@@ -57,6 +59,7 @@ it("claims associations, notes, photos and tombstones atomically and safely repe
     owner: "account:a",
   });
 });
+
 it("carries the open and hand-ended visits to the account unless the account already has them, and drops dangling ones", async () => {
   const source = anonymousOwner();
   await visitRepo.upsertVisit({
@@ -90,6 +93,7 @@ it("carries the open and hand-ended visits to the account unless the account alr
   expect(await getSetting(`currentVisit:${source}`)).toBeUndefined();
   expect(await getSetting(`endedVisit:${source}`)).toBeUndefined();
 });
+
 it("carries the seen visits to the account, merged with the ones the account already opened", async () => {
   const source = anonymousOwner();
   await setSetting(`seenVisits:${source}`, '["opened-anonymously","opened-twice"]');
@@ -106,6 +110,7 @@ it("carries the seen visits to the account, merged with the ones the account alr
   expect(JSON.parse((await getSetting("seenVisits:account:b"))!)).toEqual([]);
   expect(await getSetting(`seenVisits:${source}`)).toBeUndefined();
 });
+
 it("carries queued index shares to the account with their captures", async () => {
   const source = anonymousOwner();
   await setSetting(`pendingShare:${source}:scan-1`, '{"scanId":"scan-1","captureLocalId":"capture"}');
@@ -113,6 +118,7 @@ it("carries queued index shares to the account with their captures", async () =>
   expect(await getSetting("pendingShare:account:a:scan-1")).toBe('{"scanId":"scan-1","captureLocalId":"capture"}');
   expect(await getSetting(`pendingShare:${source}:scan-1`)).toBeUndefined();
 });
+
 it("hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them", async () => {
   await saves.insertSavedWork({ localId: "save", title: "A", artist: "", savedAt: 1 }, "account:a");
   switchOwner("account:a");
@@ -133,6 +139,7 @@ it("hides account rows and suspends edits on sign-out, restores them on sign-in,
   expect((await getNote("save"))?.text).toBe("A note");
   expect(await saves.listUnsynced()).toHaveLength(1);
 });
+
 it("rejects collisions before moving any rows and enforces owner foreign keys", async () => {
   await saves.insertSavedWork({ localId: "same", title: "A", artist: "", savedAt: 1 }, "account:a");
   await saves.insertSavedWork({
@@ -161,5 +168,5 @@ it("rejects collisions before moving any rows and enforces owner foreign keys", 
       artist: "",
       savedAt: 1,
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("not_found");
 });

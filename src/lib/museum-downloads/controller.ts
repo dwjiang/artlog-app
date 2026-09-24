@@ -1,4 +1,5 @@
 import type { MuseumManifest, MuseumSummary } from "@/shared/offline/types";
+
 import type { MuseumDownload, LocalPackage } from "./model";
 
 export type DownloadSnapshot = {
@@ -61,7 +62,9 @@ export class MuseumDownloadsController {
           if (row.status === "downloading") row.status = "paused";
         }
         await this.publish({ ...saved, loaded: true });
-      } else await this.publish({ loaded: true });
+      } else {
+        await this.publish({ loaded: true });
+      }
     })().catch((error) => {
       this.hydration = undefined;
       this.snapshot = {
@@ -131,7 +134,9 @@ export class MuseumDownloadsController {
           pending: { manifest, folder: this.deps.folder(manifest) },
           completed: 0,
         };
-      } else row = { ...row, pending: { ...row.pending, manifest } };
+      } else {
+        row = { ...row, pending: { ...row.pending, manifest } };
+      }
       row = { ...row, status: "downloading", error: undefined };
       await this.row(museum.id, row);
       const remaining = manifest.chunks.slice(row.completed).reduce((sum, part) => sum + part.size, 0);

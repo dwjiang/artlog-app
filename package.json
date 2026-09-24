@@ -88,6 +88,7 @@
     "sharp": "^0.35.4"
   },
   "devDependencies": {
+    "@convex-dev/eslint-plugin": "^5.0.0",
     "@edge-runtime/vm": "^5.0.0",
     "@testing-library/react-native": "^14.0.1",
     "@types/better-sqlite3": "^9.6.0",
@@ -105,6 +106,7 @@
     "nitrogen": "^0.37.1",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
+    "oxlint-tsgolint": "^7.0.2003",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3",
     "vitest": "^5.0.0"

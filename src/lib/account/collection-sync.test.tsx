@@ -1,6 +1,7 @@
-import { captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { act, render } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
+
+import { SyncUnavailableError } from "@/lib/network-error";
 
 import {
   CollectionSync,
@@ -9,8 +10,9 @@ import {
   pauseCollectionSync,
   resumeCollectionSync,
 } from "./collection-sync";
-import { SyncUnavailableError } from "@/lib/network-error";
+import { captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { requestCollectionSync } from "./sync-events";
+
 const mockRecognition = jest.fn();
 jest.mock("./recognition-sync", () => ({ syncSavedRecognition: (...args: unknown[]) => mockRecognition(...args) }));
 jest.mock("./album-sync", () => ({ syncArtworkAlbums: async () => {} }));
@@ -42,8 +44,8 @@ jest.mock("expo-network", () => ({
 jest.mock("@/lib/convex-client", () => ({
   convex: { mutation: (...args: unknown[]) => mockClaim(...args) },
 }));
-let mockPending = false,
-  mockJournalPending = false;
+let mockPending = false;
+let mockJournalPending = false;
 jest.mock("@/db/repos/artwork-album", () => ({
   albumMediaPending: (...args: unknown[]) => mockAlbumPending(...args),
 }));

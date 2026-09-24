@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+
 import { useCachedNarrationDuration } from "./use-cached-narration-duration";
 
 const mockCachedUri = jest.fn();

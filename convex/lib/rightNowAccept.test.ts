@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { regionDomains } from "./regions";
 import {
   acceptRightNow,
   eligibleResults,
@@ -9,7 +10,6 @@ import {
   sentences,
 } from "./rightNowAccept";
 import { FIXTURE_NOW, rightNowFixtures, type RightNowFixture } from "./rightNowFixtures";
-import { regionDomains } from "./regions";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -203,7 +203,7 @@ describe("complete source sentences and event dates", () => {
   });
 
   it("allows typography and whitespace differences without discarding words or punctuation", () => {
-    expect(card(sentence, sentence.replace(/[“”]/g, '"').replace("opens", "opens   "))).not.toBeNull();
+    expect(card(sentence, sentence.replaceAll(/[“”]/g, '"').replace("opens", "opens   "))).not.toBeNull();
   });
 
   it.each([

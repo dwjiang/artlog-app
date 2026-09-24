@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
+
 import { useReducedMotion } from "./use-reduced-motion";
 
 beforeEach(() => {

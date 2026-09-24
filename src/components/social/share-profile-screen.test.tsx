@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+
 import { ShareProfileScreen } from "./share-profile-screen";
 
-const mockBack = jest.fn(),
-  mockRefresh = jest.fn();
-const mockShare = jest.fn(),
-  mockDelete = jest.fn(),
-  mockReleaseImage = jest.fn(),
-  mockReleaseContext = jest.fn();
+const mockBack = jest.fn();
+const mockRefresh = jest.fn();
+const mockShare = jest.fn();
+const mockDelete = jest.fn();
+const mockReleaseImage = jest.fn();
+const mockReleaseContext = jest.fn();
 const mockManipulate = jest.fn();
 jest.mock("expo-sharing", () => ({
   shareAsync: (...args: unknown[]) => mockShare(...args),

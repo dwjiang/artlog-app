@@ -1,4 +1,3 @@
-import { readVector } from "./lib/vectorStore";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -15,6 +14,7 @@ import {
   testVector,
 } from "./lib/testFactories";
 import type { LabelFields } from "./lib/validators";
+import { readVector } from "./lib/vectorStore";
 import { harness, signIn } from "./test.helpers";
 
 afterEach(() => {
@@ -90,8 +90,8 @@ async function fixture() {
       objectId,
       ...(await sign(as)),
     });
-  const object = (id: Id<"objects">) => t.run((ctx) => ctx.db.get(id));
-  const feedback = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get(id));
+  const object = (id: Id<"objects">) => t.run((ctx) => ctx.db.get("objects", id));
+  const feedback = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get("feedback", id));
   const feedbackRows = () => t.run((ctx) => ctx.db.query("feedback").collect());
   const proposals = () => t.run((ctx) => ctx.db.query("placementProposals").collect());
   return {
@@ -221,15 +221,13 @@ describe("rejectMatch", () => {
     },
   ])("flags and penalizes an object only past the rejection threshold (%#)", async ({ expected, ...counts }) => {
     const { t, best, reject, object } = await fixture();
-    await t.run((ctx) => ctx.db.patch(best.objectId, counts));
+    await t.run((ctx) => ctx.db.patch("objects", best.objectId, counts));
     await reject(best.objectId);
     const row = await object(best.objectId);
-    const { calibratorPenalty, ...expectedState } = expected;
+    const { calibratorPenalty, flaggedForReview, ...expectedState } = expected;
     expect(row).toMatchObject(expectedState);
+    expect(row?.flaggedForReview).toBe(flaggedForReview);
     expect(effectiveObjectPenalty(row!)).toBeCloseTo(calibratorPenalty);
-    if (!("flaggedForReview" in expected)) {
-      expect(row?.flaggedForReview).toBeUndefined();
-    }
   });
 
   it("requires an attested device when attestation is enforced", async () => {
@@ -273,7 +271,7 @@ describe("rejectMatch", () => {
         assertionBase64: "AAAA",
       }),
     ).rejects.toMatchObject({ data: { code: "device_not_attested" } });
-    expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toMatchObject({
       rejectCount: 0,
     });
   });
@@ -283,7 +281,7 @@ describe("resolveRejection", () => {
   it("keeps a completed resolution immutable while allowing identical retries", async () => {
     const { t, user, scanId, venueId, best, runnerUp, other, reject, feedback, proposals } = await fixture();
     await t.run((ctx) =>
-      ctx.db.patch(scanId, {
+      ctx.db.patch("scans", scanId, {
         runnerUps: [runnerUp, other].map((work) => ({
           identityStatus: "established" as const,
           objectId: work.objectId,
@@ -464,7 +462,7 @@ describe("false rejections", () => {
     async (basePenalty) => {
       const { t, user, scanId, best, reject, object, feedback } = await fixture();
       await t.run((ctx) =>
-        ctx.db.patch(best.objectId, {
+        ctx.db.patch("objects", best.objectId, {
           rejectCount: 19,
           calibratorPenalty: basePenalty,
         }),
@@ -501,7 +499,7 @@ describe("false rejections", () => {
 
   it("preserves other rejection penalties at the cap and corpus penalty updates", async () => {
     const { t, user, scanId, best, seedRejectableScan, reject, object } = await fixture();
-    await t.run((ctx) => ctx.db.patch(best.objectId, { rejectCount: 19, calibratorPenalty: 0.7 }));
+    await t.run((ctx) => ctx.db.patch("objects", best.objectId, { rejectCount: 19, calibratorPenalty: 0.7 }));
     const otherScanId = await seedRejectableScan();
     await reject(best.objectId);
     await reject(best.objectId, otherScanId);
@@ -524,7 +522,7 @@ describe("false rejections", () => {
       });
     await verify(scanId);
     expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(0.8);
-    const key = (await object(best.objectId))!.key;
+    const { key } = (await object(best.objectId))!;
     await t.mutation(internal.ingest.setObjectPenalty, {
       rows: [{ objectKey: key, calibratorPenalty: 0.35 }],
     });
@@ -540,7 +538,7 @@ describe("false rejections", () => {
   it("keeps a rejection when the verified title is similar but names a different work", async () => {
     const { t, user, scanId, best, reject, object, feedback } = await fixture();
     await t.run((ctx) =>
-      ctx.db.patch(best.artworkId, {
+      ctx.db.patch("artworks", best.artworkId, {
         title: "Still Life with Apples",
         artist: "Paul Cézanne",
       }),

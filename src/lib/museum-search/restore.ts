@@ -1,6 +1,7 @@
-import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import { loadLabelDraft } from "@/lib/label/draft";
 import type { ScanResult } from "@/lib/result/state";
+
+import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 
 export async function restoreConfirmedMuseumFlow(
   scan: Pick<NonNullable<ScanResult>, "scanId" | "museumSearch" | "labelFlow">,

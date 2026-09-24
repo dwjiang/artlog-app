@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
+
 import { WallProfileSheet } from "./wall-profile-sheet";
 
 const mockCreate = jest.fn();

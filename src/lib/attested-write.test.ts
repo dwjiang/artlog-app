@@ -78,7 +78,7 @@ it.each(["keychain", "challenge", "assertion"])(
     const call = stage === "keychain" ? mockGetItem : stage === "challenge" ? mockMutation : mockAssertion;
     call.mockRejectedValueOnce(new Error("unavailable"));
     await expect(signPayload({})).rejects.toThrow("unavailable");
-    if (stage !== "assertion") expect(mockAssertion).not.toHaveBeenCalled();
+    expect(mockAssertion).toHaveBeenCalledTimes(stage === "assertion" ? 1 : 0);
   },
 );
 
@@ -100,6 +100,6 @@ it("signs a pre-serialized payload verbatim", async () => {
 });
 
 it("rejects non-JSON payloads before contacting the server", async () => {
-  await expect(signPayload({ value: BigInt(1) })).rejects.toThrow();
+  await expect(signPayload({ value: BigInt(1) })).rejects.toThrow(TypeError);
   expect(mockMutation).not.toHaveBeenCalled();
 });

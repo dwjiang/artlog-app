@@ -1,9 +1,12 @@
-import { addBreadcrumb, reportError } from "@/lib/observability";
 import { waitFor } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
+
+import { captureOwner, subscribeOwner, switchOwner } from "@/lib/account/owner-store";
+import { addBreadcrumb, reportError } from "@/lib/observability";
+
 import { createVisitSharingController } from "./visit-sharing-controller";
 import type { SharePreview, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
-import { captureOwner, subscribeOwner, switchOwner } from "../account/owner-store";
+
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
   addBreadcrumb: jest.fn(),
@@ -65,6 +68,7 @@ beforeEach(() => {
   controller.connect();
 });
 afterEach(() => controller.dispose());
+
 it("selects at most 50 artworks, uses the saved public notes, and allows zero", async () => {
   transport.getState.mockResolvedValue({
     ...initial,
@@ -89,6 +93,7 @@ it("selects at most 50 artworks, uses the saved public notes, and allows zero", 
     expect.anything(),
   );
 });
+
 it("flushes before every request and sends no request when sync fails", async () => {
   flush.mockRejectedValueOnce(new Error("offline"));
   expect(await controller.load()).toBe(false);
@@ -101,6 +106,7 @@ it("flushes before every request and sends no request when sync fails", async ()
   await load;
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
+
 it("clears a failed load's error while its retry runs and after it succeeds", async () => {
   flush.mockRejectedValueOnce(new Error("offline"));
   await controller.load();
@@ -113,6 +119,7 @@ it("clears a failed load's error while its retry runs and after it succeeds", as
   expect(await retry).toBe(true);
   expect(controller.getSnapshot()).toMatchObject({ busy: false, error: undefined });
 });
+
 it("invalidates a preview when the saved note changes without a publication revision change", async () => {
   await controller.load();
   await controller.preview();
@@ -126,6 +133,7 @@ it("invalidates a preview when the saved note changes without a publication revi
   expect(await controller.publish()).toBe(false);
   expect(transport.publish).not.toHaveBeenCalled();
 });
+
 it("preserves selection and reflection on network failure", async () => {
   transport.getState.mockResolvedValue({ ...initial, reflection: "My draft" });
   await controller.load();
@@ -138,6 +146,7 @@ it("preserves selection and reflection on network failure", async () => {
   });
   expect(controller.getSnapshot().preview).not.toBeNull();
 });
+
 it("refreshes visit notes after a conflict while preserving the selected artworks", async () => {
   transport.getState.mockResolvedValue({ ...initial, reflection: "Keep this" });
   await controller.load();
@@ -167,6 +176,7 @@ it("refreshes visit notes after a conflict while preserving the selected artwork
     expect.anything(),
   );
 });
+
 it("aborts and clears private state on account changes and discards a late mutation acknowledgement", async () => {
   await controller.load();
   await controller.preview();
@@ -174,7 +184,7 @@ it("aborts and clears private state on account changes and discards a late mutat
   transport.publish.mockReturnValueOnce(gate.promise);
   const publish = controller.publish();
   await waitFor(() => expect(transport.publish).toHaveBeenCalled());
-  const signal = transport.publish.mock.calls[0][1].signal;
+  const { signal } = transport.publish.mock.calls[0][1];
   switchOwner("account:b", "scope-b");
   expect(signal.aborted).toBe(true);
   gate.resolve({ ...initial, status: "active", revision: 1 });
@@ -187,6 +197,7 @@ it("aborts and clears private state on account changes and discards a late mutat
   });
   expect(reportError).not.toHaveBeenCalled();
 });
+
 it("blocks publishing an edited selection until another preview is ready", async () => {
   await controller.load();
   await controller.preview();
@@ -196,6 +207,7 @@ it("blocks publishing an edited selection until another preview is ready", async
   controller.edit({ saveLocalIds: ["foreign-save"] });
   expect(controller.getSnapshot().draft?.saveLocalIds).not.toContain("foreign-save");
 });
+
 it("loads an existing share for editing and waits for an acknowledged publish", async () => {
   transport.getState.mockResolvedValue({
     ...initial,
@@ -228,6 +240,7 @@ it("loads an existing share for editing and waits for an acknowledged publish", 
   await request;
   expect(controller.getSnapshot().acknowledged?.revision).toBe(4);
 });
+
 it("surfaces profile requirements and refuses anonymous sharing", async () => {
   transport.getState.mockRejectedValueOnce(new ConvexError({ code: "profile_required" }));
   await controller.load();
@@ -236,6 +249,7 @@ it("surfaces profile requirements and refuses anonymous sharing", async () => {
   await controller.load();
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
+
 it("reads all artwork pages of a shared visit", async () => {
   transport.getState.mockResolvedValue({
     ...initial,

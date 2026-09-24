@@ -1,16 +1,18 @@
-import { reportError } from "@/lib/observability";
-import { NotePaper } from "../note-paper";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AppState, TextInput, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NotePaper } from "@/components/note-paper";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { patchVisit } from "@/db/repos/visits";
-import { requestCollectionSync } from "@/lib/account/sync-events";
 import type { Visit } from "@/db/schema";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+import { reportError } from "@/lib/observability";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { GalleryButton } from "../collection/gallery-button";
+
 import { visitStyles as styles } from "./visit-ui";
 
 type NotesVisit = Pick<Visit, "localId" | "owner" | "reflection">;
@@ -37,7 +39,7 @@ type NoteDraft = {
 // Typing pauses save locally only: every sync request spends a rate-limited round trip, so blur, background and close push the note.
 function persist(note: NoteDraft, sync = true) {
   clearTimeout(note.timer);
-  const text = note.text;
+  const { text } = note;
   if (!note.pending && text === note.savedText && !(sync && note.unsynced)) {
     return Promise.resolve(true);
   }

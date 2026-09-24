@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { View } from "react-native";
+
 import { ThemedText } from "@/components/themed-text";
 import { useCollectionData } from "@/lib/collection/use-collection-data";
+
 import { CollectionArtworks } from "./collection-artworks";
 import { CollectionSearchField } from "./collection-search-field";
 

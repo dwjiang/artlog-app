@@ -56,22 +56,22 @@ function checkModel(...args: string[]) {
   );
 }
 
-test("accepts a complete model in a build archive without Git or installed dependencies", () => {
+await test("accepts a complete model in a build archive without Git or installed dependencies", () => {
   assert.match(checkModel(), /Model test-v1 ready/);
 });
 
-test("can validate a freshly compiled model before replacing the tracked package", async () => {
+await test("can validate a freshly compiled model before replacing the tracked package", async () => {
   const staging = join(directory, "compiled");
   await rename(models, staging);
   assert.match(checkModel(staging), /Model test-v1 ready/);
 });
 
-test("explains how to recover a missing model", async () => {
+await test("explains how to recover a missing model", async () => {
   await rm(models, { recursive: true });
   assert.throws(checkModel, /git lfs pull/);
 });
 
-test("rejects unresolved LFS pointers before native compilation", async () => {
+await test("rejects unresolved LFS pointers before native compilation", async () => {
   for (const file of [
     "coremldata.bin",
     "analytics/coremldata.bin",
@@ -87,12 +87,12 @@ test("rejects unresolved LFS pointers before native compilation", async () => {
   }
 });
 
-test("rejects incomplete compiled packages", async () => {
+await test("rejects incomplete compiled packages", async () => {
   await rm(join(compiled, "model.mil"));
   assert.throws(checkModel, /model.mil.*git lfs pull/);
 });
 
-test("rejects a model whose version or dimensions do not match the app", async () => {
+await test("rejects a model whose version or dimensions do not match the app", async () => {
   const path = join(directory, "shared/model/model-version.json");
   for (const change of [{ modelVersion: "test-v2" }, { inputSize: 224 }, { embeddingDim: 768 }]) {
     await writeFile(path, JSON.stringify({ ...contract, ...change }));
@@ -100,7 +100,7 @@ test("rejects a model whose version or dimensions do not match the app", async (
   }
 });
 
-test("rejects corrupted weights even when the model version is correct", async () => {
+await test("rejects corrupted weights even when the model version is correct", async () => {
   await writeFile(join(compiled, "weights/weight.bin"), "wrong weights");
   assert.throws(checkModel, /weights.*SHA-256/);
 });
@@ -132,14 +132,14 @@ async function compilerFixture() {
   return { compile, output };
 }
 
-test("installs a validated compiler result into the tracked model directory", async () => {
+await test("installs a validated compiler result into the tracked model directory", async () => {
   const { compile } = await compilerFixture();
   await rm(models, { recursive: true });
   assert.match(compile(), /Compiled model ready/);
   assert.match(checkModel(), /Model test-v1 ready/);
 });
 
-test("keeps the existing model when a new export does not match the app", async () => {
+await test("keeps the existing model when a new export does not match the app", async () => {
   const { compile, output } = await compilerFixture();
   const manifest = JSON.parse(await readFile(join(output, "model-manifest.json"), "utf8"));
   await writeFile(join(output, "model-manifest.json"), JSON.stringify({ ...manifest, modelVersion: "wrong" }));

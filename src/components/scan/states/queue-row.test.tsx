@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { QueueRow, RETRY_ROW, queueStatusText } from "./queue-row";
 import type { PendingScan } from "@/db/schema";
+
+import { QueueRow, RETRY_ROW, queueStatusText } from "./queue-row";
 
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),

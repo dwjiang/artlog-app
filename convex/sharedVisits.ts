@@ -1,5 +1,5 @@
-import { selectedPhotoMedia } from "./lib/albumMedia";
 import { ConvexError, v } from "convex/values";
+
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
 import {
@@ -10,15 +10,16 @@ import {
   sharedSelection,
   sharedVisitCard,
 } from "../shared/social/contracts";
-import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import { selectedPhotoMedia } from "./lib/albumMedia";
+import { resolveDisplayAsset } from "./lib/displayMedia";
+import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectArtwork, projectProfile } from "./lib/projections";
-import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
+import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
-import { resolveDisplayAsset } from "./lib/displayMedia";
-import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import {
   checkPublicationRevision,
   compareHistory,
@@ -104,8 +105,8 @@ export const preview = query({
       const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
       artworks.push({
         saveLocalId: save.localId,
-        artwork: photos.length ? { ...artwork, media: photos[0] } : artwork,
-        ...(photos.length ? { photos } : {}),
+        artwork: photos.length > 0 ? { ...artwork, media: photos[0] } : artwork,
+        ...(photos.length > 0 ? { photos } : {}),
       });
     }
     return {
@@ -146,11 +147,11 @@ export const publish = mutation({
         visitId: visit._id,
         visitLocalId: visit.localId,
       }));
-    if (publication) await ctx.db.patch(publicationId, fields);
+    if (publication) await ctx.db.patch("sharedVisits", publicationId, fields);
     const previous = await publicationItems(ctx, publicationId);
     const selected = new Set(saves.map((save) => save._id));
     for (const item of previous) {
-      if (!selected.has(item.saveId)) await ctx.db.delete(item._id);
+      if (!selected.has(item.saveId)) await ctx.db.delete("sharedVisitItems", item._id);
     }
     const ordered = [
       ...(input.highlightLocalIds ?? []).flatMap((id) => saves.filter((save) => save.localId === id)),
@@ -161,7 +162,7 @@ export const publish = mutation({
       const photoLocalIds = input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds;
       const highlighted = input.highlightLocalIds?.includes(save.localId) ?? position < 3;
       if (item) {
-        await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
+        await ctx.db.patch("sharedVisitItems", item._id, { position, photoLocalIds, highlighted });
       } else {
         await ctx.db.insert("sharedVisitItems", {
           publicationId,
@@ -173,7 +174,7 @@ export const publish = mutation({
         });
       }
     }
-    return stateForPublication(ctx, (await ctx.db.get(publicationId))!, visit);
+    return stateForPublication(ctx, (await ctx.db.get("sharedVisits", publicationId))!, visit);
   },
 });
 export const get = query({
@@ -222,10 +223,10 @@ async function historyPage(
     })),
   );
   const page = [];
-  let scanned = 0,
-    projected = 0,
-    bytes = 0,
-    last = before;
+  let scanned = 0;
+  let projected = 0;
+  let bytes = 0;
+  let last = before;
   while (scanned < LIMITS.maxPage && page.length < numItems) {
     const stream = streams
       .filter((s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } => !!s.head)
@@ -245,7 +246,7 @@ async function historyPage(
         artworks,
       };
       const size = utf8Bytes(result);
-      if (page.length && bytes + size > PAGE_BYTES) break;
+      if (page.length > 0 && bytes + size > PAGE_BYTES) break;
       page.push(result);
       bytes += size;
       projected += artworks.page.length;

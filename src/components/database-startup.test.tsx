@@ -2,10 +2,11 @@ import { render, screen } from "@testing-library/react-native";
 import { sql } from "drizzle-orm";
 import { Text } from "react-native";
 
-import { DatabaseGate } from "./database-gate";
 import { db } from "@/db/client";
 import { savedWorks } from "@/db/schema";
 import { reportError } from "@/lib/observability";
+
+import { DatabaseGate } from "./database-gate";
 
 const mockMigrationState = { success: false };
 

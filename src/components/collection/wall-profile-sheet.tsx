@@ -1,4 +1,5 @@
 import { ProfileForm } from "@/components/social/profile-form";
+
 import { WallSheet } from "./wall-sheet";
 
 export function WallProfileSheet({ onDismiss, onCreated }: { onDismiss: () => void; onCreated: () => void }) {

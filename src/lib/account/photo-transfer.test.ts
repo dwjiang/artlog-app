@@ -1,15 +1,15 @@
-import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
 
-const mockUpload = jest.fn(),
-  mockDownload = jest.fn(),
-  mockDelete = jest.fn(),
-  mockResize = jest.fn();
-const mockSave = jest.fn(),
-  mockRelease = jest.fn();
-let mockWidth = 4000,
-  mockHeight = 3000,
-  mockSize = 1000;
+const mockUpload = jest.fn();
+const mockDownload = jest.fn();
+const mockDelete = jest.fn();
+const mockResize = jest.fn();
+const mockSave = jest.fn();
+const mockRelease = jest.fn();
+let mockWidth = 4000;
+let mockHeight = 3000;
+let mockSize = 1000;
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));

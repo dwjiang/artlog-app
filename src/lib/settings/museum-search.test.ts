@@ -1,7 +1,7 @@
 import { getMuseumSearchConsent, setMuseumSearchConsent } from "./museum-search";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 it("defaults to unset and persists grants and revocations across fresh reads", async () => {

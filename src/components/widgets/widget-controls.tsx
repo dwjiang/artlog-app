@@ -11,6 +11,7 @@ import {
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { View } from "react-native";
+
 import { Gallery } from "@/constants/theme";
 
 export function WidgetSettingRow({

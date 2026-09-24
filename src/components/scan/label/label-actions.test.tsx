@@ -1,13 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
-
 import { CONTRIBUTION_MESSAGES, contributionMessage } from "./contribute-result";
 import { LabelActions, SHARE_BUTTON } from "./label-actions";
 
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 const handlers = {

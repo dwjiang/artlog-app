@@ -1,9 +1,10 @@
-import { reportError } from "@/lib/observability";
 import { useNetworkState } from "expo-network";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { reportError } from "@/lib/observability";
 import type { ScanResult } from "@/lib/result/state";
 import { useMuseumSearchConsent } from "@/lib/settings/use-museum-search-consent";
+
 import { museumSearchMessage, type MuseumSearchOutcome, type MuseumSearchStage } from "./flow";
 import { runMuseumSearchForScan } from "./museum-search-deps";
 import { restoreConfirmedMuseumFlow } from "./restore";

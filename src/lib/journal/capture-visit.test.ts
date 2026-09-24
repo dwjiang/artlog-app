@@ -1,11 +1,13 @@
+import { db } from "@/db/client";
+import { getVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
+import { visits } from "@/db/schema";
+import { initializeOwner, switchOwner } from "@/lib/account/owner-store";
+import { calendarDate } from "@/shared/journal/limits";
+
 import { prepareCaptureVisit } from "./capture-visit";
-import { getVisit, patchVisit, upsertVisit } from "../../db/repos/visits";
-import { db } from "../../db/client";
-import { visits } from "../../db/schema";
-import { initializeOwner, switchOwner } from "../account/owner-store";
-import { calendarDate } from "../../../shared/journal/limits";
-jest.mock("../../db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const venueId = "museum" as never;
 const localId = "00000000-0000-4000-8000-000000000001";
@@ -25,6 +27,7 @@ beforeEach(async () => {
   await db.delete(visits);
   initializeOwner("test-installation");
 });
+
 it("passes venue-only and empty contexts through without starting a visit", async () => {
   expect(await prepareCaptureVisit({ venueId }, capturedAt)).toEqual({
     venueId,
@@ -33,6 +36,7 @@ it("passes venue-only and empty contexts through without starting a visit", asyn
   expect(await db.select().from(visits)).toEqual([]);
   await expect(prepareCaptureVisit({ venueId }, -1)).rejects.toThrow("Invalid capture date");
 });
+
 it("preserves an explicit ended visit for delayed captures and rejects foreign or mismatched associations", async () => {
   const original = await startVisit(capturedAt);
   await patchVisit(localId, { endedAt: capturedAt + 60_000 });
@@ -51,9 +55,10 @@ it("preserves an explicit ended visit for delayed captures and rejects foreign o
   switchOwner("account:other");
   await expect(prepareCaptureVisit(original, capturedAt)).rejects.toThrow("invalid visit");
 });
+
 it("uses the shutter date when location resolution crosses local midnight", async () => {
-  const after = Date.parse("2024-03-10T05:00:01Z"),
-    before = after - 2000;
+  const after = Date.parse("2024-03-10T05:00:01Z");
+  const before = after - 2000;
   const context = await startVisit(after);
   expect(await getVisit(localId)).toMatchObject({ visitedOn: "2024-03-10" });
   expect(await prepareCaptureVisit(context, before)).toEqual(context);
@@ -62,6 +67,7 @@ it("uses the shutter date when location resolution crosses local midnight", asyn
     startedAt: before,
   });
 });
+
 it("does not add timestamps to an explicitly associated manual visit", async () => {
   await upsertVisit({
     localId,

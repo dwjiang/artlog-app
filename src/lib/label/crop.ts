@@ -1,6 +1,7 @@
-import { reportError } from "@/lib/observability";
 import { File } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef, type ImageResult } from "expo-image-manipulator";
+
+import { reportError } from "@/lib/observability";
 
 /** The contribution crop becomes the next visitor's thumbnail; contributions.ts caps it at 200 KB. */
 export const CONTRIBUTION_CROP_SIZE = 256;

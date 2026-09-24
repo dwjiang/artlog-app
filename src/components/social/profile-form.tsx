@@ -1,17 +1,19 @@
-import { reportError } from "@/lib/observability";
-import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, TextInput, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { GalleryButton } from "../collection/gallery-button";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
+import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
-import { socialErrorMessage } from "@/shared/social/errors";
 import { LIMITS } from "@/shared/journal/limits";
+import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 
 export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
@@ -19,9 +21,9 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   const savePhoto = useAction(api.profilePhotos.save);
   const [photo, setPhoto] = useState<string>();
   const [profileCreated, setProfileCreated] = useState(false);
-  const photoDraft = useRef<string>(undefined),
-    mounted = useRef(true),
-    created = useRef(false);
+  const photoDraft = useRef<string>(undefined);
+  const mounted = useRef(true);
+  const created = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -30,11 +32,11 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     };
   }, []);
   const session = useSocialSession();
-  const [name, setName] = useState(""),
-    [username, setUsername] = useState(""),
-    [bio, setBio] = useState("");
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState<string>();
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const submitting = useRef(false);
   const normalized = username.trim().toLowerCase();
   const check = useUsernameCheck(normalized, session.key);

@@ -1,19 +1,21 @@
-import { reportError } from "@/lib/observability";
-import { LoadingRing } from "@/components/loading-ring";
-import { EmptyState } from "../empty-state";
-import { EmptyPaper } from "../empty-state-art";
-import { GalleryButton } from "../collection/gallery-button";
 import { Host, Switch } from "@expo/ui";
-import { ThemedText as Text } from "../themed-text";
-import { DisplayMedia } from "../artwork/display-media";
-import { NotePaper } from "../note-paper";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
+
+import { DisplayMedia } from "@/components/artwork/display-media";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import { EmptyPaper } from "@/components/empty-state-art";
+import { LoadingRing } from "@/components/loading-ring";
+import { NotePaper } from "@/components/note-paper";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
+
 import { PublicNotesPreview } from "./public-notes-preview";
 import { SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
@@ -102,7 +104,7 @@ export function PublicNotesScreen() {
           <Stack.Toolbar.Button
             variant="done"
             tintColor={Gallery.ink}
-            disabled={!changes.length}
+            disabled={changes.length === 0}
             onPress={() => {
               void save();
             }}
@@ -139,7 +141,7 @@ export function PublicNotesScreen() {
     );
   }
   const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
-  if (!eligible.length && !wall.error) {
+  if (eligible.length === 0 && !wall.error) {
     return (
       <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
         <EmptyState

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { AppErrorBoundary } from "./app-error-boundary";
 import { reportError } from "@/lib/observability";
+
+import { AppErrorBoundary } from "./app-error-boundary";
 
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -18,7 +19,7 @@ jest.mock("@/components/collection/gallery-button", () => {
   };
 });
 
-test("reports a screen crash and lets the visitor retry without exposing raw error details", async () => {
+it("reports a screen crash and lets the visitor retry without exposing raw error details", async () => {
   const error = new Error("internal query and private arguments");
   const retry = jest.fn().mockResolvedValue(undefined);
   const view = await render(<AppErrorBoundary error={error} retry={retry} />);

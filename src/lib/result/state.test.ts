@@ -1,6 +1,5 @@
 import { ConvexError } from "convex/values";
 
-import { toResultViewState } from "./state";
 import {
   bridge,
   confidentScan,
@@ -12,6 +11,8 @@ import {
   softScan,
   unsupportedScan,
 } from "@/components/scan/result/__fixtures__/scan";
+
+import { toResultViewState } from "./state";
 
 it("is loading until the subscription answers or while the server is still identifying", () => {
   expect(toResultViewState(undefined)).toEqual({

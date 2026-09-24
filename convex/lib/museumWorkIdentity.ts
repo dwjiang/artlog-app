@@ -2,7 +2,7 @@ import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 export function normalizeAccession(value: string): string {
-  return value.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  return value.normalize("NFKC").trim().toLowerCase().replaceAll(/\s+/g, " ");
 }
 
 export async function museumIdentityKeys(input: {
@@ -22,7 +22,7 @@ export async function museumIdentityKeys(input: {
     identities.push(input.imageUrl ? `page-image:${url.href}\n${input.imageUrl}` : `page:${url.href}`);
   }
   // A museum identifier distinguishes identically named works at the same venue.
-  if (!identities.length && input.names) {
+  if (identities.length === 0 && input.names) {
     identities.push(`names:${input.names}`);
   }
   return Promise.all(
@@ -54,7 +54,7 @@ export async function registerMuseumObject(
         artworkId: object.artworkId,
       });
     } else if (existing.artworkId !== object.artworkId) {
-      await ctx.db.patch(existing._id, { artworkId: object.artworkId });
+      await ctx.db.patch("museumWorkIdentities", existing._id, { artworkId: object.artworkId });
     }
   }
 }

@@ -1,7 +1,8 @@
+import type { Keypoint } from "@/lib/orb/pack";
+
 // Jest stand-in for react-native-fast-opencv: enough of the API for the crop, ORB and triage code,
 // tracking every native object so tests can assert that nothing leaks.
 import type { FastOpenCV } from "./opencv";
-import type { Keypoint } from "@/lib/orb/pack";
 
 export type FakeObject = { released: boolean; release(): void };
 export type FakeMat = FakeObject & {

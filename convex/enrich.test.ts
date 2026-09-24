@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
 import type { BatchCursor } from "./enrich";
+import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 afterEach(() => vi.restoreAllMocks());
@@ -97,8 +97,8 @@ describe("enrich.claimBatch", () => {
     const artworks = await sweep(t);
     expect(claimed(artworks)).toEqual([ids.contribution, ids.staleClaim, ids.hanging]);
     expect(artworks.every((row) => row.enrichClaimedAt === now && row.enrichGeneration === 1)).toBe(true);
-    expect((await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt).toBe(now);
-    expect((await t.run((ctx) => ctx.db.get(ids.stored)))?.enrichClaimedAt).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("artworks", ids.hanging)))?.enrichClaimedAt).toBe(now);
+    expect((await t.run((ctx) => ctx.db.get("artworks", ids.stored)))?.enrichClaimedAt).toBeUndefined();
     expect(await sweep(t)).toEqual([]);
   });
 
@@ -110,7 +110,7 @@ describe("enrich.claimBatch", () => {
       phase: "contributions",
       cursor: expect.any(String),
     });
-    await t.run((ctx) => ctx.db.patch(ids.contribution, { enrichClaimedAt: undefined }));
+    await t.run((ctx) => ctx.db.patch("artworks", ids.contribution, { enrichClaimedAt: undefined }));
     const second = await t.mutation(internal.enrich.claimBatch, {
       limit: 1,
       after: first.after!,
@@ -132,7 +132,7 @@ describe("enrich.claimBatch", () => {
       artworkId: ids.hanging,
       generation: 1,
     });
-    expect((await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("artworks", ids.hanging)))?.enrichClaimedAt).toBeUndefined();
     const next = await sweep(t);
     expect(claimed(next)).toEqual([ids.hanging]);
     expect(next[0].enrichGeneration).toBe(2);
@@ -188,8 +188,8 @@ it("previews pending work without claims or generations and resolves object keys
   const { t, ids } = await fixture();
   const page = await t.query(internal.enrich.previewBatch, { limit: 100 });
   expect(claimed(page.artworks)).toEqual([ids.contribution, ids.staleClaim]);
-  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichGeneration).toBeUndefined();
-  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichClaimedAt).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get("artworks", ids.contribution)))?.enrichGeneration).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get("artworks", ids.contribution)))?.enrichClaimedAt).toBeUndefined();
   const object = await t.run((ctx) =>
     ctx.db
       .query("objects")

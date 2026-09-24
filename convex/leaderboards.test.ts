@@ -1,11 +1,12 @@
 import { expect, it } from "vitest";
-import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
-import { socialUser, befriend } from "./lib/socialTestFixtures";
-import { seedMuseum, seedContribution, seedDevice, seedArtworkWithObject } from "./lib/testFactories";
-import { publishContribution } from "./lib/tentativeEntries";
-import { rankScores } from "../shared/social/leaderboard";
+
 import type { JournalSave } from "../shared/journal/contracts";
+import { rankScores } from "../shared/social/leaderboard";
+import { api } from "./_generated/api";
+import { socialUser, befriend } from "./lib/socialTestFixtures";
+import { publishContribution } from "./lib/tentativeEntries";
+import { seedMuseum, seedContribution, seedDevice, seedArtworkWithObject } from "./lib/testFactories";
+import { harness } from "./test.helpers";
 
 const artworkQuery = {
   audience: "global",
@@ -20,12 +21,12 @@ const artworkSave = (savedAt = Date.now()) => ({
 });
 
 it("counts a catalog artwork once per person across entries, objects, and save paths", async () => {
-  const t = harness(),
-    ada = await socialUser(t, "Ada"),
-    ben = await socialUser(t, "Ben");
+  const t = harness();
+  const ada = await socialUser(t, "Ada");
+  const ben = await socialUser(t, "Ben");
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
   const alternateObjectId = await t.run(async (ctx) => {
-    const { _id, _creationTime, ...object } = (await ctx.db.get(work.objectId))!;
+    const { _id, _creationTime, ...object } = (await ctx.db.get("objects", work.objectId))!;
     return ctx.db.insert("objects", { ...object, key: crypto.randomUUID() });
   });
   const saved = artworkSave();
@@ -62,8 +63,8 @@ it("counts a catalog artwork once per person across entries, objects, and save p
 });
 
 it("keeps different catalog artworks and unidentified entries separate despite identical labels", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
+  const t = harness();
+  const user = await socialUser(t, "Ada");
   const first = await t.run((ctx) => seedArtworkWithObject(ctx));
   const second = await t.run((ctx) => seedArtworkWithObject(ctx));
   await user.as.mutation(api.sync.syncJournal, {
@@ -81,11 +82,11 @@ it("keeps different catalog artworks and unidentified entries separate despite i
 });
 
 it("uses the earliest remaining save month, including out-of-order sync and duplicate deletions", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
+  const t = harness();
+  const user = await socialUser(t, "Ada");
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const current = { ...artworkSave(), artworkId },
-    older = { ...artworkSave(Date.UTC(2020, 0, 1)), artworkId };
+  const current = { ...artworkSave(), artworkId };
+  const older = { ...artworkSave(Date.UTC(2020, 0, 1)), artworkId };
   const duplicate = { ...current, localId: crypto.randomUUID() };
   const sync = (saves: JournalSave[]) =>
     user.as.mutation(api.sync.syncJournal, {
@@ -126,11 +127,11 @@ it("uses the earliest remaining save month, including out-of-order sync and dupl
 });
 
 it("keeps the artwork point when duplicate entries are merged and removes it with the last entry", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
+  const t = harness();
+  const user = await socialUser(t, "Ada");
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const first = { ...artworkSave(), artworkId },
-    second = { ...artworkSave(), artworkId };
+  const first = { ...artworkSave(), artworkId };
+  const second = { ...artworkSave(), artworkId };
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
     since: 0,
@@ -153,9 +154,9 @@ it("keeps the artwork point when duplicate entries are merged and removes it wit
 });
 
 it("deduplicates guest saves against the account journal when claiming another device", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada"),
-    device = await seedDevice(t);
+  const t = harness();
+  const user = await socialUser(t, "Ada");
+  const device = await seedDevice(t);
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
@@ -173,7 +174,7 @@ it("deduplicates guest saves against the account journal when claiming another d
     ],
   });
   await t.run(async (ctx) => {
-    await ctx.db.patch(device.deviceId, { accountId: user.accountId });
+    await ctx.db.patch("devices", device.deviceId, { accountId: user.accountId });
     await ctx.db.insert("journalClaims", {
       deviceId: device.deviceId,
       accountId: user.accountId,
@@ -196,10 +197,10 @@ it("deduplicates guest saves against the account journal when claiming another d
 });
 
 it("rejects an artwork identity that conflicts with the saved object", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
-  const first = await t.run((ctx) => seedArtworkWithObject(ctx)),
-    second = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const t = harness();
+  const user = await socialUser(t, "Ada");
+  const first = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const second = await t.run((ctx) => seedArtworkWithObject(ctx));
   await expect(
     user.as.mutation(api.sync.syncJournal, {
       scope: user.scope,
@@ -218,10 +219,10 @@ it("rejects an artwork identity that conflicts with the saved object", async () 
 });
 
 it("counts saved artworks once across retries and edits, using the original save month", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
-  const current = artworkSave(),
-    older = artworkSave(Date.UTC(2020, 0, 1));
+  const t = harness();
+  const user = await socialUser(t, "Ada");
+  const current = artworkSave();
+  const older = artworkSave(Date.UTC(2020, 0, 1));
   const sync = (saves: ReturnType<typeof artworkSave>[]) =>
     user.as.mutation(api.sync.syncJournal, {
       scope: user.scope,
@@ -264,11 +265,11 @@ it("counts saved artworks once across retries and edits, using the original save
 });
 
 it("updates artwork totals for sync deletions and album merges without counting extra photos", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada");
-  const first = artworkSave(),
-    second = artworkSave(),
-    deleted = { ...artworkSave(), deletedAt: Date.now() };
+  const t = harness();
+  const user = await socialUser(t, "Ada");
+  const first = artworkSave();
+  const second = artworkSave();
+  const deleted = { ...artworkSave(), deletedAt: Date.now() };
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
     since: 0,
@@ -305,9 +306,9 @@ it("updates artwork totals for sync deletions and album merges without counting 
 });
 
 it("counts device artworks once when claimed, excluding deleted entries and respecting opt-out", async () => {
-  const t = harness(),
-    user = await socialUser(t, "Ada"),
-    device = await seedDevice(t);
+  const t = harness();
+  const user = await socialUser(t, "Ada");
+  const device = await seedDevice(t);
   await device.as.mutation(api.sync.syncJournal, {
     scope: device.scope,
     since: 0,
@@ -315,7 +316,7 @@ it("counts device artworks once when claimed, excluding deleted entries and resp
     saves: [artworkSave(), { ...artworkSave(), deletedAt: Date.now() }],
   });
   await t.run(async (ctx) => {
-    await ctx.db.patch(device.deviceId, { accountId: user.accountId });
+    await ctx.db.patch("devices", device.deviceId, { accountId: user.accountId });
     await ctx.db.insert("journalClaims", {
       deviceId: device.deviceId,
       accountId: user.accountId,
@@ -350,11 +351,12 @@ it("ranks equal totals together, skips following positions, and sorts ties by na
     ["Cam", 4],
   ]);
 });
+
 it("joins both boards by default and enforces opt-out, friends-only, and block visibility", async () => {
-  const t = harness(),
-    a = await socialUser(t, "Ada"),
-    b = await socialUser(t, "Ben"),
-    c = await socialUser(t, "Cam");
+  const t = harness();
+  const a = await socialUser(t, "Ada");
+  const b = await socialUser(t, "Ben");
+  const c = await socialUser(t, "Cam");
   const query = {
     metric: "visits" as const,
     period: "all" as const,
@@ -381,9 +383,9 @@ it("joins both boards by default and enforces opt-out, friends-only, and block v
 });
 
 it("lets guests browse only opted-in Global profiles without exposing private activity", async () => {
-  const t = harness(),
-    global = await socialUser(t, "Global"),
-    friends = await socialUser(t, "Friends");
+  const t = harness();
+  const global = await socialUser(t, "Global");
+  const friends = await socialUser(t, "Friends");
   const off = await socialUser(t, "Off");
   await off.as.mutation(api.leaderboards.setPreference, { visibility: "off" });
   await global.as.mutation(api.leaderboards.setPreference, {
@@ -403,14 +405,17 @@ it("lets guests browse only opted-in Global profiles without exposing private ac
   expect(JSON.stringify(board)).not.toMatch(/accountId|deviceId|visitedOn|reflection|venueId/);
   const guest = await seedDevice(t);
   expect(await guest.as.query(api.leaderboards.list, query)).toEqual(board);
-  await expect(t.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow();
-  await expect(guest.as.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow();
+  await expect(t.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow("unauthenticated");
+  await expect(guest.as.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow(
+    "apple_sign_in_required",
+  );
 });
+
 it("continues to hide blocked, inactive, and removed profiles from Global", async () => {
-  const t = harness(),
-    viewer = await socialUser(t, "Viewer"),
-    blocked = await socialUser(t, "Blocked"),
-    inactive = await socialUser(t, "Inactive");
+  const t = harness();
+  const viewer = await socialUser(t, "Viewer");
+  const blocked = await socialUser(t, "Blocked");
+  const inactive = await socialUser(t, "Inactive");
   for (const person of [viewer, blocked, inactive]) {
     await person.as.mutation(api.leaderboards.setPreference, {
       visibility: "global",
@@ -421,23 +426,24 @@ it("continues to hide blocked, inactive, and removed profiles from Global", asyn
     revision: 0,
     blockRevision: 0,
   });
-  await t.run((ctx) => ctx.db.patch(inactive.profileId, { active: false }));
+  await t.run((ctx) => ctx.db.patch("profiles", inactive.profileId, { active: false }));
   const query = {
     metric: "visits" as const,
     period: "all" as const,
     audience: "global" as const,
   };
   expect((await viewer.as.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(["Viewer"]);
-  await t.run((ctx) => ctx.db.delete(blocked.accountId));
+  await t.run((ctx) => ctx.db.delete("accounts", blocked.accountId));
   expect((await t.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(["Viewer"]);
 });
+
 it("deduplicates museum days and moves backdated totals to the visit’s month", async () => {
-  const t = harness(),
-    a = await socialUser(t, "Ada"),
-    venueId = await t.run(seedMuseum);
+  const t = harness();
+  const a = await socialUser(t, "Ada");
+  const venueId = await t.run(seedMuseum);
   await a.as.mutation(api.leaderboards.setPreference, { visibility: "global" });
-  const month = new Date().toISOString().slice(0, 7),
-    day = `${month}-01`;
+  const month = new Date().toISOString().slice(0, 7);
+  const day = `${month}-01`;
   const first = {
     visibility: "public" as const,
     localId: crypto.randomUUID(),
@@ -466,9 +472,10 @@ it("deduplicates museum days and moves backdated totals to the visit’s month",
   expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(0);
   expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(1);
 });
+
 it("keeps shared index activity separate from artwork totals", async () => {
-  const t = harness(),
-    a = await socialUser(t, "Ada");
+  const t = harness();
+  const a = await socialUser(t, "Ada");
   await a.as.mutation(api.leaderboards.setPreference, { visibility: "global" });
   await t.run(async (ctx) => {
     const venueId = await seedMuseum(ctx);
@@ -478,7 +485,7 @@ it("keeps shared index activity separate from artwork totals", async () => {
       venueId,
       cropStorageId,
     });
-    await publishContribution(ctx, (await ctx.db.get(id))!);
+    await publishContribution(ctx, (await ctx.db.get("contributions", id))!);
   });
   expect(
     (

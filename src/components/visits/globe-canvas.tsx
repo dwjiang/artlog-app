@@ -1,4 +1,3 @@
-import { LoadingRing } from "@/components/loading-ring";
 import {
   Canvas,
   Circle,
@@ -16,6 +15,10 @@ import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useDerivedValue, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
+
+import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery } from "@/constants/theme";
 import {
   globeCamera,
   globeClusters,
@@ -25,8 +28,7 @@ import {
   type GlobeCluster,
   type GlobePin,
 } from "@/lib/journal/globe-geometry";
-import { Gallery } from "@/constants/theme";
-import { ThemedText } from "@/components/themed-text";
+
 import { globeShader } from "./globe-shader";
 import { useGlobeCamera } from "./use-globe-camera";
 
@@ -72,8 +74,8 @@ export function GlobeCanvas({
   );
   const clusters = useDerivedValue(() => globeClusters(pins, camera.get(), width, height));
   const uniforms = useDerivedValue(() => {
-    const current = camera.get(),
-      geometry = globeGeometry(width, height, current.zoom);
+    const current = camera.get();
+    const geometry = globeGeometry(width, height, current.zoom);
     return {
       center: [geometry.cx, geometry.cy],
       radius: geometry.radius,
@@ -114,7 +116,9 @@ export function GlobeCanvas({
             });
           }
         }
-      } else scheduleOnRN(onSelect, id);
+      } else {
+        scheduleOnRN(onSelect, id);
+      }
     });
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)

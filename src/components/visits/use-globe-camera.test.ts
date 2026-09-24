@@ -1,8 +1,10 @@
 import { act, render, renderHook } from "@testing-library/react-native";
 import { createElement } from "react";
 import { ReduceMotion, ReducedMotionConfig, setUpTests } from "react-native-reanimated";
-import { useGlobeCamera } from "./use-globe-camera";
+
 import type { GlobeCamera } from "@/lib/journal/globe-geometry";
+
+import { useGlobeCamera } from "./use-globe-camera";
 
 jest.unmock("react-native-reanimated");
 jest.mock("react-native-worklets", () => ({

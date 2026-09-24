@@ -1,10 +1,7 @@
-import { reportError } from "@/lib/observability";
 import { Switch, Text } from "@expo/ui";
 import { font } from "@expo/ui/swift-ui/modifiers";
 import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-
-import { api } from "../../../convex/_generated/api";
 
 import { ActionRow, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { Gallery } from "@/constants/theme";
@@ -12,8 +9,11 @@ import { getAppAttest } from "@/lib/app-attest";
 import { signPayload } from "@/lib/attested-write";
 import { embedder } from "@/lib/embed/embedder";
 import { runCalibrationExport } from "@/lib/embed/run-calibration-export";
+import { reportError } from "@/lib/observability";
 import { runOrbParityCheck } from "@/lib/orb/run-parity-check";
 import { useDevTimings } from "@/lib/settings/use-dev-timings";
+
+import { api } from "../../../convex/_generated/api";
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

@@ -1,15 +1,17 @@
+import { db } from "@/db/client";
+import { notes, pendingScans, savedWorks, visits } from "@/db/schema";
+import { initializeOwner, switchOwner } from "@/lib/account/owner-store";
+
 import { createJournalRepository } from "./journal";
-import { upsertVisit } from "./visits";
-import { insertSavedWork, softDeleteSavedWork } from "./saved-works";
 import { enqueuePendingScan } from "./pending-scans";
-import { db } from "../client";
-import { notes, pendingScans, savedWorks, visits } from "../schema";
-import { initializeOwner, switchOwner } from "../../lib/account/owner-store";
+import { insertSavedWork, softDeleteSavedWork } from "./saved-works";
+import { upsertVisit } from "./visits";
+
 const mockMetadata = jest.fn();
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
-jest.mock("../../lib/venue/venue-db", () => ({
+jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: (...args: unknown[]) => mockMetadata(...args),
 }));
 const uuid = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
@@ -39,6 +41,7 @@ beforeEach(async () => {
     },
   ]);
 });
+
 it("binds all reads to the owner and computes summaries from the complete journal before pagination", async () => {
   for (let i = 0; i < 23; i++) await upsertVisit(visit(i));
   await upsertVisit(visit(99), "account:foreign");
@@ -57,6 +60,7 @@ it("binds all reads to the owner and computes summaries from the complete journa
   ]);
   await expect(repo.detail(uuid(99))).rejects.toThrow("not_found");
 });
+
 it("rejects missing, foreign and venue-mismatched local memberships and preserves the last empty visit", async () => {
   await upsertVisit(visit(1));
   await upsertVisit(visit(2), "account:foreign");

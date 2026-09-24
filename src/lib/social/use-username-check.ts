@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api } from "../../../convex/_generated/api";
+
 import { LIMITS } from "@/shared/journal/limits";
 import { isUsername } from "@/shared/social/username";
+
+import { api } from "../../../convex/_generated/api";
 import { useSocialQuery } from "./use-social-query";
 
 export type UsernameCheck = "empty" | "invalid" | "checking" | "available" | "taken" | "unchecked";

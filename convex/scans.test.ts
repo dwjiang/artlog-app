@@ -41,7 +41,7 @@ it("creates one pending scan per device and local capture id", async () => {
     scan: { _id: scanId },
     existing: true,
   });
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("scans", scanId))).toMatchObject({
     status: "pending",
   });
   const other = await seedDevice(t);
@@ -68,43 +68,42 @@ it("requires authentication and hides scans belonging to other devices", async (
   });
 });
 
-it.each(["public_domain", "in_copyright", "unknown"] as const)(
-  "joins display data and only exposes public-domain thumbnails (%s)",
-  async (rightsStatus) => {
-    const { t, user, work, scanId, best } = await fixture();
-    await t.run((ctx) => ctx.db.patch(work.artworkId, { rightsStatus }));
-    await t.mutation(internal.scans.setResult, {
-      scanId,
-      generation: 0,
-      status: "identified",
-      outcome: "soft",
-      best,
-      runnerUps: [
-        {
-          identityStatus: "established" as const,
-          objectId: best.objectId,
-          artworkId: best.artworkId,
-          probability: 0.5,
-        },
-      ],
-      calibratorVersion: "lr-v1",
-    });
-    const result = await user.as.query(api.scans.get, { scanId });
-    expect(result?.best).toMatchObject({
-      title: "Water Lilies",
-      artist: "Claude Monet",
-      institution: "Test Museum",
-      rightsStatus,
-    });
-    for (const candidate of [result?.best, ...result!.runnerUps!]) {
-      if (rightsStatus === "public_domain") {
-        expect(candidate?.thumbnailUrl).toBe("https://museum.example/work.jpg");
-      } else expect(candidate).not.toHaveProperty("thumbnailUrl");
-    }
-    expect(result).not.toHaveProperty("vector");
-    expect(result).not.toHaveProperty("deviceId");
-  },
-);
+it.each([
+  ["public_domain", "https://museum.example/work.jpg"],
+  ["in_copyright", undefined],
+  ["unknown", undefined],
+] as const)("joins display data and only exposes public-domain thumbnails (%s)", async (rightsStatus, thumbnailUrl) => {
+  const { t, user, work, scanId, best } = await fixture();
+  await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { rightsStatus }));
+  await t.mutation(internal.scans.setResult, {
+    scanId,
+    generation: 0,
+    status: "identified",
+    outcome: "soft",
+    best,
+    runnerUps: [
+      {
+        identityStatus: "established" as const,
+        objectId: best.objectId,
+        artworkId: best.artworkId,
+        probability: 0.5,
+      },
+    ],
+    calibratorVersion: "lr-v1",
+  });
+  const result = await user.as.query(api.scans.get, { scanId });
+  expect(result?.best).toMatchObject({
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    institution: "Test Museum",
+    rightsStatus,
+  });
+  for (const candidate of [result?.best, ...result!.runnerUps!]) {
+    expect(candidate?.thumbnailUrl).toBe(thumbnailUrl);
+  }
+  expect(result).not.toHaveProperty("vector");
+  expect(result).not.toHaveProperty("deviceId");
+});
 
 it.each(["confident", "soft"] as const)(
   "joins docent sentences and source chips from the artwork only for a confident card (%s)",
@@ -128,7 +127,7 @@ it.each(["confident", "soft"] as const)(
       ],
     };
     await t.run((ctx) =>
-      ctx.db.patch(work.artworkId, {
+      ctx.db.patch("artworks", work.artworkId, {
         factSheet,
         factSheetUpdatedAt: 1,
         docent,
@@ -144,19 +143,11 @@ it.each(["confident", "soft"] as const)(
       calibratorVersion: "lr-v1",
     });
     const result = await user.as.query(api.scans.get, { scanId });
-    if (outcome === "confident") {
-      expect(result?.docent).toEqual(docent.en);
-      expect(result?.factSheet).toEqual([
-        {
-          id: "f1",
-          sourceUrl: "https://www.metmuseum.org/art/1",
-          sourceLabel: "The Met",
-        },
-      ]);
-    } else {
-      expect(result?.docent).toBeUndefined();
-      expect(result?.factSheet).toBeUndefined();
-    }
+    const confident = outcome === "confident";
+    expect(result?.docent).toEqual(confident ? docent.en : undefined);
+    expect(result?.factSheet).toEqual(
+      confident ? [{ id: "f1", sourceUrl: "https://www.metmuseum.org/art/1", sourceLabel: "The Met" }] : undefined,
+    );
   },
 );
 
@@ -186,7 +177,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     scanId: soft.scan._id,
     outcome: "soft",
   });
-  expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("visits", visitId))).toMatchObject({
     lastConfidentGallery: "1",
     lastConfidentAt: 100,
   });
@@ -201,11 +192,11 @@ it("updates gallery history only for a confident result and never rolls it backw
     scanId: confident.scan._id,
     outcome: "confident",
   });
-  expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("visits", visitId))).toMatchObject({
     lastConfidentGallery: "4",
     lastConfidentAt: 200,
   });
-  await t.run((ctx) => ctx.db.patch(visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }));
+  await t.run((ctx) => ctx.db.patch("visits", visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }));
   const older = await t.mutation(internal.scans.create, {
     ...args,
     localId: "older",
@@ -217,7 +208,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     scanId: older.scan._id,
     outcome: "confident",
   });
-  expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("visits", visitId))).toMatchObject({
     lastConfidentGallery: "9",
     lastConfidentAt: 300,
   });
@@ -232,7 +223,7 @@ it("refuses another device’s visit or a visit at another venue", async () => {
   });
   const otherVenue = await t.run((ctx) => seedMuseum(ctx));
   await t.run((ctx) =>
-    ctx.db.patch(visitId, {
+    ctx.db.patch("visits", visitId, {
       owner: { kind: "device", deviceId: user.deviceId },
       venueId: otherVenue,
     }),
@@ -269,7 +260,7 @@ it("ignores results from an older payload after an unsupported capture is restar
     calibratorVersion: "lr-v1",
     error: "Update the app to identify.",
   });
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("scans", scanId))).toMatchObject({
     status: "pending",
     generation: 1,
   });
@@ -280,7 +271,7 @@ it("ignores results from an older payload after an unsupported capture is restar
     outcome: "miss",
     calibratorVersion: "lr-v1",
   });
-  expect(await t.run((ctx) => ctx.db.get(scanId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("scans", scanId))).toMatchObject({
     status: "identified",
     outcome: "miss",
   });
@@ -346,7 +337,7 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     imageUrl: candidate.imageUrls[0],
   };
   await t.run((ctx) =>
-    ctx.db.patch(scanId, {
+    ctx.db.patch("scans", scanId, {
       labelFlow: {
         stage: "verified",
         fields,

@@ -3,12 +3,12 @@ import { Button, Menu } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, disabled } from "@expo/ui/swift-ui/modifiers";
 import { useState } from "react";
 
-import { CapturePhotosButton } from "../capture-photos-button";
-import type { SaveResultInput } from "@/lib/result/save";
-import { FieldsForm } from "../result/fields-form";
-import { SaveBar } from "../result/save-bar";
-import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { CapturePhotosButton } from "@/components/scan/capture-photos-button";
+import { FieldsForm } from "@/components/scan/result/fields-form";
+import { SaveBar } from "@/components/scan/result/save-bar";
+import type { SaveResultInput } from "@/lib/result/save";
+import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 
 export type SaveAnywayFormProps = {
   compact?: boolean;

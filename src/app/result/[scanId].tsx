@@ -1,6 +1,6 @@
-import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { useLocalSearchParams } from "expo-router";
 
+import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { ResultScreen } from "@/components/scan/result-screen";
 
 export default function ResultRoute() {

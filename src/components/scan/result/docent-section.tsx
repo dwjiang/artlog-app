@@ -2,13 +2,13 @@ import { Image } from "expo-image";
 import { Fragment, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import type { DocentSentence, FactChip } from "../../../../convex/lib/validators";
-
-import { SourceLink } from "./source-chip";
-import { ThemedText } from "@/components/themed-text";
 import { HighlightHeading } from "@/components/highlight-heading";
-import { Gallery, Spacing } from "@/constants/theme";
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery, Spacing } from "@/constants/theme";
+
+import type { DocentSentence, FactChip } from "../../../../convex/lib/validators";
+import { SourceLink } from "./source-chip";
 
 /** How long to wait before explaining that background information is unavailable. */
 export const DOCENT_WAIT_MS = 10_000;
@@ -83,7 +83,7 @@ function CitedParagraph({ sentences, sources }: ReturnType<typeof citeDocent>) {
   const labelOf = (number: number) => sources[number - 1].label;
   const spoken = sentences
     .map(({ sentence, markers }) =>
-      markers.length
+      markers.length > 0
         ? `${sentence} ${markers.length > 1 ? "Sources" : "Source"}: ${markers.map(labelOf).join(", ")}.`
         : sentence,
     )

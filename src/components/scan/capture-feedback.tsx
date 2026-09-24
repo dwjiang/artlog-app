@@ -7,6 +7,7 @@ import { Colors, Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { CaptureController } from "@/lib/capture/capture-controller";
 import type { FrameSize } from "@/lib/capture/rectangle";
+
 import { OverlayCaption } from "./overlay-caption";
 
 const SHUTTER_SIZE = 72;
@@ -44,8 +45,8 @@ export function CaptureOutline({ controller, preview }: { controller: CaptureCon
   const brackets = corners
     .map(([x, y], index) => {
       const tip = (neighbor: number[]) => {
-        const dx = neighbor[0] - x,
-          dy = neighbor[1] - y;
+        const dx = neighbor[0] - x;
+        const dy = neighbor[1] - y;
         const fraction = Math.min(24 / Math.hypot(dx, dy), 0.25);
         return `${x + dx * fraction} ${y + dy * fraction}`;
       };

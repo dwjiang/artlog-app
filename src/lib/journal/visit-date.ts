@@ -1,6 +1,7 @@
 import tzLookup from "@photostructure/tz-lookup";
+
+import type { VenueRow } from "@/lib/venue/resolve";
 import { calendarDate, isCalendarDate } from "@/shared/journal/limits";
-import type { VenueRow } from "../venue/resolve";
 
 export function venueTimeZone(venue: Pick<VenueRow, "lat" | "lng">): string {
   return tzLookup(venue.lat, venue.lng);

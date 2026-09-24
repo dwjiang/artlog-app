@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+
 import { createWidget } from "expo-widgets";
+
 import { widgetPresentation } from "./widget-layout";
 import { defaultWidgetSettings } from "./widget-settings";
 import "./artlog-widget";
@@ -42,8 +44,8 @@ it("renders the serialized component in the actual isolated widget runtime", () 
         height: 158,
       }),
     );
-  const small = render("systemSmall", 158),
-    medium = render("systemMedium", 334);
+  const small = render("systemSmall", 158);
+  const medium = render("systemMedium", 334);
   for (const tree of [small, medium]) {
     expect(tree).not.toContain("RedBoxView");
     expect(tree).toContain("file:///painting.jpg");

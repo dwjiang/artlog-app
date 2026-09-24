@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { NowPlayingScreen } from "./now-playing-screen";
 
 const mockAudio = {

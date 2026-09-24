@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
 import { REPOSITORY, staleCredential } from "./policy.ts";
 import { command, request, required } from "./services.ts";
 

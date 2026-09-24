@@ -1,16 +1,16 @@
-import { pageArgs, pagination, validateSave } from "../shared/journal/contracts";
 import { ConvexError, v } from "convex/values";
 
-import { feedbackChanged } from "./feedbackReplay";
-import { eligibleObject } from "./lib/recognitionEligibility";
+import { pageArgs, pagination, validateSave } from "../shared/journal/contracts";
 import { mutation, query } from "./_generated/server";
-import { requireJournalOwner, findOwnedSave, nextChangeVersion } from "./lib/ownership";
+import { feedbackChanged } from "./feedbackReplay";
 import { upsertJournalSave } from "./lib/journal";
-import { invalidateDeletedSave } from "./lib/publicationAccess";
-import schema from "./schema";
-import { limitDevice } from "./lib/rateLimits";
 import { recordArtworkScore } from "./lib/leaderboard";
+import { requireJournalOwner, findOwnedSave, nextChangeVersion } from "./lib/ownership";
+import { invalidateDeletedSave } from "./lib/publicationAccess";
+import { limitDevice } from "./lib/rateLimits";
+import { eligibleObject } from "./lib/recognitionEligibility";
 import { snapshotFields } from "./lib/validators";
+import schema from "./schema";
 
 const suggestion = v.object({ title: v.string(), artist: v.string() });
 
@@ -47,7 +47,7 @@ export const saveToCollection = mutation({
       ...row,
       note: existing?.note,
     });
-    const scan = args.scanId ? await ctx.db.get(args.scanId) : null;
+    const scan = args.scanId ? await ctx.db.get("scans", args.scanId) : null;
     if (args.scanId) {
       if (!scan || scan.deviceId !== device._id) {
         throw new ConvexError({ code: "invalid_scan" });
@@ -65,15 +65,15 @@ export const saveToCollection = mutation({
         deletedAt: existing.deletedAt,
       };
     }
-    const objectId = saved.objectId;
-    const object = objectId ? await ctx.db.get(objectId) : null;
+    const { objectId } = saved;
+    const object = objectId ? await ctx.db.get("objects", objectId) : null;
     const { updatedAt, updatedBy, _id: collectionId } = saved;
-    await ctx.db.patch(collectionId, {
+    await ctx.db.patch("collections", collectionId, {
       confirmationRecorded: true,
       ...(scanId ? { scanId } : {}),
     });
     // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
-    const artwork = object && suggested ? await ctx.db.get(object.artworkId) : null;
+    const artwork = object && suggested ? await ctx.db.get("artworks", object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
     if (
       object
@@ -107,7 +107,7 @@ export const saveToCollection = mutation({
           saveId: collectionId,
           createdAt: Date.now(),
         });
-        await ctx.db.patch(object._id, {
+        await ctx.db.patch("objects", object._id, {
           confirmCount: object.confirmCount + 1,
         });
         await feedbackChanged(ctx, object._id, false);
@@ -152,13 +152,13 @@ export const remove = mutation({
     const row = await findOwnedSave(ctx, owner, localId);
     if (!row) throw new ConvexError({ code: "not_found" });
     if (row.deletedAt === undefined) {
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch("collections", row._id, {
         deletedAt: Date.now(),
         updatedAt: Date.now(),
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
-      const deleted = (await ctx.db.get(row._id))!;
+      const deleted = (await ctx.db.get("collections", row._id))!;
       await recordArtworkScore(ctx, owner, deleted, row);
       await invalidateDeletedSave(ctx, deleted);
     }

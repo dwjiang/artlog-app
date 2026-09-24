@@ -1,10 +1,11 @@
-import { useEffect } from "react";
-import { reportError } from "@/lib/observability";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { useEffect } from "react";
+
 import { selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
-import { useRemovedWorkIds } from "../collection/pending-removals";
+import { useRemovedWorkIds } from "@/lib/collection/pending-removals";
+import { reportError } from "@/lib/observability";
 
 /** Artworks saved on one visit, newest first, for overlays that need a count and thumbnails without the whole journal. */
 export function useVisitWorks(visitLocalId: string | undefined, owner: string) {

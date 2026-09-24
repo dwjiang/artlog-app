@@ -1,7 +1,8 @@
 import { render } from "@testing-library/react-native";
 
-import { CaptureShutter } from "./capture-feedback";
 import type { CaptureController, CaptureFeedback } from "@/lib/capture/capture-controller";
+
+import { CaptureShutter } from "./capture-feedback";
 
 let mockFeedback: CaptureFeedback = null;
 const mockRing: number[] = [];

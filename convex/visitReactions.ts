@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid } from "../shared/journal/limits";
 import { publicProfile } from "../shared/social/contracts";
@@ -59,8 +60,9 @@ export const setLike = mutation({
       .unique();
     if (!!current === liked) return null;
     await limitKey(ctx, "likeVisit", accountId);
-    if (current) await ctx.db.delete(current._id);
-    else {
+    if (current) {
+      await ctx.db.delete("visitLikes", current._id);
+    } else {
       await ctx.db.insert("visitLikes", {
         publicationId: publication._id,
         profileId: profile._id,
@@ -164,12 +166,12 @@ export const deleteComment = mutation({
   handler: async (ctx, { postId, commentId }) => {
     const { profile } = await requireProfile(ctx);
     const { publication } = await requireSharedVisit(ctx, postId, profile._id);
-    const row = await ctx.db.get(commentId);
+    const row = await ctx.db.get("visitComments", commentId);
     if (!row) return null;
     if (row.publicationId !== publication._id || row.profileId !== profile._id) {
       throw new ConvexError({ code: "not_found" });
     }
-    await ctx.db.delete(commentId);
+    await ctx.db.delete("visitComments", commentId);
     await changeEngagement(ctx, publication._id, "commentCount", -1);
     return null;
   },

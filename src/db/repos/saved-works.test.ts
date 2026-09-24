@@ -1,8 +1,9 @@
-import type { NewSavedWork } from "../schema";
+import type { NewSavedWork } from "@/db/schema";
+
 import * as repo from "./saved-works";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 function work(localId: string, overrides: Partial<NewSavedWork> = {}): NewSavedWork {

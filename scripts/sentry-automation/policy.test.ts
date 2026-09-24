@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+
 import {
   assertPatchPaths,
   eligiblePull,
@@ -23,7 +24,7 @@ const pull: Pull = {
   base: { ref: "main" },
 };
 
-test("review eligibility requires both labels, an open PR, and the same repository", () => {
+await test("review eligibility requires both labels, an open PR, and the same repository", () => {
   assert.equal(eligiblePull(pull), true);
   assert.equal(eligiblePull({ ...pull, labels: [{ name: "sentry-fix" }] }), false);
   assert.equal(eligiblePull({ ...pull, state: "closed" }), false);
@@ -31,7 +32,7 @@ test("review eligibility requires both labels, an open PR, and the same reposito
   assert.equal(eligiblePull({ ...pull, head: { ...pull.head, repo: { full_name: "someone/fork" } } }), false);
 });
 
-test("deduplication includes human, closed and escalated work without confusing issue prefixes", () => {
+await test("deduplication includes human, closed and escalated work without confusing issue prefixes", () => {
   const closedHumanPull: Pull = { ...pull, state: "closed", labels: [] };
   assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [closedHumanPull]), true);
   assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [{ ...pull, title: "ARTLOG-APP-B1" }]), false);
@@ -66,7 +67,7 @@ const event = {
   ],
 };
 
-test("only recent, explicitly production events belonging to the selected issue are accepted", () => {
+await test("only recent, explicitly production events belonging to the selected issue are accepted", () => {
   assert.ok(productionEvidence(event, "123", now));
   assert.equal(productionEvidence({ ...event, tags: [] }, "123", now), null);
   assert.equal(
@@ -80,7 +81,7 @@ test("only recent, explicitly production events belonging to the selected issue 
   assert.equal(productionEvidence({ ...event, dateCreated: "2026-09-25T11:00:00Z" }, "123", now), null);
 });
 
-test("evidence omits user content, credentials, request data, and local variables", () => {
+await test("evidence omits user content, credentials, request data, and local variables", () => {
   const evidence = productionEvidence(event, "123", now);
   const encoded = JSON.stringify(evidence);
   assert.match(encoded, /TypeError/);
@@ -88,7 +89,7 @@ test("evidence omits user content, credentials, request data, and local variable
   assert.doesNotMatch(encoded, /private|Private|secret|Authorization/);
 });
 
-test("persisted state validates issue IDs, commit IDs and the two-round limit", () => {
+await test("persisted state validates issue IDs, commit IDs and the two-round limit", () => {
   const state = {
     issue: "ARTLOG-APP-B",
     issueId: "123",
@@ -103,7 +104,7 @@ test("persisted state validates issue IDs, commit IDs and the two-round limit", 
   assert.equal(readState("<!-- sentry-automation: {broken} -->"), null);
 });
 
-test("patches cannot edit workflow, agent instructions, secrets, or symlinks", () => {
+await test("patches cannot edit workflow, agent instructions, secrets, or symlinks", () => {
   assert.doesNotThrow(() => assertPatchPaths(["src/lib/example.ts", "convex/example.ts"], "100644"));
   for (const path of [
     ".github/workflows/evil.yml",
@@ -118,13 +119,13 @@ test("patches cannot edit workflow, agent instructions, secrets, or symlinks", (
   assert.throws(() => assertPatchPaths(["src/example.ts"], "160000"));
 });
 
-test("queued runs and reruns cannot restore credentials superseded after they were queued", () => {
+await test("queued runs and reruns cannot restore credentials superseded after they were queued", () => {
   assert.equal(staleCredential("2026-09-24T11:00:00Z", "2026-09-24T12:00:00Z"), true);
   assert.equal(staleCredential("2026-09-24T12:00:00Z", "2026-09-24T11:00:00Z"), false);
   assert.throws(() => staleCredential("invalid", "2026-09-24T12:00:00Z"));
 });
 
-test("an interrupted publication cannot lose a reserved revision round", () => {
+await test("an interrupted publication cannot lose a reserved revision round", () => {
   const old = {
     issue: "ARTLOG-APP-B",
     issueId: "123",
@@ -138,7 +139,7 @@ test("an interrupted publication cannot lose a reserved revision round", () => {
   assert.deepEqual(latestState(stateMarker(reserved), [stateMarker(old), stateMarker(completed)]), completed);
 });
 
-test("an escalation outranks the review it answers, so revisions stay stopped", () => {
+await test("an escalation outranks the review it answers, so revisions stay stopped", () => {
   const review = {
     issue: "ARTLOG-APP-B",
     issueId: "123",

@@ -1,12 +1,12 @@
-import { useNetworkState } from "expo-network";
 import { Image } from "expo-image";
+import { useNetworkState } from "expo-network";
 import { useState } from "react";
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 
+import { ImageSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { captureFileUri } from "@/lib/files/photos";
-import { ImageSkeleton } from "@/components/loading-skeleton";
 import { reportError } from "@/lib/observability";
 
 export function SavedWorkImage({

@@ -1,8 +1,9 @@
-import { reportError, addBreadcrumb } from "@/lib/observability";
 import { randomUUID } from "expo-crypto";
 
 import { captureOwner } from "@/lib/account/owner-store";
 import { errorMessage, isNetworkError } from "@/lib/network-error";
+import { reportError, addBreadcrumb } from "@/lib/observability";
+
 import { roundVector } from "./features";
 import type {
   CaptureDependencies,

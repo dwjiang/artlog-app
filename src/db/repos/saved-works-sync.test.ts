@@ -1,11 +1,12 @@
+import { db } from "@/db/client";
+import { notes, savedWorks } from "@/db/schema";
+
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { db } from "../client";
-import { notes, savedWorks } from "../schema";
 import { getNote, setNote } from "./notes";
 import * as repo from "./saved-works";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const deviceId = "this-device" as Id<"devices">;
 const remote: Doc<"collections"> = {

@@ -1,14 +1,15 @@
+import type { FunctionReturnType } from "convex/server";
 import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-import type { FunctionReturnType } from "convex/server";
-import type { api } from "../../../convex/_generated/api";
 import { getSetting, setSetting } from "@/db/repos/settings";
-import { bundledVenueAsset } from "@/lib/venue-asset";
 import { filePath } from "@/lib/file-uri";
 import { reportError } from "@/lib/observability";
+import { bundledVenueAsset } from "@/lib/venue-asset";
+
+import type { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import {
   boundingBox,
   CHOOSE_RADIUS_M,
@@ -219,13 +220,13 @@ async function writeVenue(
 }
 export async function applyVenueMetadata(db: SQLiteDatabase, rows: VenueMetadata[]): Promise<void> {
   for (const venue of rows) await writeVenue(db, venue, "REPLACE");
-  if (rows.length) for (const listener of metadataListeners) listener();
+  if (rows.length > 0) for (const listener of metadataListeners) listener();
 }
 export async function venueMetadataForIds(ids: string[]): Promise<VenueRow[]> {
-  if (!ids.length) return [];
+  if (ids.length === 0) return [];
   const db = await openVenueDb();
-  const unique = [...new Set(ids)],
-    rows: VenueRow[] = [];
+  const unique = [...new Set(ids)];
+  const rows: VenueRow[] = [];
   for (let start = 0; start < unique.length; start += 50) {
     const batch = unique.slice(start, start + 50);
     rows.push(

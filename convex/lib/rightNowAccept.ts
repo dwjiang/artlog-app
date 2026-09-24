@@ -36,7 +36,7 @@ const QUALIFICATION =
   /\b(?:updates?|correction|corrected|retract(?:ed|ion)|cancel(?:l)?(?:ed|ation)|postpon(?:ed|ement)|reschedul(?:ed|ing)|den(?:ies|ied|ial)|false|untrue|unconfirmed|provisional|tentative|subject to change|however|but|instead|no|not|never)\b|n['’]t\b/i;
 
 export function sentences(text: string): string[] {
-  const normalized = text.replace(/\s+/g, " ").trim();
+  const normalized = text.replaceAll(/\s+/g, " ").trim();
   const parts: string[] = [];
   let start = 0;
   for (const boundary of normalized.matchAll(/[.!?](?:["”’])?\s+/g)) {
@@ -87,9 +87,9 @@ function sourceSentences(content: string): string[] {
 function normalizedSentence(text: string): string {
   return text
     .normalize("NFC")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/\s+/g, " ")
+    .replaceAll(/[“”]/g, '"')
+    .replaceAll(/[‘’]/g, "'")
+    .replaceAll(/\s+/g, " ")
     .trim();
 }
 

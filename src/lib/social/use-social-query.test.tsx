@@ -1,10 +1,12 @@
-import { reportError } from "@/lib/observability";
 import { act, renderHook } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
+
+import { reportError } from "@/lib/observability";
+
 import { api } from "../../../convex/_generated/api";
-import { useCursorPages, useSocialQuery } from "./use-social-query";
 import type { PublicProfile } from "./types";
+import { useCursorPages, useSocialQuery } from "./use-social-query";
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 let mockResults: Record<string, unknown>;

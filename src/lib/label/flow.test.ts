@@ -147,17 +147,14 @@ it.each([
   expect(checkImages).toHaveBeenCalledWith(["https://museum.example/a.jpg", "https://museum.example/b.jpg"]);
   expect(api.verifyLabel).toHaveBeenCalledTimes(verifyCalls);
   expect(stages).toEqual(["read", "verify", "image-check", "done"]);
-  if (verifyCalls === 2) {
-    // The verified values go back unchanged (including the date the verifier added), so the server skips its searches.
-    expect(api.verifyLabel).toHaveBeenLastCalledWith({
-      scanId,
-      fields: { title: "Water Lilies", artist: "Claude Monet", date: "1916" },
-      imageCheck: check,
-    });
-    expect(result).toBe(upgraded);
-  } else {
-    expect(result).toBe(verified);
-  }
+  const reverified = verifyCalls === 2;
+  // The verified values go back unchanged (including the date the verifier added), so the server skips its searches.
+  expect(api.verifyLabel).toHaveBeenLastCalledWith(
+    reverified
+      ? { scanId, fields: { title: "Water Lilies", artist: "Claude Monet", date: "1916" }, imageCheck: check }
+      : { scanId, fields: { title: "Water Lilies", artist: "Claude Monet" } },
+  );
+  expect(result).toBe(reverified ? upgraded : verified);
 });
 
 it("skips the image check without images or without the scan’s features and survives a failing check", async () => {

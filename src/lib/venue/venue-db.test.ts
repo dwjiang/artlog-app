@@ -1,7 +1,8 @@
-import Database from "better-sqlite3";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+
+import Database from "better-sqlite3";
 
 const mockSettings = new Map<string, string>();
 const mockConnections = new Set<Database.Database>();
@@ -266,6 +267,7 @@ it("round-trips canonical geography and clears missing metadata", async () => {
     cityKey: null,
   });
 });
+
 it("rejects downloaded assets without the journal geography columns before staging them", async () => {
   await venueDb.openVenueDb();
   const outdated = new Database(mockLatest);
@@ -274,6 +276,7 @@ it("rejects downloaded assets without the journal geography columns before stagi
   await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow("cityKey");
   expect(fs.existsSync(path.join(mockRoot, "SQLite", venueDb.STAGED_VENUE_DB_NAME))).toBe(false);
 });
+
 it("carries journal venues across a new bundled asset and lets published rows supersede them", async () => {
   const live = await venueDb.openVenueDb();
   await venueDb.applyVenueMetadata(live, [

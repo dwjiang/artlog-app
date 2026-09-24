@@ -1,10 +1,11 @@
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner, useServerScope } from "@/lib/account/owner-store";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
 
 export function PhotoVisibility({ savedId, photoId }: { savedId: string; photoId: string }) {
   const owner = useLocalOwner();
@@ -16,8 +17,8 @@ export function PhotoVisibility({ savedId, photoId }: { savedId: string; photoId
 }
 
 function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photoId: string }) {
-  const session = useSocialSession(),
-    scope = useServerScope();
+  const session = useSocialSession();
+  const scope = useServerScope();
   const visibility = useSocialQuery(
     api.photoVisibility.forArtwork,
     session.status === "ready" && scope ? { scope, savedLocalId: savedId } : "skip",
@@ -33,15 +34,17 @@ function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photo
     return <TextSkeleton label="Checking photo visibility…" width={180} />;
   }
   const photo = visibility.data.find((row) => row.photoLocalId === photoId);
-  const wall = photo?.wallPlacements ?? 0,
-    visits = photo?.sharedVisits ?? 0;
+  const wall = photo?.wallPlacements ?? 0;
+  const visits = photo?.sharedVisits ?? 0;
   const parts = [
     wall ? `${wall} public wall ${wall === 1 ? "placement" : "placements"}` : "",
     visits ? `${visits} shared ${visits === 1 ? "visit" : "visits"}` : "",
   ].filter(Boolean);
   return (
     <VisibilityLabel>
-      {parts.length ? `${parts.join(" · ")}. Other photos have their own sharing choices.` : "This photo is private."}
+      {parts.length > 0
+        ? `${parts.join(" · ")}. Other photos have their own sharing choices.`
+        : "This photo is private."}
     </VisibilityLabel>
   );
 }

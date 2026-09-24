@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react-native";
+
 import { PhotoVisibility } from "./photo-visibility";
 
 let mockOwner = "account:a";
@@ -46,6 +47,7 @@ it("shows the selected photo’s actual published visibility and updates after u
   await view.rerender(<PhotoVisibility savedId="s" photoId="p" />);
   expect(screen.getByText("This photo is private.")).toBeOnTheScreen();
 });
+
 it("does not call a photo private before checking or while offline", async () => {
   const view = await render(<PhotoVisibility savedId="s" photoId="p" />);
   expect(screen.getByLabelText("Checking photo visibility…")).toBeOnTheScreen();
@@ -54,6 +56,7 @@ it("does not call a photo private before checking or while offline", async () =>
   expect(screen.getByText(/Photo visibility unavailable/)).toBeOnTheScreen();
   expect(screen.queryByText("This photo is private.")).toBeNull();
 });
+
 it("does not apply another photo’s sharing choices to the selected photo", async () => {
   mockResult = {
     data: [{ photoLocalId: "other", wallPlacements: 1, sharedVisits: 1 }],
@@ -93,6 +96,7 @@ it("does not report a failed visibility check as private and treats absent publi
   expect(screen.getByText("This photo is private.")).toBeOnTheScreen();
   expect(mockQuery.mock.calls.at(-1)?.[1]).toBe("skip");
 });
+
 it("shows local guest photos as private", async () => {
   mockOwner = "device:guest";
   await render(<PhotoVisibility savedId="s" photoId="p" />);

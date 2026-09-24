@@ -1,14 +1,15 @@
 import { v } from "convex/values";
+
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
 
 export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">, rebuild = true) {
-  const object = await ctx.db.get(objectId);
+  const object = await ctx.db.get("objects", objectId);
   if (!object) return;
   const revision = (object.feedbackRevision ?? 0) + 1;
-  await ctx.db.patch(objectId, { feedbackRevision: revision });
+  await ctx.db.patch("objects", objectId, { feedbackRevision: revision });
   if (
     !rebuild
     || (await ctx.db
@@ -36,11 +37,11 @@ export const rebuildPage = internalMutation({
   args: { jobId: v.id("feedbackRebuilds") },
   returns: v.null(),
   handler: async (ctx, { jobId }) => {
-    const job = await ctx.db.get(jobId);
+    const job = await ctx.db.get("feedbackRebuilds", jobId);
     if (!job) return null;
-    const object = await ctx.db.get(job.objectId);
+    const object = await ctx.db.get("objects", job.objectId);
     if (!object) {
-      await ctx.db.delete(jobId);
+      await ctx.db.delete("feedbackRebuilds", jobId);
       return null;
     }
     const restart = job.revision !== (object.feedbackRevision ?? 0);
@@ -62,11 +63,12 @@ export const rebuildPage = internalMutation({
       .withIndex("by_object_created", (q) => q.eq("objectId", object._id))
       .paginate({ cursor: restart ? null : job.cursor, numItems: 50 });
     for (const event of page.page) {
-      const device = await ctx.db.get(event.deviceId);
+      const device = await ctx.db.get("devices", event.deviceId);
       if (!device || device.banned) continue;
-      if (event.kind === "confirmation") state.confirmCount++;
-      else {
-        const feedback = event.feedbackId ? await ctx.db.get(event.feedbackId) : null;
+      if (event.kind === "confirmation") {
+        state.confirmCount++;
+      } else {
+        const feedback = event.feedbackId ? await ctx.db.get("feedback", event.feedbackId) : null;
         if (!feedback || feedback.resolution.kind === "false_rejection") {
           continue;
         }
@@ -78,16 +80,16 @@ export const rebuildPage = internalMutation({
           state.flaggedForReview = true;
           state.rejectionPenalty += PENALTY_STEP;
         }
-        await ctx.db.patch(feedback._id, {
+        await ctx.db.patch("feedback", feedback._id, {
           penaltyAdded: flagged ? PENALTY_STEP : 0,
         });
       }
     }
     if (page.isDone) {
-      await ctx.db.patch(object._id, state);
-      await ctx.db.delete(jobId);
+      await ctx.db.patch("objects", object._id, state);
+      await ctx.db.delete("feedbackRebuilds", jobId);
     } else {
-      await ctx.db.patch(jobId, {
+      await ctx.db.patch("feedbackRebuilds", jobId, {
         ...state,
         revision: object.feedbackRevision ?? 0,
         cursor: page.continueCursor,

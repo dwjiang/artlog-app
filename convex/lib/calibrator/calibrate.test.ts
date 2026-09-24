@@ -200,6 +200,7 @@ describe("decide", () => {
   });
 
   it("never returns confident without eligibility across a sweep of signals", () => {
+    const ineligibleConfident = [];
     for (const similarity of [0.7, 0.85, 0.93, 0.97]) {
       for (const keypointCount of [20, 300]) {
         for (const homographyValid of [true, false]) {
@@ -215,14 +216,15 @@ describe("decide", () => {
                   atVenue,
                 }),
               );
-              if (decision.outcome === "confident") {
-                expect(decision.best?.eligibleForConfident).toBe(true);
+              if (decision.outcome === "confident" && decision.best?.eligibleForConfident !== true) {
+                ineligibleConfident.push(decision);
               }
             }
           }
         }
       }
     }
+    expect(ineligibleConfident).toEqual([]);
   });
 
   it("returns miss with the best candidate still attached when it falls under the soft threshold", () => {

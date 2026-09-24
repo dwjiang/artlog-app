@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { CollectionSearchField } from "./collection-search-field";
 
 it("keeps a visible search label while entering and clearing a filter", async () => {

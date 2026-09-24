@@ -1,6 +1,7 @@
 import type { MuseumEntry } from "@/shared/offline/types";
-import type { LocalPackage, MuseumDownload } from "./model";
+
 import { identifyOffline } from "./identify-offline";
+import type { LocalPackage, MuseumDownload } from "./model";
 
 const mockRead = jest.fn();
 const mockRecognize = jest.fn();
@@ -17,7 +18,7 @@ jest.mock("@/shared/offline/recognition", () => ({
   recognizeEntries: (...args: unknown[]) => mockRecognize(...args),
 }));
 
-const { modelVersion } = jest.requireActual<{ modelVersion: string }>("../../../shared/model/model-version.json");
+const { modelVersion } = jest.requireActual<{ modelVersion: string }>("@/shared/model/model-version.json");
 const capture = {
   vector: [1, 0],
   descriptors: new ArrayBuffer(0),

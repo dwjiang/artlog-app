@@ -1,8 +1,10 @@
-import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { captureOwner, subscribeOwner } from "../account/owner-store";
-import { flushCollectionMedia } from "../account/collection-sync";
+
+import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
+import { flushCollectionMedia } from "@/lib/account/collection-sync";
+import { captureOwner, subscribeOwner } from "@/lib/account/owner-store";
+
 import { createVisitSharingController } from "./visit-sharing-controller";
 import { createVisitSharingTransport } from "./visit-sharing-transport";
 
@@ -17,7 +19,7 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
       capture: () => ({ ...captureOwner(), token: input.token }),
       subscribeOwner,
       flush: () => {
-        const draft = controller.getSnapshot().draft;
+        const { draft } = controller.getSnapshot();
         return flushCollectionMedia({
           saveLocalIds: draft?.saveLocalIds ?? input.saveLocalIds,
           photoLocalIds: draft?.photoSelections?.flatMap((row) => row.photoLocalIds) ?? [],
@@ -28,7 +30,7 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
           const photos = selectVisitArtworkPhotos(saveLocalId, visitLocalId)
             .all()
             .filter((photo) => photo.kind !== "label");
-          return photos.length
+          return photos.length > 0
             ? [
                 {
                   saveLocalId,

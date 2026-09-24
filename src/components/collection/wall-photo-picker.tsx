@@ -1,17 +1,18 @@
-import { useEffect } from "react";
-import { reportError } from "@/lib/observability";
-import { PhotoStripSkeleton, TextSkeleton } from "@/components/loading-skeleton";
-import { LoadingImage } from "@/components/loading-image";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
+import { useEffect } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+
+import { LoadingImage } from "@/components/loading-image";
+import { PhotoStripSkeleton, TextSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { listVisits } from "@/db/repos/visits";
-import { formatVisitDate } from "@/lib/journal/history";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
+import { formatVisitDate } from "@/lib/journal/history";
+import { reportError } from "@/lib/observability";
 
 export function WallPhotoPicker({
   savedId,
@@ -42,7 +43,7 @@ export function WallPhotoPicker({
       </Text>
     );
   }
-  if (!updatedAt && !photos.length) return <PhotoStripSkeleton />;
+  if (!updatedAt && photos.length === 0) return <PhotoStripSkeleton />;
   return (
     <View style={{ gap: 4 }}>
       <ScrollView

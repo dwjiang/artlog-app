@@ -1,5 +1,6 @@
-import { StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
+import { StyleSheet, View } from "react-native";
+
 import type { WallFrame as Frame } from "@/lib/wall/wall-layout";
 
 export const wallFrames: {

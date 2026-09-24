@@ -1,4 +1,5 @@
 import { artistSections } from "./artist-sections";
+
 it("groups accented artists under their letter and puts unnamed artists at the end without mutating input", () => {
   const works = [
     { localId: "1", artist: "Édouard Manet", title: "Later", date: "1870" },

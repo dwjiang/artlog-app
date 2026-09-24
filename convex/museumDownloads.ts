@@ -1,19 +1,20 @@
-import { readVector } from "./lib/vectorStore";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, convexToJson, v, type Infer, type Value } from "convex/values";
+
 import model from "../shared/model/model-version.json";
+import type { MuseumEntry } from "../shared/offline/types";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { requireDevice } from "./lib/auth";
-import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
-import { isVenueOptedOut } from "./lib/venueOptOut";
+import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
+import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
+import { readVector } from "./lib/vectorStore";
+import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
-import type { MuseumEntry } from "../shared/offline/types";
 
-import { chunk, preview, museumPackage } from "./lib/museumDownloadValidators";
 const summary = v.object({
   id: v.id("museums"),
   key: v.string(),
@@ -64,7 +65,7 @@ export const catalog = query({
       });
     const page = [];
     for (const row of result.page) {
-      const museum = await ctx.db.get(row.venueId);
+      const museum = await ctx.db.get("museums", row.venueId);
       if (
         museum
         && row.published?.count
@@ -86,7 +87,7 @@ export const get = query({
   returns: v.union(manifest, v.null()),
   handler: async (ctx, { venueId }) => {
     await requireDevice(ctx);
-    const museum = await ctx.db.get(venueId);
+    const museum = await ctx.db.get("museums", venueId);
     const row = await ctx.db
       .query("museumDownloads")
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
@@ -110,7 +111,7 @@ export const build = internalMutation({
   args: { venueId: v.id("museums") },
   returns: v.null(),
   handler: async (ctx, { venueId }) => {
-    const museum = await ctx.db.get(venueId);
+    const museum = await ctx.db.get("museums", venueId);
     if (!museum || (await isVenueOptedOut(ctx, museum))) {
       throw new ConvexError("Museum unavailable");
     }
@@ -132,7 +133,7 @@ export const build = internalMutation({
       cursor: null,
     };
     const id = existing?._id ?? (await ctx.db.insert("museumDownloads", { venueId }));
-    await ctx.db.patch(id, { building });
+    await ctx.db.patch("museumDownloads", id, { building });
     await ctx.scheduler.runAfter(0, internal.museumDownloads.buildPage, {
       id,
       version: building.version,
@@ -160,9 +161,9 @@ export const readPage = internalQuery({
     v.null(),
   ),
   handler: async (ctx, { id, version }) => {
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("museumDownloads", id);
     if (!row?.building || row.building.version !== version) return null;
-    const museum = await ctx.db.get(row.venueId);
+    const museum = await ctx.db.get("museums", row.venueId);
     if (!museum || (await isVenueOptedOut(ctx, museum))) return null;
     const result = await ctx.db
       .query("objects")
@@ -173,7 +174,7 @@ export const readPage = internalQuery({
       if (object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
         continue;
       }
-      const artwork = await ctx.db.get(object.artworkId);
+      const artwork = await ctx.db.get("artworks", object.artworkId);
       const descriptor = await ctx.db
         .query("descriptors")
         .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
@@ -190,7 +191,7 @@ export const readPage = internalQuery({
           vectors.push(await readVector(ctx, vector));
         }
       }
-      if (vectors.length) {
+      if (vectors.length > 0) {
         page.push({
           object,
           artwork,
@@ -263,7 +264,7 @@ export const buildPage = internalAction({
       }
     }
     let part: Infer<typeof chunk> | undefined;
-    if (entries.length) {
+    if (entries.length > 0) {
       const bytes = new TextEncoder().encode(JSON.stringify(convexToJson(entries as unknown as Value)));
       const storageId = await ctx.storage.store(new Blob([bytes], { type: "application/json" }));
       part = {
@@ -295,7 +296,7 @@ export const commitPage = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const row = await ctx.db.get(args.id);
+    const row = await ctx.db.get("museumDownloads", args.id);
     if (!row?.building || row.building.version !== args.version) {
       if (args.part) await ctx.storage.delete(args.part.storageId);
       return null;
@@ -309,12 +310,12 @@ export const commitPage = internalMutation({
       previews: [...previous.previews, ...args.previews].slice(0, 3),
     };
     if (args.isDone) {
-      await ctx.db.patch(args.id, { published: pack, building: undefined });
+      await ctx.db.patch("museumDownloads", args.id, { published: pack, building: undefined });
       for (const old of row.published?.chunks ?? []) {
         await ctx.storage.delete(old.storageId);
       }
     } else {
-      await ctx.db.patch(args.id, {
+      await ctx.db.patch("museumDownloads", args.id, {
         building: { ...pack, cursor: args.cursor },
       });
       await ctx.scheduler.runAfter(0, internal.museumDownloads.buildPage, {

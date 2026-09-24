@@ -1,16 +1,17 @@
-import { useEffect } from "react";
-import { reportError } from "@/lib/observability";
-import { PhotoStripSkeleton } from "@/components/loading-skeleton";
-import { LoadingImage } from "@/components/loading-image";
-import { Image } from "expo-image";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
+import { useEffect } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingImage } from "@/components/loading-image";
+import { PhotoStripSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
-import { GalleryButton } from "../collection/gallery-button";
+import { reportError } from "@/lib/observability";
 
 export function SharePhotoPicker({
   work,
@@ -57,7 +58,7 @@ export function SharePhotoPicker({
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
           Photos could not load. Reopen the photo picker to try again.
         </Text>
-      ) : !updatedAt && !data.length ? (
+      ) : !updatedAt && data.length === 0 ? (
         <PhotoStripSkeleton />
       ) : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>

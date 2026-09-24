@@ -1,10 +1,11 @@
-import type { Id } from "../../../convex/_generated/dataModel";
-import { runMuseumSearch } from "./flow";
-import { runMuseumSearchForScan } from "./museum-search-deps";
 import { convex } from "@/lib/convex-client";
-import { confirmed, exhibitionCandidates, verified } from "./__fixtures__/search";
 import { loadLabelDraft } from "@/lib/label/draft";
 import { formStateFromFlow, setFieldValue } from "@/lib/label/fields";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { confirmed, exhibitionCandidates, verified } from "./__fixtures__/search";
+import { runMuseumSearch } from "./flow";
+import { runMuseumSearchForScan } from "./museum-search-deps";
 
 jest.mock("./flow", () => ({ runMuseumSearch: jest.fn() }));
 jest.mock("@/db/repos/pending-scans", () => ({ getPendingScan: jest.fn() }));

@@ -1,7 +1,3 @@
-import { reportError } from "@/lib/observability";
-import { EmptyState } from "../empty-state";
-import { EmptyPaper } from "../empty-state-art";
-import { FormSkeleton } from "@/components/loading-skeleton";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
@@ -12,23 +8,16 @@ import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
-import { useLocalOwner } from "@/lib/account/owner-store";
-import type { Id } from "../../../convex/_generated/dataModel";
-import type { LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
-
-import { isLabelCapture } from "@/lib/capture/photo-draft";
-import { CapturePhotosButton } from "./capture-photos-button";
-import { CaptureContextButton } from "./capture-context-button";
-import { CameraPermission } from "./camera-permission";
-import { LabelActions } from "./label/label-actions";
-import { ProgressSteps } from "./label/progress-steps";
-import { VerifiedFieldsForm } from "./label/verified-fields-form";
-import { SourceChip } from "./result/source-chip";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import { EmptyPaper } from "@/components/empty-state-art";
+import { FormSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { MAX_LABEL_ATTEMPTS, setLabelPhoto, setQrUrl } from "@/db/repos/pending-scans";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { useQrScanner } from "@/lib/capture/use-qr-scanner";
 import { persistLabelPhoto } from "@/lib/files/photos";
 import { removeFile } from "@/lib/label/crop";
@@ -38,10 +27,21 @@ import { runLabelFlowForScan, type LabelSource } from "@/lib/label/label-deps";
 import { useLabelCapture } from "@/lib/label/use-label-capture";
 import { useLabelForm } from "@/lib/label/use-label-form";
 import { isTransientError } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
 import { discardPendingLabel, flushQueue, retryPendingLabel } from "@/lib/queue/queue";
-import { useSaveResult } from "@/lib/result/use-save-result";
 import type { ResultViewState } from "@/lib/result/state";
+import { useSaveResult } from "@/lib/result/use-save-result";
 import { useScan } from "@/lib/result/use-scan";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
+import { CameraPermission } from "./camera-permission";
+import { CaptureContextButton } from "./capture-context-button";
+import { CapturePhotosButton } from "./capture-photos-button";
+import { LabelActions } from "./label/label-actions";
+import { ProgressSteps } from "./label/progress-steps";
+import { VerifiedFieldsForm } from "./label/verified-fields-form";
+import { SourceChip } from "./result/source-chip";
 
 export const QR_FOUND = "Found a QR code";
 export const QUEUED_MESSAGE = "Saved — we’ll finish this when you’re back online";
@@ -355,7 +355,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
         </StateCard>
       );
     }
-    if (capture && capture.lastError && capture.attempts >= MAX_LABEL_ATTEMPTS) {
+    if (capture?.lastError && capture.attempts >= MAX_LABEL_ATTEMPTS) {
       return (
         <StateCard title={new LabelFlowError(capture.lastError).message}>
           <GalleryButton
@@ -449,7 +449,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   if (phase.kind === "review" && form) {
     const editable = !saving && !sharing && !savedId;
     const contribution =
-      capture && capture.venueId && remoteScanId && !labelOnly && canShareLabel(form)
+      capture?.venueId && remoteScanId && !labelOnly && canShareLabel(form)
         ? { scanId: remoteScanId, capture, state: form }
         : undefined;
     const input = {

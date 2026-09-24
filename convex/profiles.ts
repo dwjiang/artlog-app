@@ -1,12 +1,13 @@
 import { ConvexError, v } from "convex/values";
+
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
-import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { acceptedRelationships, findBlock, relationshipSnapshot } from "./lib/friendships";
+import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
 // Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
@@ -54,7 +55,7 @@ export const create = mutation({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    return projectProfile(ctx, (await ctx.db.get(profileId))!);
+    return projectProfile(ctx, (await ctx.db.get("profiles", profileId))!);
   },
 });
 export const getPublic = query({
@@ -81,7 +82,7 @@ export const search = query({
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
-      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
+      if (!profile.removal && (await ctx.db.get("accounts", profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
       }
     }
@@ -136,7 +137,7 @@ export const discover = query({
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
-      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
+      if (!profile.removal && (await ctx.db.get("accounts", profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
       }
     }

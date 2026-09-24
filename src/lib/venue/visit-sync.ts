@@ -1,7 +1,8 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import { getVisit } from "@/db/repos/visits";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner } from "@/lib/account/owner-store";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 
 export async function resolveScanVisit(localId: string, venueId: Id<"museums">): Promise<Id<"visits">> {
   const current = captureOwner();

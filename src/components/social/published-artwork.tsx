@@ -1,16 +1,18 @@
-import { EmptySymbol } from "../empty-state";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { DisplayMedia } from "@/components/artwork/display-media";
+import { NoteHeading } from "@/components/collection/note-editor";
+import { WallFrame, wallFrameInset } from "@/components/collection/wall-frame";
+import { EmptySymbol } from "@/components/empty-state";
+import { DocentSection, type DocentSectionProps } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
-import { socialStyles } from "./social-styles";
 import { Gallery, Typography } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { SharedArtwork } from "@/lib/social/types";
 import type { WallFrame as Frame } from "@/lib/wall/wall-layout";
-import { WallFrame, wallFrameInset } from "../collection/wall-frame";
-import { DisplayMedia } from "../artwork/display-media";
-import { NoteHeading } from "../collection/note-editor";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import { DocentSection, type DocentSectionProps } from "../scan/result/docent-section";
+
+import { socialStyles } from "./social-styles";
 
 export function PublishedArtwork({
   artwork,
@@ -109,7 +111,7 @@ function PublishedArtworkGallery({
     setPage(next);
     gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
   };
-  if (!photos.length) {
+  if (photos.length === 0) {
     return (
       <View style={styles.emptyGallery}>
         <EmptySymbol name="photo" />

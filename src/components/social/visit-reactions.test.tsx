@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { FunctionReference } from "convex/server";
+
 import type { SocialSession } from "@/lib/social/use-social-session";
+
 import { VisitReactions, type ReactionVisit } from "./visit-reactions";
 
-const mockPush = jest.fn(),
-  mockMutate = jest.fn(),
-  mockRefresh = jest.fn();
+const mockPush = jest.fn();
+const mockMutate = jest.fn();
+const mockRefresh = jest.fn();
 let mockSession: SocialSession;
 let mockSummary: { likeCount: number; commentCount: number; liked: boolean };
 let mockComments: object[];

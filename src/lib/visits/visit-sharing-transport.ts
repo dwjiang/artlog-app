@@ -1,8 +1,10 @@
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { fetch as expoFetch } from "expo/fetch";
+
+import type { RequestContext } from "@/lib/wall/wall-transport";
+
 import { api } from "../../../convex/_generated/api";
-import type { RequestContext } from "../wall/wall-transport";
 
 export type ShareSelection = FunctionArgs<typeof api.sharedVisits.publish>;
 export type ShareState = FunctionReturnType<typeof api.sharedVisits.getState>;

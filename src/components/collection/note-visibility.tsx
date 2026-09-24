@@ -1,6 +1,7 @@
-import { ThemedText as Text } from "@/components/themed-text";
 import { Host, Switch } from "@expo/ui";
 import { View } from "react-native";
+
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 
 export function NoteVisibility({

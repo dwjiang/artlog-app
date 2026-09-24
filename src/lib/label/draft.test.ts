@@ -1,5 +1,6 @@
-import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { claimLocalJournal } from "@/db/repos/journal-claim";
+import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+
 import type { Id } from "../../../convex/_generated/dataModel";
 import { clearLabelDraft, loadLabelDraft, saveLabelDraft } from "./draft";
 import { formStateFromFlow, toSubmittedFields, unlockField } from "./fields";

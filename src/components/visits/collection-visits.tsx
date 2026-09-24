@@ -1,20 +1,22 @@
-import { SearchEmptyState } from "../empty-state";
-import type { ReactElement } from "react";
 import { router } from "expo-router";
+import type { ReactElement } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
+
+import { CollectionSearchField } from "@/components/collection/collection-search-field";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { SearchEmptyState } from "@/components/empty-state";
+import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
+import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { searchVisitSummaries, type VisitSummary } from "@/lib/journal/visit-summaries";
 import { searchTerm } from "@/lib/journal/query";
 import { useVisitView } from "@/lib/journal/use-visit-view";
-import { CollectionSearchField } from "../collection/collection-search-field";
-import { GalleryButton } from "../collection/gallery-button";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
+import { searchVisitSummaries, type VisitSummary } from "@/lib/journal/visit-summaries";
+
 import { VisitGlobe } from "./visit-globe";
 import { VisitTimeline } from "./visit-timeline";
 import { VisitMessage, visitStyles as styles } from "./visit-ui";
-import { ListSkeleton } from "@/components/loading-skeleton";
-import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
 
 export function CollectionVisits({
   owner,
@@ -40,7 +42,7 @@ export function CollectionVisits({
   const { mode, changeMode, error: preferenceError } = useVisitView(owner);
   const { fontScale } = useWindowDimensions();
   const shown = searchVisitSummaries(visits, search);
-  if (!loading && !error && !visits.length && !search.trim()) {
+  if (!loading && !error && visits.length === 0 && !search.trim()) {
     return (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
         {header}
@@ -111,7 +113,7 @@ export function CollectionVisits({
       ) : (
         <VisitMessage loading>Loading your visits…</VisitMessage>
       );
-  } else if (mode === "list" && !shown.length) {
+  } else if (mode === "list" && shown.length === 0) {
     message = (
       <SearchEmptyState
         title="No visits found."

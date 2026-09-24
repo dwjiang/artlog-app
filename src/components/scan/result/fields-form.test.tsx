@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { FieldsForm } from "./fields-form";
 import { draftFromCandidate } from "@/lib/result/snapshot";
+
 import { lilies } from "./__fixtures__/scan";
+import { FieldsForm } from "./fields-form";
 
 it("pre-fills every field and reports edits by field", async () => {
   const onChange = jest.fn();

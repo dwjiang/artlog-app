@@ -1,7 +1,7 @@
-import { calendarDate, isTimestamp } from "../../../shared/journal/limits";
-import { getVisit, patchVisit } from "../../db/repos/visits";
-import { captureOwner } from "../account/owner-store";
-import type { VenueContext } from "../venue/venue-reducer";
+import { getVisit, patchVisit } from "@/db/repos/visits";
+import { captureOwner } from "@/lib/account/owner-store";
+import type { VenueContext } from "@/lib/venue/venue-reducer";
+import { calendarDate, isTimestamp } from "@/shared/journal/limits";
 
 /** Checks the visit a scan is linked to and backdates it to the shutter; a venue-only context passes through. */
 export async function prepareCaptureVisit(context: VenueContext, capturedAt: number): Promise<VenueContext> {

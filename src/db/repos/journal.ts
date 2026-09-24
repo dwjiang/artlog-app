@@ -1,11 +1,13 @@
 import { ConvexError } from "convex/values";
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { filterVisits, summarizeJournal } from "../../lib/journal/history";
-import { pageRows, searchTerm, type PageOptions } from "../../lib/journal/query";
-import { applyVenueMetadata, openVenueDb, venueMetadataForIds, type VenueMetadata } from "../../lib/venue/venue-db";
-import * as visits from "./visits";
+
+import { getLocalOwner } from "@/lib/account/owner-store";
+import { filterVisits, summarizeJournal } from "@/lib/journal/history";
+import { pageRows, searchTerm, type PageOptions } from "@/lib/journal/query";
+import { applyVenueMetadata, openVenueDb, venueMetadataForIds, type VenueMetadata } from "@/lib/venue/venue-db";
+
 import { selectArtworkEncounters } from "./artwork-album";
 import { listSavedWorks } from "./saved-works";
+import * as visits from "./visits";
 
 export function createJournalRepository(owner = getLocalOwner(), isCurrent = () => true) {
   async function completeHistory() {
@@ -24,7 +26,7 @@ export function createJournalRepository(owner = getLocalOwner(), isCurrent = () 
     upsertVisitsFromRemote: (rows: Parameters<typeof visits.upsertVisitsFromRemote>[0]) =>
       visits.upsertVisitsFromRemote(rows, owner),
     async applyVenues(rows: VenueMetadata[]) {
-      if (!rows.length || !isCurrent()) return;
+      if (rows.length === 0 || !isCurrent()) return;
       const db = await openVenueDb();
       if (isCurrent()) await applyVenueMetadata(db, rows);
     },

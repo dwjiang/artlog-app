@@ -1,6 +1,7 @@
-import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES } from "@/shared/label/ocr-limits";
-import { getVisionRect, type TextLine } from "../../../modules/vision-rect/src";
 import { filePath } from "@/lib/file-uri";
+import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES } from "@/shared/label/ocr-limits";
+
+import { getVisionRect, type TextLine } from "../../../modules/vision-rect/src";
 import type { OcrLine } from "./flow";
 
 /** Trims the recognizer's lines to what convex/label.ts accepts, keeping reading order. */

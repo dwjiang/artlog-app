@@ -1,5 +1,8 @@
-import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from "./saved-works";
-import { upsertVisit } from "./visits";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db/client";
+import { artworkPhotos } from "@/db/schema";
+
 import {
   albumMediaPending,
   saveArtworkSession,
@@ -15,14 +18,13 @@ import {
   selectVisitArtworkPhotos,
 } from "./artwork-album";
 import { createJournalRepository } from "./journal";
-import { db } from "../client";
-import { artworkPhotos } from "../schema";
-import { eq } from "drizzle-orm";
+import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from "./saved-works";
+import { upsertVisit } from "./visits";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
-jest.mock("../../lib/venue/venue-db", () => ({
+jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async () => [],
 }));
 const owner = "device:test-installation";
@@ -51,6 +53,7 @@ beforeAll(async () => {
     venueId: "museum" as never,
   });
 });
+
 it("keeps photo kinds together and links a repeat visit only once", () => {
   addArtworkPhoto({
     localId: "detail",
@@ -76,6 +79,7 @@ it("keeps photo kinds together and links a repeat visit only once", () => {
   ).toEqual(["full", "detail", "label"]);
   expect(selectArtworkEncounters().all()).toHaveLength(2);
 });
+
 it("scopes photos to the visit they were taken on, so a repeat visit does not inherit earlier photos", () => {
   expect(
     selectVisitArtworkPhotos("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")
@@ -89,6 +93,7 @@ it("scopes photos to the visit they were taken on, so a repeat visit does not in
   ).toEqual(["detail", "label"]);
   expect(selectVisitArtworkPhotos("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", "account:other").all()).toEqual([]);
 });
+
 it("lists the same artwork on both visits without cloning it", async () => {
   const journal = createJournalRepository(owner);
   expect((await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).page.map((row) => row.localId)).toEqual([
@@ -98,12 +103,14 @@ it("lists the same artwork on both visits without cloning it", async () => {
     "work",
   ]);
 });
+
 it("rejects foreign artwork and visit identifiers", async () => {
   await insertSavedWork({ localId: "foreign", title: "Private", artist: "", savedAt: 1 }, "account:other");
   expect(() => linkArtworkVisit("foreign", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toThrow("Artwork is unavailable");
   expect(() => linkArtworkVisit("work", "foreign")).toThrow("Visit is unavailable");
   expect(selectArtworkPhotos("work", "account:other").all()).toEqual([]);
 });
+
 it("unlinking preserves photographs and the visit record", async () => {
   editEncounter("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", {
     note: "Came back",
@@ -121,6 +128,7 @@ it("unlinking preserves photographs and the visit record", async () => {
       .find((row) => row.visitLocalId === "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")?.note,
   ).toBe("Came back");
 });
+
 it("deleting the artwork tombstones its album and retains visits", async () => {
   await softDeleteSavedWork("work", 20);
   expect(selectArtworkPhotos("work").all()).toEqual([]);
@@ -130,6 +138,7 @@ it("deleting the artwork tombstones its album and retains visits", async () => {
     localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
   });
 });
+
 it("rolls back a whole capture session when a photo belongs to another artwork", () => {
   expect(() =>
     saveArtworkSession(
@@ -241,7 +250,7 @@ it("links a selection atomically and rolls every new link back if one artwork is
     savedAt: 1,
   });
   const visitId = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341";
-  expect(() => linkArtworksVisit(["batch-one", "missing"], visitId)).toThrow();
+  expect(() => linkArtworksVisit(["batch-one", "missing"], visitId)).toThrow("Artwork is unavailable");
   expect(
     selectArtworkEncounters()
       .all()
@@ -262,9 +271,9 @@ it("links one artwork to several visits atomically", async () => {
     artist: "",
     savedAt: 1,
   });
-  const first = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
-    second = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342";
-  expect(() => linkArtworkVisits("multi-visit", [first, "missing-visit"])).toThrow();
+  const first = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341";
+  const second = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342";
+  expect(() => linkArtworkVisits("multi-visit", [first, "missing-visit"])).toThrow("Visit is unavailable");
   expect(
     selectArtworkEncounters()
       .all()

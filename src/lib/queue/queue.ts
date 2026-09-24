@@ -1,22 +1,22 @@
-import { reportError } from "@/lib/observability";
 import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { AppState } from "react-native";
 
-import { captureOwner, getLocalOwner } from "@/lib/account/owner-store";
-import model from "../../../shared/model/model-version.json";
-
-import { api } from "../../../convex/_generated/api";
 import * as pending from "@/db/repos/pending-scans";
-import { isLabelCapture } from "@/lib/capture/photo-draft";
+import { captureOwner, getLocalOwner } from "@/lib/account/owner-store";
 import { extractFeatures, orb } from "@/lib/capture/features";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
 import type { CaptureStore, IdentifyResponse } from "@/lib/capture/stages";
 import { convex } from "@/lib/convex-client";
 import { embedder } from "@/lib/embed/embedder";
 import { captureFileUri, persistCapture, scanPreviewPath } from "@/lib/files/photos";
-import { runLabelFlowForScan } from "@/lib/label/label-deps";
-import { LabelFlowError } from "@/lib/label/flow";
 import { removeFile } from "@/lib/label/crop";
+import { LabelFlowError } from "@/lib/label/flow";
+import { runLabelFlowForScan } from "@/lib/label/label-deps";
+import { reportError } from "@/lib/observability";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
+import model from "@/shared/model/model-version.json";
+
+import { api } from "../../../convex/_generated/api";
 import { createFlusher } from "./flush";
 
 /** `unsupported_version` stays with its crop so the updated app can re-embed it locally. */
@@ -79,7 +79,7 @@ export const captureStore: CaptureStore = {
 
 function makeFlusher() {
   const current = captureOwner();
-  const owner = current.owner;
+  const { owner } = current;
   return createFlusher({
     isCurrent: current.isCurrent,
     isLabelCapture,

@@ -55,7 +55,7 @@ export function isCalendarDate(value: string): boolean {
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
 export function normalizeSearch(value: string): string {
-  return value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().trim().replace(/\s+/g, " ");
+  return value.normalize("NFKD").replaceAll(/\p{M}/gu, "").toLowerCase().trim().replaceAll(/\s+/g, " ");
 }
 // ISO 3166-1 assigned alpha-2 codes plus XK, the user-assigned code MapKit and Wikidata emit for Kosovo.
 // The seed pipeline reads the same file, so codes it cannot send never reach `invalid_venue`.

@@ -1,11 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "import"],
-  "jsPlugins": ["eslint-plugin-expo", "./oxlint-plugin.js"],
+  "jsPlugins": ["eslint-plugin-expo", "@convex-dev/eslint-plugin", "./oxlint-plugin.js"],
   "categories": { "correctness": "error" },
+  "options": { "typeAware": true },
   "ignorePatterns": [".agents/**", ".claude/**", "convex/_generated/**", "src/db/migrations/**", "scripts/data/**"],
   "rules": {
-    "curly": ["error", "multi-line"],
+    "curly": ["error", "multi-line", "consistent"],
     "eqeqeq": ["error", "smart"],
     "no-else-return": "error",
     "no-extend-native": "error",
@@ -19,9 +20,21 @@
     "no-useless-rename": "error",
     "no-useless-return": "error",
     "no-var": "error",
+    "object-shorthand": ["error", "always", { "ignoreConstructors": true }],
+    "one-var": ["error", "never"],
+    "prefer-const": ["error", { "destructuring": "all" }],
+    "prefer-destructuring": [
+      "error",
+      {
+        "VariableDeclarator": { "object": true, "array": false },
+        "AssignmentExpression": { "object": false, "array": false }
+      }
+    ],
     "unicode-bom": "error",
     "import/first": "error",
-    "import/no-duplicates": "error",
+    "import/newline-after-import": "error",
+    "import/no-default-export": "error",
+    "import/no-duplicates": ["error", { "preferInline": true }],
     "import/no-named-as-default": "error",
     "import/no-named-as-default-member": "error",
     "react/display-name": "error",
@@ -30,15 +43,20 @@
     "react/no-unknown-property": "error",
     "react/rules-of-hooks": "error",
     "react/unsupported-syntax": "error",
+    "unicorn/explicit-length-check": "error",
+    "unicorn/filename-case": ["error", { "case": "kebabCase", "ignore": ["^\\[\\w+\\]\\.tsx$"] }],
     "unicorn/prefer-logical-operator-over-ternary": "error",
+    "unicorn/prefer-string-replace-all": "error",
     "typescript/array-type": ["error", { "default": "array" }],
     "typescript/consistent-type-assertions": [
       "error",
       { "assertionStyle": "as", "objectLiteralTypeAssertions": "allow" }
     ],
+    "typescript/consistent-type-definitions": ["error", "type"],
+    "typescript/consistent-type-imports": ["error", { "fixStyle": "inline-type-imports" }],
     "typescript/no-empty-object-type": "error",
     "typescript/no-inferrable-types": "error",
-    "typescript/prefer-optional-chain": "error",
+    "typescript/prefer-optional-chain": ["error", { "requireNullish": true }],
     "expo/no-dynamic-env-var": "error",
     "expo/no-env-var-destructuring": "error",
     "expo/use-dom-exports": "error",
@@ -65,9 +83,94 @@
       "rules": { "expo/no-dynamic-env-var": "off" }
     },
     {
+      // The plugin's recommended set.
+      "files": ["convex/**/*.ts"],
+      "rules": {
+        "@convex-dev/explicit-table-ids": "error",
+        "@convex-dev/no-duplicate-indexes": "error",
+        "@convex-dev/no-filter-in-query": "warn",
+        "@convex-dev/no-old-registered-function-syntax": "error",
+        "@convex-dev/no-process-env": "error",
+        "@convex-dev/no-schema-import-cycle": "error",
+        "@convex-dev/no-top-of-hour-crons": "warn",
+        "@convex-dev/require-args-validator": "error"
+      }
+    },
+    {
+      // Convex evaluates the auth config at push time; keep its documented `process.env` form.
+      "files": ["convex/auth.config.ts"],
+      "rules": { "@convex-dev/no-process-env": "off" }
+    },
+    {
+      "files": ["convex/**"],
+      "rules": { "unicorn/filename-case": ["error", { "case": "camelCase" }] }
+    },
+    {
       // Jest manual mocks mirror the mocked package's surface, so forwarding is their job.
       "files": ["src/__mocks__/**"],
       "rules": { "artlog/no-re-exports": "off" }
+    },
+    {
+      // shared/ is also bundled by Convex, which does not resolve the @/ path aliases.
+      "files": ["src/**"],
+      "rules": { "artlog/prefer-alias-imports": "error" }
+    },
+    {
+      // Expo Router routes and Convex/tool entry points must default-export.
+      "files": [
+        "src/app/**",
+        "convex/schema.ts",
+        "convex/crons.ts",
+        "convex/http.ts",
+        "**/*.config.ts",
+        "**/*.config.mts"
+      ],
+      "rules": { "import/no-default-export": "off" }
+    },
+    {
+      // Nitrogen specs must declare native interfaces.
+      "files": ["modules/**/*.nitro.ts"],
+      "rules": { "typescript/consistent-type-definitions": "off" }
+    },
+    {
+      // Tests type `jest.requireActual` and mock factories with `typeof import(...)`, pass methods to
+      // `expect()` and stringify mocked fetch bodies.
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/__mocks__/**"],
+      "rules": {
+        "typescript/consistent-type-imports": [
+          "error",
+          { "fixStyle": "inline-type-imports", "disallowTypeAnnotations": false }
+        ],
+        "typescript/no-base-to-string": "off",
+        "typescript/unbound-method": "off"
+      }
+    },
+    {
+      // The test plugins cannot tell Jest files from Vitest files, so each runner's tests get only its plugin.
+      "files": [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "shared/**/*.test.ts",
+        "modules/**/*.test.ts",
+        "modules/**/*.test.tsx"
+      ],
+      "plugins": ["jest"],
+      "rules": {
+        "jest/consistent-test-it": ["error", { "fn": "it" }],
+        "jest/padding-around-test-blocks": "error"
+      }
+    },
+    {
+      // Convex tests run under Vitest and read the test runner's env, not deployment env.
+      "files": ["convex/**/*.test.ts"],
+      "plugins": ["vitest"],
+      "rules": {
+        "@convex-dev/no-process-env": "off",
+        "vitest/consistent-test-it": ["error", { "fn": "it" }],
+        "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expect*"] }],
+        "vitest/padding-around-test-blocks": "error",
+        "vitest/valid-expect": ["error", { "maxArgs": 2 }]
+      }
     }
   ]
 }

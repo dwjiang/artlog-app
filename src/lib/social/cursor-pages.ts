@@ -1,4 +1,4 @@
-import { isNetworkError } from "../network-error";
+import { isNetworkError } from "@/lib/network-error";
 
 export type CursorPage<T> = {
   page: T[];

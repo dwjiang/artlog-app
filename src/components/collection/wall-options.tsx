@@ -14,8 +14,9 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 
 import { Gallery } from "@/constants/theme";
 import { wallAspect, type WallFrame as Frame, type WallPiece } from "@/lib/wall/wall-layout";
-import { WallFrame, wallFrameInset, wallFrames } from "./wall-frame";
+
 import { WallArtwork } from "./wall-artwork";
+import { WallFrame, wallFrameInset, wallFrames } from "./wall-frame";
 
 function WallChoice({
   label,

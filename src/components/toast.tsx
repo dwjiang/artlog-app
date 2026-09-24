@@ -2,8 +2,10 @@ import { useSegments } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { dismissToast, useToast } from "@/lib/ui/toast";
+
 import { ToastPill } from "./toast-pill";
 
 /** Floats the current toast (and any extra pills passed as children) above the bottom edge; screens report outcomes through

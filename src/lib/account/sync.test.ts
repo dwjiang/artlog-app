@@ -1,13 +1,14 @@
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { db } from "@/db/client";
 import * as saves from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
 import { notes, pendingScans, savedWorks, visits as visitTable } from "@/db/schema";
+
+import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { getLocalOwner } from "./owner-store";
 import { syncJournal, type SyncContext, type SyncDependencies } from "./sync";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const context: SyncContext = {
   scope: "scope",
@@ -88,6 +89,7 @@ beforeEach(async () => {
     })),
   }));
 });
+
 it("pushes scoped snapshots, applies parents before saves, acknowledges and checkpoints", async () => {
   await saves.insertSavedWork({
     localId: "local",
@@ -114,6 +116,7 @@ it("pushes scoped snapshots, applies parents before saves, acknowledges and chec
   });
   expect(checkpoint).toBe("20");
 });
+
 it("leaves edits pending and checkpoints unchanged on network or local-write failures", async () => {
   await saves.insertSavedWork({
     localId: "local",
@@ -136,6 +139,7 @@ it("leaves edits pending and checkpoints unchanged on network or local-write fai
   await expect(syncJournal(deps, context)).rejects.toThrow("SQLITE_BUSY");
   expect(checkpoint).toBeUndefined();
 });
+
 it("resumes at the last applied change after an interrupted pull", async () => {
   api
     .mockResolvedValueOnce({
@@ -150,6 +154,7 @@ it("resumes at the last applied change after an interrupted pull", async () => {
   await syncJournal(deps, context);
   expect(api.mock.calls[2][0].since).toBe(1);
 });
+
 it("discards in-flight responses after account changes", async () => {
   let active = true;
   api.mockImplementationOnce(async () => {
@@ -161,6 +166,7 @@ it("discards in-flight responses after account changes", async () => {
   expect(await visits.listVisits()).toEqual([]);
   expect(checkpoint).toBeUndefined();
 });
+
 it("sends empty visits before save batches and leaves hidden account work suspended", async () => {
   await visits.upsertVisit({
     visibility: "public" as const,
@@ -213,6 +219,7 @@ it("applies canonical venue metadata before advancing the checkpoint", async () 
   await expect(syncJournal(deps, context)).rejects.toThrow("SQLITE_BUSY");
   expect(checkpoint).toBeUndefined();
 });
+
 it("rejects remote rows belonging to a different owner before applying data", async () => {
   api.mockResolvedValueOnce({
     ...empty,

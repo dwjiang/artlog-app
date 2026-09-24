@@ -1,14 +1,15 @@
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
+import { ConvexError } from "convex/values";
+
+import type { JournalRepository } from "@/db/repos/journal";
+import type * as saves from "@/db/repos/saved-works";
+import type * as visits from "@/db/repos/visits";
+import { visitInput } from "@/lib/journal/visit-payload";
+import { type JournalSave, type JournalVisit, sameOwner } from "@/shared/journal/contracts";
+import { LIMITS, utf8Bytes } from "@/shared/journal/limits";
+
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { LIMITS, utf8Bytes } from "../../../shared/journal/limits";
-import type { JournalSave, JournalVisit } from "../../../shared/journal/contracts";
-import { sameOwner } from "../../../shared/journal/contracts";
-import { ConvexError } from "convex/values";
-import type { JournalRepository } from "../../db/repos/journal";
-import type * as saves from "../../db/repos/saved-works";
-import type * as visits from "../../db/repos/visits";
-import { visitInput } from "../journal/visit-payload";
 
 type SyncArgs = FunctionArgs<typeof api.sync.syncJournal>;
 type SyncResult = FunctionReturnType<typeof api.sync.syncJournal>;
@@ -34,8 +35,8 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
     const pendingVisits = await deps.listUnsyncedVisits(context.owner);
     const pendingSaves = await deps.listUnsynced(context.owner);
     if (!isCurrent()) return;
-    const pushVisits: JournalVisit[] = [],
-      pushSaves: JournalSave[] = [];
+    const pushVisits: JournalVisit[] = [];
+    const pushSaves: JournalSave[] = [];
     const fits = (input: JournalVisit | JournalSave) =>
       pushVisits.length + pushSaves.length < LIMITS.batchRecords
       && utf8Bytes({ visits: pushVisits, saves: pushSaves }) + utf8Bytes(input) < LIMITS.batchBytes - 1024;
@@ -108,8 +109,8 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
     await deps.setCheckpoint(String(checkpoint));
     if (
       !result.hasMore
-      && !(await deps.listUnsyncedVisits(context.owner)).length
-      && !(await deps.listUnsynced(context.owner)).length
+      && (await deps.listUnsyncedVisits(context.owner)).length === 0
+      && (await deps.listUnsynced(context.owner)).length === 0
     ) {
       return;
     }

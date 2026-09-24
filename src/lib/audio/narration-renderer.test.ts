@@ -1,6 +1,7 @@
 import { guideBodyFixture, guideFixture, openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
-import { cachedNarrationUri, createNarrationRenderer } from "./narration-renderer";
+
 import type { ListeningTrack } from "./narration";
+import { cachedNarrationUri, createNarrationRenderer } from "./narration-renderer";
 
 const mockFiles = new Map<string, Uint8Array>();
 const mockFetch = jest.fn();

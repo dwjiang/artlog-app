@@ -1,6 +1,6 @@
+import { ToastPill } from "@/components/toast-pill";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { commitRemoval, undoRemoval, usePendingRemovals } from "@/lib/collection/pending-removals";
-import { ToastPill } from "../toast-pill";
 
 export function RemovalToast() {
   const owner = useLocalOwner();

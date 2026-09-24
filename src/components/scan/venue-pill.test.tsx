@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { VenuePill } from "./venue-pill";
 import type { VenueView } from "@/lib/venue/use-venue";
+
+import { VenuePill } from "./venue-pill";
 
 const mockPush = jest.fn();
 let mockLoading = false;

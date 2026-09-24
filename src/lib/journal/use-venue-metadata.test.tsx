@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import type { VenueRow } from "../venue/resolve";
+
+import type { VenueRow } from "@/lib/venue/resolve";
+
 import { useVenueMetadata } from "./use-venue-metadata";
 
 let mockResolve: ((rows: VenueRow[]) => void) | undefined;
@@ -9,7 +11,7 @@ const mockRead = jest.fn(
       mockResolve = resolve;
     }),
 );
-jest.mock("../venue/venue-db", () => ({
+jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: (ids: string[]) => mockRead(ids),
   onVenueMetadataChange: () => () => {},
 }));

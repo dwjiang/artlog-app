@@ -2,7 +2,14 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type ActionCtx, type MutationCtx } from "./_generated/server";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type ActionCtx,
+  type MutationCtx,
+  env,
+} from "./_generated/server";
 import {
   DOCENT_MAX_TOKENS,
   DOCENT_PROMPT,
@@ -33,7 +40,7 @@ const MAX_MODEL_CALLS = 4;
 const MODEL_TIMEOUT_MS = 20_000;
 
 export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {
-  await ctx.db.patch(artwork._id, {
+  await ctx.db.patch("artworks", artwork._id, {
     docent: undefined,
     docentUpdatedAt: undefined,
     enrichClaimedAt: undefined,
@@ -52,7 +59,7 @@ export const load = internalQuery({
     }),
   ),
   handler: async (ctx, { artworkId }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork || artwork.identityStatus !== "established") return null;
     let pageUrl: string | undefined;
     let owner: Doc<"museums"> | null = null;
@@ -60,7 +67,7 @@ export const load = internalQuery({
       if (object.reverted || object.mergedInto || !object.pageUrl || !object.ownerId) {
         continue;
       }
-      const museum = await ctx.db.get(object.ownerId);
+      const museum = await ctx.db.get("museums", object.ownerId);
       if (!museum || (await isVenueOptedOut(ctx, museum))) continue;
       pageUrl = object.pageUrl;
       owner = museum;
@@ -74,7 +81,7 @@ export const claim = internalMutation({
   args: { artworkId: v.id("artworks") },
   returns: v.union(v.number(), v.null()),
   handler: async (ctx, { artworkId }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork || artwork.identityStatus !== "established" || artwork.docent?.en || artwork.factSheetNeedsReview) {
       return null;
     }
@@ -83,7 +90,7 @@ export const claim = internalMutation({
       return null;
     }
     const generation = (artwork.enrichGeneration ?? 0) + 1;
-    await ctx.db.patch(artworkId, {
+    await ctx.db.patch("artworks", artworkId, {
       enrichClaimedAt: now,
       enrichGeneration: generation,
     });
@@ -101,7 +108,7 @@ export const writeEnrichment = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, { artworkId, generation, factSheet, docentEn }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     if (
       artwork.identityStatus !== "established"
@@ -112,7 +119,7 @@ export const writeEnrichment = internalMutation({
       return false;
     }
     const now = Date.now();
-    await ctx.db.patch(artworkId, {
+    await ctx.db.patch("artworks", artworkId, {
       ...(factSheet ? { factSheet, factSheetUpdatedAt: now } : {}),
       docent: { en: docentEn },
       docentUpdatedAt: now,
@@ -129,11 +136,11 @@ export const invalidateDocent = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { artworkId, includeResearch }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (artwork) {
       await clearDocent(ctx, artwork);
       if (includeResearch) {
-        await ctx.db.patch(artworkId, {
+        await ctx.db.patch("artworks", artworkId, {
           factSheet: undefined,
           factSheetUpdatedAt: undefined,
         });
@@ -146,8 +153,8 @@ export const invalidateDocent = internalMutation({
 type Models = { factSheet: string; docent: string };
 
 function configuredModels(): Models | null {
-  const factSheet = process.env.FACT_SHEET_MODEL;
-  const docent = process.env.DOCENT_MODEL;
+  const factSheet = env.FACT_SHEET_MODEL;
+  const docent = env.DOCENT_MODEL;
   return factSheet && docent ? { factSheet, docent } : null;
 }
 
@@ -171,7 +178,7 @@ async function generate(
       pageUrl: context.pageUrl,
     });
     // Nothing found because every source errored: release the claim and try again later.
-    if (!sources.sources.length) {
+    if (sources.sources.length === 0) {
       return sources.failures ? null : { factSheet: [], docentEn: [] };
     }
   }
@@ -197,7 +204,7 @@ async function generate(
       factSheet = buildFactSheet(sheet.value, sources!.sources);
     }
     let docentEn: DocentSentence[] = [];
-    if (factSheet.length) {
+    if (factSheet.length > 0) {
       const prose = await chatJson({
         model: models.docent,
         system: DOCENT_PROMPT,

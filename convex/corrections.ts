@@ -20,7 +20,7 @@ export const correctFact = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
-    const artwork = await ctx.db.get(args.artworkId);
+    const artwork = await ctx.db.get("artworks", args.artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     if (!artwork.factSheet?.some((fact) => fact.id === args.factId)) {
       throw new ConvexError({ code: "unknown_fact" });
@@ -40,7 +40,7 @@ export const correctFact = mutation({
       createdAt: Date.now(),
       status: "open",
     });
-    await ctx.db.patch(artwork._id, { factSheetNeedsReview: true });
+    await ctx.db.patch("artworks", artwork._id, { factSheetNeedsReview: true });
     await clearDocent(ctx, artwork);
     return null;
   },

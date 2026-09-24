@@ -3,8 +3,10 @@ import { digestStringAsync, CryptoDigestAlgorithm } from "expo-crypto";
 import { Directory, File } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { widgetsDirectory } from "expo-widgets";
-import { captureFileUri } from "@/lib/files/photos";
+
 import { loadLocalImage } from "@/lib/files/local-image";
+import { captureFileUri } from "@/lib/files/photos";
+
 import { artlogWidget } from "./artlog-widget";
 import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 import { widgetPresentation, type WidgetPresentation } from "./widget-layout";
@@ -30,8 +32,8 @@ export async function prepareWidgetArtwork(
       CryptoDigestAlgorithm.SHA256,
       `${owner}\0${path}\0${source.size}\0${source.modificationTime}`,
     );
-    const target = new File(folder, `${key}.jpg`),
-      info = new File(folder, `${key}.json`);
+    const target = new File(folder, `${key}.jpg`);
+    const info = new File(folder, `${key}.json`);
     if (target.exists && info.exists) {
       try {
         const aspect: unknown = JSON.parse(info.textSync()).aspect;
@@ -55,7 +57,7 @@ export async function prepareWidgetArtwork(
         compress: 0.9,
       });
       if (target.exists) target.delete();
-      new File(result.uri).move(target);
+      await new File(result.uri).move(target);
       const aspect = loaded.width / loaded.height;
       info.write(JSON.stringify({ aspect }));
       return { ...artwork, uri: target.uri, aspect };
@@ -74,7 +76,7 @@ export async function prepareWidgetFont() {
   if (font.exists) return;
   const asset = await Asset.fromModule(require("../../../assets/fonts/anton-regular.ttf")).downloadAsync();
   if (!asset.localUri) throw new Error("Widget font is unavailable");
-  new File(asset.localUri).copy(font);
+  await new File(asset.localUri).copy(font);
 }
 
 export function writeWidgetManifest(entries: WidgetPresentation[]) {

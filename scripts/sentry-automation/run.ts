@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+
+import { directory, runAgent, runSandboxed, type Assessment } from "./agent.ts";
 import {
   BRANCH,
   ISSUE,
@@ -22,19 +24,18 @@ import {
   type State,
 } from "./policy.ts";
 import { git, github, githubPages, request, required } from "./services.ts";
-import { directory, runAgent, runSandboxed, type Assessment } from "./agent.ts";
 
-interface Issue {
+type Issue = {
   id: string;
   shortId: string;
   project: { slug: string };
   status: string;
-}
-interface Comment {
+};
+type Comment = {
   body: string;
   user: { login: string };
-}
-export interface Plan {
+};
+export type Plan = {
   kind: "none" | "create" | "update" | "review" | "escalate";
   mainSha: string;
   headSha: string;
@@ -47,7 +48,7 @@ export interface Plan {
   body: string;
   review: Assessment;
   patchHash: string;
-}
+};
 
 const output = resolve(directory, "publish");
 const patchPath = resolve(output, "change.patch");
@@ -125,12 +126,12 @@ async function events(issueId: string): Promise<unknown[]> {
 
 function capturePatch(): string {
   const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter(Boolean);
-  if (untracked.length) {
+  if (untracked.length > 0) {
     assertPatchPaths(untracked, "");
     git("add", "--intent-to-add", "--", ...untracked);
   }
   const paths = git("diff", "--name-only", "-z", "HEAD").split("\0").filter(Boolean);
-  if (!paths.length) return "";
+  if (paths.length === 0) return "";
   assertPatchPaths(paths, git("diff", "--raw", "HEAD"));
   const patch = `${git("diff", "--binary", "HEAD")}\n`;
   if (patch.length > 500_000 || patch.includes("GIT binary patch")) {
@@ -225,7 +226,7 @@ async function prepare(): Promise<void> {
     let validation: string[] = [];
     if (revise) {
       const evidence = await events(issueId);
-      if (!evidence.length) continue;
+      if (evidence.length === 0) continue;
       const fix = runAgent("fix", { issue, events: evidence, review: botComments.at(-1) }, mainSha);
       const revision = proposal(fix);
       if ("problem" in revision) {
@@ -279,7 +280,7 @@ async function prepare(): Promise<void> {
   for (const issue of issues) {
     if (issueAlreadyTracked(issue.shortId, tracked)) continue;
     const evidence = await events(issue.id);
-    if (!evidence.length) continue;
+    if (evidence.length === 0) continue;
     const fix = runAgent("fix", { issue: issue.shortId, url: issueUrl(issue.id), events: evidence }, mainSha);
     const change = proposal(fix);
     if ("problem" in change) {

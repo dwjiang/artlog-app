@@ -16,7 +16,7 @@ export async function contributionRightsIssue(
   ctx: QueryCtx,
   row: RightsRow,
 ): Promise<"invalid_venue" | "artwork_taken_down" | null> {
-  const venue = await ctx.db.get(row.venueId);
+  const venue = await ctx.db.get("museums", row.venueId);
   if (!venue || (await isVenueOptedOut(ctx, venue))) return "invalid_venue";
   const keys = await museumIdentityKeys({
     accession: verifiedAccession(row),
@@ -70,7 +70,7 @@ export async function eligibleContribution(ctx: QueryCtx, row: Doc<"contribution
   if (!row || row.status !== "tentative" || !row.cropStorageId || !row.orbStorageId) {
     return false;
   }
-  const device = await ctx.db.get(row.deviceId);
+  const device = await ctx.db.get("devices", row.deviceId);
   return !!device && !device.banned && (await contributionRightsIssue(ctx, row)) === null;
 }
 
@@ -90,10 +90,10 @@ export async function eligibleObjectRecord(ctx: QueryCtx, object: Doc<"objects">
     return false;
   }
   if (object.sourceProposalId) {
-    const proposal = await ctx.db.get(object.sourceProposalId);
+    const proposal = await ctx.db.get("placementProposals", object.sourceProposalId);
     if (!proposal || proposal.revertedAt !== undefined) return false;
     for (const deviceId of proposal.deviceIds) {
-      const device = await ctx.db.get(deviceId);
+      const device = await ctx.db.get("devices", deviceId);
       if (!device || device.banned) return false;
     }
   }
@@ -106,27 +106,30 @@ export async function eligibleObject(ctx: QueryCtx, object: Doc<"objects">, venu
   if (!venueId || object.ownerId !== venueId || !object.sourceContributionId) {
     return false;
   }
-  return eligibleContribution(ctx, await ctx.db.get(object.sourceContributionId));
+  return eligibleContribution(ctx, await ctx.db.get("contributions", object.sourceContributionId));
 }
 
 export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Promise<boolean> {
   if (vector.source === "user" && !vector.contributionId) return false;
   if (vector.source === "user_scan" && !vector.scanId) return false;
-  if (vector.contributionId && !(await eligibleContribution(ctx, await ctx.db.get(vector.contributionId)))) {
+  if (
+    vector.contributionId
+    && !(await eligibleContribution(ctx, await ctx.db.get("contributions", vector.contributionId)))
+  ) {
     return false;
   }
   if (vector.scanId) {
-    const scan = await ctx.db.get(vector.scanId);
-    const device = scan ? await ctx.db.get(scan.deviceId) : null;
+    const scan = await ctx.db.get("scans", vector.scanId);
+    const device = scan ? await ctx.db.get("devices", scan.deviceId) : null;
     if (!device || device.banned) return false;
   }
   if (vector.feedbackId) {
-    const feedback = await ctx.db.get(vector.feedbackId);
+    const feedback = await ctx.db.get("feedback", vector.feedbackId);
     if (!feedback?.multiViewAgreement || feedback.resolution.kind !== "runner_up") {
       return false;
     }
     for (const id of [feedback.multiViewAgreement.firstDeviceId, feedback.multiViewAgreement.secondDeviceId]) {
-      const device = await ctx.db.get(id);
+      const device = await ctx.db.get("devices", id);
       if (!device || device.banned) return false;
     }
   }

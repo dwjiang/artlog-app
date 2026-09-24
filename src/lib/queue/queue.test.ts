@@ -1,13 +1,13 @@
-import { switchOwner } from "@/lib/account/owner-store";
 import { ConvexError } from "convex/values";
 import { AppState } from "react-native";
 
-import model from "../../../shared/model/model-version.json";
+import { switchOwner } from "@/lib/account/owner-store";
+import type { CapturePayload, IdentifyResponse } from "@/lib/capture/stages";
+import { LabelFlowError } from "@/lib/label/flow";
+import model from "@/shared/model/model-version.json";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { CapturePayload, IdentifyResponse } from "@/lib/capture/stages";
-import { LabelFlowError } from "@/lib/label/flow";
 import type { FlushDependencies } from "./flush";
 
 const mockRepo = {
@@ -91,7 +91,7 @@ jest.mock("./flush", () => ({
 // Loaded after the mocks above exist: the factories hand back objects declared in this file.
 const { captureStore, discardPendingLabel, flushQueue, retryPendingScan, startQueueFlusher } =
   jest.requireActual<typeof import("./queue")>("./queue");
-const { runCapture } = jest.requireActual<typeof import("../capture/pipeline")>("../capture/pipeline");
+const { runCapture } = jest.requireActual<typeof import("@/lib/capture/pipeline")>("@/lib/capture/pipeline");
 
 const scanId = "scan-1" as Id<"scans">;
 const payload: CapturePayload = {

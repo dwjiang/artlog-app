@@ -1,7 +1,7 @@
-import { guideOpening, guideResearch } from "../shared/audio/guide";
-import { guideBodyFixture } from "../shared/audio/guide-fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { guideOpening, guideResearch } from "../shared/audio/guide";
+import { guideBodyFixture } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { completion, jsonResponse } from "./lib/labelFixtures";
@@ -278,7 +278,7 @@ async function fixture(
       },
     }),
   );
-  const artwork = () => t.run((ctx) => ctx.db.get(work.artworkId));
+  const artwork = () => t.run((ctx) => ctx.db.get("artworks", work.artworkId));
   const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   const ensure = () => t.action(internal.docent.ensure, { artworkId: work.artworkId, deviceId });
   return { t, deviceId, museumId, work, artwork, spend, ensure };
@@ -387,10 +387,10 @@ describe("docent.ensure", () => {
   it("makes no calls when sentences are cached, under review, or claimed by a concurrent run", async () => {
     const { t, work, artwork, ensure, spend } = await fixture();
     everything();
-    await t.run((ctx) => ctx.db.patch(work.artworkId, { docent: { en: [] }, docentUpdatedAt: 1 }));
+    await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docent: { en: [] }, docentUpdatedAt: 1 }));
     await ensure();
     await t.run((ctx) =>
-      ctx.db.patch(work.artworkId, {
+      ctx.db.patch("artworks", work.artworkId, {
         docent: undefined,
         docentUpdatedAt: undefined,
         factSheetNeedsReview: true,
@@ -398,7 +398,7 @@ describe("docent.ensure", () => {
     );
     await ensure();
     await t.run((ctx) =>
-      ctx.db.patch(work.artworkId, {
+      ctx.db.patch("artworks", work.artworkId, {
         factSheetNeedsReview: undefined,
         enrichClaimedAt: Date.now() - 5 * 60 * 1000,
       }),
@@ -407,7 +407,7 @@ describe("docent.ensure", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
     await t.run((ctx) =>
-      ctx.db.patch(work.artworkId, {
+      ctx.db.patch("artworks", work.artworkId, {
         enrichClaimedAt: Date.now() - 11 * 60 * 1000,
       }),
     );
@@ -517,7 +517,7 @@ describe("docent.ensure", () => {
         sourceScore: 1,
       },
     ];
-    await t.run((ctx) => ctx.db.patch(work.artworkId, { factSheet, factSheetUpdatedAt: 5 }));
+    await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { factSheet, factSheetUpdatedAt: 5 }));
     await ensure();
     expect(calls(TAVILY)).toEqual([]);
     expect(calls(PAGE)).toEqual([]);
@@ -547,11 +547,11 @@ describe("docent.ensure", () => {
     for (const artworkId of artworkIds) {
       await t.action(internal.docent.ensure, { artworkId, deviceId });
     }
-    const last = await t.run((ctx) => ctx.db.get(artworkIds[60]));
+    const last = await t.run((ctx) => ctx.db.get("artworks", artworkIds[60]));
     expect(last?.factSheet).toBeUndefined();
     expect(last?.enrichClaimedAt).toBeUndefined();
     expect(calls(TAVILY)).toHaveLength(60);
-    expect((await t.run((ctx) => ctx.db.get(artworkIds[59])))?.docent?.en).toHaveLength(1);
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkIds[59])))?.docent?.en).toHaveLength(1);
   });
 });
 
@@ -582,7 +582,7 @@ describe("docent write mutations", () => {
       factSheet,
       docentEn,
     });
-    const written = await t.run((ctx) => ctx.db.get(artworkId));
+    const written = await t.run((ctx) => ctx.db.get("artworks", artworkId));
     expect(written).toMatchObject({
       factSheet,
       docent: { en: docentEn },
@@ -592,7 +592,7 @@ describe("docent write mutations", () => {
     expect(written).not.toHaveProperty("enrichClaimedAt");
     expect(written).not.toHaveProperty("factSheetNeedsReview");
     await t.mutation(internal.docent.invalidateDocent, { artworkId });
-    const invalidated = await t.run((ctx) => ctx.db.get(artworkId));
+    const invalidated = await t.run((ctx) => ctx.db.get("artworks", artworkId));
     expect(invalidated).toMatchObject({ factSheet });
     expect(invalidated).not.toHaveProperty("docent");
     expect(invalidated).not.toHaveProperty("docentUpdatedAt");
@@ -603,7 +603,7 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
   const t = harness();
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
   const generation = (await t.mutation(internal.docent.claim, { artworkId }))!;
-  await t.run((ctx) => ctx.db.patch(artworkId, { enrichClaimedAt: Date.now() - 11 * 60 * 1000 }));
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() - 11 * 60 * 1000 }));
   const next = (await t.mutation(internal.docent.claim, { artworkId }))!;
   const result = { artworkId, factSheet: [], docentEn: [] };
   expect(
@@ -613,7 +613,7 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
     }),
   ).toBe(false);
   await t.mutation(internal.enrich.releaseClaim, { artworkId, generation });
-  expect(await t.run((ctx) => ctx.db.get(artworkId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("artworks", artworkId))).toMatchObject({
     enrichGeneration: next,
     enrichClaimedAt: expect.any(Number),
   });
@@ -624,7 +624,7 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
       generation: next,
     }),
   ).toBe(false);
-  expect((await t.run((ctx) => ctx.db.get(artworkId)))?.docent).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.docent).toBeUndefined();
 });
 
 it("shares a single research search between independent docent and audio scripts", async () => {
@@ -703,7 +703,7 @@ it("includes museum essays linked to the exact artwork while excluding another v
     usage: { credits: 1 },
   });
   await ensure();
-  const sources = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
+  const { sources } = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input;
   expect(sources.map((source: { url: string }) => source.url)).toEqual([
     PAGE,
     "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",

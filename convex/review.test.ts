@@ -52,14 +52,14 @@ describe("review.replaceFactSheet", () => {
     expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toMatchObject([
       { _id: correction._id },
     ]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBe(true);
     await t.mutation(internal.review.replaceFactSheet, {
       artworkId,
       factSheet,
       correctionIds: [open[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBeUndefined();
   });
 
   it("rejects a correction from another artwork without changing either report or sheet", async () => {
@@ -72,8 +72,8 @@ describe("review.replaceFactSheet", () => {
         correctionIds: [correction._id],
       }),
     ).rejects.toMatchObject({ data: { code: "invalid_correction" } });
-    expect((await t.run((ctx) => ctx.db.get(other.artworkId)))?.factSheet).toEqual(factSheet);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get("artworks", other.artworkId)))?.factSheet).toEqual(factSheet);
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -86,7 +86,7 @@ describe("review.replaceFactSheet", () => {
         correctionIds: Array(101).fill(correction._id),
       }),
     ).rejects.toMatchObject({ data: { code: "too_many_corrections" } });
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheet).toEqual(factSheet);
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheet).toEqual(factSheet);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -97,7 +97,7 @@ describe("review.replaceFactSheet", () => {
       factSheet,
       correctionIds: [],
     });
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -130,7 +130,7 @@ describe("review.replaceFactSheet", () => {
       correctionIds: [remaining[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBeUndefined();
   });
 });
 

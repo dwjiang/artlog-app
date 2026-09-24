@@ -1,11 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "../../../shared/collection/collection-limits";
-import { requestCollectionSync } from "../../lib/account/sync-events";
-
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { db } from "../client";
-import { notes, savedWorks, type Note } from "../schema";
+import { db } from "@/db/client";
+import { notes, savedWorks, type Note } from "@/db/schema";
+import { getLocalOwner } from "@/lib/account/owner-store";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "@/shared/collection/collection-limits";
 
 export async function setNote(
   savedLocalId: string,

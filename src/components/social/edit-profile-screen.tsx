@@ -1,21 +1,22 @@
-import { reportError } from "@/lib/observability";
-import { ScrollView, TextInput, View } from "react-native";
-import { GalleryButton } from "../collection/gallery-button";
-import { ThemedText as Text } from "../themed-text";
 import { useAction } from "convex/react";
 import { router, Stack } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../../convex/_generated/api";
+import { ScrollView, TextInput, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
-import { useSocialSession } from "@/lib/social/use-social-session";
-import { useSocialQuery } from "@/lib/social/use-social-query";
-import { showToast } from "@/lib/ui/toast";
-
 import type { PublicProfile } from "@/lib/social/types";
+import { useSocialQuery } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
+import { showToast } from "@/lib/ui/toast";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
 
@@ -48,14 +49,14 @@ export function EditProfileScreen() {
 
 export function EditProfileForm({ profile }: { profile: PublicProfile }) {
   const save = useAction(api.profilePhotos.save);
-  const [name, setName] = useState(profile.name),
-    [bio, setBio] = useState(profile.bio ?? "");
-  const [photo, setPhoto] = useState<string | null>(),
-    [operation, setOperation] = useState<"photo" | "save">(),
-    [error, setError] = useState<string>();
+  const [name, setName] = useState(profile.name);
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [photo, setPhoto] = useState<string | null>();
+  const [operation, setOperation] = useState<"photo" | "save">();
+  const [error, setError] = useState<string>();
   const busy = operation !== undefined;
-  const draftFile = useRef<string>(undefined),
-    mounted = useRef(true);
+  const draftFile = useRef<string>(undefined);
+  const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     return () => {

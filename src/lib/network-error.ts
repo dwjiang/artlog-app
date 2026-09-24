@@ -17,7 +17,7 @@ export function convexErrorCode(error: unknown): string | undefined {
   if (!(error instanceof ConvexError) || typeof error.data !== "object" || error.data === null) {
     return;
   }
-  const code = (error.data as { code?: unknown }).code;
+  const { code } = error.data as { code?: unknown };
   return typeof code === "string" ? code : undefined;
 }
 
@@ -47,7 +47,7 @@ export function rateLimitRetryAfterMs(error: unknown): number | undefined {
   if (!(error instanceof ConvexError) || convexErrorCode(error) !== "rate_limited") {
     return;
   }
-  const retryAfter = (error.data as { retryAfter?: unknown }).retryAfter;
+  const { retryAfter } = error.data as { retryAfter?: unknown };
   return typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined;
 }
 

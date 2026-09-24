@@ -1,14 +1,15 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
 import { seedDevice } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 2, 0xff, 0xd9]);
 async function fixture() {
-  const t = harness(),
-    owner = await seedDevice(t),
-    sibling = await seedDevice(t),
-    outsider = await seedDevice(t);
+  const t = harness();
+  const owner = await seedDevice(t);
+  const sibling = await seedDevice(t);
+  const outsider = await seedDevice(t);
   await t.run(async (ctx) => {
     const accountId = await ctx.db.insert("accounts", {
       appleUserId: "owner",
@@ -16,7 +17,7 @@ async function fixture() {
       createdAt: 1,
     });
     for (const device of [owner, sibling]) {
-      await ctx.db.patch(device.deviceId, { accountId });
+      await ctx.db.patch("devices", device.deviceId, { accountId });
     }
   });
   const work = {
@@ -47,6 +48,7 @@ async function fixture() {
     });
   return { t, owner, sibling, outsider, work, scope, path, upload, sync };
 }
+
 it("serves private bytes to the canonical account and denies other owners or anonymous callers", async () => {
   const { t, owner, sibling, outsider, path, upload } = await fixture();
   expect((await upload()).status).toBe(200);
@@ -57,6 +59,7 @@ it("serves private bytes to the canonical account and denies other owners or ano
   expect((await outsider.as.fetch(await path(outsider))).status).toBe(404);
   expect((await t.fetch(await path())).status).toBe(401);
 });
+
 it("keeps only the latest crop under concurrent uploads and validates content and ownership", async () => {
   const { t, owner, outsider, work, scope, path, upload } = await fixture();
   expect((await upload(outsider)).status).toBe(404);
@@ -78,6 +81,7 @@ it("keeps only the latest crop under concurrent uploads and validates content an
   });
   expect((await outsider.as.fetch(await path(outsider))).status).toBe(404);
 });
+
 it("advances sync for late photos without changing note edit stamps, and survives source sign-out", async () => {
   const { owner, sibling, path, upload, sync } = await fixture();
   const first = await sync();
@@ -96,6 +100,7 @@ it("advances sync for late photos without changing note edit stamps, and survive
   expect((await owner.as.fetch(await path())).status).toBe(404);
   expect((await sibling.as.fetch(await path(sibling))).status).toBe(200);
 });
+
 it("deletion revokes every account device and cleans bytes immediately", async () => {
   const { t, owner, sibling, work, scope, path, upload } = await fixture();
   await upload();

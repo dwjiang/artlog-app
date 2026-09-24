@@ -58,7 +58,7 @@ async function resolveWork(ctx: QueryCtx, input: ChecklistWork): Promise<Resolut
       .query("artworks")
       .withIndex("by_wikidataId", (q) => q.eq("wikidataId", input.wikidataId))
       .take(2);
-    if (!artworks.length) return { reason: "artwork_not_found" };
+    if (artworks.length === 0) return { reason: "artwork_not_found" };
     if (artworks.length !== 1) return { reason: "ambiguous_artwork" };
     const artworkId = artworks[0]._id;
     if (input.accession && owner) {
@@ -183,7 +183,7 @@ export const ingestChecklist = internalMutation({
       );
       for (const row of overlapping) {
         if (row._id !== identical?._id) {
-          await ctx.db.patch(row._id, { closedAt: now });
+          await ctx.db.patch("placements", row._id, { closedAt: now });
         }
       }
       if (!identical) {

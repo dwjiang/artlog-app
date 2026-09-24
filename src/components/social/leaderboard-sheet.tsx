@@ -2,9 +2,10 @@ import { BottomSheet, Host, RNHostView, ScrollView, VStack } from "@expo/ui/swif
 import { presentationBackground, presentationDetents, presentationDragIndicator } from "@expo/ui/swift-ui/modifiers";
 import { useState, type ReactNode } from "react";
 import { View, useWindowDimensions } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { GalleryButton } from "../collection/gallery-button";
 
 export function LeaderboardSheet({
   title,

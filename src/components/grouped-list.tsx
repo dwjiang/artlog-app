@@ -21,7 +21,9 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
+
 import { Gallery, SettingsOutline, Spacing } from "@/constants/theme";
+
 import { NativeLoadingRing } from "./native-loading-ring";
 
 type IconName = ComponentProps<typeof Icon>["name"];

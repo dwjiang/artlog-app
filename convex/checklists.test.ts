@@ -71,7 +71,7 @@ it.each(example.works)("resolves an individual work: %j", async (input) => {
 it("refuses ambiguous physical objects, then resolves an owner and accession disambiguator", async () => {
   const { t, artworkId, objectId, ownerId } = await fixture();
   await t.run(async (ctx) => {
-    const object = (await ctx.db.get(objectId))!;
+    const object = (await ctx.db.get("objects", objectId))!;
     const { _id, _creationTime, ...fields } = object;
     await ctx.db.insert("objects", {
       ...fields,
@@ -96,7 +96,7 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
       works: [{ wikidataId: "Q123", ownerKey: "example:lender", accession: "2026.1" }],
     }),
   ).toEqual({ placed: 1, unresolved: [] });
-  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
     artworkId,
     ownerId,
   });
@@ -138,7 +138,9 @@ it("reports missing identities and unindexed title matches instead of guessing",
 
 it.each(["reverted", "mergedInto"] as const)("does not place %s objects through any identity mode", async (field) => {
   const { t, objectId } = await fixture();
-  await t.run((ctx) => ctx.db.patch(objectId, field === "reverted" ? { reverted: true } : { mergedInto: objectId }));
+  await t.run((ctx) =>
+    ctx.db.patch("objects", objectId, field === "reverted" ? { reverted: true } : { mergedInto: objectId }),
+  );
   const result = await t.mutation(internal.checklists.ingestChecklist, example);
   expect(result.placed).toBe(0);
   expect(result.unresolved).toHaveLength(3);
@@ -170,7 +172,7 @@ it("closes only overlapping checklist rows for the resolved object at the same v
   expect(rows).toHaveLength(5);
   expect(rows[2].closedAt).toEqual(expect.any(Number));
   expect(rows.filter((row) => row.closedAt !== undefined)).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.db.get(elsewhere))).not.toHaveProperty("closedAt");
+  expect(await t.run((ctx) => ctx.db.get("placements", elsewhere))).not.toHaveProperty("closedAt");
 });
 
 it.each([
@@ -185,8 +187,8 @@ it.each([
         .query("placements")
         .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
         .unique())!;
-      await ctx.db.patch(row._id, home);
-      return ctx.db.get(row._id);
+      await ctx.db.patch("placements", row._id, home);
+      return ctx.db.get("placements", row._id);
     });
     await t.mutation(internal.checklists.ingestChecklist, example);
     for (const [instant, expectedVenue] of [
@@ -196,14 +198,14 @@ it.each([
       ["2026-10-31T07:00:00Z", ownerId],
     ] as const) {
       const [candidate] = await t.query(internal.identify.loadCandidates, {
-        embeddingIds: [(await t.run((ctx) => ctx.db.get(vectorId)))!.embeddingId],
+        embeddingIds: [(await t.run((ctx) => ctx.db.get("vectors", vectorId)))!.embeddingId],
         scores: [1],
         now: Date.parse(instant),
       });
       expect(candidate.placement?.venueId).toBe(expectedVenue);
       expect(candidate.object.ownerId).toBe(ownerId);
     }
-    expect(await t.run((ctx) => ctx.db.get(homePlacement!._id))).toEqual(homePlacement);
+    expect(await t.run((ctx) => ctx.db.get("placements", homePlacement!._id))).toEqual(homePlacement);
   },
 );
 
@@ -267,7 +269,7 @@ it("an owner disambiguator selects that lender’s object and does not change un
         confidence: 0.85,
       },
     });
-    await ctx.db.patch(other.objectId, { artworkId });
+    await ctx.db.patch("objects", other.objectId, { artworkId });
     return ctx.db
       .query("placements")
       .withIndex("by_objectId", (q) => q.eq("objectId", other.objectId))
@@ -286,13 +288,13 @@ it("an owner disambiguator selects that lender’s object and does not change un
       works: [{ ...input, ownerKey: "example:lender" }],
     }),
   ).toEqual({ placed: 1, unresolved: [] });
-  expect(await t.run((ctx) => ctx.db.get(unlisted!._id))).toEqual(unlisted);
-  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({ ownerId });
+  expect(await t.run((ctx) => ctx.db.get("placements", unlisted!._id))).toEqual(unlisted);
+  expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({ ownerId });
 });
 
 it("refuses a host that opted out", async () => {
   const { t, venueId } = await fixture();
-  await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
+  await t.run((ctx) => ctx.db.patch("museums", venueId, { optOut: true }));
   await expect(t.mutation(internal.checklists.ingestChecklist, example)).rejects.toMatchObject({
     data: { code: "venue_opted_out" },
   });

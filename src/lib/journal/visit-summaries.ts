@@ -1,7 +1,8 @@
 import type { ArtworkEncounter, SavedWork, Visit } from "@/db/schema";
-import { venueLocation } from "../venue/venue-location";
-import type { VenueRow } from "../venue/resolve";
-import { filterWorks } from "../collection/search";
+import { filterWorks } from "@/lib/collection/search";
+import type { VenueRow } from "@/lib/venue/resolve";
+import { venueLocation } from "@/lib/venue/venue-location";
+
 import { filterVisits, groupHistoryByMonth, placeIdentity } from "./history";
 
 export type VisitSummary = Visit & {

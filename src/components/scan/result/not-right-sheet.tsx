@@ -1,11 +1,12 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
 import { ScrollView, StyleSheet } from "react-native";
 
-import { RunnerUps } from "./runner-ups";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import type { ResultCandidate } from "@/lib/result/state";
+
+import { RunnerUps } from "./runner-ups";
 
 export type NotRightSheetProps = {
   open: boolean;

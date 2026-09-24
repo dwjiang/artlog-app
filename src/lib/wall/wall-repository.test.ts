@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values";
+
 import { createWallRepository } from "./wall-repository";
 import type { OwnerWall, WallTransport } from "./wall-transport";
 
@@ -40,10 +41,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 function fixture() {
-  let version = 0,
-    owner = "account:a",
-    scope = wall.scope,
-    changed = () => {};
+  let version = 0;
+  let owner = "account:a";
+  let { scope } = wall;
+  let changed = () => {};
   const transport = {
     getMine: jest.fn().mockResolvedValue(wall),
     setLayout: jest.fn().mockResolvedValue({ ...wall, revision: 2, color: draft.color }),
@@ -197,7 +198,9 @@ it("keeps layout drafts after conflict but clears pending note confirmation", as
   repository.setLayoutDraft(draft);
   repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
   transport.setLayout.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
-  await expect(repository.publishLayout()).rejects.toThrow();
+  await expect(repository.publishLayout()).rejects.toMatchObject({
+    data: { code: "conflict" },
+  });
   expect(repository.getSnapshot()).toMatchObject({
     layoutDraft: draft,
     noteDraft: [],
@@ -226,8 +229,8 @@ it("keeps the layout draft’s base revision through a notes conflict", async ()
 });
 
 it("ignores older reads and rejects collection selections from a switched account", async () => {
-  const f = fixture(),
-    first = deferred<OwnerWall>();
+  const f = fixture();
+  const first = deferred<OwnerWall>();
   f.transport.getMine.mockReturnValueOnce(first.promise);
   const older = f.repository.refresh();
   await Promise.resolve();

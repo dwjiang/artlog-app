@@ -15,14 +15,11 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { MuseumSummary } from "@/shared/offline/types";
-import { Gallery, Fonts } from "@/constants/theme";
-import { ToastLayer } from "@/components/toast";
+
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
-import { showToast } from "@/lib/ui/toast";
-import { museumDownloads, previewUri } from "@/lib/museum-downloads/storage";
-import { useMuseumDownloads } from "@/lib/museum-downloads/use-museum-downloads";
+import { ToastLayer } from "@/components/toast";
+import { Gallery, Fonts } from "@/constants/theme";
 import {
   downloadProgress,
   formatDownloadSize,
@@ -31,7 +28,12 @@ import {
   type MuseumDownload,
   type MuseumSort,
 } from "@/lib/museum-downloads/model";
+import { museumDownloads, previewUri } from "@/lib/museum-downloads/storage";
+import { useMuseumDownloads } from "@/lib/museum-downloads/use-museum-downloads";
+import { showToast } from "@/lib/ui/toast";
 import type { Coordinate } from "@/lib/venue/resolve";
+import type { MuseumSummary } from "@/shared/offline/types";
+
 import { DownloadButton, DownloadIcon, DownloadMenu, DownloadProgress, IconAction } from "./download-controls";
 
 const hero = (museum: MuseumSummary) =>
@@ -272,9 +274,9 @@ export function MuseumRow({
   onAction: () => void;
   onMenu: (action: string) => void;
 }) {
-  const ready = row?.status === "ready",
-    downloading = row?.status === "downloading",
-    paused = row?.status === "paused";
+  const ready = row?.status === "ready";
+  const downloading = row?.status === "downloading";
+  const paused = row?.status === "paused";
   const progress = downloadProgress(row);
   const label = downloading ? "Pause" : paused ? "Resume" : "Download";
   return (
@@ -371,9 +373,9 @@ export function MuseumDetail({
   const { height, fontScale } = useWindowDimensions();
   const network = useNetworkState();
   const offline = network.isConnected === false || network.isInternetReachable === false;
-  const active = row?.status === "downloading",
-    paused = row?.status === "paused",
-    ready = row?.status === "ready";
+  const active = row?.status === "downloading";
+  const paused = row?.status === "paused";
+  const ready = row?.status === "ready";
   const progress = downloadProgress(row);
   const pack = row?.active ?? row?.pending;
   // Cached preview files are numbered by their own package, so a newer catalog entry must not relabel them.
@@ -402,7 +404,7 @@ export function MuseumDetail({
             {museum.name}
           </Text>
           {!active && !paused && !ready && <Text style={styles.promise}>Scan and read offline.</Text>}
-          {!!previews.length && (
+          {previews.length > 0 && (
             <View
               style={{
                 flexDirection: fontScale > 1.4 ? "column" : "row",

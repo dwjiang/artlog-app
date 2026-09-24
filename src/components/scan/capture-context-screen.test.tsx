@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { CaptureContextScreen } from "./capture-context-screen";
 import type { PhotoSessionDraft } from "@/lib/capture/photo-draft";
 import { formatVisitDate } from "@/lib/journal/history";
 import { calendarDate } from "@/shared/journal/limits";
+
+import { CaptureContextScreen } from "./capture-context-screen";
 
 const mockBack = jest.fn();
 const mockUpdateSession = jest.fn();

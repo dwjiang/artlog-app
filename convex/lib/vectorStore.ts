@@ -1,9 +1,14 @@
 import { ConvexError } from "convex/values";
+
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { recognitionPartition } from "./recognitionEligibility";
 
 type VectorInput = Omit<Doc<"vectors">, "_id" | "_creationTime" | "embeddingId" | "contentHash"> & { vector: number[] };
+
+function embeddingTable(ctx: QueryCtx, id: Doc<"vectors">["embeddingId"]) {
+  return ctx.db.normalizeId("embeddings", id) ? "embeddings" : "tentativeEmbeddings";
+}
 
 export async function vectorHash(vector: number[]): Promise<string> {
   const bytes = new ArrayBuffer(vector.length * 8);
@@ -14,7 +19,7 @@ export async function vectorHash(vector: number[]): Promise<string> {
 }
 
 export async function readVector(ctx: QueryCtx, row: Doc<"vectors">): Promise<number[]> {
-  const payload = await ctx.db.get(row.embeddingId);
+  const payload = await ctx.db.get(embeddingTable(ctx, row.embeddingId), row.embeddingId);
   if (!payload) throw new ConvexError({ code: "vector_payload_missing" });
   return payload.vector;
 }
@@ -30,12 +35,13 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
   const { vector, ...identity } = input;
   const contentHash = await vectorHash(vector);
   const table = input.partition === recognitionPartition(input.modelVersion) ? "embeddings" : "tentativeEmbeddings";
-  let embeddingId = row.embeddingId;
-  if (!ctx.db.normalizeId(table, embeddingId)) {
-    await ctx.db.delete(embeddingId);
+  let { embeddingId } = row;
+  const currentTable = embeddingTable(ctx, embeddingId);
+  if (currentTable !== table) {
+    await ctx.db.delete(currentTable, embeddingId);
     embeddingId = await ctx.db.insert(table, { vector, partition: input.partition });
   } else if (row.contentHash !== contentHash || row.partition !== input.partition) {
-    await ctx.db.replace(embeddingId, { vector, partition: input.partition });
+    await ctx.db.replace(table, embeddingId, { vector, partition: input.partition });
   }
   const fields = { ...identity, embeddingId, contentHash };
   if (
@@ -44,11 +50,11 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
       ([key, value]) => key !== "_id" && key !== "_creationTime" && fields[key as keyof typeof fields] !== value,
     )
   ) {
-    await ctx.db.replace(row._id, fields);
+    await ctx.db.replace("vectors", row._id, fields);
   }
 }
 
 export async function deleteVector(ctx: MutationCtx, row: Doc<"vectors">): Promise<void> {
-  await ctx.db.delete(row.embeddingId);
-  await ctx.db.delete(row._id);
+  await ctx.db.delete(embeddingTable(ctx, row.embeddingId), row.embeddingId);
+  await ctx.db.delete("vectors", row._id);
 }

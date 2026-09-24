@@ -1,6 +1,7 @@
-import { reportError } from "@/lib/observability";
 import { useEffect, useRef, useState } from "react";
+
 import { getSetting, setSetting } from "@/db/repos/settings";
+import { reportError } from "@/lib/observability";
 
 export type VisitViewMode = "list" | "globe";
 

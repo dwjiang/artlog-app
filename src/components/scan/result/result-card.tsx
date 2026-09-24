@@ -1,24 +1,26 @@
-import { ListenActions } from "@/components/audio/listen-actions";
 import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { ListenActions } from "@/components/audio/listen-actions";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { HighlightHeading } from "@/components/highlight-heading";
+import { useCapturePhotos } from "@/components/scan/capture-photos-button";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery, Spacing } from "@/constants/theme";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
-import { Gallery, Spacing } from "@/constants/theme";
-import { ThemedText } from "@/components/themed-text";
-import { HighlightHeading } from "@/components/highlight-heading";
-import { GalleryButton } from "@/components/collection/gallery-button";
-import { useCapturePhotos } from "../capture-photos-button";
+
 import { DocentSection } from "./docent-section";
 import { FieldsForm } from "./fields-form";
 import { RightNowSection } from "./right-now-section";
-import { TentativeOriginNotice } from "./tentative-origin-notice";
 import { RunnerUps } from "./runner-ups";
 import { SaveBar } from "./save-bar";
+import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
   manual?: boolean;

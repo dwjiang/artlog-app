@@ -147,7 +147,7 @@ export function buildFactSheet(raw: RawFact[], sources: SourceDoc[]): FactSheetE
   const facts: Omit<FactSheetEntry, "id">[] = [];
   for (const fact of raw) {
     const source = byUrl.get(fact.sourceUrl.trim());
-    const text = fact.text.replace(/\s+/g, " ").trim();
+    const text = fact.text.replaceAll(/\s+/g, " ").trim();
     const key = text.toLowerCase();
     if (!source || !text || seen.has(key) || !normalizePassage(source.text).includes(normalizePassage(text))) {
       continue;

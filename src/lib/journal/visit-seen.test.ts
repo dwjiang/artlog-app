@@ -1,6 +1,8 @@
 import { renderHook, waitFor } from "@testing-library/react-native";
+
 import { db } from "@/db/client";
 import { settings } from "@/db/schema";
+
 import { isVisitNew, markVisitSeen, useSeenVisits } from "./visit-seen";
 
 jest.mock("@/db/client", () => ({

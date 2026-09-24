@@ -2,13 +2,16 @@ import { Host, Switch } from "@expo/ui";
 import { accessibilityHint, font } from "@expo/ui/swift-ui/modifiers";
 import { useState } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { useListening } from "@/lib/audio/use-listening";
 import { durationLabel, trackKey } from "@/lib/audio/narration";
+import { useListening } from "@/lib/audio/use-listening";
+
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
+
 export function ListeningQueue() {
   const audio = useListening();
   const [editing, setEditing] = useState(false);
@@ -50,10 +53,10 @@ export function ListeningQueue() {
         <GalleryButton
           label={editing ? "Done" : "Edit"}
           onPress={() => setEditing(!editing)}
-          disabled={!audio.queue.length}
+          disabled={audio.queue.length === 0}
         />
       </View>
-      {!audio.queue.length && (
+      {audio.queue.length === 0 && (
         <Text themeColor="textSecondary" style={{ fontSize: 14, paddingVertical: 16 }}>
           Nothing queued. Add an artwork from your collection.
         </Text>

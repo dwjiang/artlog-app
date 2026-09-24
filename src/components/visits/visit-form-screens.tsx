@@ -1,6 +1,3 @@
-import { reportError } from "@/lib/observability";
-import { venueMetadataForIds } from "@/lib/venue/venue-db";
-import { SearchEmptyState } from "../empty-state";
 import { Host } from "@expo/ui";
 import { DatePicker } from "@expo/ui/swift-ui";
 import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
@@ -8,22 +5,27 @@ import { randomUUID } from "expo-crypto";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, TextInput, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { SearchEmptyState } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
-import { venueLocation } from "@/lib/venue/venue-location";
+import { countryName } from "@/lib/journal/history";
 import { dateFromPicker, pickerDate, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
+import { reportError } from "@/lib/observability";
+import { showToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
 import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
+import { venueMetadataForIds } from "@/lib/venue/venue-db";
+import { venueLocation } from "@/lib/venue/venue-location";
 import type { PoiOption } from "@/lib/venue/venue-reducer";
-import { getPoiSearch } from "../../../modules/poi-search/src";
-import { countryName } from "@/lib/journal/history";
 import { calendarDate, LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { showToast } from "@/lib/ui/toast";
-import { GalleryButton } from "../collection/gallery-button";
+
+import { getPoiSearch } from "../../../modules/poi-search/src";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 export function VisitCreateScreen() {
@@ -89,8 +91,8 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   }, [initialVenueId, now]);
   const [retry, setRetry] = useState(0);
   const [reflection, setReflection] = useState("");
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const submitting = useRef(false);
   const [localId] = useState(randomUUID);
   const timeZone = venue ? venueTimeZone(venue) : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -107,7 +109,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     const timer = setTimeout(() => {
       void searchVenues(query)
         .then(async (rows) => {
-          if (rows.length) return { rows, places: [] };
+          if (rows.length > 0) return { rows, places: [] };
           // Apple Maps is the fallback, so its failure is reported as its own rather than blamed on the table that answered.
           const places = await searchPlaces(query, fix).catch((cause) => {
             reportError(cause, "visit.places.search");
@@ -196,7 +198,9 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             pathname: "/saved/[savedId]",
             params: { savedId, visitId: localId },
           });
-        } else router.back();
+        } else {
+          router.back();
+        }
       }
     } catch (cause) {
       reportError(cause, "visit.create");
@@ -263,7 +267,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
               </VisitMessage>
             ) : query.trim().length < 2 ? (
               <Text style={styles.caption}>Enter at least two characters.</Text>
-            ) : !venues.length && !places.length ? (
+            ) : venues.length === 0 && places.length === 0 ? (
               <SearchEmptyState
                 title="No museums found."
                 detail={
@@ -286,7 +290,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                 <Text style={styles.caption}>{venueLocation(row).location}</Text>
               </Pressable>
             ))}
-            {!venues.length && places.length > 0 && (
+            {venues.length === 0 && places.length > 0 && (
               <>
                 <Text accessibilityRole="header" style={styles.caption}>
                   From Apple Maps

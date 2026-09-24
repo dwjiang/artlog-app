@@ -2,7 +2,9 @@ import { Image } from "expo-image";
 import { router, Stack, useNavigation } from "expo-router";
 import { useState } from "react";
 import { Pressable } from "react-native";
+
 import { Gallery } from "@/constants/theme";
+
 import { ThemedText } from "./themed-text";
 
 type RouteState = {

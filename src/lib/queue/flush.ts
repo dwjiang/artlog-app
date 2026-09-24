@@ -1,12 +1,13 @@
-import { reportError, addBreadcrumb } from "@/lib/observability";
 import type { FunctionArgs } from "convex/server";
 
-import type { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
 import type { ScanFeatures } from "@/lib/capture/features";
 import type { IdentifyResponse } from "@/lib/capture/stages";
 import { errorMessage, isTransientError, rateLimitRetryAfterMs } from "@/lib/network-error";
+import { reportError, addBreadcrumb } from "@/lib/observability";
+
+import type { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 export type IdentifyArgs = Omit<FunctionArgs<typeof api.identify.identify>, "scope">;
 export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
@@ -20,11 +21,11 @@ export type FlushDependencies = {
   recordLabelFailure: FlushDependencies["recordFailure"];
   markIdentifying(localId: string): Promise<void>;
   recordResult(localId: string, response: IdentifyResponse): Promise<void>;
-  recordFailure(
+  recordFailure: (
     localId: string,
     error: string,
     options: { countAttempt: boolean },
-  ): Promise<{ status: PendingScanStatus; attempts: number }>;
+  ) => Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
   updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
   resolveVisitId(localId: string, venueId: Id<"museums">): Promise<Id<"visits">>;
@@ -149,7 +150,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       const labelTask = task === "label";
       const taskBackoff = backoff[task];
       for (const row of rows) ids.add(`${task}:${row.localId}`);
-      if (rows.length && taskBackoff.pauseUntil > Date.now()) {
+      if (rows.length > 0 && taskBackoff.pauseUntil > Date.now()) {
         nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
         return;
       }

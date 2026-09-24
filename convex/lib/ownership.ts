@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+
 import { type JournalOwner, ownerKey, sameOwner } from "../../shared/journal/contracts";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
@@ -7,7 +8,7 @@ import { findDeviceForUser, requireDevice } from "./auth";
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function ownerForDevice(ctx: ReadCtx, device: Doc<"devices">): Promise<JournalOwner> {
-  if (device.accountId && (await ctx.db.get(device.accountId))) {
+  if (device.accountId && (await ctx.db.get("accounts", device.accountId))) {
     return { kind: "account", accountId: device.accountId };
   }
   return { kind: "device", deviceId: device._id };
@@ -55,8 +56,8 @@ export async function requireProfile(ctx: ReadCtx) {
   return { ...account, profile };
 }
 export async function activeProfile(ctx: ReadCtx, profileId: Id<"profiles">) {
-  const profile = await ctx.db.get(profileId);
-  return profile?.active && !profile.removal && (await ctx.db.get(profile.accountId)) ? profile : null;
+  const profile = await ctx.db.get("profiles", profileId);
+  return profile?.active && !profile.removal && (await ctx.db.get("accounts", profile.accountId)) ? profile : null;
 }
 export function findOwnedVisit(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   return ctx.db
@@ -71,7 +72,7 @@ export function findOwnedSave(ctx: ReadCtx, owner: JournalOwner, localId: string
     .unique();
 }
 export async function requireOwnedVisit(ctx: ReadCtx, owner: JournalOwner, id: Id<"visits">) {
-  const visit = await ctx.db.get(id);
+  const visit = await ctx.db.get("visits", id);
   if (!visit || !sameOwner(visit.owner, owner)) {
     throw new ConvexError({ code: "not_found" });
   }
@@ -104,7 +105,7 @@ export async function nextChangeVersion(ctx: MutationCtx, owner: JournalOwner): 
     .withIndex("by_owner", (q) => q.eq("owner", owner))
     .unique();
   const version = (state?.version ?? 0) + 1;
-  if (state) await ctx.db.patch(state._id, { version });
+  if (state) await ctx.db.patch("journalSyncState", state._id, { version });
   else await ctx.db.insert("journalSyncState", { owner, version });
   return version;
 }
@@ -114,7 +115,7 @@ export async function optionalProfile(ctx: ReadCtx) {
   if (!userId) return null;
   const device = await findDeviceForUser(ctx, userId);
   if (device?.banned) throw new ConvexError({ code: "device_banned" });
-  if (!device?.accountId || !(await ctx.db.get(device.accountId))) return null;
+  if (!device?.accountId || !(await ctx.db.get("accounts", device.accountId))) return null;
   const profile = await ctx.db
     .query("profiles")
     .withIndex("by_accountId", (q) => q.eq("accountId", device.accountId!))

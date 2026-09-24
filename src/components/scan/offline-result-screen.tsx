@@ -1,20 +1,22 @@
-import { useState } from "react";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Alert } from "react-native";
-import type { OfflineResult } from "@/shared/offline/types";
-import type { PendingScan } from "@/db/schema";
-import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
-import { draftFromCandidate } from "@/lib/result/snapshot";
-import { useSaveResult } from "@/lib/result/use-save-result";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
-import { ThemedView } from "@/components/themed-view";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ThemedView } from "@/components/themed-view";
+import type { PendingScan } from "@/db/schema";
+import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { draftFromCandidate } from "@/lib/result/snapshot";
+import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
+import { useSaveResult } from "@/lib/result/use-save-result";
+import type { OfflineResult } from "@/shared/offline/types";
+
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
-import { ScanCropEditor } from "./scan-crop-editor";
 import { CardHeader } from "./result/card-header";
-import { ResultCard } from "./result/result-card";
 import { NotRightSheet } from "./result/not-right-sheet";
+import { ResultCard } from "./result/result-card";
+import { ScanCropEditor } from "./scan-crop-editor";
 
 export function OfflineResultScreen({
   capture,
@@ -61,7 +63,9 @@ export function OfflineResultScreen({
           },
         },
       ]);
-    } else setEditingCrop(true);
+    } else {
+      setEditingCrop(true);
+    }
   };
   // The queue identified this capture after the local match; the server's card may name a different work.
   const viewResult =
@@ -80,7 +84,9 @@ export function OfflineResultScreen({
             },
           ],
         );
-      } else onViewResult();
+      } else {
+        onViewResult();
+      }
     });
   if (editingCrop) {
     return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;

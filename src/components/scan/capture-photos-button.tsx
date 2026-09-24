@@ -1,10 +1,11 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { readPhotoDraft, updatePhotoSession } from "@/lib/capture/photo-draft";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave } from "@/lib/result/snapshot";
-import { GalleryButton } from "../collection/gallery-button";
 
 export function CapturePhotosButton({ input, disabled }: { input: SaveResultInput; disabled?: boolean }) {
   const { label, open, unavailable } = useCapturePhotos(input, disabled);

@@ -1,16 +1,16 @@
 import { ConvexError, v } from "convex/values";
 
 import { MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from "../shared/collection/photo-limits";
+import { isUuid } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { httpAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { requireDeviceFromAction } from "./lib/auth";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
+import { requireDeviceFromAction } from "./lib/auth";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
-import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
-import { isUuid } from "../shared/journal/limits";
-import { limitDevice } from "./lib/rateLimits";
 import { reportBackendError } from "./lib/observability";
+import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
+import { limitDevice } from "./lib/rateLimits";
 
 const kindValidator = v.union(v.literal("photo"), v.literal("crop"));
 const args = {
@@ -70,14 +70,14 @@ export const attach = internalMutation({
     const changeVersion = await nextChangeVersion(ctx, save.owner);
     const photoUpdatedAt = photo ? 0 : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
     if (photo) {
-      await ctx.db.patch(photo._id, {
+      await ctx.db.patch("artworkPhotos", photo._id, {
         storageId,
         width,
         height,
         changeVersion,
       });
     } else {
-      await ctx.db.patch(save._id, {
+      await ctx.db.patch("collections", save._id, {
         cropStorageId: storageId,
         photoUpdatedAt,
         changeVersion,
@@ -98,8 +98,8 @@ function parameters(request: Request): {
 } {
   const url = new URL(request.url);
   const scope = url.searchParams.get("scope");
-  const localId = url.searchParams.get("localId"),
-    kind = url.searchParams.get("kind");
+  const localId = url.searchParams.get("localId");
+  const kind = url.searchParams.get("kind");
   if (!scope || scope.length > 256 || !localId || !isUuid(localId) || (kind !== "photo" && kind !== "crop")) {
     throw new ConvexError({ code: "invalid_photo" });
   }
@@ -159,8 +159,8 @@ export const upload = httpAction(async (ctx, request) => {
       throw new ConvexError({ code: "invalid_photo" });
     }
     uploaded = await ctx.storage.store(blob);
-    const width = Number(request.headers.get("X-Photo-Width")),
-      height = Number(request.headers.get("X-Photo-Height"));
+    const width = Number(request.headers.get("X-Photo-Width"));
+    const height = Number(request.headers.get("X-Photo-Height"));
     const dimensions = width > 0 && height > 0 && width <= 65535 && height <= 65535 ? { width, height } : {};
     const result = await ctx.runMutation(internal.collectionPhotos.attach, {
       ...input,

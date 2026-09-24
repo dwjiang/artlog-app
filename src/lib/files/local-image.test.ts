@@ -1,4 +1,5 @@
 import { ImageManipulator } from "expo-image-manipulator";
+
 import { loadLocalImage } from "./local-image";
 
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() } }));

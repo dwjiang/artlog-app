@@ -1,17 +1,19 @@
-import { api } from "../../../convex/_generated/api";
-import { useSocialQuery } from "@/lib/social/use-social-query";
-import { useSocialSession } from "@/lib/social/use-social-session";
-import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { Link } from "expo-router";
+import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { countryName, formatVisitDate, groupHistoryByMonth } from "@/lib/journal/history";
 import { isVisitNew, useSeenVisits } from "@/lib/journal/visit-seen";
+import type { VisitSummary } from "@/lib/journal/visit-summaries";
+import { useSocialQuery } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
 import { useVenue } from "@/lib/venue/use-venue";
 import { activeVisit } from "@/lib/venue/venue-reducer";
+
+import { api } from "../../../convex/_generated/api";
 import { VisitPrivacyNote, VisitSymbol, visitStyles } from "./visit-ui";
 
 export function VisitRow({

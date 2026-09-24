@@ -1,5 +1,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
+
 import type { ListeningController } from "./listening-controller";
+
 export const ListeningContext = createContext<ListeningController | null>(null);
 function useController() {
   const controller = useContext(ListeningContext);

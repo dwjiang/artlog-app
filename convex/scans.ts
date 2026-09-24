@@ -1,16 +1,16 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
+import { sameOwner } from "../shared/journal/contracts";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
-import { sameOwner } from "../shared/journal/contracts";
+import { requireDevice } from "./lib/auth";
+import { displayLabelFlow } from "./lib/labelVerify";
+import { isSupported } from "./lib/modelVersion";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
-import { requireDevice } from "./lib/auth";
-import { isSupported } from "./lib/modelVersion";
-import { displayLabelFlow } from "./lib/labelVerify";
 import { embedding, docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from "./lib/validators";
-import schema from "./schema";
 import { deleteEmbedding } from "./scanEmbeddings";
+import schema from "./schema";
 
 const scanFields = schema.tables.scans.validator.fields;
 export const displayCandidate = snapshotFields.extend({
@@ -59,7 +59,7 @@ export const create = internalMutation({
   },
   returns: v.object({ scan: schema.doc("scans"), existing: v.boolean() }),
   handler: async (ctx, args) => {
-    const device = await ctx.db.get(args.deviceId);
+    const device = await ctx.db.get("devices", args.deviceId);
     if (!device) throw new ConvexError({ code: "not_found" });
     if (args.scope !== undefined) await requireJournalOwner(ctx, args.scope);
     const owner = await ownerForDevice(ctx, device);
@@ -75,12 +75,12 @@ export const create = internalMutation({
         || existing.status === "failed"
         || existing.modelVersion !== args.modelVersion);
     if (args.visitId) {
-      const visit = await ctx.db.get(args.visitId);
+      const visit = await ctx.db.get("visits", args.visitId);
       if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
         throw new ConvexError({ code: "not_found" });
       }
     }
-    if (args.venueId && !(await ctx.db.get(args.venueId))) {
+    if (args.venueId && !(await ctx.db.get("museums", args.venueId))) {
       throw new ConvexError({ code: "invalid_venue" });
     }
     if (
@@ -105,8 +105,8 @@ export const create = internalMutation({
       updatedAt: now,
     };
     const scanId = existing?._id ?? (await ctx.db.insert("scans", fields));
-    if (existing) await ctx.db.replace(scanId, fields);
-    const scan = await ctx.db.get(scanId);
+    if (existing) await ctx.db.replace("scans", scanId, fields);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
     return { scan, existing: false };
   },
@@ -126,15 +126,15 @@ export const setResult = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const scan = await ctx.db.get(args.scanId);
+    const scan = await ctx.db.get("scans", args.scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
     if (scan.generation !== args.generation || scan.status !== "pending") {
       return null;
     }
-    const device = await ctx.db.get(scan.deviceId);
+    const device = await ctx.db.get("devices", scan.deviceId);
     if (!device || device.banned) return null;
     const valid = async (match: NonNullable<typeof args.best>) => {
-      const object = await ctx.db.get(match.objectId);
+      const object = await ctx.db.get("objects", match.objectId);
       return (
         !!object && object.identityStatus === match.identityStatus && (await eligibleObject(ctx, object, scan.venueId))
       );
@@ -149,7 +149,7 @@ export const setResult = internalMutation({
       : best.identityStatus === "tentative" && args.outcome === "confident"
         ? "soft"
         : args.outcome;
-    await ctx.db.patch(scan._id, {
+    await ctx.db.patch("scans", scan._id, {
       status: args.status,
       outcome,
       best,
@@ -160,8 +160,8 @@ export const setResult = internalMutation({
       updatedAt: Date.now(),
     });
     if (outcome === "confident" && scan.visitId && args.best?.gallery !== undefined) {
-      const visit = await ctx.db.get(scan.visitId);
-      const device = await ctx.db.get(scan.deviceId);
+      const visit = await ctx.db.get("visits", scan.visitId);
+      const device = await ctx.db.get("devices", scan.deviceId);
       if (
         visit
         && device
@@ -169,7 +169,7 @@ export const setResult = internalMutation({
         && visit.venueId === scan.venueId
         && (visit.lastConfidentAt === undefined || scan.capturedAt >= visit.lastConfidentAt)
       ) {
-        await ctx.db.patch(visit._id, {
+        await ctx.db.patch("visits", visit._id, {
           lastConfidentGallery: args.best.gallery,
           lastConfidentAt: scan.capturedAt,
         });
@@ -187,11 +187,14 @@ export async function joinCandidate(
   candidate: Infer<typeof displayCandidate>;
   artwork: Doc<"artworks">;
 } | null> {
-  const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
+  const [object, artwork] = await Promise.all([
+    ctx.db.get("objects", match.objectId),
+    ctx.db.get("artworks", match.artworkId),
+  ]);
   if (!object || !artwork || !(await eligibleObject(ctx, object, venueId))) {
     return null;
   }
-  const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
+  const owner = object.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
   // A hotlinked source image only for public-domain works; a contributor's consented crop always.
   const thumbnailUrl = object.thumbnailStorageId
     ? await ctx.storage.getUrl(object.thumbnailStorageId)
@@ -251,7 +254,7 @@ export const get = query({
   returns: v.union(scanDisplay, v.null()),
   handler: async (ctx, { scanId }) => {
     const device = await requireDevice(ctx);
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     return scan?.deviceId === device._id ? displayScan(ctx, scan) : null;
   },
 });
@@ -259,14 +262,14 @@ export const get = query({
 export const getStored = internalQuery({
   args: { scanId: v.id("scans") },
   returns: v.union(schema.doc("scans"), v.null()),
-  handler: (ctx, { scanId }) => ctx.db.get(scanId),
+  handler: (ctx, { scanId }) => ctx.db.get("scans", scanId),
 });
 
 export const getDisplay = internalQuery({
   args: { scanId: v.id("scans"), deviceId: v.id("devices") },
   returns: scanDisplay,
   handler: async (ctx, { scanId, deviceId }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== deviceId) {
       throw new ConvexError({ code: "scan_not_found" });
     }

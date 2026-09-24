@@ -1,5 +1,7 @@
 import { act, renderHook } from "@testing-library/react-native";
+
 import type { SavedWork } from "@/db/schema";
+
 import { scheduleRemoval, usePendingRemovals } from "./pending-removals";
 import { useCollectionData } from "./use-collection-data";
 
@@ -16,10 +18,10 @@ jest.mock("@/db/repos/saved-works", () => ({
   softDeleteSavedWork: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: () => "visits" }));
-jest.mock("../account/owner-store", () => ({
+jest.mock("@/lib/account/owner-store", () => ({
   useLocalOwner: () => "account:a",
 }));
-jest.mock("../journal/use-venue-metadata", () => ({
+jest.mock("@/lib/journal/use-venue-metadata", () => ({
   useVenueMetadata: () => ({ metadata: new Map(), ready: true }),
 }));
 

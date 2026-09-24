@@ -1,6 +1,3 @@
-import { isPhotoFileReferenced, upsertFromRemote } from "../../db/repos/saved-works";
-import { upsertVisitsFromRemote } from "../../db/repos/visits";
-import { api } from "../../../convex/_generated/api";
 import {
   acknowledgeAlbum,
   albumPhotoTransfers,
@@ -11,18 +8,22 @@ import {
   pendingAlbum,
   photoInput,
   updateAlbumTransfer,
-} from "../../db/repos/artwork-album";
-import { getSetting, setSetting } from "../../db/repos/settings";
-import { convex } from "../convex-client";
+} from "@/db/repos/artwork-album";
+import { isPhotoFileReferenced, upsertFromRemote } from "@/db/repos/saved-works";
+import { getSetting, setSetting } from "@/db/repos/settings";
+import { upsertVisitsFromRemote } from "@/db/repos/visits";
+import { convex } from "@/lib/convex-client";
+import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
+import { reportError } from "@/lib/observability";
+
+import { api } from "../../../convex/_generated/api";
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
-import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
 import type { SyncContext } from "./sync";
-import { reportError } from "../observability";
 
 export async function syncArtworkAlbums(context: SyncContext, token: string, isCurrent: () => boolean) {
   while (isCurrent()) {
     const deleted = deletedAlbumPhotoFiles(context.owner);
-    if (!deleted.length) break;
+    if (deleted.length === 0) break;
     for (const photo of deleted) {
       if (!isCurrent()) return;
       if (!(await isPhotoFileReferenced(photo.path))) {
@@ -52,8 +53,8 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
     await setSetting(key, String(since));
     if (
       !result.hasMore
-      && !pendingAlbum(context.owner).photos.length
-      && !pendingAlbum(context.owner).encounters.length
+      && pendingAlbum(context.owner).photos.length === 0
+      && pendingAlbum(context.owner).encounters.length === 0
     ) {
       break;
     }
@@ -61,7 +62,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
   // One photo that keeps failing must not stop the others: finish the batch, then rethrow so the queue retries.
   while (isCurrent()) {
     const photos = albumPhotoTransfers(context.owner);
-    if (!photos.length) return;
+    if (photos.length === 0) return;
     let failure: unknown;
     for (const photo of photos) {
       if (!isCurrent()) return;

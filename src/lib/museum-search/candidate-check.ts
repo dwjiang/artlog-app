@@ -1,6 +1,7 @@
-import type { ImageCheck, SearchCandidate } from "../../../convex/lib/validators";
 import type { ScanFeatures } from "@/lib/capture/features";
 import { checkImages, type ImageCheckDeps } from "@/lib/label/image-check";
+
+import type { ImageCheck, SearchCandidate } from "../../../convex/lib/validators";
 
 export async function checkCandidates(
   candidates: SearchCandidate[],

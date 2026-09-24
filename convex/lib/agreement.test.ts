@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+
 import { verifiedAccession, workKey } from "./agreement";
 import type { ContributionField } from "./validators";
 

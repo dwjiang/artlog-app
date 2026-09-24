@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { guideOpening, guideResearch } from "../shared/audio/guide";
 
+import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { query } from "./_generated/server";
 import { requireDevice } from "./lib/auth";
 import { renderedNarration } from "./lib/narrationCache";
@@ -30,7 +30,7 @@ export const enrichment = query({
   ),
   handler: async (ctx, { artworkId }) => {
     await requireDevice(ctx);
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) return null;
     let thumbnailUrl: string | undefined;
     if (artwork.rightsStatus === "public_domain") {
@@ -54,9 +54,9 @@ export const enrichment = query({
     return {
       docent: artwork.docent?.en,
       factSheet: artwork.factSheet?.map(chip),
-      narrationFacts: narrationFacts.length ? narrationFacts.map(chip) : undefined,
-      narrationResearchUpdatedAt: narrationFacts.length ? artwork.factSheetUpdatedAt : undefined,
-      narrationRenderId: narrationFacts.length ? (await renderedNarration(ctx, artwork))?.renderId : undefined,
+      narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(chip) : undefined,
+      narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
+      narrationRenderId: narrationFacts.length > 0 ? (await renderedNarration(ctx, artwork))?.renderId : undefined,
       narrationOpening: guideOpening(artwork),
       rightsStatus: artwork.rightsStatus,
       thumbnailUrl,

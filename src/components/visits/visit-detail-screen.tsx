@@ -1,31 +1,33 @@
-import { reportError } from "@/lib/observability";
-import { EmptyState, EmptySymbol, SearchEmptyState } from "../empty-state";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { WorkLink } from "@/components/collection/work-link";
+import { EmptyState, EmptySymbol, SearchEmptyState } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastPill } from "@/components/toast-pill";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
+import { patchVisit } from "@/db/repos/visits";
+import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner, useOwnerGeneration } from "@/lib/account/owner-store";
+import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { formatVisitDate } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
-import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
-import { patchVisit } from "@/db/repos/visits";
-import { flushJournal } from "@/lib/account/collection-sync";
-import { GalleryButton } from "../collection/gallery-button";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
-import { WorkLink } from "../collection/work-link";
-import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
-import { cropSyncing } from "@/lib/account/photo-sync";
-import { useVenue } from "@/lib/venue/use-venue";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
-import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
-import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
+import { useVenue } from "@/lib/venue/use-venue";
+import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
+
 import { VisitActionBar } from "./visit-action-bar";
-import { ToastPill } from "../toast-pill";
+import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
+import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
+import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 export function VisitDetailScreen() {
   const { visitId, endVisit } = useLocalSearchParams<{
@@ -165,8 +167,9 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         if (!session.isCurrent()) return;
         router.setParams({ endVisit: undefined });
       }
-      if (isPublic) openSharing();
-      else {
+      if (isPublic) {
+        openSharing();
+      } else {
         showToast("Visit saved.");
         if (router.canGoBack()) router.back();
       }
@@ -308,11 +311,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             <View>
               <View style={styles.sectionLabel}>
                 <Text accessibilityRole="header" style={detail.sectionTitle}>
-                  {visit.works.length
+                  {visit.works.length > 0
                     ? `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"} saved`
                     : "Your artworks"}
                 </Text>
-                {!!visit.works.length && (
+                {visit.works.length > 0 && (
                   <GalleryButton
                     label="Link artwork"
                     icon="plus"
@@ -368,7 +371,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   );
                 })}
               </View>
-              {!filtered.length
+              {filtered.length === 0
                 && (search.trim() ? (
                   <SearchEmptyState
                     title="No artworks found."

@@ -3,7 +3,7 @@ import { AccessibilityInfo } from "react-native";
 
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
-import { useCapture } from "./use-capture";
+
 import type {
   CaptureDependencies,
   CaptureInput,
@@ -12,6 +12,7 @@ import type {
   PreparedPainting,
   Quad,
 } from "./stages";
+import { useCapture } from "./use-capture";
 
 const mockVisit = jest.fn();
 jest.mock("@/lib/observability", () => ({
@@ -427,7 +428,7 @@ it("holds the revealed artwork during slow recognition and navigates exactly onc
   await act(async () => {
     pending = hook.result.current.capture(async () => input);
   });
-  const attempt = hook.result.current.presentation!.attempt;
+  const { attempt } = hook.result.current.presentation!;
   await act(() => hook.result.current.completeReveal(attempt));
   expect(mockPush).not.toHaveBeenCalled();
   expect(mockRelease).not.toHaveBeenCalled();
@@ -496,7 +497,7 @@ it("defers navigation while backgrounded and resumes exactly once on return", as
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
-  const attempt = hook.result.current.presentation!.attempt;
+  const { attempt } = hook.result.current.presentation!;
   await hook.rerender({ active: false, focused: true });
   await act(() => hook.result.current.completeReveal(attempt));
   expect(mockPush).not.toHaveBeenCalled();
@@ -511,7 +512,7 @@ it("drops presentation and old completion callbacks when a different screen take
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
-  const attempt = hook.result.current.presentation!.attempt;
+  const { attempt } = hook.result.current.presentation!;
   await hook.rerender({ active: false, focused: false });
   expect(mockRelease).toHaveBeenCalled();
   await hook.rerender({ active: true, focused: true });
@@ -525,7 +526,7 @@ it("releases images and refuses old results after an owner change", async () => 
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
-  const attempt = hook.result.current.presentation!.attempt;
+  const { attempt } = hook.result.current.presentation!;
   await act(() => switchOwner("user:someone-else", "other-scope"));
   expect(mockRelease).toHaveBeenCalled();
   expect(hook.result.current.presentation).toBeUndefined();
@@ -647,8 +648,9 @@ it.each(["camera", "library"] as const)(
     });
     const hook = await renderHook(() => useCapture({ visitLocalId: "chosen-visit" }));
     await act(async () => {
-      if (source === "library") await hook.result.current.importPhoto();
-      else {
+      if (source === "library") {
+        await hook.result.current.importPhoto();
+      } else {
         await hook.result.current.captureManually(async () => ({
           filePath: "/photo.jpg",
         }));
@@ -666,8 +668,8 @@ it.each(["camera", "library"] as const)(
 
 it("reports an unavailable visit before taking the photo instead of assigning the scan elsewhere", async () => {
   mockVisit.mockResolvedValue(undefined);
-  const onVisitUnavailable = jest.fn(),
-    takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
+  const onVisitUnavailable = jest.fn();
+  const takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
   const hook = await renderHook(() => useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }));
   await act(async () => {
     await hook.result.current.captureManually(takePhoto);

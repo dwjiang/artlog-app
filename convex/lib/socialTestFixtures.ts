@@ -15,7 +15,7 @@ export async function socialUser(t: Harness, name: string = crypto.randomUUID())
       deviceIds: [device.deviceId],
       createdAt: 1,
     });
-    await ctx.db.patch(device.deviceId, { accountId: id });
+    await ctx.db.patch("devices", device.deviceId, { accountId: id });
     return id;
   });
   const profile = await device.as.mutation(api.profiles.create, {
@@ -43,7 +43,7 @@ export async function socialVisit(
       visitedOn,
       reflection: "",
     });
-    const visit = (await ctx.db.get(visitId))!;
+    const visit = (await ctx.db.get("visits", visitId))!;
     const saves = [];
     for (let i = 0; i < count; i++) {
       const localId = crypto.randomUUID();
@@ -87,7 +87,7 @@ export async function setVisitVisibility(
   visibility: "public" | "private",
 ) {
   const { localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } = (await t.run((ctx) =>
-    ctx.db.get(visitId),
+    ctx.db.get("visits", visitId),
   ))!;
   await user.as.mutation(api.visits.upsertJournal, {
     scope: user.scope,
@@ -119,7 +119,7 @@ export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {
 }
 export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<"collections">) {
   return t.run(async (ctx) => {
-    const save = (await ctx.db.get(saveId))!;
+    const save = (await ctx.db.get("collections", saveId))!;
     const scanId = await seedScan(ctx, {
       deviceId: user.deviceId,
       venueId: save.venueId,
@@ -131,7 +131,7 @@ export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<
       venueId: save.venueId!,
       cropStorageId: sourceStorageId,
     });
-    await ctx.db.patch(saveId, { scanId });
+    await ctx.db.patch("collections", saveId, { scanId });
     const storageId = await ctx.storage.store(new Blob(["derivative bytes"], { type: "image/jpeg" }));
     const provenance = {
       kind: "contribution" as const,

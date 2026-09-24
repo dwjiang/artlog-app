@@ -1,6 +1,7 @@
-import { getLocalOwner } from "@/lib/account/owner-store";
-import type { Id } from "../../../convex/_generated/dataModel";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
+import { getLocalOwner } from "@/lib/account/owner-store";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFormState } from "./fields";
 
 const key = (scanId: Id<"scans">, owner: string) => `labelDraft:${owner}:${scanId}`;

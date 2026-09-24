@@ -2,13 +2,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { StyleSheet } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-
-import { AllArtworksScreen } from "./all-artworks-screen";
-import { CollectionScreen } from "./collection-screen";
-import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
+import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { AllArtworksScreen } from "./all-artworks-screen";
+import { CollectionScreen } from "./collection-screen";
+
 jest.mock("@/lib/audio/use-listening");
 
 jest.mock("expo-network", () => ({
@@ -27,14 +28,14 @@ jest.mock("@/lib/social/use-social-query", () => ({
 }));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
-jest.mock("../visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
+jest.mock("@/components/visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async () => [],
   onVenueMetadataChange: () => () => {},
 }));
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
@@ -315,6 +316,7 @@ it("shows empty visits and calendar month groups, and searches them by country o
   await fireEvent.changeText(search(), "missing");
   expect(screen.getByText("No visits found.")).toBeOnTheScreen();
 });
+
 it("shows the A–Z collection in artist order", async () => {
   switchOwner(anonymousOwner(), "scope-anonymous");
   await renderArchive();

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
+
 import { GalleryButton } from "./gallery-button";
 
 it("keeps its label and prevents duplicate activation while announcing progress", async () => {

@@ -1,8 +1,7 @@
-import { insertVector, readVector } from "./lib/vectorStore";
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { ConvexError } from "convex/values";
 import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "convex/server";
+import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -19,6 +18,7 @@ import {
   upsertDescriptors,
 } from "./ingest";
 import { loadOrb } from "./lib/orbStorage";
+import { insertVector, readVector } from "./lib/vectorStore";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -177,7 +177,7 @@ describe("calibrator training exports", () => {
       rows: [{ ...metObject, key: "met:alias", mergedIntoKey: metObject.key }],
     });
     await t.run(async (ctx) => {
-      await ctx.db.patch(objectId, {
+      await ctx.db.patch("objects", objectId, {
         calibratorPenalty: 0.3,
         rejectionPenalty: 0.2,
       });
@@ -208,7 +208,7 @@ describe("calibrator training exports", () => {
       objectPenalty: 0.5,
     });
     expect(page.page[0].vector).toEqual(vector(1));
-    await t.run((ctx) => ctx.db.patch(objectId, { reverted: true }));
+    await t.run((ctx) => ctx.db.patch("objects", objectId, { reverted: true }));
     expect(
       (
         await t.query(internal.ingest.exportVectors, {
@@ -278,7 +278,7 @@ describe("calibrator training exports", () => {
         inputSize: 512,
       },
     ]);
-    await t.run((ctx) => ctx.db.patch(objectId, { mergedInto: objectId }));
+    await t.run((ctx) => ctx.db.patch("objects", objectId, { mergedInto: objectId }));
     expect((await t.action(internal.ingest.exportDescriptors, {})).page).toEqual([]);
   });
 });
@@ -307,7 +307,7 @@ describe("upserting museums and artworks", () => {
       rows: [wheatField],
     });
     await t.run((ctx) =>
-      ctx.db.patch(ids[wheatField.key], {
+      ctx.db.patch("artworks", ids[wheatField.key], {
         factSheet: [
           {
             id: "f1",
@@ -323,7 +323,7 @@ describe("upserting museums and artworks", () => {
       rows: [{ ...wheatField, title: "Wheatfield with Cypresses" }],
     });
 
-    const artwork = await t.run((ctx) => ctx.db.get(ids[wheatField.key]));
+    const artwork = await t.run((ctx) => ctx.db.get("artworks", ids[wheatField.key]));
     expect(artwork?.title).toBe("Wheatfield with Cypresses");
     expect(artwork?.factSheet).toHaveLength(1);
     expect(await t.run((ctx) => ctx.db.query("artworks").collect())).toHaveLength(1);
@@ -357,23 +357,23 @@ describe("upserting objects", () => {
     await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, artworkKey: corrected.key }],
     });
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.artworkId).toBe(ids[corrected.key]);
+    expect((await t.run((ctx) => ctx.db.get("objects", objectId)))?.artworkId).toBe(ids[corrected.key]);
     const bindings = await t.run((ctx) => ctx.db.query("museumWorkIdentities").collect());
     expect(bindings.every((binding) => binding.artworkId === ids[corrected.key])).toBe(true);
   });
 
   it("resolves artwork and owner keys and initializes counters only on insert", async () => {
     const { t, objectId } = await seeded();
-    await t.run((ctx) => ctx.db.patch(objectId, { confirmCount: 3, calibratorPenalty: 0.2 }));
+    await t.run((ctx) => ctx.db.patch("objects", objectId, { confirmCount: 3, calibratorPenalty: 0.2 }));
 
     const again = await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, medium: "Oil on canvas (relined)" }],
     });
 
     expect(again.ids["met:436535"]).toBe(objectId);
-    const object = await t.run((ctx) => ctx.db.get(objectId));
-    const artwork = await t.run((ctx) => ctx.db.get(object!.artworkId));
-    const owner = await t.run((ctx) => ctx.db.get(object!.ownerId!));
+    const object = await t.run((ctx) => ctx.db.get("objects", objectId));
+    const artwork = await t.run((ctx) => ctx.db.get("artworks", object!.artworkId));
+    const owner = await t.run((ctx) => ctx.db.get("museums", object!.ownerId!));
     expect(artwork?.key).toBe("met:436535");
     expect(owner?.key).toBe("wikidata:Q160236");
     expect(object?.medium).toBe("Oil on canvas (relined)");
@@ -420,7 +420,7 @@ describe("upserting objects", () => {
         },
       ],
     });
-    const merged = await t.run((ctx) => ctx.db.get(ids["wikidata:Q18891167"]));
+    const merged = await t.run((ctx) => ctx.db.get("objects", ids["wikidata:Q18891167"]));
     expect(merged?.mergedInto).toBe(objectId);
   });
 
@@ -429,7 +429,7 @@ describe("upserting objects", () => {
     await t.mutation(internal.ingest.setObjectPenalty, {
       rows: [{ objectKey: "met:436535", calibratorPenalty: 0.35 }],
     });
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.calibratorPenalty).toBe(0.35);
+    expect((await t.run((ctx) => ctx.db.get("objects", objectId)))?.calibratorPenalty).toBe(0.35);
   });
 });
 
@@ -629,13 +629,13 @@ describe("ORB file imports", () => {
     const first = await t.action(internal.ingest.upsertDescriptors, {
       rows: [orbRow],
     });
-    const before = (await t.run((ctx) => ctx.db.get(first.ids[orbRow.objectKey])))!;
+    const before = (await t.run((ctx) => ctx.db.get("descriptors", first.ids[orbRow.objectKey])))!;
     expect(
       await t.action(internal.ingest.upsertDescriptors, {
         rows: [{ ...orbRow, extractedFrom: "new URL" }],
       }),
     ).toEqual(first);
-    expect(await t.run((ctx) => ctx.db.get(before._id))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("descriptors", before._id))).toMatchObject({
       storageId: before.storageId,
       extractedFrom: "new URL",
     });
@@ -649,7 +649,7 @@ describe("ORB file imports", () => {
       descriptors: new Uint8Array(64).fill(8).buffer,
     };
     expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
-    const after = (await t.run((ctx) => ctx.db.get(before._id)))!;
+    const after = (await t.run((ctx) => ctx.db.get("descriptors", before._id)))!;
     expect(after.storageId).not.toBe(before.storageId);
     expect(await t.run((ctx) => ctx.db.system.get("_storage", before.storageId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(1);
@@ -684,7 +684,7 @@ describe("ORB file imports", () => {
       await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
       const files = await t.run((ctx) => ctx.db.system.query("_storage").collect());
       expect(files).toHaveLength(1);
-      if (afterCommit) expect(files[0]._id).toBe(beforeRetry[0]._id);
+      expect(files.map((file) => file._id)).toEqual(expect.arrayContaining(beforeRetry.map((file) => file._id)));
       expect(await t.query(internal.ingest.counts, {})).toMatchObject({
         descriptors: 1,
       });
@@ -736,7 +736,7 @@ describe("ORB file imports", () => {
       ],
     });
     await t.run(async (ctx) => {
-      const { _id: _objectId, _creationTime: _objectTime, ...object } = (await ctx.db.get(objectId))!;
+      const { _id: _objectId, _creationTime: _objectTime, ...object } = (await ctx.db.get("objects", objectId))!;
       const {
         _id: _referenceId,
         _creationTime: _referenceTime,
@@ -901,7 +901,7 @@ describe("corpus import invariants", () => {
       rows: [{ ...metObject, thumbnailUrl: undefined }],
     });
     expect((await t.query(internal.ingest.auditThumbnails, {})).violations).toBe(0);
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.thumbnailUrl).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("objects", objectId)))?.thumbnailUrl).toBeUndefined();
   });
 });
 
@@ -947,7 +947,7 @@ describe("rebuilding corpus views", () => {
 describe("merged museum identities", () => {
   it("resolves an alias accession and page to the surviving artwork", async () => {
     const { t, objectId } = await seeded();
-    const original = await t.run((ctx) => ctx.db.get(objectId));
+    const original = await t.run((ctx) => ctx.db.get("objects", objectId));
     const alternate = {
       ...wheatField,
       key: "wikidata:Qalias",

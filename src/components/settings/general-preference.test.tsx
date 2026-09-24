@@ -3,10 +3,11 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { GroupedList } from "@/components/grouped-list";
 import * as settings from "@/db/repos/settings";
 import { getMeasurementUnits } from "@/lib/settings/measurement-units";
+
 import { GeneralPreference } from "./general-preference";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 beforeEach(async () => {

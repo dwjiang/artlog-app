@@ -1,4 +1,3 @@
-import { reportError } from "@/lib/observability";
 import { Button, Column, Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import {
   font,
@@ -10,13 +9,16 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useMutation } from "convex/react";
 import { useRef, useState } from "react";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { showToast } from "@/lib/ui/toast";
-import { GalleryButton } from "../collection/gallery-button";
+
+import { api } from "../../../convex/_generated/api";
 import { LeaderboardSheet } from "./leaderboard-sheet";
 import { SocialGate, SocialState } from "./social-state";
 
@@ -43,8 +45,8 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
   const preference = useSocialQuery(api.leaderboards.preference, session.status === "ready" ? {} : "skip", session.key);
   const change = useMutation(api.leaderboards.setPreference);
   const [draft, setDraft] = useState<LeaderboardVisibility>();
-  const [pending, setPending] = useState(false),
-    [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
   const saving = useRef(false);
   const value = draft ?? preference.data ?? "global";
   async function save() {

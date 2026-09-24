@@ -1,4 +1,3 @@
-import { insertVector, readVector } from "./lib/vectorStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -13,6 +12,7 @@ import {
   seedScan,
   testVector,
 } from "./lib/testFactories";
+import { insertVector, readVector } from "./lib/vectorStore";
 import { harness, promoteGroup } from "./test.helpers";
 
 beforeEach(() => {
@@ -30,8 +30,7 @@ async function fixture() {
   const alice = await seedDevice(t);
   const bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const get = <T extends "contributions" | "objects" | "devices" | "artworks" | "feedback">(id: Id<T>) =>
-    t.run((ctx) => ctx.db.get(id)) as Promise<Doc<T> | null>;
+  const get = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get("feedback", id));
   const all = <T extends "objects" | "artworks" | "vectors" | "descriptors" | "placements" | "contributions">(
     table: T,
   ) => t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
@@ -203,7 +202,7 @@ describe("multi-view vectors from resolved rejections", () => {
 
   it("settles resolutions to a reverted work without adding vectors", async () => {
     const { t, alice, bob, venueId, get, feedback, userScanVectors, work, promote } = await multiViewFixture();
-    await t.run((ctx) => ctx.db.patch(work.objectId, { reverted: true }));
+    await t.run((ctx) => ctx.db.patch("objects", work.objectId, { reverted: true }));
     const rows = [
       await feedback({ deviceId: alice.deviceId, venueId }),
       await feedback({
@@ -263,7 +262,7 @@ describe("multi-view regression guards", () => {
             objectId: work.objectId,
             rejectedObjectId: wrong.objectId,
           });
-          await ctx.db.patch(id, { multiViewAt: Date.now() });
+          await ctx.db.patch("feedback", id, { multiViewAt: Date.now() });
         }
       });
     }
@@ -276,7 +275,7 @@ describe("multi-view regression guards", () => {
       }),
     );
     await promoteGroup(t, work.objectId, venueId);
-    expect(await t.run((ctx) => ctx.db.get(latest))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("feedback", latest))).toMatchObject({
       multiViewVectorId: expect.any(String),
     });
   });
@@ -301,7 +300,9 @@ describe("multi-view regression guards", () => {
     await promoteGroup(t, work.objectId, venueId);
     await t.mutation(internal.promotion.replaceWitnesses, { feedbackId: second, agreementIds: [] });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(await t.run((ctx) => ctx.db.get(second))).toMatchObject({ multiViewVectorId: expect.any(String) });
+    expect(await t.run((ctx) => ctx.db.get("feedback", second))).toMatchObject({
+      multiViewVectorId: expect.any(String),
+    });
     expect((await all("vectors")).filter((row) => row.source === "user_scan")).toHaveLength(2);
   });
 });
@@ -348,11 +349,11 @@ describe("multi-view paginated validation", () => {
       }),
     );
     await promoteGroup(t, work.objectId, venueId);
-    expect(await t.run((ctx) => ctx.db.get(duplicate))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("feedback", duplicate))).toMatchObject({
       multiViewAt: expect.any(Number),
     });
-    expect((await t.run((ctx) => ctx.db.get(duplicate)))?.multiViewVectorId).toBeUndefined();
-    expect(await t.run((ctx) => ctx.db.get(unique))).toMatchObject({
+    expect((await t.run((ctx) => ctx.db.get("feedback", duplicate)))?.multiViewVectorId).toBeUndefined();
+    expect(await t.run((ctx) => ctx.db.get("feedback", unique))).toMatchObject({
       multiViewVectorId: expect.any(String),
     });
   });
@@ -376,7 +377,7 @@ describe("multi-view paginated validation", () => {
     const views = async () => (await all("vectors")).filter((row) => row.source === "user_scan");
     const first = await add(alice.deviceId, testVector(0.9));
     const second = await add(bob.deviceId, testVector(0.8));
-    await t.run((ctx) => ctx.db.patch(bob.deviceId, { banned: true }));
+    await t.run((ctx) => ctx.db.patch("devices", bob.deviceId, { banned: true }));
     await t.mutation(internal.promotion.promoteNextView, {
       objectId: work.objectId,
       venueId,
@@ -385,7 +386,7 @@ describe("multi-view paginated validation", () => {
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await views()).toEqual([]);
-    expect((await t.run((ctx) => ctx.db.get(first)))?.multiViewAt).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("feedback", first)))?.multiViewAt).toBeUndefined();
     await add(carol.deviceId, testVector(0.7));
     await promoteGroup(t, work.objectId, venueId);
     expect(await Promise.all((await views()).map((row) => t.run((ctx) => readVector(ctx, row))))).toEqual([

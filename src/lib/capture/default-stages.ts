@@ -1,14 +1,14 @@
-import model from "../../../shared/model/model-version.json";
-
-import { getVisionRect } from "../../../modules/vision-rect/src";
 import { embedder } from "@/lib/embed/embedder";
 import { filePath } from "@/lib/file-uri";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 import { captureStore } from "@/lib/queue/queue";
+import model from "@/shared/model/model-version.json";
+
+import { getVisionRect } from "../../../modules/vision-rect/src";
 import { orb } from "./features";
-import { triage } from "./triage";
 import { selectCaptureQuad, toCorners, toQuad } from "./rectangle";
 import type { CaptureDependencies, CaptureOptions, Warper } from "./stages";
+import { triage } from "./triage";
 
 export const warper: Warper = {
   async warpAndLetterbox(photoUri, quad, size) {

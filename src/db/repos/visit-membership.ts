@@ -1,7 +1,8 @@
-import { and, eq } from "drizzle-orm";
 import { ConvexError } from "convex/values";
-import { db } from "../client";
-import { visits } from "../schema";
+import { and, eq } from "drizzle-orm";
+
+import { db } from "@/db/client";
+import { visits } from "@/db/schema";
 
 export function requireVisitMembership(
   owner: string,

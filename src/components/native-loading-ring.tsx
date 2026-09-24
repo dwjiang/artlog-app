@@ -1,5 +1,7 @@
 import { RNHostView } from "@expo/ui";
+
 import { Gallery } from "@/constants/theme";
+
 import { LoadingRing } from "./loading-ring";
 
 export function NativeLoadingRing({ label, color = Gallery.accent }: { label: string; color?: string }) {

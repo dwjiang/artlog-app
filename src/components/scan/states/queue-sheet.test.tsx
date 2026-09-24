@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Alert } from "react-native";
 
+import type { PendingScan } from "@/db/schema";
+
 import { RETRY_ROW } from "./queue-row";
 import { QUEUE_FOOTER, QueueSheet } from "./queue-sheet";
-import type { PendingScan } from "@/db/schema";
 
 jest.mock("@/lib/capture/photo-draft", () => ({
   readPhotoSession: () => ({ photos: [] }),

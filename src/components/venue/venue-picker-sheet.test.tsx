@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Linking } from "react-native";
 
-import { VenuePickerSheet } from "./venue-picker-sheet";
+import { removeSetting } from "@/db/repos/settings";
+import { setMeasurementUnits } from "@/lib/settings/measurement-units";
 import type { VenueView } from "@/lib/venue/use-venue";
 import type { CurrentVisit, VenueOption } from "@/lib/venue/venue-reducer";
-import { setMeasurementUnits } from "@/lib/settings/measurement-units";
-import { removeSetting } from "@/db/repos/settings";
+
+import { VenuePickerSheet } from "./venue-picker-sheet";
+
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/venue/search-venues", () => ({ searchVenues: jest.fn() }));
 jest.mock("@/hooks/use-reduced-motion", () => ({

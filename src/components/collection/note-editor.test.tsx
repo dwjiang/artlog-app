@@ -1,13 +1,14 @@
-import { reportError } from "@/lib/observability";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
-import { NoteEditor } from "./note-editor";
 import * as notes from "@/db/repos/notes";
 import { insertSavedWork } from "@/db/repos/saved-works";
+import { reportError } from "@/lib/observability";
+
+import { NoteEditor } from "./note-editor";
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 beforeAll(async () => {
@@ -79,8 +80,9 @@ it.each(["blur", "close"])("retries an unchanged failed draft on %s", async (eve
   jest.spyOn(notes, "setNote").mockRejectedValueOnce(new Error("SQLITE_BUSY"));
   const { view, input } = await editNote();
   await fireEvent(input, "blur");
-  if (event === "close") await view.unmount();
-  else {
+  if (event === "close") {
+    await view.unmount();
+  } else {
     await fireEvent(input, "focus");
     await fireEvent(input, "blur");
   }

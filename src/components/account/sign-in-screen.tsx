@@ -1,18 +1,19 @@
-import { LoadingRing } from "@/components/loading-ring";
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkStrip } from "@/components/guest/artwork-preview";
+import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
-import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
-import { useAccount } from "@/lib/account/use-account";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer, useProfileSetupOffer } from "@/lib/account/profile-setup-offer";
+import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
+import { useAccount } from "@/lib/account/use-account";
+
 import { AppleSignInAction } from "./apple-sign-in-action";
 
 export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
@@ -41,7 +42,9 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
         pathname: "/visit-share/[visitId]",
         params: { visitId },
       });
-    } else router.back();
+    } else {
+      router.back();
+    }
   }, [account?.hasProfile, account?.linked, busy, continuingVisit, router, setupOffer, visitId, waitingForJournal]);
 
   return (

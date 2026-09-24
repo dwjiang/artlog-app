@@ -1,4 +1,3 @@
-import { ThemedText as Text } from "@/components/themed-text";
 import { BottomSheet, Group, Host, RNHostView } from "@expo/ui/swift-ui";
 import {
   frame,
@@ -9,7 +8,10 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
+
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+
 import { GalleryButton } from "./gallery-button";
 
 export function WallSheet({

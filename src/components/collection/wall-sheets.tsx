@@ -1,16 +1,17 @@
-import { ThemedText as Text } from "@/components/themed-text";
-import { WallSheet } from "./wall-sheet";
 import { Host } from "@expo/ui";
 import { Slider } from "@expo/ui/swift-ui";
 import { accessibilityLabel, disabled as nativeDisabled } from "@expo/ui/swift-ui/modifiers";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
-import { WallArtwork } from "./wall-artwork";
+
 import { GalleryButton } from "./gallery-button";
+import { WallArtwork } from "./wall-artwork";
 import { WallFramePicker } from "./wall-options";
+import { WallSheet } from "./wall-sheet";
 
 export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: string }) {
   return (
@@ -46,8 +47,8 @@ function WallSizeSlider({
   onChange: (width: number) => void;
 }) {
   const [value, setValue] = useState(width);
-  const dragging = useRef(false),
-    latest = useRef(width);
+  const dragging = useRef(false);
+  const latest = useRef(width);
   function commit() {
     if (!disabled && latest.current !== width) onChange(latest.current);
   }

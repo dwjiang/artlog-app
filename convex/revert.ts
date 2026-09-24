@@ -1,19 +1,19 @@
-import { deleteVector } from "./lib/vectorStore";
-import { deleteEmbedding } from "./scanEmbeddings";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { removeContribution } from "./contributionRemoval";
+import { clearDocent } from "./docent";
 import { feedbackChanged } from "./feedbackReplay";
-import { readyForReview, reassessProposal } from "./placements";
-import schema from "./schema";
+import { bumpCounter } from "./ingest";
 import { revokeContributionMedia } from "./lib/displayMedia";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
-import { clearDocent } from "./docent";
-import { bumpCounter } from "./ingest";
+import { deleteVector } from "./lib/vectorStore";
+import { readyForReview, reassessProposal } from "./placements";
 import { queueMultiView } from "./promotion";
+import { deleteEmbedding } from "./scanEmbeddings";
+import schema from "./schema";
 
 // Outer cascades select small pages; each object's child tables are cleaned in separate transactions.
 const CHUNK = 25;
@@ -28,7 +28,7 @@ const cleanupPhase = v.union(
 
 export async function beginRevert(ctx: MutationCtx, object: Doc<"objects">, reason: string): Promise<void> {
   if (object.reverted) return;
-  await ctx.db.patch(object._id, {
+  await ctx.db.patch("objects", object._id, {
     reverted: true,
     revertedReason: reason,
     thumbnailStorageId: undefined,
@@ -43,7 +43,7 @@ export const beginObjectRevert = internalMutation({
   args: { objectId: v.id("objects"), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, { objectId, reason }) => {
-    const object = await ctx.db.get(objectId);
+    const object = await ctx.db.get("objects", objectId);
     if (!object) throw new ConvexError({ code: "object_not_found" });
     await beginRevert(ctx, object, reason);
     return null;
@@ -54,7 +54,7 @@ export const cleanupObjectPage = internalMutation({
   args: { objectId: v.id("objects"), phase: cleanupPhase, cursor: cursorArg },
   returns: cursorArg,
   handler: async (ctx, { objectId, phase, cursor }) => {
-    const object = await ctx.db.get(objectId);
+    const object = await ctx.db.get("objects", objectId);
     if (!object?.reverted) {
       throw new ConvexError({ code: "object_not_reverted" });
     }
@@ -75,7 +75,7 @@ export const cleanupObjectPage = internalMutation({
           .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
           .paginate(options);
         for (const row of page.page) {
-          await ctx.db.delete(row._id);
+          await ctx.db.delete("descriptors", row._id);
           await deleteOrbIfUnreferenced(ctx, row.storageId);
         }
         await bumpCounter(ctx, "descriptors", -page.page.length);
@@ -88,7 +88,7 @@ export const cleanupObjectPage = internalMutation({
           .paginate(options);
         for (const row of page.page) {
           if (row.closedAt === undefined) {
-            await ctx.db.patch(row._id, { closedAt: Date.now() });
+            await ctx.db.patch("placements", row._id, { closedAt: Date.now() });
           }
         }
         return page.isDone ? null : page.continueCursor;
@@ -135,7 +135,7 @@ export const completeObjectRevert = internalMutation({
   args: { objectId: v.id("objects") },
   returns: v.null(),
   handler: async (ctx, { objectId }) => {
-    await ctx.db.patch(objectId, { revertCompletedAt: Date.now() });
+    await ctx.db.patch("objects", objectId, { revertCompletedAt: Date.now() });
     return null;
   },
 });
@@ -145,7 +145,7 @@ function paging(cursor: string | null) {
 }
 
 async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
-  const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
+  const vector = row.multiViewVectorId ? await ctx.db.get("vectors", row.multiViewVectorId) : null;
   if (vector) {
     await deleteVector(ctx, vector);
     await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
@@ -153,7 +153,7 @@ async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<n
       cursor: null,
     });
   }
-  await ctx.db.patch(row._id, {
+  await ctx.db.patch("feedback", row._id, {
     multiViewAt: undefined,
     multiViewVectorId: undefined,
     multiViewDuplicateVectorId: undefined,
@@ -202,16 +202,16 @@ export const revertDevice = internalMutation({
   args: { deviceId: v.id("devices"), reason: v.string() },
   returns: v.id("deviceRemovals"),
   handler: async (ctx, { deviceId, reason }) => {
-    const device = await ctx.db.get(deviceId);
+    const device = await ctx.db.get("devices", deviceId);
     if (!device) throw new ConvexError({ code: "device_not_found" });
-    await ctx.db.patch(deviceId, { banned: true, bannedReason: reason });
+    await ctx.db.patch("devices", deviceId, { banned: true, bannedReason: reason });
     const existing = await ctx.db
       .query("deviceRemovals")
       .withIndex("by_device", (q) => q.eq("deviceId", deviceId))
       .unique();
     if (existing) {
       if (existing.phase !== "complete") {
-        await ctx.db.patch(existing._id, {
+        await ctx.db.patch("deviceRemovals", existing._id, {
           resumeRevision: existing.resumeRevision + 1,
           ...(existing.phase === "stalled" ? { phase: "settling", settleAttempts: 0 } : {}),
         });
@@ -243,11 +243,11 @@ export const cleanupDevicePage = internalMutation({
   args: { jobId: v.id("deviceRemovals") },
   returns: v.null(),
   handler: async (ctx, { jobId }) => {
-    const job = await ctx.db.get(jobId);
+    const job = await ctx.db.get("deviceRemovals", jobId);
     if (!job || job.phase === "complete") return null;
-    const device = await ctx.db.get(job.deviceId);
+    const device = await ctx.db.get("devices", job.deviceId);
     if (!device?.banned) throw new ConvexError({ code: "device_not_banned" });
-    const deviceId = job.deviceId;
+    const { deviceId } = job;
     const options = paging(job.cursor);
     let nextCursor: string | null = null;
     let processed = 0;
@@ -262,7 +262,7 @@ export const cleanupDevicePage = internalMutation({
         // original scheduled work may have been lost.
         const retry = (dependency.resumeRevision ?? 0) < job.resumeRevision;
         if (retry) {
-          await ctx.db.patch(dependency._id, {
+          await ctx.db.patch("removalDependencies", dependency._id, {
             resumeRevision: job.resumeRevision,
           });
         }
@@ -288,7 +288,7 @@ export const cleanupDevicePage = internalMutation({
             }
             continue;
           }
-          const object = await ctx.db.get(dependency.objectId);
+          const object = await ctx.db.get("objects", dependency.objectId);
           if (object?.reverted && object.revertCompletedAt === undefined) {
             if (retry) {
               await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
@@ -314,7 +314,7 @@ export const cleanupDevicePage = internalMutation({
           continue;
         }
         if (dependency.feedbackId) {
-          const row = await ctx.db.get(dependency.feedbackId);
+          const row = await ctx.db.get("feedback", dependency.feedbackId);
           if (
             row?.multiViewAgreement
             && [row.multiViewAgreement.firstDeviceId, row.multiViewAgreement.secondDeviceId].includes(deviceId)
@@ -359,7 +359,7 @@ export const cleanupDevicePage = internalMutation({
           continue;
         }
         if (dependency.proposalId) {
-          const proposal = await ctx.db.get(dependency.proposalId);
+          const proposal = await ctx.db.get("placementProposals", dependency.proposalId);
           if (
             proposal?.status === "promoted"
             && !readyForReview(proposal.deviceIds, proposal.firstSeenAt, proposal.lastSeenAt)
@@ -368,8 +368,11 @@ export const cleanupDevicePage = internalMutation({
               if (retry) await reassessProposal(ctx, proposal._id);
               continue;
             }
-            const placement = proposal.promotion ? await ctx.db.get(proposal.promotion.placementId) : null;
-            const object = proposal.kind === "new_object" && placement ? await ctx.db.get(placement.objectId) : null;
+            const placement = proposal.promotion
+              ? await ctx.db.get("placements", proposal.promotion.placementId)
+              : null;
+            const object =
+              proposal.kind === "new_object" && placement ? await ctx.db.get("objects", placement.objectId) : null;
             if (object && object.revertCompletedAt === undefined) {
               if (retry) {
                 await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
@@ -381,13 +384,13 @@ export const cleanupDevicePage = internalMutation({
             }
           }
         }
-        await ctx.db.delete(dependency._id);
+        await ctx.db.delete("removalDependencies", dependency._id);
         settled++;
       }
       const done = dependencies.length === 0;
       const settleAttempts = settled || done ? 0 : job.settleAttempts + 1;
       const stalled = !done && settleAttempts >= MAX_SETTLE_ATTEMPTS;
-      await ctx.db.patch(jobId, {
+      await ctx.db.patch("deviceRemovals", jobId, {
         settled: job.settled + settled,
         settleAttempts,
         phase: done ? "complete" : stalled ? "stalled" : "settling",
@@ -420,7 +423,7 @@ export const cleanupDevicePage = internalMutation({
     } else if (job.phase === "scans") {
       const page = await ctx.db
         .query("scans")
-        .withIndex("by_deviceId", (q) => q.eq("deviceId", deviceId))
+        .withIndex("by_device_localId", (q) => q.eq("deviceId", deviceId))
         .paginate(options);
       for (const scan of page.page) {
         await ctx.scheduler.runAfter(0, internal.revert.cleanupScanVectors, {
@@ -483,7 +486,7 @@ export const cleanupDevicePage = internalMutation({
       processed = page.page.length;
     }
     const phase = nextCursor === null ? NEXT_PHASE[job.phase] : job.phase;
-    await ctx.db.patch(jobId, {
+    await ctx.db.patch("deviceRemovals", jobId, {
       phase,
       cursor: nextCursor,
       processed: job.processed + processed,
@@ -504,11 +507,11 @@ export const cleanupScanVectors = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { scanId, jobId, cursor }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (scan) await deleteEmbedding(ctx, scan.embeddingId);
     for (const feedback of await ctx.db
       .query("feedback")
-      .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
+      .withIndex("by_scan_object", (q) => q.eq("scanId", scanId))
       .take(32)) {
       await deleteEmbedding(ctx, feedback.embeddingId);
     }
@@ -564,10 +567,12 @@ const rightsTarget = v.union(
 );
 
 export const completeRightsRequest = internalMutation({
-  args: { requestId: v.union(v.id("optOuts"), v.id("takedowns")) },
+  args: { target: rightsTarget },
   returns: v.null(),
-  handler: async (ctx, { requestId }) => {
-    await ctx.db.patch(requestId, { appliedAt: Date.now() });
+  handler: async (ctx, { target }) => {
+    const applied = { appliedAt: Date.now() };
+    if (target.kind === "venue") await ctx.db.patch("optOuts", target.optOutId, applied);
+    else await ctx.db.patch("takedowns", target.takedownId, applied);
     return null;
   },
 });
@@ -592,9 +597,7 @@ export const revertRightsObjects = internalAction({
       });
     }
     if (cursor === null) {
-      await ctx.runMutation(internal.revert.completeRightsRequest, {
-        requestId: target.kind === "venue" ? target.optOutId : target.takedownId,
-      });
+      await ctx.runMutation(internal.revert.completeRightsRequest, { target });
     } else if (target.kind === "venue") {
       await ctx.scheduler.runAfter(0, internal.revert.revertVenueObjects, {
         venueId: target.venueId,
@@ -616,14 +619,14 @@ export const applyOptOut = internalMutation({
   args: { venueId: v.id("museums"), requester: v.string() },
   returns: v.id("optOuts"),
   handler: async (ctx, { venueId, requester }) => {
-    const venue = await ctx.db.get(venueId);
+    const venue = await ctx.db.get("museums", venueId);
     if (!venue) throw new ConvexError({ code: "venue_not_found" });
     const optOutId = await ctx.db.insert("optOuts", {
       venueId,
       requester,
       receivedAt: Date.now(),
     });
-    await ctx.db.patch(venueId, { optOut: true });
+    await ctx.db.patch("museums", venueId, { optOut: true });
     await ctx.scheduler.runAfter(0, internal.revert.revertVenueFeedback, {
       venueId,
       optOutId,
@@ -648,7 +651,7 @@ export const revertVenueFeedback = internalMutation({
     let deleted = 0;
     for (const row of page.page) {
       deleted += await resetMultiView(ctx, row);
-      await ctx.db.patch(row._id, { multiViewAt: Date.now() });
+      await ctx.db.patch("feedback", row._id, { multiViewAt: Date.now() });
     }
     await bumpCounter(ctx, "vectors", -deleted);
     if (page.isDone) {
@@ -683,7 +686,7 @@ export const revertVenueObjects = internalMutation({
     const objectIds: Id<"objects">[] = [];
     const proposalIds: Id<"placementProposals">[] = [];
     for (const placement of page.page) {
-      const object = await ctx.db.get(placement.objectId);
+      const object = await ctx.db.get("objects", placement.objectId);
       if (object?.source === "user") objectIds.push(object._id);
       if (placement.proposalId) proposalIds.push(placement.proposalId);
     }
@@ -710,7 +713,7 @@ export const applyTakedown = internalMutation({
     }
     const now = Date.now();
     if (objectId !== undefined) {
-      const object = await ctx.db.get(objectId);
+      const object = await ctx.db.get("objects", objectId);
       if (!object) throw new ConvexError({ code: "object_not_found" });
       const takedownId = await ctx.db.insert("takedowns", {
         objectId,
@@ -728,7 +731,7 @@ export const applyTakedown = internalMutation({
       });
       return takedownId;
     }
-    const artwork = await ctx.db.get(artworkId!);
+    const artwork = await ctx.db.get("artworks", artworkId!);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     const takedownId = await ctx.db.insert("takedowns", {
       artworkId: artwork._id,
@@ -737,7 +740,7 @@ export const applyTakedown = internalMutation({
     });
     await clearDocent(ctx, artwork);
     // The hold keeps enrichment from regenerating the sheet; review.replaceFactSheet lifts it deliberately.
-    await ctx.db.patch(artwork._id, {
+    await ctx.db.patch("artworks", artwork._id, {
       factSheet: undefined,
       factSheetUpdatedAt: undefined,
       factSheetNeedsReview: true,

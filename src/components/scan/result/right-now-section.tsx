@@ -1,11 +1,11 @@
 import { StyleSheet, View } from "react-native";
 
-import type { RightNowCard } from "../../../../convex/lib/validators";
-
-import { SourceChip } from "./source-chip";
-import { ThemedText } from "@/components/themed-text";
 import { HighlightHeading } from "@/components/highlight-heading";
+import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+
+import type { RightNowCard } from "../../../../convex/lib/validators";
+import { SourceChip } from "./source-chip";
 
 /** A web-sourced line about the artist, labelled so it reads as a different kind of claim. */
 export function RightNowSection({ rightNow }: { rightNow?: RightNowCard }) {

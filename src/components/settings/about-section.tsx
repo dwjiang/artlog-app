@@ -1,13 +1,14 @@
-import { reportError } from "@/lib/observability";
-import { Image } from "expo-image";
-import { introArtworks } from "../guest/artwork-preview";
 import Constants from "expo-constants";
+import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+
+import { introArtworks } from "@/components/guest/artwork-preview";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;

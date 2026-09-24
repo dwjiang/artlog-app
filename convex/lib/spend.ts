@@ -1,27 +1,27 @@
 import { ConvexError } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { env, type MutationCtx, type QueryCtx } from "../_generated/server";
 
 export type SpendKind = "tokenFactory" | "tavily";
 
 type SpendField = "tokenFactoryCalls" | "tavilyCredits";
 
-const kinds: Record<SpendKind, { field: SpendField; env: string; defaultCap: number }> = {
+const kinds: Record<SpendKind, { field: SpendField; variable: keyof typeof env; defaultCap: number }> = {
   tokenFactory: {
     field: "tokenFactoryCalls",
-    env: "DAILY_TOKEN_FACTORY_CALL_CAP",
+    variable: "DAILY_TOKEN_FACTORY_CALL_CAP",
     defaultCap: 2000,
   },
   tavily: {
     field: "tavilyCredits",
-    env: "DAILY_TAVILY_CREDIT_CAP",
+    variable: "DAILY_TAVILY_CREDIT_CAP",
     defaultCap: 2000,
   },
 };
 
 export function dailyCap(kind: SpendKind): number {
-  const raw = process.env[kinds[kind].env];
+  const raw = env[kinds[kind].variable];
   const parsed = raw === undefined ? NaN : Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : kinds[kind].defaultCap;
 }
@@ -68,7 +68,7 @@ async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Pr
   };
   requireAmount(next.tokenFactoryCalls);
   requireAmount(next.tavilyCredits);
-  if (row) await ctx.db.patch(row._id, next);
+  if (row) await ctx.db.patch("dailySpend", row._id, next);
   else await ctx.db.insert("dailySpend", { day, ...next });
 }
 

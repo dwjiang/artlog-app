@@ -1,31 +1,31 @@
-import { useHasListeningTrack } from "@/lib/audio/use-listening";
-import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
-import { reportError } from "@/lib/observability";
-import { GalleryButton } from "../collection/gallery-button";
-import { WallSheet } from "../collection/wall-sheet";
-import { ThemedText } from "../themed-text";
-import { CaptureVisitPill } from "./capture-visit-pill";
 import { Button, Host, Row } from "@expo/ui";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
-import { useIsFocused } from "expo-router/react-navigation";
-import type { ParamListBase } from "expo-router/react-navigation";
+import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
+import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { WallSheet } from "@/components/collection/wall-sheet";
+import { GlassSurface } from "@/components/glass-surface";
+import { ThemedText } from "@/components/themed-text";
+import { BottomTabInset, Colors, Gallery, Spacing } from "@/constants/theme";
+import { useHasListeningTrack } from "@/lib/audio/use-listening";
+import { useCapture } from "@/lib/capture/use-capture";
+import { useRectDetector } from "@/lib/capture/use-rect-detector";
+import { reportError } from "@/lib/observability";
+
 import { CameraPermission } from "./camera-permission";
-import { CaptureReveal } from "./capture-reveal";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
+import { CaptureReveal } from "./capture-reveal";
+import { CaptureVisitPill } from "./capture-visit-pill";
 import { DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
 import { VenuePill } from "./venue-pill";
-import { GlassSurface } from "@/components/glass-surface";
-import { BottomTabInset, Colors, Gallery, Spacing } from "@/constants/theme";
-import { useCapture } from "@/lib/capture/use-capture";
-import { useRectDetector } from "@/lib/capture/use-rect-detector";
 
 const IMPORT_SIZE = 56;
 

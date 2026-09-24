@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { ProfileForm } from "./profile-form";
+
 import { switchOwner } from "@/lib/account/owner-store";
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
 
-const mockCreate = jest.fn(),
-  mockSavePhoto = jest.fn();
+import { ProfileForm } from "./profile-form";
+
+const mockCreate = jest.fn();
+const mockSavePhoto = jest.fn();
 jest.mock("convex/react", () => ({
   useMutation: () => mockCreate,
   useAction: () => mockSavePhoto,
@@ -36,6 +38,7 @@ async function prepare(onCreated = jest.fn()) {
   await fireEvent.press(screen.getByRole("button", { name: "Add a photo" }));
   return onCreated;
 }
+
 it("creates the profile before uploading its selected photo and completing setup", async () => {
   const onCreated = await prepare();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
@@ -52,6 +55,7 @@ it("creates the profile before uploading its selected photo and completing setup
   expect(mockCreate.mock.invocationCallOrder[0]).toBeLessThan(mockSavePhoto.mock.invocationCallOrder[0]);
   expect(onCreated).toHaveBeenCalledTimes(1);
 });
+
 it("retries a failed photo upload without creating the profile twice", async () => {
   mockSavePhoto.mockRejectedValueOnce(new Error("offline"));
   const onCreated = await prepare();
@@ -63,6 +67,7 @@ it("retries a failed photo upload without creating the profile twice", async () 
   expect(mockSavePhoto).toHaveBeenCalledTimes(2);
   expect(onCreated).toHaveBeenCalledTimes(1);
 });
+
 it("does not create or upload into another account after preparing the photo", async () => {
   let finish!: (bytes: ArrayBuffer) => void;
   jest.mocked(profilePhotoBytes).mockImplementation(

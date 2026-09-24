@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName as mockFunctionName } from "convex/server";
+
 import { PublicNotesScreen } from "./public-notes-screen";
-const mockSetDraft = jest.fn(),
-  mockPublish = jest.fn(),
-  mockGallery = jest.fn(),
-  mockToast = jest.fn(),
-  mockNavigate = jest.fn(),
-  mockDismissAll = jest.fn();
+
+const mockSetDraft = jest.fn();
+const mockPublish = jest.fn();
+const mockGallery = jest.fn();
+const mockToast = jest.fn();
+const mockNavigate = jest.fn();
+const mockDismissAll = jest.fn();
 const layout = { x: 0.1, y: 0.2, width: 0.4, layer: 0, frame: "gilt" };
 const media = { kind: "placeholder", width: 1, height: 1 };
 const mockWall = {
@@ -89,7 +91,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
         : undefined,
   }),
 }));
-jest.mock("../collection/wall-gallery", () => ({
+jest.mock("@/components/collection/wall-gallery", () => ({
   WallGallery: (props: {
     pieces: { localId: string; artwork: { title: string } }[];
     onSelect: (piece: unknown) => void;
@@ -124,6 +126,7 @@ async function openWall() {
     nativeEvent: { layout: { width: 390 } },
   });
 }
+
 it("previews the full visitor wall and reveals only selected notes when opening artwork", async () => {
   await render(<PublicNotesScreen />);
   expect(screen.getByText("An unselected secret")).toBeOnTheScreen();
@@ -148,6 +151,7 @@ it("previews the full visitor wall and reveals only selected notes when opening 
   expect(screen.queryByText("Shared note")).toBeNull();
   expect(mockPublish).not.toHaveBeenCalled();
 });
+
 it("applies unsaved choices in preview, keeps them on return, and publishes only on save", async () => {
   const view = await render(<PublicNotesScreen />);
   await fireEvent.press(screen.getAllByRole("switch", { name: "Show note on public wall" })[1]);

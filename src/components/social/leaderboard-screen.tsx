@@ -1,24 +1,26 @@
-import { AppleSignInAction } from "../account/apple-sign-in-action";
-import { useAccount } from "@/lib/account/use-account";
-import { EmptyState } from "../empty-state";
-import { EmptyPodium } from "../empty-state-art";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { AppleSignInAction } from "@/components/account/apple-sign-in-action";
+import { ChoiceMenu } from "@/components/choice-menu";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { EmptyState } from "@/components/empty-state";
+import { EmptyPodium } from "@/components/empty-state-art";
+import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { useAccount } from "@/lib/account/use-account";
 import { useLeaderboardChoice, type LeaderboardChoice } from "@/lib/social/use-leaderboard-choice";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { GalleryButton } from "../collection/gallery-button";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
-import { ChoiceMenu } from "../choice-menu";
+
+import { api } from "../../../convex/_generated/api";
 import { LeaderboardParticipation } from "./leaderboard-participation";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
-import { ListSkeleton } from "@/components/loading-skeleton";
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
@@ -35,7 +37,9 @@ export function LeaderboardScreen() {
     if (guest) {
       setParticipationOpen(false);
       router.push(session.status === "signed-out" ? signInRoute("leaderboards") : "/create-profile");
-    } else setParticipationOpen(true);
+    } else {
+      setParticipationOpen(true);
+    }
   }
   const rows = board.data?.rows ?? [];
   const visibility = board.data?.visibility ?? "off";
@@ -183,9 +187,11 @@ export function LeaderboardScreen() {
                 variant="filled"
                 fullWidth
                 onPress={() => {
-                  if (audience === "friends") router.push("/people");
-                  else if (metric === "visits") router.push("/visit-create");
-                  else {
+                  if (audience === "friends") {
+                    router.push("/people");
+                  } else if (metric === "visits") {
+                    router.push("/visit-create");
+                  } else {
                     router.dismissAll();
                     router.navigate("/scan");
                   }

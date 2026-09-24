@@ -2,8 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
+
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+
 import { CollectionVisits } from "./collection-visits";
+
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
 }));
@@ -24,7 +27,7 @@ jest.mock("./visit-globe", () => ({
 jest.mock("@/lib/journal/use-visit-view", () => ({
   useVisitView: () => ({ mode: mockMode, changeMode: jest.fn() }),
 }));
-jest.mock("../collection/saved-work-image", () => ({
+jest.mock("@/components/collection/saved-work-image", () => ({
   SavedWorkImage: () => null,
 }));
 const visit = {
@@ -60,6 +63,7 @@ it.each(["list", "globe"] as const)(
     expect(router.push).toHaveBeenCalledWith("/visit-create");
   },
 );
+
 it("keeps the search field mounted through too-short, unmatched and matched queries", async () => {
   const view = await render(<CollectionVisits {...props} search="" />);
   const field = screen.getByLabelText("Search your visits");
@@ -69,6 +73,7 @@ it("keeps the search field mounted through too-short, unmatched and matched quer
   }
   expect(screen.getByText("Museum")).toBeOnTheScreen();
 });
+
 it("keeps the collection header and view controls mounted when switching between list and globe", async () => {
   const mounted = jest.fn();
   const unmounted = jest.fn();
@@ -90,6 +95,7 @@ it("keeps the collection header and view controls mounted when switching between
   }
   expect(screen.getByText("Globe canvas")).toBeOnTheScreen();
 });
+
 it("shows loading instead of the globe until the view preference is read", async () => {
   mockMode = undefined;
   await render(<CollectionVisits {...props} search="" />);

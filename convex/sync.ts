@@ -1,14 +1,15 @@
 import { ConvexError, v } from "convex/values";
+
 import { journalSave, journalVisit, validateBatch } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
+import { journalVenue, type JournalVenue } from "../shared/journal/venue";
 import type { Doc } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { upsertJournalSave, upsertJournalVisit } from "./lib/journal";
+import { projectJournalVenue } from "./lib/journalVenue";
 import { requireJournalOwner } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";
 import schema from "./schema";
-import { journalVenue, type JournalVenue } from "../shared/journal/venue";
-import { projectJournalVenue } from "./lib/journalVenue";
 
 const ack = v.object({
   localId: v.string(),
@@ -43,8 +44,8 @@ export const syncJournal = mutation({
     if (args.since > (state?.version ?? 0)) {
       throw new ConvexError({ code: "invalid_sync" });
     }
-    const acceptedVisits = [],
-      acceptedSaves = [];
+    const acceptedVisits = [];
+    const acceptedSaves = [];
     for (const input of args.visits) {
       const row = await upsertJournalVisit(ctx, owner, device._id, input);
       acceptedVisits.push({
@@ -75,21 +76,21 @@ export const syncJournal = mutation({
       ...visitChanges.map((row) => ({ kind: "visit" as const, row })),
       ...saveChanges.map((row) => ({ kind: "save" as const, row })),
     ].sort((a, b) => a.row.changeVersion - b.row.changeVersion);
-    const visits: Doc<"visits">[] = [],
-      saves: Doc<"collections">[] = [];
+    const visits: Doc<"visits">[] = [];
+    const saves: Doc<"collections">[] = [];
     const venues = new Map<string, JournalVenue>();
-    let bytes = utf8Bytes({ acceptedVisits, acceptedSaves }),
-      checkpoint = args.since,
-      processed = 0;
+    let bytes = utf8Bytes({ acceptedVisits, acceptedSaves });
+    let checkpoint = args.since;
+    let processed = 0;
     for (const change of changes) {
       const parent =
         change.kind === "save" && change.row.visitId && !visits.some((v) => v._id === change.row.visitId)
-          ? await ctx.db.get(change.row.visitId)
+          ? await ctx.db.get("visits", change.row.visitId)
           : null;
       const alreadyAdded = change.kind === "visit" && visits.some((v) => v._id === change.row._id);
       const records = (alreadyAdded ? 0 : 1) + (parent ? 1 : 0);
-      const venueId = change.row.venueId;
-      const museum = venueId && !venues.has(venueId) ? await ctx.db.get(venueId) : null;
+      const { venueId } = change.row;
+      const museum = venueId && !venues.has(venueId) ? await ctx.db.get("museums", venueId) : null;
       const venue = museum ? projectJournalVenue(museum) : null;
       const size =
         (alreadyAdded ? 0 : utf8Bytes(change.row)) + (parent ? utf8Bytes(parent) : 0) + (venue ? utf8Bytes(venue) : 0);
@@ -104,7 +105,9 @@ export const syncJournal = mutation({
       if (venue) venues.set(venue.id, venue);
       if (change.kind === "visit") {
         if (!alreadyAdded) visits.push(change.row);
-      } else saves.push(change.row);
+      } else {
+        saves.push(change.row);
+      }
       bytes += size;
       checkpoint = change.row.changeVersion;
       processed++;

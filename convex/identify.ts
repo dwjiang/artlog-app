@@ -1,10 +1,10 @@
-import { withErrorReporting } from "./lib/observability";
 import { ConvexError, type Infer, v } from "convex/values";
 
-import { sameOwner } from "../shared/journal/contracts";
-import { ownerForDevice } from "./lib/ownership";
-import model from "../shared/model/model-version.json";
 import { placementProposalPayload } from "../shared/attestation/attested-payloads";
+import { sameOwner } from "../shared/journal/contracts";
+import model from "../shared/model/model-version.json";
+import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/orb/features";
+import type { VerifyResult } from "../shared/orb/verify";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalQuery, mutation, type ActionCtx } from "./_generated/server";
@@ -14,17 +14,17 @@ import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
-import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
-import { loadOrb } from "./lib/orbStorage";
 import { isSupported, validateVector } from "./lib/modelVersion";
-import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/orb/features";
-import type { VerifyResult } from "../shared/orb/verify";
+import { withErrorReporting } from "./lib/observability";
+import { loadOrb } from "./lib/orbStorage";
+import { ownerForDevice } from "./lib/ownership";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
-import { proposePlacementFromScan } from "./placements";
-import { scanDisplay, type ScanDisplay } from "./scans";
-import { readEmbedding } from "./scanEmbeddings";
+import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { embedding } from "./lib/validators";
+import { proposePlacementFromScan } from "./placements";
+import { readEmbedding } from "./scanEmbeddings";
+import { scanDisplay, type ScanDisplay } from "./scans";
 import schema from "./schema";
 
 const loadedCandidate = v.object({
@@ -62,9 +62,9 @@ export const loadCandidates = internalQuery({
         .withIndex("by_embeddingId", (q) => q.eq("embeddingId", embeddingIds[i]))
         .unique();
       if (!vector || !(await eligibleVector(ctx, vector))) continue;
-      let object = await ctx.db.get(vector.objectId);
+      let object = await ctx.db.get("objects", vector.objectId);
       if (!object || object.reverted) continue;
-      if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
+      if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
       if (!object || !(await eligibleObject(ctx, object, venueId))) continue;
       const previous = byObject.get(object._id);
       if (!previous || scores[i] > previous.similarity) {
@@ -75,12 +75,12 @@ export const loadCandidates = internalQuery({
     const candidates: LoadedCandidate[] = [];
     for (const { object, similarity } of ranked) {
       const [artwork, descriptors, owner] = await Promise.all([
-        ctx.db.get(object.artworkId),
+        ctx.db.get("artworks", object.artworkId),
         ctx.db
           .query("descriptors")
           .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
           .unique(),
-        object.ownerId ? ctx.db.get(object.ownerId) : null,
+        object.ownerId ? ctx.db.get("museums", object.ownerId) : null,
       ]);
       if (!artwork) continue;
       const placement = await loadCurrentPlacement(ctx, object._id, now);
@@ -107,11 +107,11 @@ export const loadContext = internalQuery({
   args: { scanId: v.id("scans") },
   returns: v.object({ visit: v.union(schema.doc("visits"), v.null()), vector: embedding }),
   handler: async (ctx, { scanId }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
     const [visit, device, vector] = await Promise.all([
-      scan.visitId ? ctx.db.get(scan.visitId) : null,
-      ctx.db.get(scan.deviceId),
+      scan.visitId ? ctx.db.get("visits", scan.visitId) : null,
+      ctx.db.get("devices", scan.deviceId),
       readEmbedding(ctx, scan.embeddingId),
     ]);
     if (!device || device.banned) {
@@ -140,7 +140,7 @@ export const proposeFromScan = mutation({
       ...args,
       payload: placementProposalPayload(args.scanId),
     });
-    const scan = await ctx.db.get(args.scanId);
+    const scan = await ctx.db.get("scans", args.scanId);
     if (
       !scan
       || scan.deviceId !== device._id

@@ -1,16 +1,16 @@
-import { LoadingRing } from "@/components/loading-ring";
 import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, disabled, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
+import { readPhotoSession } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
-import { readPhotoSession } from "@/lib/capture/photo-draft";
 
 export const RETRY_ROW = "Retry scan";
 

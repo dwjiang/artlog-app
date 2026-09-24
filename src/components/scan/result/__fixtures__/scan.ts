@@ -1,5 +1,6 @@
-import type { Id } from "../../../../../convex/_generated/dataModel";
 import type { ResultCandidate, ScanResult } from "@/lib/result/state";
+
+import type { Id } from "../../../../../convex/_generated/dataModel";
 
 export const SCAN_ID = "scan-1" as Id<"scans">;
 

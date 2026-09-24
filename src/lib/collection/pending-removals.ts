@@ -1,7 +1,8 @@
-import { addBreadcrumb, reportError } from "@/lib/observability";
 import { useSyncExternalStore } from "react";
 import { AppState } from "react-native";
+
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
+import { addBreadcrumb, reportError } from "@/lib/observability";
 
 type Removal = {
   owner: string;

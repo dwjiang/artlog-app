@@ -101,7 +101,7 @@ async function fixture(region: string | null = "sf-bay-area") {
       deviceId,
       ...overrides,
     });
-  const scan = (id: Id<"scans"> = scanId) => t.run((ctx) => ctx.db.get(id));
+  const scan = (id: Id<"scans"> = scanId) => t.run((ctx) => ctx.db.get("scans", id));
   const rows = () => t.run((ctx) => ctx.db.query("artistContext").collect());
   const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   return { t, deviceId, venueId, scanId, run, scan, rows, spend };

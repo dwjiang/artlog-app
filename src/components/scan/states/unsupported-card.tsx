@@ -1,11 +1,12 @@
-import { reportError } from "@/lib/observability";
 import { useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 
-import { SaveAnywayForm, type SaveAnywayFormProps } from "./save-anyway-form";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
+
+import { SaveAnywayForm, type SaveAnywayFormProps } from "./save-anyway-form";
 
 // Product voice: an older client's scans wait for the update, which re-embeds the kept crop locally.
 export const UPDATE_TITLE = "Update required.";

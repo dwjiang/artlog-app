@@ -1,11 +1,3 @@
-import { reportError } from "@/lib/observability";
-import { SavedWorkImage } from "../collection/saved-work-image";
-import { LoadingRing } from "@/components/loading-ring";
-import { LoadingImage } from "@/components/loading-image";
-import { checkAlbumPhoto } from "@/lib/capture/check-album-photo";
-import { getSavedWork, listSavedWorks } from "@/db/repos/saved-works";
-import { getPendingScan } from "@/db/repos/pending-scans";
-import { getVisit } from "@/db/repos/visits";
 import { randomUUID } from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -13,9 +5,22 @@ import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { LoadingImage } from "@/components/loading-image";
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+import { saveArtworkSession } from "@/db/repos/artwork-album";
+import { getPendingScan } from "@/db/repos/pending-scans";
+import { getSavedWork, listSavedWorks } from "@/db/repos/saved-works";
+import { getVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
+import { removePhotoFile } from "@/lib/account/photo-transfer";
+import { checkAlbumPhoto } from "@/lib/capture/check-album-photo";
+import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import { extractCaptureMeta } from "@/lib/capture/exif";
 import {
   clearPhotoDraft,
@@ -25,21 +30,18 @@ import {
   type DraftPhoto,
 } from "@/lib/capture/photo-draft";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
-import { visitForSave } from "@/lib/venue/use-venue";
 import { keepPhotos, shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { captureFileUri, persistArtworkPhoto } from "@/lib/files/photos";
-import { removePhotoFile } from "@/lib/account/photo-transfer";
-import { saveArtworkSession } from "@/db/repos/artwork-album";
-import type { PhotoKind } from "@/shared/collection/album";
-import { CaptureContextButton } from "./capture-context-button";
-import { CaptureCompletion } from "./capture-completion";
-import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import { formatVisitDate } from "@/lib/journal/history";
+import { reportError } from "@/lib/observability";
 import { useSaveResult } from "@/lib/result/use-save-result";
-import { ContributionStatus, SHARING_NOTICE } from "./label/label-actions";
+import { visitForSave } from "@/lib/venue/use-venue";
+import type { PhotoKind } from "@/shared/collection/album";
+
 import { CameraPermission } from "./camera-permission";
-import { GalleryButton } from "../collection/gallery-button";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
+import { CaptureCompletion } from "./capture-completion";
+import { CaptureContextButton } from "./capture-context-button";
+import { ContributionStatus, SHARING_NOTICE } from "./label/label-actions";
 
 const MAX_CHECKS_PER_BATCH = 5;
 
@@ -97,12 +99,12 @@ function PhotoSession({
     () => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? "",
   );
   const [removed, setRemoved] = useState<DraftPhoto>();
-  const [operation, setOperation] = useState<"adding" | "saving" | "separating">(),
-    [ready, setReady] = useState(false),
-    [error, setError] = useState<string>();
+  const [operation, setOperation] = useState<"adding" | "saving" | "separating">();
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string>();
   const busy = operation !== undefined;
-  const focused = useIsFocused(),
-    busyRef = useRef(false);
+  const focused = useIsFocused();
+  const busyRef = useRef(false);
   const [appState, setAppState] = useState(AppState.currentState);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", setAppState);
@@ -162,8 +164,8 @@ function PhotoSession({
       let checks = 0;
       for (const { uri, capturedAt } of sources) {
         if (!session.isOwnerCurrent()) return;
-        const localId = randomUUID(),
-          path = await persistArtworkPhoto(source === "library" ? await shrinkLibraryPhoto(uri) : uri, localId);
+        const localId = randomUUID();
+        const path = await persistArtworkPhoto(source === "library" ? await shrinkLibraryPhoto(uri) : uri, localId);
         if (!session.isOwnerCurrent()) return;
         // Each recognition check is a full identify round trip; past the cap, full views wait for the user's confirmation instead.
         const check = kind === "full" && checks < MAX_CHECKS_PER_BATCH;
@@ -226,7 +228,7 @@ function PhotoSession({
     const session = captureOwner();
     try {
       if (savedId) {
-        if (!photos.length) return;
+        if (photos.length === 0) return;
         const selectedVisitId = await sessionVisitId();
         const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
         if (selectedVisitId && !visit) throw new Error("Visit unavailable");

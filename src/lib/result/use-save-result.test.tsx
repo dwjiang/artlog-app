@@ -1,11 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 
+import { formStateFromFlow } from "@/lib/label/fields";
+import { shareSavedLabel } from "@/lib/label/share-saved-label";
+import { reportError } from "@/lib/observability";
+
 import type { Id } from "../../../convex/_generated/dataModel";
-import { formStateFromFlow } from "../label/fields";
-import { shareSavedLabel } from "../label/share-saved-label";
 import { saveResult } from "./save";
 import { useSaveResult } from "./use-save-result";
-import { reportError } from "@/lib/observability";
 
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -20,7 +21,7 @@ jest.mock("./save", () => ({
   saveResult: jest.fn(),
   saveErrorMessage: () => "Couldn’t save. Try again.",
 }));
-jest.mock("../label/share-saved-label", () => ({ shareSavedLabel: jest.fn() }));
+jest.mock("@/lib/label/share-saved-label", () => ({ shareSavedLabel: jest.fn() }));
 
 const capture = {
   localId: "capture",

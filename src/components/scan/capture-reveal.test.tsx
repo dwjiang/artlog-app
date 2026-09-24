@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ImageRef } from "expo-image-manipulator";
+
 import type { CapturePresentation } from "@/lib/capture/use-capture";
+
 import {
   CaptureReveal,
   CROSSFADE_MS,
@@ -79,10 +81,10 @@ it.each([false, true])("finishes once after the reveal, with a crossfade for red
     reduced ? [0, CROSSFADE_MS] : [HIGHLIGHT_MS, STRAIGHTEN_MS, SHINE_MS],
   );
   expect(complete).not.toHaveBeenCalled();
-  if (!reduced) {
-    await act(() => mockAnimations.find((animation) => animation.duration === STRAIGHTEN_MS)!.finish!(true));
-    expect(complete).not.toHaveBeenCalled();
+  for (const animation of mockAnimations.slice(0, -1)) {
+    await act(() => animation.finish?.(true));
   }
+  expect(complete).not.toHaveBeenCalled();
   await act(() => mockAnimations.at(-1)!.finish!(true));
   await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
   await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));

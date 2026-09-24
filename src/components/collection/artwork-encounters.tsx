@@ -1,18 +1,20 @@
-import { reportError } from "@/lib/observability";
-import { EmptyState } from "../empty-state";
-import { LoadingRing } from "../loading-ring";
-import { ThemedText as Text } from "@/components/themed-text";
-import { Image } from "expo-image";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+
+import { EmptyState } from "@/components/empty-state";
+import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { listVisits } from "@/db/repos/visits";
 import type { SavedWork } from "@/db/schema";
 import { formatVisitDate } from "@/lib/journal/history";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
+
 import { GalleryButton } from "./gallery-button";
 import { NoteHeading } from "./note-editor";
 
@@ -59,9 +61,9 @@ export function useArtworkEncounters(work: SavedWork) {
 type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
-  const [editing, setEditing] = useState(false),
-    [note, setNote] = useState(""),
-    [error, setError] = useState<string>();
+  const [editing, setEditing] = useState(false);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string>();
   return (
     <View style={styles.context}>
       <NoteHeading title="Note from this visit">
@@ -177,7 +179,7 @@ export function ArtworkEncounterList({
           />
         </Pressable>
       ))}
-      {!encounters.length
+      {encounters.length === 0
         && (loadError ? (
           <Text accessibilityRole="alert" style={styles.caption}>
             Visits couldn’t load. Close and reopen this artwork to try again.

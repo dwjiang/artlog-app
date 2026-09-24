@@ -66,7 +66,7 @@ async function pendingPage(
         continue;
       }
       seen.add(object.artworkId);
-      const artwork = await ctx.db.get(object.artworkId);
+      const artwork = await ctx.db.get("artworks", object.artworkId);
       if (artwork && claimable(artwork, now)) artworks.push(artwork);
     }
     return {
@@ -107,7 +107,7 @@ export const claimBatch = internalMutation({
         enrichClaimedAt: Date.now(),
         enrichGeneration: (artwork.enrichGeneration ?? 0) + 1,
       };
-      await ctx.db.patch(artwork._id, fields);
+      await ctx.db.patch("artworks", artwork._id, fields);
       artworks.push({ ...artwork, ...fields });
     }
     return { artworks, after: page.after };
@@ -136,8 +136,8 @@ export const lookup = internalQuery({
       .query("objects")
       .withIndex("by_key", (q) => q.eq("key", key))
       .unique();
-    return object && object.identityStatus === "established" && !object.reverted && !object.mergedInto
-      ? ctx.db.get(object.artworkId)
+    return object?.identityStatus === "established" && !object.reverted && !object.mergedInto
+      ? ctx.db.get("artworks", object.artworkId)
       : null;
   },
 });
@@ -146,9 +146,9 @@ export const releaseClaim = internalMutation({
   args: { artworkId: v.id("artworks"), generation: v.number() },
   returns: v.null(),
   handler: async (ctx, { artworkId, generation }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     if (artwork?.enrichGeneration === generation) {
-      await ctx.db.patch(artworkId, { enrichClaimedAt: undefined });
+      await ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined });
     }
     return null;
   },

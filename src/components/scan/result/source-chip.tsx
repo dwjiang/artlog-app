@@ -1,10 +1,10 @@
 import { openBrowserAsync } from "expo-web-browser";
-import { reportError } from "@/lib/observability";
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 
 /** A tappable citation that opens the source's page in the in-app browser. */
 export function SourceLink({

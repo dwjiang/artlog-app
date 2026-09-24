@@ -14,8 +14,9 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { type ComponentProps, useEffect } from "react";
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+
 import { LoadingRing } from "@/components/loading-ring";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 
 export function GalleryButton({
   label,

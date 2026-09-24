@@ -1,7 +1,9 @@
 import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { fetch } from "expo/fetch";
+
 import { validateGuide } from "@/shared/audio/guide";
+
 import type { DocentSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
 
@@ -29,13 +31,13 @@ export function createNarrationRenderer(generate: Generate) {
       const request = new AbortController();
       pending = request;
       const factIds = new Set(track.work.facts.map((fact) => fact.id));
-      const opening = track.work.opening;
+      const { opening } = track.work;
       const directory = cacheDirectory();
       directory.create({ intermediates: true, idempotent: true });
       const local = (renderId: string): Rendered | undefined => {
         const file = new File(directory, `${renderId}.mp3`);
         const transcript = new File(directory, `${renderId}.json`);
-        if (!file.exists || !file.size || !transcript.exists) return undefined;
+        if (!file.exists || file.size === 0 || !transcript.exists) return undefined;
         try {
           const sentences = validateGuide(JSON.parse(transcript.textSync()), factIds, opening);
           return sentences ? { uri: file.uri, sentences, renderId } : undefined;
@@ -61,7 +63,7 @@ export function createNarrationRenderer(generate: Generate) {
         if (!response.ok) throw new Error("Narration download failed.");
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (request.signal.aborted) throw new Error("Narration cancelled.");
-        if (!bytes.length) throw new Error("Narration audio is empty.");
+        if (bytes.length === 0) throw new Error("Narration audio is empty.");
         partial.write(bytes);
         if (file.exists) file.delete();
         await partial.move(file);

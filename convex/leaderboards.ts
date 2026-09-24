@@ -1,9 +1,10 @@
 import { v } from "convex/values";
-import { leaderboardMetric, leaderboardVisibility, rankScores } from "../shared/social/leaderboard";
+
 import { publicProfile } from "../shared/social/contracts";
+import { leaderboardMetric, leaderboardVisibility, rankScores } from "../shared/social/leaderboard";
 import { mutation, query } from "./_generated/server";
-import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { acceptedRelationships, findBlock } from "./lib/friendships";
+import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
 export const preference = query({
@@ -16,7 +17,7 @@ export const setPreference = mutation({
   returns: v.null(),
   handler: async (ctx, { visibility }) => {
     const { profile } = await requireProfile(ctx);
-    await ctx.db.patch(profile._id, {
+    await ctx.db.patch("profiles", profile._id, {
       leaderboardVisibility: visibility,
       updatedAt: Date.now(),
     });
@@ -63,7 +64,7 @@ export const list = query({
         !person.active
         || person.removal
         || person.leaderboardVisibility === "off"
-        || !(await ctx.db.get(person.accountId))
+        || !(await ctx.db.get("accounts", person.accountId))
       ) {
         continue;
       }

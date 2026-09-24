@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { db } from "../client";
-import { artworkPhotos, savedWorks } from "../schema";
+
+import { db } from "@/db/client";
+import { artworkPhotos, savedWorks } from "@/db/schema";
 
 /** Storage maintenance covers all journals on this installation, including saves interrupted before resizing. */
 export function listKeptPhotos() {

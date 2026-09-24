@@ -1,8 +1,9 @@
 import type { CapturePayload } from "@/lib/capture/stages";
-import type { MuseumEntry } from "@/shared/offline/types";
-import { museumDownloads, readEntries } from "./storage";
-import type { LocalPackage } from "./model";
 import { rankEntries, recognizeEntries } from "@/shared/offline/recognition";
+import type { MuseumEntry } from "@/shared/offline/types";
+
+import type { LocalPackage } from "./model";
+import { museumDownloads, readEntries } from "./storage";
 
 export async function identifyOffline(
   payload: Pick<CapturePayload, "vector" | "descriptors" | "keypoints" | "modelVersion" | "venueId">,

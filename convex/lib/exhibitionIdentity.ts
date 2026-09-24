@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import { parse, type DefaultTreeAdapterTypes } from "parse5";
 
 import { internal } from "../_generated/api";
-import type { ActionCtx } from "../_generated/server";
+import { env, type ActionCtx } from "../_generated/server";
 import { jsonLdText, jsonLdUrls, type PageFields } from "./pageExtract";
 import { normalizeText } from "./textMatch";
 import { chatJson } from "./tokenFactory";
@@ -15,7 +15,7 @@ type Evidence = { fields?: PageFields; caption?: string };
 function elements(root: Node): Element[] {
   const result: Element[] = [];
   const pending = [root];
-  while (pending.length) {
+  while (pending.length > 0) {
     const node = pending.pop()!;
     if ("tagName" in node) result.push(node);
     if ("childNodes" in node) pending.push(...node.childNodes.toReversed());
@@ -30,7 +30,7 @@ function attribute(element: Element, name: string): string | undefined {
 function nodeText(root: Node): string {
   const pending = [root];
   const parts: string[] = [];
-  while (pending.length) {
+  while (pending.length > 0) {
     const node = pending.pop()!;
     if ("tagName" in node && ["script", "style", "noscript"].includes(node.tagName)) {
       continue;
@@ -38,7 +38,7 @@ function nodeText(root: Node): string {
     if ("value" in node) parts.push(node.value);
     if ("childNodes" in node) pending.push(...node.childNodes.toReversed());
   }
-  return parts.join("").replace(/\s+/g, " ").trim();
+  return parts.join("").replaceAll(/\s+/g, " ").trim();
 }
 
 function imageKey(value: string, pageUrl: string): string | null {
@@ -66,7 +66,7 @@ export function artworkImageEvidence(html: string, pageUrl: string, imageUrl: st
       continue;
     }
     const pending = [json];
-    while (pending.length) {
+    while (pending.length > 0) {
       const value = pending.pop();
       if (Array.isArray(value)) {
         pending.push(...value);
@@ -97,7 +97,7 @@ export function artworkImageEvidence(html: string, pageUrl: string, imageUrl: st
       works.push(Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)));
     }
   }
-  if (works.length) {
+  if (works.length > 0) {
     const identities = new Set(works.map((fields) => JSON.stringify(fields)));
     return identities.size === 1 ? { fields: works[0] } : {};
   }
@@ -164,7 +164,7 @@ export async function resolveExhibitionIdentity(
   const page = await fetchVenuePage(input.sourceUrl, input.hosts);
   const evidence = artworkImageEvidence(page.html, page.url, input.imageUrl);
   if (evidence.fields) return evidence.fields;
-  const model = process.env.DOCENT_MODEL;
+  const model = env.DOCENT_MODEL;
   if (!evidence.caption || !model) return null;
   const day = await ctx.runMutation(internal.spend.reserve, {
     kind: "tokenFactory",

@@ -1,6 +1,7 @@
-import { researchKey, trackKey, type ListeningTrack } from "./narration";
-import { convexErrorCode } from "../network-error";
+import { convexErrorCode } from "@/lib/network-error";
+
 import type { DocentSentence } from "../../../convex/lib/validators";
+import { researchKey, trackKey, type ListeningTrack } from "./narration";
 
 function preparationError(error: unknown) {
   switch (convexErrorCode(error)) {
@@ -114,7 +115,7 @@ export class ListeningController {
     }
   }
   async play(track: ListeningTrack, autoplay = true, waiting = false) {
-    if (!track.work.facts.length) return;
+    if (track.work.facts.length === 0) return;
     this.remember();
     this.release();
     const generation = ++this.generation;
@@ -141,9 +142,9 @@ export class ListeningController {
       const player = this.dependencies.create(rendered.uri);
       this.player = player;
       player.setPlaybackRate(this.state.rate);
-      let starting = false,
-        started = false,
-        finished = false;
+      let starting = false;
+      let started = false;
+      let finished = false;
       this.loadTimeout = setTimeout(() => {
         if (generation === this.generation && !started) {
           this.fail("Audio couldn’t load. Tap Retry.");
@@ -234,7 +235,7 @@ export class ListeningController {
   };
   seek = async (position: number) => {
     if (this.state.phase !== "ready" || !Number.isFinite(position)) return;
-    const generation = this.generation;
+    const { generation } = this;
     const next = Math.max(0, Math.min(this.state.duration, position));
     try {
       await this.player?.seekTo(next);
@@ -267,9 +268,9 @@ export class ListeningController {
       queue: this.state.queue.filter((track) => trackKey(track) !== key),
     });
   move = (key: string, offset: number) => {
-    const queue = [...this.state.queue],
-      from = queue.findIndex((track) => trackKey(track) === key),
-      to = from + offset;
+    const queue = [...this.state.queue];
+    const from = queue.findIndex((track) => trackKey(track) === key);
+    const to = from + offset;
     if (from < 0 || to < 0 || to >= queue.length) return;
     [queue[from], queue[to]] = [queue[to], queue[from]];
     this.update({ queue });

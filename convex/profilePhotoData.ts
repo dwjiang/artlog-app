@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+
 import { normalizeSearch } from "../shared/journal/limits";
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internalMutation, internalQuery } from "./_generated/server";
@@ -26,7 +27,7 @@ export const save = internalMutation({
     }
     const fields = validateProfile(input);
     const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
-    await ctx.db.patch(profile._id, {
+    await ctx.db.patch("profiles", profile._id, {
       ...fields,
       photoStorageId,
       searchText: normalizeSearch(`${profile.username} ${fields.name}`),

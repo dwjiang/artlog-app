@@ -30,6 +30,27 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly APPLE_BUNDLE_ID: string | undefined;
+  readonly APP_ATTEST_ALLOW_DEV: string | undefined;
+  readonly APP_ATTEST_APP_ID: string | undefined;
+  readonly APP_ATTEST_REQUIRED: string | undefined;
+  readonly CRAWLER_CONTACT: string | undefined;
+  readonly DAILY_TAVILY_CREDIT_CAP: string | undefined;
+  readonly DAILY_TOKEN_FACTORY_CALL_CAP: string | undefined;
+  readonly DOCENT_MODEL: string | undefined;
+  readonly FACT_SHEET_MODEL: string | undefined;
+  readonly FLAG_LABEL_FLOW: string | undefined;
+  readonly FLAG_MUSEUM_SEARCH: string | undefined;
+  readonly FLAG_RIGHT_NOW: string | undefined;
+  readonly LABEL_MODEL: string | undefined;
+  readonly MODERATION_BLOCKLIST: string | undefined;
+  readonly MODERATION_MODEL: string | undefined;
+  readonly NEBIUS_API_KEY: string | undefined;
+  readonly OPENAI_API_KEY: string | undefined;
+  readonly SENTRY_DSN: string | undefined;
+  readonly SENTRY_ENVIRONMENT: string | undefined;
+  readonly SUPPORTED_MODEL_VERSIONS: string | undefined;
+  readonly TAVILY_API_KEY: string | undefined;
 };
 
 /**

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { WelcomeScreen } from "./welcome-screen";
 
-const mockBack = jest.fn(),
-  mockReplace = jest.fn();
+const mockBack = jest.fn();
+const mockReplace = jest.fn();
 jest.mock("expo-router", () => ({
   useRouter: () => ({ back: mockBack, replace: mockReplace }),
 }));

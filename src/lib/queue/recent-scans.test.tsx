@@ -1,13 +1,15 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import * as SQLite from "expo-sqlite";
+
 import { db } from "@/db/client";
-import { artworkPhotos, pendingScans, savedWorks } from "@/db/schema";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
 import { enqueuePendingScan } from "@/db/repos/pending-scans";
+import { artworkPhotos, pendingScans, savedWorks } from "@/db/schema";
+
 import { useQueue } from "./use-queue";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: false }),

@@ -1,6 +1,7 @@
-import { reportError } from "@/lib/observability";
 import type { ImageRef } from "expo-image-manipulator";
+
 import { loadLocalImage } from "@/lib/files/local-image";
+import { reportError } from "@/lib/observability";
 
 export const PRESENTATION_LOAD_TIMEOUT_MS = 1500;
 

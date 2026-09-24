@@ -1,38 +1,22 @@
-import { reportError } from "@/lib/observability";
-import { retryPendingScan } from "@/lib/queue/queue";
-import { ScanCropEditor } from "./scan-crop-editor";
-import { LoadingRing } from "@/components/loading-ring";
-import { SearchConsentSheet } from "./result/search-consent-sheet";
 import { useConvex } from "convex/react";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
-import { isLabelCapture } from "@/lib/capture/photo-draft";
-import { useLocalOwner } from "@/lib/account/owner-store";
-
-import type { Id } from "../../../convex/_generated/dataModel";
-
-import { LocalScanScreen } from "./local-scan-screen";
-import { CaptureCompletion } from "./capture-completion";
-import { CaptureContextButton } from "./capture-context-button";
-import { CardHeader } from "./result/card-header";
-import { ResultCard } from "./result/result-card";
-import { LABEL_BUTTON } from "./result/save-bar";
-import { MuseumSearchSection } from "./result/museum-search-section";
-import { NotRightSheet } from "./result/not-right-sheet";
-import { FailedCard } from "./states/failed-card";
-import { SaveAnywayForm } from "./states/save-anyway-form";
-import { UnsupportedCard } from "./states/unsupported-card";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { Colors, Spacing } from "@/constants/theme";
 import { markFailed, selectCaptureForScan } from "@/db/repos/pending-scans";
 import { useScreenActive } from "@/hooks/use-screen-active";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { useMuseumSearch } from "@/lib/museum-search/use-museum-search";
+import { reportError } from "@/lib/observability";
+import { retryPendingScan } from "@/lib/queue/queue";
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from "@/lib/result/feedback";
 import { draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import {
@@ -43,6 +27,21 @@ import {
 } from "@/lib/result/state";
 import { useSaveResult } from "@/lib/result/use-save-result";
 import { useScan } from "@/lib/result/use-scan";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { CaptureCompletion } from "./capture-completion";
+import { CaptureContextButton } from "./capture-context-button";
+import { LocalScanScreen } from "./local-scan-screen";
+import { CardHeader } from "./result/card-header";
+import { MuseumSearchSection } from "./result/museum-search-section";
+import { NotRightSheet } from "./result/not-right-sheet";
+import { ResultCard } from "./result/result-card";
+import { LABEL_BUTTON } from "./result/save-bar";
+import { SearchConsentSheet } from "./result/search-consent-sheet";
+import { ScanCropEditor } from "./scan-crop-editor";
+import { FailedCard } from "./states/failed-card";
+import { SaveAnywayForm } from "./states/save-anyway-form";
+import { UnsupportedCard } from "./states/unsupported-card";
 
 export type ResultScreenProps = {
   scanId: string;
@@ -122,7 +121,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           },
         },
       ]);
-    } else setEditingCrop(true);
+    } else {
+      setEditingCrop(true);
+    }
   }
 
   function openLabel() {
@@ -133,7 +134,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   }
 
   function notRight() {
-    const primary = view.primary;
+    const { primary } = view;
     if (!primary) return;
     setSelection((current) => ({
       ...current,

@@ -1,10 +1,11 @@
 import { ConvexError } from "convex/values";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-import type { MuseumSearchDisplay } from "../../../convex/lib/validators";
 import { getMuseumSearchConsent } from "@/lib/settings/museum-search";
 import { encodeOrbFeatures } from "@/shared/orb/features";
 import { makeSyntheticPair } from "@/shared/orb/test-fixtures";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { MuseumSearchDisplay } from "../../../convex/lib/validators";
 import { candidate, exhibitionCandidates, verified } from "./__fixtures__/search";
 import { museumSearchMessage, runMuseumSearch } from "./flow";
 

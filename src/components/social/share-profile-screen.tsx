@@ -1,27 +1,29 @@
-import { reportError } from "@/lib/observability";
 import { File } from "expo-file-system";
 import { Image } from "expo-image";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
-import * as Sharing from "expo-sharing";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import * as Sharing from "expo-sharing";
+import createQrCode from "qrcode-generator";
 import { useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import createQrCode from "qrcode-generator";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import type { Id } from "../../../convex/_generated/dataModel";
-import { api } from "../../../convex/_generated/api";
-import { GalleryButton } from "../collection/gallery-button";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
+import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import type { PublicProfile } from "@/lib/social/types";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
 
 export function ShareProfileScreen() {
-  const session = useSocialSession(),
-    router = useRouter();
+  const session = useSocialSession();
+  const router = useRouter();
   const { profileId } = useLocalSearchParams<{ profileId?: string }>();
   const profile = useSocialQuery(
     api.profiles.getPublic,
@@ -57,8 +59,8 @@ export function ShareProfileScreen() {
 function ShareProfileContent({ person }: { person: PublicProfile }) {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const sharing = useRef(false);
   const code = useMemo(() => {
     const qr = createQrCode(0, "M");

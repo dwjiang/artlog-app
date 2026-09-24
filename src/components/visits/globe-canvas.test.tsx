@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+
 import { GlobeCanvas } from "./globe-canvas";
 
 let mockImage: object | null = null;
@@ -49,7 +50,7 @@ jest.mock("./use-globe-camera", () => ({
     camera: { get: () => ({ yaw: 0, pitch: 0, zoom: 1 }) },
   }),
 }));
-jest.mock("../loading-ring", () => {
+jest.mock("@/components/loading-ring", () => {
   const { View } = jest.requireActual("react-native");
   return {
     LoadingRing: ({ accessibilityLabel }: { accessibilityLabel: string }) => (

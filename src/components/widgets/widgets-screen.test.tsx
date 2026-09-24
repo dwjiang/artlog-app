@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import type { WidgetSettings } from "@/lib/widgets/widget-settings";
+
 import { WidgetsScreen } from "./widgets-screen";
 
 const mockUpdate = jest.fn();

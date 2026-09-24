@@ -1,13 +1,15 @@
 import { act, render, waitFor } from "@testing-library/react-native";
+
 import { getSetting, removeSetting } from "@/db/repos/settings";
-import { WelcomePrompt } from "./welcome-prompt";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 
-const mockPush = jest.fn(),
-  mockRouter = { push: mockPush };
+import { WelcomePrompt } from "./welcome-prompt";
+
+const mockPush = jest.fn();
+const mockRouter = { push: mockPush };
 let mockActive = true;
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({
   useScreenActive: () => mockActive,
@@ -19,6 +21,7 @@ beforeEach(async () => {
   switchOwner(anonymousOwner());
   await removeSetting("welcome-seen");
 });
+
 it("presents once for a guest before a server session is ready and remembers presentation across remounts", async () => {
   const first = await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
@@ -27,6 +30,7 @@ it("presents once for a guest before a server session is ready and remembers pre
   await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
 });
+
 it("waits for the active Home screen", async () => {
   mockActive = false;
   const view = await render(<WelcomePrompt />);
@@ -35,6 +39,7 @@ it("waits for the active Home screen", async () => {
   await view.rerender(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
 });
+
 it("does not onboard an existing linked account after signing out", async () => {
   switchOwner("account:existing");
   await render(<WelcomePrompt />);

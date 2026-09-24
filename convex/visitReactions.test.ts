@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
-import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { purgeSocialBatch } from "./lib/socialCleanup";
+import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 async function fixture() {
   const t = harness();
@@ -96,14 +97,14 @@ describe("visit reactions", () => {
 
   it("rejects guest writes and invalid comments", async () => {
     const { t, visitor, postId } = await fixture();
-    await expect(t.mutation(api.visitReactions.setLike, { postId, liked: true })).rejects.toThrow();
+    await expect(t.mutation(api.visitReactions.setLike, { postId, liked: true })).rejects.toThrow("unauthenticated");
     await expect(
       t.mutation(api.visitReactions.addComment, {
         postId,
         body: "Hello",
         requestId: crypto.randomUUID(),
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("unauthenticated");
     for (const body of ["  ", "x".repeat(1001)]) {
       await expect(
         visitor.as.mutation(api.visitReactions.addComment, {

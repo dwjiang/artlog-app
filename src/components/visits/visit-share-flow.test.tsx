@@ -1,13 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import type { VisitSummary } from "@/lib/journal/visit-summaries";
+
 import type { ArtworkPhoto } from "@/db/schema";
+import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { dismissToast } from "@/lib/ui/toast";
 import type { useVisitSharing } from "@/lib/visits/use-visit-sharing";
+
 import { VisitShareLayout } from "./visit-share-flow";
-const mockPush = jest.fn(),
-  mockBack = jest.fn(),
-  mockDismiss = jest.fn(),
-  mockReplace = jest.fn();
+
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockDismiss = jest.fn();
+const mockReplace = jest.fn();
 const mockController = {
   load: jest.fn(),
   edit: jest.fn(),
@@ -15,8 +18,8 @@ const mockController = {
   publish: jest.fn(),
   view: jest.fn(),
 };
-const mockCopy = jest.fn(),
-  mockPatchVisit = jest.fn();
+const mockCopy = jest.fn();
+const mockPatchVisit = jest.fn();
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (...args: unknown[]) => mockCopy(...args),
 }));
@@ -55,15 +58,15 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@/lib/visits/use-visit-sharing", () => ({
   useVisitSharing: () => mockSharing,
 }));
-jest.mock("../social/profile-form", () => ({ ProfileForm: () => null }));
-jest.mock("../settings/account-section", () => ({
+jest.mock("@/components/social/profile-form", () => ({ ProfileForm: () => null }));
+jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
 jest.mock("drizzle-orm/expo-sqlite", () => ({
   ...jest.requireActual("drizzle-orm/expo-sqlite"),
   useLiveQuery: () => ({ data: mockPhotos }),
 }));
-jest.mock("../collection/saved-work-image", () => ({
+jest.mock("@/components/collection/saved-work-image", () => ({
   SavedWorkImage: ({ title, path }: { title: string; path: string | null }) => {
     const { Text } = jest.requireActual("react-native");
     return (
@@ -73,7 +76,7 @@ jest.mock("../collection/saved-work-image", () => ({
     );
   },
 }));
-jest.mock("../artwork/display-media", () => ({
+jest.mock("@/components/artwork/display-media", () => ({
   DisplayMedia: ({ label }: { label: string }) => {
     const { Text } = jest.requireActual("react-native");
     return <Text accessibilityRole="image">{label}</Text>;
@@ -155,6 +158,7 @@ beforeEach(() => {
     token: "token",
   } as unknown as ReturnType<typeof useVisitSharing>;
 });
+
 it("shows visual progress before sharing starts and replaces a load failure with retry guidance", async () => {
   mockSharing.draft = null;
   const view = await render(<VisitShareLayout />);
@@ -167,6 +171,7 @@ it("shows visual progress before sharing starts and replaces a load failure with
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   expect(mockController.load).toHaveBeenCalledTimes(2);
 });
+
 it("uses the explicitly selected visit photo in the feed preview, including an explicitly selected label", async () => {
   mockVisit.works[0].cropPath = "private-original.jpg";
   mockPhotos = [
@@ -212,6 +217,7 @@ it("does not use another owner, visit, artwork, deleted, or unselected photo for
   expect(screen.getByText("Water Lilies: no selected photo")).toBeOnTheScreen();
   expect(screen.queryByText("Water Lilies: must-stay-private.jpg")).toBeNull();
 });
+
 it("includes visit notes and offers no separate shared-note editor", async () => {
   mockSharing.draft!.reflection = "A visit memory";
   await render(<VisitShareLayout />);
@@ -222,6 +228,7 @@ it("includes visit notes and offers no separate shared-note editor", async () =>
   await fireEvent.press(screen.getByRole("checkbox", { name: "Share Water Lilies" }));
   expect(mockController.edit).toHaveBeenCalledWith({ saveLocalIds: [] });
 });
+
 it("opens the native preview route only after a successful preview response", async () => {
   mockController.preview.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
   await render(<VisitShareLayout />);
@@ -233,6 +240,7 @@ it("opens the native preview route only after a successful preview response", as
     params: { visitId: "visit" },
   });
 });
+
 it("includes the saved notes without a second writing field", async () => {
   mockSharing.draft!.reflection = "Remember the light";
   await render(<VisitShareLayout />);
@@ -240,6 +248,7 @@ it("includes the saved notes without a second writing field", async () => {
   expect(screen.queryByLabelText("Shared reflection")).toBeNull();
   expect(mockController.publish).not.toHaveBeenCalled();
 });
+
 it("lets an artwork tile change the shared selection without changing the reflection", async () => {
   mockSharing.draft!.reflection = "A visit memory";
   await render(<VisitShareLayout />);
@@ -252,6 +261,7 @@ it("lets an artwork tile change the shared selection without changing the reflec
   expect(screen.getByText("A visit memory")).toBeOnTheScreen();
   expect(screen.getByText("Your private artwork notes are not included.")).toBeOnTheScreen();
 });
+
 it("explains the highlight limit inside the sheet, where the root toast layer is covered", async () => {
   const works = ["a", "b", "c", "d"].map((id) => ({
     localId: id,
@@ -275,6 +285,7 @@ it("explains the highlight limit inside the sheet, where the root toast layer is
     highlightLocalIds: ["a", "b"],
   });
 });
+
 it("renders the server preview in published order and stays on it when publishing fails", async () => {
   mockPage = "preview";
   const media = { kind: "placeholder", width: 1, height: 1 } as const;
@@ -312,6 +323,7 @@ it("renders the server preview in published order and stays on it when publishin
   await fireEvent.press(screen.getByRole("button", { name: "Publish visit" }));
   expect(mockBack).not.toHaveBeenCalled();
 });
+
 it("offers a refreshed preview after revision conflicts", async () => {
   mockPage = "preview";
   mockSharing.conflict = true;
@@ -321,6 +333,7 @@ it("offers a refreshed preview after revision conflicts", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Back to selection" }));
   expect(mockBack).toHaveBeenCalled();
 });
+
 it("reuses profile and sign-in entry points before offering sharing", async () => {
   mockSharing.profileRequired = true;
   const view = await render(<VisitShareLayout />);

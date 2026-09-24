@@ -1,10 +1,19 @@
 import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+
+import { db } from "@/db/client";
+import {
+  artworkEncounters,
+  artworkPhotos,
+  savedWorks,
+  visits,
+  type ArtworkPhoto,
+  type NewSavedWork,
+} from "@/db/schema";
+import { getLocalOwner } from "@/lib/account/owner-store";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+import type { AlbumEncounter, AlbumPhoto } from "@/shared/collection/album";
+
 import type { Doc } from "../../../convex/_generated/dataModel";
-import type { AlbumEncounter, AlbumPhoto } from "../../../shared/collection/album";
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { requestCollectionSync } from "../../lib/account/sync-events";
-import { db } from "../client";
-import { artworkEncounters, artworkPhotos, savedWorks, visits, type ArtworkPhoto } from "../schema";
 
 function requireWork(localId: string, owner: string) {
   const work = db
@@ -82,7 +91,7 @@ export function linkArtworkVisit(savedLocalId: string, visitLocalId: string, own
       ),
     )
     .get();
-  if (existing && existing.deletedAt === null) return;
+  if (existing?.deletedAt === null) return;
   db.insert(artworkEncounters)
     .values({ owner, savedLocalId, visitLocalId })
     .onConflictDoUpdate({
@@ -355,7 +364,7 @@ export function albumMediaPending(
 ): boolean {
   const live = and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.deletedAt));
   if (
-    photoLocalIds.length
+    photoLocalIds.length > 0
     && db
       .select({ localId: artworkPhotos.localId })
       .from(artworkPhotos)
@@ -367,11 +376,11 @@ export function albumMediaPending(
         ),
       )
       .limit(1)
-      .all().length
+      .all().length > 0
   ) {
     return true;
   }
-  if (!saveLocalIds.length) return false;
+  if (saveLocalIds.length === 0) return false;
   return (
     db
       .select({ localId: artworkPhotos.localId })
@@ -423,7 +432,7 @@ export function selectAllArtworkPhotos(owner = getLocalOwner()) {
 
 export function saveArtworkSession(
   savedLocalId: string,
-  newWork: import("../schema").NewSavedWork | undefined,
+  newWork: NewSavedWork | undefined,
   photos: (AlbumPhoto & { path: string })[],
   visitLocalId: string | undefined,
   owner: string,

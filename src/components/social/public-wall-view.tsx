@@ -1,15 +1,16 @@
 import { router } from "expo-router";
-import { GalleryButton } from "../collection/gallery-button";
-import { ArtworkCollage } from "../guest/artwork-preview";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { View } from "react-native";
-import { WallGallery } from "../collection/wall-gallery";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { WallGallery } from "@/components/collection/wall-gallery";
+import { EmptyState } from "@/components/empty-state";
+import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { ThemedText as Text } from "@/components/themed-text";
 import type { PublicProfile, PublicWall } from "@/lib/social/types";
-import { EmptyState } from "../empty-state";
+
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileBio } from "./profile-bio";
-import { ThemedText as Text } from "@/components/themed-text";
 import { socialStyles } from "./social-styles";
 
 export function PublicProfileHeader({
@@ -70,7 +71,7 @@ export function PublicWallView({
   onSelect: (item: PublicWall["items"][number]) => void;
 }) {
   const [width, setWidth] = useState(0);
-  if (!wall.items.length) {
+  if (wall.items.length === 0) {
     return (
       <EmptyState
         title="No artworks on this wall yet."

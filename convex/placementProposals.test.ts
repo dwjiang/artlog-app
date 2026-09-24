@@ -1,13 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import model from "../shared/model/model-version.json";
 import { placementProposalPayload } from "../shared/attestation/attested-payloads";
+import model from "../shared/model/model-version.json";
+import { encodeOrbFeatures } from "../shared/orb/features";
+import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { sha256 } from "./lib/appAttest";
 import { authenticatorData, makeSigner, signAssertion } from "./lib/appAttest.fixtures";
-import { encodeOrbFeatures } from "../shared/orb/features";
-import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { seedArtworkWithObject, seedMuseum, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
@@ -99,7 +99,7 @@ it("verifies scan-bound signatures, rejects nonce replays, and deduplicates fres
   });
   await user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId, 2));
   expect((await t.run((ctx) => ctx.db.query("placementProposals").unique()))?.scanIds).toEqual([scan.scanId]);
-  expect((await t.run((ctx) => ctx.db.get(deviceId)))?.attestCounter).toBe(2);
+  expect((await t.run((ctx) => ctx.db.get("devices", deviceId)))?.attestCounter).toBe(2);
 });
 
 it("rejects substituting another scan into a signed request", async () => {

@@ -1,6 +1,7 @@
+import { bridge, confidentScan, lilies, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
+
 import { buildSnapshot, canSave, draftFromCandidate } from "./snapshot";
 import { toResultViewState } from "./state";
-import { bridge, confidentScan, lilies, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
 
 it("pre-fills the draft from the candidate and leaves an unidentified card blank", () => {
   expect(draftFromCandidate(lilies)).toEqual({

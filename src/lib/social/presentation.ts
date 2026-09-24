@@ -1,4 +1,5 @@
 import { isCalendarDate, LIMITS, normalizeSearch } from "@/shared/journal/limits";
+
 import type { FriendshipAction, Relationship } from "./types";
 
 export function visitDate(value: string, locale?: string, format: "full" | "short" = "full"): string {

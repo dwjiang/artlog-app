@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { NotRightSheet } from "./not-right-sheet";
 import { bridge, haystacks } from "./__fixtures__/scan";
+import { NotRightSheet } from "./not-right-sheet";
 
 const handlers = {
   onDismiss: jest.fn(),

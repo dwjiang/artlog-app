@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { AccessibilityInfo, DeviceEventEmitter, ScrollView } from "react-native";
 import { getFunctionName } from "convex/server";
+import { AccessibilityInfo, DeviceEventEmitter, ScrollView } from "react-native";
+
 import type { SharedArtwork } from "@/lib/social/types";
+
 import { ArtworkScreen } from "./artwork-screen";
 
 const mockQuery = jest.fn();

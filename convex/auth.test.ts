@@ -49,9 +49,9 @@ describe("anonymous installation credentials", () => {
       publicKeySpkiBase64: "verified-key",
       counter: 0,
     });
-    await t.run((ctx) => ctx.db.patch(deviceId, { attestCounter: 7, trustWeight: 0.8, banned }));
-    const original = await t.run((ctx) => ctx.db.get(deviceId));
-    await t.run((ctx) => ctx.db.patch(first.sessionId, { expirationTime: Date.now() - 1 }));
+    await t.run((ctx) => ctx.db.patch("devices", deviceId, { attestCounter: 7, trustWeight: 0.8, banned }));
+    const original = await t.run((ctx) => ctx.db.get("devices", deviceId));
+    await t.run((ctx) => ctx.db.patch("authSessions", first.sessionId, { expirationTime: Date.now() - 1 }));
     const expired = await t.action(api.auth.signIn, {
       refreshToken: first.tokens.refreshToken,
     });
@@ -60,21 +60,18 @@ describe("anonymous installation credentials", () => {
     const renewed = await authenticate(t);
     expect(renewed.userId).toBe(first.userId);
     expect(renewed.sessionId).not.toBe(first.sessionId);
-    const registration = renewed.as.mutation(api.devices.registerDevice, {
-      platform: "ios",
-      appAttestKeyId: "attested-install-key",
-    });
-    if (banned) {
-      await expect(registration).rejects.toMatchObject({
-        data: { code: "device_banned" },
-      });
-    } else {
-      await expect(registration).resolves.toMatchObject({
-        deviceId,
-        attested: true,
-      });
-    }
-    expect(await t.run((ctx) => ctx.db.get(deviceId))).toEqual(original);
+    const [registration] = await Promise.allSettled([
+      renewed.as.mutation(api.devices.registerDevice, {
+        platform: "ios",
+        appAttestKeyId: "attested-install-key",
+      }),
+    ]);
+    expect(registration).toMatchObject(
+      banned
+        ? { status: "rejected", reason: { data: { code: "device_banned" } } }
+        : { status: "fulfilled", value: { deviceId, attested: true } },
+    );
+    expect(await t.run((ctx) => ctx.db.get("devices", deviceId))).toEqual(original);
     expect(await t.run((ctx) => ctx.db.query("devices").collect())).toHaveLength(1);
   });
 

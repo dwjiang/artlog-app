@@ -3,15 +3,17 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
+
+import { ThemedText as Text } from "@/components/themed-text";
+import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { ThemedText as Text } from "../themed-text";
-import { VisitSymbol } from "../visits/visit-ui";
+
+import { api } from "../../../convex/_generated/api";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
 export type ReactionVisit = Pick<SharedVisit, "postId" | "author" | "venue" | "visitedOn"> & {

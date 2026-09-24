@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { SavedWork } from "@/db/schema";
-import type { SavedRecognitionResult } from "../../../convex/savedRecognition";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+import type { SavedWork } from "@/db/schema";
 import {
   acceptSavedRecognition,
   identifySavedArtwork,
   savedRecognitionError,
 } from "@/lib/collection/saved-recognition";
 import { reportError } from "@/lib/observability";
+
+import type { SavedRecognitionResult } from "../../../convex/savedRecognition";
 import { GalleryButton } from "./gallery-button";
 
 type ObjectId = SavedRecognitionResult["candidates"][number]["objectId"];
@@ -79,9 +81,9 @@ export function SavedRecognition({
       {result && (
         <View style={{ gap: Spacing.two }}>
           <Text accessibilityRole="header" variant="section">
-            {result.candidates.length ? "Possible matches" : "No match found yet"}
+            {result.candidates.length > 0 ? "Possible matches" : "No match found yet"}
           </Text>
-          {!result.candidates.length && (
+          {result.candidates.length === 0 && (
             <Text themeColor="textSecondary">Your photo is saved. Try again as more artworks are added.</Text>
           )}
           {result.candidates.map((candidate) => (

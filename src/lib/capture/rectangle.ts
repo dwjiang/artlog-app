@@ -1,5 +1,4 @@
 import type { RectObservation, RectPoint, StillDetection, SubjectObservation } from "../../../modules/vision-rect/src";
-
 import type { Quad } from "./stages";
 
 export const STABLE_WINDOW_MS = 800;
@@ -129,8 +128,8 @@ export function isUsableQuad(quad: Quad): boolean {
   }
   if (quadArea(quad) < 0.01) return false;
   return quad.every(([x, y], i) => {
-    const b = quad[(i + 1) % 4],
-      c = quad[(i + 2) % 4];
+    const b = quad[(i + 1) % 4];
+    const c = quad[(i + 2) % 4];
     return (b[0] - x) * (c[1] - b[1]) - (b[1] - y) * (c[0] - b[0]) > 0;
   });
 }
@@ -219,9 +218,11 @@ export class RectTracker {
     const nested = tracked && near && quadArea(near) < NESTED_AREA_RATIO * quadArea(tracked);
     let captureQuad: Quad | undefined;
     let smoothFrom: Quad | undefined;
-    if (!tracked) captureQuad = largestQuad(candidates);
-    else if (outer) captureQuad = this.retarget(outer);
-    else if (near && !nested) {
+    if (!tracked) {
+      captureQuad = largestQuad(candidates);
+    } else if (outer) {
+      captureQuad = this.retarget(outer);
+    } else if (near && !nested) {
       captureQuad = near;
       smoothFrom = tracked;
     } else if (near && missedFor > MISS_GRACE_MS) {

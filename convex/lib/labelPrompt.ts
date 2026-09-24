@@ -52,7 +52,7 @@ export function labelUser(lines: OcrLine[]): string {
 }
 
 function plainDate(value: string): string {
-  return value.replace(/[\s,.()[\]]/g, "").toLowerCase();
+  return value.replaceAll(/[\s,.()[\]]/g, "").toLowerCase();
 }
 
 /** Labels print "Title, 1969" on one line and the model often keeps the date; drop a tail that is the work date. */
@@ -96,7 +96,7 @@ export function parseLabelReading(value: unknown): LabelReading | null {
     if (entry !== null && typeof entry !== "string") return null;
     reading[key] = entry;
   }
-  const confidence = value.confidence;
+  const { confidence } = value;
   if (!isRecord(confidence) || !hasOnlyKeys(confidence, CONFIDENCE_KEYS)) {
     return null;
   }

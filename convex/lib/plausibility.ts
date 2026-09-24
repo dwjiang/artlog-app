@@ -16,7 +16,7 @@ export function parseYearRange(value: string): YearRange | null {
     if (end < start) end += 100;
     spans.push({ start, end });
   }
-  if (spans.length) {
+  if (spans.length > 0) {
     return {
       start: Math.min(...spans.map((span) => span.start)),
       end: Math.max(...spans.map((span) => span.end)),

@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+
 import { offerProfileSetup, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
+
 import { SignInScreen } from "./sign-in-screen";
 
-const mockBack = jest.fn(),
-  mockReplace = jest.fn(),
-  mockSignIn = jest.fn();
+const mockBack = jest.fn();
+const mockReplace = jest.fn();
+const mockSignIn = jest.fn();
 const mockRouter = { back: mockBack, replace: mockReplace };
 let mockOwner = "device:guest";
 let mockOnline = true;
@@ -61,6 +63,7 @@ beforeEach(() => {
     error: undefined,
   };
 });
+
 it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => {
   await render(<SignInScreen context="wall" />);
   expect(screen.getByRole("header", { name: "Sign in to share your wall" })).toBeOnTheScreen();
@@ -70,6 +73,7 @@ it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => 
   await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
+
 it("keeps sign-in errors retryable and closes only after linking finishes", async () => {
   mockAccount.error = "Couldn’t update your account.";
   const view = await render(<SignInScreen />);
@@ -87,12 +91,14 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   await view.rerender(<SignInScreen />);
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
+
 it("returns to the previous activity when the close button is pressed", async () => {
   await render(<SignInScreen context="friends" />);
   await fireEvent.press(screen.getByRole("button", { name: "Close sign-in" }));
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockSignIn).not.toHaveBeenCalled();
 });
+
 it("waits for the device with a spinner online and explains the wait offline", async () => {
   mockAccount.ready = false;
   const view = await render(<SignInScreen />);
@@ -103,6 +109,7 @@ it("waits for the device with a spinner online and explains the wait offline", a
   expect(screen.getByText("Connect to the internet to sign in.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Not now" })).toBeEnabled();
 });
+
 it("explains unavailable sign-in without preventing dismissal", async () => {
   mockAccount.available = false;
   await render(<SignInScreen />);

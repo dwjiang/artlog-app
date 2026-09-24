@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { ComponentProps, ReactNode } from "react";
 import { Text } from "react-native";
+
 import { CollectionArtworks } from "./collection-artworks";
 
 jest.mock("expo-router", () => ({

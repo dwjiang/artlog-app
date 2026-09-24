@@ -1,14 +1,15 @@
 import { waitFor } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 
+import { clearPhotoDraft, updatePhotoSession } from "@/lib/capture/photo-draft";
+import { handOffLabelRejection } from "@/lib/result/feedback";
+import { contributionPayload } from "@/shared/attestation/attested-payloads";
+
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
-import { contributionPayload } from "../../../shared/attestation/attested-payloads";
-import { clearPhotoDraft, updatePhotoSession } from "@/lib/capture/photo-draft";
 import { contributeLabel, contributionErrorMessage, uploadCrop } from "./contribute";
 import { clearLabelDraft, loadLabelDraft } from "./draft";
 import { formStateFromFlow, setFieldValue, unlockField } from "./fields";
-import { handOffLabelRejection } from "@/lib/result/feedback";
 
 const mockMutation = jest.fn();
 const mockQuery = jest.fn();

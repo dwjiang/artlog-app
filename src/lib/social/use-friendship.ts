@@ -1,16 +1,18 @@
-import { reportError } from "@/lib/observability";
-import { showToast } from "../ui/toast";
 import { ConvexHttpClient } from "convex/browser";
 import { fetch as expoFetch } from "expo/fetch";
 import { useEffect, useRef, useState } from "react";
+
+import { captureOwner } from "@/lib/account/owner-store";
+import { convexErrorCode } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
+import { showToast } from "@/lib/ui/toast";
+import { socialErrorMessage } from "@/shared/social/errors";
+
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { captureOwner } from "../account/owner-store";
-import { convexErrorCode } from "../network-error";
-import { socialErrorMessage } from "@/shared/social/errors";
 import type { FriendshipAction, Relationship } from "./types";
-import type { SocialSession } from "./use-social-session";
 import { useSocialQuery } from "./use-social-query";
+import type { SocialSession } from "./use-social-session";
 
 /** A relationship the caller already holds (a browse page embeds one per row), so no per-person subscription opens. */
 export type RelationshipSource = { data: Relationship; refresh: () => void };

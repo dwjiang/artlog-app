@@ -1,7 +1,9 @@
 import { act, renderHook } from "@testing-library/react-native";
 import type { FunctionReference } from "convex/server";
 import { ConvexError } from "convex/values";
-import { switchOwner } from "../account/owner-store";
+
+import { switchOwner } from "@/lib/account/owner-store";
+
 import { useSocialSession } from "./use-social-session";
 
 let mockReady = true;
@@ -14,7 +16,7 @@ jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isConnected: !mockOffline }),
 }));
-jest.mock("../use-device-ready", () => ({ useDeviceReady: () => mockReady }));
+jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => mockReady }));
 jest.mock("./use-social-query", () => ({
   useSocialQuery: (query: FunctionReference<"query">, args: unknown) => {
     const name = jest.requireActual("convex/server").getFunctionName(query);

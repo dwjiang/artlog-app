@@ -1,5 +1,6 @@
-import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { ConvexError } from "convex/values";
+
+import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { runCapture } from "./pipeline";
 import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from "./stages";
@@ -364,6 +365,7 @@ it("recognizes a persisted offline capture locally without delaying the queued r
   expect(deps.identify).not.toHaveBeenCalled();
   finish();
 });
+
 it("falls back to local recognition after connectivity fails during identification", async () => {
   const deps = dependencies();
   deps.identify.mockRejectedValue(new Error("Network request failed"));
@@ -373,6 +375,7 @@ it("falls back to local recognition after connectivity fails during identificati
   expect(deps.store.requeue).toHaveBeenCalled();
   expect(recognizeOffline).toHaveBeenCalled();
 });
+
 it("retains the reconnect queue if a downloaded package is unavailable", async () => {
   const deps = dependencies();
   deps.isOnline.mockReturnValue(false);

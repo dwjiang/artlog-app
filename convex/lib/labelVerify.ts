@@ -1,5 +1,5 @@
-import { reportBackendError } from "./observability";
 import type { Doc } from "../_generated/dataModel";
+import { reportBackendError } from "./observability";
 import { extractPage, hasArtworkMetadata, type PageFields } from "./pageExtract";
 import type { TavilySearchResponse } from "./tavily";
 import {
@@ -126,7 +126,7 @@ export async function verifyAccession(
   if (extracted.fields.accession && normalizeText(extracted.fields.accession) !== normalizeText(input.accession)) {
     return null;
   }
-  const title = input.title;
+  const { title } = input;
   const titleOk =
     title !== undefined
     && titleQualifiersMatch(title, extracted.fields.title ?? "")
@@ -143,14 +143,14 @@ export type WikidataPair = { paintingId: string; artist: WikidataEntity };
 
 export async function findWikidataPainting(title: string, artist: string): Promise<WikidataPair | null> {
   const hits = await searchEntities(title);
-  if (!hits.length) return null;
+  if (hits.length === 0) return null;
   const entities = await getEntities(hits.map((hit) => hit.id));
   const paintings = hits.flatMap((hit) => {
     const entity = entities[hit.id];
     return entity && isPainting(entity) && titleMatches(title, entityLabel(entity) ?? "") ? [entity] : [];
   });
   const creatorIds = paintings.flatMap(creators);
-  if (!creatorIds.length) return null;
+  if (creatorIds.length === 0) return null;
   const creatorEntities = await getEntities(creatorIds);
   for (const painting of paintings) {
     for (const id of creators(painting)) {
@@ -166,7 +166,7 @@ export async function findWikidataPainting(title: string, artist: string): Promi
 
 export async function findArtist(name: string): Promise<WikidataEntity | null> {
   const hits = await searchEntities(name, 5);
-  if (!hits.length) return null;
+  if (hits.length === 0) return null;
   const entities = await getEntities(hits.map((hit) => hit.id));
   for (const hit of hits) {
     const entity = entities[hit.id];
@@ -184,13 +184,13 @@ export async function venueCountryMatch(
 ): Promise<boolean | undefined> {
   const venueId = venue?.wikidataId;
   const artistCollections = collections(artist);
-  if (!venueId || !artistCollections.length) return undefined;
+  if (!venueId || artistCollections.length === 0) return undefined;
   if (artistCollections.includes(venueId)) return true;
   const entities = await getEntities([venueId, ...artistCollections]);
   const venueEntity = entities[venueId];
   const venueCountries = venueEntity ? countries(venueEntity) : [];
   const known = artistCollections.flatMap((id) => (entities[id] ? countries(entities[id]) : []));
-  if (!venueCountries.length || !known.length) return undefined;
+  if (venueCountries.length === 0 || known.length === 0) return undefined;
   return known.some((country) => venueCountries.includes(country));
 }
 

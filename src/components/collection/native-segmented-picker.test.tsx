@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { NativeSegmentedPicker } from "./native-segmented-picker";
 
 it("keeps icon options labeled and exposes the selected visit view", async () => {

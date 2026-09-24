@@ -76,8 +76,9 @@ function confidenceBlockers(signals: CandidateSignals, features: Float64Array, c
   if (signals.keypointCount === null) return ["reference:unknown-texture"];
   const reasons: string[] = [];
   if (signals.keypointCount >= config.lowTextureKeypoints) {
-    if (!signals.homographyValid) reasons.push("textured:no-homography");
-    else if (signals.orbInliers < config.textured.minInliers) {
+    if (!signals.homographyValid) {
+      reasons.push("textured:no-homography");
+    } else if (signals.orbInliers < config.textured.minInliers) {
       reasons.push("textured:few-inliers");
     }
     return reasons;

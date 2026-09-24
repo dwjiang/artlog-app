@@ -1,13 +1,14 @@
 import { Directory, File, Paths, UploadType } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
-import type { Id } from "../../../convex/_generated/dataModel";
+import { captureFileUri } from "@/lib/files/photos";
 import {
   COLLECTION_PHOTO_LONG_SIDE,
   MAX_COLLECTION_PHOTO_BYTES,
   type CollectionPhotoKind,
-} from "../../../shared/collection/photo-limits";
-import { captureFileUri } from "../files/photos";
+} from "@/shared/collection/photo-limits";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 
 export type PhotoUpload = { storageId: Id<"_storage">; photoUpdatedAt: number };
 

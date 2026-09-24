@@ -22,8 +22,8 @@ const options = [
 
 export function GeneralPreference() {
   const { units: saved, failed } = useMeasurementUnits();
-  const [choice, setChoice] = useState<MeasurementUnits>(),
-    [error, setError] = useState<string>();
+  const [choice, setChoice] = useState<MeasurementUnits>();
+  const [error, setError] = useState<string>();
   const pending = useRef(false);
   const units = choice ?? saved;
   const loading = units === undefined && !failed;

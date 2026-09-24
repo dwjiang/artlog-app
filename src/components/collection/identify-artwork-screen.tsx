@@ -1,24 +1,26 @@
-import { SavedRecognition } from "./saved-recognition";
-import { reportError } from "@/lib/observability";
-import { SavedWorkImage } from "./saved-work-image";
-import { LoadingRing } from "@/components/loading-ring";
-import { ListSkeleton } from "@/components/loading-skeleton";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, TextInput, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
+
+import { LoadingRing } from "@/components/loading-ring";
+import { ListSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { applyAlbum } from "@/db/repos/artwork-album";
 import { editSavedWork, listSavedWorks, selectSavedWork, upsertFromRemote } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
-import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
+import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { convex } from "@/lib/convex-client";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
-import { GalleryButton } from "./gallery-button";
+import { reportError } from "@/lib/observability";
+
+import { api } from "../../../convex/_generated/api";
 import { ArtworkQueryState } from "./artwork-query-state";
+import { GalleryButton } from "./gallery-button";
+import { SavedRecognition } from "./saved-recognition";
+import { SavedWorkImage } from "./saved-work-image";
 
 export function IdentifyArtworkScreen() {
   const { savedId } = useLocalSearchParams<{ savedId: string }>();
@@ -46,15 +48,15 @@ function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: str
   );
 }
 function Editor({ work }: { work: SavedWork }) {
-  const [title, setTitle] = useState(work.title === "Unidentified artwork" ? "" : work.title),
-    [artist, setArtist] = useState(work.artist);
+  const [title, setTitle] = useState(work.title === "Unidentified artwork" ? "" : work.title);
+  const [artist, setArtist] = useState(work.artist);
   const [focusedField, setFocusedField] = useState<string>();
-  const [date, setDate] = useState(work.date ?? ""),
-    [medium, setMedium] = useState(work.medium ?? "");
-  const [search, setSearch] = useState(""),
-    [choosing, setChoosing] = useState(false),
-    [merging, setBusy] = useState(false),
-    [error, setError] = useState<string>();
+  const [date, setDate] = useState(work.date ?? "");
+  const [medium, setMedium] = useState(work.medium ?? "");
+  const [search, setSearch] = useState("");
+  const [choosing, setChoosing] = useState(false);
+  const [merging, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const [recognizing, setRecognizing] = useState(false);
   const busy = merging || recognizing;
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
@@ -189,9 +191,9 @@ function Editor({ work }: { work: SavedWork }) {
               <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                 Couldn’t load your collection. Close and reopen this artwork to try again.
               </Text>
-            ) : !works.updatedAt && !matches.length ? (
+            ) : !works.updatedAt && matches.length === 0 ? (
               <ListSkeleton label="Loading artworks…" rows={3} />
-            ) : !matches.length ? (
+            ) : matches.length === 0 ? (
               <Text style={{ color: Gallery.muted }}>
                 {search ? "No matching artworks. Try another title or artist." : "No other saved artworks to combine."}
               </Text>

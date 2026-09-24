@@ -1,9 +1,10 @@
 import { ConvexError } from "convex/values";
+
+import type { PendingScan } from "@/db/schema";
+import type { IdentifyResponse } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { PendingScan } from "@/db/schema";
-import type { IdentifyResponse } from "@/lib/capture/stages";
 import { createFlusher, type FlushDependencies } from "./flush";
 
 jest.mock("@/lib/observability", () => ({
@@ -265,9 +266,7 @@ it.each([
   const { deps } = fakeDependencies([pendingScan("a", row)]);
   deps.identify.mockResolvedValue(identified("a", outcome));
   await createFlusher(deps).start();
-  if (expected) {
-    expect(deps.runLabelFlow).toHaveBeenCalledWith("scan-a", expected);
-  } else expect(deps.runLabelFlow).not.toHaveBeenCalled();
+  expect(deps.runLabelFlow.mock.calls).toEqual(expected ? [["scan-a", expected]] : []);
 });
 
 it("keeps the scan identified when the label flow fails", async () => {

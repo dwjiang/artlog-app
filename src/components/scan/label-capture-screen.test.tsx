@@ -3,15 +3,16 @@ import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
 import { AccessibilityInfo, AppState, DeviceEventEmitter } from "react-native";
 
+import type { PendingScan } from "@/db/schema";
+import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
+import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
+
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
-
 import { LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE, QUEUED_ONLINE_MESSAGE } from "./label-capture-screen";
 import { SHARE_BUTTON } from "./label/label-actions";
 import { STEP_LABELS } from "./label/progress-steps";
-import type { PendingScan } from "@/db/schema";
-import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
-import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
+
 jest.mock("@/hooks/use-reduced-motion", () => ({
   useReducedMotion: () => true,
 }));
@@ -110,7 +111,7 @@ jest.mock("@/lib/capture/use-qr-scanner", () => ({
   },
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/db/repos/pending-scans", () => ({
   MAX_LABEL_ATTEMPTS: 5,

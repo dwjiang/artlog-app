@@ -1,9 +1,9 @@
 import { Asset } from "expo-asset";
 import * as Device from "expo-device";
 
-import fixture from "../../../shared/orb/fixtures/orb-features-v1.json";
-
 import { measureCrop, type TriageMetrics } from "@/lib/capture/triage";
+import fixture from "@/shared/orb/fixtures/orb-features-v1.json";
+
 import { extractOrb } from "./extract";
 import { compareDescriptors, decodeBase64, type OrbParity } from "./parity";
 

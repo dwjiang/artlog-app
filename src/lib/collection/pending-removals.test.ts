@@ -1,8 +1,11 @@
-import { addBreadcrumb, reportError } from "@/lib/observability";
 import { act, renderHook } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
+
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
+import { addBreadcrumb, reportError } from "@/lib/observability";
+
 import { commitRemoval, scheduleRemoval, undoRemoval, usePendingRemovals, useRemovedWorkIds } from "./pending-removals";
+
 jest.mock("@/lib/observability", () => ({
   addBreadcrumb: jest.fn(),
   reportError: jest.fn(),
@@ -22,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   jest.useRealTimers();
 });
+
 it("undo cancels deletion even after the detail screen has closed", async () => {
   const item = { owner: "account:a", localId: "undo", title: "Water Lilies" };
   const view = await renderHook(usePendingRemovals);
@@ -43,6 +47,7 @@ it("undo cancels deletion even after the detail screen has closed", async () => 
     ["collection.remove.undone"],
   ]);
 });
+
 it("commits to the original owner and exposes a failed removal for retry", async () => {
   const item = { owner: "account:original", localId: "retry", title: "Irises" };
   jest.mocked(softDeleteSavedWork).mockRejectedValueOnce(new Error("Disk full"));
@@ -88,6 +93,7 @@ it("hides committed removals from late subscribers without hiding another ownerâ
   await view.rerender("account:other-owner");
   expect(view.result.current).not.toContain(item.localId);
 });
+
 it("commits undoable removals when the app leaves the foreground instead of waiting for the timer", async () => {
   const item = {
     owner: "account:a",

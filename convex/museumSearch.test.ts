@@ -109,7 +109,7 @@ async function fixture(venue: MuseumOverrides | null = MET) {
   const user = await seedDevice(t);
   const venueId = venue ? await t.run((ctx) => seedMuseum(ctx, venue)) : undefined;
   const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
-  const stored = async () => (await t.run((ctx) => ctx.db.get(scanId)))!;
+  const stored = async () => (await t.run((ctx) => ctx.db.get("scans", scanId)))!;
   const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   const search = () => user.as.action(api.museumSearch.searchExhibitions, { scanId });
   const confirm = (sourceUrl: string, imageCheck: { url: string; cosine: number; homographyValid: boolean }) =>
@@ -199,16 +199,16 @@ describe("searchExhibitions", () => {
       unregistered.as.action(api.museumSearch.searchExhibitions, { scanId }),
     );
     await rejects("unauthenticated", () => t.action(api.museumSearch.searchExhibitions, { scanId }));
-    await t.run((ctx) => ctx.db.patch(scanId, { outcome: "confident" }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { outcome: "confident" }));
     await rejects("invalid_scan");
-    await t.run((ctx) => ctx.db.patch(scanId, { outcome: "miss", status: "pending" }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { outcome: "miss", status: "pending" }));
     await rejects("invalid_scan");
-    await t.run((ctx) => ctx.db.patch(scanId, { status: "identified", venueId: undefined }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { status: "identified", venueId: undefined }));
     await rejects("invalid_scan");
-    await t.run((ctx) => ctx.db.patch(scanId, { venueId }));
-    await t.run((ctx) => ctx.db.patch(venueId!, { website: undefined }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { venueId }));
+    await t.run((ctx) => ctx.db.patch("museums", venueId!, { website: undefined }));
     await rejects("no_venue_site");
-    await t.run((ctx) => ctx.db.patch(venueId!, { website: "https://www.metmuseum.org/" }));
+    await t.run((ctx) => ctx.db.patch("museums", venueId!, { website: "https://www.metmuseum.org/" }));
     const optOutId = await t.run((ctx) =>
       ctx.db.insert("optOuts", {
         venueId,
@@ -217,7 +217,7 @@ describe("searchExhibitions", () => {
       }),
     );
     await rejects("venue_opted_out");
-    await t.run((ctx) => ctx.db.delete(optOutId));
+    await t.run((ctx) => ctx.db.delete("optOuts", optOutId));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
     expect((await stored()).museumSearch).toBeUndefined();
@@ -275,16 +275,14 @@ describe("searchExhibitions", () => {
     const pending = pauseNextFetch(jsonResponse(results));
     tavily(results);
     exhibitionPages();
-    const obsolete = expect(search()).rejects.toMatchObject({
-      data: { code: "search_superseded" },
-    });
+    const obsolete = search();
     await pending.started;
     await search();
     await confirm(COLOUR, pass(blue));
     const confirmed = await stored();
     expect(confirmed.museumSearch?.stage).toBe("confirmed");
     pending.resume();
-    await obsolete;
+    await expect(obsolete).rejects.toMatchObject({ data: { code: "search_superseded" } });
     expect(await stored()).toEqual(confirmed);
     expect(await spend()).toMatchObject({ tavilyCredits: 2 });
   });
@@ -292,15 +290,13 @@ describe("searchExhibitions", () => {
   it("preserves the latest search result when a capped retry supersedes an in-flight search", async () => {
     const { stored, spend, search } = await fixture();
     const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
-    const obsolete = expect(search()).rejects.toMatchObject({
-      data: { code: "search_superseded" },
-    });
+    const obsolete = search();
     await pending.started;
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "1");
     expect(await search()).toMatchObject({ stage: "none", reason: "cap" });
     const latest = await stored();
     pending.resume();
-    await obsolete;
+    await expect(obsolete).rejects.toMatchObject({ data: { code: "search_superseded" } });
     expect(await stored()).toEqual(latest);
     expect(await spend()).toMatchObject({ tavilyCredits: 1 });
   });
@@ -309,11 +305,9 @@ describe("searchExhibitions", () => {
     const { t, user, scanId, stored, spend, search } = await fixture();
     const original = await stored();
     const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
-    const rejected = expect(search()).rejects.toMatchObject({
-      data: { code: "scan_restarted" },
-    });
+    const stale = search();
     await pending.started;
-    await t.run((ctx) => ctx.db.patch(scanId, { status: "failed" }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { status: "failed" }));
     const restarted = await t.mutation(internal.scans.create, {
       deviceId: user.deviceId,
       localId: original.localId,
@@ -325,7 +319,7 @@ describe("searchExhibitions", () => {
     });
     expect(restarted.scan).toMatchObject({ _id: scanId, generation: 1 });
     pending.resume();
-    await rejected;
+    await expect(stale).rejects.toMatchObject({ data: { code: "scan_restarted" } });
     expect((await stored()).museumSearch).toBeUndefined();
     expect(await spend()).toMatchObject({ tavilyCredits: 1 });
   });
@@ -623,14 +617,12 @@ describe("confirmSearchCandidate", () => {
   it("invalidates an in-flight retry when a retained candidate is confirmed", async () => {
     const { stored, spend, confirm, search } = await searched();
     const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
-    const obsolete = expect(search()).rejects.toMatchObject({
-      data: { code: "search_superseded" },
-    });
+    const obsolete = search();
     await pending.started;
     await confirm(COLOUR, pass(blue));
     const confirmed = await stored();
     pending.resume();
-    await obsolete;
+    await expect(obsolete).rejects.toMatchObject({ data: { code: "search_superseded" } });
     expect(await stored()).toEqual(confirmed);
     expect(await spend()).toMatchObject({
       tokenFactoryCalls: 1,
@@ -661,11 +653,9 @@ describe("confirmSearchCandidate", () => {
     const original = await stored();
     routes = [];
     const pending = pauseNextFetch(new Response(waterHtml));
-    const rejected = expect(confirm(WATER, pass(lilies))).rejects.toMatchObject({
-      data: { code: "scan_restarted" },
-    });
+    const stale = confirm(WATER, pass(lilies));
     await pending.started;
-    await t.run((ctx) => ctx.db.patch(scanId, { status: "failed" }));
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { status: "failed" }));
     await t.mutation(internal.scans.create, {
       deviceId: user.deviceId,
       localId: original.localId,
@@ -676,7 +666,7 @@ describe("confirmSearchCandidate", () => {
       visitId: original.visitId,
     });
     pending.resume();
-    await rejected;
+    await expect(stale).rejects.toMatchObject({ data: { code: "scan_restarted" } });
     expect((await stored()).labelFlow).toBeUndefined();
   });
 });

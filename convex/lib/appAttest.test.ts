@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import phoneFixture from "./fixtures/app-attest-assertion.json";
-
 import {
   base64ToBytes,
   bytesToBase64,
@@ -13,6 +11,7 @@ import {
   verifyAssertion,
 } from "./appAttest";
 import { authenticatorData, encodeAssertion, makeSigner, rawToDer, signAssertion } from "./appAttest.fixtures";
+import phoneFixture from "./fixtures/app-attest-assertion.json";
 
 const hex = (s: string) => Uint8Array.from(s.match(/../g)!.map((b) => parseInt(b, 16)));
 
@@ -43,14 +42,14 @@ describe("derToRaw", () => {
   });
 
   it.each([
-    "3007020101020101", // Wrong sequence length.
-    "300602010102010100", // Trailing bytes.
-    "3006020101020201", // Truncated integer.
-    "3006020180020101", // Negative integer.
-    "300702020001020101", // Redundant sign padding.
-    "30050200020101", // Empty integer.
-  ])("rejects malformed DER %s", (der) => {
-    expect(() => derToRaw(hex(der))).toThrow();
+    ["3007020101020101", "invalid DER sequence length"], // Wrong sequence length.
+    ["300702010102010100", "trailing DER data"], // Trailing bytes.
+    ["3006020101020201", "invalid DER integer length"], // Truncated integer.
+    ["3006020180020101", "DER integer must be minimally encoded and positive"], // Negative integer.
+    ["300702020001020101", "DER integer must be minimally encoded and positive"], // Redundant sign padding.
+    ["3006020002020101", "invalid DER integer length"], // Empty integer.
+  ])("rejects malformed DER %s", (der, message) => {
+    expect(() => derToRaw(hex(der))).toThrow(message);
   });
 });
 
@@ -65,7 +64,7 @@ describe("decodeAssertion", () => {
   });
 
   it("rejects malformed input", () => {
-    expect(() => decodeAssertion("AAAA")).toThrow();
+    expect(() => decodeAssertion("AAAA")).toThrow("assertion is not valid CBOR");
     expect(() => decodeAssertion(bytesToBase64(Uint8Array.from([0xa0])))).toThrow("missing signature");
   });
 });

@@ -1,14 +1,15 @@
-import { LoadingRing } from "@/components/loading-ring";
+import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
-import { Image } from "expo-image";
-import { Gallery, Radius, Typography } from "@/constants/theme";
-import { GalleryButton } from "../collection/gallery-button";
-import { SavedWorkImage } from "../collection/saved-work-image";
-import { cropSyncing } from "@/lib/account/photo-sync";
-import type { SavedWork } from "@/db/schema";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { LoadingRing } from "@/components/loading-ring";
 import { ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery, Radius, Typography } from "@/constants/theme";
+import type { SavedWork } from "@/db/schema";
+import { cropSyncing } from "@/lib/account/photo-sync";
 
 export function VisitMessage({
   children,

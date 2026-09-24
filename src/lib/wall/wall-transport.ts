@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { fetch as expoFetch } from "expo/fetch";
+
 import { api } from "../../../convex/_generated/api";
 
 export type OwnerWall = FunctionReturnType<typeof api.walls.getMine>;

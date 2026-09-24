@@ -1,13 +1,14 @@
 import type { Infer } from "convex/values";
+
 import {
-  displayMedia,
-  publicArtwork,
-  publicProfile,
-  displayMediaContext,
+  type displayMedia,
+  type publicArtwork,
+  type publicProfile,
+  type displayMediaContext,
   validateMedia,
 } from "../../shared/social/contracts";
-import type { QueryCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 
 export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
   const photoUrl = profile.photoStorageId ? await ctx.storage.getUrl(profile.photoStorageId) : null;

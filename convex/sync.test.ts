@@ -1,9 +1,10 @@
-import { afterEach, expect, it, vi } from "vitest";
 import type { FunctionArgs } from "convex/server";
+import { afterEach, expect, it, vi } from "vitest";
+
+import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { api } from "./_generated/api";
 import { seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness } from "./test.helpers";
-import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 
 afterEach(() => vi.restoreAllMocks());
 const save = () => ({
@@ -13,9 +14,9 @@ const save = () => ({
   note: "private",
 });
 async function fixture() {
-  const t = harness(),
-    user = await seedDevice(t),
-    other = await seedDevice(t);
+  const t = harness();
+  const user = await seedDevice(t);
+  const other = await seedDevice(t);
   const venueId = await t.run(seedMuseum);
   const visit = {
     visibility: "public" as const,
@@ -36,7 +37,7 @@ async function fixture() {
   };
   async function link(device = user, sub = "apple-owner") {
     await t.run((ctx) =>
-      ctx.db.patch(device.deviceId, {
+      ctx.db.patch("devices", device.deviceId, {
         appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
       }),
     );
@@ -60,6 +61,7 @@ async function fixture() {
   }
   return { t, user, other, visit, sync, link, claim };
 }
+
 it("syncs empty visits and later edits to artwork details without duplicating the artwork", async () => {
   const { t, user, visit, sync } = await fixture();
   const work = {
@@ -81,6 +83,7 @@ it("syncs empty visits and later edits to artwork details without duplicating th
   expect(repeat.visits).toMatchObject([{ localId: visit.localId }]);
   expect(await t.run((ctx) => ctx.db.query("collections").collect())).toHaveLength(1);
 });
+
 it("uses auth ownership, never the caller scope, and hides missing or foreign parents", async () => {
   const { user, other, visit, sync } = await fixture();
   await sync(user, { visits: [visit], saves: [save()] });
@@ -94,6 +97,7 @@ it("uses auth ownership, never the caller scope, and hides missing or foreign pa
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
 });
+
 it("requires verified Apple proof and resumes bounded claiming after interruption", async () => {
   const { t, user, visit, sync, link, claim } = await fixture();
   await expect(
@@ -141,6 +145,7 @@ it("requires verified Apple proof and resumes bounded claiming after interruptio
     visitId: before.visits[0]._id,
   });
 });
+
 it("converges two devices to one canonical journal and survives sign-out and restoration", async () => {
   const { t, user, other, visit, sync, link, claim } = await fixture();
   const work = {
@@ -169,6 +174,7 @@ it("converges two devices to one canonical journal and survives sign-out and res
   expect((await sync(user)).saves[0].note).toBe("second device");
   expect(await t.run((ctx) => ctx.db.query("collections").collect())).toHaveLength(1);
 });
+
 it("rejects UUID collisions without overwriting either owner and never claims another account", async () => {
   const { t, user, other, sync, link, claim } = await fixture();
   const work = save();
@@ -181,12 +187,15 @@ it("rejects UUID collisions without overwriting either owner and never claims an
     data: { code: "ownership_collision" },
   });
   const rows = await t.run((ctx) => ctx.db.query("collections").collect());
-  expect(rows.map((row) => row.note).sort()).toEqual(["other original", "private"]);
+  const notes = rows.map((row) => row.note);
+  expect(notes).toHaveLength(2);
+  expect(notes).toEqual(expect.arrayContaining(["other original", "private"]));
   await user.as.mutation(api.accounts.unlink, {});
   await link(user, "new-account");
   await claim(user);
   expect((await sync(user)).saves).toEqual([]);
 });
+
 it("keeps deletion terminal through stale pushes and preserves its empty visit", async () => {
   const { user, visit, sync } = await fixture();
   const work = {
@@ -202,6 +211,7 @@ it("keeps deletion terminal through stale pushes and preserves its empty visit",
   });
   expect((await sync()).visits).toHaveLength(1);
 });
+
 it("pages by monotonic versions even when all timestamps are equal, with parents before saves", async () => {
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-14T12:00:00Z"));
   const { user, visit, sync } = await fixture();
@@ -213,8 +223,8 @@ it("pages by monotonic versions even when all timestamps are equal, with parents
   }));
   await sync(user, { saves: works.slice(0, 50) });
   await sync(user, { saves: works.slice(50) });
-  let checkpoint = 0,
-    more = true;
+  let checkpoint = 0;
+  let more = true;
   const seen: string[] = [];
   while (more) {
     const result = await sync(user, { since: checkpoint });
@@ -230,14 +240,16 @@ it("pages by monotonic versions even when all timestamps are equal, with parents
   expect(new Set(seen).size).toBe(70);
   expect((await sync(user, { since: checkpoint })).saves).toEqual([]);
 });
+
 it("always delivers the first pending change so an oversized row cannot stall the pull", async () => {
   const { t, user, sync } = await fixture();
   const pushed = await sync(user, { saves: [save()] });
-  await t.run((ctx) => ctx.db.patch(pushed.saves[0]._id, { note: "x".repeat(LIMITS.batchBytes) }));
+  await t.run((ctx) => ctx.db.patch("collections", pushed.saves[0]._id, { note: "x".repeat(LIMITS.batchBytes) }));
   const page = await sync(user);
   expect(page.saves.map((row) => row._id)).toEqual([pushed.saves[0]._id]);
   expect(page).toMatchObject({ checkpoint: pushed.checkpoint, hasMore: false });
 });
+
 it("enforces record, byte, note, timestamp and authentication bounds", async () => {
   const { t, user, sync } = await fixture();
   await expect(
@@ -268,10 +280,11 @@ it("enforces record, byte, note, timestamp and authentication bounds", async () 
     });
   }
 });
+
 it("carries canonical venue geography to another device through the combined journal sync", async () => {
   const { t, user, other, visit, sync, link, claim } = await fixture();
   await t.run((ctx) =>
-    ctx.db.patch(visit.venueId, {
+    ctx.db.patch("museums", visit.venueId, {
       city: "Paris",
       country: "FR",
       cityKey: "wikidata:Q90",

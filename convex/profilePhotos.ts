@@ -1,12 +1,13 @@
 "use node";
 
-import { withErrorReporting } from "./lib/observability";
 import { ConvexError, v, type Infer } from "convex/values";
 import sharp from "sharp";
+
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
+import { withErrorReporting } from "./lib/observability";
 
 export const save = action({
   args: {

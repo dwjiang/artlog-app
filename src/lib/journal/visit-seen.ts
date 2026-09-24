@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { reportError } from "@/lib/observability";
 import { eq } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { useEffect } from "react";
+
 import { db } from "@/db/client";
 import { settings, type Visit } from "@/db/schema";
+import { reportError } from "@/lib/observability";
 
 export const seenVisitsKey = (owner: string) => `seenVisits:${owner}`;
 

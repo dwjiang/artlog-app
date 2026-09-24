@@ -2,11 +2,13 @@ import type { FunctionReturnType } from "convex/server";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import type { api } from "../../../convex/_generated/api";
-import { ThemedText } from "../themed-text";
-import { useTheme } from "@/hooks/use-theme";
+
 import { ImageSkeleton } from "@/components/loading-skeleton";
+import { ThemedText } from "@/components/themed-text";
+import { useTheme } from "@/hooks/use-theme";
 import { reportError } from "@/lib/observability";
+
+import type { api } from "../../../convex/_generated/api";
 
 type Media = NonNullable<FunctionReturnType<typeof api.walls.getArtwork>>["artwork"]["media"];
 type Props = {
@@ -20,8 +22,9 @@ type Props = {
 export function DisplayMedia(props: Props) {
   const { media, token } = props;
   let uri: string | undefined;
-  if (media.kind === "catalog") uri = media.url;
-  else if (
+  if (media.kind === "catalog") {
+    uri = media.url;
+  } else if (
     (media.kind === "derivative" || media.kind === "photo")
     && (media.reference.kind !== "sharedVisitPreview" || token)
   ) {

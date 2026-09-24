@@ -1,8 +1,9 @@
-import { recordArtworkScore, recordVisitScore } from "./lib/leaderboard";
 import { ConvexError, v } from "convex/values";
+
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { mutation } from "./_generated/server";
+import { recordArtworkScore, recordVisitScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, resolveOwner } from "./lib/ownership";
 
 export const resume = mutation({
@@ -26,8 +27,8 @@ export const resume = mutation({
       return { claimId: claim._id, complete: true, moved: 0 };
     }
     const source = { kind: "device" as const, deviceId: device._id };
-    let moved = 0,
-      bytes = 0;
+    let moved = 0;
+    let bytes = 0;
     if (claim.phase === "visits") {
       const rows = await ctx.db
         .query("visits")
@@ -39,7 +40,7 @@ export const resume = mutation({
         if (await findOwnedVisit(ctx, owner, row.localId)) {
           throw new ConvexError({ code: "ownership_collision" });
         }
-        await ctx.db.patch(row._id, {
+        await ctx.db.patch("visits", row._id, {
           owner,
           changeVersion: await nextChangeVersion(ctx, owner),
         });
@@ -53,7 +54,7 @@ export const resume = mutation({
           .withIndex("by_owner_localId", (q) => q.eq("owner", source))
           .first())
       ) {
-        await ctx.db.patch(claim._id, { phase: "saves" });
+        await ctx.db.patch("journalClaims", claim._id, { phase: "saves" });
       }
       return { claimId: claim._id, complete: false, moved };
     }
@@ -68,7 +69,7 @@ export const resume = mutation({
         throw new ConvexError({ code: "ownership_collision" });
       }
       if (row.visitId) {
-        const visit = await ctx.db.get(row.visitId);
+        const visit = await ctx.db.get("visits", row.visitId);
         if (
           !visit
           || !sameOwner(visit.owner, owner)
@@ -78,7 +79,7 @@ export const resume = mutation({
           throw new ConvexError({ code: "not_found" });
         }
       }
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch("collections", row._id, {
         owner,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
@@ -91,8 +92,14 @@ export const resume = mutation({
         .query("artworkEncounters")
         .withIndex("by_save_deletedAt", (q) => q.eq("saveId", row._id).eq("deletedAt", undefined))
         .take(101);
-      for (const child of [...photos, ...encounters]) {
-        await ctx.db.patch(child._id, {
+      for (const photo of photos) {
+        await ctx.db.patch("artworkPhotos", photo._id, {
+          owner,
+          changeVersion: await nextChangeVersion(ctx, owner),
+        });
+      }
+      for (const encounter of encounters) {
+        await ctx.db.patch("artworkEncounters", encounter._id, {
           owner,
           changeVersion: await nextChangeVersion(ctx, owner),
         });
@@ -105,7 +112,7 @@ export const resume = mutation({
       .withIndex("by_owner_localId", (q) => q.eq("owner", source))
       .first());
     if (complete) {
-      await ctx.db.patch(claim._id, {
+      await ctx.db.patch("journalClaims", claim._id, {
         phase: "complete",
         completedAt: Date.now(),
       });

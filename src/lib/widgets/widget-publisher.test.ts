@@ -1,6 +1,6 @@
+import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 import { createWidgetPublisher, currentWidgetIndex, widgetRotationSeconds } from "./widget-publisher";
 import { defaultWidgetSettings } from "./widget-settings";
-import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 
 const art: WidgetArtwork = {
   id: "art",
@@ -22,9 +22,9 @@ const deferred = () => {
 };
 
 it("publishes only the latest source when image preparation overlaps", async () => {
-  const first = deferred(),
-    write = jest.fn(),
-    prune = jest.fn();
+  const first = deferred();
+  const write = jest.fn();
+  const prune = jest.fn();
   const publisher = createWidgetPublisher({
     currentOwner: () => "one",
     prepare: jest
@@ -44,8 +44,8 @@ it("publishes only the latest source when image preparation overlaps", async () 
 });
 
 it("never restores another account’s images after an owner change", async () => {
-  const loading = deferred(),
-    write = jest.fn();
+  const loading = deferred();
+  const write = jest.fn();
   let owner = "one";
   const publisher = createWidgetPublisher({
     currentOwner: () => owner,
@@ -61,8 +61,8 @@ it("never restores another account’s images after an owner change", async () =
 });
 
 it("replaces deleted or unavailable art with a settings link and clears old images", async () => {
-  const write = jest.fn(),
-    prune = jest.fn();
+  const write = jest.fn();
+  const prune = jest.fn();
   const publisher = createWidgetPublisher({
     currentOwner: () => "one",
     prepare: async () => undefined,

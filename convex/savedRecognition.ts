@@ -1,18 +1,19 @@
 import { ConvexError, v, type Infer } from "convex/values";
+
 import { internal } from "./_generated/api";
 import { action, internalMutation, internalQuery, mutation } from "./_generated/server";
-import schema from "./schema";
 import { decodeQuery, matchArtwork } from "./identify";
-import { displayCandidate, joinCandidate } from "./scans";
 import { requireDeviceFromAction } from "./lib/auth";
-import { requireJournalOwner, requireOwnedSave, nextChangeVersion } from "./lib/ownership";
-import { findSavedRecognition } from "./lib/savedRecognition";
-import { isSupported, validateVector } from "./lib/modelVersion";
-import { deleteOrbIfUnreferenced, loadOrb, storeOrb } from "./lib/orbStorage";
-import { withErrorReporting } from "./lib/observability";
-import { limitDevice } from "./lib/rateLimits";
 import { recordArtworkScore } from "./lib/leaderboard";
+import { isSupported, validateVector } from "./lib/modelVersion";
+import { withErrorReporting } from "./lib/observability";
+import { deleteOrbIfUnreferenced, loadOrb, storeOrb } from "./lib/orbStorage";
+import { requireJournalOwner, requireOwnedSave, nextChangeVersion } from "./lib/ownership";
+import { limitDevice } from "./lib/rateLimits";
+import { findSavedRecognition } from "./lib/savedRecognition";
 import { embedding } from "./lib/validators";
+import { displayCandidate, joinCandidate } from "./scans";
+import schema from "./schema";
 
 const savedArgs = { scope: v.string(), localId: v.string() };
 const result = v.object({
@@ -110,7 +111,7 @@ export const begin = internalMutation({
     if (!data) throw new ConvexError({ code: "recognition_unavailable" });
     if (!isSupported(data.modelVersion)) throw new ConvexError({ code: "recognition_model_retired" });
     const fields = { attempt: data.attempt + 1, saveUpdatedAt: save.updatedAt, candidateIds: [] };
-    await ctx.db.patch(data._id, fields);
+    await ctx.db.patch("savedRecognition", data._id, fields);
     return { data: { ...data, ...fields }, venueId: save.venueId };
   },
 });
@@ -133,8 +134,10 @@ export const finish = internalMutation({
       const joined = await joinCandidate(ctx, match, save.venueId);
       if (joined) candidates.push(joined.candidate);
     }
-    await ctx.db.patch(data._id, { candidateIds: candidates.map((candidate) => candidate.objectId) });
-    return { attempt, outcome: candidates.length ? outcome : "miss", candidates };
+    await ctx.db.patch("savedRecognition", data._id, {
+      candidateIds: candidates.map((candidate) => candidate.objectId),
+    });
+    return { attempt, outcome: candidates.length > 0 ? outcome : "miss", candidates };
   },
 });
 
@@ -182,7 +185,7 @@ export const accept = mutation({
         throw new ConvexError({ code: "unknown_candidate" });
       }
       if (save.updatedAt !== data.saveUpdatedAt) throw new ConvexError({ code: "saved_artwork_changed" });
-      const object = await ctx.db.get(objectId);
+      const object = await ctx.db.get("objects", objectId);
       const joined =
         object
         && (await joinCandidate(
@@ -192,7 +195,7 @@ export const accept = mutation({
         ));
       if (!joined) throw new ConvexError({ code: "unknown_candidate" });
       const { title, artist, date, medium, institution, artworkId } = joined.candidate;
-      await ctx.db.patch(save._id, {
+      await ctx.db.patch("collections", save._id, {
         objectId,
         artworkId,
         snapshot: { title, artist, date, medium, institution },
@@ -200,7 +203,7 @@ export const accept = mutation({
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
-      const updated = (await ctx.db.get(save._id))!;
+      const updated = (await ctx.db.get("collections", save._id))!;
       // Artwork scoring assumes a live save keeps its artwork, so score the change as a removal plus a new save.
       await recordArtworkScore(ctx, owner, { ...save, deletedAt: Date.now() }, save);
       await recordArtworkScore(ctx, owner, updated);

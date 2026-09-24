@@ -1,6 +1,5 @@
-import { readEmbedding } from "./scanEmbeddings";
-import { deleteVector, insertVector, readVector } from "./lib/vectorStore";
 import { type Infer, v } from "convex/values";
+
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -14,7 +13,9 @@ import {
 import { bumpCounter } from "./ingest";
 import { cosine } from "./lib/cosine";
 import { recognitionPartition } from "./lib/recognitionEligibility";
+import { deleteVector, insertVector, readVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
+import { readEmbedding } from "./scanEmbeddings";
 
 const PAGE_ITEMS = 64;
 const PAGE_BYTES = 4 * 1024 * 1024;
@@ -49,7 +50,7 @@ async function readAgreementPage(
     .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES });
   const rows = [];
   for (const row of page.page) {
-    const device = await ctx.db.get(row.deviceId);
+    const device = await ctx.db.get("devices", row.deviceId);
     if (device && !device.banned) {
       rows.push({ _id: row._id, deviceId: row.deviceId });
     }
@@ -80,9 +81,9 @@ async function applyMultiView(
   if (row.resolution.kind !== "runner_up" || row.multiViewAt !== undefined) {
     return done;
   }
-  const object = row.resolution.objectId ? await ctx.db.get(row.resolution.objectId) : null;
-  const venue = row.venueId ? await ctx.db.get(row.venueId) : null;
-  const device = await ctx.db.get(row.deviceId);
+  const object = row.resolution.objectId ? await ctx.db.get("objects", row.resolution.objectId) : null;
+  const venue = row.venueId ? await ctx.db.get("museums", row.venueId) : null;
+  const device = await ctx.db.get("devices", row.deviceId);
   const takedown =
     object
     && (await ctx.db
@@ -101,18 +102,18 @@ async function applyMultiView(
     || device.banned
     || row.createdAt < since
   ) {
-    await ctx.db.patch(row._id, { multiViewAt: now });
+    await ctx.db.patch("feedback", row._id, { multiViewAt: now });
     return done;
   }
   const embedding = await readEmbedding(ctx, row.embeddingId);
   if (!embedding) {
-    await ctx.db.patch(row._id, { multiViewAt: now });
+    await ctx.db.patch("feedback", row._id, { multiViewAt: now });
     return done;
   }
   if (agreementIds.length !== 2) return stale;
   const devices = new Set<Id<"devices">>();
   for (const id of agreementIds) {
-    const partner = await ctx.db.get(id);
+    const partner = await ctx.db.get("feedback", id);
     if (
       !partner
       || partner.resolution.kind !== "runner_up"
@@ -122,7 +123,7 @@ async function applyMultiView(
     ) {
       return stale;
     }
-    const partnerDevice = await ctx.db.get(partner.deviceId);
+    const partnerDevice = await ctx.db.get("devices", partner.deviceId);
     if (!partnerDevice || partnerDevice.banned) return stale;
     devices.add(partner.deviceId);
   }
@@ -155,7 +156,7 @@ async function applyMultiView(
         feedbackId: row._id,
       });
   const [firstDeviceId, secondDeviceId] = [...devices];
-  await ctx.db.patch(row._id, {
+  await ctx.db.patch("feedback", row._id, {
     multiViewAt: now,
     multiViewVectorId,
     multiViewDuplicateVectorId: duplicate?._id,
@@ -239,7 +240,7 @@ export const promoteNextView = internalMutation({
   returns: v.null(),
   handler: async (ctx, { objectId, venueId, agreementIds, feedbackId, cursor }) => {
     const row = feedbackId
-      ? await ctx.db.get(feedbackId)
+      ? await ctx.db.get("feedback", feedbackId)
       : await ctx.db
           .query("feedback")
           .withIndex("by_resolution_object_venue_multiView", (q) =>
@@ -300,7 +301,7 @@ export const viewForReassessment = internalQuery({
   args: { feedbackId: v.id("feedback") },
   returns: v.union(v.object({ objectId: v.id("objects"), venueId: v.id("museums") }), v.null()),
   handler: async (ctx, { feedbackId }) => {
-    const row = await ctx.db.get(feedbackId);
+    const row = await ctx.db.get("feedback", feedbackId);
     return row?.resolution.kind === "runner_up" && row.resolution.objectId && row.venueId
       ? { objectId: row.resolution.objectId, venueId: row.venueId }
       : null;
@@ -314,13 +315,13 @@ export const replaceWitnesses = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { feedbackId, agreementIds }) => {
-    const row = await ctx.db.get(feedbackId);
+    const row = await ctx.db.get("feedback", feedbackId);
     if (!row) return null;
-    const device = await ctx.db.get(row.deviceId);
+    const device = await ctx.db.get("devices", row.deviceId);
     const witnesses = new Set<Id<"devices">>();
     for (const id of agreementIds.slice(0, 2)) {
-      const partner = await ctx.db.get(id);
-      const source = partner ? await ctx.db.get(partner.deviceId) : null;
+      const partner = await ctx.db.get("feedback", id);
+      const source = partner ? await ctx.db.get("devices", partner.deviceId) : null;
       if (
         partner
         && source
@@ -335,11 +336,11 @@ export const replaceWitnesses = internalMutation({
     }
     if (device && !device.banned && witnesses.size === 2) {
       const [firstDeviceId, secondDeviceId] = [...witnesses];
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch("feedback", row._id, {
         multiViewAgreement: { firstDeviceId, secondDeviceId },
       });
     } else {
-      const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
+      const vector = row.multiViewVectorId ? await ctx.db.get("vectors", row.multiViewVectorId) : null;
       if (vector) {
         await deleteVector(ctx, vector);
         await bumpCounter(ctx, "vectors", -1);
@@ -348,7 +349,7 @@ export const replaceWitnesses = internalMutation({
           cursor: null,
         });
       }
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch("feedback", row._id, {
         multiViewAt: device?.banned ? Date.now() : undefined,
         multiViewVectorId: undefined,
         multiViewDuplicateVectorId: undefined,

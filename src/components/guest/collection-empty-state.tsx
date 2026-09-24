@@ -1,8 +1,10 @@
 import { router } from "expo-router";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing, Typography } from "@/constants/theme";
+
 import { ArtworkCollage } from "./artwork-preview";
 import { VisitKeepsake } from "./visit-keepsake";
 

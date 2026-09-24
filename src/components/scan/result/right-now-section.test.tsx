@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { RightNowSection } from "./right-now-section";
 import { rightNow } from "./__fixtures__/scan";
+import { RightNowSection } from "./right-now-section";
 
 const mockOpenBrowser = jest.fn();
 jest.mock("expo-web-browser", () => ({

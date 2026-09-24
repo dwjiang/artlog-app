@@ -1,22 +1,23 @@
-import { reportError } from "@/lib/observability";
-import { VisitKeepsake } from "../guest/visit-keepsake";
-import { EmptyState } from "../empty-state";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-import { GalleryButton } from "../collection/gallery-button";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import { VisitKeepsake } from "@/components/guest/visit-keepsake";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { readPhotoSession, updatePhotoSession, type CaptureVisitChoice } from "@/lib/capture/photo-draft";
-import { formatVisitDate } from "@/lib/journal/history";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
+import { formatVisitDate } from "@/lib/journal/history";
+import { reportError } from "@/lib/observability";
 import { useVenue } from "@/lib/venue/use-venue";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { venueVisitLabel } from "./capture-context-button";
 
 /** The museum option is the venue itself: the visit there starts or resumes with the save. */

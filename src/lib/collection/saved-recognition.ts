@@ -1,15 +1,16 @@
-import type { SavedWork } from "@/db/schema";
 import { upsertFromRemote } from "@/db/repos/saved-works";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import type { SavedRecognitionResult } from "../../../convex/savedRecognition";
-import { captureOwner } from "@/lib/account/owner-store";
+import type { SavedWork } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
+import { captureOwner } from "@/lib/account/owner-store";
 import { syncSavedRecognition } from "@/lib/account/recognition-sync";
+import { requestCollectionSync } from "@/lib/account/sync-events";
 import { convex } from "@/lib/convex-client";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { convexErrorCode, isTransientError, SyncUnavailableError } from "@/lib/network-error";
-import { requestCollectionSync } from "@/lib/account/sync-events";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { SavedRecognitionResult } from "../../../convex/savedRecognition";
 
 export async function identifySavedArtwork(
   work: Pick<SavedWork, "owner" | "localId">,

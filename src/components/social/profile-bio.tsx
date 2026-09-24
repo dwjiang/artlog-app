@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+
 export function ProfileBio({ text }: { text?: string }) {
-  const [expanded, setExpanded] = useState(false),
-    [long, setLong] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [long, setLong] = useState(false);
   if (!text) return null;
   return (
     <View style={{ gap: 4 }}>

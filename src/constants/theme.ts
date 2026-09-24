@@ -1,4 +1,5 @@
 import { Platform, type TextStyle } from "react-native";
+
 import { DEFAULT_WALL_COLOR } from "@/shared/wall/defaults";
 
 export const Gallery = {

@@ -24,7 +24,7 @@ export type AssertionResult = { ok: boolean; counter: number; reason?: string };
 const textEncoder = new TextEncoder();
 
 export function base64ToBytes(base64: string): Uint8Array {
-  const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
+  const normalized = base64.replaceAll("-", "+").replaceAll("_", "/");
   const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
@@ -36,7 +36,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 }
 
 export function bytesToBase64Url(bytes: Uint8Array): string {
-  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return bytesToBase64(bytes).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
 export async function sha256(data: Uint8Array | string): Promise<Uint8Array> {

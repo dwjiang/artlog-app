@@ -1,13 +1,14 @@
 import { db } from "@/db/client";
-import { artworkPhotos, pendingScans, savedWorks, settings } from "@/db/schema";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
 import { enqueuePendingScan, getPendingScan } from "@/db/repos/pending-scans";
+import { artworkPhotos, pendingScans, savedWorks, settings } from "@/db/schema";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
+
 import { discardCapture } from "./discard-capture";
 import { readPhotoDraft, writePhotoDraft } from "./photo-draft";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/account/photo-transfer", () => ({
   removePhotoFile: jest.fn(),

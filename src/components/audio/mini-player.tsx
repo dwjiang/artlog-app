@@ -1,11 +1,14 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
+
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { useListening } from "@/lib/audio/use-listening";
 import { audioTime } from "@/lib/audio/narration";
-import { AudioIconButton } from "./audio-icon";
+import { useListening } from "@/lib/audio/use-listening";
+
 import { ArtworkThumbnail } from "./artwork-thumbnail";
+import { AudioIconButton } from "./audio-icon";
+
 export const MINI_PLAYER_HEIGHT = 66;
 export function openPlayer(view: "player" | "queue" = "player") {
   router.push({ pathname: "/now-playing", params: { view } });

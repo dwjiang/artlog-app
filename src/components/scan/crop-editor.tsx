@@ -1,11 +1,9 @@
-import { reportError } from "@/lib/observability";
 import { Image } from "expo-image";
 import { ImageManipulator } from "expo-image-manipulator";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getVisionRect } from "../../../modules/vision-rect/src";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -13,8 +11,11 @@ import { wholePhoto } from "@/lib/capture/crop-geometry";
 import { discardEditedCrop, prepareEditedCrop, type EditedCrop } from "@/lib/capture/edit-crop";
 import { selectCaptureQuad } from "@/lib/capture/rectangle";
 import type { Quad } from "@/lib/capture/stages";
-import { captureFileUri } from "@/lib/files/photos";
 import { filePath } from "@/lib/file-uri";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
+
+import { getVisionRect } from "../../../modules/vision-rect/src";
 import { CropCorners } from "./crop-corners";
 
 export function CropEditor({
@@ -34,9 +35,9 @@ export function CropEditor({
   const [busy, setBusy] = useState<"loading" | "preview" | "saving" | undefined>("loading");
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
-  const active = useRef(false),
-    working = useRef(false),
-    retained = useRef<EditedCrop | undefined>(undefined);
+  const active = useRef(false);
+  const working = useRef(false);
+  const retained = useRef<EditedCrop | undefined>(undefined);
   const insets = useSafeAreaInsets();
   const uri = captureFileUri(photoPath);
   useEffect(() => {

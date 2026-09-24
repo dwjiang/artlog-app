@@ -1,19 +1,22 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+
 import { VisitGlobe } from "./visit-globe";
-const mockPush = jest.fn(),
-  mockDismissTo = jest.fn(),
-  mockFocus = jest.fn(),
-  mockReset = jest.fn(),
-  mockZoom = jest.fn(),
-  mockSettle = jest.fn();
+
+const mockPush = jest.fn();
+const mockDismissTo = jest.fn();
+const mockFocus = jest.fn();
+const mockReset = jest.fn();
+const mockZoom = jest.fn();
+const mockSettle = jest.fn();
 jest.mock("expo-router", () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
     dismissTo: (...args: unknown[]) => mockDismissTo(...args),
   },
 }));
-jest.mock("../collection/saved-work-image", () => ({
+jest.mock("@/components/collection/saved-work-image", () => ({
   SavedWorkImage: ({ title }: { title: string }) => {
     const { Text } = jest.requireActual("react-native");
     return <Text accessibilityRole="image">{title}</Text>;
@@ -63,6 +66,7 @@ const visit = (localId: string, venueId: string, city: string): VisitSummary =>
     works: [],
   }) as unknown as VisitSummary;
 beforeEach(() => jest.clearAllMocks());
+
 it("renders one pin per museum and opens the selected museum’s visits", async () => {
   await render(
     <VisitGlobe
@@ -85,6 +89,7 @@ it("renders one pin per museum and opens the selected museum’s visits", async 
     params: { placeKey: "Paris", name: "Louvre", venueId: "Louvre" },
   });
 });
+
 it("offers a larger globe while keeping the selected museum visible", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
@@ -94,6 +99,7 @@ it("offers a larger globe while keeping the selected museum visible", async () =
   });
   expect(screen.getByRole("button", { name: "View visits to Met" })).toBeOnTheScreen();
 });
+
 it("settles the globe before opening the expanded view so it starts from the live camera", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
@@ -104,12 +110,14 @@ it("settles the globe before opening the expanded view so it starts from the liv
   });
   expect(mockSettle.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
 });
+
 it("keeps visits without coordinates available through List", async () => {
   const onList = jest.fn();
   await render(<VisitGlobe visits={[{ ...visit("1", "Museum", "Paris"), coordinates: undefined }]} onList={onList} />);
   await fireEvent.press(screen.getByRole("button", { name: "Show List" }));
   expect(onList).toHaveBeenCalled();
 });
+
 it("dismisses the expanded modal into the museum visit browser", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} expanded onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "View visits to Met" }));

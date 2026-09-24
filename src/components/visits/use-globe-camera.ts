@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent } from "react";
 import { Gesture } from "react-native-gesture-handler";
 import { cancelAnimation, ReduceMotion, useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
+
 import type { GlobeCamera } from "@/lib/journal/globe-geometry";
 
 const YAW_PER_POINT = 0.34;

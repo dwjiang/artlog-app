@@ -1,14 +1,15 @@
 import { expect, it, vi } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
-import { wallFixture } from "./lib/wallFixtures";
 import { upsertJournalSave } from "./lib/journal";
-import { seedDevice } from "./lib/testFactories";
 import { clearEmptyNoteVisibility } from "./lib/publicationAccess";
+import { seedDevice } from "./lib/testFactories";
+import { wallFixture } from "./lib/wallFixtures";
+import { harness } from "./test.helpers";
 
 it("creates exactly one wall on first write, normalizes color and acknowledges unchanged retries", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   expect(await a.as.query(api.walls.getMine, {})).toMatchObject({
     revision: 0,
     color: "#FCFCF9",
@@ -45,8 +46,8 @@ it("creates exactly one wall on first write, normalizes color and acknowledges u
 });
 
 it("preserves an existing wall color, frame, photo choice and geometry on reads", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "custom");
+  const t = harness();
+  const a = await wallFixture(t, "custom");
   const customized = await a.as.mutation(api.walls.setLayout, {
     ...a.input,
     color: "#45524B",
@@ -60,10 +61,10 @@ it("preserves an existing wall color, frame, photo choice and geometry on reads"
 });
 
 it("requires a linked profile, completed claim and current owner scope", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a"),
-    b = await wallFixture(t, "b"),
-    anonymous = await seedDevice(t);
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const b = await wallFixture(t, "b");
+  const anonymous = await seedDevice(t);
   await expect(
     anonymous.as.mutation(api.walls.setLayout, {
       ...a.input,
@@ -81,7 +82,7 @@ it("requires a linked profile, completed claim and current owner scope", async (
       .query("journalClaims")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", a.deviceId))
       .unique();
-    await ctx.db.patch(claim!._id, { phase: "saves" });
+    await ctx.db.patch("journalClaims", claim!._id, { phase: "saves" });
   });
   await expect(a.as.mutation(api.walls.setLayout, a.input)).rejects.toMatchObject({
     data: { code: "claim_required" },
@@ -89,10 +90,10 @@ it("requires a linked profile, completed claim and current owner scope", async (
 });
 
 it("shares wall state across devices on the same account", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a"),
-    other = await seedDevice(t);
-  await t.run((ctx) => ctx.db.patch(other.deviceId, { accountId: a.accountId }));
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const other = await seedDevice(t);
+  await t.run((ctx) => ctx.db.patch("devices", other.deviceId, { accountId: a.accountId }));
   const mine = await a.as.mutation(api.walls.setLayout, a.input);
   expect(await other.as.query(api.walls.getMine, {})).toMatchObject({
     items: mine.items,
@@ -111,41 +112,46 @@ it.each([
   { layout: { y: 100.01 } },
   { layout: { layer: 100 } },
   { layout: { layer: 0.5 } },
-  { layout: { frame: "fake" } },
 ])("rejects invalid wall input %j", async (invalid) => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const { layout, ...fields } = invalid;
   await expect(
     a.as.mutation(api.walls.setLayout, {
       ...a.input,
       ...fields,
       items: [{ ...a.selection, layout: { ...a.layout, ...layout } }],
-    } as never),
-  ).rejects.toThrow();
+    }),
+  ).rejects.toThrow("invalid_wall");
 });
 
 it("enforces unique selections and layers, item limits, frame IDs and geometry boundaries", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   await expect(
     a.as.mutation(api.walls.setLayout, {
       ...a.input,
       items: [a.selection, a.selection],
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("invalid_wall");
   await expect(
     a.as.mutation(api.walls.setLayout, {
       ...a.input,
       items: [a.selection, { ...a.selection, saveLocalId: crypto.randomUUID() }],
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("invalid_wall");
   await expect(
     a.as.mutation(api.walls.setLayout, {
       ...a.input,
       items: Array(101).fill(a.selection),
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("invalid_wall");
+  await expect(
+    a.as.mutation(api.walls.setLayout, {
+      ...a.input,
+      items: [{ ...a.selection, layout: { ...a.layout, frame: "fake" as never } }],
+    }),
+  ).rejects.toThrow(/Validator error: Expected one of .*, got `"fake"`/);
   let revision = 0;
   for (const frame of ["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const) {
     const result = await a.as.mutation(api.walls.setLayout, {
@@ -163,10 +169,10 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
 });
 
 it("keeps note consent independent of layout, preserves identity on re-add and resets consent", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
-  const original = await a.as.mutation(api.walls.setLayout, a.input),
-    itemId = original.items[0].itemId;
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const original = await a.as.mutation(api.walls.setLayout, a.input);
+  const { itemId } = original.items[0];
   const visible = await a.as.mutation(api.walls.setNoteVisibility, {
     scope: a.scope,
     changes: [{ itemId, noteRevision: 0, visible: true }],
@@ -205,8 +211,8 @@ it("keeps note consent independent of layout, preserves identity on re-add and r
 });
 
 it("shows full current notes and never restores consent after emptying and later editing a note", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const {
     items: [item],
   } = await a.as.mutation(api.walls.setLayout, a.input);
@@ -216,7 +222,7 @@ it("shows full current notes and never restores consent after emptying and later
   });
   async function note(value: string) {
     await t.run(async (ctx) => {
-      const save = (await ctx.db.get(a.saveId))!;
+      const save = (await ctx.db.get("collections", a.saveId))!;
       await upsertJournalSave(ctx, save.owner, a.deviceId, {
         localId: save.localId,
         savedAt: save.savedAt,
@@ -235,7 +241,7 @@ it("shows full current notes and never restores consent after emptying and later
       scope: a.scope,
       changes: [{ itemId: item.itemId, noteRevision: 2, visible: true }],
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("invalid_wall");
   await note("New private note");
   expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).not.toHaveProperty("note");
   expect((await a.as.query(api.walls.getMine, {})).items[0]).toMatchObject({
@@ -245,9 +251,9 @@ it("shows full current notes and never restores consent after emptying and later
 });
 
 it("makes visibility batches atomic and refuses another owner’s item", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a"),
-    b = await wallFixture(t, "b");
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const b = await wallFixture(t, "b");
   const {
     items: [first],
   } = await a.as.mutation(api.walls.setLayout, a.input);
@@ -268,8 +274,8 @@ it("makes visibility batches atomic and refuses another owner’s item", async (
 });
 
 it("allowlists public data and keeps snapshot metadata without catalog enrichment", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const {
     items: [item],
   } = await a.as.mutation(api.walls.setLayout, a.input);
@@ -290,8 +296,8 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
 });
 
 it("counts artworks by save so a second placement of the same work adds a piece, not an artwork", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const second = {
     ...a.selection,
     placementId: crypto.randomUUID(),
@@ -310,25 +316,25 @@ it("counts artworks by save so a second placement of the same work adds a piece,
 it.each(["deleted", "missing", "inactive", "wrong-owner", "wrong-parent"] as const)(
   "checks current parents before direct and wall reads: %s",
   async (change) => {
-    const t = harness(),
-      a = await wallFixture(t, "a"),
-      b = await wallFixture(t, "b");
+    const t = harness();
+    const a = await wallFixture(t, "a");
+    const b = await wallFixture(t, "b");
     const {
       items: [item],
     } = await a.as.mutation(api.walls.setLayout, a.input);
     await t.run(async (ctx) => {
-      if (change === "deleted") await ctx.db.patch(a.saveId, { deletedAt: 1 });
-      if (change === "missing") await ctx.db.delete(a.saveId);
+      if (change === "deleted") await ctx.db.patch("collections", a.saveId, { deletedAt: 1 });
+      if (change === "missing") await ctx.db.delete("collections", a.saveId);
       if (change === "inactive") {
-        await ctx.db.patch(a.profile.profileId, { active: false });
+        await ctx.db.patch("profiles", a.profile.profileId, { active: false });
       }
       if (change === "wrong-owner") {
-        await ctx.db.patch(a.saveId, {
+        await ctx.db.patch("collections", a.saveId, {
           owner: { kind: "account", accountId: b.accountId },
         });
       }
       if (change === "wrong-parent") {
-        await ctx.db.patch(item.itemId, { profileId: b.profile.profileId });
+        await ctx.db.patch("wallItems", item.itemId, { profileId: b.profile.profileId });
       }
     });
     expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toBeNull();
@@ -337,8 +343,8 @@ it.each(["deleted", "missing", "inactive", "wrong-owner", "wrong-parent"] as con
 );
 
 it("invalidates deleted selections atomically and removal retries do not advance revisions", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   await a.as.mutation(api.walls.setLayout, a.input);
   await a.as.mutation(api.collections.remove, {
     scope: a.scope,
@@ -358,28 +364,28 @@ it("invalidates deleted selections atomically and removal retries do not advance
 
 it("removes the wall and its selections when the account is purged", async () => {
   vi.useFakeTimers();
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const {
     items: [item],
   } = await a.as.mutation(api.walls.setLayout, a.input);
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(a.saveId))).toBeNull();
-  expect(await t.run((ctx) => ctx.db.get(item.itemId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("collections", a.saveId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("wallItems", item.itemId))).toBeNull();
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);
   expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toBeNull();
   vi.useRealTimers();
 });
 
 it("invalidates a pending opt-in when a private note is emptied and later rewritten", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const {
     items: [item],
   } = await a.as.mutation(api.walls.setLayout, a.input);
   await t.run(async (ctx) => {
-    const save = (await ctx.db.get(a.saveId))!;
+    const save = (await ctx.db.get("collections", a.saveId))!;
     const fields = {
       localId: save.localId,
       snapshot: save.snapshot,
@@ -406,10 +412,10 @@ it("invalidates a pending opt-in when a private note is emptied and later rewrit
 });
 
 it("sorts layers and rejects simultaneous replacements based on the same revision", async () => {
-  const t = harness(),
-    a = await wallFixture(t, "a");
+  const t = harness();
+  const a = await wallFixture(t, "a");
   const another = await t.run(async (ctx) => {
-    const save = (await ctx.db.get(a.saveId))!;
+    const save = (await ctx.db.get("collections", a.saveId))!;
     const { _id, _creationTime, ...fields } = save;
     const localId = crypto.randomUUID();
     await ctx.db.insert("collections", { ...fields, localId });
@@ -439,6 +445,8 @@ it("sorts layers and rejects simultaneous replacements based on the same revisio
   expect(results.find((result) => result.status === "rejected")).toMatchObject({
     reason: { data: { code: "conflict" } },
   });
-  await expect(a.as.mutation(api.walls.setLayout, { ...a.input, note: "secret" } as never)).rejects.toThrow();
+  await expect(a.as.mutation(api.walls.setLayout, { ...a.input, note: "secret" } as never)).rejects.toThrow(
+    "Validator error: Unexpected field `note` in object",
+  );
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });

@@ -50,7 +50,7 @@ async function stopServers() {
     parent = snapshot.find((entry) => entry.pid === parent)?.parent;
   }
   const candidates = snapshot.filter((entry) => !ancestors.has(entry.pid) && isDevServer(entry.command));
-  if (!candidates.length) return;
+  if (candidates.length === 0) return;
 
   const cwdResult = spawnSync(
     "lsof",
@@ -92,7 +92,7 @@ async function stopServers() {
     );
   }
   let remaining = stillRunning(snapshot.filter((entry) => owned.has(entry.pid)));
-  if (!remaining.length) return;
+  if (remaining.length === 0) return;
   const stopped = remaining.length;
 
   function signal(entry, name) {
@@ -104,7 +104,7 @@ async function stopServers() {
   }
   for (const entry of remaining) signal(entry, "SIGTERM");
   const deadline = Date.now() + 3_000;
-  while (remaining.length && Date.now() < deadline) {
+  while (remaining.length > 0 && Date.now() < deadline) {
     await delay(100);
     remaining = stillRunning(remaining);
   }
@@ -117,7 +117,7 @@ function stopSimulators() {
   const normalize = (value) =>
     value
       .toLowerCase()
-      .replace(/[-_\s]+/g, " ")
+      .replaceAll(/[-_\s]+/g, " ")
       .trim()
       .replace(/^\d+(?:\.\d+)+ /, "");
   const labels = [basename(workspace), process.env.CONDUCTOR_WORKSPACE_NAME].filter(Boolean);
@@ -154,7 +154,7 @@ function stopSimulators() {
       process.exitCode = 1;
     }
   }
-  if (!owned.length) return;
+  if (owned.length === 0) return;
   // A shutdown device can still have a window. Close only exact device titles.
   output("osascript", [
     "-e",
@@ -180,13 +180,9 @@ end run`,
   ]);
 }
 
-(async () => {
-  for (const cleanup of [stopServers, stopSimulators]) {
-    try {
-      await cleanup();
-    } catch (error) {
-      console.error(`Workspace cleanup failed: ${error.message}`);
-      process.exitCode = 1;
-    }
-  }
-})();
+function reportFailure(error) {
+  console.error(`Workspace cleanup failed: ${error.message}`);
+  process.exitCode = 1;
+}
+
+stopServers().catch(reportFailure).then(stopSimulators).catch(reportFailure);

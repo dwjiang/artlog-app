@@ -5,7 +5,7 @@ import { seedDevice } from "./testFactories";
 export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().slice(0, 8)) {
   const device = await seedDevice(t);
   await t.run((ctx) =>
-    ctx.db.patch(device.deviceId, {
+    ctx.db.patch("devices", device.deviceId, {
       appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
     }),
   );

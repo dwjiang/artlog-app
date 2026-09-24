@@ -1,17 +1,18 @@
-import { db } from "@/db/client";
-import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
-import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
-import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import { getFunctionName } from "convex/server";
+
+import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/components/scan/result/__fixtures__/scan";
+import { db } from "@/db/client";
+import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
+import { getSavedWork } from "@/db/repos/saved-works";
+import { upsertVisit } from "@/db/repos/visits";
+import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
+import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
+import { contributeLabel } from "@/lib/label/contribute";
+import { formStateFromFlow } from "@/lib/label/fields";
 
 import { saveErrorMessage, saveResult } from "./save";
 import { draftFromCandidate } from "./snapshot";
 import { toResultViewState } from "./state";
-import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/components/scan/result/__fixtures__/scan";
-import { getSavedWork } from "@/db/repos/saved-works";
-import { upsertVisit } from "@/db/repos/visits";
-import { contributeLabel } from "@/lib/label/contribute";
-import { formStateFromFlow } from "@/lib/label/fields";
 
 const mockMutation = jest.fn();
 jest.mock("@/lib/label/contribute", () => ({
@@ -23,7 +24,7 @@ const mockVisitForSave = jest.fn();
 let mockUuid = 0;
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/convex-client", () => ({
   convex: {

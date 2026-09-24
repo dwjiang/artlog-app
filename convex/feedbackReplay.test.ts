@@ -1,17 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
+
+import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import { feedbackChanged } from "./feedbackReplay";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
-import model from "../shared/model/model-version.json";
 
 afterEach(() => vi.useRealTimers());
 
 it("replays surviving events chronologically across pages, resets feedback flags, and retains calibration penalties", async () => {
   vi.useFakeTimers();
   const t = harness({ transactionLimits: true });
-  const alice = await seedDevice(t),
-    bob = await seedDevice(t);
+  const alice = await seedDevice(t);
+  const bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
   const scans = await t.run(async (ctx) => ({
@@ -75,7 +76,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
   }
   await reject("bob");
   await t.run(async (ctx) => {
-    await ctx.db.patch(work.objectId, {
+    await ctx.db.patch("objects", work.objectId, {
       confirmCount: 120,
       rejectCount: 21,
       flaggedForReview: true,
@@ -88,7 +89,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
     reason: "abuse",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toMatchObject({
     confirmCount: 120,
     rejectCount: 20,
     flaggedForReview: false,
@@ -132,7 +133,7 @@ it("restarts a partial replay when new feedback arrives", async () => {
   await t.mutation(internal.feedbackReplay.rebuildPage, { jobId: job._id });
   await add(1);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toMatchObject({
     confirmCount: 76,
   });
 });

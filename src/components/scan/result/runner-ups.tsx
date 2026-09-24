@@ -1,4 +1,3 @@
-import { TentativeOriginNotice } from "./tentative-origin-notice";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -6,6 +5,8 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { formatConfidence } from "@/lib/result/confidence";
 import type { ResultCandidate } from "@/lib/result/state";
+
+import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 export type RunnerUpsProps = {
   candidates: ResultCandidate[];

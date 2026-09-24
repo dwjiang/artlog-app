@@ -1,33 +1,35 @@
-import { EmptyState } from "../empty-state";
 import { Stack, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { EmptyState } from "@/components/empty-state";
+import { ProfileSkeleton } from "@/components/loading-skeleton";
 import { Gallery } from "@/constants/theme";
+import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import type { SharedVisit } from "@/lib/social/types";
 import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls, ProfileActionRow } from "./friendship-controls";
-import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { PublicProfileHeader, PublicWallView } from "./public-wall-view";
-import { VisitCard } from "./visit-card";
+import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
-import { ProfileSkeleton } from "@/components/loading-skeleton";
+import { VisitCard } from "./visit-card";
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
 
 export function ProfileScreen({ profileId }: { profileId: string }) {
-  const session = useSocialSession(),
-    router = useRouter();
+  const session = useSocialSession();
+  const router = useRouter();
   const [tab, setTab] = useState<"wall" | "visits">("wall");
-  const scroll = useRef<ScrollView>(null),
-    offsets = useRef({ wall: 0, visits: 0 });
+  const scroll = useRef<ScrollView>(null);
+  const offsets = useRef({ wall: 0, visits: 0 });
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : "skip", session.key);
@@ -185,7 +187,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             {visits.items.map((visit) => (
               <VisitCard key={visit.postId} visit={visit} token={session.token} />
             ))}
-            {visits.done && !visits.loading && !visits.items.length && !visits.error && (
+            {visits.done && !visits.loading && visits.items.length === 0 && !visits.error && (
               <EmptyState
                 title="No shared visits yet."
                 detail={`When ${person.name.split(" ")[0]} shares a museum visit, it will appear here.`}

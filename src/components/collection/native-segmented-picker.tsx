@@ -1,5 +1,3 @@
-import type { ComponentProps } from "react";
-import { useWindowDimensions } from "react-native";
 import { Button, Column, Host, Icon, Row, Text } from "@expo/ui";
 import {
   accessibilityAddTraits,
@@ -13,6 +11,9 @@ import {
   opacity,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
+import type { ComponentProps } from "react";
+import { useWindowDimensions } from "react-native";
+
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 
 export function NativeSegmentedPicker<T extends string>({

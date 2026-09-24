@@ -1,27 +1,28 @@
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { File } from "expo-file-system";
-import { getNetworkStateAsync } from "expo-network";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
-import { and, eq } from "drizzle-orm";
+import { getNetworkStateAsync } from "expo-network";
 
-import { getVisionRect } from "../../../modules/vision-rect/src";
-import model from "../../../shared/model/model-version.json";
 import { db } from "@/db/client";
-import { pendingScans } from "@/db/schema";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { getSavedWork, replaceSavedCrop } from "@/db/repos/saved-works";
+import { pendingScans } from "@/db/schema";
 import { captureOwner } from "@/lib/account/owner-store";
-import { captureFileUri, copyArtworkPhoto, scanPreviewPath } from "@/lib/files/photos";
-import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
-import { filePath } from "@/lib/file-uri";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { embedder } from "@/lib/embed/embedder";
-import { extractFeatures, orb } from "./features";
-import { toCorners } from "./rectangle";
-import { validCrop } from "./crop-geometry";
-import type { Quad } from "./stages";
-import { clearPhotoDraft, readPhotoSession, updatePhotoSession } from "./photo-draft";
+import { filePath } from "@/lib/file-uri";
+import { captureFileUri, copyArtworkPhoto, scanPreviewPath } from "@/lib/files/photos";
+import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
+import model from "@/shared/model/model-version.json";
+
+import { getVisionRect } from "../../../modules/vision-rect/src";
+import { validCrop } from "./crop-geometry";
+import { extractFeatures, orb } from "./features";
+import { clearPhotoDraft, readPhotoSession, updatePhotoSession } from "./photo-draft";
+import { toCorners } from "./rectangle";
+import type { Quad } from "./stages";
 
 export type EditedCrop = {
   modelUri: string;
@@ -76,7 +77,7 @@ export async function saveEditedArtworkCrop(savedId: string, crop: EditedCrop, o
   if (!current.isOwnerCurrent() || !isCurrent()) {
     throw new Error("Crop edit cancelled");
   }
-  const path = copyArtworkPhoto(crop.previewUri, randomUUID());
+  const path = await copyArtworkPhoto(crop.previewUri, randomUUID());
   try {
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
@@ -104,12 +105,12 @@ export async function saveEditedScanCrop(
     throw new Error("Journal owner changed");
   }
   const nextId = randomUUID();
-  const modelPath = copyArtworkPhoto(crop.modelUri, nextId);
+  const modelPath = await copyArtworkPhoto(crop.modelUri, nextId);
   const previewPath = scanPreviewPath(modelPath);
   let photoPath: string | undefined;
   try {
-    new File(crop.previewUri).copy(new File(captureFileUri(previewPath)));
-    photoPath = copyArtworkPhoto(captureFileUri(capture.photoPath), `${nextId}-full`);
+    await new File(crop.previewUri).copy(new File(captureFileUri(previewPath)));
+    photoPath = await copyArtworkPhoto(captureFileUri(capture.photoPath), `${nextId}-full`);
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }

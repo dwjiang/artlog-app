@@ -1,4 +1,4 @@
-import model from "../../../shared/model/model-version.json";
+import model from "@/shared/model/model-version.json";
 
 import type { CoremlEmbed } from "../../../modules/coreml-embed/src";
 import { createEmbedder } from "./embedder";

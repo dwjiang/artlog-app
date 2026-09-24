@@ -1,11 +1,12 @@
-import type { Id } from "../../../convex/_generated/dataModel";
-import { db } from "../client";
-import { artworkEncounters, artworkPhotos, savedWorks, visits } from "../schema";
-import * as repo from "./visits";
-import { onCollectionChange } from "../../lib/account/sync-events";
+import { db } from "@/db/client";
+import { artworkEncounters, artworkPhotos, savedWorks, visits } from "@/db/schema";
+import { onCollectionChange } from "@/lib/account/sync-events";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+import type { Id } from "../../../convex/_generated/dataModel";
+import * as repo from "./visits";
+
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const venueId = "museum-1" as Id<"museums">;
 const first = "00000000-0000-4000-8000-000000000001";
@@ -56,6 +57,7 @@ it("preserves empty, manual and repeat visits and retries the same UUID", async 
     revision: 0,
   });
 });
+
 it.each([
   { localId: "invalid" },
   { visitedOn: "2023-02-29" },
@@ -68,6 +70,7 @@ it.each([
   await expect(repo.upsertVisit({ ...visit, ...fields })).rejects.toThrow("invalid_visit");
   expect(await repo.listVisits()).toEqual([]);
 });
+
 it("validates merged patches, allows reflection clearing and refuses foreign targets", async () => {
   await repo.upsertVisit({
     ...visit,
@@ -83,6 +86,7 @@ it("validates merged patches, allows reflection clearing and refuses foreign tar
   });
   await expect(repo.upsertVisit({ ...visit, venueId: "other" as never })).rejects.toThrow("invalid_visit");
 });
+
 it("keeps edits made during sync pending until their own revision is acknowledged", async () => {
   await repo.upsertVisit(visit);
   await repo.patchVisit(first, { reflection: "newer" });
@@ -101,6 +105,7 @@ it("keeps edits made during sync pending until their own revision is acknowledge
     remoteVisitId: "remote",
   });
 });
+
 it("leaves a sync: false patch pending without requesting a sync", async () => {
   const requests = jest.fn();
   const unsubscribe = onCollectionChange(requests);
@@ -121,6 +126,7 @@ it("leaves a sync: false patch pending without requesting a sync", async () => {
     unsubscribe();
   }
 });
+
 it("accepts a remote visit the server stamped after this device crossed local midnight", async () => {
   jest.useFakeTimers().setSystemTime(Date.parse("2024-02-29T23:59:50Z"));
   try {
@@ -161,6 +167,7 @@ it("defaults new visits to Public and preserves an explicit Private choice acros
   await repo.upsertVisit({ ...visit, localId: second });
   expect(await repo.getVisit(second)).toMatchObject({ visibility: "public" });
 });
+
 it("finds the visit at a museum on a day, latest started first, and only open ones on request", async () => {
   const noon = Date.parse("2024-02-29T12:00Z");
   await repo.upsertVisit({ ...visit, startedAt: noon, endedAt: noon + 1 });
@@ -181,6 +188,7 @@ it("finds the visit at a museum on a day, latest started first, and only open on
   expect(await repo.findVisitOnDay(venueId, "2024-02-29", "account:other")).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-03-01")).toBeUndefined();
 });
+
 it("lists open visits across museums and days, earliest first, skipping manual ones with no start", async () => {
   const noon = Date.parse("2024-02-29T12:00Z");
   await repo.upsertVisit({ ...visit, startedAt: noon, endedAt: noon + 1 });

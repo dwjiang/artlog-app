@@ -1,12 +1,13 @@
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
-import { getSetting } from "./repos/settings";
+
 import { initializeOwner } from "@/lib/account/owner-store";
 import { getInstallationId } from "@/lib/installation-storage";
 
-import migrations from "./migrations/migrations";
 import { db, describeDatabase } from "./client";
 import { ensureSavedWorkPhotoTimestamp } from "./ensure-saved-work-photo-timestamp";
+import migrations from "./migrations/migrations";
+import { getSetting } from "./repos/settings";
 
 export type MigrationState = { success: boolean; error?: Error };
 

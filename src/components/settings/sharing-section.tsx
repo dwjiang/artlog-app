@@ -1,22 +1,23 @@
-import { reportError } from "@/lib/observability";
-import { Image } from "expo-image";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { selectCaptureForScan } from "@/db/repos/pending-scans";
-import { useLocalOwner } from "@/lib/account/owner-store";
-import { captureFileUri } from "@/lib/files/photos";
-import { ListSkeleton } from "@/components/loading-skeleton";
-import { router } from "expo-router";
-import { EmptyState } from "../empty-state";
-import { EmptyPaper } from "../empty-state-art";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Alert, FlatList, View } from "react-native";
 
-import { api } from "../../../convex/_generated/api";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import { EmptyPaper } from "@/components/empty-state-art";
+import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+import { selectCaptureForScan } from "@/db/repos/pending-scans";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
+
+import { api } from "../../../convex/_generated/api";
 
 export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
 

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import type { WallPiece } from "@/lib/wall/wall-layout";
+
 import { WallGallery } from "./wall-gallery";
 
 jest.mock("react-native-reanimated", () => ({

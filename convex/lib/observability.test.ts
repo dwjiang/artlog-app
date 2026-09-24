@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ConvexError } from "convex/values";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { reportBackendError, withErrorReporting } from "./observability";
 

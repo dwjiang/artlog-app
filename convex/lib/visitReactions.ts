@@ -18,7 +18,7 @@ export async function changeEngagement(
 ) {
   const current = await engagement(ctx, publicationId);
   if (current) {
-    await ctx.db.patch(current._id, {
+    await ctx.db.patch("visitEngagement", current._id, {
       [field]: Math.max(0, current[field] + delta),
     });
   } else if (delta > 0) {
