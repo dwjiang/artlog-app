@@ -61,6 +61,8 @@ it("retries a failed photo upload without creating the profile twice", async () 
   const onCreated = await prepare();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
   expect(screen.getByRole("button", { name: "Continue without photo" })).toBeOnTheScreen();
+  expect(screen.getByText("Username saved")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Username")).toBeDisabled();
   expect(onCreated).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   expect(mockCreate).toHaveBeenCalledTimes(1);

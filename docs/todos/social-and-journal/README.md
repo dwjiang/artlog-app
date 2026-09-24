@@ -56,8 +56,8 @@ internal relationship handles where appropriate; sync preserves the local UUIDs.
 Profile fields are `username`, `name`, and optional `bio`. Proposed validation:
 name 1–60 trimmed characters; bio at most 160; username 3–30 lowercase ASCII
 letters/digits with single interior hyphens. Reserve usernames transactionally.
-Usernames are immutable in the first release, matching the mock; display names
-can change without changing profile IDs. Search exposes public fields only.
+Usernames and display names can change in Edit Profile without changing profile
+IDs. Search exposes public fields only.
 
 Signing in does not create a public profile or publish existing saves. Profile
 creation starts with an empty wall. Signing out ends authenticated access and
