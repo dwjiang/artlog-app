@@ -1,6 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { AppleSignInAction } from "@/components/account/apple-sign-in-action";
 import { ChoiceMenu } from "@/components/choice-menu";
@@ -8,7 +9,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPodium } from "@/components/empty-state-art";
-import { ListSkeleton } from "@/components/loading-skeleton";
+import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -21,6 +22,15 @@ import { api } from "../../../convex/_generated/api";
 import { LeaderboardParticipation } from "./leaderboard-participation";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
+
+// FlatList never unmounts its first `initialNumToRender` rows, so only a newly loaded board fades in, not rows
+// that mount later while scrolling.
+const REVEALED_ROWS = 15;
+const reveal = {
+  animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
+  animationDuration: 250,
+  animationTimingFunction: "ease-out",
+};
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
@@ -63,6 +73,7 @@ export function LeaderboardScreen() {
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 24 }}
+        initialNumToRender={REVEALED_ROWS}
         ListHeaderComponent={
           <View style={styles.filters}>
             <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>
@@ -108,30 +119,32 @@ export function LeaderboardScreen() {
           const aboveOwn = rows[index + 1]?.profile.profileId === session.profileId;
           const tied = rows[index - 1]?.rank === item.rank || rows[index + 1]?.rank === item.rank;
           return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${tied ? "Tied rank" : "Rank"} ${item.rank}, ${item.profile.name}${own ? ", you" : ""}, ${item.score} ${unit}${item.score === 1 ? "" : "s"}. Open public profile.`}
-              onPress={() =>
-                router.push({
-                  pathname: "/profile/[profileId]",
-                  params: { profileId: item.profile.profileId },
-                })
-              }
-              style={[
-                styles.row,
-                own && styles.ownRow,
-                aboveOwn && { borderBottomWidth: 0 },
-                largeText && { flexWrap: "wrap" },
-              ]}
-            >
-              <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
-              <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{item.profile.name}</Text>
-                {own && <Text style={[styles.caption, { fontWeight: "600" }]}>You</Text>}
-              </View>
-              <Text style={styles.score}>{item.score}</Text>
-            </Pressable>
+            <Animated.View style={index < REVEALED_ROWS && reveal}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${tied ? "Tied rank" : "Rank"} ${item.rank}, ${item.profile.name}${own ? ", you" : ""}, ${item.score} ${unit}${item.score === 1 ? "" : "s"}. Open public profile.`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/profile/[profileId]",
+                    params: { profileId: item.profile.profileId },
+                  })
+                }
+                style={[
+                  styles.row,
+                  own && styles.ownRow,
+                  aboveOwn && { borderBottomWidth: 0 },
+                  largeText && { flexWrap: "wrap" },
+                ]}
+              >
+                <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
+                <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
+                <View style={styles.nameRow}>
+                  <Text style={styles.name}>{item.profile.name}</Text>
+                  {own && <Text style={[styles.caption, { fontWeight: "600" }]}>You</Text>}
+                </View>
+                <Text style={styles.score}>{item.score}</Text>
+              </Pressable>
+            </Animated.View>
           );
         }}
         ListEmptyComponent={
@@ -162,7 +175,7 @@ export function LeaderboardScreen() {
               <SocialGate session={session} />
             )
           ) : board.loading && !board.error ? (
-            <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
+            <LeaderboardSkeleton />
           ) : board.error ? (
             <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
           ) : board.data ? (
@@ -212,15 +225,37 @@ export function LeaderboardScreen() {
               </Text>
             )}
             {rows.length > 0 && metric === "artworks" && (
-              <Text style={styles.explanation}>
-                Each artwork counts once. Extra photos and encounters don’t add to the total.
-              </Text>
+              <Animated.View style={reveal}>
+                <Text style={styles.explanation}>
+                  Each artwork counts once. Extra photos and encounters don’t add to the total.
+                </Text>
+              </Animated.View>
             )}
           </View>
         }
       />
       {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
     </View>
+  );
+}
+
+function LeaderboardSkeleton() {
+  const { fontScale } = useWindowDimensions();
+  return (
+    <LoadingSkeleton label="Opening leaderboard…">
+      {Array.from({ length: 6 }, (_, index) => (
+        <View key={index} style={styles.row}>
+          <View style={{ minWidth: 25 * fontScale }}>
+            <Ghost width={12} />
+          </View>
+          <Ghost width={36} height={36} round />
+          <View style={{ flex: 1 }}>
+            <Ghost width={index % 2 ? "44%" : "58%"} height={16} />
+          </View>
+          <Ghost width={24} height={19} />
+        </View>
+      ))}
+    </LoadingSkeleton>
   );
 }
 
