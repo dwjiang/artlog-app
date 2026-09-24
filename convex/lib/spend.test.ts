@@ -21,11 +21,11 @@ describe("daily spend", () => {
   it("formats the UTC day and reads caps from the environment with defaults", () => {
     expect(utcDay(Date.UTC(2026, 8, 9, 23, 59))).toBe("2026-09-09");
     expect(dailyCap("tokenFactory")).toBe(2000);
-    expect(dailyCap("tavily")).toBe(20);
+    expect(dailyCap("tavily")).toBe(2000);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "5");
     expect(dailyCap("tavily")).toBe(5);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "lots");
-    expect(dailyCap("tavily")).toBe(20);
+    expect(dailyCap("tavily")).toBe(2000);
   });
 
   it("accumulates spend in one row per day", async () => {

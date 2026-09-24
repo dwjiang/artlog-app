@@ -13,7 +13,7 @@ const kinds: Record<SpendKind, { field: SpendField; env: string; defaultCap: num
     env: "DAILY_TOKEN_FACTORY_CALL_CAP",
     defaultCap: 2000,
   },
-  tavily: { field: "tavilyCredits", env: "DAILY_TAVILY_CREDIT_CAP", defaultCap: 20 },
+  tavily: { field: "tavilyCredits", env: "DAILY_TAVILY_CREDIT_CAP", defaultCap: 2000 },
 };
 
 export function dailyCap(kind: SpendKind): number {
