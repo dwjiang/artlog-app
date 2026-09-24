@@ -69,6 +69,12 @@ jest.mock("./wall-gallery", () => {
     ),
   };
 });
+jest.mock("./wall-profile-sheet", () => {
+  const { Text } = jest.requireActual("react-native");
+  return {
+    WallProfileSheet: () => <Text accessibilityRole="header">Your public wall</Text>,
+  };
+});
 jest.mock("@expo/ui", () => ({
   ...jest.requireActual("@/__mocks__/@expo/ui"),
   Picker: Object.assign(() => null, { Item: () => null }),
@@ -611,10 +617,20 @@ it("does not reload the wall when only the auth token rotates", async () => {
   expect(mockTransport.getMine).toHaveBeenCalledTimes(1);
 });
 
-it("offers profile creation when the account has no public profile", async () => {
+it("shows a blank wall to an account without a profile until it has art to hang", async () => {
   mockTransport.getMine.mockRejectedValue(new ConvexError({ code: "profile_required" }));
   await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
-  expect(await screen.findByRole("button", { name: "Create profile" })).toBeOnTheScreen();
+  await fireEvent.press(await screen.findByRole("button", { name: "Scan artwork" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/scan");
+  expect(screen.queryByRole("button", { name: "Create profile" })).toBeNull();
+});
+
+it("asks an account without a profile to create one before choosing artworks", async () => {
+  mockTransport.getMine.mockRejectedValue(new ConvexError({ code: "profile_required" }));
+  await render(<CollectionWall works={[{ localId: "save-b" } as SavedWork]} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Choose artworks" }));
+  expect(screen.getByRole("header", { name: "Your public wall" })).toBeOnTheScreen();
+  expect(mockTransport.listMine).not.toHaveBeenCalled();
 });
 
 it("clears a rendered wall immediately when its owner changes", async () => {
