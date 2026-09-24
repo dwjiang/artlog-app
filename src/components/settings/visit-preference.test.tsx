@@ -7,6 +7,7 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 
+beforeEach(() => settings.removeSetting("remember-visit-view:device:test-installation"));
 afterEach(() => jest.restoreAllMocks());
 
 const read = settings.getSetting,
@@ -25,7 +26,7 @@ function hold<A extends unknown[], R>(spy: jest.SpyInstance<Promise<R>, A>, orig
   return () => act(() => release());
 }
 
-it("shows a ghost only for the initial read and keeps the switch mounted while a change saves", async () => {
+it("shows a ghost only for the initial read and flips the switch on tap before the write lands", async () => {
   const releaseRead = hold(jest.spyOn(settings, "getSetting"), read);
   await render(<VisitPreference />);
   expect(screen.getByRole("progressbar", { name: "Loading remember visit view" })).toBeOnTheScreen();
@@ -37,10 +38,21 @@ it("shows a ghost only for the initial read and keeps the switch mounted while a
   expect(toggle).toBeChecked();
   const releaseWrite = hold(jest.spyOn(settings, "setSetting"), write);
   await fireEvent.press(toggle);
-  expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeDisabled();
+  expect(screen.getByRole("switch", { name: "Remember visit view" })).not.toBeChecked();
+  expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeEnabled();
   expect(screen.queryByRole("progressbar")).toBeNull();
   await releaseWrite();
-  await waitFor(() => expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeEnabled());
   expect(screen.getByRole("switch", { name: "Remember visit view" })).not.toBeChecked();
   expect(await settings.getSetting("remember-visit-view:device:test-installation")).toBe("false");
+});
+
+it("turns the switch back and explains when the write fails", async () => {
+  await render(<VisitPreference />);
+  const toggle = await screen.findByRole("switch", {
+    name: "Remember visit view",
+  });
+  jest.spyOn(settings, "setSetting").mockRejectedValueOnce(new Error("Disk full"));
+  await fireEvent.press(toggle);
+  await waitFor(() => expect(screen.getByText("The preference could not be saved.")).toBeOnTheScreen());
+  expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeChecked();
 });

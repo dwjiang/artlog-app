@@ -29,7 +29,6 @@ function Status({ children }: { children: string }) {
 
 export function DevTools({ attested }: { attested: boolean }) {
   const timings = useDevTimings();
-  const [savingTimings, setSavingTimings] = useState(false);
   const assertSmoke = useMutation(api.devices.assertSmoke);
   const [result, setResult] = useState<string>();
   const [running, setRunning] = useState(false);
@@ -135,16 +134,12 @@ export function DevTools({ attested }: { attested: boolean }) {
           <Switch
             label="Show capture timings"
             value={timings.enabled === true}
-            disabled={timings.enabled === undefined || savingTimings}
+            disabled={timings.enabled === undefined}
             onValueChange={(value) => {
-              setSavingTimings(true);
-              void timings
-                .change(value)
-                .catch((cause) => {
-                  reportError(cause, "settings.capture-timings.save");
-                  setResult("Couldn't save the timings setting. Try again.");
-                })
-                .finally(() => setSavingTimings(false));
+              void timings.change(value).catch((cause) => {
+                reportError(cause, "settings.capture-timings.save");
+                setResult("Couldn't save the timings setting. Try again.");
+              });
             }}
           />
         )}

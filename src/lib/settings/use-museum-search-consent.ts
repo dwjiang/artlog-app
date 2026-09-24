@@ -12,27 +12,21 @@ export function useMuseumSearchConsent(active: boolean) {
   });
   useEffect(() => {
     if (!active) return;
-    let current = true;
-    let revision = 0;
-    const reload = () => {
-      const request = ++revision;
-      void getMuseumSearchConsent().then(
-        (consent) => {
-          if (current && request === revision) {
-            setState({ consent, failed: false });
-          }
-        },
-        () => {
-          if (current && request === revision) {
-            setState({ consent: undefined, failed: true });
-          }
-        },
-      );
-    };
-    reload();
-    const unsubscribe = subscribeMuseumSearchConsent(reload);
+    let reading = true;
+    const unsubscribe = subscribeMuseumSearchConsent((consent) => {
+      reading = false;
+      setState({ consent, failed: false });
+    });
+    void getMuseumSearchConsent().then(
+      (consent) => {
+        if (reading) setState({ consent, failed: false });
+      },
+      () => {
+        if (reading) setState({ consent: undefined, failed: true });
+      },
+    );
     return () => {
-      current = false;
+      reading = false;
       unsubscribe();
     };
   }, [active]);

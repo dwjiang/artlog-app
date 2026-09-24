@@ -1,6 +1,6 @@
 import { reportError } from "@/lib/observability";
 import { Switch } from "@expo/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
@@ -12,8 +12,8 @@ function OwnedPreference() {
   const owner = useLocalOwner();
   const [remember, setRemember] = useState(true),
     [loaded, setLoaded] = useState(false),
-    [saving, setSaving] = useState(false),
     [error, setError] = useState<string>();
+  const saving = useRef(false);
   useEffect(() => {
     let active = true;
     void getSetting(`remember-visit-view:${owner}`)
@@ -31,21 +31,25 @@ function OwnedPreference() {
       active = false;
     };
   }, [owner]);
+  // The local write lands within a frame or two, so the switch flips at once instead of flashing a disabled state.
   async function change(value: boolean) {
+    if (saving.current) return;
     const session = captureOwner();
-    setSaving(true);
+    saving.current = true;
+    setRemember(value);
     setError(undefined);
     try {
       await setSetting(`remember-visit-view:${owner}`, String(value));
-      if (session.isCurrent()) setRemember(value);
     } catch (cause) {
       reportError(cause, "settings.visit-view.save");
-      if (session.isCurrent()) setError("The preference could not be saved.");
+      if (session.isCurrent()) {
+        setRemember(!value);
+        setError("The preference could not be saved.");
+      }
     } finally {
-      if (session.isCurrent()) setSaving(false);
+      saving.current = false;
     }
   }
-  // The switch stays mounted while a change saves: unmounting it cuts the toggle animation and drops VoiceOver focus.
   return (
     <GroupedSection
       footer={
@@ -60,7 +64,6 @@ function OwnedPreference() {
         <Switch
           label="Remember visit view"
           value={remember}
-          disabled={saving}
           onValueChange={(value) => {
             void change(value);
           }}

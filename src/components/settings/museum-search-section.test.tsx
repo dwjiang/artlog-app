@@ -78,9 +78,10 @@ it("persists off as declined through a remount and keeps cancellation off", asyn
     return setMuseumSearchConsent(value);
   });
   await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
-  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeDisabled();
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeEnabled();
   await act(() => release());
-  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
   expect(await getMuseumSearchConsent()).toBe("declined");
   await view.unmount();
   await render(<SettingsDetailScreen section="privacy" />);
@@ -93,6 +94,17 @@ it("persists off as declined through a remount and keeps cancellation off", asyn
   await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
   await fireEvent.press(await screen.findByRole("button", { name: "Search this museum" }));
   await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
+});
+
+it("turns the switch back on and explains when saving off fails", async () => {
+  await setMuseumSearchConsent("granted");
+  await render(<SettingsDetailScreen section="privacy" />);
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
+  jest.spyOn(museumSearch, "setMuseumSearchConsent").mockRejectedValueOnce(new Error("Disk full"));
+  await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
+  await waitFor(() => expect(screen.getByText("Couldn't save your choice. Try again.")).toBeOnTheScreen());
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked();
+  expect(await getMuseumSearchConsent()).toBe("granted");
 });
 
 it("prevents any request after revoking consent in Settings and returning to a scan", async () => {

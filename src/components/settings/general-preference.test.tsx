@@ -66,7 +66,7 @@ it("allows choosing units after a failed read without claiming a saved selection
   expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen();
 });
 
-it("blocks duplicate changes while a save is pending", async () => {
+it("moves the checkmark on tap without a saving state and ignores taps until the write lands", async () => {
   await render(
     <GroupedList>
       <GeneralPreference />
@@ -81,10 +81,12 @@ it("blocks duplicate changes while a save is pending", async () => {
       }),
   );
   await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
-  expect(screen.getByText("Saving measurement units…")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Metric" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
+  expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Metric" })).toBeEnabled();
+  expect(screen.getByText("Used for nearby museum distances. Saved on this iPhone.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Metric" }));
   expect(write).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen();
   await act(() => finish());
-  expect(screen.getByRole("button", { name: "Imperial" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen();
 });
