@@ -366,7 +366,7 @@ export default defineSchema({
     .index("by_scanId", ["scanId"])
     .index("by_venueId", ["venueId"])
     .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId", "createdAt"])
-    .index("by_resolution_multiView", ["resolution.kind", "multiViewAt", "createdAt"])
+    .index("by_resolution_object_venue_multiView", ["resolution.kind", "resolution.objectId", "venueId", "multiViewAt"])
     .index("by_multiViewFirstDevice", ["multiViewAgreement.firstDeviceId"])
     .index("by_multiViewDuplicateVectorId", ["multiViewDuplicateVectorId"])
     .index("by_multiViewSecondDevice", ["multiViewAgreement.secondDeviceId"]),
@@ -443,10 +443,6 @@ export default defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
   }).index("by_device", ["deviceId"]),
-
-  promotionState: defineTable({
-    multiViewCursor: v.union(v.string(), v.null()),
-  }),
 
   museumWorkIdentities: defineTable({
     venueId: v.id("museums"),

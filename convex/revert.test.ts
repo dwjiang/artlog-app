@@ -15,7 +15,7 @@ import {
   testVector,
 } from "./lib/testFactories";
 import { publishContribution } from "./lib/tentativeEntries";
-import { harness } from "./test.helpers";
+import { harness, promoteGroup } from "./test.helpers";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -512,13 +512,13 @@ it.each(["first", "second"] as const)("removes views when their %s agreement wit
       });
     });
   }
-  expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+  await promoteGroup(t, work.objectId, venueId);
+  expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   await t.mutation(internal.revert.revertDevice, {
     deviceId: witness === "first" ? alice.deviceId : bob.deviceId,
     reason: "poisoning",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  await t.action(internal.promotion.run, {});
   const remaining = await t.run((ctx) =>
     ctx.db
       .query("vectors")
@@ -561,7 +561,8 @@ it("reconsiders duplicate views across witness pages and restores them with clea
   for (let i = 0; i < 35; i++) {
     bobRows.push(await add(bob.deviceId, testVector(0.8)));
   }
-  expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+  await promoteGroup(t, work.objectId, venueId);
+  expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   await t.mutation(internal.revert.revertDevice, {
     deviceId: alice.deviceId,
     reason: "poisoning",
@@ -575,7 +576,8 @@ it("reconsiders duplicate views across witness pages and restores them with clea
   }
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(0);
   await add(carol.deviceId, testVector(0.7));
-  expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+  await promoteGroup(t, work.objectId, venueId);
+  expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   await t.mutation(internal.revert.revertDevice, {
     deviceId: alice.deviceId,
     reason: "retry",
@@ -656,7 +658,8 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
       });
     });
   }
-  expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+  await promoteGroup(t, work.objectId, venueId);
+  expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   const requestId = await t.mutation(internal.revert.applyOptOut, {
     venueId,
     requester: "museum",
@@ -672,7 +675,6 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
   expect(await t.run((ctx) => ctx.db.get(requestId))).toMatchObject({
     appliedAt: expect.any(Number),
   });
-  await t.action(internal.promotion.run, {});
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(0);
 });
 
@@ -713,7 +715,9 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
         });
       });
     }
-    expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+    await promoteGroup(t, work.objectId, venueA);
+    await promoteGroup(t, work.objectId, venueB);
+    expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
     if (removal === "ban") {
       await t.mutation(internal.revert.revertDevice, {
         deviceId: alice.deviceId,
@@ -726,7 +730,6 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
       });
     }
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    await t.action(internal.promotion.run, {});
     const rows = await t.run((ctx) =>
       ctx.db
         .query("vectors")

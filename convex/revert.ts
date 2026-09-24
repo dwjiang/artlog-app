@@ -11,6 +11,7 @@ import { revokeContributionMedia } from "./lib/displayMedia";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { clearDocent } from "./docent";
 import { bumpCounter } from "./ingest";
+import { queueMultiView } from "./promotion";
 
 // Outer cascades select small pages; each object's child tables are cleaned in separate transactions.
 const CHUNK = 25;
@@ -168,6 +169,7 @@ export const requeueDuplicateViews = internalMutation({
       .withIndex("by_multiViewDuplicateVectorId", (q) => q.eq("multiViewDuplicateVectorId", vectorId))
       .paginate(paging(cursor));
     for (const row of page.page) await resetMultiView(ctx, row);
+    await queueMultiView(ctx, page.page);
     if (!page.isDone) {
       await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
         vectorId,

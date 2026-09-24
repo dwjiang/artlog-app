@@ -9,6 +9,7 @@ import { eligibleObject } from "./lib/recognitionEligibility";
 import schema from "./schema";
 import { requireAttestedWrite } from "./devices";
 import { proposePlacementFromScan } from "./placements";
+import { queueMultiView } from "./promotion";
 import { requireDevice } from "./lib/auth";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
@@ -138,6 +139,7 @@ export const resolveRejection = mutation({
         throw new ConvexError({ code: "invalid_resolution" });
       }
       await ctx.db.patch(feedbackId, { resolution });
+      await queueMultiView(ctx, [{ resolution, venueId: feedback.venueId }]);
       if (scan.venueId) {
         await proposePlacementFromScan(ctx, {
           scan,

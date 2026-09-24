@@ -1,7 +1,9 @@
 /// <reference types="vite/client" />
 import { register } from "@convex-dev/rate-limiter/test";
 import { convexTest, type TestConvex } from "convex-test";
+import { vi } from "vitest";
 
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -30,4 +32,10 @@ export async function signIn(t: Harness): Promise<SignedIn> {
     }),
   );
   return { userId, as: t.withIdentity({ subject: `${userId}|${sessionId}` }) };
+}
+
+// Runs the promotion pass a runner-up resolution queues for its work and venue. Needs fake timers.
+export async function promoteGroup(t: Harness, objectId: Id<"objects">, venueId: Id<"museums">): Promise<void> {
+  await t.mutation(internal.promotion.findGroupAgreement, { objectId, venueId, cursor: null, witnesses: [] });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
 }

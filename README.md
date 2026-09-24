@@ -75,7 +75,7 @@ does not depend on Tavily.
    camera → subject crop → CoreML C-RADIOv3-B → ORB           identify: vector search → ORB/RANSAC → calibrator
    wall label → Apple Vision OCR (text lines only leave)       label: Nemotron sorts lines → accession · Wikidata · Tavily
    venue table (SQLite, on device) · local collection         label · museumSearch · docent · rightNow actions
-   App Attest key · offline scan queue  ◀── scans ────────    promotion cron · sync · rate limits · spend caps
+   App Attest key · offline scan queue  ◀── scans ────────    multi-view promotion · sync · rate limits · spend caps
                                           subscription             │                 │              │
                                                                    ▼                 ▼              ▼
                                                         Nebius Token Factory       Tavily      one page on the
