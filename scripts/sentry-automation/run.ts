@@ -21,8 +21,8 @@ import {
   type Pull,
   type State,
 } from "./policy.ts";
-import { command, git, github, githubPages, request, required } from "./services.ts";
-import { directory, runAgent, type Assessment } from "./agent.ts";
+import { git, github, githubPages, request, required } from "./services.ts";
+import { directory, runAgent, runSandboxed, type Assessment } from "./agent.ts";
 
 interface Issue {
   id: string;
@@ -152,16 +152,18 @@ function proposal(fix: Assessment): { patch: string } | { problem: string } {
 }
 
 function checks(): string[] {
+  const before = capturePatch();
+  // test:conductor is omitted: its real process and localhost fixtures hang in the sandbox, and patches cannot reach it.
   const commands = [
     ["exec", "--", "tsc", "--noEmit"],
     ["run", "lint"],
     ["run", "test:app", "--", "--runInBand"],
     ["run", "test:convex"],
     ["run", "test:model"],
-    ["run", "test:conductor"],
     ["run", "test:sentry-automation"],
   ];
-  for (const args of commands) command("npm", args, { timeout: 8 * 60_000 });
+  for (const args of commands) runSandboxed(["npm", ...args], 8 * 60_000);
+  if (capturePatch() !== before) throw new Error("Checks changed the working tree");
   return commands.map((args) => `npm ${args.join(" ")}`);
 }
 
@@ -245,7 +247,9 @@ async function prepare(): Promise<void> {
       body = fix.body;
     }
     const before = capturePatch();
-    const review = runAgent("review", { issue, checks: validation, proposedFix: body }, mainSha);
+    // Main's later commits would otherwise look like reverts made by the PR.
+    const base = git("merge-base", mainSha, pull.head.sha);
+    const review = runAgent("review", { issue, checks: validation, proposedFix: body }, base);
     if (capturePatch() !== before) throw new Error("Reviewer changed the working tree");
     if (review.status === "skip") throw new Error("Review did not complete");
     save(

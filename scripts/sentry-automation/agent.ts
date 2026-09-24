@@ -37,6 +37,28 @@ const mcpNames = [...readFileSync(".codex/config.toml", "utf8").matchAll(/^\[mcp
   (match) => match[1],
 );
 
+// Checks execute candidate code outside an agent session. Unsandboxed, that code could send runner
+// credentials out or rewrite the trusted tools a later step runs with the secret-write token.
+export function runSandboxed(args: string[], timeout: number): void {
+  try {
+    command(
+      "codex",
+      [
+        "sandbox",
+        "-c",
+        'sandbox_mode="workspace-write"',
+        "-c",
+        "sandbox_workspace_write.network_access=false",
+        "--",
+        ...args,
+      ],
+      { env: childEnvironment(), timeout },
+    );
+  } catch {
+    throw new Error(`Sandboxed ${args.join(" ")} failed or timed out`);
+  }
+}
+
 export function runAgent(role: "fix" | "review" | "probe", evidence: unknown, base: string): Assessment {
   mkdirSync(directory, { recursive: true });
   const schemaPath = resolve(directory, "assessment-schema.json");

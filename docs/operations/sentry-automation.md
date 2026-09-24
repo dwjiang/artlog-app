@@ -34,7 +34,7 @@ Patches are limited to `src/`, `convex/`, `shared/` and `modules/`, with at most
 
 ## Credentials and evidence
 
-The workflow installs dependencies before restoring Codex credentials. Agents have no GitHub write token, Sentry token or refresh-token-management token in their environment. Shell network access, apps, plugins, hooks, project MCP servers and nested agents are disabled. Codex authentication remains accessible to the Codex client on the trusted private runner, as required by the subscription approach.
+The workflow installs dependencies before restoring Codex credentials. Agents have no GitHub write token, Sentry token or refresh-token-management token in their environment. Shell network access, apps, plugins, hooks, project MCP servers and nested agents are disabled. Tests, lint and typechecking execute candidate code, so they run in the same no-network workspace sandbox via `codex sandbox`. Codex authentication remains accessible to the Codex client on the trusted private runner, as required by the subscription approach.
 
 Sentry evidence contains event identifiers, timestamps, exception types and stack locations. It omits free-text exception messages, user objects, requests, breadcrumbs and local variables. This deliberately makes some issues unsuitable for an automatic fix; the agent must skip unsupported diagnoses. Logs and the evidence payload are not uploaded as artifacts. Only the validated publication plan and patch are transferred between jobs, with one-day retention.
 
