@@ -1,83 +1,75 @@
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import { Menu, Picker, Text as PickerText } from "@expo/ui/swift-ui";
+import { Menu, Section, Toggle } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
+  background,
   buttonStyle,
   contentShape,
+  font,
   frame,
-  pickerStyle,
+  padding,
   shapes,
-  tag,
 } from "@expo/ui/swift-ui/modifiers";
-import { useWindowDimensions, View } from "react-native";
+import type { ComponentProps } from "react";
+import { useWindowDimensions } from "react-native";
 
-import { Gallery } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 
+/** A filter chip that opens a native menu; `label` titles the menu and names the chip for VoiceOver. */
 export function ChoiceMenu<T extends string>({
   label,
   value,
   options,
   onChange,
-  grow = 1,
-  plain = false,
+  icon,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
-  grow?: number;
-  plain?: boolean;
+  icon?: ComponentProps<typeof Icon>["name"];
 }) {
   const { fontScale } = useWindowDimensions();
   const selected = options.find((option) => option.value === value)?.label;
   return (
-    <View
-      style={{
-        flex: fontScale > 1.4 ? undefined : grow,
-        borderWidth: plain ? 0 : 0.5,
-        borderColor: Gallery.controlBorder,
-        borderRadius: 4,
-      }}
-    >
-      <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
-        <Menu
-          modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain"), frame({ maxWidth: Infinity })]}
-          label={
-            <Row
-              spacing={8}
-              alignment="center"
-              style={{ paddingHorizontal: 11 }}
-              modifiers={[
-                frame({
-                  maxWidth: Infinity,
-                  minHeight: 44 * Math.max(1, fontScale),
-                  alignment: "leading",
-                }),
-                contentShape(shapes.rectangle()),
-              ]}
+    <Host matchContents colorScheme="light">
+      <Menu
+        modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain")]}
+        label={
+          <Row
+            spacing={Spacing.one + Spacing.half}
+            alignment="center"
+            modifiers={[
+              padding({ horizontal: Spacing.compact + Spacing.half, vertical: Spacing.two }),
+              background(Gallery.segmentTrack, shapes.capsule()),
+              // The pill stays compact while the whole 44-point row answers taps.
+              frame({ minHeight: 44 }),
+              contentShape(shapes.rectangle()),
+            ]}
+          >
+            {icon && <Icon name={icon} size={13 * fontScale} color={Gallery.ink} />}
+            <NativeText
+              textStyle={{ color: Gallery.ink }}
+              modifiers={[font({ textStyle: "subheadline", weight: "medium" })]}
             >
-              <NativeText
-                textStyle={{
-                  fontSize: 15 * fontScale,
-                  fontWeight: "400",
-                  color: plain ? Gallery.accent : Gallery.ink,
-                }}
-              >
-                {selected}
-              </NativeText>
-              <Icon name="chevron.down" size={11} color={plain ? Gallery.accent : Gallery.muted} />
-            </Row>
-          }
-        >
-          <Picker label={label} selection={value} onSelectionChange={onChange} modifiers={[pickerStyle("inline")]}>
-            {options.map((option) => (
-              <PickerText key={option.value} modifiers={[tag(option.value)]}>
-                {option.label}
-              </PickerText>
-            ))}
-          </Picker>
-        </Menu>
-      </Host>
-    </View>
+              {selected}
+            </NativeText>
+            <Icon name="chevron.down" size={10 * fontScale} color={Gallery.ink} />
+          </Row>
+        }
+      >
+        {/* An inline Picker hides the section title inside a menu; controlled toggles keep it and still draw checkmarks. */}
+        <Section title={label}>
+          {options.map((option) => (
+            <Toggle
+              key={option.value}
+              label={option.label}
+              isOn={option.value === value}
+              onIsOnChange={() => onChange(option.value)}
+            />
+          ))}
+        </Section>
+      </Menu>
+    </Host>
   );
 }

@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyPodium } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { useLeaderboardChoice, type LeaderboardChoice } from "@/lib/social/use-leaderboard-choice";
@@ -78,12 +78,10 @@ export function LeaderboardScreen() {
               ]}
             />
             {canBrowse && (
-              <View style={[styles.filterRow, largeText && { flexDirection: "column" }]}>
+              <View style={styles.filterRow}>
                 <ChoiceMenu
-                  plain
-                  label="Ranking category"
+                  label="Rank by"
                   value={metric}
-                  grow={1.55}
                   onChange={(value) => filter({ metric: value })}
                   options={[
                     { value: "visits", label: "Museum visits" },
@@ -91,7 +89,6 @@ export function LeaderboardScreen() {
                   ]}
                 />
                 <ChoiceMenu
-                  plain
                   label="Time period"
                   value={period}
                   onChange={(value) => filter({ period: value })}
@@ -241,7 +238,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     backgroundColor: Gallery.paper,
   },
-  filterRow: { flexDirection: "row", gap: 9, marginTop: 13 },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two, marginTop: Spacing.two },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   row: {
     flexDirection: "row",
