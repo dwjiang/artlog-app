@@ -104,6 +104,7 @@ export function OfflineResultScreen({
             cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
             artworkTitle={view.primary?.title}
             kind={view.kind}
+            probability={view.primary?.probability}
             onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
             onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />

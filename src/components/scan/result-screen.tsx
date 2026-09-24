@@ -218,6 +218,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       artworkTitle={view.primary?.title}
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
+      probability={view.primary?.probability}
       onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined}
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
