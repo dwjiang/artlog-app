@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   BRANCH,
   ISSUE,
@@ -414,6 +415,22 @@ async function escalate(plan: Plan, pull: Pull | null): Promise<void> {
   summary(`Escalated ${plan.issue} for a human: ${issue.html_url}`);
 }
 
+// GitHub moves a PR head asynchronously after a push. Only the pre-push head is waited out;
+// any other unexpected head is a real change and must fail publication.
+export async function settledPull(
+  load: () => Promise<Pull>,
+  pushedFrom: string,
+  expected: string,
+  wait = () => delay(1_000),
+): Promise<Pull> {
+  let pull = await load();
+  for (let attempt = 0; attempt < 10 && pushedFrom !== expected && pull.head.sha === pushedFrom; attempt++) {
+    await wait();
+    pull = await load();
+  }
+  return pull;
+}
+
 async function publish(): Promise<void> {
   const plan = JSON.parse(readFileSync(planPath, "utf8")) as Plan;
   const patch = readFileSync(patchPath, "utf8");
@@ -536,7 +553,8 @@ async function publish(): Promise<void> {
     await github(`issues/${pull.number}/labels`, "POST", { labels: LABELS });
   }
   if (!pull) throw new Error("No PR to review");
-  const latest = await github<Pull>(`pulls/${pull.number}`);
+  const { number } = pull;
+  const latest = await settledPull(() => github<Pull>(`pulls/${number}`), plan.headSha, reviewedHead);
   if (!eligiblePull(latest) || latest.head.sha !== reviewedHead) {
     throw new Error("PR changed before review publication");
   }

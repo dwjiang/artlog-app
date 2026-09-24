@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { validatePlan, type Plan } from "./run.ts";
+import type { Pull } from "./policy.ts";
+import { settledPull, validatePlan, type Plan } from "./run.ts";
 
 const patch = "example patch\n";
 const plan: Plan = {
@@ -58,4 +59,26 @@ test("escalations publish no code and a PR escalation spends every revision roun
   assert.doesNotThrow(() => validatePlan(stopped, ""));
   assert.throws(() => validatePlan({ ...stopped, rounds: 1 }, ""));
   assert.throws(() => validatePlan({ ...stopped, branch: "" }, ""));
+});
+
+test("review publication waits out a lagging PR head but never a different one", async () => {
+  const [before, pushed, other] = ["a", "b", "c"].map((sha) => sha.repeat(40));
+  const settle = async (heads: string[], expected: string) => {
+    let loads = 0;
+    let waits = 0;
+    const pull = await settledPull(
+      async () => ({ head: { sha: heads[Math.min(loads++, heads.length - 1)] } }) as Pull,
+      before,
+      expected,
+      async () => {
+        waits++;
+      },
+    );
+    return { head: pull.head.sha, waits };
+  };
+
+  assert.deepEqual(await settle([before, before, pushed], pushed), { head: pushed, waits: 2 });
+  assert.deepEqual(await settle([other, pushed], pushed), { head: other, waits: 0 });
+  assert.deepEqual(await settle([before], before), { head: before, waits: 0 });
+  assert.deepEqual(await settle([before], pushed), { head: before, waits: 10 });
 });

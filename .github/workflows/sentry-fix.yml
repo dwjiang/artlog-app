@@ -40,6 +40,8 @@ jobs:
       - name: Install trusted dependencies before restoring credentials
         run: |
           npm ci
+          # The widget runtime test reads this bundle; outside Xcode builds nothing else creates it.
+          node node_modules/expo-widgets/scripts/build-bundle.mjs "$PWD"
           npm install --global @openai/codex@0.153.4
           cp -R scripts/sentry-automation "$RUNNER_TEMP/sentry-automation-tools"
           printf 'CODEX_HOME=%s/sentry-codex-home\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
