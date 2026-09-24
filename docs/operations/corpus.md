@@ -28,7 +28,7 @@ data; other checkouts can pass absolute `--in` and `--checkpoint` paths directly
 
 ## Corpus and production counts
 
-| Table/stage |                        Full corpus input |   Last verified production count |
+| Table/stage |                        Full corpus input | Production count before the wipe |
 | ----------- | ---------------------------------------: | -------------------------------: |
 | museums     | 3,924 required keys; not an import stage |                           42,452 |
 | artworks    |                                  404,653 |                           11,721 |
@@ -47,9 +47,9 @@ feature shards preserve the other extracted views' ORB data locally as well.
 The full local dry-run fingerprint is
 `ba7aa0f8539903ac1d0933d327875ca3b3db68f9d9b2506cde802f11cee62565`.
 It passed all 41 shards, recorded 397,047 indexed survivors, and requires 3,924
-museum keys. All those keys occur in the **saved** production mapping; repeat
-the check against live production before writing. The last production report
-is evidence from the prior import, not a fresh server read for this plan.
+museum keys. All those keys occurred in the production mapping saved before
+production was wiped on 2026-09-24; the right column describes that 2026-09-13
+import, and live production is now empty.
 
 Raw payload estimates from the dry-run are 4,941,484,032 bytes for float64
 embeddings and 9,336,475,392 bytes for selected ORB payloads. The local float32

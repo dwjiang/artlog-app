@@ -1,7 +1,7 @@
 # Production deployment reference
 
-Deployment observations were recorded on 2026-09-13 and were not rechecked
-during documentation cleanup. Remaining build, distribution, and iPhone
+Production was wiped on 2026-09-24 and holds no data. Configuration
+observations date from 2026-09-13. Remaining build, distribution, and iPhone
 verification tasks are in the [release todo](../todos/release/README.md).
 
 ## Recorded deployment state
@@ -11,30 +11,16 @@ verification tasks are in the [release todo](../todos/release/README.md).
 | Development | `usable-owl-256`        | `https://usable-owl-256.convex.cloud`        |
 | Production  | `admired-goldfinch-660` | `https://admired-goldfinch-660.convex.cloud` |
 
-Both belong to `daniel-jiang/artlog` and were deployed with `lr-v2`. Production
-has the verified 10,000-painting sample. Import readback matched all metadata,
-references, embedding views, and ORB bytes. Authenticated recognition passed for
-Roses, Wheat Field with Cypresses, and The Bedroom; missing geometry returned
-soft and an unsupported model was refused. Those checks used exact indexed
-reference features through the API, not the production iPhone camera.
+Both belong to `daniel-jiang/artlog`. On 2026-09-24 every production table and
+stored file was deleted, and `main` at `f3c13782` was deployed; `health:ping`
+passes and `ingest:counts` is zero. The 2026-09-13 import of the 10,000-painting
+sample, its readback and recognition checks, and the published venue SQLite no
+longer exist there. Seed museums and publish a venue table with
+[`seed_venues`](../../scripts/data/README.md#venue-seed-and-bundled-database),
+then import the corpus, before pointing a build at production. A build must use
+venue IDs from the deployment it connects to.
 
-| Table       | Verified production rows |
-| ----------- | -----------------------: |
-| museums     |                   42,452 |
-| artworks    |                   11,721 |
-| objects     |                   15,427 |
-| placements  |                   14,256 |
-| vectors     |                   13,616 |
-| descriptors |                   10,000 |
-
-The imported package contains canonical paintings, merged aliases, alternate
-embedding views, and selected ORB references. All 793 required museum keys
-exist. The two development POI records were excluded from the museum directory.
-The production venue SQLite was exported with production IDs, published through
-`venueTable`, and verified at 8,568,832 bytes. A build must use venue IDs from
-the deployment it connects to.
-
-Local evidence lives under `/Users/dwjiang/Documents/Artlog Data/`:
+Evidence from the wiped import lives under `/Users/dwjiang/Documents/Artlog Data/`:
 `jobs/scratch/calibrator-corpus-10000/` holds the package;
 `jobs/out/06-01-2026-09-13-production/` holds configuration/auth audits, venue
 asset and mapping, import checkpoint, readback, and recognition reports.
@@ -56,7 +42,7 @@ The [full corpus upload](../todos/production-upload/README.md) and
 | `DAILY_TOKEN_FACTORY_CALL_CAP`          | `2000`                                      |
 | `DAILY_TAVILY_CREDIT_CAP`               | `2000`                                      |
 | `SITE_URL`                              | `https://admired-goldfinch-660.convex.site` |
-| `LABEL_MODEL`, `FACT_SHEET_MODEL`       | `nvidia/nemotron-3-super-120b-a12b`         |
+| `LABEL_VL_MODEL`, `FACT_SHEET_MODEL`    | `nvidia/nemotron-3-super-120b-a12b`         |
 | `DOCENT_MODEL`, `MODERATION_MODEL`      | `nvidia/Nemotron-3_5-Lightning`             |
 
 Production has independent `JWT_PRIVATE_KEY` and `JWKS` plus provider credentials

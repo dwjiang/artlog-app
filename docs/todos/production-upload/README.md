@@ -31,7 +31,7 @@ upload remains separately deferred to reduce costs during development.
 
 ## Why this matters
 
-Production currently has the verified 10,000-painting development sample. The
+Production was wiped on 2026-09-24 and holds no data. The
 full locally built corpus has 397,047 canonical objects with recognition
 features. Importing it later expands coverage without repeating downloads,
 embedding extraction, or ORB extraction. The user deliberately postponed the
@@ -167,14 +167,15 @@ read-only against production. Smoke intentionally creates a test session/scans.
 For `preflight`, use `ConvexWriter.query('ingest:exportVenues', ...)` to paginate
 the live museum mapping; assert unique keys, advancing cursors, and zero missing
 `Corpus.plan()['requiredVenueKeys']`. Save the mapping and `ingest:counts` as
-`museum-preflight.json` and `baseline.json`. Last known production counts are in
-the [corpus inventory](../../operations/corpus.md#corpus-and-production-counts); report and reconcile any drift
-instead of assuming an empty DB.
+`museum-preflight.json` and `baseline.json`. Production was emptied on
+2026-09-24; report any rows found instead of assuming it is still empty. The
+[corpus inventory](../../operations/corpus.md#corpus-and-production-counts)
+keeps the counts from before the wipe.
 
-All 3,924 required keys existed in the saved 42,452-museum mapping. No museum
-upload is expected. If any are now missing, stop and identify exact keys and
-verified source metadata before proposing a seed. Do not invent coordinates,
-reimport all museums, or reset `ingestCounters`. If an approved repair changes
+The wipe removed all museums, so seed them with `seed_venues` and publish the
+venue table before the preflight. If required keys are still missing afterwards,
+stop and identify exact keys and verified source metadata before proposing a
+seed. Do not invent coordinates or reset `ingestCounters`. If an approved repair changes
 the directory, regenerate/publish the SQLite using `export_asset` and
 `publish_asset`, and verify downloaded bytes and **production** IDs.
 
