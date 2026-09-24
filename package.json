@@ -10,7 +10,7 @@
     "preios": "npm run model:check",
     "lint": "oxlint --report-unused-disable-directives-severity=error && oxfmt --check",
     "format": "oxfmt",
-    "test": "npm run test:app && npm run test:convex && npm run test:model && npm run test:conductor",
+    "test": "npm run test:app && npm run test:convex && npm run test:model && npm run test:conductor && npm run test:sentry-automation",
     "test:app": "jest",
     "test:convex": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
@@ -19,6 +19,7 @@
     "model:check": "node --experimental-strip-types scripts/model/check-model.mts",
     "test:model": "node --experimental-strip-types --test scripts/model/*.test.mts",
     "test:conductor": "node --experimental-strip-types --test .conductor/*.test.mts",
+    "test:sentry-automation": "node --experimental-strip-types --test scripts/sentry-automation/*.test.ts",
     "eas-build-pre-install": "npm run model:check"
   },
   "dependencies": {

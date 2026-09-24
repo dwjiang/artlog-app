@@ -1,0 +1,101 @@
+name: Sentry fixes
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+      timezone: America/Los_Angeles
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Verify subscription, Sentry and GitHub access without changing PRs
+        type: boolean
+        default: true
+
+concurrency:
+  group: sentry-codex-subscription
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.repository == 'dwjiang/artlog-app' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+      - name: Install trusted dependencies before restoring credentials
+        run: |
+          npm ci
+          npm install --global @openai/codex@0.153.4
+          cp -R scripts/sentry-automation "$RUNNER_TEMP/sentry-automation-tools"
+          printf 'CODEX_HOME=%s/sentry-codex-home\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Restore current subscription login
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          CODEX_AUTH_WRITE_TOKEN: ${{ secrets.CODEX_AUTH_WRITE_TOKEN }}
+        run: node "$RUNNER_TEMP/sentry-automation-tools/auth.ts" restore
+      - name: Investigate, fix, test and independently review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: timeout --signal=TERM --kill-after=10s 65m node "$RUNNER_TEMP/sentry-automation-tools/run.ts" prepare
+      - name: Persist refreshed login even when analysis fails
+        if: always()
+        env:
+          CODEX_AUTH_WRITE_TOKEN: ${{ secrets.CODEX_AUTH_WRITE_TOKEN }}
+        run: |
+          if test -f "$RUNNER_TEMP/sentry-automation-tools/auth.ts"; then
+            node "$RUNNER_TEMP/sentry-automation-tools/auth.ts" persist
+          fi
+      - name: Upload only the publication plan and patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-publication
+          path: |
+            .context/sentry-automation/publish/plan.json
+            .context/sentry-automation/publish/change.patch
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - name: Preserve trusted publication code before checking out a candidate
+        run: cp -R scripts/sentry-automation "$RUNNER_TEMP/sentry-automation-tools"
+      - uses: actions/download-artifact@v4
+        with:
+          name: sentry-publication
+          path: .context/sentry-automation/publish
+      - name: Publish draft PR or eligible review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$RUNNER_TEMP/sentry-automation-tools/run.ts" publish
