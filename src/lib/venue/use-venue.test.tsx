@@ -7,6 +7,7 @@ import type { NewVisit, Visit } from "@/db/schema";
 import type { VenueCandidate } from "./resolve";
 import { museumDay } from "@/lib/journal/visit-date";
 import { createVenueController, VenueResolver, type VenueController } from "./use-venue";
+import { NOT_HERE_MS } from "./venue-reducer";
 
 const mockRequestPermission = jest.fn();
 const mockGetPosition = jest.fn();
@@ -658,6 +659,32 @@ describe("scans", () => {
     expect(mockVisits.get("uuid-1")).toMatchObject({ startedAt: mockNow - 1000 });
     expect(mockVisits.size).toBe(1);
   });
+
+  it("never opens the sheet over a scan; the next foreground asks instead", async () => {
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    mockSearchNearby.mockResolvedValue([place]);
+    await act(async () => {
+      await render(<VenueResolver controller={controller} />);
+    });
+    mockPush.mockClear();
+    mockNow += 5 * 60 * 1000;
+    await act(async () => {
+      await controller.resolveForScan(mockNow);
+    });
+    expect(controller.getState().status).toBe("choose");
+    mockNearest.mockResolvedValue([]);
+    mockNow += 5 * 60 * 1000;
+    await act(async () => {
+      await controller.resolveForScan(mockNow);
+    });
+    expect(controller.getState().options).toEqual([expect.objectContaining({ kind: "poi" })]);
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => {
+      appStateListener?.("background");
+      appStateListener?.("active");
+    });
+    expect(mockPush).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("pausing, ending and the day", () => {
@@ -1110,6 +1137,93 @@ describe("the sheet", () => {
       expect(controller.getContext().venueId).toBe("id-neue");
     },
   );
+
+  it("keeps a museum picked from the list through backgrounding and a relaunch without asking again", async () => {
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    await mountResolver();
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await controller.confirm(controller.getState().options[1]);
+    });
+    mockNow += 60 * 1000;
+    await act(async () => {
+      appStateListener?.("background");
+      appStateListener?.("active");
+    });
+    expect(mockGetPosition).toHaveBeenCalledTimes(2);
+    expect(controller.getContext()).toEqual({ venueId: "id-neue" });
+    controller = createVenueController();
+    await mountResolver();
+    expect(controller.getContext()).toEqual({ venueId: "id-neue" });
+    expect(mockPush).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets a pick once a visit starts at another museum, also after a relaunch", async () => {
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    await mountResolver();
+    await act(async () => {
+      await controller.confirm(controller.getState().options[1]);
+    });
+    mockNearest.mockResolvedValue([metRow]);
+    mockNow += 5 * 60 * 1000;
+    await act(async () => {
+      await controller.resolve();
+      await controller.visitForSave(metId, mockNow);
+    });
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    controller = createVenueController();
+    await mountResolver();
+    expect(controller.getContext()).toMatchObject({ venueId: "id-met", visitLocalId: "uuid-1" });
+  });
+
+  it("declines a swiped-away prompt like Not here unless a museum resolved while it was open", async () => {
+    const moveTo = async (rows: VenueCandidate[]) => {
+      mockNearest.mockResolvedValue(rows);
+      mockNow += 5 * 60 * 1000;
+      await act(async () => {
+        appStateListener?.("background");
+        appStateListener?.("active");
+      });
+    };
+    mockSearchNearby.mockResolvedValue([place]);
+    mockNearest.mockResolvedValue([metRow]);
+    await mountResolver();
+    await act(async () => {
+      await controller.visitForSave(metId, mockNow);
+    });
+    await moveTo([]);
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    await moveTo([metRow]);
+    await act(async () => {
+      controller.declinePrompt();
+    });
+    expect(controller.getContext()).toMatchObject({ venueId: "id-met", visitLocalId: "uuid-1" });
+    expect(mockVisits.get("uuid-1")?.endedAt).toBeNull();
+    await moveTo([]);
+    expect(mockPush).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      controller.declinePrompt();
+    });
+    await moveTo([]);
+    expect(mockPush).toHaveBeenCalledTimes(2);
+    expect(controller.getState().visit?.localId).toBe("uuid-1");
+  });
+
+  it("remembers Not here across a relaunch for two hours, then asks again", async () => {
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    await mountResolver();
+    await act(async () => {
+      controller.dismiss();
+    });
+    controller = createVenueController();
+    await mountResolver();
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    mockNow += NOT_HERE_MS;
+    await act(async () => {
+      await controller.resolve();
+    });
+    expect(mockPush).toHaveBeenCalledTimes(2);
+  });
 
   it("keeps the other same-name place available after confirming one branch", async () => {
     const otherBranch = { ...place, lat: place.lat + 0.001, distanceMeters: 190 };

@@ -77,6 +77,7 @@ export function VenuePickerSheet() {
   return (
     <ChooserSheet
       view={view}
+      prompted={requested === "choose"}
       keepVisit={visit && mode === "change" ? () => setMode("visit") : undefined}
     />
   );
@@ -141,11 +142,19 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
   );
 }
 
-function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => void }) {
+function ChooserSheet({
+  view,
+  prompted,
+  keepVisit,
+}: {
+  view: VenueView;
+  prompted: boolean;
+  keepVisit?: () => void;
+}) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
   const sheetStyle = useSheetStyle();
-  const { status, options, error, confirm, dismiss } = view;
+  const { status, options, error, confirm, dismiss, declinePrompt } = view;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ query: string; rows: VenueRow[]; error?: string }>();
   const searching = query.trim().length >= 2;
@@ -173,6 +182,14 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
   const searchInput = useRef<TextInput>(null);
   const pending = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => pending.current?.abort(), []);
+  const answered = useRef(false);
+  // Swiping the location prompt away declines it like "Continue without a museum", so it does not reopen here.
+  useEffect(
+    () => () => {
+      if (prompted && !answered.current) declinePrompt();
+    },
+    [prompted, declinePrompt],
+  );
 
   async function choose(option: VenueOption) {
     if (pending.current) return;
@@ -182,7 +199,9 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
     setFailure(undefined);
     try {
       await confirm(option, request.signal);
-      if (!request.signal.aborted) router.back();
+      if (request.signal.aborted) return;
+      answered.current = true;
+      router.back();
     } catch (cause) {
       if (!request.signal.aborted) reportError(cause, "venue.confirm");
       if (!request.signal.aborted)
@@ -197,6 +216,7 @@ function ChooserSheet({ view, keepVisit }: { view: VenueView; keepVisit?: () => 
 
   function notHere() {
     pending.current?.abort();
+    answered.current = true;
     dismiss();
     router.back();
   }

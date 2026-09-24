@@ -6,6 +6,7 @@ import {
   FIX_MAX_AGE_MS,
   initialVenueState,
   needsFix,
+  NOT_HERE_MS,
   venueContext,
   venueReducer,
   type CurrentVisit,
@@ -15,6 +16,9 @@ import {
 
 const met = { lat: 40.779444444, lng: -73.963333333 };
 const fix = { ...met, at: 1_000_000 };
+const DAY = 24 * 60 * 60 * 1000;
+/** The museum day of `fix`. */
+const today = { visitedOn: "1970-01-01", timeZone: "UTC" };
 
 function candidate(name: string, distanceM: number): VenueCandidate {
   return {
@@ -109,6 +113,72 @@ describe("resolving a fix", () => {
     });
   });
 
+  it("keeps a museum picked from the list whenever a fix lists it that day, then asks again the next day", () => {
+    const choose = {
+      type: "resolved" as const,
+      fix,
+      resolution: {
+        kind: "choose" as const,
+        options: [candidate("Met", 90), candidate("Neue", 300)],
+      },
+    };
+    const neue = { kind: "seeded" as const, venueId: "id-Neue" as Id<"museums">, name: "Neue" };
+    const picked = reduce([
+      choose,
+      { type: "chosen", option: neue, replaces: neue, day: today },
+      { type: "backgrounded" },
+      { ...choose, fix: { ...fix, at: fix.at + 60_000 } },
+    ]);
+    expect(picked).toMatchObject({ status: "resolved", prompt: 1 });
+    expect(venueContext(picked)).toEqual({ venueId: "id-Neue" });
+    const tomorrow = venueReducer(picked, { ...choose, fix: { ...fix, at: fix.at + DAY } });
+    expect(tomorrow).toMatchObject({ status: "choose", venue: undefined, prompt: 2 });
+  });
+
+  it("keeps a museum picked over today's visit elsewhere until a later visit starts at another museum", () => {
+    const choose = (at: number) => ({
+      type: "resolved" as const,
+      fix: { ...fix, at },
+      resolution: {
+        kind: "choose" as const,
+        options: [candidate("Met", 90), candidate("Neue", 300)],
+      },
+    });
+    const neue = { kind: "seeded" as const, venueId: "id-Neue" as Id<"museums">, name: "Neue" };
+    const changed = reduce([
+      { type: "hydrated", visit: visitAt("Met", fix.at - 60_000) },
+      choose(fix.at),
+      { type: "chosen", option: neue, replaces: neue, day: today },
+      { type: "backgrounded" },
+      choose(fix.at + 60_000),
+    ]);
+    expect(venueContext(changed)).toEqual({ venueId: "id-Neue" });
+    const backdated = reduce(
+      [{ type: "visitStarted", visit: visitAt("Met", fix.at - 120_000) }, choose(fix.at + 120_000)],
+      changed,
+    );
+    expect(venueContext(backdated)).toEqual({ venueId: "id-Neue" });
+    const later = { ...visitAt("Met", fix.at + 180_000), localId: "local-Met-2" };
+    const tookOver = reduce(
+      [{ type: "visitStarted", visit: later }, choose(fix.at + 240_000)],
+      changed,
+    );
+    expect(tookOver.picked).toBeUndefined();
+    expect(venueContext(tookOver)).toEqual({ venueId: "id-Met", visitLocalId: "local-Met-2" });
+  });
+
+  it("never raises the prompt for a scan's resolution", () => {
+    const state = reduce([
+      {
+        type: "resolved",
+        fix,
+        quiet: true,
+        resolution: { kind: "choose", options: [candidate("Met", 90), candidate("Neue", 300)] },
+      },
+    ]);
+    expect(state).toMatchObject({ status: "choose", prompt: 0 });
+  });
+
   it("asks again when the visit at an ambiguous venue is from an earlier day", () => {
     const state = reduce([
       { type: "hydrated", visit: visitAt("Neue", fix.at - 60_000, undefined, "1969-12-31") },
@@ -196,11 +266,18 @@ describe("nearby places", () => {
     expect(venueReducer(resolved, { type: "poiOptions", options: [poi] })).toBe(resolved);
   });
 
-  it("replaces a confirmed place with its seeded venue and clears the dismissal", () => {
+  it("lists MapKit places for a scan without raising the prompt", () => {
+    const none = reduce([{ type: "resolved", fix, quiet: true, resolution: { kind: "none" } }]);
+    const state = venueReducer(none, { type: "poiOptions", options: [poi], quiet: true });
+    expect(state.options).toEqual([poi]);
+    expect(state.prompt).toBe(0);
+  });
+
+  it("replaces a confirmed place with its seeded venue and lifts its dismissal", () => {
     const none = reduce([
       { type: "resolved", fix, resolution: { kind: "none" } },
       { type: "poiOptions", options: [poi] },
-      { type: "dismissed" },
+      { type: "dismissed", at: fix.at },
     ]);
     const state = venueReducer(none, {
       type: "chosen",
@@ -211,11 +288,13 @@ describe("nearby places", () => {
         name: "Small Gallery",
         distanceM: 80,
       },
+      day: today,
     });
     expect(state.status).toBe("resolved");
     expect(state.venue?.venueId).toBe("id-gallery");
     expect(state.options).toEqual([state.venue]);
-    expect(state.dismissedNear).toBeUndefined();
+    expect(state.notHere).toEqual({});
+    expect(state.picked).toEqual({ venueId: "id-gallery", ...today });
   });
 });
 
@@ -229,34 +308,45 @@ describe('"Not here"', () => {
     },
   ]);
 
-  it("keeps a visit paused elsewhere and suppresses prompts within 400 m of the dismissal", () => {
-    const dismissed = venueReducer(choose, { type: "dismissed" });
+  it("keeps a visit paused elsewhere and stops asking about the listed museums for two hours", () => {
+    const dismissed = venueReducer(choose, { type: "dismissed", at: fix.at });
     expect(dismissed.visit?.localId).toBe("local-Old");
-    expect(dismissed.dismissedNear).toEqual(met);
-    const nearby = { lat: met.lat + 0.002, lng: met.lng, at: fix.at + FIX_MAX_AGE_MS };
-    const again = venueReducer(dismissed, {
-      type: "resolved",
-      fix: nearby,
-      resolution: { kind: "choose", options: [candidate("Met", 90), candidate("Neue", 300)] },
-    });
-    expect(again.status).toBe("choose");
-    expect(again.prompt).toBe(dismissed.prompt);
-    // The paused visit also survives its museum resolving automatically next to the dismissal.
-    const home = venueReducer(dismissed, {
-      type: "resolved",
-      fix: nearby,
-      resolution: { kind: "auto", venue: candidate("Old", 40), options: [candidate("Old", 40)] },
-    });
-    expect(home).toMatchObject({ status: "none", venue: undefined });
-    expect(home.visit?.localId).toBe("local-Old");
-    const farther = { lat: met.lat + 0.005, lng: met.lng, at: fix.at + FIX_MAX_AGE_MS };
-    expect(
+    const later = (ms: number, names: string[]) =>
       venueReducer(dismissed, {
         type: "resolved",
-        fix: farther,
-        resolution: { kind: "choose", options: [candidate("A", 90), candidate("B", 300)] },
-      }).prompt,
-    ).toBe(dismissed.prompt + 1);
+        fix: { ...fix, at: fix.at + ms },
+        resolution: {
+          kind: "choose",
+          options: names.map((name, index) => candidate(name, 90 + index * 100)),
+        },
+      });
+    const again = later(FIX_MAX_AGE_MS, ["Met", "Neue"]);
+    expect(again).toMatchObject({ status: "choose", prompt: dismissed.prompt });
+    expect(later(FIX_MAX_AGE_MS, ["Neue", "Guggenheim"]).prompt).toBe(dismissed.prompt);
+    expect(later(FIX_MAX_AGE_MS, ["A", "B"]).prompt).toBe(dismissed.prompt + 1);
+    expect(later(NOT_HERE_MS, ["Met", "Neue"]).prompt).toBe(dismissed.prompt + 1);
+    const metAlone = (ms: number) =>
+      venueReducer(dismissed, {
+        type: "resolved",
+        fix: { ...fix, at: fix.at + ms },
+        resolution: { kind: "auto", venue: candidate("Met", 40), options: [candidate("Met", 40)] },
+      });
+    expect(metAlone(NOT_HERE_MS - 1)).toMatchObject({ status: "none", venue: undefined });
+    expect(metAlone(NOT_HERE_MS).venue?.name).toBe("Met");
+    const home = venueReducer(dismissed, {
+      type: "resolved",
+      fix: { ...fix, at: fix.at + FIX_MAX_AGE_MS },
+      resolution: { kind: "auto", venue: candidate("Old", 40), options: [candidate("Old", 40)] },
+    });
+    expect(activeVisit(home)?.localId).toBe("local-Old");
+  });
+
+  it("drops a museum picked earlier once it is turned down", () => {
+    const met = { kind: "seeded" as const, venueId: "id-Met" as Id<"museums">, name: "Met" };
+    const picked = venueReducer(choose, { type: "chosen", option: met, replaces: met, day: today });
+    const dismissed = venueReducer(picked, { type: "dismissed", at: fix.at });
+    expect(dismissed.picked).toBeUndefined();
+    expect(Object.keys(dismissed.notHere).sort()).toEqual(["id-Met", "id-Neue"]);
   });
 
   it("ends the visit and drops the venue when tapped over a resolved venue, keeping the options", () => {
@@ -268,12 +358,12 @@ describe('"Not here"', () => {
       },
       { type: "visitStarted", visit: visitAt("Met", fix.at) },
     ]);
-    const dismissed = venueReducer(resolved, { type: "dismissed" });
+    const dismissed = venueReducer(resolved, { type: "dismissed", at: fix.at });
     expect(dismissed).toMatchObject({
       status: "none",
       venue: undefined,
       visit: undefined,
-      dismissedNear: met,
+      notHere: { "id-Met": fix.at + NOT_HERE_MS },
     });
     expect(dismissed.options.map((option) => option.name)).toEqual(["Met"]);
     expect(venueContext(dismissed)).toEqual({});
@@ -408,13 +498,18 @@ describe("a visit ended by hand", () => {
     };
     expect(
       endedToday(
-        venueReducer(ended, { type: "chosen", option: neue, replaces: neue }),
+        venueReducer(ended, { type: "chosen", option: neue, replaces: neue, day: today }),
         "id-Met" as Id<"museums">,
         fix.at,
       ),
     ).toBe(true);
     expect(
-      venueReducer(ended, { type: "chosen", option: met as typeof neue, replaces: met }).ended,
+      venueReducer(ended, {
+        type: "chosen",
+        option: met as typeof neue,
+        replaces: met,
+        day: today,
+      }).ended,
     ).toBeUndefined();
   });
 
