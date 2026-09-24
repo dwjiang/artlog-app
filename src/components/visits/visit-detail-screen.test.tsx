@@ -76,6 +76,8 @@ jest.mock("@/lib/account/collection-sync", () => ({
   flushJournal: () => mockFlush(),
 }));
 let mockSharingBusy = false;
+let mockSharingError: string | undefined;
+let mockProfileRequired = false;
 let mockPublication: { status: string; audience: "public" } | null = null;
 jest.mock("@/lib/journal/use-visits", () => ({
   useVisits: () => ({
@@ -90,6 +92,8 @@ jest.mock("@/lib/visits/use-visit-sharing", () => ({
     token: null,
     acknowledged: mockPublication,
     busy: mockSharingBusy,
+    error: mockSharingError,
+    profileRequired: mockProfileRequired,
   }),
 }));
 jest.mock("../loading-ring", () => ({ LoadingRing: () => null }));
@@ -107,6 +111,8 @@ afterEach(() => {
 });
 beforeEach(() => {
   mockSharingBusy = false;
+  mockSharingError = undefined;
+  mockProfileRequired = false;
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   mockVisit.works = [
     {
@@ -330,6 +336,35 @@ it("does not claim a published visit is private while its privacy change is awai
   expect(screen.getByText("Privacy change pending")).toBeOnTheScreen();
   expect(screen.queryByText("Private visit")).toBeNull();
   expect(screen.getByText(/The published visit is still visible/)).toBeOnTheScreen();
+});
+
+it("offers a retry when a public visit’s shared version could not be checked", async () => {
+  mockVisit.owner = "account:test-account";
+  switchOwner(mockVisit.owner);
+  mockSharingError = "The request did not finish. Your draft is kept. Check your connection and try again.";
+  await renderRouter(
+    { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/journal/visit" },
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t check the shared version.");
+  expect(screen.queryByText(/Your draft is kept/)).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+  expect(mockLoad).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["a private visit", () => (mockVisit.visibility = "private")],
+  ["an account without a profile", () => (mockProfileRequired = true)],
+])("keeps a failed shared-version check quiet for %s", async (_, arrange) => {
+  mockVisit.owner = "account:test-account";
+  switchOwner(mockVisit.owner);
+  mockSharingError = "Create a profile to continue.";
+  arrange();
+  await renderRouter(
+    { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/journal/visit" },
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("syncs the entire published visit becoming Private before refreshing publication state", async () => {
