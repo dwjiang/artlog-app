@@ -67,7 +67,7 @@ export function WallSheet({
 const styles = {
   sheetHeader: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 4,
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,

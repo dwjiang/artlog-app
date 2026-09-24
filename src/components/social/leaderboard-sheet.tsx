@@ -40,7 +40,7 @@ export function LeaderboardSheet({
                 alignItems: "center",
                 justifyContent: "space-between",
                 paddingHorizontal: 20,
-                paddingTop: 8,
+                paddingTop: 16,
               }}
             >
               <Text accessibilityRole="header" style={{ fontSize: 22, fontWeight: "600", color: Gallery.ink }}>

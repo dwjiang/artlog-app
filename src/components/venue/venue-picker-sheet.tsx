@@ -349,7 +349,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 
 const styles = StyleSheet.create({
   container: { flexGrow: 0, backgroundColor: Colors.light.background },
-  content: { padding: Spacing.content, gap: Spacing.three },
+  content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: "uppercase" },
   dot: {
