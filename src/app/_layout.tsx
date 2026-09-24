@@ -96,7 +96,7 @@ function RootLayout() {
                       dangerouslySingular
                       options={{
                         presentation: "formSheet",
-                        sheetAllowedDetents: [0.62, 1],
+                        sheetAllowedDetents: "fitToContents",
                         sheetGrabberVisible: true,
                         headerShown: false,
                       }}
@@ -165,7 +165,7 @@ function RootLayout() {
                       dangerouslySingular
                       options={{
                         presentation: "formSheet",
-                        sheetAllowedDetents: [0.75, 1],
+                        sheetAllowedDetents: "fitToContents",
                         sheetGrabberVisible: true,
                         headerShown: false,
                       }}

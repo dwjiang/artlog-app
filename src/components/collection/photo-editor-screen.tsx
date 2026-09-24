@@ -187,8 +187,8 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
           onPress={() => setMoving(!moving)}
         />
         {moving && (
-          <WallSheet title="Move photo" size="large" onDismiss={() => setMoving(false)}>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+          <WallSheet title="Move photo" onDismiss={() => setMoving(false)}>
+            <View style={{ padding: 20, gap: 16 }}>
               <Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
               {works.error ? (
                 <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
@@ -234,7 +234,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                 </Text>
               )}
               <Text style={{ color: Gallery.muted, fontSize: 13 }}>The photo’s type and caption move with it.</Text>
-            </ScrollView>
+            </View>
           </WallSheet>
         )}
         <GalleryButton
