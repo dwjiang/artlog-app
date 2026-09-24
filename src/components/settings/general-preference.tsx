@@ -2,7 +2,6 @@ import { Button, Column, Icon, Row, Text } from "@expo/ui";
 import {
   accessibilityAddTraits,
   accessibilityLabel,
-  accessibilityValue,
   buttonStyle,
   contentShape,
   font,
@@ -22,16 +21,18 @@ const options = [
 ] as const;
 
 export function GeneralPreference() {
-  const { units, failed } = useMeasurementUnits();
-  const [saving, setSaving] = useState(false),
+  const { units: saved, failed } = useMeasurementUnits();
+  const [choice, setChoice] = useState<MeasurementUnits>(),
     [error, setError] = useState<string>();
   const pending = useRef(false);
+  const units = choice ?? saved;
   const loading = units === undefined && !failed;
 
+  // The local write lands within a frame or two, so a saving state would only flash; show the choice at once.
   async function change(value: MeasurementUnits) {
     if (pending.current || value === units) return;
     pending.current = true;
-    setSaving(true);
+    setChoice(value);
     setError(undefined);
     try {
       await setMeasurementUnits(value);
@@ -39,7 +40,7 @@ export function GeneralPreference() {
       setError("The preference could not be saved. Try again.");
     } finally {
       pending.current = false;
-      setSaving(false);
+      setChoice(undefined);
     }
   }
 
@@ -49,8 +50,7 @@ export function GeneralPreference() {
       title="Measurement units"
       footer={
         <GroupedFooter tone={message ? "destructive" : "muted"}>
-          {message
-            ?? (saving ? "Saving measurement units…" : "Used for nearby museum distances. Saved on this iPhone.")}
+          {message ?? "Used for nearby museum distances. Saved on this iPhone."}
         </GroupedFooter>
       }
     >
@@ -61,7 +61,6 @@ export function GeneralPreference() {
           <Button
             key={option.value}
             variant="text"
-            disabled={saving}
             onPress={() => {
               void change(option.value);
             }}
@@ -69,7 +68,6 @@ export function GeneralPreference() {
               buttonStyle("borderless"),
               accessibilityLabel(option.label),
               accessibilityAddTraits(units === option.value ? ["isSelected"] : []),
-              accessibilityValue(saving ? "Saving" : ""),
             ]}
           >
             <Row spacing={12} alignment="center" modifiers={[contentShape(shapes.rectangle())]}>

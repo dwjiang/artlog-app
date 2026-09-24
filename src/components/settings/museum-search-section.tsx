@@ -16,24 +16,25 @@ export const MUSEUM_SEARCH_SETTING = "Search museum sites for my scans";
 /** Turning the switch on asks the owner to present the consent sheet; consent itself is stored by that sheet. */
 export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: () => void }) {
   const { consent, failed } = useMuseumSearchConsent(useScreenActive());
-  const [saving, setSaving] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [error, setError] = useState<string>();
   const footer = error ?? (failed ? "Couldn't read your choice. Reopen Settings to try again." : undefined);
 
+  // The local write lands within a frame or two, so the switch turns off at once instead of flashing a disabled state.
   async function change(enabled: boolean) {
     setError(undefined);
     if (enabled) {
       onRequestConsent();
       return;
     }
-    setSaving(true);
+    setDeclining(true);
     try {
       await setMuseumSearchConsent("declined");
     } catch (cause) {
       reportError(cause, "settings.museum-search.save");
       setError("Couldn't save your choice. Try again.");
     } finally {
-      setSaving(false);
+      setDeclining(false);
     }
   }
 
@@ -52,8 +53,8 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
         ) : (
           <Switch
             label={MUSEUM_SEARCH_SETTING}
-            value={consent === "granted"}
-            disabled={saving || failed}
+            value={consent === "granted" && !declining}
+            disabled={failed}
             onValueChange={(value) => {
               void change(value);
             }}

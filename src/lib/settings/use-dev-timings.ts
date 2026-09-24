@@ -30,8 +30,13 @@ export function useDevTimings() {
   }, [active]);
 
   async function change(value: boolean) {
-    await setSetting("dev-timings", String(value));
     setEnabled(value);
+    try {
+      await setSetting("dev-timings", String(value));
+    } catch (cause) {
+      setEnabled(!value);
+      throw cause;
+    }
   }
   return { enabled, failed, change };
 }
