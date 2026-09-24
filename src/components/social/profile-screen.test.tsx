@@ -15,6 +15,7 @@ const mockPerson = {
   profileId: "friend" as never,
   username: "friend",
   name: "Jamie Chen",
+  bio: "Chasing Rothkos.",
   publishedWallCount: 0,
 };
 jest.mock("expo-router", () => {
@@ -38,7 +39,10 @@ jest.mock("expo-router", () => {
   };
 });
 jest.mock("../collection/wall-gallery", () => ({ WallGallery: () => null }));
-jest.mock("./friendship-controls", () => ({ FriendshipControls: () => null }));
+jest.mock("./friendship-controls", () => {
+  const { Text } = jest.requireActual("react-native");
+  return { FriendshipControls: () => <Text>Friendship controls</Text> };
+});
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({
     key: "a",
@@ -84,6 +88,21 @@ it("requests only the selected friend’s shared visits and stops after a block"
   mockRelationship = { state: "accepted", blocked: true };
   await view.rerender(<ProfileScreen profileId="friend" />);
   expect(mockPages.mock.calls.at(-1)[1]).toBe("skip");
+});
+it("keeps the full header when switching between Wall and Visits", async () => {
+  await render(<ProfileScreen profileId="friend" />);
+  const header = () => [
+    screen.getByRole("header", { name: "Jamie Chen" }),
+    screen.getAllByText("Chasing Rothkos.")[0],
+    screen.getByText("artworks"),
+    screen.getByText("visits"),
+    screen.getByText("Friendship controls"),
+  ];
+  header().forEach((element) => expect(element).toBeOnTheScreen());
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  header().forEach((element) => expect(element).toBeOnTheScreen());
+  await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
+  header().forEach((element) => expect(element).toBeOnTheScreen());
 });
 it("offers Share in the header", async () => {
   await render(<ProfileScreen profileId="friend" />);

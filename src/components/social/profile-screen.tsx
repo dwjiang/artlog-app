@@ -111,7 +111,6 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       >
         <View>
           <PublicProfileHeader
-            compact={tab === "visits"}
             person={person}
             visitCount={visits.done ? visits.items.length : undefined}
             actions={
