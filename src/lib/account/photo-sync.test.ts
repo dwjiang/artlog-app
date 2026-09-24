@@ -1,17 +1,19 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import * as Sentry from "@sentry/react-native";
+
 import { db } from "@/db/client";
 import * as repo from "@/db/repos/saved-works";
 import { notes, savedWorks } from "@/db/schema";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { syncCollectionPhotos, type PhotoSyncDependencies } from "./photo-sync";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 let deps: PhotoSyncDependencies;
-const upload = jest.fn(),
-  download = jest.fn(),
-  removeDownload = jest.fn();
+const upload = jest.fn();
+const download = jest.fn();
+const removeDownload = jest.fn();
 const cropStorageId = "cloud-crop" as Id<"_storage">;
 beforeEach(async () => {
   await db.delete(notes);

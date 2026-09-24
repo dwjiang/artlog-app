@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
-import type { OfflineResult } from "@/shared/offline/types";
+
+import { db } from "@/db/client";
+import { offlineScanResults } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
-import { db } from "../client";
-import { offlineScanResults } from "../schema";
+import type { OfflineResult } from "@/shared/offline/types";
 
 export const offlineResultQuery = (localId: string, owner = getLocalOwner()) =>
   db

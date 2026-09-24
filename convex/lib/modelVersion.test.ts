@@ -27,15 +27,15 @@ it("treats an explicitly empty allowlist as supporting no versions", () => {
 it("requires the bundled embedding dimension", () => {
   expect(expectedDim()).toBe(model.embeddingDim);
   expect(() => validateVector(Array(model.embeddingDim).fill(1))).not.toThrow();
-  expect(() => validateVector([1])).toThrowError();
+  expect(() => validateVector([1])).toThrowError("bad_vector");
 });
 
 it.each([NaN, Infinity, -Infinity])("rejects a non-finite vector coordinate: %s", (value) => {
   const vector = Array(model.embeddingDim).fill(1);
   vector[0] = value;
-  expect(() => validateVector(vector)).toThrowError();
+  expect(() => validateVector(vector)).toThrowError("bad_vector");
 });
 
 it("rejects a zero vector whose cosine similarity is undefined", () => {
-  expect(() => validateVector(Array(model.embeddingDim).fill(0))).toThrowError();
+  expect(() => validateVector(Array(model.embeddingDim).fill(0))).toThrowError("bad_vector");
 });

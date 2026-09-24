@@ -1,7 +1,7 @@
-import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, decodeOrbFeatures } from "@/shared/orb/features";
-import model from "../../../shared/model/model-version.json";
-
 import { fakeOpenCV, type FakeOpenCVOptions } from "@/lib/image/opencv-fake";
+import model from "@/shared/model/model-version.json";
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, decodeOrbFeatures } from "@/shared/orb/features";
+
 import { extractOrb, toOrbFeatures } from "./extract";
 
 const mockBase64 = jest.fn();

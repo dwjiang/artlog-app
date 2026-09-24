@@ -1,21 +1,22 @@
-import { reportError } from "@/lib/observability";
-import { NotePaper } from "../note-paper";
-import { SavedWorkImage } from "./saved-work-image";
-import { WallSheet } from "./wall-sheet";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { selectSavedWork } from "@/db/repos/saved-works";
-import { ParagraphSkeleton } from "@/components/loading-skeleton";
-import { Image } from "expo-image";
 import { Button, Host } from "@expo/ui/swift-ui";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 
-import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "../../../shared/collection/collection-limits";
+import { ParagraphSkeleton } from "@/components/loading-skeleton";
+import { NotePaper } from "@/components/note-paper";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
-import { useLocalOwner } from "@/lib/account/owner-store";
 import { getNote, setNote } from "@/db/repos/notes";
+import { selectSavedWork } from "@/db/repos/saved-works";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "@/shared/collection/collection-limits";
+
 import { GalleryButton } from "./gallery-button";
+import { SavedWorkImage } from "./saved-work-image";
+import { WallSheet } from "./wall-sheet";
 
 type NoteDraft = {
   owner: string;
@@ -28,7 +29,7 @@ type NoteDraft = {
 
 function persist(note: NoteDraft | undefined): void {
   if (!note) return;
-  const text = note.text;
+  const { text } = note;
   // Serialize blur and close writes so an earlier save cannot overwrite a newer draft.
   note.writes = note.writes.then(async () => {
     try {

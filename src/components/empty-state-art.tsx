@@ -1,6 +1,8 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
+
 import { Gallery } from "@/constants/theme";
+
 import { ThemedText as Text } from "./themed-text";
 
 export function EmptyPodium() {

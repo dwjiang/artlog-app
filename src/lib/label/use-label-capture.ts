@@ -1,9 +1,9 @@
-import { reportError } from "@/lib/observability";
-import { useEffect } from "react";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { useEffect } from "react";
 
-import { useLocalOwner } from "@/lib/account/owner-store";
 import { captureQuery } from "@/db/repos/pending-scans";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 
 export function useLabelCapture(scanId: string) {
   const owner = useLocalOwner();

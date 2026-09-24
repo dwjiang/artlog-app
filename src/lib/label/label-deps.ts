@@ -2,25 +2,25 @@ import type { FunctionArgs } from "convex/server";
 import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 
-import { isLabelCapture } from "@/lib/capture/photo-draft";
+import { getCaptureForScan } from "@/db/repos/pending-scans";
 import { captureOwner } from "@/lib/account/owner-store";
-import model from "../../../shared/model/model-version.json";
+import type { ScanFeatures } from "@/lib/capture/features";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
+import { convex } from "@/lib/convex-client";
+import { embedder } from "@/lib/embed/embedder";
+import { filePath } from "@/lib/file-uri";
+import { extractOrb } from "@/lib/orb/extract";
+import model from "@/shared/model/model-version.json";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import { getVisionRect } from "../../../modules/vision-rect/src";
-import { getCaptureForScan } from "@/db/repos/pending-scans";
-import type { ScanFeatures } from "@/lib/capture/features";
-import { convex } from "@/lib/convex-client";
-import { embedder } from "@/lib/embed/embedder";
-import { filePath } from "@/lib/file-uri";
-import { extractOrb } from "@/lib/orb/extract";
 import { removeFile } from "./crop";
 import { clearLabelDraft } from "./draft";
 import { runLabelFlow, type LabelApi, type LabelStage } from "./flow";
-import { readLabelText } from "./label-ocr";
 import { checkImages, type ImageCheckDeps } from "./image-check";
+import { readLabelText } from "./label-ocr";
 
 export type LabelSource = { labelPhotoUri?: string; qrUrl?: string };
 

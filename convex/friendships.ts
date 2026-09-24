@@ -1,10 +1,11 @@
 import { ConvexError, v } from "convex/values";
+
 import { isRevision, LIMITS } from "../shared/journal/limits";
 import { relationship as state } from "../shared/social/contracts";
-import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { activeProfile, requireProfile } from "./lib/ownership";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from "./lib/friendships";
+import { activeProfile, requireProfile } from "./lib/ownership";
 import { limitKey } from "./lib/rateLimits";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
@@ -14,7 +15,7 @@ async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation
   if (actor.profile._id === profileId) {
     throw new ConvexError({ code: "invalid_relationship" });
   }
-  const other = revocation ? await ctx.db.get(profileId) : await activeProfile(ctx, profileId);
+  const other = revocation ? await ctx.db.get("profiles", profileId) : await activeProfile(ctx, profileId);
   if (!other) throw new ConvexError({ code: "not_found" });
   return actor;
 }
@@ -87,7 +88,7 @@ function transition(operation: "request" | "accept" | "decline" | "cancel" | "re
         revision: (edge?.revision ?? 0) + 1,
         updatedAt: Date.now(),
       };
-      if (edge) await ctx.db.patch(edge._id, fields);
+      if (edge) await ctx.db.patch("friendships", edge._id, fields);
       else await ctx.db.insert("friendships", fields);
       return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
     },
@@ -115,7 +116,7 @@ export const block = mutation({
       active: true,
       revision: blockRevision + 1,
     };
-    if (snapshot.block) await ctx.db.patch(snapshot.block._id, fields);
+    if (snapshot.block) await ctx.db.patch("blocks", snapshot.block._id, fields);
     else await ctx.db.insert("blocks", fields);
     const [firstProfileId, secondProfileId] = canonicalPair(profile._id, profileId);
     const edge = {
@@ -126,7 +127,7 @@ export const block = mutation({
       revision: revision + 1,
       updatedAt: Date.now(),
     };
-    if (snapshot.edge) await ctx.db.patch(snapshot.edge._id, edge);
+    if (snapshot.edge) await ctx.db.patch("friendships", snapshot.edge._id, edge);
     else await ctx.db.insert("friendships", edge);
     return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
   },
@@ -143,7 +144,7 @@ export const unblock = mutation({
     if (!snapshot.block?.active) return snapshot.state;
     checkRevision(blockRevision, snapshot.block.revision);
     await limitKey(ctx, "relationshipChange", accountId);
-    await ctx.db.patch(snapshot.block._id, {
+    await ctx.db.patch("blocks", snapshot.block._id, {
       active: false,
       revision: blockRevision + 1,
     });

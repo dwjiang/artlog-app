@@ -1,4 +1,3 @@
-import { reportError } from "@/lib/observability";
 import { useQueries, type RequestForQueries } from "convex/react";
 import {
   getFunctionName,
@@ -8,6 +7,9 @@ import {
   type FunctionReturnType,
 } from "convex/server";
 import { useEffect, useMemo, useState } from "react";
+
+import { reportError } from "@/lib/observability";
+
 import { readCursorPages, type CursorPage } from "./cursor-pages";
 import { useQueryRefresh } from "./use-query-refresh";
 
@@ -15,8 +17,8 @@ type Query = FunctionReference<"query", "public">;
 
 export function useSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q> | "skip", scope: string) {
   const retry = useQueryRefresh(query, args, scope);
-  const name = getFunctionName(query),
-    serialized = JSON.stringify(args);
+  const name = getFunctionName(query);
+  const serialized = JSON.stringify(args);
   const key = `${scope}:${name}:${serialized}`;
   const enabled = args !== "skip" && !retry.refreshing;
   const requests = useMemo(
@@ -53,8 +55,8 @@ export function useCursorPages<Q extends Query, T>(
   select: (result: FunctionReturnType<Q>) => CursorPage<T>,
   identify: (item: T) => string,
 ) {
-  const name = getFunctionName(query),
-    serialized = JSON.stringify(args);
+  const name = getFunctionName(query);
+  const serialized = JSON.stringify(args);
   const key = `${scope}:${name}:${serialized}`;
   const [state, setState] = useState({
     key,

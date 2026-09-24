@@ -1,26 +1,27 @@
-import { reportError } from "@/lib/observability";
-import type { CaptureCompletion } from "../capture/completion";
-import { formatVisitDate } from "../journal/history";
 import { randomUUID } from "expo-crypto";
 
-import { captureOwner } from "@/lib/account/owner-store";
-import { flushJournal } from "@/lib/account/collection-sync";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import { getSavedWork, listSavedWorks, markSynced } from "@/db/repos/saved-works";
 import { findArtworkPhoto, saveArtworkSession, selectArtworkPhotos } from "@/db/repos/artwork-album";
-import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from "../capture/photo-draft";
-import { requestCollectionSync } from "@/lib/account/sync-events";
+import { getSavedWork, listSavedWorks, markSynced } from "@/db/repos/saved-works";
 import { getVisit } from "@/db/repos/visits";
 import type { PendingScan, Visit } from "@/db/schema";
+import { flushJournal } from "@/lib/account/collection-sync";
+import { captureOwner } from "@/lib/account/owner-store";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+import type { CaptureCompletion } from "@/lib/capture/completion";
+import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from "@/lib/capture/photo-draft";
+import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { convex } from "@/lib/convex-client";
-import { visitForSave } from "@/lib/venue/use-venue";
-import { venueNameById } from "@/lib/venue/venue-db";
-import { captureVisitChoice } from "../capture/visit-choice";
 import { keepPhotos } from "@/lib/files/kept-photos";
 import { scanPreviewPath } from "@/lib/files/photos";
-import type { ContributeInput } from "../label/contribute";
-import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
+import { formatVisitDate } from "@/lib/journal/history";
+import type { ContributeInput } from "@/lib/label/contribute";
+import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
+import { reportError } from "@/lib/observability";
+import { visitForSave } from "@/lib/venue/use-venue";
+import { venueNameById } from "@/lib/venue/venue-db";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { buildSnapshot, type SnapshotDraft } from "./snapshot";
 import type { ResultViewState } from "./state";
 

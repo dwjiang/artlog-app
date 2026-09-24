@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 async function fixture() {
-  const t = harness(),
-    owner = await socialUser(t),
-    outsider = await socialUser(t);
+  const t = harness();
+  const owner = await socialUser(t);
+  const outsider = await socialUser(t);
   const visit = await socialVisit(t, owner, 1);
   const savedLocalId = visit.saves[0].localId;
   const photos = ["full", "detail", "label"].map((kind) => ({
@@ -92,7 +93,7 @@ it("stops counting unpublished visits and removed wall placements", async () => 
 
 it("does not disclose another owner’s photo visibility or accept their scope", async () => {
   const { t, outsider, args } = await fixture();
-  await expect(t.query(api.photoVisibility.forArtwork, args)).rejects.toThrow();
+  await expect(t.query(api.photoVisibility.forArtwork, args)).rejects.toThrow("unauthenticated");
   await expect(outsider.as.query(api.photoVisibility.forArtwork, args)).rejects.toThrow("sync_scope_changed");
   expect(
     await outsider.as.query(api.photoVisibility.forArtwork, {
@@ -156,20 +157,20 @@ it.each(["inactive-profile", "removed-profile", "removed-post", "removed-placeme
       });
       const removal = { reportId, removedAt: 2 };
       if (removed === "inactive-profile") {
-        await ctx.db.patch(owner.profileId, { active: false });
+        await ctx.db.patch("profiles", owner.profileId, { active: false });
       }
       if (removed === "removed-profile") {
-        await ctx.db.patch(owner.profileId, { removal });
+        await ctx.db.patch("profiles", owner.profileId, { removal });
       }
       if (removed === "removed-placement") {
-        await ctx.db.patch(wall.items[0].itemId, { removal });
+        await ctx.db.patch("wallItems", wall.items[0].itemId, { removal });
       }
       if (removed === "removed-post") {
         const publication = await ctx.db
           .query("sharedVisits")
           .withIndex("by_postId", (q) => q.eq("postId", post.postId!))
           .unique();
-        await ctx.db.patch(publication!._id, { removal });
+        await ctx.db.patch("sharedVisits", publication!._id, { removal });
       }
     });
     const result = await owner.as.query(api.photoVisibility.forArtwork, args);
@@ -231,7 +232,7 @@ it("omits deleted photos and stops counting a visit after its encounter is unlin
 it("rejects the former owner scope after the device switches accounts", async () => {
   const { t, owner, outsider, args } = await fixture();
   await t.run((ctx) =>
-    ctx.db.patch(owner.deviceId, {
+    ctx.db.patch("devices", owner.deviceId, {
       accountId: outsider.accountId,
       scopeRevision: 1,
     }),

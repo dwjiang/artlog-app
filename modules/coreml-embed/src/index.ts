@@ -6,7 +6,7 @@ export type WarmUpResult = {
   alreadyLoaded: boolean;
 };
 
-export interface CoremlEmbed {
+export type CoremlEmbed = {
   /** `null` when the model asset was not bundled: run `git lfs pull` before building. */
   readonly modelVersion: string | null;
   readonly inputSize: number | null;
@@ -16,7 +16,7 @@ export interface CoremlEmbed {
   warmUp(): Promise<WarmUpResult>;
   /** Embeds an upright `inputSize`×`inputSize` crop file (a path, not a URI); L2-normalized. */
   embed(path: string): Promise<number[]>;
-}
+};
 
 let instance: CoremlEmbed | null | undefined;
 

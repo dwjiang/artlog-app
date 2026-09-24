@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
+
 import { ArtworkScreen } from "@/components/social/artwork-screen";
 
 export default function ArtworkRoute() {

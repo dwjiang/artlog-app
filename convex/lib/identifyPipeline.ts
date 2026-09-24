@@ -1,9 +1,9 @@
+import { decodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
+import { verifyOrb, type VerifyResult } from "../../shared/orb/verify";
 import type { Doc, Id } from "../_generated/dataModel";
 import { decide, scoreCandidates, type Decision } from "./calibrator/calibrate";
 import type { GalleryRelation } from "./calibrator/features";
 import type { CalibratorConfig } from "./calibrator/weights";
-import { decodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
-import { verifyOrb, type VerifyResult } from "../../shared/orb/verify";
 import { effectiveObjectPenalty } from "./rejectionPenalty";
 
 const GALLERY_TTL_MS = 15 * 60_000;

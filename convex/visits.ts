@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+
 import { journalVisit, pageArgs, pagination } from "../shared/journal/contracts";
 import { mutation, query } from "./_generated/server";
 import { upsertJournalVisit } from "./lib/journal";
@@ -63,7 +64,7 @@ export const savedWorks = query({
     const page = [];
     for (const encounter of result.page) {
       if (encounter.deletedAt === undefined) {
-        const save = await ctx.db.get(encounter.saveId);
+        const save = await ctx.db.get("collections", encounter.saveId);
         if (!save || save.deletedAt !== undefined) continue;
         await requireMembership(ctx, save, visit);
         page.push(save);

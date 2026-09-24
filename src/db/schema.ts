@@ -1,6 +1,7 @@
 import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import type { OfflineResult } from "../../shared/offline/types";
+import type { OfflineResult } from "@/shared/offline/types";
+
 import type { Id } from "../../convex/_generated/dataModel";
 
 /** Binary features keep the `ArrayBuffer` shape of the Convex `v.bytes()` arguments they are sent as. */

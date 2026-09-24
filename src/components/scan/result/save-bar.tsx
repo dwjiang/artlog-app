@@ -1,8 +1,8 @@
 import { router } from "expo-router";
-import { GalleryButton } from "@/components/collection/gallery-button";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 

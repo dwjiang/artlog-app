@@ -3,9 +3,11 @@ import { router } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, DeviceEventEmitter, Pressable, Text } from "react-native";
-import type { VisitSummary } from "@/lib/journal/visit-summaries";
+
 import * as visits from "@/db/repos/visits";
 import { switchOwner } from "@/lib/account/owner-store";
+import type { VisitSummary } from "@/lib/journal/visit-summaries";
+
 import { VisitDetailScreen } from "./visit-detail-screen";
 
 jest.mock("expo-router", () => {
@@ -96,8 +98,8 @@ jest.mock("@/lib/visits/use-visit-sharing", () => ({
     profileRequired: mockProfileRequired,
   }),
 }));
-jest.mock("../loading-ring", () => ({ LoadingRing: () => null }));
-jest.mock("../collection/saved-work-image", () => ({
+jest.mock("@/components/loading-ring", () => ({ LoadingRing: () => null }));
+jest.mock("@/components/collection/saved-work-image", () => ({
   SavedWorkImage: () => null,
 }));
 const mockMarkSeen = jest.fn();

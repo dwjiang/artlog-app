@@ -1,5 +1,6 @@
-import { reportError } from "@/lib/observability";
 import { useEffect, useState } from "react";
+
+import { reportError } from "@/lib/observability";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";

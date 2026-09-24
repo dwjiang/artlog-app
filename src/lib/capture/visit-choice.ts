@@ -1,5 +1,6 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import { visitByDefault } from "@/lib/venue/use-venue";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import type { CaptureVisitChoice, PhotoSessionDraft } from "./photo-draft";
 
 /**

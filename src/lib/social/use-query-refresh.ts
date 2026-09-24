@@ -1,10 +1,11 @@
-import { reportError } from "@/lib/observability";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { ConvexHttpClient } from "convex/browser";
 import { getFunctionName, type FunctionArgs, type FunctionReference } from "convex/server";
 import { fetch as expoFetch } from "expo/fetch";
 import { useEffect, useRef, useState } from "react";
-import { captureOwner } from "../account/owner-store";
+
+import { captureOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 
 export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
   query: Q,

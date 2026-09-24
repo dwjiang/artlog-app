@@ -1,10 +1,6 @@
 import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
-import type { Doc } from "../../../convex/_generated/dataModel";
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { requestCollectionSync } from "../../lib/account/sync-events";
-
-import { db } from "../client";
+import { db } from "@/db/client";
 import {
   artworkPhotos,
   artworkEncounters,
@@ -13,7 +9,11 @@ import {
   savedWorks,
   type NewSavedWork,
   type SavedWork,
-} from "../schema";
+} from "@/db/schema";
+import { getLocalOwner } from "@/lib/account/owner-store";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+
+import type { Doc } from "../../../convex/_generated/dataModel";
 import { saveArtworkSession } from "./artwork-album";
 import { requireVisitMembership } from "./visit-membership";
 

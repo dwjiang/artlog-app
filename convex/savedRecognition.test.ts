@@ -1,8 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { api } from "./_generated/api";
+
 import model from "../shared/model/model-version.json";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
+import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { limitDevice, type RateLimitName } from "./lib/rateLimits";
 import { socialUser } from "./lib/socialTestFixtures";
@@ -46,7 +47,7 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
     candidates: [],
   });
   const cropStorageId = await t.run((ctx) => ctx.storage.store(new Blob(["photo"])));
-  await t.run((ctx) => ctx.db.patch(saved.collectionId, { cropStorageId, note: "My own note" }));
+  await t.run((ctx) => ctx.db.patch("collections", saved.collectionId, { cropStorageId, note: "My own note" }));
   const work = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
       descriptors: pair.ref,
@@ -55,7 +56,9 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
   );
   const result = await user.as.action(api.savedRecognition.identify, { scope: user.scope, localId });
   expect(result.candidates[0]).toMatchObject({ objectId: work.objectId, title: "Water Lilies" });
-  expect((await t.run((ctx) => ctx.db.get(saved.collectionId)))?.snapshot.title).toBe("Unidentified artwork");
+  expect((await t.run((ctx) => ctx.db.get("collections", saved.collectionId)))?.snapshot.title).toBe(
+    "Unidentified artwork",
+  );
   const applied = await user.as.mutation(api.savedRecognition.accept, {
     scope: user.scope,
     localId,
@@ -104,7 +107,7 @@ it("removes private recognition data and verification files when the saved artwo
   await user.as.action(api.savedRecognition.upload, payload);
   const row = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
   await user.as.mutation(api.collections.remove, { scope: user.scope, localId });
-  expect(await t.run((ctx) => ctx.db.get(row._id))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("savedRecognition", row._id))).toBeNull();
   expect(await t.run((ctx) => ctx.storage.get(row.orbStorageId))).toBeNull();
   await expect(user.as.action(api.savedRecognition.identify, { scope: user.scope, localId })).rejects.toMatchObject({
     data: { code: "not_found" },
@@ -121,9 +124,9 @@ it("lets another device on the same account retry a saved scan without the captu
       deviceIds: [user.deviceId, second.deviceId],
       createdAt: Date.now(),
     });
-    await ctx.db.patch(user.deviceId, { accountId });
-    await ctx.db.patch(second.deviceId, { accountId });
-    await ctx.db.patch(saved.collectionId, { owner: { kind: "account", accountId } });
+    await ctx.db.patch("devices", user.deviceId, { accountId });
+    await ctx.db.patch("devices", second.deviceId, { accountId });
+    await ctx.db.patch("collections", saved.collectionId, { owner: { kind: "account", accountId } });
     return accountId;
   });
   expect(
@@ -145,18 +148,18 @@ it("preserves recognition through merging and deletes it through ordinary journa
   await user.as.mutation(api.artworkAlbums.merge, { scope: user.scope, sourceLocalId: localId, targetLocalId });
   const retained = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
   expect(retained.saveId).toBe(target.collectionId);
-  expect(await t.run((ctx) => ctx.db.get(saved.collectionId))).toHaveProperty("deletedAt");
+  expect(await t.run((ctx) => ctx.db.get("collections", saved.collectionId))).toHaveProperty("deletedAt");
   expect(
     await user.as.action(api.savedRecognition.identify, { scope: user.scope, localId: targetLocalId }),
   ).toMatchObject({ outcome: "miss" });
-  const current = (await t.run((ctx) => ctx.db.get(target.collectionId)))!;
+  const current = (await t.run((ctx) => ctx.db.get("collections", target.collectionId)))!;
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
     since: 0,
     visits: [],
     saves: [{ localId: targetLocalId, savedAt: current.savedAt, snapshot: current.snapshot, deletedAt: Date.now() }],
   });
-  expect(await t.run((ctx) => ctx.db.get(retained._id))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("savedRecognition", retained._id))).toBeNull();
 });
 
 it("refuses outdated suggestions after a later search or an edit to the saved artwork", async () => {
@@ -174,8 +177,11 @@ it("refuses outdated suggestions after a later search or an edit to the saved ar
     }),
   ).rejects.toMatchObject({ data: { code: "unknown_candidate" } });
   await t.run(async (ctx) => {
-    const save = (await ctx.db.get(saved.collectionId))!;
-    await ctx.db.patch(save._id, { snapshot: { title: "My edited title", artist: "" }, updatedAt: save.updatedAt + 1 });
+    const save = (await ctx.db.get("collections", saved.collectionId))!;
+    await ctx.db.patch("collections", save._id, {
+      snapshot: { title: "My edited title", artist: "" },
+      updatedAt: save.updatedAt + 1,
+    });
   });
   await expect(
     user.as.mutation(api.savedRecognition.accept, {

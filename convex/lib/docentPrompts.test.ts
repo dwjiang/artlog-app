@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+
 import { buildFactSheet } from "./docentPrompts";
 
 it("keeps source passages and rejects invented details even when their citation URL is valid", () => {

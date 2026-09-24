@@ -1,5 +1,5 @@
-import type { MuseumManifest, MuseumSummary } from "@/shared/offline/types";
 import { haversineMeters, type Coordinate } from "@/lib/venue/resolve";
+import type { MuseumManifest, MuseumSummary } from "@/shared/offline/types";
 
 export type MuseumSort = "nearest" | "name" | "size";
 export const museumSortLabels: Record<MuseumSort, string> = {

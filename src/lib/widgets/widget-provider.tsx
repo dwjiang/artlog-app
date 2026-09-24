@@ -2,12 +2,14 @@ import { eq } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
+
 import { db } from "@/db/client";
 import { selectAllArtworkPhotos, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { settings as settingsTable } from "@/db/schema";
 import { getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
+
 import { widgetCollection, type PreparedWidgetArtwork, type WidgetArtwork } from "./widget-collection";
 import { createWidgetPublisher } from "./widget-publisher";
 import { readWidgetSettings, widgetSettingsKey, type WidgetSettings } from "./widget-settings";

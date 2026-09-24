@@ -1,13 +1,14 @@
-import { ImageSkeleton } from "@/components/loading-skeleton";
-import { reportError } from "@/lib/observability";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { ConfidenceChip } from "./confidence-chip";
+import { ImageSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import type { ResultKind } from "@/lib/result/state";
+
+import { ConfidenceChip } from "./confidence-chip";
 
 export type CardHeaderProps = {
   /** The user's unpadded artwork preview. */

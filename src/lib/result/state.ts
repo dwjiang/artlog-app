@@ -1,9 +1,10 @@
 import type { FunctionReturnType } from "convex/server";
 
+import { errorMessage } from "@/lib/network-error";
+
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { DocentSentence, FactChip, RightNowCard } from "../../../convex/lib/validators";
-import { errorMessage } from "@/lib/network-error";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;

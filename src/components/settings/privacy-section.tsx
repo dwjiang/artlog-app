@@ -1,7 +1,9 @@
 import { ScrollView, View } from "react-native";
-import { ThemedText } from "../themed-text";
-import { MuseumSearchSection } from "./museum-search-section";
+
+import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+
+import { MuseumSearchSection } from "./museum-search-section";
 
 export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => void }) {
   return (

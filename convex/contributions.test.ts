@@ -2,14 +2,14 @@ import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "con
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
+import { encodeOrbFeatures } from "../shared/orb/features";
+import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { contribute as contributeAction } from "./contributions";
 import { labelField } from "./lib/labelVerify";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
-import { encodeOrbFeatures } from "../shared/orb/features";
-import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import {
   seedArtworkWithObject,
   seedContribution,
@@ -123,7 +123,7 @@ describe("contribute", () => {
         vi.stubEnv("APP_ATTEST_REQUIRED", "true");
       }
       if (code === "label_unverified") {
-        await t.run((ctx) => ctx.db.patch(scanId, { labelFlow: undefined }));
+        await t.run((ctx) => ctx.db.patch("scans", scanId, { labelFlow: undefined }));
       }
       if (code === "rate_limited") {
         for (let i = 0; i < 20; i++) {
@@ -139,7 +139,7 @@ describe("contribute", () => {
             return await runContribute(ctx, { ...args, ...signed });
           } finally {
             work.push(...queries.mock.calls.map(([fn]) => getFunctionName(fn)));
-            if (search.mock.calls.length) work.push("vectorSearch");
+            if (search.mock.calls.length > 0) work.push("vectorSearch");
           }
         }),
       ).rejects.toMatchObject({ data: { code } });
@@ -152,22 +152,22 @@ describe("contribute", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     const { user, args, sign } = await fixture();
     let searches = 0;
-    for (let i = 0; i < 21; i++) {
+    const contributeWithFailingSearch = async () => {
       const signed = await sign();
-      const call = user.as.action(async (ctx) => {
+      return user.as.action(async (ctx) => {
         vi.spyOn(ctx, "vectorSearch").mockImplementation(async () => {
           searches++;
           throw new Error("search unavailable");
         });
         return runContribute(ctx, { ...args, ...signed });
       });
-      if (i < 20) await expect(call).rejects.toThrow("search unavailable");
-      else {
-        await expect(call).rejects.toMatchObject({
-          data: { code: "rate_limited" },
-        });
-      }
+    };
+    for (let i = 0; i < 20; i++) {
+      await expect(contributeWithFailingSearch()).rejects.toThrow("search unavailable");
     }
+    await expect(contributeWithFailingSearch()).rejects.toMatchObject({
+      data: { code: "rate_limited" },
+    });
     expect(searches).toBe(20);
   });
 
@@ -197,7 +197,7 @@ describe("contribute", () => {
       },
     });
     expect(row).not.toHaveProperty("vector");
-    expect((await t.run((ctx) => ctx.db.get(row.embeddingId)))!.vector).toEqual(testVector());
+    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", row.embeddingId)))!.vector).toEqual(testVector());
     expect(row).not.toHaveProperty("descriptors");
     expect(row).not.toHaveProperty("keypoints");
     expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
@@ -221,7 +221,7 @@ describe("contribute", () => {
     const { t, scanId, contribute, rows } = await fixture(verifiedFlow({ sourceUrl, wikidataId: undefined }));
     await contribute();
     await t.run((ctx) =>
-      ctx.db.patch(scanId, {
+      ctx.db.patch("scans", scanId, {
         labelFlow: verifiedFlow({
           sourceUrl: "https://museum.example/works/haystacks",
         }),
@@ -337,7 +337,7 @@ describe("contribute", () => {
     expect(await contribute()).toEqual(accepted);
     expect(await rows()).toHaveLength(1);
     expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
-    expect(await t.run((ctx) => ctx.db.get(accepted.contributionId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("contributions", accepted.contributionId))).toMatchObject({
       cropStorageId,
     });
   });
@@ -364,7 +364,7 @@ describe("contribute", () => {
     async (status) => {
       const { t, contribute } = await fixture();
       const accepted = await contribute();
-      await t.run((ctx) => ctx.db.patch(accepted.contributionId, { status }));
+      await t.run((ctx) => ctx.db.patch("contributions", accepted.contributionId, { status }));
       expect(await contribute()).toEqual({ ...accepted, status });
     },
   );
@@ -393,7 +393,7 @@ describe("contribute", () => {
       reason: "duplicate",
     });
     expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
-    expect(await t.run((ctx) => ctx.db.get(accepted.contributionId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("contributions", accepted.contributionId))).toMatchObject({
       cropStorageId,
     });
   });
@@ -755,7 +755,7 @@ async function shareAs(
     nonce,
     assertionBase64: "AAAA",
   });
-  const row = (await t.run((ctx) => ctx.db.get(result.contributionId)))!;
+  const row = (await t.run((ctx) => ctx.db.get("contributions", result.contributionId)))!;
   return { ...result, row, user, scanId, cropStorageId };
 }
 
@@ -775,13 +775,13 @@ describe("immediate tentative recognition", () => {
         }),
       });
       expect(shared.status).toBe("tentative");
-      const object = (await t.run((ctx) => ctx.db.get(shared.row.indexedObjectId!)))!;
+      const object = (await t.run((ctx) => ctx.db.get("objects", shared.row.indexedObjectId!)))!;
       expect(object).toMatchObject({
         identityStatus: "tentative",
         source: "user",
         sourceContributionId: shared.contributionId,
       });
-      expect(await t.run((ctx) => ctx.db.get(user.deviceId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("devices", user.deviceId))).toMatchObject({
         trustWeight: 0.5,
       });
       const visitor = await seedDevice(t);
@@ -791,7 +791,7 @@ describe("immediate tentative recognition", () => {
           localId: crypto.randomUUID(),
           venueId: museum,
           capturedAt: Date.now(),
-          vector: (await t.run((ctx) => ctx.db.get(shared.row.embeddingId)))!.vector,
+          vector: (await t.run((ctx) => ctx.db.get("scanEmbeddings", shared.row.embeddingId)))!.vector,
           ...features,
           modelVersion: model.modelVersion,
         });
@@ -823,7 +823,7 @@ describe("immediate tentative recognition", () => {
   it("attaches independent compatible views, retains the oldest complete reference, and permits only one active backer per device", async () => {
     const { t, contribute, user, venueId } = await fixture();
     const first = await contribute();
-    const own = (await t.run((ctx) => ctx.db.get(first.contributionId)))!;
+    const own = (await t.run((ctx) => ctx.db.get("contributions", first.contributionId)))!;
     const second = await shareAs(t, venueId, {
       flow: verifiedFlow({
         fields: {
@@ -834,9 +834,9 @@ describe("immediate tentative recognition", () => {
       }),
     });
     expect(second.row.indexedObjectId).toBe(own.indexedObjectId);
-    const object = (await t.run((ctx) => ctx.db.get(own.indexedObjectId!)))!;
+    const object = (await t.run((ctx) => ctx.db.get("objects", own.indexedObjectId!)))!;
     expect(object.sourceContributionId).toBe(first.contributionId);
-    expect(await t.run((ctx) => ctx.db.get(object.artworkId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("artworks", object.artworkId))).toMatchObject({
       date: "1916",
       identityStatus: "tentative",
     });
@@ -850,7 +850,7 @@ describe("immediate tentative recognition", () => {
     });
     // Another device replaying the second backer’s photo is the same view, not a third one.
     const replay = await shareAs(t, venueId, {
-      vector: (await t.run((ctx) => ctx.db.get(second.row.embeddingId)))!.vector,
+      vector: (await t.run((ctx) => ctx.db.get("scanEmbeddings", second.row.embeddingId)))!.vector,
     });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
     expect(await t.run((ctx) => ctx.storage.get(replay.cropStorageId))).toBeNull();
@@ -905,22 +905,22 @@ describe("immediate tentative recognition", () => {
     );
     const before = await t.run((ctx) => ctx.db.query("museumWorkIdentities").collect());
     const shared = await shareAs(t, venueId);
-    const object = (await t.run((ctx) => ctx.db.get(shared.row.indexedObjectId!)))!;
+    const object = (await t.run((ctx) => ctx.db.get("objects", shared.row.indexedObjectId!)))!;
     expect(object.artworkId).not.toBe(corpus.artworkId);
-    expect(await t.run((ctx) => ctx.db.get(corpus.artworkId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("artworks", corpus.artworkId))).toMatchObject({
       title: "Canonical title",
     });
     expect(await t.run((ctx) => ctx.db.query("museumWorkIdentities").collect())).toEqual(before);
-    expect(await t.run((ctx) => ctx.db.get(object.artworkId))).not.toHaveProperty("wikidataId");
+    expect(await t.run((ctx) => ctx.db.get("artworks", object.artworkId))).not.toHaveProperty("wikidataId");
   });
 
   it("rechecks venue and artwork rights at the commit boundary", async () => {
     const { t, venueId, contribute } = await fixture();
-    await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
+    await t.run((ctx) => ctx.db.patch("museums", venueId, { optOut: true }));
     await expect(contribute()).rejects.toMatchObject({
       data: { code: "invalid_venue" },
     });
-    await t.run((ctx) => ctx.db.patch(venueId, { optOut: false }));
+    await t.run((ctx) => ctx.db.patch("museums", venueId, { optOut: false }));
     const corpus = await t.run((ctx) =>
       seedArtworkWithObject(ctx, {
         vector: testVector(0),
@@ -1028,7 +1028,7 @@ describe("immediate tentative recognition", () => {
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await candidates()).toEqual([]);
-    expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
       reverted: false,
     });
   });
@@ -1041,7 +1041,7 @@ describe("precise contribution removal", () => {
       vi.useFakeTimers();
       const { t, user: alice, contribute, venueId, cropStorageId } = await fixture();
       const first = await contribute();
-      const own = (await t.run((ctx) => ctx.db.get(first.contributionId)))!;
+      const own = (await t.run((ctx) => ctx.db.get("contributions", first.contributionId)))!;
       const bob = await shareAs(t, venueId, {
         flow: verifiedFlow({
           fields: {
@@ -1052,7 +1052,7 @@ describe("precise contribution removal", () => {
           },
         }),
       });
-      await t.run((ctx) => ctx.db.patch(bob.scanId, { gallery: "Bob gallery" }));
+      await t.run((ctx) => ctx.db.patch("scans", bob.scanId, { gallery: "Bob gallery" }));
       const corpus = await t.run((ctx) =>
         seedArtworkWithObject(ctx, {
           vector: testVector(0),
@@ -1060,7 +1060,7 @@ describe("precise contribution removal", () => {
         }),
       );
       const objectId = own.indexedObjectId!;
-      const before = await t.run((ctx) => ctx.db.get(objectId));
+      const before = await t.run((ctx) => ctx.db.get("objects", objectId));
       if (kind === "withdraw") {
         await alice.as.mutation(api.contributions.withdraw, {
           contributionId: first.contributionId,
@@ -1080,13 +1080,13 @@ describe("precise contribution removal", () => {
       });
       expect(during.some((candidate) => candidate.object._id === objectId)).toBe(false);
       await t.finishAllScheduledFunctions(vi.runAllTimers);
-      expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
         reverted: false,
         sourceContributionId: bob.contributionId,
         thumbnailStorageId: bob.cropStorageId,
         medium: "Oil",
       });
-      expect(await t.run((ctx) => ctx.db.get(before!.artworkId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("artworks", before!.artworkId))).toMatchObject({
         date: "1917",
         identityStatus: "tentative",
       });
@@ -1111,21 +1111,18 @@ describe("precise contribution removal", () => {
       });
       expect(await t.run((ctx) => ctx.storage.get(cropStorageId))).toBeNull();
       expect(await t.run((ctx) => ctx.storage.get(own.orbStorageId!))).toBeNull();
-      expect(await t.run((ctx) => ctx.db.get(corpus.objectId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("objects", corpus.objectId))).toMatchObject({
         reverted: false,
         identityStatus: "established",
       });
-      expect(await t.run((ctx) => ctx.db.get(corpus.vectorId))).not.toBeNull();
-      expect(await t.run((ctx) => ctx.db.get(bob.contributionId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("vectors", corpus.vectorId))).not.toBeNull();
+      expect(await t.run((ctx) => ctx.db.get("contributions", bob.contributionId))).toMatchObject({
         status: "tentative",
       });
-      if (kind === "ban") {
-        expect(
-          await t.query(internal.revert.removalProgress, {
-            deviceId: alice.deviceId,
-          }),
-        ).toMatchObject({ phase: "complete" });
-      }
+      const removal = await t.query(internal.revert.removalProgress, {
+        deviceId: alice.deviceId,
+      });
+      expect(removal?.phase).toBe(kind === "ban" ? "complete" : undefined);
       await bob.user.as.mutation(api.contributions.withdraw, {
         contributionId: bob.contributionId,
       });
@@ -1133,10 +1130,10 @@ describe("precise contribution removal", () => {
         contributionId: bob.contributionId,
       });
       await t.finishAllScheduledFunctions(vi.runAllTimers);
-      expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
         reverted: true,
       });
-      expect(await t.run((ctx) => ctx.db.get(before!.artworkId))).toHaveProperty("retiredAt");
+      expect(await t.run((ctx) => ctx.db.get("artworks", before!.artworkId))).toHaveProperty("retiredAt");
       expect(
         await t.run((ctx) =>
           ctx.db
@@ -1154,7 +1151,7 @@ describe("precise contribution removal", () => {
       vi.useFakeTimers();
       const { t, user: alice, contribute, venueId } = await fixture();
       const first = await contribute();
-      const objectId = (await t.run((ctx) => ctx.db.get(first.contributionId)))!.indexedObjectId!;
+      const objectId = (await t.run((ctx) => ctx.db.get("contributions", first.contributionId)))!.indexedObjectId!;
       const bob = await shareAs(t, venueId);
       if (kind === "withdraw") {
         await alice.as.mutation(api.contributions.withdraw, {
@@ -1169,7 +1166,7 @@ describe("precise contribution removal", () => {
       // Nothing scheduled has run yet: the recorded reference is still Alice’s ineligible contribution.
       const carol = await shareAs(t, venueId, { vector: testVector(0.91) });
       expect(carol.row.indexedObjectId).toBe(objectId);
-      expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+      expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
         sourceContributionId: bob.contributionId,
       });
       await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -1186,13 +1183,10 @@ describe("precise contribution removal", () => {
             .collect(),
         ),
       ).toHaveLength(2);
-      if (kind === "ban") {
-        expect(
-          await t.query(internal.revert.removalProgress, {
-            deviceId: alice.deviceId,
-          }),
-        ).toMatchObject({ phase: "complete" });
-      }
+      const removal = await t.query(internal.revert.removalProgress, {
+        deviceId: alice.deviceId,
+      });
+      expect(removal?.phase).toBe(kind === "ban" ? "complete" : undefined);
     },
   );
 
@@ -1212,8 +1206,8 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
   vi.useFakeTimers();
   const { publishContribution } = await import("./lib/tentativeEntries");
   const t = harness({ transactionLimits: true });
-  const alice = await seedDevice(t),
-    bob = await seedDevice(t);
+  const alice = await seedDevice(t);
+  const bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const own: Id<"contributions">[] = [];
   for (let i = 0; i < 30; i++) {
@@ -1229,7 +1223,7 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
             artist: { value: "Visitor", evidence: "ocr", edited: false },
           },
         });
-        await publishContribution(ctx, (await ctx.db.get(id))!);
+        await publishContribution(ctx, (await ctx.db.get("contributions", id))!);
         return id;
       }),
     );
@@ -1262,18 +1256,18 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
     completedAt: expect.any(Number),
   });
   for (const id of own) {
-    const row = await t.run((ctx) => ctx.db.get(id));
+    const row = await t.run((ctx) => ctx.db.get("contributions", id));
     expect(row).toMatchObject({
       status: "rejected",
       rejectedReason: "device_reverted",
     });
     expect(row?.cropStorageId).toBeUndefined();
     expect(row?.orbStorageId).toBeUndefined();
-    expect(await t.run((ctx) => ctx.db.get(row!.indexedObjectId!))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("objects", row!.indexedObjectId!))).toMatchObject({
       reverted: true,
     });
   }
-  expect(await t.run((ctx) => ctx.db.get(theirs.row.indexedObjectId!))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", theirs.row.indexedObjectId!))).toMatchObject({
     reverted: false,
   });
 });
@@ -1290,7 +1284,7 @@ it("groups a second view with a published contribution, rejects its replay, and 
   const replay = await shareAs(t, venueId, { vector: testVector(0.9) });
   expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
   await second.user.as.mutation(api.contributions.withdraw, { contributionId: second.contributionId });
-  expect(await t.run((ctx) => ctx.db.get(second.row.embeddingId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("scanEmbeddings", second.row.embeddingId))).toBeNull();
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const remaining = await t.run((ctx) => ctx.db.query("vectors").collect());
   expect(remaining).toHaveLength(1);

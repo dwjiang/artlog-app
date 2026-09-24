@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+
 import { insertSavedWork } from "@/db/repos/saved-works";
+
 import { WallDisplayScreen } from "./wall-display-screen";
 
 let mockWall: Partial<ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>> = {
@@ -10,7 +12,7 @@ jest.mock("@/lib/wall/use-collection-wall", () => ({
   useCollectionWall: () => mockWall,
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
@@ -61,8 +63,8 @@ it("explains why a hung work cannot share its note until the note has synced", a
 });
 
 it("saves a frame change for the hung placement", async () => {
-  const setLayoutDraft = jest.fn(),
-    publishLayout = jest.fn().mockResolvedValue(undefined);
+  const setLayoutDraft = jest.fn();
+  const publishLayout = jest.fn().mockResolvedValue(undefined);
   mockWall = {
     signedIn: true,
     pieces: [],

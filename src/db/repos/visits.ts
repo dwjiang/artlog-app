@@ -1,12 +1,14 @@
-import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { ConvexError } from "convex/values";
-import { validateVisit } from "../../../shared/journal/contracts";
-import { visitInput } from "../../lib/journal/visit-payload";
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { requestCollectionSync } from "../../lib/account/sync-events";
-import { db } from "../client";
-import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from "../schema";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+
+import { db } from "@/db/client";
+import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from "@/db/schema";
+import { getLocalOwner } from "@/lib/account/owner-store";
+import { requestCollectionSync } from "@/lib/account/sync-events";
+import { visitInput } from "@/lib/journal/visit-payload";
+import { validateVisit } from "@/shared/journal/contracts";
+
+import type { Doc, Id } from "../../../convex/_generated/dataModel";
 
 /** Sync state is owned by markVisitsSynced and upsertVisitsFromRemote; callers describe only the visit itself. */
 export type VisitDraft = Omit<NewVisit, "owner" | "remoteVisitId" | "syncedAt" | "syncedBy" | "revision">;

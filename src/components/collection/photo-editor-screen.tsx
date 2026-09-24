@@ -1,24 +1,26 @@
-import { reportError } from "@/lib/observability";
-import { WallSheet } from "./wall-sheet";
-import { SavedWorkImage } from "./saved-work-image";
-import { LoadingImage } from "@/components/loading-image";
-import { ListSkeleton } from "@/components/loading-skeleton";
-import { EmptyState } from "../empty-state";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+
+import { EmptyState } from "@/components/empty-state";
+import { LoadingImage } from "@/components/loading-image";
+import { ListSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import type { ArtworkPhoto } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
+
+import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
 import { NativeSegmentedPicker } from "./native-segmented-picker";
 import { PhotoVisibility } from "./photo-visibility";
-import { ArtworkQueryState } from "./artwork-query-state";
+import { SavedWorkImage } from "./saved-work-image";
+import { WallSheet } from "./wall-sheet";
 
 export function PhotoEditorScreen() {
   const { savedId, photoId } = useLocalSearchParams<{
@@ -62,9 +64,9 @@ function PhotoQuery({
   );
 }
 function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
-  const [caption, setCaption] = useState(photo.caption ?? ""),
-    [kind, setKind] = useState(photo.kind),
-    [moving, setMoving] = useState(false);
+  const [caption, setCaption] = useState(photo.caption ?? "");
+  const [kind, setKind] = useState(photo.kind);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string>();
   const [captionFocused, setCaptionFocused] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -192,9 +194,9 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                 <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                   Couldn’t load your artworks. Close and reopen this photo to try again.
                 </Text>
-              ) : !works.updatedAt && !destinations.length ? (
+              ) : !works.updatedAt && destinations.length === 0 ? (
                 <ListSkeleton label="Loading artworks…" rows={3} />
-              ) : !destinations.length ? (
+              ) : destinations.length === 0 ? (
                 <EmptyState
                   compact
                   title="No other artworks available."

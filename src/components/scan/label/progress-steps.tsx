@@ -1,7 +1,7 @@
-import { LoadingRing } from "@/components/loading-ring";
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import type { LabelStage } from "@/lib/label/flow";

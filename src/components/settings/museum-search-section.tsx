@@ -1,13 +1,13 @@
-import { reportError } from "@/lib/observability";
 import { Host, Switch } from "@expo/ui";
 import { useState } from "react";
-
 import { View } from "react-native";
-import { ThemedText } from "../themed-text";
-import { Gallery, SettingsOutline } from "@/constants/theme";
+
 import { LoadingRing } from "@/components/loading-ring";
 import { SEARCH_CONSENT_BODY } from "@/components/scan/result/search-consent-sheet";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery, SettingsOutline } from "@/constants/theme";
 import { useScreenActive } from "@/hooks/use-screen-active";
+import { reportError } from "@/lib/observability";
 import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
 import { useMuseumSearchConsent } from "@/lib/settings/use-museum-search-consent";
 

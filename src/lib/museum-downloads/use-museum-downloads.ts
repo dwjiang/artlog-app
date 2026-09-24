@@ -1,7 +1,9 @@
+import { addNetworkStateListener } from "expo-network";
 import { useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
-import { addNetworkStateListener } from "expo-network";
+
 import { useDeviceReady } from "@/lib/use-device-ready";
+
 import { museumDownloads } from "./storage";
 
 export function useMuseumDownloads() {

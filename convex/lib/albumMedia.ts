@@ -1,7 +1,8 @@
 import { ConvexError, type Infer } from "convex/values";
+
+import type { displayMediaContext, displayMedia } from "../../shared/social/contracts";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
-import type { displayMediaContext, displayMedia } from "../../shared/social/contracts";
 
 export async function ownedAlbumPhoto(ctx: QueryCtx, save: Doc<"collections">, localId: string) {
   const photo = await ctx.db
@@ -35,20 +36,20 @@ export async function invalidateAlbumPhoto(ctx: MutationCtx, photo: Doc<"artwork
     .take(101);
   for (const item of items) {
     if (item.active && item.photoLocalId === photo.localId) {
-      await ctx.db.patch(item._id, {
+      await ctx.db.patch("wallItems", item._id, {
         active: false,
         noteVisible: false,
         noteRevision: item.noteRevision + 1,
       });
-      const wall = await ctx.db.get(item.wallId),
-        profile = await ctx.db.get(item.profileId);
+      const wall = await ctx.db.get("walls", item.wallId);
+      const profile = await ctx.db.get("profiles", item.profileId);
       if (wall) {
-        await ctx.db.patch(wall._id, {
+        await ctx.db.patch("walls", wall._id, {
           layoutRevision: wall.layoutRevision + 1,
         });
       }
       if (profile) {
-        await ctx.db.patch(profile._id, {
+        await ctx.db.patch("profiles", profile._id, {
           publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
         });
       }
@@ -61,12 +62,14 @@ export async function invalidateAlbumPhoto(ctx: MutationCtx, photo: Doc<"artwork
   for (const item of selections) {
     if (item.photoLocalIds?.includes(photo.localId)) {
       const remaining = item.photoLocalIds.filter((id) => id !== photo.localId);
-      if (remaining.length) {
-        await ctx.db.patch(item._id, { photoLocalIds: remaining });
-      } else await ctx.db.delete(item._id);
-      const post = await ctx.db.get(item.publicationId);
+      if (remaining.length > 0) {
+        await ctx.db.patch("sharedVisitItems", item._id, { photoLocalIds: remaining });
+      } else {
+        await ctx.db.delete("sharedVisitItems", item._id);
+      }
+      const post = await ctx.db.get("sharedVisits", item.publicationId);
       if (post) {
-        await ctx.db.patch(post._id, {
+        await ctx.db.patch("sharedVisits", post._id, {
           publicationRevision: post.publicationRevision + 1,
           updatedAt: Date.now(),
         });

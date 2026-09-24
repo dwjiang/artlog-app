@@ -1,9 +1,10 @@
 import { ConvexError } from "convex/values";
 
+import { env } from "../_generated/server";
 import { MODERATION_MAX_TOKENS, MODERATION_PROMPT, MODERATION_SCHEMA, parseModeration } from "./labelPrompt";
+import { reportBackendError } from "./observability";
 import { mentions } from "./textMatch";
 import { chatJson } from "./tokenFactory";
-import { reportBackendError } from "./observability";
 
 export type ModerationResult = {
   flagged: boolean;
@@ -33,7 +34,7 @@ const BASELINE_BLOCKLIST = [
 ];
 
 export function blocklistTerms(): string[] {
-  const extra = (process.env.MODERATION_BLOCKLIST ?? "")
+  const extra = (env.MODERATION_BLOCKLIST ?? "")
     .split(",")
     .map((term) => term.trim())
     .filter(Boolean);
@@ -50,7 +51,7 @@ export async function checkText(values: (string | null | undefined)[]): Promise<
     .filter(Boolean)
     .join("\n");
   if (!text) return { flagged: false, method: "blocklist", calls: 0 };
-  const model = process.env.MODERATION_MODEL;
+  const model = env.MODERATION_MODEL;
   if (!model) {
     return { flagged: blocklistFlags(text), method: "blocklist", calls: 0 };
   }

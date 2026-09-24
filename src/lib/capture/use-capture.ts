@@ -1,5 +1,3 @@
-import { reportError, addBreadcrumb } from "@/lib/observability";
-import { getVisit } from "@/db/repos/visits";
 import { useAction } from "convex/react";
 import * as Haptics from "expo-haptics";
 import type { ImageRef } from "expo-image-manipulator";
@@ -9,13 +7,16 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AccessibilityInfo } from "react-native";
 
+import { getVisit } from "@/db/repos/visits";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
-import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { removeCameraTempFile } from "@/lib/files/camera-temp";
-import { api } from "../../../convex/_generated/api";
-import { venueIdAt } from "@/lib/venue/venue-db";
+import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
+import { reportError, addBreadcrumb } from "@/lib/observability";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
+import { venueIdAt } from "@/lib/venue/venue-db";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
+
+import { api } from "../../../convex/_generated/api";
 import { CaptureController, type CaptureAttempt } from "./capture-controller";
 import { captureOptions, defaultStages } from "./default-stages";
 import { extractCaptureMeta } from "./exif";

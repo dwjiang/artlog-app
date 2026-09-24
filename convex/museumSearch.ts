@@ -1,4 +1,3 @@
-import { withErrorReporting } from "./lib/observability";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -7,10 +6,11 @@ import { action, internalMutation, internalQuery } from "./_generated/server";
 import { resolveFalseRejections } from "./feedback";
 import { moderateVerifiedFields } from "./label";
 import { requireDeviceFromAction } from "./lib/auth";
-import { isEnabled } from "./lib/flags";
-import { exhibitionCandidates } from "./lib/exhibitionSearch";
 import { resolveExhibitionIdentity } from "./lib/exhibitionIdentity";
+import { exhibitionCandidates } from "./lib/exhibitionSearch";
+import { isEnabled } from "./lib/flags";
 import { FIELD_NAMES, displayLabelFlow, evidenceSummary, imageCheckPasses, labelField } from "./lib/labelVerify";
+import { withErrorReporting } from "./lib/observability";
 import type { PageFields } from "./lib/pageExtract";
 import { limitDevice } from "./lib/rateLimits";
 import { search } from "./lib/tavily";
@@ -40,7 +40,7 @@ export const load = internalQuery({
     venueName: v.string(),
   }),
   handler: async (ctx, { scanId, deviceId }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (
       !scan
       || scan.deviceId !== deviceId
@@ -50,9 +50,9 @@ export const load = internalQuery({
     ) {
       throw new ConvexError({ code: "invalid_scan" });
     }
-    const venue = await ctx.db.get(scan.venueId);
+    const venue = await ctx.db.get("museums", scan.venueId);
     const hosts = venue ? venueHosts(venue) : [];
-    if (!venue || !hosts.length) {
+    if (!venue || hosts.length === 0) {
       throw new ConvexError({ code: "no_venue_site" });
     }
     if (await isVenueOptedOut(ctx, venue)) {
@@ -83,9 +83,9 @@ export const beginSearch = internalMutation({
   },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const scan = ownedCurrentScan(await ctx.db.get(args.scanId), args);
+    const scan = ownedCurrentScan(await ctx.db.get("scans", args.scanId), args);
     const revision = (scan.museumSearchRevision ?? 0) + 1;
-    await ctx.db.patch(scan._id, { museumSearchRevision: revision });
+    await ctx.db.patch("scans", scan._id, { museumSearchRevision: revision });
     return revision;
   },
 });
@@ -100,11 +100,11 @@ export const write = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const scan = ownedCurrentScan(await ctx.db.get(args.scanId), args);
+    const scan = ownedCurrentScan(await ctx.db.get("scans", args.scanId), args);
     if (scan.museumSearchRevision !== args.revision) {
       throw new ConvexError({ code: "search_superseded" });
     }
-    await ctx.db.patch(scan._id, {
+    await ctx.db.patch("scans", scan._id, {
       museumSearch: args.museumSearch,
       updatedAt: Date.now(),
     });
@@ -257,7 +257,9 @@ function storedConfirmation(scan: Doc<"scans">, flow: LabelFlow): LabelFlow | nu
     return null;
   }
   const flaggedEmpty =
-    stored.moderation === "flagged" && FIELD_NAMES.every((name) => !stored.fields[name]) && !stored.evidence.length;
+    stored.moderation === "flagged"
+    && FIELD_NAMES.every((name) => !stored.fields[name])
+    && stored.evidence.length === 0;
   const sameResult =
     FIELD_NAMES.every((name) => sameField(stored.fields[name], flow.fields[name]))
     && sameList(stored.evidence, flow.evidence);
@@ -273,7 +275,7 @@ export const confirm = internalMutation({
   },
   returns: labelFlowDisplay,
   handler: async (ctx, args): Promise<LabelFlowDisplay> => {
-    const scan = ownedCurrentScan(await ctx.db.get(args.scanId), args);
+    const scan = ownedCurrentScan(await ctx.db.get("scans", args.scanId), args);
     const flow = args.labelFlow;
     const imageUrl = flow.imageUrls?.[0];
     const selected =
@@ -284,7 +286,7 @@ export const confirm = internalMutation({
     }
     const stored = storedConfirmation(scan, flow);
     if (stored) return displayLabelFlow(stored);
-    await ctx.db.patch(scan._id, {
+    await ctx.db.patch("scans", scan._id, {
       labelFlow: flow,
       // Confirming a retained candidate supersedes any search still in flight.
       museumSearchRevision: (scan.museumSearchRevision ?? 0) + 1,
@@ -313,7 +315,7 @@ export const markUnresolved = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const scan = ownedCurrentScan(await ctx.db.get(args.scanId), args);
+    const scan = ownedCurrentScan(await ctx.db.get("scans", args.scanId), args);
     if (
       scan.museumSearch?.stage !== "exhibitions"
       || !retainedCandidate(scan.museumSearch, args.sourceUrl, args.imageUrl)
@@ -321,7 +323,7 @@ export const markUnresolved = internalMutation({
       return null;
     }
     const updatedAt = Date.now();
-    await ctx.db.patch(scan._id, {
+    await ctx.db.patch("scans", scan._id, {
       museumSearch: { stage: "none", reason: "identity_unresolved", updatedAt },
       updatedAt,
     });

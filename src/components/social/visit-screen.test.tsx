@@ -1,11 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
+
 import { VisitScreen } from "./visit-screen";
 
-const mockPush = jest.fn(),
-  mockLoadMore = jest.fn(),
-  mockRefresh = jest.fn(),
-  mockPages = jest.fn();
+const mockPush = jest.fn();
+const mockLoadMore = jest.fn();
+const mockRefresh = jest.fn();
+const mockPages = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
@@ -151,7 +153,7 @@ it("searches later pages and waits until all pages arrive before declaring no ma
 });
 
 it("distinguishes a visit without photos from a visit without artworks", async () => {
-  const media = works[0].artwork.media;
+  const { media } = works[0].artwork;
   mockPages.mockReturnValue(
     pages({
       items: [{ ...works[0], photos: [media, media] }, works[1]],

@@ -1,4 +1,5 @@
 import type { SavedWork } from "@/db/schema";
+
 import { sortWorksByArtist } from "./search";
 
 type ArtistWork = Pick<SavedWork, "localId" | "artist" | "title" | "date">;
@@ -8,7 +9,7 @@ export function artistSections<T extends ArtistWork>(works: T[]) {
     const initial = work.artist
       .trim()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .replaceAll(/[\u0300-\u036f]/g, "")
       .charAt(0)
       .toUpperCase();
     const title = /^[A-Z]$/.test(initial) ? initial : "#";

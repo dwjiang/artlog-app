@@ -1,13 +1,14 @@
-import { reportError } from "@/lib/observability";
-import { Alert } from "react-native";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Stack, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
+import { Alert } from "react-native";
+
 import { Gallery } from "@/constants/theme";
-import { useLocalOwner } from "@/lib/account/owner-store";
 import { selectSavedWork } from "@/db/repos/saved-works";
-import { captureFileUri } from "@/lib/files/photos";
+import { useLocalOwner } from "@/lib/account/owner-store";
 import { scheduleRemoval } from "@/lib/collection/pending-removals";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 
 /** Header actions for an owned artwork: share the photo, and the overflow menu with editing and removal. */

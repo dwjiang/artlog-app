@@ -106,7 +106,7 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
   };
 }
 
-test("shuts down only this workspace’s named simulators, including purpose suffixes", () => {
+await test("shuts down only this workspace’s named simulators, including purpose suffixes", () => {
   const result = runArchive(["Artlog Ndjamena", "Artlog ndjamena Review", "Artlog Sanaa", "iPhone 17 Pro"]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, [
@@ -116,7 +116,7 @@ test("shuts down only this workspace’s named simulators, including purpose suf
   assert.deepEqual(result.windows, ["Artlog Ndjamena", "Artlog ndjamena Review"]);
 });
 
-test("keeps similarly named workspaces and versioned workspaces running", () => {
+await test("keeps similarly named workspaces and versioned workspaces running", () => {
   const result = runArchive([
     "Artlog Ndjamena-v1",
     "Artlog Ndjamena V1 Review",
@@ -127,7 +127,7 @@ test("keeps similarly named workspaces and versioned workspaces running", () => 
   assert.deepEqual(result.shutdowns, []);
 });
 
-test("accepts spaces and hyphens in multiword workspace names", () => {
+await test("accepts spaces and hyphens in multiword workspace names", () => {
   const result = runArchive(["Artlog Addis Ababa Guest Capture", "Artlog addis-ababa", "Artlog Addis Ababa-v1"], {
     CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/addis-ababa",
   });
@@ -135,7 +135,7 @@ test("accepts spaces and hyphens in multiword workspace names", () => {
   assert.equal(result.shutdowns.length, 2);
 });
 
-test("also matches the Conductor workspace name after a rename", () => {
+await test("also matches the Conductor workspace name after a rename", () => {
   const result = runArchive(["Artlog Guest Capture", "Artlog Ndjamena", "Artlog Guest Capture-v1", "Artlog Sanaa"], {
     CONDUCTOR_WORKSPACE_NAME: "guest-capture",
   });
@@ -146,7 +146,7 @@ test("also matches the Conductor workspace name after a rename", () => {
   ]);
 });
 
-test("does nothing for cloud workspaces or absent ownership information", () => {
+await test("does nothing for cloud workspaces or absent ownership information", () => {
   for (const env of [{ CONDUCTOR_IS_LOCAL: "0" }, { CONDUCTOR_WORKSPACE_PATH: "" }]) {
     const result = runArchive(["Artlog Ndjamena"], env);
     assert.equal(result.status, 0, result.stderr);
@@ -157,7 +157,7 @@ test("does nothing for cloud workspaces or absent ownership information", () => 
   }
 });
 
-test("closes stopped iOS windows without repeating shutdown or touching non-iOS devices", () => {
+await test("closes stopped iOS windows without repeating shutdown or touching non-iOS devices", () => {
   const result = runArchive([], {
     TEST_DEVICES: JSON.stringify({
       devices: {
@@ -175,7 +175,7 @@ test("closes stopped iOS windows without repeating shutdown or touching non-iOS 
   assert.deepEqual(result.windows, ["Artlog Ndjamena"]);
 });
 
-test("reports shutdown failures and still attempts the workspace’s other devices", () => {
+await test("reports shutdown failures and still attempts the workspace’s other devices", () => {
   const result = runArchive(["Artlog Ndjamena", "Artlog Ndjamena Review"], {
     TEST_FAIL_DEVICE: "device-0",
   });
@@ -184,7 +184,7 @@ test("reports shutdown failures and still attempts the workspace’s other devic
   assert.match(result.stderr, /device-0/);
 });
 
-test("matches numbered display names without claiming another workspace", () => {
+await test("matches numbered display names without claiming another workspace", () => {
   const result = runArchive(
     ["Artlog 03.07 Kelowna", "Artlog Kelowna Review", "Artlog 03.07 Kelowna-v1", "Artlog 03.08 Sanaa"],
     {
@@ -199,13 +199,13 @@ test("matches numbered display names without claiming another workspace", () => 
   ]);
 });
 
-test("loads cleanup from the remote default branch even when the checkout has no script", () => {
+await test("loads cleanup from the remote default branch even when the checkout has no script", () => {
   const result = runArchive([], { CONDUCTOR_DEFAULT_BRANCH: "develop" });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.calls[0], ["git", "show", "origin/develop:.conductor/archive-workspace.cjs"]);
 });
 
-test("reports a missing default-branch script instead of silently skipping cleanup", () => {
+await test("reports a missing default-branch script instead of silently skipping cleanup", () => {
   const result = runArchive([], { TEST_MISSING_SOURCE: "1" });
   assert.notEqual(result.status, 0);
   assert.deepEqual(
@@ -214,19 +214,19 @@ test("reports a missing default-branch script instead of silently skipping clean
   );
 });
 
-test("reports window cleanup failures", () => {
+await test("reports window cleanup failures", () => {
   const result = runArchive(["Artlog Ndjamena"], { TEST_FAIL_WINDOWS: "1" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Workspace cleanup failed/);
 });
 
-test("reads process lists larger than Node's default output buffer", () => {
+await test("reads process lists larger than Node's default output buffer", () => {
   const result = runArchive([], { TEST_LONG_PROCESS_LIST: "1" });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
 });
 
-test("still closes simulators when process discovery fails", () => {
+await test("still closes simulators when process discovery fails", () => {
   const result = runArchive(["Artlog Ndjamena"], { TEST_FAIL_PS: "1" });
   assert.equal(result.status, 1);
   assert.deepEqual(result.shutdowns, [["simctl", "shutdown", "device-0"]]);
@@ -252,7 +252,7 @@ async function startProcess(cwd: string, title: string, stubborn = false) {
   return child;
 }
 
-test("stops workspace dev servers on arbitrary ports while preserving sibling servers and tooling", async () => {
+await test("stops workspace dev servers on arbitrary ports while preserving sibling servers and tooling", async () => {
   const workspace = join(directory, "workspace");
   const server = await startProcess(workspace, "node /app/node_modules/.bin/expo start --port 8199");
   const runner = await startProcess(workspace, "npm start --dev-client --port 8199");
@@ -276,7 +276,7 @@ test("stops workspace dev servers on arbitrary ports while preserving sibling se
   assert.ok(tooling.pid && process.kill(tooling.pid, 0));
 });
 
-test("escalates unresponsive dev servers and still cleans up when Xcode fails", async () => {
+await test("escalates unresponsive dev servers and still cleans up when Xcode fails", async () => {
   const workspace = join(directory, "workspace");
   const server = await startProcess(workspace, "node /app/node_modules/expo/bin/cli run:ios", true);
   const exit = once(server, "exit");
@@ -290,7 +290,7 @@ test("escalates unresponsive dev servers and still cleans up when Xcode fails", 
   assert.match(result.stderr, /Workspace cleanup failed/);
 });
 
-test("stops detached workers descended from the workspace server", async () => {
+await test("stops detached workers descended from the workspace server", async () => {
   const workspace = join(directory, "workspace");
   mkdirSync(workspace);
   const server = spawn(

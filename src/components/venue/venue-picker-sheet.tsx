@@ -1,29 +1,28 @@
-import { reportError } from "@/lib/observability";
-import { CollectionSearchField } from "../collection/collection-search-field";
-import { museumDay } from "@/lib/journal/visit-date";
-import { searchVenues } from "@/lib/venue/search-venues";
-import { venueLocation } from "@/lib/venue/venue-location";
-import type { VenueRow } from "@/lib/venue/resolve";
-import { TextSkeleton } from "@/components/loading-skeleton";
-import { EmptyState } from "../empty-state";
-import { EmptyMap } from "../empty-state-art";
-import { LoadingRing } from "@/components/loading-ring";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import { EmptyMap } from "@/components/empty-state-art";
+import { LoadingRing } from "@/components/loading-ring";
+import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { ArtworkPreviews } from "@/components/visits/visit-ui";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
-import { useVisits } from "@/lib/journal/use-visits";
 import { formatVisitStart } from "@/lib/journal/use-visit-works";
-import { formatDistance } from "@/lib/venue/resolve";
+import { useVisits } from "@/lib/journal/use-visits";
+import { museumDay } from "@/lib/journal/visit-date";
+import { reportError } from "@/lib/observability";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
+import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
+import { searchVenues } from "@/lib/venue/search-venues";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
+import { venueLocation } from "@/lib/venue/venue-location";
 import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from "@/lib/venue/venue-reducer";
 
 /**
@@ -52,7 +51,7 @@ function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits |
 export function VenuePickerSheet() {
   const view = useVenue();
   const { mode: requested } = useLocalSearchParams<{ mode?: string }>();
-  const visit = view.visit;
+  const { visit } = view;
   // The mode is fixed when the sheet opens: a confirmation in the chooser closes the sheet rather than flipping it.
   const [mode, setMode] = useState<"visit" | "change" | "choose">(
     activeVisit(view) && requested !== "choose" ? "visit" : "choose",
@@ -234,7 +233,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           <ThemedText themeColor="error" accessibilityRole="alert">
             {results.error}
           </ThemedText>
-        ) : !results.rows.length ? (
+        ) : results.rows.length === 0 ? (
           <EmptyState
             inset={false}
             title="No museums found."
@@ -271,7 +270,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
         )
       ) : status === "locating" ? (
         <LoadingRing accessibilityLabel="Locating your museum" />
-      ) : !options.length ? (
+      ) : options.length === 0 ? (
         <EmptyState
           inset={false}
           title={status === "denied" ? "Location access is off." : "No nearby museums found."}

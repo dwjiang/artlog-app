@@ -1,16 +1,17 @@
 import { expect, it } from "vitest";
+
 import { api, internal } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 const notFound = { data: { code: "not_found" } };
 
 it("exposes only published visits and revokes detail, artwork, and media access when made private", async () => {
-  const t = harness(),
-    author = await socialUser(t),
-    friend = await socialUser(t);
-  const privateVisit = await socialVisit(t, author),
-    publicVisit = await socialVisit(t, author);
+  const t = harness();
+  const author = await socialUser(t);
+  const friend = await socialUser(t);
+  const privateVisit = await socialVisit(t, author);
+  const publicVisit = await socialVisit(t, author);
   await setVisitVisibility(t, author, privateVisit.visit._id, "private");
   const media = await socialDerivative(t, author, publicVisit.saves[0].id);
   const published = await author.as.mutation(api.sharedVisits.publish, {
@@ -24,7 +25,7 @@ it("exposes only published visits and revokes detail, artwork, and media access 
   });
   expect(post.audience).toBe("public");
   expect(JSON.stringify(post)).not.toMatch(/PRIVATE|accountId|storageId|saveLocalId|visitLocalId/);
-  const itemId = post.artworks.page[0].itemId;
+  const { itemId } = post.artworks.page[0];
   const context = { kind: "sharedVisit" as const, postId: post.postId, itemId };
   expect(await t.query(internal.sharedMedia.authorize, { context })).toBe(media.storageId);
   expect(
@@ -45,9 +46,9 @@ it("exposes only published visits and revokes detail, artwork, and media access 
 });
 
 it("paginates public visits with tied dates, filters blocked authors, and honors unsharing", async () => {
-  const t = harness(),
-    author = await socialUser(t),
-    viewer = await socialUser(t);
+  const t = harness();
+  const author = await socialUser(t);
+  const viewer = await socialUser(t);
   const ids: string[] = [];
   for (let i = 0; i < 3; i++) {
     const draft = await socialVisit(t, author);
@@ -94,9 +95,9 @@ it("paginates public visits with tied dates, filters blocked authors, and honors
 });
 
 it("does not reveal private history through public profile pagination cursors", async () => {
-  const t = harness(),
-    author = await socialUser(t),
-    draft = await socialVisit(t, author, 0);
+  const t = harness();
+  const author = await socialUser(t);
+  const draft = await socialVisit(t, author, 0);
   await setVisitVisibility(t, author, draft.visit._id, "private");
   await t.run(async (ctx) => {
     for (let i = 0; i < 55; i++) {
@@ -127,11 +128,15 @@ it("does not reveal private history through public profile pagination cursors", 
 });
 
 it("rejects Friends-only preview and publication requests", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner);
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner);
   const input = { ...draft.selection, audience: "friends" as never };
-  await expect(owner.as.query(api.sharedVisits.preview, input)).rejects.toThrow();
-  await expect(owner.as.mutation(api.sharedVisits.publish, input)).rejects.toThrow();
+  await expect(owner.as.query(api.sharedVisits.preview, input)).rejects.toThrow(
+    "Validator error: Expected `public`, got `friends`",
+  );
+  await expect(owner.as.mutation(api.sharedVisits.publish, input)).rejects.toThrow(
+    "Validator error: Expected `public`, got `friends`",
+  );
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
 });

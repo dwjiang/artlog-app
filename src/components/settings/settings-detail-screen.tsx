@@ -3,6 +3,12 @@ import { useNetworkState } from "expo-network";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from "@/components/grouped-list";
+import { SearchConsentSheet } from "@/components/scan/result/search-consent-sheet";
+import { LeaderboardParticipation } from "@/components/social/leaderboard-participation";
+import { useDeviceReady } from "@/lib/use-device-ready";
+import model from "@/shared/model/model-version.json";
+
 import { api } from "../../../convex/_generated/api";
 import { AboutSection } from "./about-section";
 import { AccountSection } from "./account-section";
@@ -13,11 +19,6 @@ import { PhotoLibraryPreference } from "./photo-library-preference";
 import { PrivacySection } from "./privacy-section";
 import { ContributionsScreen } from "./sharing-section";
 import { VisitPreference } from "./visit-preference";
-import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from "@/components/grouped-list";
-import { SearchConsentSheet } from "@/components/scan/result/search-consent-sheet";
-import { LeaderboardParticipation } from "@/components/social/leaderboard-participation";
-import { useDeviceReady } from "@/lib/use-device-ready";
-import model from "../../../shared/model/model-version.json";
 
 const titles = {
   account: "Account",

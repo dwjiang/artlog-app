@@ -4,8 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { verifyAppleIdentityToken } from "./appleToken";
 
 vi.mock("jose", () => ({
-  createRemoteJWKSet: vi.fn(() => "apple-keys"),
-  jwtVerify: vi.fn(),
+  createRemoteJWKSet: vi.fn<() => string>(() => "apple-keys"),
+  jwtVerify: vi.fn<typeof jwtVerify>(),
 }));
 
 beforeEach(() => {
@@ -40,11 +40,11 @@ it.each([
   { sub: "user", nonce: "other" },
 ])("rejects invalid claims %j", async (payload) => {
   vi.mocked(jwtVerify).mockResolvedValue({ payload } as never);
-  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow();
+  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow("invalid_apple_identity");
 });
 
 it("fails closed when the product audience is not configured", async () => {
   vi.stubEnv("APPLE_BUNDLE_ID", "");
-  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow();
+  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow("apple_unconfigured");
   expect(jwtVerify).not.toHaveBeenCalled();
 });

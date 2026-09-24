@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
+
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 

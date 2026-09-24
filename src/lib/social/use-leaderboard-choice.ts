@@ -1,6 +1,7 @@
-import { reportError } from "@/lib/observability";
 import { useEffect, useRef, useState } from "react";
+
 import { getSetting, setSetting } from "@/db/repos/settings";
+import { reportError } from "@/lib/observability";
 
 export type LeaderboardChoice = {
   audience: "friends" | "global";
@@ -31,9 +32,9 @@ function readChoice(value: string | undefined): LeaderboardChoice {
 export function useLeaderboardChoice() {
   const [choice, setChoice] = useState<LeaderboardChoice>(DEFAULT_CHOICE);
   const [error, setError] = useState<string>();
-  const changed = useRef(false),
-    latest = useRef(choice),
-    writes = useRef(Promise.resolve());
+  const changed = useRef(false);
+  const latest = useRef(choice);
+  const writes = useRef(Promise.resolve());
   useEffect(() => {
     let active = true;
     void getSetting(KEY)

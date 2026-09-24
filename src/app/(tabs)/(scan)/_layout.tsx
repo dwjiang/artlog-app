@@ -1,4 +1,5 @@
 import { Stack } from "expo-router/stack";
+
 import { NavigationTheme } from "@/constants/theme";
 
 export const unstable_settings = {

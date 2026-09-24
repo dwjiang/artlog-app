@@ -1,4 +1,5 @@
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
+
 import { ListeningController, type AudioHandle, type Playback } from "./listening-controller";
 import { trackKey, type ListeningTrack } from "./narration";
 
@@ -62,6 +63,7 @@ function setup() {
   return { controller, deps, players, play };
 }
 afterEach(() => jest.useRealTimers());
+
 it("preserves position for each artwork, including when another guide is loaded paused", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
@@ -77,6 +79,7 @@ it("preserves position for each artwork, including when another guide is loaded 
   expect(controller.progressFor(track("b"))?.position).toBe(8);
   controller.dispose();
 });
+
 it("deduplicates queued versions, reorders and removes without interrupting playback", async () => {
   const { controller, play } = setup();
   const player = await play(track("a"));
@@ -91,6 +94,7 @@ it("deduplicates queued versions, reorders and removes without interrupting play
   expect(player.pause).not.toHaveBeenCalled();
   controller.dispose();
 });
+
 it("waits at the next artwork by default and autoplays only when enabled", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
@@ -115,6 +119,7 @@ it("waits at the next artwork by default and autoplays only when enabled", async
   expect(third.play).toHaveBeenCalled();
   controller.dispose();
 });
+
 it("ignores late synthesis after a different track or stop", async () => {
   const { controller, deps } = setup();
   let resolve!: (value: {
@@ -143,6 +148,7 @@ it("ignores late synthesis after a different track or stop", async () => {
   expect(controller.snapshot().current).toBeUndefined();
   expect(deps.cancel).toHaveBeenCalled();
 });
+
 it("clamps seeks and restarts completed narration", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
@@ -160,6 +166,7 @@ it("clamps seeks and restarts completed narration", async () => {
   expect(second.seekTo).toHaveBeenCalledWith(0);
   controller.dispose();
 });
+
 it("shows a retryable error on synthesis failure without dropping the remaining queue", async () => {
   const { controller, deps } = setup();
   controller.enqueue(track("b"));
@@ -169,6 +176,7 @@ it("shows a retryable error on synthesis failure without dropping the remaining 
   expect(controller.snapshot().queue).toHaveLength(1);
   controller.dispose();
 });
+
 it("resets progress when the research changes", async () => {
   const { controller, play } = setup();
   const original = track("a");

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { RunnerUps } from "./runner-ups";
 import { bridge, haystacks } from "./__fixtures__/scan";
+import { RunnerUps } from "./runner-ups";
 
 it("lists title, artist and institution per row and reports the tapped candidate", async () => {
   const onPick = jest.fn();

@@ -70,7 +70,7 @@ writeFileSync(${JSON.stringify(saved)}, readFileSync(0));
   };
 }
 
-test("a dedicated subscription login is restored privately and its refreshed contents are saved", (t) => {
+await test("a dedicated subscription login is restored privately and its refreshed contents are saved", (t) => {
   const context = fixture(t);
   const restored = context.run("restore");
   assert.equal(restored.status, 0, restored.stderr);
@@ -85,7 +85,7 @@ test("a dedicated subscription login is restored privately and its refreshed con
   assert.doesNotMatch(restored.stdout + restored.stderr + persisted.stdout + persisted.stderr, /fake-/);
 });
 
-test("stale queued credentials and public repositories fail before writing a login", (t) => {
+await test("stale queued credentials and public repositories fail before writing a login", (t) => {
   const context = fixture(t);
   const stale = context.run("restore", { updated: "2026-09-24T13:00:00Z" });
   assert.equal(stale.status, 1);
@@ -97,7 +97,7 @@ test("stale queued credentials and public repositories fail before writing a log
   assert.equal(existsSync(join(context.home, "auth.json")), false);
 });
 
-test("a concurrently replaced login is never overwritten", (t) => {
+await test("a concurrently replaced login is never overwritten", (t) => {
   const context = fixture(t);
   assert.equal(context.run("restore").status, 0);
   const persisted = context.run("persist", { updated: "2026-09-24T12:01:00Z" });
@@ -106,7 +106,7 @@ test("a concurrently replaced login is never overwritten", (t) => {
   assert.equal(existsSync(context.saved), false);
 });
 
-test("malformed credentials do not appear in logs and API authentication is rejected", (t) => {
+await test("malformed credentials do not appear in logs and API authentication is rejected", (t) => {
   const context = fixture(t);
   for (const raw of [
     "fake-malformed-credential",

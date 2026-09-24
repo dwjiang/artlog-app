@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { openingFixture } from "../shared/audio/guide-fixtures";
 
+import { openingFixture } from "../shared/audio/guide-fixtures";
 import { api } from "./_generated/api";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -77,7 +77,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
     narrationOpening: openingFixture,
   });
   const gone = await t.run((ctx) => seedArtworkWithObject(ctx));
-  await t.run((ctx) => ctx.db.delete(gone.artworkId));
+  await t.run((ctx) => ctx.db.delete("artworks", gone.artworkId));
   expect(await as.query(api.artworks.enrichment, { artworkId: gone.artworkId })).toBeNull();
 });
 

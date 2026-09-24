@@ -1,4 +1,5 @@
 import { fakeOpenCV, type FakeOpenCVOptions } from "@/lib/image/opencv-fake";
+
 import { BLUR_THRESHOLD, GLARE_LEVEL, GLARE_THRESHOLD, TRIAGE_SIZE, check, decide } from "./triage";
 
 const mockBase64 = jest.fn();

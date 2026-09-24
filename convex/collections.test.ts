@@ -37,7 +37,7 @@ async function fixture() {
     }),
   );
   const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
-  await t.run((ctx) => ctx.db.patch(scanId, { visitId }));
+  await t.run((ctx) => ctx.db.patch("scans", scanId, { visitId }));
   const args: {
     localId: string;
     scanId?: Id<"scans">;
@@ -58,14 +58,14 @@ async function fixture() {
     objectId: work.objectId,
     artworkId: work.artworkId,
     venueId,
-    visitLocalId: (await t.run((ctx) => ctx.db.get(visitId)))!.localId,
+    visitLocalId: (await t.run((ctx) => ctx.db.get("visits", visitId)))!.localId,
     gallery: "4",
     snapshot,
     suggested,
   };
   const save = (overrides: Partial<typeof args> = {}, as = user.as) =>
     as.mutation(api.collections.saveToCollection, { ...args, ...overrides });
-  const object = () => t.run((ctx) => ctx.db.get(work.objectId));
+  const object = () => t.run((ctx) => ctx.db.get("objects", work.objectId));
   const list = (as = user.as) =>
     as.query(api.accounts.me, {}).then(({ scope }) => as.query(api.collections.listMine, { ...page, scope }));
   const rows = () => t.run((ctx) => ctx.db.query("collections").collect());
@@ -178,12 +178,12 @@ it("refuses another device’s scan or visit, a missing object and a blank title
   const foreignVisit = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
   await expect(
     save({
-      visitLocalId: (await t.run((ctx) => ctx.db.get(foreignVisit)))!.localId,
+      visitLocalId: (await t.run((ctx) => ctx.db.get("visits", foreignVisit)))!.localId,
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   const missing = await t.run(async (ctx) => {
     const work = await seedArtworkWithObject(ctx);
-    await ctx.db.delete(work.objectId);
+    await ctx.db.delete("objects", work.objectId);
     return work.objectId;
   });
   await expect(save({ objectId: missing })).rejects.toMatchObject({
@@ -229,12 +229,13 @@ it("records the save confirmation once when background sync inserted the snapsho
   await save();
   expect(await object()).toMatchObject({ confirmCount: 1 });
 });
+
 it("rejects changed or foreign visit associations even when the save UUID is retried", async () => {
   const { t, args, save } = await fixture();
   await save();
   const other = await seedDevice(t);
   const foreign = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, args.venueId!));
-  const foreignVisit = (await t.run((ctx) => ctx.db.get(foreign)))!;
+  const foreignVisit = (await t.run((ctx) => ctx.db.get("visits", foreign)))!;
   await expect(save({ visitLocalId: foreignVisit.localId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
@@ -268,7 +269,7 @@ it("deduplicates attributable confirmation events by save and refuses a work out
       artworkId: other.artworkId,
     }),
   ).rejects.toMatchObject({ data: { code: "invalid_object" } });
-  expect(await t.run((ctx) => ctx.db.get(other.objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", other.objectId))).toMatchObject({
     confirmCount: 0,
   });
 });

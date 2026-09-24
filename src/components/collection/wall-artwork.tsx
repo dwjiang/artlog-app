@@ -1,5 +1,6 @@
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { wallAspect, type WallPiece } from "@/lib/wall/wall-layout";
+
 import { SavedWorkImage } from "./saved-work-image";
 import { WallFrame, wallFrameInset } from "./wall-frame";
 

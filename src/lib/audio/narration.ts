@@ -1,5 +1,5 @@
-import type { FactChip } from "../../../convex/lib/validators";
 import type { Id } from "../../../convex/_generated/dataModel";
+import type { FactChip } from "../../../convex/lib/validators";
 
 export type ListeningWork = {
   artworkId: Id<"artworks">;

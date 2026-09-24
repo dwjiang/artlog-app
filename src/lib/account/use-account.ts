@@ -4,17 +4,18 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 
-import { anonymousOwner, switchOwner } from "./owner-store";
-import { offerProfileSetup } from "./profile-setup-offer";
 import { setSetting } from "@/db/repos/settings";
-import { socialErrorMessage } from "../../../shared/social/errors";
-import { api } from "../../../convex/_generated/api";
 import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { signInAnonymously } from "@/lib/device-identity";
-import { useDeviceReady } from "@/lib/use-device-ready";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+import { useDeviceReady } from "@/lib/use-device-ready";
+import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
 import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from "./collection-sync";
+import { anonymousOwner, switchOwner } from "./owner-store";
+import { offerProfileSetup } from "./profile-setup-offer";
 
 export function useAccount() {
   const ready = useDeviceReady();
@@ -46,7 +47,7 @@ export function useAccount() {
     setError(undefined);
     addBreadcrumb(`${name}.start`);
     try {
-      await pauseCollectionSync();
+      pauseCollectionSync();
       await operation();
       addBreadcrumb(`${name}.success`);
     } catch (cause) {

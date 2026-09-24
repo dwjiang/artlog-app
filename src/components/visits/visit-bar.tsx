@@ -1,9 +1,11 @@
 import { useRouter } from "expo-router";
 import { Pressable, View } from "react-native";
-import { ThemedText } from "@/components/themed-text";
+
 import { AudioIcon } from "@/components/audio/audio-icon";
+import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useVenue } from "@/lib/venue/use-venue";
+
 export function VisitBar() {
   const router = useRouter();
   const { visit } = useVenue();

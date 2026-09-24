@@ -1,5 +1,6 @@
 import { encodeOrbFeatures } from "@/shared/orb/features";
 import { makeSyntheticPair } from "@/shared/orb/test-fixtures";
+
 import { candidate } from "./__fixtures__/search";
 import { checkCandidates } from "./candidate-check";
 

@@ -1,17 +1,18 @@
-import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { ConvexError, type Infer, v } from "convex/values";
+
 import { isRevision, LIMITS } from "../shared/journal/limits";
 import { validateWallItems, wallArtwork, wallLayout } from "../shared/social/contracts";
-import type { Doc } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
-import { mutation, query, type QueryCtx } from "./_generated/server";
-import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile } from "./lib/ownership";
-import { requirePublicWallItem } from "./lib/publicationAccess";
-import { projectWallArtwork } from "./lib/projections";
-import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
-import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
-
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
+import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
+import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
+import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile } from "./lib/ownership";
+import { projectWallArtwork } from "./lib/projections";
+import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
+import { requirePublicWallItem } from "./lib/publicationAccess";
+
 const selection = v.object({
   placementId: v.string(),
   photoLocalId: v.optional(v.string()),
@@ -123,8 +124,8 @@ export const getPublic = query({
       .query("walls")
       .withIndex("by_profileId", (q) => q.eq("profileId", profileId))
       .unique();
-    const items = [],
-      saves = new Set<string>();
+    const items = [];
+    const saves = new Set<string>();
     for (const item of await activeItems(ctx, wall)) {
       const current = await currentProjection(ctx, item);
       if (current) {
@@ -150,7 +151,7 @@ export const getArtwork = query({
     v.null(),
   ),
   handler: async (ctx, { itemId }) => {
-    const item = await ctx.db.get(itemId);
+    const item = await ctx.db.get("wallItems", itemId);
     const current = item ? await currentProjection(ctx, item) : null;
     if (!current) return null;
     const enrichment = await projectArtworkStory(ctx, current.save);
@@ -215,7 +216,7 @@ export const setLayout = mutation({
     const selectedIds = new Set(selected.map((item) => item.placementId));
     for (const item of previous) {
       if (!selectedIds.has(item.placementId)) {
-        await ctx.db.patch(item._id, {
+        await ctx.db.patch("wallItems", item._id, {
           active: false,
           noteVisible: false,
           noteRevision: item.noteRevision + 1,
@@ -231,7 +232,7 @@ export const setLayout = mutation({
         throw new ConvexError({ code: "invalid_wall" });
       }
       if (existing) {
-        await ctx.db.patch(existing._id, {
+        await ctx.db.patch("wallItems", existing._id, {
           photoLocalId: item.photoLocalId,
           layout: item.layout,
           active: true,
@@ -257,11 +258,11 @@ export const setLayout = mutation({
         });
       }
     }
-    await ctx.db.patch(wallId, {
+    await ctx.db.patch("walls", wallId, {
       color,
       layoutRevision: (wall?.layoutRevision ?? 0) + 1,
     });
-    await ctx.db.patch(profile._id, { publishedWallCount: selected.length });
+    await ctx.db.patch("profiles", profile._id, { publishedWallCount: selected.length });
     return readMine(ctx);
   },
 });
@@ -298,7 +299,7 @@ export const setNoteVisibility = mutation({
         throw new ConvexError({ code: "invalid_wall" });
       }
       if (item.noteVisible !== change.visible) {
-        await ctx.db.patch(item._id, {
+        await ctx.db.patch("wallItems", item._id, {
           noteVisible: change.visible,
           noteRevision: item.noteRevision + 1,
         });

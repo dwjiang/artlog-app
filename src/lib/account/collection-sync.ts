@@ -1,28 +1,29 @@
-import { syncSavedRecognition } from "./recognition-sync";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { addNetworkStateListener } from "expo-network";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 
-import { api } from "../../../convex/_generated/api";
+import { albumMediaPending } from "@/db/repos/artwork-album";
 import { createJournalRepository } from "@/db/repos/journal";
 import { claimLocalJournal } from "@/db/repos/journal-claim";
-import { listUnsyncedVisits } from "@/db/repos/visits";
-import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import * as savedWorks from "@/db/repos/saved-works";
-import { albumMediaPending } from "@/db/repos/artwork-album";
 import { getSetting, setSetting } from "@/db/repos/settings";
+import { listUnsyncedVisits } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
+import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { SyncUnavailableError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { useDeviceReady } from "@/lib/use-device-ready";
-import { syncJournal, type SyncContext } from "./sync";
-import { onCollectionChange } from "./sync-events";
+
+import { api } from "../../../convex/_generated/api";
+import { syncArtworkAlbums } from "./album-sync";
+import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { syncCollectionPhotos } from "./photo-sync";
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
-import { syncArtworkAlbums } from "./album-sync";
-import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
+import { syncSavedRecognition } from "./recognition-sync";
+import { syncJournal, type SyncContext } from "./sync";
+import { onCollectionChange } from "./sync-events";
 
 let context: SyncContext | null = null;
 let generation = 0;
@@ -249,7 +250,9 @@ export function CollectionSync(): null {
         );
       }
       scheduleSync();
-    } else switchOwner(getLocalOwner());
+    } else {
+      switchOwner(getLocalOwner());
+    }
     return () => {
       stop();
       context = null;

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { QueueBadge } from "./queue-badge";
 import type { PendingScanStatus } from "@/db/schema";
+
+import { QueueBadge } from "./queue-badge";
 
 const mockPush = jest.fn();
 let mockStatuses: PendingScanStatus[] = [];

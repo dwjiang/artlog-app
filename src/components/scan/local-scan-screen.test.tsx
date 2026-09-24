@@ -1,20 +1,21 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { upsertVisit } from "@/db/repos/visits";
 import * as SQLite from "expo-sqlite";
 import { Alert, AppState } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-
-import { LocalScanScreen, MISSING_TITLE } from "./local-scan-screen";
-import { RETRY_BUTTON } from "./states/failed-card";
-import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE } from "./states/waiting-for-signal-card";
+import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
 import { enqueuePendingScan, markIdentified, markIdentifying, retryPendingScan } from "@/db/repos/pending-scans";
-import * as resultSave from "@/lib/result/save";
 import { getSavedWork } from "@/db/repos/saved-works";
+import { upsertVisit } from "@/db/repos/visits";
 import type { NewPendingScan } from "@/db/schema";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
-import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
+import * as resultSave from "@/lib/result/save";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { LocalScanScreen, MISSING_TITLE } from "./local-scan-screen";
 import { confidentScan } from "./result/__fixtures__/scan";
+import { RETRY_BUTTON } from "./states/failed-card";
+import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE } from "./states/waiting-for-signal-card";
+
 jest.mock("@/components/audio/listen-actions", () => ({
   ListenActions: () => null,
 }));
@@ -45,7 +46,7 @@ let mockFocused = true;
 const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),

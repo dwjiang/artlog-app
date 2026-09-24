@@ -1,8 +1,8 @@
-import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { useLocalSearchParams } from "expo-router";
 
 import { SavedWorkScreen } from "@/components/collection/saved-work-screen";
 import { SavedWorkToolbar } from "@/components/collection/saved-work-toolbar";
+import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 
 export default function SavedWorkRoute() {
   const { savedId, visitId, photoId, editNote } = useLocalSearchParams<{

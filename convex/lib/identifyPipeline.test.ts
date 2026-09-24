@@ -1,13 +1,13 @@
 import { expect, it } from "vitest";
 
 import model from "../../shared/model/model-version.json";
+import { encodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
+import { makeSyntheticPair } from "../../shared/orb/test-fixtures";
 import type { Id } from "../_generated/dataModel";
 import type { LoadedCandidate } from "../identify";
 import { featureIndex } from "./calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./calibrator/weights";
 import { runPipeline } from "./identifyPipeline";
-import { encodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
-import { makeSyntheticPair } from "../../shared/orb/test-fixtures";
 
 const pair = makeSyntheticPair({ count: 120 });
 const now = 2_000_000;
@@ -98,7 +98,7 @@ it("applies combined corpus and rejection penalties through the configured coeff
       config,
     }).decision.best!;
   const baseline = candidate("one", 0.93, pair.ref);
-  const probability = score(baseline).probability;
+  const { probability } = score(baseline);
   for (const [corpus, rejection, effective] of [
     [0.3, 0.2, 0.5],
     [0.7, 0.4, 0.8],
@@ -137,7 +137,7 @@ it.each([
     lastConfidentGallery: gallery,
     lastConfidentAt: now - Number(minutes) * 60_000,
   });
-  const features = result.decision.best!.features;
+  const { features } = result.decision.best!;
   expect(features[featureIndex("gallerySame")]).toBe(same);
   expect(features[featureIndex("galleryDifferent")]).toBe(different);
 });

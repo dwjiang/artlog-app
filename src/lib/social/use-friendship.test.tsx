@@ -1,17 +1,19 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { switchOwner } from "../account/owner-store";
+
+import { switchOwner } from "@/lib/account/owner-store";
+
 import { friendshipActions } from "./presentation";
-import { useFriendship } from "./use-friendship";
 import type { Relationship } from "./types";
+import { useFriendship } from "./use-friendship";
 import type { SocialSession } from "./use-social-session";
 
 let mockRelationship: Relationship;
-const mockMutation = jest.fn(),
-  mockOptions = jest.fn(),
-  mockRefresh = jest.fn(),
-  mockQueryArgs = jest.fn();
+const mockMutation = jest.fn();
+const mockOptions = jest.fn();
+const mockRefresh = jest.fn();
+const mockQueryArgs = jest.fn();
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function (_url: string, options: object) {

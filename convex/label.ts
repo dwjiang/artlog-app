@@ -1,9 +1,9 @@
-import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { ConvexError, v } from "convex/values";
 
+import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES, type OcrLine } from "../shared/label/ocr-limits";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
+import { action, internalMutation, internalQuery, type ActionCtx, env } from "./_generated/server";
 import { resolveFalseRejections } from "./feedback";
 import { requireDeviceFromAction } from "./lib/auth";
 import { isEnabled } from "./lib/flags";
@@ -37,6 +37,7 @@ import {
   type TavilyPair,
 } from "./lib/labelVerify";
 import { checkText } from "./lib/moderation";
+import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { extractPage, hasArtworkMetadata } from "./lib/pageExtract";
 import { assessPlausibility } from "./lib/plausibility";
 import { limitDevice } from "./lib/rateLimits";
@@ -56,7 +57,6 @@ import {
 import { allowedVenueUrl, fetchVenuePage, venueHosts } from "./lib/venueFetch";
 import { lifespan, type WikidataEntity } from "./lib/wikidata";
 import schema from "./schema";
-import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES, type OcrLine } from "../shared/label/ocr-limits";
 
 // The label read and the moderation check are each retried at most once (tokenFactory.chatJson).
 const MAX_READ_CALLS = 4;
@@ -80,13 +80,13 @@ export const load = internalQuery({
     venue: v.union(schema.doc("museums"), v.null()),
   }),
   handler: async (ctx, { scanId, deviceId }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== deviceId) {
       throw new ConvexError({ code: "scan_not_found" });
     }
     return {
       scan,
-      venue: scan.venueId ? await ctx.db.get(scan.venueId) : null,
+      venue: scan.venueId ? await ctx.db.get("museums", scan.venueId) : null,
     };
   },
 });
@@ -100,14 +100,14 @@ export const write = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const scan = await ctx.db.get(args.scanId);
+    const scan = await ctx.db.get("scans", args.scanId);
     if (!scan || scan.deviceId !== args.deviceId) {
       throw new ConvexError({ code: "scan_not_found" });
     }
     if (scan.generation !== args.generation) {
       throw new ConvexError({ code: "scan_restarted" });
     }
-    await ctx.db.patch(scan._id, {
+    await ctx.db.patch("scans", scan._id, {
       labelFlow: args.labelFlow,
       updatedAt: Date.now(),
     });
@@ -145,7 +145,7 @@ function usableLines(lines: OcrLine[]): OcrLine[] {
   const usable = lines
     .map((line) => ({ text: line.text.trim(), confidence: line.confidence }))
     .filter((line) => line.text);
-  if (!usable.length) throw new ConvexError({ code: "nothing_read" });
+  if (usable.length === 0) throw new ConvexError({ code: "nothing_read" });
   return usable;
 }
 
@@ -219,7 +219,7 @@ export const readLabel = action({
       const { device, scan } = await start(ctx, scanId);
       const usable = usableLines(lines);
       await limitDevice(ctx, "labelRead", device._id);
-      const model = process.env.LABEL_MODEL;
+      const model = env.LABEL_MODEL;
       if (!model) throw new ConvexError({ code: "model_unconfigured" });
       const day = await ctx.runMutation(internal.spend.reserve, {
         kind: "tokenFactory",
@@ -284,7 +284,7 @@ export const readLabel = action({
 
 async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPair): Promise<TavilyEvidence | null> {
   const response = await searchWithCredit(ctx, {
-    query: `"${pair.title.replace(/"/g, "")}" ${pair.artist}`,
+    query: `"${pair.title.replaceAll('"', "")}" ${pair.artist}`,
     includeDomains: hosts,
     includeImages: true,
     maxResults: 5,
@@ -318,7 +318,7 @@ export async function moderateVerifiedFields(
     return "clear";
   }
   const values = FIELD_NAMES.map((name) => fields[name]?.value);
-  const reserved = process.env.MODERATION_MODEL && values.some(Boolean) ? MAX_MODERATION_CALLS : 0;
+  const reserved = env.MODERATION_MODEL && values.some(Boolean) ? MAX_MODERATION_CALLS : 0;
   const day = reserved
     ? await ctx.runMutation(internal.spend.reserve, {
         kind: "tokenFactory",
@@ -446,7 +446,7 @@ export const verifyLabel = action({
         }
       }
 
-      if (input.title && input.artist && hosts.length && !(verified("title") && verified("artist"))) {
+      if (input.title && input.artist && hosts.length > 0 && !(verified("title") && verified("artist"))) {
         const evidence = await searchMuseumSite(ctx, hosts, {
           title: input.title,
           artist: input.artist,

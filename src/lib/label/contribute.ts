@@ -1,16 +1,17 @@
 import type { FunctionReturnType } from "convex/server";
 import { File, UploadType } from "expo-file-system";
 
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import { contributionPayload } from "../../../shared/attestation/attested-payloads";
-import { isLabelCapture } from "@/lib/capture/photo-draft";
 import type { PendingScan } from "@/db/schema";
 import { signPayload } from "@/lib/attested-write";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { convex } from "@/lib/convex-client";
 import { captureFileUri } from "@/lib/files/photos";
 import { errorMessage, isNetworkError } from "@/lib/network-error";
 import { resolveWithLabel } from "@/lib/result/feedback";
+import { contributionPayload } from "@/shared/attestation/attested-payloads";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { removeFile, resizeCropForContribution } from "./crop";
 import { saveLabelDraft } from "./draft";
 import { differsFromFlow, toSubmittedFields, toVerifyInput, type LabelFormState } from "./fields";

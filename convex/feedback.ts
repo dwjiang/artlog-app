@@ -4,19 +4,19 @@ import { ConvexError, v } from "convex/values";
 import { rejectionPayload } from "../shared/attestation/attested-payloads";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, mutation, type MutationCtx } from "./_generated/server";
-import { feedbackChanged } from "./feedbackReplay";
-import { eligibleObject } from "./lib/recognitionEligibility";
-import schema from "./schema";
-import { requireEmbedding } from "./scanEmbeddings";
 import { requireAttestedWrite } from "./devices";
-import { proposePlacementFromScan } from "./placements";
-import { queueMultiView } from "./promotion";
+import { feedbackChanged } from "./feedbackReplay";
 import { requireDevice } from "./lib/auth";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
+import { eligibleObject } from "./lib/recognitionEligibility";
 import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
 import { normalizeText, personMatches } from "./lib/textMatch";
 import type { LabelFlow } from "./lib/validators";
+import { proposePlacementFromScan } from "./placements";
+import { queueMultiView } from "./promotion";
+import { requireEmbedding } from "./scanEmbeddings";
+import schema from "./schema";
 
 const resolution = v.union(
   v.object({ kind: v.literal("runner_up"), objectId: v.id("objects") }),
@@ -41,12 +41,12 @@ export const rejectMatch = mutation({
       ...args,
       payload: rejectionPayload(scanId, objectId),
     });
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== device._id || scan.status !== "identified" || scan.calibratorVersion === undefined) {
       throw new ConvexError({ code: "invalid_scan" });
     }
     const signals = scan.candidateSignals?.find((candidate) => candidate.objectId === objectId);
-    const object = await ctx.db.get(objectId);
+    const object = await ctx.db.get("objects", objectId);
     if (
       !candidateIds(scan).includes(objectId)
       || !signals
@@ -57,8 +57,7 @@ export const rejectMatch = mutation({
     }
     const existing = await ctx.db
       .query("feedback")
-      .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
-      .filter((q) => q.eq(q.field("rejectedObjectId"), objectId))
+      .withIndex("by_scan_object", (q) => q.eq("scanId", scanId).eq("rejectedObjectId", objectId))
       .unique();
     if (existing) return { feedbackId: existing._id };
     await limitDevice(ctx, "rejectPerWork", device._id, objectId);
@@ -97,7 +96,7 @@ export const rejectMatch = mutation({
       createdAt: now,
     });
     await feedbackChanged(ctx, objectId, false);
-    await ctx.db.patch(objectId, {
+    await ctx.db.patch("objects", objectId, {
       rejectCount,
       ...(flagged
         ? {
@@ -116,7 +115,7 @@ export const resolveRejection = mutation({
   returns: v.null(),
   handler: async (ctx, { feedbackId, resolution }) => {
     const device = await requireDevice(ctx);
-    const feedback = await ctx.db.get(feedbackId);
+    const feedback = await ctx.db.get("feedback", feedbackId);
     if (!feedback || feedback.deviceId !== device._id) {
       throw new ConvexError({ code: "feedback_not_found" });
     }
@@ -129,10 +128,10 @@ export const resolveRejection = mutation({
       if (!same) throw new ConvexError({ code: "invalid_resolution" });
       return null;
     }
-    const scan = await ctx.db.get(feedback.scanId);
+    const scan = await ctx.db.get("scans", feedback.scanId);
     if (!scan) throw new ConvexError({ code: "invalid_scan" });
     if (resolution.kind === "runner_up") {
-      const object = await ctx.db.get(resolution.objectId);
+      const object = await ctx.db.get("objects", resolution.objectId);
       if (
         resolution.objectId === feedback.rejectedObjectId
         || !candidateIds(scan).includes(resolution.objectId)
@@ -142,7 +141,7 @@ export const resolveRejection = mutation({
       ) {
         throw new ConvexError({ code: "invalid_resolution" });
       }
-      await ctx.db.patch(feedbackId, { resolution });
+      await ctx.db.patch("feedback", feedbackId, { resolution });
       await queueMultiView(ctx, [{ resolution, venueId: feedback.venueId }]);
       if (scan.venueId) {
         await proposePlacementFromScan(ctx, {
@@ -153,11 +152,11 @@ export const resolveRejection = mutation({
         });
       }
     } else {
-      const contribution = await ctx.db.get(resolution.contributionId);
+      const contribution = await ctx.db.get("contributions", resolution.contributionId);
       if (!contribution || contribution.deviceId !== device._id || contribution.scanId !== scan._id) {
         throw new ConvexError({ code: "invalid_resolution" });
       }
-      await ctx.db.patch(feedbackId, { resolution });
+      await ctx.db.patch("feedback", feedbackId, { resolution });
     }
     return null;
   },
@@ -170,10 +169,10 @@ export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<"scans"
   if (flow.stage !== "verified" || !title || !artist) return;
   const normalizedTitle = normalizeText(title);
   if (!normalizedTitle) return;
-  for await (const row of ctx.db.query("feedback").withIndex("by_scanId", (q) => q.eq("scanId", scan._id))) {
+  for await (const row of ctx.db.query("feedback").withIndex("by_scan_object", (q) => q.eq("scanId", scan._id))) {
     if (row.resolution.kind !== "unresolved") continue;
-    const object = await ctx.db.get(row.rejectedObjectId);
-    const artwork = object ? await ctx.db.get(object.artworkId) : null;
+    const object = await ctx.db.get("objects", row.rejectedObjectId);
+    const artwork = object ? await ctx.db.get("artworks", object.artworkId) : null;
     if (
       !object
       || !artwork
@@ -182,9 +181,9 @@ export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<"scans"
     ) {
       continue;
     }
-    await ctx.db.patch(row._id, { resolution: { kind: "false_rejection" } });
+    await ctx.db.patch("feedback", row._id, { resolution: { kind: "false_rejection" } });
     await feedbackChanged(ctx, object._id);
-    await ctx.db.patch(object._id, {
+    await ctx.db.patch("objects", object._id, {
       rejectCount: Math.max(0, object.rejectCount - 1),
       rejectionPenalty: Math.max(0, (object.rejectionPenalty ?? 0) - row.penaltyAdded),
     });
@@ -202,8 +201,8 @@ export const exportForTraining = internalQuery({
     const result = await ctx.db.query("feedback").withIndex("by_rejectedObjectId").paginate(paginationOpts);
     const page = [];
     for (const row of result.page) {
-      const device = await ctx.db.get(row.deviceId);
-      const object = await ctx.db.get(row.rejectedObjectId);
+      const device = await ctx.db.get("devices", row.deviceId);
+      const object = await ctx.db.get("objects", row.rejectedObjectId);
       if (
         !device
         || device.banned
@@ -215,7 +214,7 @@ export const exportForTraining = internalQuery({
       }
       if (row.resolution.kind === "label") continue;
       if (row.resolution.kind === "runner_up") {
-        const resolved = row.resolution.objectId ? await ctx.db.get(row.resolution.objectId) : null;
+        const resolved = row.resolution.objectId ? await ctx.db.get("objects", row.resolution.objectId) : null;
         if (!resolved || resolved.identityStatus !== "established" || !(await eligibleObject(ctx, resolved))) {
           continue;
         }

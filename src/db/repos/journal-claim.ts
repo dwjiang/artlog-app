@@ -1,7 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
-import { parseSeenVisits, seenVisitsKey } from "../../lib/journal/visit-seen";
-import { db } from "../client";
-import { notes, pendingScans, savedWorks, settings, visits } from "../schema";
+
+import { db } from "@/db/client";
+import { notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
+import { parseSeenVisits, seenVisitsKey } from "@/lib/journal/visit-seen";
 
 export async function claimLocalJournal(source: string, accountOwner: string, claimId: string): Promise<void> {
   if (!source.startsWith("device:") || !accountOwner.startsWith("account:")) {

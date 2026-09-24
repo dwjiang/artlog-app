@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { api } from "../../../convex/_generated/api";
-import { WallSheet } from "../collection/wall-sheet";
+
+import { WallSheet } from "@/components/collection/wall-sheet";
+import { ThemedText as Text } from "@/components/themed-text";
 import type { PublicWall } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
 import { PublicProfileHeader, PublicWallView } from "./public-wall-view";
 import { PublishedArtwork } from "./published-artwork";
 import { SocialState } from "./social-state";
-import { ThemedText as Text } from "@/components/themed-text";
 import { socialStyles } from "./social-styles";
 
 export function PublicNotesPreview({ wall }: { wall: PublicWall }) {

@@ -1,8 +1,9 @@
+import type { ScanFeatures } from "@/lib/capture/features";
 import { reportError } from "@/lib/observability";
 import { decodeOrbFeatures } from "@/shared/orb/features";
 import { verifyOrb } from "@/shared/orb/verify";
+
 import type { ImageCheck } from "../../../convex/lib/validators";
-import type { ScanFeatures } from "@/lib/capture/features";
 
 /** Mirrors `IMAGE_MATCH_COSINE` in convex/lib/labelVerify.ts: the server ignores checks below it. */
 export const IMAGE_MATCH_COSINE = 0.85;

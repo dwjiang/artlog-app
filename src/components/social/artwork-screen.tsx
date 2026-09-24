@@ -1,15 +1,17 @@
 import { router } from "expo-router";
-import { socialStyles } from "./social-styles";
-import { ArtworkSkeleton } from "@/components/loading-skeleton";
 import { ScrollView } from "react-native";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
+
+import { ArtworkSkeleton } from "@/components/loading-skeleton";
+import { convexErrorCode } from "@/lib/network-error";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { convexErrorCode } from "@/lib/network-error";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { SocialGate, SocialState } from "./social-state";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { PublishedArtwork } from "./published-artwork";
+import { SocialGate, SocialState } from "./social-state";
+import { socialStyles } from "./social-styles";
 
 export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: string; postId?: string }) {
   const session = useSocialSession();
@@ -28,7 +30,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
     session.key,
   );
   const result = shared ? visit : wall;
-  const data = result.data;
+  const { data } = result;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
   return (
     <ScrollView

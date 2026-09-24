@@ -177,7 +177,7 @@ export class CaptureController {
     );
     if (this.state.phase === "retry") {
       const diagonal = Math.hypot(detection.width, detection.height);
-      if (!observations.length) {
+      if (observations.length === 0) {
         this.absentSince ??= now;
         if (now - this.absentSince < RETRY_ABSENCE_MS) return;
       } else {
@@ -202,7 +202,7 @@ export class CaptureController {
     });
     const candidates = visibleObservations.filter((o) => framingGuidance(toQuad(o.corners), detection) === null);
     // Invalid framing must not contribute time to a future stable window.
-    if (!candidates.length) {
+    if (candidates.length === 0) {
       this.tracker.reset();
       const visible = largestObservation(visibleObservations);
       this.showFeedback(

@@ -1,4 +1,5 @@
 import type { IdentifyResponse } from "./stages";
+
 export function albumMatch(
   response: Pick<IdentifyResponse, "outcome" | "best"> | undefined,
   targetObjectId?: string,

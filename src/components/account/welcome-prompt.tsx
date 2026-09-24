@@ -1,9 +1,10 @@
-import { reportError } from "@/lib/observability";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 
 export function WelcomePrompt() {
   const active = useScreenActive();

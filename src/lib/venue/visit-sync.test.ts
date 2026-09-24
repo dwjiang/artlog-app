@@ -1,17 +1,19 @@
-import { getVisit, upsertVisit, markVisitsSynced } from "@/db/repos/visits";
+import { ConvexError } from "convex/values";
+
 import { db } from "@/db/client";
+import { getVisit, upsertVisit, markVisitsSynced } from "@/db/repos/visits";
 import { visits } from "@/db/schema";
-import { resolveScanVisit } from "./visit-sync";
 import { initializeOwner, switchOwner } from "@/lib/account/owner-store";
 import { isTransientError, SyncUnavailableError } from "@/lib/network-error";
-import { ConvexError } from "convex/values";
+
+import { resolveScanVisit } from "./visit-sync";
 
 const mockFlush = jest.fn();
 jest.mock("@/lib/account/collection-sync", () => ({
   flushJournal: () => mockFlush(),
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const venueId = "museum" as never;
 beforeEach(async () => {
@@ -19,6 +21,7 @@ beforeEach(async () => {
   initializeOwner("test-installation");
   mockFlush.mockReset();
 });
+
 it("synchronizes the original offline visit even after it ended and another visit started", async () => {
   await upsertVisit({
     localId: "7288f45f-956f-5e34-ba13-5a375a2f4d78",
@@ -46,10 +49,12 @@ it("synchronizes the original offline visit even after it ended and another visi
     endedAt: 2,
   });
 });
+
 it("rejects missing and mismatched visits before sending anything", async () => {
   await expect(resolveScanVisit("missing", venueId)).rejects.toThrow("invalid visit");
   expect(mockFlush).not.toHaveBeenCalled();
 });
+
 it("discards an in-flight result after an account switch", async () => {
   await upsertVisit({
     localId: "7288f45f-956f-5e34-ba13-5a375a2f4d78",
@@ -63,6 +68,7 @@ it("discards an in-flight result after an account switch", async () => {
   });
   await expect(resolveScanVisit("7288f45f-956f-5e34-ba13-5a375a2f4d78", venueId)).rejects.toThrow("owner changed");
 });
+
 it.each([new ConvexError({ code: "rate_limited" }), new SyncUnavailableError()])(
   "propagates the sync failure %s so the flusher does not count an attempt",
   async (failure) => {

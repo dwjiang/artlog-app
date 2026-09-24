@@ -1,18 +1,18 @@
 import { ConvexError, v } from "convex/values";
 
-import { validateGeography } from "../shared/social/contracts";
 import { stableStringify } from "../shared/attestation/stable-stringify";
+import { journalVenue } from "../shared/journal/venue";
+import { validateGeography } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, mutation, type QueryCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { bumpCounter } from "./ingest";
 import { probeCollectionSite as probe, websiteUrl } from "./lib/collectionSiteProbe";
+import { projectJournalVenue } from "./lib/journalVenue";
 import { limitDevice } from "./lib/rateLimits";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
-import { journalVenue } from "../shared/journal/venue";
-import { projectJournalVenue } from "./lib/journalVenue";
 
 const signedPayload = {
   nonce: v.string(),
@@ -54,7 +54,7 @@ async function nearby(ctx: QueryCtx, lat: number, lng: number, radius: number) {
 }
 
 function normalizeName(name: string) {
-  return name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+  return name.normalize("NFKC").trim().replaceAll(/\s+/g, " ").toLowerCase();
 }
 
 export const confirmPoiVenue = mutation({
@@ -110,7 +110,7 @@ export const confirmPoiVenue = mutation({
     const seeded = (await nearby(ctx, args.lat, args.lng, 60000)).find(({ venue }) => venue.seedSource !== "poi");
     const venueId = await ctx.db.insert("museums", {
       ...fields,
-      name: args.name.trim().replace(/\s+/g, " "),
+      name: args.name.trim().replaceAll(/\s+/g, " "),
       key: `poi:${crypto.randomUUID()}`,
       seedSource: "poi",
       region: seeded?.venue.region ?? "country:unknown",
@@ -122,7 +122,7 @@ export const confirmPoiVenue = mutation({
     });
     return {
       venueId,
-      venue: projectJournalVenue((await ctx.db.get(venueId))!),
+      venue: projectJournalVenue((await ctx.db.get("museums", venueId))!),
     };
   },
 });
@@ -131,7 +131,7 @@ export const getForProbe = internalQuery({
   args: { venueId: v.id("museums") },
   returns: v.union(schema.doc("museums"), v.null()),
   handler: async (ctx, { venueId }) => {
-    const venue = await ctx.db.get(venueId);
+    const venue = await ctx.db.get("museums", venueId);
     return venue && !(await isVenueOptedOut(ctx, venue)) ? venue : null;
   },
 });
@@ -162,7 +162,7 @@ export const applyProbe = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { venueId, website, result }) => {
-    const venue = await ctx.db.get(venueId);
+    const venue = await ctx.db.get("museums", venueId);
     if (
       !venue
       || (await isVenueOptedOut(ctx, venue))
@@ -173,7 +173,7 @@ export const applyProbe = internalMutation({
     ) {
       return null;
     }
-    await ctx.db.patch(venueId, {
+    await ctx.db.patch("museums", venueId, {
       collectionSiteUrl: result.collectionSiteUrl,
       platform: result.platform,
     });

@@ -1,24 +1,26 @@
 import { Image } from "expo-image";
-import { useState } from "react";
-import { signInRoute } from "@/lib/account/sign-in-context";
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
-import { SocialInvitation } from "./social-invitation";
-import { GalleryButton } from "../collection/gallery-button";
-import { WelcomePrompt } from "../account/welcome-prompt";
-import { socialStyles } from "./social-styles";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { WelcomePrompt } from "@/components/account/welcome-prompt";
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { LoadingRing } from "@/components/loading-ring";
+import { FeedSkeleton, Ghost } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
+import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
+import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
+import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
-import { GalleryIconButton } from "../collection/gallery-icon-button";
-import { FeedSkeleton, Ghost } from "@/components/loading-skeleton";
-import { LoadingRing } from "@/components/loading-ring";
 
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;

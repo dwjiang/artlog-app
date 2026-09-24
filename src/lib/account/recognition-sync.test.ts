@@ -1,16 +1,20 @@
+import { ConvexError } from "convex/values";
+import { eq } from "drizzle-orm";
+
 import { db } from "@/db/client";
-import { enqueuePendingScan } from "@/db/repos/pending-scans";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
+import { enqueuePendingScan } from "@/db/repos/pending-scans";
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
+import { artworkPhotos, artworkEncounters, savedWorks, pendingScans, settings } from "@/db/schema";
+
 import { switchOwner } from "./owner-store";
 import { syncSavedRecognition } from "./recognition-sync";
-import { artworkPhotos, artworkEncounters, savedWorks, pendingScans, settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { ConvexError } from "convex/values";
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("../../db/test-db").createTestDatabase() }));
-const mockUpload = jest.fn();
-jest.mock("@/lib/convex-client", () => ({ convex: { action: (...args: unknown[]) => mockUpload(...args) } }));
+jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+const mockUpload = jest.fn<Promise<unknown>, [unknown, { localId: string }]>();
+jest.mock("@/lib/convex-client", () => ({
+  convex: { action: (fn: unknown, args: { localId: string }) => mockUpload(fn, args) },
+}));
 const owner = "device:recognition-test";
 const context = { owner, scope: "test-scope" };
 

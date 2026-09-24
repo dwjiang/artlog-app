@@ -1,10 +1,11 @@
 import { ConvexError, type Infer, v } from "convex/values";
+
 import { ownerKey } from "../shared/journal/contracts";
-import { reportEvidence, reportInput, validateReport } from "../shared/social/contracts";
+import { type reportEvidence, reportInput, validateReport } from "../shared/social/contracts";
 import { mutation } from "./_generated/server";
 import { activeProfile, requireProfile, resolveOwner } from "./lib/ownership";
-import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 import { projectWallArtwork } from "./lib/projections";
+import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
 
 export const submit = mutation({
@@ -14,7 +15,7 @@ export const submit = mutation({
     validateReport(input);
     const { owner } = await resolveOwner(ctx);
     let evidence: Infer<typeof reportEvidence>;
-    const target = input.target;
+    const { target } = input;
     if (target.kind === "profile") {
       const profile = await activeProfile(ctx, target.profileId);
       if (!profile) throw new ConvexError({ code: "not_found" });

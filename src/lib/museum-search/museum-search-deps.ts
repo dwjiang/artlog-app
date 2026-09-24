@@ -1,10 +1,11 @@
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import type { MuseumSearchDisplay } from "../../../convex/lib/validators";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { convex } from "@/lib/convex-client";
 import { imageCheckDeps } from "@/lib/label/label-deps";
 import model from "@/shared/model/model-version.json";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { MuseumSearchDisplay } from "../../../convex/lib/validators";
 import { runMuseumSearch, type MuseumSearchStage } from "./flow";
 import { restoreConfirmedMuseumFlow } from "./restore";
 

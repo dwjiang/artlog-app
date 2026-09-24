@@ -1,10 +1,11 @@
 import { File } from "expo-file-system";
 import { openDatabaseAsync } from "expo-sqlite";
 
-import { api } from "../../../convex/_generated/api";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+
+import { api } from "../../../convex/_generated/api";
 import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from "./venue-db";
 
 export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";

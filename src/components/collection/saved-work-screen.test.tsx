@@ -4,13 +4,14 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-
-import { SavedWorkScreen } from "./saved-work-screen";
-import { upsertVisit } from "@/db/repos/visits";
+import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from "@/db/repos/artwork-album";
 import { getNote, setNote } from "@/db/repos/notes";
 import { insertSavedWork } from "@/db/repos/saved-works";
-import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from "@/db/repos/artwork-album";
+import { upsertVisit } from "@/db/repos/visits";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { SavedWorkScreen } from "./saved-work-screen";
+
 jest.mock("@/lib/audio/use-listening");
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
   useCachedNarrationDuration: () => undefined,
@@ -26,15 +27,15 @@ jest.mock("@/lib/wall/use-collection-wall", () => ({
 jest.mock("@/lib/collection/pending-removals", () => ({
   scheduleRemoval: jest.fn(),
 }));
-const mockBack = jest.fn(),
-  mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockPush = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let client: ConvexReactClient;
 const results = new Map<string, unknown>();
 const listeners = new Set<() => void>();
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
@@ -205,8 +206,8 @@ it("hangs an available album photo after the original photo was removed", async 
     kind: "full",
     capturedAt: 3,
   });
-  const setLayoutDraft = jest.fn(),
-    publishLayout = jest.fn().mockResolvedValue(undefined);
+  const setLayoutDraft = jest.fn();
+  const publishLayout = jest.fn().mockResolvedValue(undefined);
   mockWall = {
     signedIn: true,
     pieces: [],
@@ -345,8 +346,8 @@ it.each(["devices:me", "artworks:enrichment"])(
 );
 
 it("keeps encounter photos and notes specific to the selected visit and opens other encounters on the same artwork", async () => {
-  const first = "00000000-0000-4000-8000-000000000071",
-    second = "00000000-0000-4000-8000-000000000072";
+  const first = "00000000-0000-4000-8000-000000000071";
+  const second = "00000000-0000-4000-8000-000000000072";
   for (const [localId, venueName] of [
     [first, "Orsay"],
     [second, "Met"],

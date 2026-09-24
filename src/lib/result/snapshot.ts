@@ -1,4 +1,5 @@
-import { LIMITS } from "../../../shared/journal/limits";
+import { LIMITS } from "@/shared/journal/limits";
+
 import type { SnapshotFields } from "../../../convex/lib/validators";
 import type { ResultCandidate, ResultViewState } from "./state";
 

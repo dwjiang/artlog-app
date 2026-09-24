@@ -1,11 +1,13 @@
-import { reportError } from "@/lib/observability";
-import { db } from "../../db/client";
-import { settings } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import type { PhotoKind } from "../../../shared/collection/album";
+
+import { db } from "@/db/client";
+import { findArtworkPhoto } from "@/db/repos/artwork-album";
+import { settings } from "@/db/schema";
+import { reportError } from "@/lib/observability";
+import type { SaveResultInput } from "@/lib/result/save";
+import type { PhotoKind } from "@/shared/collection/album";
+
 import type { Id } from "../../../convex/_generated/dataModel";
-import { findArtworkPhoto } from "../../db/repos/artwork-album";
-import type { SaveResultInput } from "../result/save";
 
 export type DraftPhoto = {
   localId: string;
@@ -17,8 +19,8 @@ export type DraftPhoto = {
   recognized?: {
     title: string;
     artist: string;
-    objectId: import("../../../convex/_generated/dataModel").Id<"objects">;
-    artworkId: import("../../../convex/_generated/dataModel").Id<"artworks">;
+    objectId: Id<"objects">;
+    artworkId: Id<"artworks">;
   };
 };
 /** Where one capture saves: no visit, an existing visit, or the visit at a museum that starts or resumes with the save. */

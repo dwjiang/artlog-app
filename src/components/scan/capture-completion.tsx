@@ -1,12 +1,13 @@
-import { NotePaper } from "../note-paper";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NotePaper } from "@/components/note-paper";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import { captureFileUri } from "@/lib/files/photos";
-import { GalleryButton } from "../collection/gallery-button";
 
 export function CaptureCompletion({
   completion,

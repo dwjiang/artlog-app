@@ -1,7 +1,9 @@
-import { ThemedText as Text } from "@/components/themed-text";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
+
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+
 import { GalleryButton } from "./gallery-button";
 import { WallPhotoPicker } from "./wall-photo-picker";
 import { WallSheet } from "./wall-sheet";

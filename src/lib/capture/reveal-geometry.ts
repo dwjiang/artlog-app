@@ -7,12 +7,12 @@ export function perspectiveMatrix(width: number, height: number, quad: Quad): nu
     return null;
   }
   const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = quad;
-  const dx1 = x1 - x2,
-    dx2 = x3 - x2,
-    dx3 = x0 - x1 + x2 - x3;
-  const dy1 = y1 - y2,
-    dy2 = y3 - y2,
-    dy3 = y0 - y1 + y2 - y3;
+  const dx1 = x1 - x2;
+  const dx2 = x3 - x2;
+  const dx3 = x0 - x1 + x2 - x3;
+  const dy1 = y1 - y2;
+  const dy2 = y3 - y2;
+  const dy3 = y0 - y1 + y2 - y3;
   const determinant = dx1 * dy2 - dx2 * dy1;
   if (Math.abs(determinant) < 1e-8) return null;
   const g = (dx3 * dy2 - dx2 * dy3) / determinant;
@@ -72,10 +72,10 @@ export function revealGeometry(
     (view.width - 48) / bounds.width,
     Math.min(view.height * 0.6, availableHeight) / bounds.height,
   );
-  const width = bounds.width * scale,
-    height = bounds.height * scale;
-  const left = (view.width - width) / 2,
-    top = insets.top + (availableHeight - height) / 2;
+  const width = bounds.width * scale;
+  const height = bounds.height * scale;
+  const left = (view.width - width) / 2;
+  const top = insets.top + (availableHeight - height) / 2;
   const to: Quad = [
     [left, top],
     [left + width, top],

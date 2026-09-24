@@ -1,31 +1,31 @@
-import { offlineResultQuery } from "@/db/repos/offline-scan-results";
-import { reportError } from "@/lib/observability";
-import { OfflineResultScreen } from "./offline-result-screen";
-import { ScanCropEditor } from "./scan-crop-editor";
-import { LoadingRing } from "@/components/loading-ring";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
-import { isLabelCapture } from "@/lib/capture/photo-draft";
-import { useLocalOwner } from "@/lib/account/owner-store";
-
-import { CaptureCompletion } from "./capture-completion";
-import { CaptureContextButton } from "./capture-context-button";
-import { CardHeader } from "./result/card-header";
-import { FailedCard } from "./states/failed-card";
-import { SaveAnywayForm } from "./states/save-anyway-form";
-import { WaitingForSignalCard } from "./states/waiting-for-signal-card";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/theme";
+import { offlineResultQuery } from "@/db/repos/offline-scan-results";
 import { selectPendingScan } from "@/db/repos/pending-scans";
 import { useScreenActive } from "@/hooks/use-screen-active";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import { useSaveResult } from "@/lib/result/use-save-result";
+
+import { CaptureCompletion } from "./capture-completion";
+import { CaptureContextButton } from "./capture-context-button";
+import { OfflineResultScreen } from "./offline-result-screen";
+import { CardHeader } from "./result/card-header";
+import { ScanCropEditor } from "./scan-crop-editor";
+import { FailedCard } from "./states/failed-card";
+import { SaveAnywayForm } from "./states/save-anyway-form";
+import { WaitingForSignalCard } from "./states/waiting-for-signal-card";
 
 export const MISSING_TITLE = "This scan isn’t on this phone anymore";
 
@@ -93,7 +93,9 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
           },
         },
       ]);
-    } else setEditingCrop(true);
+    } else {
+      setEditingCrop(true);
+    }
   }
 
   function openLabel() {

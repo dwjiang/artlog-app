@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
+
 import { LocalVisitGalleryArtwork } from "./visit-gallery";
+
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///${path}`,
 }));
@@ -10,6 +12,7 @@ jest.mock("expo-image", () => ({
     return <View {...props} />;
   },
 }));
+
 it.each([
   [600, 1200],
   [1200, 600],

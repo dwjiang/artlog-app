@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import { ScrollView } from "react-native";
-import { Gallery } from "@/constants/theme";
-import { SocialState } from "../social/social-state";
+
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
+import { SocialState } from "@/components/social/social-state";
+import { Gallery } from "@/constants/theme";
 
 export function ArtworkQueryState({
   item,

@@ -35,7 +35,7 @@ export function hostAllowed(url: URL, hosts: string[]): boolean {
 
 export function allowedVenueUrl(value: string, hosts: string[]): URL | null {
   const url = websiteUrl(value);
-  return url && url.protocol === "https:" && hostAllowed(url, hosts) ? url : null;
+  return url?.protocol === "https:" && hostAllowed(url, hosts) ? url : null;
 }
 
 export type VenuePage = { url: string; html: string };

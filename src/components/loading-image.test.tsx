@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { LoadingImage } from "./loading-image";
+
 import { reportError } from "@/lib/observability";
+
+import { LoadingImage } from "./loading-image";
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 

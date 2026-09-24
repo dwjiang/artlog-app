@@ -2,11 +2,12 @@ import { File } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef } from "expo-image-manipulator";
 import { Asset, requestPermissionsAsync } from "expo-media-library";
 
-import type { ArtworkPhoto } from "@/db/schema";
 import { getSetting, setSetting } from "@/db/repos/settings";
+import type { ArtworkPhoto } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 import { getSaveToPhotos } from "@/lib/settings/save-to-photos";
-import { COLLECTION_PHOTO_LONG_SIDE } from "../../../shared/collection/photo-limits";
+import { COLLECTION_PHOTO_LONG_SIDE } from "@/shared/collection/photo-limits";
+
 import { captureFileUri } from "./photos";
 
 const KEPT_LONG_SIDE = COLLECTION_PHOTO_LONG_SIDE;

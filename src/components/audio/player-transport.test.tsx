@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { PlayerTransport } from "./player-transport";
 
 const mockSeek = jest.fn();

@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Alert } from "react-native";
+
 import type { DownloadSnapshot } from "@/lib/museum-downloads/controller";
 import type { MuseumSummary } from "@/shared/offline/types";
+
 import { MuseumDownloadsScreen } from "./museum-downloads-screen";
 
 const museum: MuseumSummary = {
@@ -26,10 +28,10 @@ const other = {
   size: 1_000_000,
 };
 let mockState: DownloadSnapshot;
-const mockStart = jest.fn(),
-  mockPause = jest.fn(),
-  mockRemove = jest.fn(),
-  mockCancel = jest.fn();
+const mockStart = jest.fn();
+const mockPause = jest.fn();
+const mockRemove = jest.fn();
+const mockCancel = jest.fn();
 jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({
   useMuseumDownloads: () => mockState,
 }));
@@ -117,6 +119,7 @@ it("searches museums, sorts by size, and preserves the search when returning fro
   await fireEvent.press(screen.getByRole("button", { name: "Back to museum downloads" }));
   expect(screen.getByLabelText("Search museums").props.value).toBe("Chicago");
 });
+
 it("pauses and cancels directly from the list without opening a museum", async () => {
   mockState.downloads[museum.id] = {
     museum,
@@ -129,6 +132,7 @@ it("pauses and cancels directly from the list without opening a museum", async (
   await fireEvent.press(screen.getByRole("menuitem", { name: "Cancel download" }));
   expect(mockCancel).toHaveBeenCalledWith(museum.id);
 });
+
 it("requires the list removal confirmation before deleting a ready download", async () => {
   mockState.downloads[museum.id] = { museum, status: "ready", completed: 3 };
   const alert = jest.spyOn(Alert, "alert");
@@ -146,6 +150,7 @@ it("requires the list removal confirmation before deleting a ready download", as
   });
   expect(mockRemove).toHaveBeenCalledWith(museum.id);
 });
+
 it("labels the cached previews of a downloaded package even after the catalog advertises a newer build", async () => {
   const downloaded = {
     ...museum,

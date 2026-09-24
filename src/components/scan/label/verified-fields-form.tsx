@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { StyleSheet, View } from "react-native";
 
-import type { LabelFieldName, LabelWarning } from "../../../../convex/lib/validators";
-
-import { FieldInput } from "../field-input";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { FieldInput } from "@/components/scan/field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import { LABEL_FIELD_LABELS, WARNING_MESSAGES, type LabelFormState } from "@/lib/label/fields";
+
+import type { LabelFieldName, LabelWarning } from "../../../../convex/lib/validators";
 
 export type VerifiedFieldsFormProps = {
   state: LabelFormState;

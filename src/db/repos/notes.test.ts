@@ -1,8 +1,8 @@
 import * as repo from "./notes";
 import { getSavedWork, insertSavedWork, markSynced } from "./saved-works";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 it("replaces a note per saved work", async () => {

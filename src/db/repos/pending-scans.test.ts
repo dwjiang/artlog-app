@@ -1,11 +1,12 @@
+import type { NewPendingScan } from "@/db/schema";
+
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { NewPendingScan } from "../schema";
-import * as repo from "./pending-scans";
 import { clearDeletedAlbumPhotoPath, saveArtworkSession } from "./artwork-album";
+import * as repo from "./pending-scans";
 import { softDeleteSavedWork } from "./saved-works";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 const scanId = "scan-1" as Id<"scans">;

@@ -1,27 +1,29 @@
-import { reportError } from "@/lib/observability";
-import { EmptyState, SearchEmptyState } from "../empty-state";
-import { ArtworkCollage } from "../guest/artwork-preview";
-import { VisitKeepsake } from "../guest/visit-keepsake";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { EmptyState, SearchEmptyState } from "@/components/empty-state";
+import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { VisitKeepsake } from "@/components/guest/visit-keepsake";
+import { ListSkeleton } from "@/components/loading-skeleton";
+import { SocialState } from "@/components/social/social-state";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
-import { normalizeSearch } from "@/shared/journal/limits";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
+import { normalizeSearch } from "@/shared/journal/limits";
+
+import { CollectionSearchField } from "./collection-search-field";
 import { GalleryButton } from "./gallery-button";
 import { SavedWorkImage } from "./saved-work-image";
-import { cropSyncing } from "@/lib/account/photo-sync";
-import { SocialState } from "../social/social-state";
-import { CollectionSearchField } from "./collection-search-field";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ListSkeleton } from "@/components/loading-skeleton";
 
 export function LinkArtworkScreen() {
   const { savedId, visitId } = useLocalSearchParams<{
@@ -59,8 +61,8 @@ function LinkPicker({
   useEffect(() => {
     if (queryError) reportError(queryError, "collection.link-options.load");
   }, [queryError]);
-  const [error, setError] = useState<string>(),
-    [search, setSearch] = useState("");
+  const [error, setError] = useState<string>();
+  const [search, setSearch] = useState("");
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
   const destination = visits.data.find((visit) => visit.localId === visitId && visit.owner === owner);
@@ -156,8 +158,8 @@ function LinkPicker({
           </View>
         }
         renderItem={({ item: row }) => {
-          const work = savedId ?? row.id,
-            visit = visitId ?? row.id;
+          const work = savedId ?? row.id;
+          const visit = visitId ?? row.id;
           const linked = encounters.data.some(
             (entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
           );
@@ -205,7 +207,7 @@ function LinkPicker({
         ListEmptyComponent={
           query.error || encounters.error ? (
             <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
-          ) : !query.updatedAt && !rows.length ? (
+          ) : !query.updatedAt && rows.length === 0 ? (
             <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} />
           ) : search.trim() ? (
             <SearchEmptyState
@@ -254,10 +256,10 @@ function LinkPicker({
           }}
         >
           <GalleryButton
-            label={`Link ${selected.length || ""} ${noun}`.replace("  ", " ")}
+            label={`Link ${selected.length > 0 ? selected.length : ""} ${noun}`.replace("  ", " ")}
             variant="filled"
             fullWidth
-            disabled={!selected.length}
+            disabled={selected.length === 0}
             onPress={() => {
               try {
                 if (visitId) linkArtworksVisit(selected, visitId, owner);

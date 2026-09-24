@@ -1,6 +1,7 @@
 import { reportError } from "@/lib/observability";
 import { encodeOrbFeatures } from "@/shared/orb/features";
 import { makeSyntheticPair } from "@/shared/orb/test-fixtures";
+
 import { checkImages, cosineSimilarity, type ImageCheckDeps } from "./image-check";
 
 jest.mock("@/lib/observability", () => ({

@@ -1,7 +1,9 @@
+import { env } from "../_generated/server";
+
 const REPO_URL = "https://github.com/dwjiang/artlog-app";
 
 export function userAgent(): string {
-  const contact = process.env.CRAWLER_CONTACT;
+  const contact = env.CRAWLER_CONTACT;
   return `artlog-bot/0.1 (+${REPO_URL}${contact ? `; mailto:${contact}` : ""})`;
 }
 

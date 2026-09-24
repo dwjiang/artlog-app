@@ -1,17 +1,19 @@
-import { EmptyState, EmptySymbol } from "../empty-state";
-import { SocialInvitation } from "./social-invitation";
-import { LoadingRing } from "@/components/loading-ring";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { signInRoute, type SignInContext } from "@/lib/account/sign-in-context";
+import { EmptyState, EmptySymbol } from "@/components/empty-state";
+import { LoadingRing } from "@/components/loading-ring";
+import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { signInRoute, type SignInContext } from "@/lib/account/sign-in-context";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
+
+import { SocialInvitation } from "./social-invitation";
 import { socialStyles } from "./social-styles";
-import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
 
 export function SocialState({
   title,

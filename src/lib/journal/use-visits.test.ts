@@ -1,7 +1,9 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { scheduleRemoval, undoRemoval, usePendingRemovals } from "../collection/pending-removals";
-import { useVisits } from "./use-visits";
+
+import { scheduleRemoval, undoRemoval, usePendingRemovals } from "@/lib/collection/pending-removals";
+
 import { useVisitWorks } from "./use-visit-works";
+import { useVisits } from "./use-visits";
 
 const mockReads: Record<string, { data: unknown[]; updatedAt?: Date; error?: Error }> = {};
 jest.mock("drizzle-orm/expo-sqlite", () => ({
@@ -15,7 +17,7 @@ jest.mock("@/db/repos/saved-works", () => ({
   softDeleteSavedWork: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: () => "visits" }));
-jest.mock("../account/owner-store", () => ({
+jest.mock("@/lib/account/owner-store", () => ({
   useLocalOwner: () => "account:a",
 }));
 jest.mock("./use-venue-metadata", () => ({
@@ -107,12 +109,12 @@ it.each(["expires", "is undone"])(
       if (outcome === "expires") {
         mockReads.works.data = [];
         mockReads.encounters.data = [];
-        await summaries.rerender({});
-        await active.rerender({});
-        expect(summaries.result.current.visits).toHaveLength(1);
-        expect(summaries.result.current.visits[0].works).toEqual([]);
-        expect(active.result.current.works).toEqual([]);
       }
+      await summaries.rerender({});
+      await active.rerender({});
+      expect(summaries.result.current.visits).toHaveLength(1);
+      expect(summaries.result.current.visits[0].works).toEqual(expected);
+      expect(active.result.current.works).toEqual(expected);
     } finally {
       await act(() => undoRemoval(work));
       jest.useRealTimers();

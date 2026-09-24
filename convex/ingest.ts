@@ -1,21 +1,22 @@
 // The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // scripts/data/pipeline in the same PR.
-import { insertVector, readVector, replaceVector } from "./lib/vectorStore";
-import { withErrorReporting } from "./lib/observability";
-import { validateGeography } from "../shared/social/contracts";
+
 import { ConvexError, type Infer, v } from "convex/values";
 
 import model from "../shared/model/model-version.json";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../shared/orb/features";
+import { validateGeography } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
-import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
-import { registerMuseumObject } from "./lib/museumWorkIdentity";
-import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
-import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { registerMuseumObject } from "./lib/museumWorkIdentity";
+import { withErrorReporting } from "./lib/observability";
+import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
+import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
+import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
+import { insertVector, readVector, replaceVector } from "./lib/vectorStore";
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
@@ -174,7 +175,7 @@ export async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inser
   if (existing === null) {
     await ctx.db.insert("ingestCounters", { ...zeroCounts, [table]: inserted });
   } else {
-    await ctx.db.patch(existing._id, { [table]: existing[table] + inserted });
+    await ctx.db.patch("ingestCounters", existing._id, { [table]: existing[table] + inserted });
   }
 }
 
@@ -205,7 +206,7 @@ export const upsertMuseums = internalMutation({
       };
       const existing = await findByKey(ctx, "museums", row.key);
       if (existing) {
-        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch("museums", existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("museums", {
@@ -244,7 +245,7 @@ export const upsertArtworks = internalMutation({
       };
       const existing = await findByKey(ctx, "artworks", row.key);
       if (existing) {
-        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch("artworks", existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("artworks", fields);
@@ -289,7 +290,7 @@ export const upsertObjects = internalMutation({
       };
       const existing = await findByKey(ctx, "objects", row.key);
       if (existing) {
-        if (fieldsChanged(existing, fields)) await ctx.db.patch(existing._id, fields);
+        if (fieldsChanged(existing, fields)) await ctx.db.patch("objects", existing._id, fields);
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("objects", {
@@ -340,7 +341,7 @@ export const upsertPlacements = internalMutation({
         .unique();
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
       if (existing) {
-        if (documentChanged(existing, doc)) await ctx.db.replace(existing._id, doc);
+        if (documentChanged(existing, doc)) await ctx.db.replace("placements", existing._id, doc);
         ids[naturalKey] = existing._id;
       } else {
         ids[naturalKey] = await ctx.db.insert("placements", doc);
@@ -461,7 +462,7 @@ export const commitDescriptors = internalMutation({
         .unique();
       const doc = { objectId: object._id, ...reference };
       if (existing) {
-        if (documentChanged(existing, doc)) await ctx.db.replace(existing._id, doc);
+        if (documentChanged(existing, doc)) await ctx.db.replace("descriptors", existing._id, doc);
         ids[objectKey] = existing._id;
         if (existing.storageId !== reference.storageId) {
           replaced.push(existing.storageId);
@@ -540,7 +541,7 @@ export const upsertDescriptors = internalAction({
           rows: references,
         });
       } finally {
-        if (created.length) {
+        if (created.length > 0) {
           await ctx.runMutation(internal.orbFiles.discard, {
             storageIds: created,
           });
@@ -558,7 +559,7 @@ export const setObjectPenalty = internalMutation({
     for (const row of rows) {
       const object = await requireByKey(ctx, "objects", row.objectKey);
       if (object.calibratorPenalty !== row.calibratorPenalty) {
-        await ctx.db.patch(object._id, { calibratorPenalty: row.calibratorPenalty });
+        await ctx.db.patch("objects", object._id, { calibratorPenalty: row.calibratorPenalty });
       }
       ids[row.objectKey] = object._id;
     }
@@ -659,16 +660,16 @@ export const exportVectors = internalQuery({
       });
     const page = [];
     for (const row of result.page) {
-      let object = await ctx.db.get(row.objectId);
+      let object = await ctx.db.get("objects", row.objectId);
       if (!object || object.identityStatus !== "established" || !(await eligibleVector(ctx, row))) {
         continue;
       }
-      if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
+      if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
       // Match identify.loadCandidates: only one-hop merges are part of the active index.
       if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
         continue;
       }
-      const artwork = await ctx.db.get(object.artworkId);
+      const artwork = await ctx.db.get("artworks", object.artworkId);
       if (!artwork) continue;
       page.push({
         vectorId: row._id,
@@ -716,7 +717,7 @@ export const exportDescriptorReferences = internalQuery({
       });
     const page = [];
     for (const row of result.page) {
-      const object = await ctx.db.get(row.objectId);
+      const object = await ctx.db.get("objects", row.objectId);
       if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
         continue;
       }
@@ -793,7 +794,7 @@ export const auditThumbnails = internalQuery({
     let violations = 0;
     for (const object of page.page) {
       if (object.thumbnailUrl !== undefined) {
-        const artwork = await ctx.db.get(object.artworkId);
+        const artwork = await ctx.db.get("artworks", object.artworkId);
         if (artwork?.rightsStatus !== "public_domain") violations += 1;
       }
     }
@@ -925,7 +926,7 @@ export const readSampleRows = internalQuery({
             q.eq("modelVersion", row.modelVersion!).eq("source", "corpus").eq("viewKey", row.viewKey),
           )
           .unique();
-        const object = vector ? await ctx.db.get(vector.objectId) : null;
+        const object = vector ? await ctx.db.get("objects", vector.objectId) : null;
         result.push(
           vector && object
             ? {
@@ -945,9 +946,9 @@ export const readSampleRows = internalQuery({
         continue;
       }
       if (table === "objects") {
-        const artwork = await ctx.db.get(object.artworkId);
-        const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
-        const mergedInto = object.mergedInto ? await ctx.db.get(object.mergedInto) : null;
+        const artwork = await ctx.db.get("artworks", object.artworkId);
+        const owner = object.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
+        const mergedInto = object.mergedInto ? await ctx.db.get("objects", object.mergedInto) : null;
         result.push(
           artwork
             ? {
@@ -1004,7 +1005,9 @@ export const readSample = internalAction({
         if (row && "storageId" in row) {
           const { storageId, sha256: _sha256, ...fields } = row;
           result.push({ ...fields, ...(await loadOrb(ctx, storageId, row.keypointCount)) });
-        } else result.push(row);
+        } else {
+          result.push(row);
+        }
       }
       return result;
     }),

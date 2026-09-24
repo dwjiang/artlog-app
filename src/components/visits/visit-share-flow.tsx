@@ -1,32 +1,34 @@
-import { reportError } from "@/lib/observability";
-import { NotePaper } from "../note-paper";
-import { setStringAsync } from "expo-clipboard";
-import { patchVisit } from "@/db/repos/visits";
-import { VisitArtworks, VisitFeedCard } from "../social/visit-card";
-import { GalleryBackToolbar } from "../gallery-back-toolbar";
-import { SharePhotoPicker } from "./share-photo-picker";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { setStringAsync } from "expo-clipboard";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { createContext, use, useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
+import { NotePaper } from "@/components/note-paper";
+import { ProfileForm } from "@/components/social/profile-form";
+import { SocialState } from "@/components/social/social-state";
+import { VisitArtworks, VisitFeedCard } from "@/components/social/visit-card";
+import { VisitReactions } from "@/components/social/visit-reactions";
+import { SharedVisitProjection } from "@/components/social/visit-screen";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { Gallery, NavigationTheme } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
+import { patchVisit } from "@/db/repos/visits";
 import { useOwnerGeneration } from "@/lib/account/owner-store";
+import { signInRoute } from "@/lib/account/sign-in-context";
 import { formatVisitDate } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import { LIMITS } from "@/shared/journal/limits";
-import { GalleryButton } from "../collection/gallery-button";
-import { SavedWorkImage } from "../collection/saved-work-image";
-import { ProfileForm } from "../social/profile-form";
-import { SocialState } from "../social/social-state";
-import { SharedVisitProjection } from "../social/visit-screen";
-import { VisitReactions } from "../social/visit-reactions";
-import { signInRoute } from "@/lib/account/sign-in-context";
-import { ToastLayer } from "../toast";
+
+import { SharePhotoPicker } from "./share-photo-picker";
 import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from "./visit-ui";
 
 type Sharing = ReturnType<typeof useVisitSharing>;
@@ -180,7 +182,7 @@ export function VisitShareScreen() {
           controller.edit({
             photoSelections: [
               ...(draft.photoSelections ?? []).filter((row) => row.saveLocalId !== photoWork.localId),
-              ...(ids.length ? [{ saveLocalId: photoWork.localId, photoLocalIds: ids }] : []),
+              ...(ids.length > 0 ? [{ saveLocalId: photoWork.localId, photoLocalIds: ids }] : []),
             ],
           });
         }}
@@ -223,7 +225,9 @@ export function VisitShareScreen() {
       });
     } else if (highlights.length >= 3) {
       showToast("Choose up to 3 highlights. Remove one to choose another.");
-    } else controller.edit({ highlightLocalIds: [...highlights, id] });
+    } else {
+      controller.edit({ highlightLocalIds: [...highlights, id] });
+    }
   }
   async function preview() {
     if (await controller.preview()) {
@@ -278,7 +282,7 @@ export function VisitShareScreen() {
                 <Text variant="section">Artworks</Text>
                 <Text style={[styles.fine, { color: Gallery.accent }]}>{selected.size} selected</Text>
               </View>
-              {!visit.works.length && <Text style={styles.caption}>You can share a visit with no artworks.</Text>}
+              {visit.works.length === 0 && <Text style={styles.caption}>You can share a visit with no artworks.</Text>}
             </>
           )}
           <ShareError sharing={sharing} />
@@ -294,8 +298,8 @@ export function VisitShareScreen() {
         </View>
       }
       renderItem={({ item }) => {
-        const on = selected.has(item.localId),
-          rank = highlights.indexOf(item.localId);
+        const on = selected.has(item.localId);
+        const rank = highlights.indexOf(item.localId);
         const chosen =
           draft.photoSelections?.find((row) => row.saveLocalId === item.localId)?.photoLocalIds.length ?? 0;
         const total = photoTotal(item.localId);
@@ -632,7 +636,9 @@ export function VisitSharedScreen() {
                 pathname: "/visit-share/[visitId]",
                 params: { visitId: visit.localId },
               });
-            } else void controller.view();
+            } else {
+              void controller.view();
+            }
           }}
         >
           {sharing.busy

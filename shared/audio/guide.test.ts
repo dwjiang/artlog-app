@@ -10,10 +10,12 @@ import { guideBodyFixture, guideFixture, openingFixture, researchFixture } from 
 
 const ids = new Set(researchFixture.map((fact) => fact.id));
 const richIds = new Set([...ids, "f3", "f4", "f5", "f6", "f7", "f8"]);
+
 it("preserves a substantial spoken guide and all its supporting citations", () => {
   expect(validateGuide(guideFixture, ids, openingFixture)).toEqual(guideFixture);
   expect(validateGuideBody(guideBodyFixture, ids)).toEqual(guideBodyFixture);
 });
+
 it("opens with title, artist and the recorded date without inventing missing years", () => {
   expect(
     guideOpening({
@@ -35,6 +37,7 @@ it("opens with title, artist and the recorded date without inventing missing yea
     );
   }
 });
+
 it("requires the exact metadata opening first and allows only that line to be uncited", () => {
   for (const value of [
     guideBodyFixture,
@@ -45,6 +48,7 @@ it("requires the exact metadata opening first and allows only that line to be un
     expect(validateGuide(value, ids, openingFixture)).toBeNull();
   }
 });
+
 it("rejects tiny, uncited, invented, repeated and oversized guides", () => {
   for (const value of [
     null,
@@ -58,6 +62,7 @@ it("rejects tiny, uncited, invented, repeated and oversized guides", () => {
     expect(validateGuide(value, ids, openingFixture)).toBeNull();
   }
 });
+
 it("rejects a script whose sentence carries leaked JSON or markup, or was cut off", () => {
   for (const leak of [
     "She is a real person.', 'fact_ids': ['f4']}, {'sentence':",
@@ -69,6 +74,7 @@ it("rejects a script whose sentence carries leaked JSON or markup, or was cut of
     expect(validateGuideBody([...guideBodyFixture.slice(0, 9), { sentence: leak, factIds: ["f1"] }], ids)).toBeNull();
   }
 });
+
 it("accepts a sentence only when its support span is copied verbatim from a cited fact", () => {
   const lines = parseGuideLines([
     {
@@ -101,6 +107,7 @@ it("accepts a sentence only when its support span is copied verbatim from a cite
   ]);
   expect(parseGuideLines([{ sentence: "No span here.", fact_ids: ["f1"] }])).toBeNull();
 });
+
 it("gives the guide only prose research, never catalogue lines", () => {
   const catalogue = [
     "Material: oil paint, canvas",
@@ -122,6 +129,7 @@ it("gives the guide only prose research, never catalogue lines", () => {
   }));
   expect(guideResearch(facts).map((fact) => fact.text)).toEqual(prose);
 });
+
 it("accepts a guide only inside the 150 to 200 word band, or from 110 words when research is thin", () => {
   expect(validateGuideBody(guideBodyFixture.slice(0, 9), richIds)).toHaveLength(9);
   expect(validateGuideBody(guideBodyFixture.slice(0, 8), richIds)).toBeNull();

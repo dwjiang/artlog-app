@@ -60,11 +60,11 @@ it("varies new artwork sizes while keeping each placement clear of existing pain
     const next = nextWallLayout(pieces);
     expect(next.x).toBeGreaterThanOrEqual(0.025);
     expect(next.x + next.width).toBeLessThanOrEqual(0.975);
-    for (const previous of pieces) {
-      const overlaps = next.x < previous.layout.x + previous.layout.width && next.x + next.width > previous.layout.x;
-      if (overlaps) {
-        expect(next.y).toBeGreaterThanOrEqual(wallBottom([previous]) + 0.14);
-      }
+    const overlapping = pieces.filter(
+      (previous) => next.x < previous.layout.x + previous.layout.width && next.x + next.width > previous.layout.x,
+    );
+    for (const previous of overlapping) {
+      expect(next.y).toBeGreaterThanOrEqual(wallBottom([previous]) + 0.14);
     }
     pieces.push({
       ...piece(index % 2 ? 2 : 1, 2),

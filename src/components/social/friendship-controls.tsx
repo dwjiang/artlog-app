@@ -1,20 +1,22 @@
-import type { ReactElement, ReactNode } from "react";
-import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
-import { LoadingRing } from "@/components/loading-ring";
-import { TextSkeleton } from "@/components/loading-skeleton";
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import { Menu, Button, Spacer } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, frame, shapes } from "@expo/ui/swift-ui/modifiers";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { ThemedText as Text } from "@/components/themed-text";
+import { router } from "expo-router";
+import type { ReactElement, ReactNode } from "react";
+import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingRing } from "@/components/loading-ring";
+import { TextSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { signInRoute } from "@/lib/account/sign-in-context";
 import { friendshipActions } from "@/lib/social/presentation";
 import type { FriendshipAction, PublicProfile } from "@/lib/social/types";
 import { useFriendship, type RelationshipSource } from "@/lib/social/use-friendship";
 import type { SocialSession } from "@/lib/social/use-social-session";
+
 import { socialStyles } from "./social-styles";
-import { router } from "expo-router";
-import { signInRoute } from "@/lib/account/sign-in-context";
 
 const labels: Record<FriendshipAction, string> = {
   request: "Add friend",

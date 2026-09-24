@@ -1,8 +1,11 @@
 import Database from "better-sqlite3";
 import type { SQLiteDatabase } from "expo-sqlite";
+
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "./search-venues";
+
 jest.mock("./venue-db", () => ({ onVenueMetadataChange: () => () => {} }));
-let sql: Database.Database, db: SQLiteDatabase;
+let sql: Database.Database;
+let db: SQLiteDatabase;
 beforeEach(() => {
   sql = new Database(":memory:");
   sql.exec("CREATE TABLE venues (id TEXT, name TEXT, city TEXT, country TEXT, region TEXT)");
@@ -22,11 +25,13 @@ beforeEach(() => {
   } as unknown as SQLiteDatabase;
 });
 afterEach(() => sql.close());
+
 it("finds accent-insensitive museum names, city words, and prefixes", async () => {
   expect((await searchVenues("musee par", db)).map((row) => row.id)).toEqual(["orsay"]);
   expect(await searchVenues("new york", db)).toHaveLength(MUSEUM_SEARCH_LIMIT);
   expect((await searchVenues("met new york", db)).map((row) => row.id)).toEqual(["met"]);
 });
+
 it("bounds result size and rejects invalid queries without executing SQL", async () => {
   expect(await searchVenues("museum", db)).toHaveLength(MUSEUM_SEARCH_LIMIT);
   expect(await searchVenues("x", db)).toEqual([]);

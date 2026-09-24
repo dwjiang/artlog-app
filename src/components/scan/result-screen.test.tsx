@@ -1,5 +1,3 @@
-import { db } from "@/db/client";
-import { notes, savedWorks } from "@/db/schema";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
@@ -7,10 +5,22 @@ import * as SQLite from "expo-sqlite";
 import type { ReactNode } from "react";
 import { Alert, AppState } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
+import { db } from "@/db/client";
+import { enqueuePendingScan, pendingScansQuery } from "@/db/repos/pending-scans";
+import { getSavedWork } from "@/db/repos/saved-works";
+import * as visits from "@/db/repos/visits";
+import { notes, savedWorks } from "@/db/schema";
+import { contributeLabel } from "@/lib/label/contribute";
+import { clearLabelDraft, saveLabelDraft } from "@/lib/label/draft";
+import * as labelDrafts from "@/lib/label/draft";
+import { formStateFromFlow, unlockField } from "@/lib/label/fields";
+import { confirmed, exhibitionCandidates, verified } from "@/lib/museum-search/__fixtures__/search";
+import { runMuseumSearchForScan } from "@/lib/museum-search/museum-search-deps";
+import { resolveWithLabel } from "@/lib/result/feedback";
+import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
 
+import type { Id } from "../../../convex/_generated/dataModel";
 import { ResultScreen } from "./result-screen";
-import { LABEL_BUTTON } from "./result/save-bar";
 import {
   bridge,
   confidentScan,
@@ -23,18 +33,9 @@ import {
   softScan,
   unsupportedScan,
 } from "./result/__fixtures__/scan";
-import { enqueuePendingScan, pendingScansQuery } from "@/db/repos/pending-scans";
-import { getSavedWork } from "@/db/repos/saved-works";
-import * as visits from "@/db/repos/visits";
-import { resolveWithLabel } from "@/lib/result/feedback";
-import { runMuseumSearchForScan } from "@/lib/museum-search/museum-search-deps";
+import { LABEL_BUTTON } from "./result/save-bar";
 import { SEARCH_CONSENT_TITLE } from "./result/search-consent-sheet";
-import { confirmed, exhibitionCandidates, verified } from "@/lib/museum-search/__fixtures__/search";
-import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
-import { contributeLabel } from "@/lib/label/contribute";
-import { clearLabelDraft, saveLabelDraft } from "@/lib/label/draft";
-import * as labelDrafts from "@/lib/label/draft";
-import { formStateFromFlow, unlockField } from "@/lib/label/fields";
+
 jest.mock("@/lib/audio/use-listening");
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
   useCachedNarrationDuration: () => undefined,
@@ -73,7 +74,7 @@ const listeners = new Set<() => void>();
 const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
@@ -579,9 +580,7 @@ it.each([confidentScan, softScan])("locks the draft and match choices while savi
     ).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
     expect(screen.queryByText("Other possibilities")).toBeNull();
-    if (scan.outcome === "soft") {
-      expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeDisabled();
-    }
+    expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeDisabled();
   } finally {
     await act(async () => {
       finishVisit(visit);
@@ -1004,96 +1003,111 @@ it("keeps the label available when a stored museum confirmation failed moderatio
   expect(runMuseumSearchForScan).not.toHaveBeenCalled();
 });
 
-it.each(["saving", "saved", "failed"] as const)(
-  "keeps the original card when museum search confirms while its save is %s",
-  async (stage) => {
-    await setMuseumSearchConsent("granted");
-    results.set("scans:get", softScan);
-    let finishSearch!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
-    jest.mocked(runMuseumSearchForScan).mockReturnValue(
-      new Promise((resolve) => {
-        finishSearch = resolve;
+async function saveSoftCardDuringMuseumSearch(saveError?: Error) {
+  await setMuseumSearchConsent("granted");
+  results.set("scans:get", softScan);
+  let finishSearch!: (value: Awaited<ReturnType<typeof runMuseumSearchForScan>>) => void;
+  jest.mocked(runMuseumSearchForScan).mockReturnValue(
+    new Promise((resolve) => {
+      finishSearch = resolve;
+    }),
+  );
+  const visit = await visits.getVisit("aea0b816-f46f-5312-a657-f92d1af2cb76");
+  let finishSave!: () => void;
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  jest.spyOn(visits, "getVisit").mockImplementationOnce(
+    () =>
+      new Promise((resolve, reject) => {
+        finishSave = () => (saveError ? reject(saveError) : resolve(visit));
       }),
-    );
-    const visit = await visits.getVisit("aea0b816-f46f-5312-a657-f92d1af2cb76");
-    let finishSave!: () => void;
-    jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.spyOn(visits, "getVisit").mockImplementationOnce(
-      () =>
-        new Promise((resolve, reject) => {
-          finishSave = () => (stage === "failed" ? reject(new Error("Local read failed")) : resolve(visit));
-        }),
-    );
-    await render(result());
-    await screen.findByLabelText("Searching the museum’s collection…");
-    await openDetails();
-    await fireEvent.press(
-      screen.getByRole("button", {
-        name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
+  );
+  await render(result());
+  await screen.findByLabelText("Searching the museum’s collection…");
+  await openDetails();
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
+    }),
+  );
+  await screen.findByRole("button", {
+    name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
+    value: { text: "Saving…" },
+  });
+  return {
+    finishSave: () =>
+      act(async () => {
+        finishSave();
       }),
-    );
-    await screen.findByRole("button", {
+    confirmSearch: async () => {
+      await act(async () => {
+        finishSearch({
+          stage: "done",
+          flow: verified,
+          confirmedAt: verified.updatedAt,
+        });
+      });
+      await publish({
+        ...softScan,
+        museumSearch: confirmed,
+        labelFlow: verified,
+      });
+    },
+  };
+}
+
+async function expectSavedOnce() {
+  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
+  expect(
+    screen.queryByRole("button", {
+      name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
+    }),
+  ).toBeNull();
+  await fireEvent.press(link);
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/saved/[savedId]",
+    params: { savedId: `saved-${mockUuid}` },
+  });
+  expect(mockSaveMutation).toHaveBeenCalledTimes(1);
+}
+
+it("keeps the original card when museum search confirms while its save is in progress", async () => {
+  const { finishSave, confirmSearch } = await saveSoftCardDuringMuseumSearch();
+  await confirmSearch();
+  expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
+  expect(screen.queryByText("Found on the museum's site")).toBeNull();
+  expect(
+    screen.getByRole("button", {
       name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
       value: { text: "Saving…" },
-    });
-    if (stage !== "saving") {
-      await act(async () => {
-        finishSave();
-      });
-    }
-    await act(async () => {
-      finishSearch({
-        stage: "done",
-        flow: verified,
-        confirmedAt: verified.updatedAt,
-      });
-    });
-    await publish({
-      ...softScan,
-      museumSearch: confirmed,
-      labelFlow: verified,
-    });
-    if (stage === "saved") {
-      expect(screen.getByText("Unidentified artwork")).toBeOnTheScreen();
-    } else {
-      expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
-    }
-    expect(screen.queryByText("Found on the museum's site")).toBeNull();
-    if (stage === "failed") {
-      expect(screen.getByText("Couldn’t save. Try again.")).toBeOnTheScreen();
-      expect(screen.getByLabelText("Title").props.editable).toBe(true);
-      expect(
-        screen.getByRole("button", {
-          name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
-        }),
-      ).toBeEnabled();
-      return;
-    }
-    if (stage === "saving") {
-      expect(
-        screen.getByRole("button", {
-          name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
-          value: { text: "Saving…" },
-        }),
-      ).toBeDisabled();
-      await act(async () => {
-        finishSave();
-      });
-    }
-    const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
-    expect(
-      screen.queryByRole("button", {
-        name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
-      }),
-    ).toBeNull();
-    await fireEvent.press(link);
-    expect(mockPush).toHaveBeenLastCalledWith({
-      pathname: "/saved/[savedId]",
-      params: { savedId: `saved-${mockUuid}` },
-    });
-    expect(mockSaveMutation).toHaveBeenCalledTimes(1);
-  },
-);
+    }),
+  ).toBeDisabled();
+  await finishSave();
+  await expectSavedOnce();
+});
+
+it("keeps the saved card when museum search confirms after its save", async () => {
+  const { finishSave, confirmSearch } = await saveSoftCardDuringMuseumSearch();
+  await finishSave();
+  await confirmSearch();
+  expect(screen.getByText("Unidentified artwork")).toBeOnTheScreen();
+  expect(screen.queryByText("Found on the museum's site")).toBeNull();
+  await expectSavedOnce();
+});
+
+it("keeps the original card editable when museum search confirms after its save failed", async () => {
+  const { finishSave, confirmSearch } = await saveSoftCardDuringMuseumSearch(new Error("Local read failed"));
+  await finishSave();
+  await confirmSearch();
+  expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
+  expect(screen.queryByText("Found on the museum's site")).toBeNull();
+  expect(screen.getByText("Couldn’t save. Try again.")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Title").props.editable).toBe(true);
+  expect(
+    screen.getByRole("button", {
+      name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
+    }),
+  ).toBeEnabled();
+});
 
 it.each(["date", "title"] as const)(
   "keeps sharing progress and edited %s through server verification and a retry",
@@ -1230,99 +1244,94 @@ it.each(["Title", "Institution"])("keeps edited %s when a background museum sear
   });
 });
 
-it.each(["title", "date", "revert"] as const)(
-  "restores the sharing draft after a failed share and reopen (%s)",
-  async (edit) => {
-    results.set("scans:get", {
+it.each([
+  ["title", { value: "My own title", locked: false, unlocked: true }],
+  ["date", { value: "Blue painting", locked: true, unlocked: false }],
+  ["revert", { value: "Blue painting", locked: true, unlocked: false }],
+] as const)("restores the sharing draft after a failed share and reopen (%s)", async (edit, submittedTitle) => {
+  results.set("scans:get", {
+    ...missScan,
+    museumSearch: confirmed,
+    labelFlow: verified,
+  });
+  let fail!: (error: Error) => void;
+  jest.mocked(contributeLabel).mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      fail = reject;
+    }),
+  );
+  jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
+    buttons?.find((button) => button.text === "Edit")?.onPress?.();
+  });
+  const view = await render(result());
+  await screen.findByLabelText("Title");
+  if (edit === "revert") {
+    await fireEvent.changeText(screen.getByLabelText("Title"), "Blue paintings");
+    await fireEvent.changeText(screen.getByLabelText("Title"), "Blue painting");
+  }
+  if (edit !== "revert") {
+    await fireEvent.changeText(
+      screen.getByLabelText(edit === "title" ? "Title" : "Date"),
+      edit === "title" ? "My own title" : "1900",
+    );
+  }
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: screen.queryByRole("button", {
+        name: "Retry saving to the shared index",
+      })
+        ? "Retry saving to the shared index"
+        : "Confirm & save",
+    }),
+  );
+  await screen.findByLabelText("Saving to the shared index…");
+  const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
+  expect(submitted.title).toMatchObject(submittedTitle);
+  await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
+  if (edit !== "revert") {
+    await publish({
       ...missScan,
       museumSearch: confirmed,
-      labelFlow: verified,
-    });
-    let fail!: (error: Error) => void;
-    jest.mocked(contributeLabel).mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        fail = reject;
-      }),
-    );
-    jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
-      buttons?.find((button) => button.text === "Edit")?.onPress?.();
-    });
-    const view = await render(result());
-    await screen.findByLabelText("Title");
-    if (edit === "revert") {
-      await fireEvent.changeText(screen.getByLabelText("Title"), "Blue paintings");
-      await fireEvent.changeText(screen.getByLabelText("Title"), "Blue painting");
-    }
-    if (edit !== "revert") {
-      await fireEvent.changeText(
-        screen.getByLabelText(edit === "title" ? "Title" : "Date"),
-        edit === "title" ? "My own title" : "1900",
-      );
-    }
-    await fireEvent.press(
-      screen.getByRole("button", {
-        name: screen.queryByRole("button", {
-          name: "Retry saving to the shared index",
-        })
-          ? "Retry saving to the shared index"
-          : "Confirm & save",
-      }),
-    );
-    await screen.findByLabelText("Saving to the shared index…");
-    const submitted = jest.mocked(contributeLabel).mock.calls[0][0].state;
-    if (edit === "revert") {
-      expect(submitted.title).toMatchObject({
-        value: "Blue painting",
-        locked: true,
-        unlocked: false,
-      });
-    }
-    await saveLabelDraft(SCAN_ID, submitted, confirmed.updatedAt);
-    if (edit !== "revert") {
-      await publish({
-        ...missScan,
-        museumSearch: confirmed,
-        labelFlow: {
-          ...verified,
-          sourceUrl: edit === "title" ? undefined : verified.sourceUrl,
-          updatedAt: 3,
-          fields: {
-            ...verified.fields,
-            [edit]: {
-              value: submitted[edit].value,
-              evidence: "ocr",
-              locked: false,
-            },
+      labelFlow: {
+        ...verified,
+        sourceUrl: edit === "title" ? undefined : verified.sourceUrl,
+        updatedAt: 3,
+        fields: {
+          ...verified.fields,
+          [edit]: {
+            value: submitted[edit].value,
+            evidence: "ocr",
+            locked: false,
           },
         },
-      });
-    }
-    await act(async () => {
-      fail(new Error("Upload failed"));
+      },
     });
-    await screen.findByText("Couldn’t save to the shared index right now. Your artwork is saved to your collection.");
-    await view.unmount();
-    await render(result());
-    expect(await screen.findByLabelText("Title")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Title").props.defaultValue).toBe(submitted.title.value);
-    expect(screen.getByLabelText("Date").props.defaultValue).toBe(submitted.date.value);
-    jest.mocked(contributeLabel).mockResolvedValue({
-      contributionId: "contribution-1" as Id<"contributions">,
-      status: "tentative",
-    });
-    await fireEvent.press(
-      screen.getByRole("button", {
-        name: screen.queryByRole("button", {
-          name: "Retry saving to the shared index",
-        })
-          ? "Retry saving to the shared index"
-          : "Confirm & save",
-      }),
-    );
-    await screen.findByText("Saved to the shared index as a tentative match for other visitors at this museum.");
-    expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
-  },
-);
+  }
+  await act(async () => {
+    fail(new Error("Upload failed"));
+  });
+  await screen.findByText("Couldn’t save to the shared index right now. Your artwork is saved to your collection.");
+  await view.unmount();
+  await render(result());
+  expect(await screen.findByLabelText("Title")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Title").props.defaultValue).toBe(submitted.title.value);
+  expect(screen.getByLabelText("Date").props.defaultValue).toBe(submitted.date.value);
+  jest.mocked(contributeLabel).mockResolvedValue({
+    contributionId: "contribution-1" as Id<"contributions">,
+    status: "tentative",
+  });
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: screen.queryByRole("button", {
+        name: "Retry saving to the shared index",
+      })
+        ? "Retry saving to the shared index"
+        : "Confirm & save",
+    }),
+  );
+  await screen.findByText("Saved to the shared index as a tentative match for other visitors at this museum.");
+  expect(jest.mocked(contributeLabel).mock.calls[1][0].state).toEqual(submitted);
+});
 
 it("opens fresh label capture from a confirmed museum result", async () => {
   results.set("scans:get", {

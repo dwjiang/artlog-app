@@ -1,15 +1,17 @@
 import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ActionSheetIOS, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
+
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { ThemedText as Text } from "@/components/themed-text";
+import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery, Typography } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
 import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
+
 import { ProfileAvatar } from "./profile-avatar";
 import { socialStyles } from "./social-styles";
-import { VisitSymbol } from "../visits/visit-ui";
 import { VisitReactions } from "./visit-reactions";
 
 export function ProfileIdentity({
@@ -58,8 +60,8 @@ export function ProfileIdentity({
   );
 }
 
-const GAP = 8,
-  MIN_HEIGHT = 100;
+const GAP = 8;
+const MIN_HEIGHT = 100;
 const aspect = ({ media }: { media: SharedArtwork["artwork"]["media"] }) =>
   media.width > 0 && media.height > 0 ? media.width / media.height : 1;
 
@@ -124,7 +126,7 @@ export function VisitArtworks({
             <DisplayMedia media={media} label={title} token={token} width={height * ratios[index]} height={height} />
           </View>
         ))}
-      {!preview.length && <Text style={socialStyles.caption}>No artwork previews.</Text>}
+      {preview.length === 0 && <Text style={socialStyles.caption}>No artwork previews.</Text>}
     </View>
   );
 }
@@ -285,7 +287,7 @@ export function VisitFeedCard({
           {date}
         </View>
       )}
-      {!!artworks.length
+      {artworks.length > 0
         && (onOpenVisit ? (
           <Pressable
             accessibilityRole="button"

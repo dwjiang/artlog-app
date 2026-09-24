@@ -1,4 +1,5 @@
-import { convexErrorCode } from "../network-error";
+import { convexErrorCode } from "@/lib/network-error";
+
 import type { LayoutInput, OwnerWall, VisibilityInput, WallTransport } from "./wall-transport";
 
 type LayoutDraft = Omit<LayoutInput, "scope" | "revision">;
@@ -53,9 +54,9 @@ export function createWallRepository(deps: Dependencies) {
   }
   let unsubscribe: (() => void) | undefined;
   function request() {
-    const session = deps.capture(),
-      version = generation,
-      controller = new AbortController();
+    const session = deps.capture();
+    const version = generation;
+    const controller = new AbortController();
     if (disposed || !session.scope || !session.token || !session.owner.startsWith("account:")) {
       throw new Error("Wall account is not ready");
     }
@@ -80,8 +81,8 @@ export function createWallRepository(deps: Dependencies) {
   }
   async function refresh() {
     if (state.pending) throw new Error("A wall update is in progress");
-    const current = request(),
-      read = ++reading;
+    const current = request();
+    const read = ++reading;
     try {
       await current.ready();
       const acknowledged = await deps.transport.getMine(current.context);
@@ -96,9 +97,9 @@ export function createWallRepository(deps: Dependencies) {
   }
   async function publish(kind: "layout" | "notes") {
     if (state.pending) throw new Error("A wall update is in progress");
-    const acknowledged = state.acknowledged,
-      layoutDraft = state.layoutDraft,
-      noteDraft = state.noteDraft;
+    const { acknowledged } = state;
+    const { layoutDraft } = state;
+    const { noteDraft } = state;
     if (!acknowledged) throw new Error("Refresh your wall first");
     if (kind === "layout" ? !layoutDraft : noteDraft.length === 0) return;
     const current = request();

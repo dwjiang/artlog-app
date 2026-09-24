@@ -1,14 +1,15 @@
 import { db } from "@/db/client";
-import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
-import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
 import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from "@/db/repos/pending-scans";
-import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from "./edit-crop";
+import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
+import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
-import { readPhotoSession, updatePhotoSession } from "./photo-draft";
+
 import type { Id } from "../../../convex/_generated/dataModel";
+import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from "./edit-crop";
+import { readPhotoSession, updatePhotoSession } from "./photo-draft";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("../../../modules/vision-rect/src", () => ({
   getVisionRect: jest.fn(),
@@ -148,8 +149,8 @@ it("refuses a crop save for another owner or a dismissed editor", async () => {
     savedAt: 1,
     cropPath: "old.preview.jpg",
   });
-  await expect(saveEditedArtworkCrop("work", crop, "someone-else")).rejects.toThrow();
-  await expect(saveEditedArtworkCrop("work", crop, owner, () => false)).rejects.toThrow();
+  await expect(saveEditedArtworkCrop("work", crop, "someone-else")).rejects.toThrow("Artwork unavailable");
+  await expect(saveEditedArtworkCrop("work", crop, owner, () => false)).rejects.toThrow("Crop edit cancelled");
   expect((await getSavedWork("work"))?.cropPath).toBe("old.preview.jpg");
 });
 
@@ -209,7 +210,7 @@ it("leaves the old scan intact when extraction fails or the editor closes during
     active = false;
     return features;
   });
-  await expect(saveEditedScanCrop("scan", crop, owner, () => active)).rejects.toThrow();
+  await expect(saveEditedScanCrop("scan", crop, owner, () => active)).rejects.toThrow("Journal owner changed");
   expect((await getPendingScan("scan"))?.cropPath).toBe("old.jpg");
   expect(mockFiles.has("file:///documents/full.jpg")).toBe(true);
 });

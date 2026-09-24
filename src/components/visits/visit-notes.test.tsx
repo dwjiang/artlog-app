@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { AppState, type AppStateStatus } from "react-native";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { AppState, type AppStateStatus } from "react-native";
+
 import * as visits from "@/db/repos/visits";
 import { anonymousOwner, switchOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { onCollectionChange } from "@/lib/account/sync-events";
+
 import { VisitNotes } from "./visit-notes";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, [effect]),

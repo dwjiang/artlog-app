@@ -3,14 +3,16 @@ import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from "@
 import { router } from "expo-router";
 import { useRef, useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { WallSheet } from "@/components/collection/wall-sheet";
 import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery, Radius } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useGlobeSession } from "@/lib/journal/globe-session";
-import { WallSheet } from "../collection/wall-sheet";
-import { GalleryButton } from "../collection/gallery-button";
-import { Gallery, Radius } from "@/constants/theme";
 import { countryName, placeIdentity } from "@/lib/journal/history";
 import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from "@/lib/journal/visit-summaries";
+
 import { GlobeCanvas, type GlobeCanvasHandle } from "./globe-canvas";
 import { ArtworkPreviews, VisitMessage, VisitSymbol } from "./visit-ui";
 
@@ -121,7 +123,7 @@ export function VisitGlobe({
           </View>
         </Pressable>
       </View>
-      {!!clusterIds.length && (
+      {clusterIds.length > 0 && (
         <WallSheet title="Museums here" onDismiss={() => setClusterIds([])}>
           <View style={{ padding: 20, gap: 10 }}>
             {museums

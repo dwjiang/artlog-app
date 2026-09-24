@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+
 import type { GlobeCamera } from "./globe-geometry";
 
 type GlobeSession = { selectedId?: string; camera?: GlobeCamera };

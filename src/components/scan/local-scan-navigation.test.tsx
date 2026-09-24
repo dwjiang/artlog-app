@@ -1,11 +1,12 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
-import { renderRouter } from "expo-router/testing-library";
 import { router, useLocalSearchParams } from "expo-router";
 import { Stack } from "expo-router/stack";
+import { renderRouter } from "expo-router/testing-library";
 import { AppState, Text } from "react-native";
 
 import { LocalScanScreen } from "@/components/scan/local-scan-screen";
 import { QueueSheet } from "@/components/scan/states/queue-sheet";
+
 jest.mock("./scan-crop-editor", () => ({ ScanCropEditor: () => null }));
 jest.mock("@/lib/capture/photo-draft", () => ({
   isLabelCapture: () => false,

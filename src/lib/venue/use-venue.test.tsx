@@ -1,11 +1,12 @@
 import { act, render } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-import { calendarDate } from "../../../shared/journal/limits";
 import type { NewVisit, Visit } from "@/db/schema";
-import type { VenueCandidate } from "./resolve";
 import { museumDay } from "@/lib/journal/visit-date";
+import { calendarDate } from "@/shared/journal/limits";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import type { VenueCandidate } from "./resolve";
 import { createVenueController, VenueResolver, type VenueController } from "./use-venue";
 import { NOT_HERE_MS } from "./venue-reducer";
 

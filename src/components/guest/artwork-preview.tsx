@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
+
 import { Gallery, Spacing } from "@/constants/theme";
 
 export const introArtworks = {

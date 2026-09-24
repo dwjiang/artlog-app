@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { View, type ViewProps } from "react-native";
 import Animated from "react-native-reanimated";
+
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 

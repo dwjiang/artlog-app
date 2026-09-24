@@ -1,9 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { EditProfileForm } from "./edit-profile-screen";
+
 import { switchOwner } from "@/lib/account/owner-store";
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
-const mockSave = jest.fn(),
-  mockBack = jest.fn();
+
+import { EditProfileForm } from "./edit-profile-screen";
+
+const mockSave = jest.fn();
+const mockBack = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useAction: () => mockSave,
@@ -51,6 +54,7 @@ beforeEach(() => {
   mockSave.mockResolvedValue(profile);
   switchOwner("account:a", "scope-a");
 });
+
 it("saves trimmed profile text while preserving an unchanged photo", async () => {
   await render(<EditProfileForm profile={profile} />);
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex Chen ");
@@ -62,6 +66,7 @@ it("saves trimmed profile text while preserving an unchanged photo", async () =>
   });
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
+
 it("removes the photo explicitly and preserves the draft after a save failure", async () => {
   mockSave.mockRejectedValue(new Error("offline"));
   await render(<EditProfileForm profile={profile} />);
@@ -76,6 +81,7 @@ it("removes the photo explicitly and preserves the draft after a save failure", 
   expect(screen.getByRole("button", { name: "Add photo" })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });
+
 it("does not upload a selected photo into a different account after preparation", async () => {
   jest.mocked(chooseProfilePhoto).mockResolvedValue("file:///draft.jpg");
   let finish!: (bytes: ArrayBuffer) => void;
@@ -92,6 +98,7 @@ it("does not upload a selected photo into a different account after preparation"
   await act(() => finish(new ArrayBuffer(3)));
   expect(mockSave).not.toHaveBeenCalled();
 });
+
 it("blocks photo changes while a save is in flight", async () => {
   let finish!: (saved: typeof profile) => void;
   mockSave.mockImplementation(

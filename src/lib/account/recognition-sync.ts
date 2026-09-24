@@ -1,11 +1,12 @@
-import { api } from "../../../convex/_generated/api";
-import { pendingSavedRecognition, recognitionSyncKey } from "@/db/repos/saved-recognition";
 import { getPendingScan } from "@/db/repos/pending-scans";
+import { pendingSavedRecognition, recognitionSyncKey } from "@/db/repos/saved-recognition";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+
+import { api } from "../../../convex/_generated/api";
 import type { SyncContext } from "./sync";
 
 export async function syncSavedRecognition(
@@ -15,7 +16,7 @@ export async function syncSavedRecognition(
 ): Promise<void> {
   while (isCurrent()) {
     const pending = pendingSavedRecognition(context.owner, localId);
-    if (!pending.length) return;
+    if (pending.length === 0) return;
     let failure: unknown;
     for (const entry of pending) {
       if (!isCurrent()) return;

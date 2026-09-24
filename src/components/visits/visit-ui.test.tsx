@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
+
 import type { SavedWork } from "@/db/schema";
+
 import { ArtworkPreviews } from "./visit-ui";
-jest.mock("../collection/saved-work-image", () => ({
+
+jest.mock("@/components/collection/saved-work-image", () => ({
   SavedWorkImage: ({ title, syncing }: { title: string; syncing?: boolean }) => {
     const { View } = jest.requireActual("react-native");
     return (
@@ -9,6 +12,7 @@ jest.mock("../collection/saved-work-image", () => ({
     );
   },
 }));
+
 it("shows each artwork once across repeat visits before applying the preview limit", async () => {
   const work = { owner: "me", localId: "garden", title: "Garden" } as SavedWork;
   await render(<ArtworkPreviews works={[work, work, { ...work, localId: "river", title: "River" }]} limit={2} />);

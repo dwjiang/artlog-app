@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AppState } from "react-native";
+
 import { maintainStoredPhotos } from "./photo-maintenance";
 
 export function PhotoMaintenance() {

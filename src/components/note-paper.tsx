@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { ThemedText as Text } from "./themed-text";
+
 import { Gallery } from "@/constants/theme";
+
+import { ThemedText as Text } from "./themed-text";
 
 export function NotePaper({ children, label }: { children: ReactNode; label?: string }) {
   return (

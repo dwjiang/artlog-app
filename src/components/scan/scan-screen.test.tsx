@@ -1,12 +1,14 @@
-import { reportError } from "@/lib/observability";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppStateStatus } from "react-native";
 
-import { ScanScreen } from "./scan-screen";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
 import type { CaptureTimings } from "@/lib/capture/stages";
+import { reportError } from "@/lib/observability";
 import type { VenueView } from "@/lib/venue/use-venue";
+
+import { ScanScreen } from "./scan-screen";
+
 jest.mock("@/lib/audio/use-listening");
 
 jest.mock("@/lib/observability", () => ({
@@ -100,7 +102,7 @@ jest.mock("expo-router/react-navigation", () => ({
   useIsFocused: () => mockFocused,
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("expo-haptics", () => ({
   selectionAsync: () => mockSelectionHaptic(),

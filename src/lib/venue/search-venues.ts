@@ -1,9 +1,11 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+
+import { searchTerm } from "@/lib/journal/query";
 import { normalizeSearch } from "@/shared/journal/limits";
-import { searchTerm } from "../journal/query";
+
+import type { VenueRow } from "./resolve";
 import { onVenueMetadataChange, openVenueDb } from "./venue-db";
 import { regionSearchNames } from "./venue-location";
-import type { VenueRow } from "./resolve";
 
 export const MUSEUM_SEARCH_LIMIT = 30;
 let version = 0;

@@ -1,10 +1,12 @@
 import { ConvexError } from "convex/values";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
+import { env } from "../_generated/server";
+
 const appleKeys = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
 
 export async function verifyAppleIdentityToken(token: string, nonce: string): Promise<{ sub: string; email?: string }> {
-  const audience = process.env.APPLE_BUNDLE_ID;
+  const audience = env.APPLE_BUNDLE_ID;
   if (!audience) throw new ConvexError({ code: "apple_unconfigured" });
   const { payload } = await jwtVerify(token, appleKeys, {
     issuer: "https://appleid.apple.com",

@@ -1,10 +1,13 @@
 import { useSegments } from "expo-router";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { ReactNode } from "react";
+
 import { Gallery } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
+
 import { MiniPlayer } from "./mini-player";
+
 export function ListeningRoot({ children }: { children: ReactNode }) {
   const segments = useSegments();
   const listening = useHasListeningTrack();

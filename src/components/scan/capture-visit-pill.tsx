@@ -1,11 +1,12 @@
-import { TextSkeleton } from "@/components/loading-skeleton";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router } from "expo-router";
 import { Pressable } from "react-native";
+
+import { GlassSurface } from "@/components/glass-surface";
+import { TextSkeleton } from "@/components/loading-skeleton";
+import { ThemedText } from "@/components/themed-text";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { GlassSurface } from "../glass-surface";
-import { ThemedText } from "../themed-text";
 
 export function CaptureVisitPill({ visitId }: { visitId: string }) {
   const owner = useLocalOwner();

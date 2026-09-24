@@ -1,5 +1,7 @@
 import { createVisitSharingTransport } from "./visit-sharing-transport";
+
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
+
 it("uses the captured token and abort signal for all four sharing operations", async () => {
   const fetcher = jest.fn().mockResolvedValue({
     ok: true,

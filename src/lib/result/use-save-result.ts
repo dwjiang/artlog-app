@@ -1,11 +1,12 @@
-import { reportError, addBreadcrumb } from "@/lib/observability";
 import * as Haptics from "expo-haptics";
-import type { CaptureCompletion } from "../capture/completion";
 import { useRef, useState } from "react";
 
+import type { CaptureCompletion } from "@/lib/capture/completion";
+import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from "@/lib/label/contribute";
+import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
+import { reportError, addBreadcrumb } from "@/lib/observability";
+
 import { saveErrorMessage, saveResult, type SaveResultInput } from "./save";
-import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from "../label/contribute";
-import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
 
 export type SaveInput = Omit<SaveResultInput, "capture"> & {
   capture?: SaveResultInput["capture"];

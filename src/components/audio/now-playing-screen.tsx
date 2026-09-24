@@ -6,14 +6,16 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ThemedText as Text } from "@/components/themed-text";
+
 import { DocentSection } from "@/components/scan/result/docent-section";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useListening } from "@/lib/audio/use-listening";
-import { AudioIcon, AudioIconButton } from "./audio-icon";
-import { PlayerTransport, type PlayerView } from "./player-transport";
-import { ListeningQueue, QueueOptions } from "./listening-queue";
+
 import { AddSavedWorks } from "./add-saved-works";
+import { AudioIcon, AudioIconButton } from "./audio-icon";
+import { ListeningQueue, QueueOptions } from "./listening-queue";
+import { PlayerTransport, type PlayerView } from "./player-transport";
 
 export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();

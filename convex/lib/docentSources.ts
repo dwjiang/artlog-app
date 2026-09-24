@@ -1,9 +1,9 @@
-import { reportBackendError } from "./observability";
 import { ConvexError } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { wikidataScore, type SourceDoc } from "./docentPrompts";
+import { reportBackendError } from "./observability";
 import { pageText } from "./pageExtract";
 import { admissibleDomains, sourceScore } from "./sourceScores";
 import { searchWithCredit } from "./tavilySpend";
@@ -66,7 +66,7 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
   const itemIds = SUMMARY_PROPERTIES.filter(({ kind }) => kind === "item").flatMap(({ property }) =>
     itemValues(entity, property),
   );
-  const labels = itemIds.length ? await getEntities(itemIds, "labels") : {};
+  const labels = itemIds.length > 0 ? await getEntities(itemIds, "labels") : {};
   const lines: string[] = [];
   const label = entityLabel(entity);
   if (label) lines.push(`Label: ${label}`);
@@ -76,15 +76,16 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
       values = itemValues(entity, property).flatMap((id) => (labels[id] ? [entityLabel(labels[id]) ?? id] : []));
     } else if (kind === "time") {
       values = yearValues(entity, property).map(String);
-    } else if (kind === "string") values = stringValues(entity, property);
-    else if (kind === "monolingual") {
+    } else if (kind === "string") {
+      values = stringValues(entity, property);
+    } else if (kind === "monolingual") {
       values = monolingualValues(entity, property);
     } else {
       values = quantityValues(entity, property).map(
         ({ amount, unit }) => `${amount}${UNITS[unit] ? ` ${UNITS[unit]}` : ""}`,
       );
     }
-    if (values.length) {
+    if (values.length > 0) {
       lines.push(`${name}: ${[...new Set(values)].join(", ")}`);
     }
   }
@@ -103,7 +104,10 @@ function sourceIdentity(value: string): string {
   }
   const query = [...url.searchParams.entries()]
     .filter(([key]) => !key.startsWith("utm_") && !["lang", "fbclid", "gclid"].includes(key))
-    .sort();
+    .sort((a, b) => {
+      const [left, right] = [a.join(","), b.join(",")];
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
   const suffix = new URLSearchParams(query).toString();
   let path = url.pathname;
   try {
@@ -111,7 +115,7 @@ function sourceIdentity(value: string): string {
   } catch {
     // Legacy museum links carry non-UTF-8 escapes; the raw path still identifies the page.
   }
-  return `${bareHost(value)}${path.replace(/ /g, "_").replace(/\/$/, "")}${suffix ? `?${suffix}` : ""}`;
+  return `${bareHost(value)}${path.replaceAll(" ", "_").replace(/\/$/, "")}${suffix ? `?${suffix}` : ""}`;
 }
 
 function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): boolean {
@@ -135,12 +139,12 @@ function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): bo
 // prose: facts must be copied verbatim, and a copy that drops `*` or `[text](url)` would not match.
 function plainMarkdown(text: string): string {
   return text
-    .replace(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, "")
-    .replace(/\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
-    .replace(/^#{1,6}[ \t]+/gm, "")
-    .replace(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, "$2")
-    .replace(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, "$2")
-    .replace(/\n{3,}/g, "\n\n");
+    .replaceAll(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, "")
+    .replaceAll(/\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
+    .replaceAll(/^#{1,6}[ \t]+/gm, "")
+    .replaceAll(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, "$2")
+    .replaceAll(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, "$2")
+    .replaceAll(/\n{3,}/g, "\n\n");
 }
 
 // The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
@@ -189,7 +193,7 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     }
   }
   const response = await searchWithCredit(ctx, {
-    query: `"${input.artwork.title.replace(/"/g, "")}" ${input.artwork.artist} ${input.owner?.name ?? "painting"}`,
+    query: `"${input.artwork.title.replaceAll('"', "")}" ${input.artwork.artist} ${input.owner?.name ?? "painting"}`,
     includeDomains: admissibleDomains(),
     maxResults: SEARCH_RESULTS,
     includeRawContent: true,
@@ -204,7 +208,7 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     const content = result.rawContent?.trim() || result.content.trim();
     if (score === null || !content) continue;
     // A trusted domain can describe another work with the same title; require the known identity.
-    if (anchors.size && !anchors.has(sourceIdentity(result.url)) && !linksToArtwork(content, result.url, anchors)) {
+    if (anchors.size > 0 && !anchors.has(sourceIdentity(result.url)) && !linksToArtwork(content, result.url, anchors)) {
       continue;
     }
     const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
@@ -218,7 +222,9 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
         score,
         text,
       });
-    } else if (text.length > existing.text.length) existing.text = text;
+    } else if (text.length > existing.text.length) {
+      existing.text = text;
+    }
   }
   return { sources: sources.sort((a, b) => b.score - a.score), failures };
 }

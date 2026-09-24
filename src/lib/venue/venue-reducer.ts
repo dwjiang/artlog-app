@@ -1,5 +1,6 @@
+import { calendarDate } from "@/shared/journal/limits";
+
 import type { Id } from "../../../convex/_generated/dataModel";
-import { calendarDate } from "../../../shared/journal/limits";
 import { type Coordinate, type VenueCandidate, type VenueResolution } from "./resolve";
 
 /** A fix younger than this is reused instead of asking Core Location again. */
@@ -284,7 +285,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     }
     case "visitEnded": {
-      const visit = state.visit;
+      const { visit } = state;
       if (visit?.localId !== event.localId) return state;
       const ended = event.manual
         ? {

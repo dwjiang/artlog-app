@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+
 import { CropEditor } from "./crop-editor";
 
 jest.mock("./crop-corners", () => ({ CropCorners: () => null }));
@@ -23,8 +24,8 @@ jest.mock("expo-image-manipulator", () => ({
     }),
   },
 }));
-const mockPrepare = jest.fn(),
-  mockDiscard = jest.fn();
+const mockPrepare = jest.fn();
+const mockDiscard = jest.fn();
 jest.mock("@/lib/capture/edit-crop", () => ({
   prepareEditedCrop: (...args: unknown[]) => mockPrepare(...args),
   discardEditedCrop: (...args: unknown[]) => mockDiscard(...args),
@@ -53,8 +54,8 @@ it("requires a preview before saving and keeps a failed save available for retry
 });
 
 it("cancels without saving and removes the temporary preview on unmount", async () => {
-  const onSave = jest.fn(),
-    onCancel = jest.fn();
+  const onSave = jest.fn();
+  const onCancel = jest.fn();
   const view = await render(<CropEditor photoPath="full.jpg" onSave={onSave} onCancel={onCancel} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Preview crop" }));
   await fireEvent.press(await screen.findByRole("button", { name: "Cancel" }));

@@ -1,10 +1,12 @@
 import { router } from "expo-router";
-import { api } from "../../../convex/_generated/api";
+
 import { GroupedFooter, GroupedSection, NavigationRow } from "@/components/grouped-list";
+import { PARTICIPATION_LABELS } from "@/components/social/leaderboard-participation";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { PARTICIPATION_LABELS } from "../social/leaderboard-participation";
+
+import { api } from "../../../convex/_generated/api";
 
 export function LeaderboardPreference({ onManage }: { onManage: () => void }) {
   const session = useSocialSession();

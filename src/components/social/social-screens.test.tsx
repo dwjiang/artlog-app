@@ -1,20 +1,22 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import type { SocialSession } from "@/lib/social/use-social-session";
+
 import type { SharedVisit } from "@/lib/social/types";
+import type { SocialSession } from "@/lib/social/use-social-session";
+
+import { ArtworkScreen } from "./artwork-screen";
 import { HomeScreen } from "./home-screen";
 import { PeopleScreen } from "./people-screen";
-import { VisitScreen } from "./visit-screen";
-import { ArtworkScreen } from "./artwork-screen";
 import { VisitArtworks } from "./visit-card";
+import { VisitScreen } from "./visit-screen";
 
-const mockPush = jest.fn(),
-  mockDismissAll = jest.fn(),
-  mockRefresh = jest.fn(),
-  mockLoadMore = jest.fn(),
-  mockPages = jest.fn(),
-  mockQuery = jest.fn();
+const mockPush = jest.fn();
+const mockDismissAll = jest.fn();
+const mockRefresh = jest.fn();
+const mockLoadMore = jest.fn();
+const mockPages = jest.fn();
+const mockQuery = jest.fn();
 const mockSignIn = jest.fn();
 jest.mock("@/lib/audio/use-listening");
 jest.mock("convex/react", () => ({
@@ -49,7 +51,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
 }));
-jest.mock("../account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
+jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
 jest.mock("@/db/repos/settings", () => ({
   getSetting: jest.fn(async () => undefined),
   setSetting: jest.fn(async () => {}),

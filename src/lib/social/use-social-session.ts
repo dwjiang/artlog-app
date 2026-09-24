@@ -1,9 +1,11 @@
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useNetworkState } from "expo-network";
+
+import { useLocalOwner, useOwnerGeneration, useServerScope } from "@/lib/account/owner-store";
+import { convexErrorCode } from "@/lib/network-error";
+import { useDeviceReady } from "@/lib/use-device-ready";
+
 import { api } from "../../../convex/_generated/api";
-import { useLocalOwner, useOwnerGeneration, useServerScope } from "../account/owner-store";
-import { convexErrorCode } from "../network-error";
-import { useDeviceReady } from "../use-device-ready";
 import { useSocialQuery } from "./use-social-query";
 
 export function useSocialSession() {

@@ -1,6 +1,7 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useNetworkState } from "expo-network";
 import { StyleSheet, View } from "react-native";
+
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";

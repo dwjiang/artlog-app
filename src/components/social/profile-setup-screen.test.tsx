@@ -1,14 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
+
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
+
 import { ProfileSetupScreen } from "./profile-setup-screen";
 
-const mockCreate = jest.fn(),
-  mockSavePhoto = jest.fn(),
-  mockBack = jest.fn(),
-  mockDismissTo = jest.fn(),
-  mockReplace = jest.fn(),
-  mockRefresh = jest.fn();
+const mockCreate = jest.fn();
+const mockSavePhoto = jest.fn();
+const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
+const mockReplace = jest.fn();
+const mockRefresh = jest.fn();
 let mockSession: { key: string; status: string; offline: boolean; refresh: () => void };
 let mockSuggestion: string | null;
 let mockTaken: Set<string>;

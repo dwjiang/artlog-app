@@ -1,22 +1,24 @@
-import { reportError } from "@/lib/observability";
-import { TextSkeleton } from "@/components/loading-skeleton";
+import tzLookup from "@photostructure/tz-lookup";
+import { Image } from "expo-image";
 import { useFocusEffect, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
-import { Image } from "expo-image";
-import tzLookup from "@photostructure/tz-lookup";
-import { calendarDate } from "../../../shared/journal/limits";
-import type { Id } from "../../../convex/_generated/dataModel";
+
+import { TextSkeleton } from "@/components/loading-skeleton";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { getVisit } from "@/db/repos/visits";
 import type { Visit } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { readPhotoSession } from "@/lib/capture/photo-draft";
-import { formatVisitDate } from "@/lib/journal/history";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
+import { formatVisitDate } from "@/lib/journal/history";
+import { reportError } from "@/lib/observability";
 import { venueMetadataForIds } from "@/lib/venue/venue-db";
 import { isVisitToday } from "@/lib/venue/venue-reducer";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { ThemedText } from "../themed-text";
+import { calendarDate } from "@/shared/journal/limits";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 
 function dayLabel(visitedOn: string, today: boolean): string {
   return today ? "Today" : formatVisitDate(visitedOn);
@@ -76,8 +78,8 @@ export function CaptureContextButton({
   disabled?: boolean;
   variant?: "chip" | "row";
 }) {
-  const owner = useLocalOwner(),
-    [summary, setSummary] = useState<VisitSummary>();
+  const owner = useLocalOwner();
+  const [summary, setSummary] = useState<VisitSummary>();
   const { photoPath: draftId, visitLocalId, venueId, capturedAt } = capture;
   useFocusEffect(
     useCallback(() => {

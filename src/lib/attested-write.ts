@@ -1,11 +1,11 @@
 import * as Device from "expo-device";
 
-import { api } from "../../convex/_generated/api";
-import { stableStringify } from "../../shared/attestation/stable-stringify";
-
 import { APP_ATTEST_KEY_ID, getAppAttest } from "@/lib/app-attest";
 import { convex } from "@/lib/convex-client";
 import { installationStorage } from "@/lib/installation-storage";
+import { stableStringify } from "@/shared/attestation/stable-stringify";
+
+import { api } from "../../convex/_generated/api";
 
 export type SignedPayload = {
   nonce: string;

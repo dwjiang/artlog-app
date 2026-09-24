@@ -1,4 +1,5 @@
 import { ConvexError, type Infer, v } from "convex/values";
+
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
 import { isUsername } from "./username";
 
@@ -274,7 +275,7 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
     || input.photoSelections?.some(
       (row) =>
         !input.saveLocalIds.includes(row.saveLocalId)
-        || !row.photoLocalIds.length
+        || row.photoLocalIds.length === 0
         || row.photoLocalIds.length > 100
         || new Set(row.photoLocalIds).size !== row.photoLocalIds.length
         || row.photoLocalIds.some((id) => !isUuid(id)),

@@ -1,6 +1,7 @@
 import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
-import { db } from "../client";
-import { artworkPhotos, pendingScans, savedWorks, settings } from "../schema";
+
+import { db } from "@/db/client";
+import { artworkPhotos, pendingScans, savedWorks, settings } from "@/db/schema";
 
 export const recognitionSyncKey = (owner: string, localId: string) => `recognitionSync:${owner}:${localId}`;
 

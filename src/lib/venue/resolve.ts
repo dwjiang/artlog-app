@@ -1,5 +1,6 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 
 /** A single seeded row this close is the venue. */
 export const AUTO_RADIUS_M = 150;

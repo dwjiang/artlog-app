@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { ActionRow, NavigationRow, ValueRow } from "./grouped-list";
+
 import { GalleryIconButton } from "./collection/gallery-icon-button";
+import { ActionRow, NavigationRow, ValueRow } from "./grouped-list";
 
 it("keeps action identity while showing progress and blocking duplicate activation", async () => {
   const onPress = jest.fn();

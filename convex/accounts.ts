@@ -1,4 +1,3 @@
-import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { ConvexError, v } from "convex/values";
 
 import { stableStringify } from "../shared/attestation/stable-stringify";
@@ -8,6 +7,7 @@ import { requireAttestedWrite } from "./devices";
 import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos } from "./lib/collectionPhotos";
 import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
+import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
 
 const MAX_DEVICES = 20;
@@ -48,15 +48,15 @@ export const linkAccount = mutation({
         createdAt: Date.now(),
       }));
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("accounts", existing._id, {
         deviceIds,
         ...(proof.email ? { email: proof.email } : {}),
       });
     }
-    const members = await Promise.all(deviceIds.map((id) => ctx.db.get(id)));
+    const members = await Promise.all(deviceIds.map((id) => ctx.db.get("devices", id)));
     const trustWeight = Math.max(...members.map((member) => member?.trustWeight ?? 0));
     for (const member of members) {
-      if (member) await ctx.db.patch(member._id, { trustWeight });
+      if (member) await ctx.db.patch("devices", member._id, { trustWeight });
     }
     const claim = await ctx.db
       .query("journalClaims")
@@ -72,10 +72,10 @@ export const linkAccount = mutation({
         phase: "visits" as const,
         createdAt: Date.now(),
       };
-      if (claim) await ctx.db.delete(claim._id);
+      if (claim) await ctx.db.delete("journalClaims", claim._id);
       await ctx.db.insert("journalClaims", fields);
     }
-    await ctx.db.patch(device._id, {
+    await ctx.db.patch("devices", device._id, {
       accountId,
       appleLinkProof: undefined,
       scopeRevision: (device.scopeRevision ?? 0) + 1,
@@ -94,14 +94,14 @@ export const unlink = mutation({
       .query("journalClaims")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
       .unique();
-    if (claim) await ctx.db.delete(claim._id);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    if (claim) await ctx.db.delete("journalClaims", claim._id);
+    const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
     if (account) {
-      await ctx.db.patch(account._id, {
+      await ctx.db.patch("accounts", account._id, {
         deviceIds: account.deviceIds.filter((id) => id !== device._id),
       });
     }
-    await ctx.db.patch(device._id, {
+    await ctx.db.patch("devices", device._id, {
       accountId: undefined,
       appleLinkProof: undefined,
       scopeRevision: (device.scopeRevision ?? 0) + 1,
@@ -115,7 +115,7 @@ export const deleteAccount = mutation({
   returns: v.null(),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
     if (!account) return null;
     const claims = await ctx.db
       .query("journalClaims")
@@ -125,9 +125,9 @@ export const deleteAccount = mutation({
       throw new ConvexError({ code: "claim_required" });
     }
     for (const id of account.deviceIds) {
-      const member = await ctx.db.get(id);
+      const member = await ctx.db.get("devices", id);
       if (member?.accountId === account._id) {
-        await ctx.db.patch(id, {
+        await ctx.db.patch("devices", id, {
           accountId: undefined,
           appleLinkProof: undefined,
           scopeRevision: (member.scopeRevision ?? 0) + 1,
@@ -140,16 +140,16 @@ export const deleteAccount = mutation({
         q.eq("provider", "apple-native").eq("providerAccountId", account.appleUserId),
       )
       .unique();
-    if (authAccount) await ctx.db.delete(authAccount._id);
+    if (authAccount) await ctx.db.delete("authAccounts", authAccount._id);
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
       .unique();
     if (profile) {
-      await ctx.db.patch(profile._id, { active: false, publishedWallCount: 0 });
+      await ctx.db.patch("profiles", profile._id, { active: false, publishedWallCount: 0 });
     }
-    for (const claim of claims) await ctx.db.delete(claim._id);
-    await ctx.db.delete(account._id);
+    for (const claim of claims) await ctx.db.delete("journalClaims", claim._id);
+    await ctx.db.delete("accounts", account._id);
     await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
       accountId: account._id,
     });
@@ -162,7 +162,7 @@ export const purgeJournal = internalMutation({
   args: { accountId: v.id("accounts") },
   returns: v.null(),
   handler: async (ctx, { accountId }) => {
-    if (await ctx.db.get(accountId)) return null;
+    if (await ctx.db.get("accounts", accountId)) return null;
     if (await purgeSocialBatch(ctx, accountId)) {
       await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
         accountId,
@@ -182,7 +182,7 @@ export const purgeJournal = internalMutation({
         return null;
       }
       await deleteSavedRecognition(ctx, save._id);
-      await ctx.db.delete(save._id);
+      await ctx.db.delete("collections", save._id);
       await deleteUnreferencedCollectionPhotos(ctx, save);
     }
     const visits =
@@ -192,7 +192,7 @@ export const purgeJournal = internalMutation({
             .withIndex("by_owner_localId", (q) => q.eq("owner", owner))
             .take(PURGE_BATCH - saves.length)
         : [];
-    for (const visit of visits) await ctx.db.delete(visit._id);
+    for (const visit of visits) await ctx.db.delete("visits", visit._id);
     if (saves.length + visits.length === PURGE_BATCH) {
       await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
         accountId,
@@ -203,7 +203,7 @@ export const purgeJournal = internalMutation({
       .query("journalSyncState")
       .withIndex("by_owner", (q) => q.eq("owner", owner))
       .unique();
-    if (state) await ctx.db.delete(state._id);
+    if (state) await ctx.db.delete("journalSyncState", state._id);
     return null;
   },
 });
@@ -220,7 +220,7 @@ export const me = query({
   }),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
     const profile = account
       ? await ctx.db
           .query("profiles")

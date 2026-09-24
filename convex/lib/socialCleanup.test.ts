@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+
 import { api, internal } from "../_generated/api";
 import { harness } from "../test.helpers";
 import { befriend, socialDerivative, socialUser, socialVisit } from "./socialTestFixtures";
@@ -6,10 +7,10 @@ import { befriend, socialDerivative, socialUser, socialVisit } from "./socialTes
 it("revokes immediately, purges social references in batches, and deletes files after the last reference", async () => {
   vi.useFakeTimers();
   try {
-    const t = harness({ transactionLimits: true }),
-      a = await socialUser(t),
-      b = await socialUser(t),
-      draft = await socialVisit(t, a, 50);
+    const t = harness({ transactionLimits: true });
+    const a = await socialUser(t);
+    const b = await socialUser(t);
+    const draft = await socialVisit(t, a, 50);
     await befriend(a, b);
     const post = await a.as.mutation(api.sharedVisits.publish, draft.selection);
     const reportId = await a.as.mutation(api.reports.submit, {
@@ -67,7 +68,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     await t.mutation(internal.accounts.purgeJournal, {
       accountId: a.accountId,
     });
-    expect(await t.run((ctx) => ctx.db.get(a.profileId))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("profiles", a.profileId))).not.toBeNull();
     await a.as.mutation(api.accounts.deleteAccount, {});
     await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({
       data: { code: "not_found" },
@@ -88,8 +89,8 @@ it("revokes immediately, purges social references in batches, and deletes files 
     ] as const) {
       expect(await t.run((ctx) => ctx.db.query(table).collect())).toEqual([]);
     }
-    expect(await t.run((ctx) => ctx.db.get(a.profileId))).toBeNull();
-    expect(await t.run((ctx) => ctx.db.get(b.profileId))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("profiles", a.profileId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("profiles", b.profileId))).not.toBeNull();
     expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).toBeNull();
     const report = await t.query(internal.review.getReport, { reportId });
     expect(report?.reporter).toBeUndefined();

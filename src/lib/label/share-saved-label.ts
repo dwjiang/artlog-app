@@ -1,13 +1,14 @@
-import { reportError } from "@/lib/observability";
 import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { AppState } from "react-native";
 
-import { captureOwner } from "@/lib/account/owner-store";
 import { findArtworkPhoto } from "@/db/repos/artwork-album";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { listSettings, removeSetting, setSetting } from "@/db/repos/settings";
+import { captureOwner } from "@/lib/account/owner-store";
 import { isTransientError } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
+
 import {
   contributeLabel,
   contributionErrorMessage,

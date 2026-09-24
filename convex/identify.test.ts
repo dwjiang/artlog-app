@@ -1,15 +1,15 @@
-import { insertVector } from "./lib/vectorStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
-import { api, internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
+import { insertVector } from "./lib/vectorStore";
 import { harness, signIn } from "./test.helpers";
 
 beforeEach(() => {
@@ -33,7 +33,7 @@ const capture = () => ({
 });
 
 const storedCorners = async (t: ReturnType<typeof harness>, scanId: Id<"scans">) =>
-  (await t.run((ctx) => ctx.db.get(scanId)))?.best?.corners;
+  (await t.run((ctx) => ctx.db.get("scans", scanId)))?.best?.corners;
 
 async function fixture(withWork = true) {
   const t = harness();
@@ -122,13 +122,13 @@ describe("identify action", () => {
     expect(result.best).not.toHaveProperty("corners");
     expect(await storedCorners(t, result.scanId)).toHaveLength(4);
     expect(await user.as.query(api.scans.get, { scanId: result.scanId })).toEqual(result);
-    expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("visits", visitId))).toMatchObject({
       lastConfidentGallery: "4",
       lastConfidentAt: args.capturedAt,
     });
-    const scan = await t.run((ctx) => ctx.db.get(result.scanId));
+    const scan = await t.run((ctx) => ctx.db.get("scans", result.scanId));
     expect(scan).not.toHaveProperty("vector");
-    expect((await t.run((ctx) => ctx.db.get(scan!.embeddingId)))!.vector).toEqual(args.vector);
+    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", scan!.embeddingId)))!.vector).toEqual(args.vector);
     expect(scan?.candidateSignals).toHaveLength(1);
     const [signals] = scan!.candidateSignals!;
     expect(signals).toMatchObject({
@@ -175,11 +175,11 @@ describe("identify action", () => {
       outcome: "confident",
     });
     expect(updated.error).toBeUndefined();
-    expect(await t.run((ctx) => ctx.db.get(old.scanId))).toMatchObject({
+    expect(await t.run((ctx) => ctx.db.get("scans", old.scanId))).toMatchObject({
       modelVersion: model.modelVersion,
     });
-    const saved = (await t.run((ctx) => ctx.db.get(old.scanId)))!;
-    expect((await t.run((ctx) => ctx.db.get(saved.embeddingId)))!.vector).toEqual(args.vector);
+    const saved = (await t.run((ctx) => ctx.db.get("scans", old.scanId)))!;
+    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", saved.embeddingId)))!.vector).toEqual(args.vector);
     expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(1);
   });
 
@@ -199,7 +199,7 @@ describe("identify action", () => {
       vector: args.vector,
       capturedAt: args.capturedAt,
     });
-    const before = await t.run((ctx) => ctx.db.get(obsolete.scanId));
+    const before = await t.run((ctx) => ctx.db.get("scans", obsolete.scanId));
     expect(before).toMatchObject({
       status: "pending",
       generation: 1,
@@ -211,7 +211,7 @@ describe("identify action", () => {
         scope: (await user.as.query(api.accounts.me, {})).scope,
       }),
     ).toMatchObject({ scanId: obsolete.scanId, status: "pending" });
-    expect(await t.run((ctx) => ctx.db.get(obsolete.scanId))).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.get("scans", obsolete.scanId))).toEqual(before);
 
     await t.run((ctx) =>
       seedArtworkWithObject(ctx, {
@@ -292,7 +292,7 @@ describe("identify action", () => {
       }),
     ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
     const user = await seedDevice(t);
-    await t.run((ctx) => ctx.db.patch(user.deviceId, { banned: true }));
+    await t.run((ctx) => ctx.db.patch("devices", user.deviceId, { banned: true }));
     await expect(
       user.as.action(api.identify.identify, {
         ...capture(),
@@ -376,9 +376,7 @@ describe("identify action", () => {
         outcome: "confident",
         best: { objectId: work.objectId },
       });
-      if (count === 0) {
-        expect(await storedCorners(t, result.scanId)).toBeUndefined();
-      } else expect(await storedCorners(t, result.scanId)).toHaveLength(4);
+      expect((await storedCorners(t, result.scanId))?.length).toBe(count === 0 ? undefined : 4);
     },
   );
 
@@ -388,7 +386,7 @@ describe("identify action", () => {
       ...args,
       scope: (await user.as.query(api.accounts.me, {})).scope,
     });
-    await t.run((ctx) => ctx.db.delete(work!.vectorId));
+    await t.run((ctx) => ctx.db.delete("vectors", work!.vectorId));
     expect(
       await user.as.action(api.identify.identify, {
         ...args,
@@ -422,7 +420,7 @@ describe("identify action", () => {
     async (multiplicity) => {
       const { t, user, args, work } = await fixture();
       const otherVenue = await t.run((ctx) => seedMuseum(ctx));
-      await t.run((ctx) => ctx.db.patch(work!.artworkId, { multiplicity }));
+      await t.run((ctx) => ctx.db.patch("artworks", work!.artworkId, { multiplicity }));
       const firstArgs = { ...args, venueId: otherVenue, visitId: undefined };
       const result = await user.as.action(api.identify.identify, {
         ...firstArgs,
@@ -466,7 +464,7 @@ describe("identify action", () => {
         scope: (await other.as.query(api.accounts.me, {})).scope,
       });
       await propose(other.as, otherScan.scanId);
-      const proposal = await t.run((ctx) => ctx.db.get(before[0]._id));
+      const proposal = await t.run((ctx) => ctx.db.get("placementProposals", before[0]._id));
       expect(proposal).toMatchObject({
         readyForReview: false,
         deviceIds: [user.deviceId, other.deviceId],
@@ -551,7 +549,7 @@ describe("enrichment after identification", () => {
     vi.useFakeTimers({ now: FIXTURE_NOW });
     const fetchMock = stubProviders();
     const { t, user, venueId, args, work } = await fixture();
-    await t.run((ctx) => ctx.db.patch(venueId, { region: "sf-bay-area" }));
+    await t.run((ctx) => ctx.db.patch("museums", venueId, { region: "sf-bay-area" }));
     const result = await user.as.action(api.identify.identify, {
       ...args,
       scope: (await user.as.query(api.accounts.me, {})).scope,
@@ -561,7 +559,7 @@ describe("enrichment after identification", () => {
     expect(result.rightNow).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en).toEqual([
+    expect((await t.run((ctx) => ctx.db.get("artworks", work!.artworkId)))?.docent?.en).toEqual([
       {
         sentence: "Claude Monet painted these water lilies in 1916.",
         factIds: ["f1"],
@@ -600,7 +598,7 @@ describe("enrichment after identification", () => {
     expect(result.outcome).toBe("soft");
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get("artworks", work!.artworkId)))?.docent).toBeUndefined();
     const display = await user.as.query(api.scans.get, {
       scanId: result.scanId,
     });
@@ -632,7 +630,7 @@ describe("candidate loading", () => {
         target.embeddingId,
         merged.embeddingId,
         second.embeddingId,
-        (await t.run((ctx) => ctx.db.get(duplicate)))!.embeddingId,
+        (await t.run((ctx) => ctx.db.get("vectors", duplicate)))!.embeddingId,
       ],
       scores: [0.9, 0.99, 0.8, 0.95],
       now: Date.now(),
@@ -659,7 +657,7 @@ describe("candidate loading", () => {
         object: { mergedInto: toReverted.objectId },
       });
       const missing = await seedArtworkWithObject(ctx);
-      await ctx.db.delete(missing.objectId);
+      await ctx.db.delete("objects", missing.objectId);
       return [reverted, toReverted, chain, missing];
     });
     expect(

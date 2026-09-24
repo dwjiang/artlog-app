@@ -1,10 +1,11 @@
-import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
+import { Alert } from "react-native";
+
+import { setSetting } from "@/db/repos/settings";
 
 import { SettingsDetailScreen } from "./settings-detail-screen";
 import { SettingsScreen } from "./settings-screen";
-import { setSetting } from "@/db/repos/settings";
 
 const mockPush = jest.fn();
 const mockWithdraw = jest.fn();
@@ -47,7 +48,7 @@ jest.mock("expo-network", () => ({
   }),
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/lib/use-device-ready", () => ({

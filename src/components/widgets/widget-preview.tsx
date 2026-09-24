@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
+
 import type { PreparedWidgetArtwork } from "@/lib/widgets/widget-collection";
 import { paintingLayout, widgetPresentation, type WidgetLayout } from "@/lib/widgets/widget-layout";
 import type { WidgetSettings, WidgetSize } from "@/lib/widgets/widget-settings";
@@ -63,8 +64,8 @@ export function WidgetPreview({
   size: WidgetSize;
   width: number;
 }) {
-  const presentation = widgetPresentation(artwork, settings),
-    layout = presentation[size];
+  const presentation = widgetPresentation(artwork, settings);
+  const layout = presentation[size];
   const scale = width / layout.width;
   return (
     <View

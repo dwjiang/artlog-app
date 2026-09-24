@@ -1,21 +1,21 @@
 import { validateMedia } from "../../shared/social/contracts";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { eligibleContribution, eligibleObject } from "./recognitionEligibility";
-import { internal } from "../_generated/api";
 
 export async function contributionSource(ctx: QueryCtx, save: Doc<"collections">) {
   if (
     save.deletedAt !== undefined
     || !save.scanId
-    || (save.owner.kind === "account" && !(await ctx.db.get(save.owner.accountId)))
+    || (save.owner.kind === "account" && !(await ctx.db.get("accounts", save.owner.accountId)))
   ) {
     return null;
   }
   // The contribution submission is the consent boundary; journal/owner photos are never sources. saveToCollection
   // only links scans made by the saving device, so the device's current account link is not rechecked here:
   // signing out must not unpublish media.
-  const scan = await ctx.db.get(save.scanId);
+  const scan = await ctx.db.get("scans", save.scanId);
   const contribution = scan
     ? await ctx.db
         .query("contributions")
@@ -57,9 +57,9 @@ export async function isCurrentAsset(
     if (asset.provenance.kind !== "catalog" || save.objectId !== asset.provenance.objectId) {
       return false;
     }
-    const object = await ctx.db.get(asset.provenance.objectId);
-    const artwork = object ? await ctx.db.get(object.artworkId) : null;
-    const venue = object?.ownerId ? await ctx.db.get(object.ownerId) : null;
+    const object = await ctx.db.get("objects", asset.provenance.objectId);
+    const artwork = object ? await ctx.db.get("artworks", object.artworkId) : null;
+    const venue = object?.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
     return (
       !!object
       && (await eligibleObject(ctx, object, object.ownerId))
@@ -98,7 +98,7 @@ export async function resolveDisplayAsset(ctx: QueryCtx, save: Doc<"collections"
 }
 
 export async function revokeAsset(ctx: MutationCtx, asset: Doc<"mediaAssets">) {
-  await ctx.db.patch(asset._id, {
+  await ctx.db.patch("mediaAssets", asset._id, {
     revokedAt: asset.revokedAt ?? Date.now(),
     storageId: undefined,
   });
@@ -109,15 +109,15 @@ export async function revokeAsset(ctx: MutationCtx, asset: Doc<"mediaAssets">) {
 export async function revokeSaveMedia(ctx: MutationCtx, saveId: Id<"collections">) {
   const assets = await ctx.db
     .query("mediaAssets")
-    .withIndex("by_saveId", (q) => q.eq("saveId", saveId))
+    .withIndex("by_save_kind", (q) => q.eq("saveId", saveId))
     .take(2);
   for (const asset of assets) await revokeAsset(ctx, asset);
 }
 
 export async function revokeContributionMedia(ctx: MutationCtx, contributionId: Id<"contributions">): Promise<void> {
-  const contribution = await ctx.db.get(contributionId);
+  const contribution = await ctx.db.get("contributions", contributionId);
   if (contribution && contribution.displayMediaRevokedAt === undefined) {
-    await ctx.db.patch(contributionId, { displayMediaRevokedAt: Date.now() });
+    await ctx.db.patch("contributions", contributionId, { displayMediaRevokedAt: Date.now() });
   }
   const assets = await ctx.db
     .query("mediaAssets")

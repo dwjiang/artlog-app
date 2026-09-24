@@ -1,10 +1,10 @@
 import { StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingRing } from "@/components/loading-ring";
+import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import { ParagraphSkeleton } from "@/components/loading-skeleton";
-import { LoadingRing } from "@/components/loading-ring";
 
 // Product voice: the card says "waiting for signal" and asks for the label now.
 export const WAITING_TITLE = "Waiting for signal";

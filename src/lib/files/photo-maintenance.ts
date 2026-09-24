@@ -1,7 +1,9 @@
 import { Directory, File, Paths } from "expo-file-system";
+
 import { listKeptPhotos } from "@/db/repos/kept-photos";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { reportError } from "@/lib/observability";
+
 import { cleanupCameraTempFiles } from "./camera-temp";
 import { keepPhotos, type KeptPhoto } from "./kept-photos";
 
@@ -14,8 +16,9 @@ async function maintainPhotos(): Promise<void> {
     const saved = listKeptPhotos();
     let existing: KeptPhoto[];
     const stored = await getSetting(EXISTING_ORIGINALS);
-    if (stored !== undefined) existing = JSON.parse(stored) as KeptPhoto[];
-    else {
+    if (stored !== undefined) {
+      existing = JSON.parse(stored) as KeptPhoto[];
+    } else {
       // Snapshot the pre-existing originals once, including old scans still in the queue.
       // Later launches only add newly kept photos; unsaved captures keep their originals.
       const kinds = new Map(saved.map((photo) => [photo.path, photo.kind]));

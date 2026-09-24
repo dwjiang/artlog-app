@@ -1,11 +1,12 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
 import { seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 async function fixture() {
-  const t = harness(),
-    user = await seedDevice(t);
+  const t = harness();
+  const user = await seedDevice(t);
   const venueId = await t.run(seedMuseum);
   const visit = {
     visibility: "public" as const,
@@ -22,6 +23,7 @@ async function fixture() {
     });
   return { t, user, visit, upsert };
 }
+
 it("preserves capture dates, real times, empty visits, and UUID idempotence", async () => {
   const { t, visit, upsert } = await fixture();
   const first = await upsert();
@@ -38,11 +40,13 @@ it("preserves capture dates, real times, empty visits, and UUID idempotence", as
   expect(await t.run((ctx) => ctx.db.query("visits").collect())).toHaveLength(2);
   expect(await t.run((ctx) => ctx.db.query("collections").collect())).toEqual([]);
 });
+
 it("supports a manual visit without inventing timestamps", async () => {
   const { upsert } = await fixture();
   const row = await upsert({ startedAt: undefined });
   expect(row).not.toHaveProperty("startedAt");
 });
+
 it.each([
   { localId: "" },
   { visitedOn: "2026-02-30" },
@@ -57,6 +61,7 @@ it.each([
     data: { code: "invalid_visit" },
   });
 });
+
 it("isolates owners and prevents changing the venue of an existing visit", async () => {
   const { t, user, visit, upsert } = await fixture();
   const first = await upsert();
@@ -74,6 +79,7 @@ it("isolates owners and prevents changing the venue of an existing visit", async
     data: { code: "invalid_visit" },
   });
 });
+
 it("pages history by calendar date and UUID, including empty repeats and museum filters", async () => {
   const { t, user, visit } = await fixture();
   const secondVenue = await t.run(seedMuseum);
@@ -110,6 +116,7 @@ it("pages history by calendar date and UUID, including empty repeats and museum 
     data: { code: "invalid_pagination" },
   });
 });
+
 it("hides foreign detail and membership and keeps a visit after its last save is removed", async () => {
   const { t, user, visit, upsert } = await fixture();
   await upsert();

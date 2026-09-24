@@ -1,5 +1,7 @@
 import type { ImageRef } from "expo-image-manipulator";
+
 import { loadLocalImage } from "@/lib/files/local-image";
+
 import { PRESENTATION_LOAD_TIMEOUT_MS, PresentationImages } from "./presentation-images";
 
 jest.mock("@/lib/files/local-image", () => ({ loadLocalImage: jest.fn() }));
@@ -14,8 +16,8 @@ afterEach(() => {
 });
 
 it("holds decoded images after source files move, releasing each exactly once at the end", async () => {
-  const photo = image(),
-    crop = image();
+  const photo = image();
+  const crop = image();
   load.mockResolvedValueOnce(photo).mockResolvedValueOnce(crop);
   const images = new PresentationImages();
   expect(await images.load("file:///photo.jpg")).toBe(photo);

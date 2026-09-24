@@ -1,17 +1,20 @@
 import { getFunctionName } from "convex/server";
-import { switchOwner } from "@/lib/account/owner-store";
-import { flushJournal } from "@/lib/account/collection-sync";
-import { syncSavedRecognition } from "@/lib/account/recognition-sync";
+
 import { upsertFromRemote } from "@/db/repos/saved-works";
-import { identifySavedArtwork, acceptSavedRecognition } from "./saved-recognition";
+import { flushJournal } from "@/lib/account/collection-sync";
+import { switchOwner } from "@/lib/account/owner-store";
+import { syncSavedRecognition } from "@/lib/account/recognition-sync";
+import { SyncUnavailableError } from "@/lib/network-error";
+
 import type { Id } from "../../../convex/_generated/dataModel";
+import { identifySavedArtwork, acceptSavedRecognition } from "./saved-recognition";
 
 jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: jest.fn() }));
 jest.mock("@/lib/account/recognition-sync", () => ({ syncSavedRecognition: jest.fn() }));
 jest.mock("@/db/repos/saved-works", () => ({ upsertFromRemote: jest.fn() }));
 jest.mock("@/lib/files/unreferenced-photos", () => ({ removeUnreferencedPhotos: jest.fn() }));
-const mockAction = jest.fn(),
-  mockMutation = jest.fn();
+const mockAction = jest.fn();
+const mockMutation = jest.fn();
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     action: (...args: unknown[]) => mockAction(...args),
@@ -41,7 +44,7 @@ it("syncs saved data before searching and does not require the original device's
 
 it("does not search or accept for a different account or apply responses after an account switch", async () => {
   switchOwner("account:other", "other-scope");
-  await expect(identifySavedArtwork(work)).rejects.toThrow();
+  await expect(identifySavedArtwork(work)).rejects.toThrow(SyncUnavailableError);
   expect(mockAction).not.toHaveBeenCalled();
   switchOwner(work.owner, "scope");
   mockAction.mockImplementation(async () => {

@@ -1,13 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { LinkArtworkScreen } from "./link-artwork-screen";
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
 }));
-const mockPush = jest.fn(),
-  mockDismiss = jest.fn(),
-  mockDismissAll = jest.fn(),
-  mockLink = jest.fn(),
-  mockToast = jest.fn();
+const mockPush = jest.fn();
+const mockDismiss = jest.fn();
+const mockDismissAll = jest.fn();
+const mockLink = jest.fn();
+const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
   showToast: (...args: unknown[]) => mockToast(...args),
 }));
@@ -90,6 +92,7 @@ beforeEach(() => {
   mockEmpty = false;
   mockParams = { savedId: "garden" };
 });
+
 it("keeps new-visit creation available even when the search has no matching visits", async () => {
   await render(<LinkArtworkScreen />);
   await fireEvent.changeText(screen.getByLabelText("Search visits"), "missing");
@@ -101,6 +104,7 @@ it("keeps new-visit creation available even when the search has no matching visi
   });
   expect(mockLink).not.toHaveBeenCalled();
 });
+
 it("searches artworks by artist, shows their photos, and returns in the linked visit context", async () => {
   mockParams = { visitId: "paris" };
   await render(<LinkArtworkScreen />);

@@ -1,16 +1,18 @@
 import { useNetworkState } from "expo-network";
-import { ThemedText as Text } from "@/components/themed-text";
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
-import { useCallback, useState, type ReactNode } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
+import { ThemedText as Text } from "@/components/themed-text";
+import { CollectionVisits } from "@/components/visits/collection-visits";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useCollectionData } from "@/lib/collection/use-collection-data";
-import { CollectionVisits } from "../visits/collection-visits";
-import { CollectionHeader } from "./collection-header";
+
 import { CollectionArtworks } from "./collection-artworks";
+import { CollectionHeader } from "./collection-header";
 import { CollectionSearchField } from "./collection-search-field";
 import { CollectionWall } from "./collection-wall";
 import { NativeSegmentedPicker } from "./native-segmented-picker";
@@ -98,7 +100,7 @@ function OwnedCollection({
   const header = (
     <>
       <CollectionHeader
-        loading={data.loading && !data.works.length && !data.visits.length && !data.error}
+        loading={data.loading && data.works.length === 0 && data.visits.length === 0 && !data.error}
         artworkCount={data.works.length}
         visitCount={data.visits.length}
       />

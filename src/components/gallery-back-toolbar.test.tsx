@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { GalleryBackToolbar, previousScreenLabel } from "./gallery-back-toolbar";
 
 const mockBack = jest.fn();

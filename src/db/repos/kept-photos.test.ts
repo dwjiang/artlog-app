@@ -1,8 +1,9 @@
-import { db } from "../client";
-import { artworkPhotos, savedWorks } from "../schema";
+import { db } from "@/db/client";
+import { artworkPhotos, savedWorks } from "@/db/schema";
+
 import { listKeptPhotos } from "./kept-photos";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
 
 it("finds kept photos across journals, keeps label kinds, and skips deleted works and photos", () => {
   db.insert(savedWorks)

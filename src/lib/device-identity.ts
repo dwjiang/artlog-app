@@ -1,15 +1,14 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useAction, useConvexAuth, useMutation } from "convex/react";
-import type { ReactAction, ReactMutation } from "convex/react";
+import { useAction, useConvexAuth, useMutation, type ReactAction, type ReactMutation } from "convex/react";
 import * as Device from "expo-device";
 import { useEffect, useState } from "react";
-
-import { api } from "../../convex/_generated/api";
 
 import { APP_ATTEST_KEY_ID, getAppAttest } from "@/lib/app-attest";
 import { getDeviceAuthSecret } from "@/lib/device-credentials";
 import { installationStorage } from "@/lib/installation-storage";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+
+import { api } from "../../convex/_generated/api";
 
 type DeviceFunctions = {
   registerDevice: ReactMutation<typeof api.devices.registerDevice>;

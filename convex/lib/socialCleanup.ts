@@ -9,8 +9,8 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     .query("leaderboardScores")
     .withIndex("by_account_metric_period", (q) => q.eq("accountId", accountId))
     .take(BATCH);
-  if (scores.length) {
-    for (const row of scores) await ctx.db.delete(row._id);
+  if (scores.length > 0) {
+    for (const row of scores) await ctx.db.delete("leaderboardScores", row._id);
     return true;
   }
   const reporter = { kind: "account" as const, accountId };
@@ -18,9 +18,9 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     .query("reports")
     .withIndex("by_reporter_createdAt", (q) => q.eq("reporter", reporter))
     .take(BATCH);
-  if (reports.length) {
+  if (reports.length > 0) {
     for (const report of reports) {
-      await ctx.db.patch(report._id, { reporter: undefined });
+      await ctx.db.patch("reports", report._id, { reporter: undefined });
     }
     return true;
   }
@@ -33,9 +33,9 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     .query("visitLikes")
     .withIndex("by_profile", (q) => q.eq("profileId", profile._id))
     .take(BATCH);
-  if (likes.length) {
+  if (likes.length > 0) {
     for (const like of likes) {
-      await ctx.db.delete(like._id);
+      await ctx.db.delete("visitLikes", like._id);
       await changeEngagement(ctx, like.publicationId, "likeCount", -1);
     }
     return true;
@@ -44,9 +44,9 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     .query("visitComments")
     .withIndex("by_profile_request", (q) => q.eq("profileId", profile._id))
     .take(BATCH);
-  if (comments.length) {
+  if (comments.length > 0) {
     for (const comment of comments) {
-      await ctx.db.delete(comment._id);
+      await ctx.db.delete("visitComments", comment._id);
       await changeEngagement(ctx, comment.publicationId, "commentCount", -1);
     }
     return true;
@@ -64,19 +64,18 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
       .query("visitComments")
       .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
       .take(BATCH);
-    for (const row of [...reactions, ...discussion]) {
-      await ctx.db.delete(row._id);
-    }
+    for (const reaction of reactions) await ctx.db.delete("visitLikes", reaction._id);
+    for (const comment of discussion) await ctx.db.delete("visitComments", comment._id);
     if (reactions.length === BATCH || discussion.length === BATCH) return true;
     const items = await ctx.db
       .query("sharedVisitItems")
       .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id))
       .take(BATCH);
-    for (const item of items) await ctx.db.delete(item._id);
+    for (const item of items) await ctx.db.delete("sharedVisitItems", item._id);
     if (items.length < BATCH) {
       const counts = await engagement(ctx, publication._id);
-      if (counts) await ctx.db.delete(counts._id);
-      await ctx.db.delete(publication._id);
+      if (counts) await ctx.db.delete("visitEngagement", counts._id);
+      await ctx.db.delete("sharedVisits", publication._id);
     }
     return true;
   }
@@ -89,66 +88,67 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
       .query("wallItems")
       .withIndex("by_wall_active", (q) => q.eq("wallId", wall._id))
       .take(BATCH);
-    for (const item of items) await ctx.db.delete(item._id);
-    if (items.length < BATCH) await ctx.db.delete(wall._id);
+    for (const item of items) await ctx.db.delete("wallItems", item._id);
+    if (items.length < BATCH) await ctx.db.delete("walls", wall._id);
     return true;
   }
   const first = await ctx.db
     .query("friendships")
     .withIndex("by_first_state", (q) => q.eq("firstProfileId", profile._id))
     .take(BATCH);
-  const second = first.length
-    ? []
-    : await ctx.db
-        .query("friendships")
-        .withIndex("by_second_state", (q) => q.eq("secondProfileId", profile._id))
-        .take(BATCH);
-  if (first.length || second.length) {
-    for (const edge of [...first, ...second]) await ctx.db.delete(edge._id);
+  const second =
+    first.length > 0
+      ? []
+      : await ctx.db
+          .query("friendships")
+          .withIndex("by_second_state", (q) => q.eq("secondProfileId", profile._id))
+          .take(BATCH);
+  if (first.length > 0 || second.length > 0) {
+    for (const edge of [...first, ...second]) await ctx.db.delete("friendships", edge._id);
     return true;
   }
   const outgoing = await ctx.db
     .query("blocks")
     .withIndex("by_pair", (q) => q.eq("blockerId", profile._id))
     .take(BATCH);
-  const incoming = outgoing.length
-    ? []
-    : await ctx.db
-        .query("blocks")
-        .withIndex("by_blockedId", (q) => q.eq("blockedId", profile._id))
-        .take(BATCH);
-  if (outgoing.length || incoming.length) {
+  const incoming =
+    outgoing.length > 0
+      ? []
+      : await ctx.db
+          .query("blocks")
+          .withIndex("by_blockedId", (q) => q.eq("blockedId", profile._id))
+          .take(BATCH);
+  if (outgoing.length > 0 || incoming.length > 0) {
     for (const block of [...outgoing, ...incoming]) {
-      await ctx.db.delete(block._id);
+      await ctx.db.delete("blocks", block._id);
     }
     return true;
   }
   if (profile.photoStorageId) await ctx.storage.delete(profile.photoStorageId);
-  await ctx.db.delete(profile._id);
+  await ctx.db.delete("profiles", profile._id);
   return true;
 }
 // True when a full batch was removed and more rows may remain.
 export async function purgeSaveMediaBatch(ctx: MutationCtx, saveId: Id<"collections">): Promise<boolean> {
   const photos = await ctx.db
     .query("artworkPhotos")
-    .withIndex("by_saveId", (q) => q.eq("saveId", saveId))
+    .withIndex("by_save_deletedAt", (q) => q.eq("saveId", saveId))
     .take(BATCH);
   const encounters = await ctx.db
     .query("artworkEncounters")
     .withIndex("by_save_visit", (q) => q.eq("saveId", saveId))
     .take(BATCH);
-  for (const child of [...photos, ...encounters]) {
-    await ctx.db.delete(child._id);
-  }
+  for (const photo of photos) await ctx.db.delete("artworkPhotos", photo._id);
+  for (const encounter of encounters) await ctx.db.delete("artworkEncounters", encounter._id);
   for (const photo of photos) {
     if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
   }
   if (photos.length === BATCH || encounters.length === BATCH) return true;
   const assets = await ctx.db
     .query("mediaAssets")
-    .withIndex("by_saveId", (q) => q.eq("saveId", saveId))
+    .withIndex("by_save_kind", (q) => q.eq("saveId", saveId))
     .take(BATCH);
-  for (const asset of assets) await ctx.db.delete(asset._id);
+  for (const asset of assets) await ctx.db.delete("mediaAssets", asset._id);
   for (const storageId of new Set(assets.map((asset) => asset.storageId))) {
     if (storageId) await deleteUnreferencedPhoto(ctx, storageId);
   }

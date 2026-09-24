@@ -1,10 +1,12 @@
-import { reportError } from "@/lib/observability";
 import { File } from "expo-file-system";
 import { getNetworkStateAsync } from "expo-network";
+
+import { captureOwner } from "@/lib/account/owner-store";
+import { convex } from "@/lib/convex-client";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
+
 import { api } from "../../../convex/_generated/api";
-import { captureOwner } from "../account/owner-store";
-import { convex } from "../convex-client";
-import { captureFileUri } from "../files/photos";
 import { albumMatch } from "./album-match";
 import { captureOptions, defaultStages } from "./default-stages";
 import { extractFeatures } from "./features";

@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
-import { MUSEUM_SEARCH_SETTING } from "./museum-search-section";
 import { SEARCH_CONSENT_TITLE } from "@/components/scan/result/search-consent-sheet";
 import { runMuseumSearch } from "@/lib/museum-search/flow";
-import { SettingsDetailScreen } from "./settings-detail-screen";
 import * as museumSearch from "@/lib/settings/museum-search";
+
+import { MUSEUM_SEARCH_SETTING } from "./museum-search-section";
+import { SettingsDetailScreen } from "./settings-detail-screen";
 
 const { getMuseumSearchConsent, setMuseumSearchConsent } = museumSearch;
 
@@ -13,7 +14,7 @@ jest.mock("./leaderboard-preference", () => ({
   LeaderboardPreference: () => null,
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));

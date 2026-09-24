@@ -1,17 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import * as settings from "@/db/repos/settings";
+
 import { VisitPreference } from "./visit-preference";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 beforeEach(() => settings.removeSetting("remember-visit-view:device:test-installation"));
 afterEach(() => jest.restoreAllMocks());
 
-const read = settings.getSetting,
-  write = settings.setSetting;
+const read = settings.getSetting;
+const write = settings.setSetting;
 
 /** Holds the spied call until the returned release runs, then forwards it to the real read or write. */
 function hold<A extends unknown[], R>(spy: jest.SpyInstance<Promise<R>, A>, original: (...args: A) => Promise<R>) {

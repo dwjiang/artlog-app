@@ -13,6 +13,7 @@ import {
   widgetURL,
 } from "@expo/ui/swift-ui/modifiers";
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
+
 import type { WidgetPresentation } from "./widget-layout";
 
 function ArtlogWidget(props: WidgetPresentation, environment: WidgetEnvironment & { width?: number; height?: number }) {

@@ -1,4 +1,5 @@
 import { DEFAULT_WALL_FRAME } from "@/shared/wall/defaults";
+
 import type { LayoutInput, OwnerWall } from "./wall-transport";
 
 export type WallDraft = Pick<LayoutInput, "color" | "items">;
@@ -55,7 +56,7 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
   );
   return {
     ...placement,
-    y: neighbors.length ? wallBottom(neighbors) + 0.16 : index % 2 ? 0.12 : 0.06,
+    y: neighbors.length > 0 ? wallBottom(neighbors) + 0.16 : index % 2 ? 0.12 : 0.06,
     layer: index,
     frame: DEFAULT_WALL_FRAME,
   };

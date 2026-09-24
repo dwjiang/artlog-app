@@ -2,16 +2,18 @@ import { BottomSheet, RNHostView } from "@expo/ui";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { FlatList, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
 import { currentWidgetIndex } from "@/lib/widgets/widget-publisher";
-import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { widgetCaptions, widgetColors, widgetFrames, type WidgetSize } from "@/lib/widgets/widget-settings";
+
 import { WidgetSettingRow, WidgetTile } from "./widget-controls";
 import { WidgetFrameSample, WidgetPreview } from "./widget-preview";
 import { WidgetSetupGuide } from "./widget-setup-guide";
@@ -54,7 +56,7 @@ export function WidgetsScreen() {
   const color = widgetColors.find((option) => option.value === preferences.color)!;
   const finish = widgetFrames.find((option) => option.value === preferences.frame)!;
   const caption = widgetCaptions.find((option) => option.value === preferences.caption)!;
-  const source = preferences.source;
+  const { source } = preferences;
   const selectedVisit = source.kind === "visit" ? visits.find((visit) => visit.localId === source.id) : undefined;
   const selectedArtwork = source.kind === "artwork" ? allArtworks.find((art) => art.id === source.id) : undefined;
   const sourceDescription =
@@ -186,7 +188,7 @@ export function WidgetsScreen() {
               <LoadingRing accessibilityLabel="Preparing your widget" />
             </View>
           )}
-          {!loading && !syncing && !prepared.length && (
+          {!loading && !syncing && prepared.length === 0 && (
             <Text variant="secondary" themeColor="textSecondary" style={{ marginTop: 16 }}>
               {allArtworks.length === 0
                 ? "Save a painting to see it in your widget."

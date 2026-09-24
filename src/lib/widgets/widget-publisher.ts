@@ -34,7 +34,7 @@ export function createWidgetPublisher(dependencies: {
       }
       if (!current()) return;
       dependencies.write(
-        ready.length
+        ready.length > 0
           ? ready.map((artwork) => widgetPresentation(artwork, settings))
           : [widgetPresentation(undefined, settings)],
       );

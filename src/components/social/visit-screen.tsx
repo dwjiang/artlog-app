@@ -1,23 +1,25 @@
-import { SearchEmptyState } from "../empty-state";
 import { useRouter } from "expo-router";
 import { useEffect, useState, type ReactElement } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../../convex/_generated/api";
+
+import { DisplayMedia } from "@/components/artwork/display-media";
+import { SearchEmptyState } from "@/components/empty-state";
+import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText as Text } from "@/components/themed-text";
+import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from "@/components/visits/visit-gallery";
+import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Fonts, Gallery, Typography } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { visitDate } from "@/lib/social/presentation";
 import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { DisplayMedia } from "../artwork/display-media";
-import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from "../visits/visit-gallery";
-import { VisitSymbol } from "../visits/visit-ui";
+
+import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
-import { ThemedText as Text } from "@/components/themed-text";
-import { LoadingRing } from "@/components/loading-ring";
 import { VisitReactions } from "./visit-reactions";
 
 type Media = SharedArtwork["artwork"]["media"];

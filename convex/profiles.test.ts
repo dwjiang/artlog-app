@@ -1,7 +1,5 @@
 import { expect, it } from "vitest";
-import { api, internal } from "./_generated/api";
-import { seedDevice } from "./lib/testFactories";
-import { harness } from "./test.helpers";
+
 import {
   validateLayout,
   validateMedia,
@@ -11,15 +9,18 @@ import {
   validateProfile,
   validateGeography,
 } from "../shared/social/contracts";
+import { api, internal } from "./_generated/api";
 import { projectArtwork, projectSharedVisitCard, projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
+import { seedDevice } from "./lib/testFactories";
+import { harness } from "./test.helpers";
 
 async function fixture() {
   const t = harness();
   async function account(sub: string) {
     const device = await seedDevice(t);
     await t.run((ctx) =>
-      ctx.db.patch(device.deviceId, {
+      ctx.db.patch("devices", device.deviceId, {
         appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
       }),
     );
@@ -40,6 +41,7 @@ async function fixture() {
   }
   return { t, account };
 }
+
 it("requires Apple linkage; signing in alone creates no profile or publication", async () => {
   const { t, account } = await fixture();
   const anonymous = await seedDevice(t);
@@ -54,10 +56,11 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });
+
 it("has one winner for simultaneous username requests and never replaces an existing profile username", async () => {
   const { account } = await fixture();
-  const a = await account("a"),
-    b = await account("b");
+  const a = await account("a");
+  const b = await account("b");
   const requests = await Promise.allSettled(
     [a, b].map((user) =>
       user.as.mutation(api.profiles.create, {
@@ -92,6 +95,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
     bio: "Short bio",
   });
 });
+
 it("normalizes accents, case, and whitespace; paginates bounded public allowlists", async () => {
   const { t, account } = await fixture();
   const a = await account("a");
@@ -109,15 +113,14 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
     limit: 1,
   });
   expect(found.page).toEqual([profile]);
-  for (const args of [
-    { query: "x" },
-    { query: "x".repeat(101) },
-    { query: "elo", limit: 51 },
-    { query: "elo", cursor: "x".repeat(8193) },
-  ]) {
-    await expect(t.query(api.profiles.search, args)).rejects.toThrow();
+  for (const query of ["x", "x".repeat(101)]) {
+    await expect(t.query(api.profiles.search, { query })).rejects.toThrow("invalid_profile");
+  }
+  for (const page of [{ limit: 51 }, { cursor: "x".repeat(8193) }]) {
+    await expect(t.query(api.profiles.search, { query: "elo", ...page })).rejects.toThrow("invalid_pagination");
   }
 });
+
 it.each(["ab", "-abc", "abc-", "ab--cd", "Abcd", "élodie", "a".repeat(31)])(
   "rejects invalid username %s",
   async (username) => {
@@ -128,6 +131,7 @@ it.each(["ab", "-abc", "abc-", "ab--cd", "Abcd", "élodie", "a".repeat(31)])(
     });
   },
 );
+
 it("deletion revokes profile and publication access immediately", async () => {
   const { t, account } = await fixture();
   const user = await account("a");
@@ -183,6 +187,7 @@ it("deletion revokes profile and publication access immediately", async () => {
     data: { code: "not_found" },
   });
 });
+
 it("projects only permitted artwork fields, no artwork notes on shared cards, and a square placeholder", () => {
   const save = {
     snapshot: {
@@ -215,6 +220,7 @@ it("projects only permitted artwork fields, no artwork notes on shared cards, an
     "Private note",
   );
 });
+
 it("invalidates reverse save references, consent and revisions while keeping the visit and empty post", async () => {
   const { t, account } = await fixture();
   const user = await account("a");
@@ -290,7 +296,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
       saveLocalId: localId,
       position: 0,
     });
-    await ctx.db.patch(profile.profileId, { publishedWallCount: 1 });
+    await ctx.db.patch("profiles", profile.profileId, { publishedWallCount: 1 });
     return { localId, visitId, wallId, itemId, post };
   });
   await user.as.mutation(api.collections.remove, {
@@ -300,25 +306,26 @@ it("invalidates reverse save references, consent and revisions while keeping the
   await expect(t.run((ctx) => requirePublicWallItem(ctx, ids.itemId))).rejects.toMatchObject({
     data: { code: "not_found" },
   });
-  expect(await t.run((ctx) => ctx.db.get(ids.itemId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("wallItems", ids.itemId))).toMatchObject({
     active: false,
     noteVisible: false,
     noteRevision: 3,
   });
-  expect(await t.run((ctx) => ctx.db.get(ids.wallId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("walls", ids.wallId))).toMatchObject({
     layoutRevision: 4,
   });
-  expect(await t.run((ctx) => ctx.db.get(ids.post))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("sharedVisits", ids.post))).toMatchObject({
     publicationRevision: 6,
     status: "active",
   });
-  expect(await t.run((ctx) => ctx.db.get(ids.visitId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("visits", ids.visitId))).not.toBeNull();
   expect(await t.run((ctx) => ctx.db.query("sharedVisitItems").collect())).toEqual([]);
 });
+
 it("validates shared layout, dimensions, and reporting boundaries", () => {
   expect(() => validateLayout({ x: 0, y: 3, width: 0.5, layer: 2, frame: "oak" })).not.toThrow();
   for (const width of [0, -1, 2, Infinity]) {
-    expect(() => validateLayout({ x: 0, y: 0, width, layer: 0, frame: "none" })).toThrow();
+    expect(() => validateLayout({ x: 0, y: 0, width, layer: 0, frame: "none" })).toThrow("invalid_wall");
   }
   expect(() =>
     validateMedia({
@@ -329,14 +336,14 @@ it("validates shared layout, dimensions, and reporting boundaries", () => {
       width: 0,
       height: 2,
     }),
-  ).toThrow();
+  ).toThrow("invalid_media");
   expect(() =>
     validateReport({
       target: { kind: "profile", profileId: "profile" as never },
       reason: "",
       details: "",
     }),
-  ).toThrow();
+  ).toThrow("invalid_report");
 });
 
 it("publishes eligible media with an allowlist and binds derivatives to a public context", () => {
@@ -389,6 +396,7 @@ it("publishes eligible media with an allowlist and binds derivatives to a public
   expect(projectArtwork(save, { ...asset, saveId: "other" } as never).media.kind).toBe("placeholder");
   expect(projectArtwork(save, { ...asset, revokedAt: 1 } as never).media.kind).toBe("placeholder");
 });
+
 it("enforces shared selection, profile, and geography boundaries", () => {
   const id = crypto.randomUUID();
   expect(() =>
@@ -405,23 +413,23 @@ it("enforces shared selection, profile, and geography boundaries", () => {
     { saveLocalIds: ["bad"], reflection: "", revision: 0 },
     { saveLocalIds: [], reflection: "", revision: -1 },
   ]) {
-    expect(() => validateSelection({ ...input, audience: "public" })).toThrow();
+    expect(() => validateSelection({ ...input, audience: "public" })).toThrow("invalid_post");
   }
-  expect(() => validateWallItems([], Infinity)).toThrow();
+  expect(() => validateWallItems([], Infinity)).toThrow("invalid_wall");
   for (const input of [{ name: " " }, { name: "x".repeat(61) }, { name: "Reader", bio: "x".repeat(161) }]) {
-    expect(() => validateProfile(input)).toThrow();
+    expect(() => validateProfile(input)).toThrow("invalid_profile");
   }
   expect(() => validateGeography({})).not.toThrow();
   expect(() => validateGeography({ city: "Reykjavík", country: "IS" })).not.toThrow();
   for (const input of [{ city: "x".repeat(121) }, { country: "ZZ" }, { country: "usa" }]) {
-    expect(() => validateGeography(input)).toThrow();
+    expect(() => validateGeography(input)).toThrow("invalid_venue");
   }
 });
 
 it("checks username availability for an account without reserving it", async () => {
   const { t, account } = await fixture();
-  const a = await account("availability-a"),
-    b = await account("availability-b");
+  const a = await account("availability-a");
+  const b = await account("availability-b");
   expect(
     await a.as.query(api.profiles.usernameAvailable, {
       username: "available-name",
@@ -436,27 +444,31 @@ it("checks username availability for an account without reserving it", async () 
       username: "available-name",
     }),
   ).toBe(false);
-  await expect(a.as.query(api.profiles.usernameAvailable, { username: "Invalid_Name" })).rejects.toThrow();
-  await expect(t.query(api.profiles.usernameAvailable, { username: "available-name" })).rejects.toThrow();
+  await expect(a.as.query(api.profiles.usernameAvailable, { username: "Invalid_Name" })).rejects.toThrow(
+    "invalid_profile",
+  );
+  await expect(t.query(api.profiles.usernameAvailable, { username: "available-name" })).rejects.toThrow(
+    "unauthenticated",
+  );
 });
 
 it("suggests the first free username for a display name without reserving it", async () => {
   const { t, account } = await fixture();
-  const a = await account("suggest-a"),
-    b = await account("suggest-b");
+  const a = await account("suggest-a");
+  const b = await account("suggest-b");
   expect(await a.as.query(api.profiles.suggestUsername, { name: " Élodie Martin " })).toBe("elodie-martin");
   await b.as.mutation(api.profiles.create, { username: "elodie-martin", name: "B" });
   expect(await a.as.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).toBe("elodie-martin-2");
   expect(await a.as.query(api.profiles.suggestUsername, { name: "张伟" })).toBeNull();
   expect(await a.as.query(api.profiles.suggestUsername, { name: "x".repeat(61) })).toBeNull();
-  await expect(t.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).rejects.toThrow();
+  await expect(t.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).rejects.toThrow("unauthenticated");
 });
 
 it("lists incoming requests only, removing accepted and blocked connections", async () => {
   const { t, account } = await fixture();
-  const a = await account("requests-a"),
-    b = await account("requests-b"),
-    c = await account("requests-c");
+  const a = await account("requests-a");
+  const b = await account("requests-b");
+  const c = await account("requests-c");
   const pa = await a.as.mutation(api.profiles.create, {
     name: "A",
     username: "requests-a",
@@ -501,13 +513,13 @@ it("lists incoming requests only, removing accepted and blocked connections", as
     blockRevision: 0,
   });
   expect(await c.as.query(api.profiles.requests, {})).toEqual([]);
-  await expect(t.query(api.profiles.requests, {})).rejects.toThrow();
+  await expect(t.query(api.profiles.requests, {})).rejects.toThrow("unauthenticated");
 });
 
 it("embeds the viewer’s relationship in browse lists and leaves guests without one", async () => {
   const { t, account } = await fixture();
-  const a = await account("browse-a"),
-    b = await account("browse-b");
+  const a = await account("browse-a");
+  const b = await account("browse-b");
   const pa = await a.as.mutation(api.profiles.create, {
     name: "A",
     username: "browse-a",

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type { Id } from "../../../convex/_generated/dataModel";
+
 import type { ListeningState } from "@/lib/audio/listening-controller";
 import type { ListeningTrack } from "@/lib/audio/narration";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { ListenActions } from "./listen-actions";
 
 const artworkId = "artwork-1" as Id<"artworks">;

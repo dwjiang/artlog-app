@@ -1,10 +1,11 @@
 import { ConvexError } from "convex/values";
 
-import type { Id } from "../../../convex/_generated/dataModel";
 import * as pending from "@/db/repos/pending-scans";
 import { getVisit, listUnsyncedVisits, markVisitsSynced, patchVisit, upsertVisit } from "@/db/repos/visits";
 import type { NewPendingScan } from "@/db/schema";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { createFlusher, type FlushDependencies } from "./flush";
 
 jest.mock("@/db/client", () => ({

@@ -1,15 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
-import { insertSavedWork } from "@/db/repos/saved-works";
+
 import { selectArtworkEncounters } from "@/db/repos/artwork-album";
+import { insertSavedWork } from "@/db/repos/saved-works";
 import { getVisit, listVisits } from "@/db/repos/visits";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { pickerDate } from "@/lib/journal/visit-date";
+
 import { VisitCreateScreen } from "./visit-form-screens";
-const mockBack = jest.fn(),
-  mockDismissTo = jest.fn(),
-  mockSearchByName = jest.fn(),
-  mockConfirmPlace = jest.fn();
+
+const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
+const mockSearchByName = jest.fn();
+const mockConfirmPlace = jest.fn();
 let mockSavedId: string | undefined;
 const mockVenue = {
   id: "museum",
@@ -31,7 +34,7 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => jest.requireActual("node:crypto").randomUUID(),
 }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/venue/search-venues", () => ({
   MUSEUM_SEARCH_LIMIT: 30,
@@ -88,6 +91,7 @@ async function fill() {
   );
   await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-29T12:00:00");
 }
+
 it("creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and notes", async () => {
   const first = await render(<VisitCreateScreen />);
   expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
@@ -111,6 +115,7 @@ it("creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and 
   expect(repeats).toHaveLength(2);
   expect(new Set(repeats.map((row) => row.localId)).size).toBe(2);
 });
+
 it("rejects future dates and clears form drafts when the owner changes", async () => {
   await render(<VisitCreateScreen />);
   await fill();
@@ -121,6 +126,7 @@ it("rejects future dates and clears form drafts when the owner changes", async (
   expect(screen.getByLabelText("Notes")).toHaveProp("value", "");
   expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();
 });
+
 it("moves the default date back to the museum day when the device is already on the next day", async () => {
   // 10:00 UTC is the 16th everywhere east of UTC-10 but still the 15th on Niue (UTC-11).
   jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-16T10:00:00Z"));
@@ -131,6 +137,7 @@ it("moves the default date back to the museum day when the device is already on 
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByRole("button", { name: "Add visit" })).toBeEnabled();
 });
+
 it("creates a linked visit and returns to that artwork in its new visit context", async () => {
   mockSavedId = "linked-work";
   await insertSavedWork({
@@ -157,6 +164,7 @@ it("creates a linked visit and returns to that artwork in its new visit context"
   );
   expect(mockBack).not.toHaveBeenCalled();
 });
+
 it("cancels a pending linked visit without creating a visit or encounter", async () => {
   mockSavedId = "cancel-work";
   await insertSavedWork({

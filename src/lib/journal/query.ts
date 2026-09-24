@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
-import { pagination } from "../../../shared/journal/contracts";
-import { LIMITS, normalizeSearch } from "../../../shared/journal/limits";
+
+import { pagination } from "@/shared/journal/contracts";
+import { LIMITS, normalizeSearch } from "@/shared/journal/limits";
 
 export type PageOptions = { cursor?: string | null; limit?: number };
 export type Page<T> = { page: T[]; cursor: string | null; isDone: boolean };

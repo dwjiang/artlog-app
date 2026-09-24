@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { useState, type Ref } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
+
+import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
-import { ThemedText } from "../themed-text";
 
 export function CollectionSearchField({
   value,

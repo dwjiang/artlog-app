@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
+
 import { api, internal } from "./_generated/api";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
 import { harness } from "./test.helpers";
 
 it("updates only the authenticated profile and deletes replaced public photos", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    other = await socialUser(t);
+  const t = harness();
+  const owner = await socialUser(t);
+  const other = await socialUser(t);
   const photo = await t.run((ctx) => ctx.storage.store(new Blob(["photo"], { type: "image/jpeg" })));
   await expect(
     other.as.mutation(internal.profilePhotoData.save, {
@@ -14,7 +15,7 @@ it("updates only the authenticated profile and deletes replaced public photos", 
       name: "Changed",
       photo,
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("sync_scope_changed");
   const updated = await owner.as.mutation(internal.profilePhotoData.save, {
     profileId: owner.profileId,
     name: "Mira",
@@ -37,10 +38,10 @@ it("updates only the authenticated profile and deletes replaced public photos", 
 });
 
 it("lists only accepted, available friends of the caller", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    friend = await socialUser(t),
-    stranger = await socialUser(t);
+  const t = harness();
+  const owner = await socialUser(t);
+  const friend = await socialUser(t);
+  const stranger = await socialUser(t);
   await befriend(owner, friend);
   await owner.as.mutation(api.friendships.request, {
     profileId: stranger.profileId,
@@ -48,5 +49,5 @@ it("lists only accepted, available friends of the caller", async () => {
   });
   expect((await owner.as.query(api.profiles.friends, {})).map((p) => p.profileId)).toEqual([friend.profileId]);
   expect(await stranger.as.query(api.profiles.friends, {})).toEqual([]);
-  await expect(t.query(api.profiles.friends, {})).rejects.toThrow();
+  await expect(t.query(api.profiles.friends, {})).rejects.toThrow("unauthenticated");
 });

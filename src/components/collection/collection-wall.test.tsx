@@ -2,15 +2,17 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { ConvexError } from "convex/values";
 import type { ComponentProps, ReactNode } from "react";
 import { Image, ScrollView } from "react-native";
+
+import { addArtworkPhoto } from "@/db/repos/artwork-album";
+import { insertSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { switchOwner } from "@/lib/account/owner-store";
+import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-removals";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { wallAspect } from "@/lib/wall/wall-layout";
 import type { OwnerWall, WallTransport } from "@/lib/wall/wall-transport";
-import { switchOwner } from "@/lib/account/owner-store";
+
 import { CollectionWall } from "./collection-wall";
-import { insertSavedWork } from "@/db/repos/saved-works";
-import { addArtworkPhoto } from "@/db/repos/artwork-album";
-import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-removals";
 
 jest.mock("expo-crypto", () => ({
   randomUUID: () => jest.requireActual("node:crypto").randomUUID(),

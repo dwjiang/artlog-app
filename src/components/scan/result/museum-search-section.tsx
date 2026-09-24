@@ -1,15 +1,12 @@
-import { LoadingRing } from "@/components/loading-ring";
-import { FormSkeleton } from "@/components/loading-skeleton";
 import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
-import type { Id } from "../../../../convex/_generated/dataModel";
-import type { LabelFlowDisplay } from "../../../../convex/lib/validators";
-import { CapturePhotosButton } from "../capture-photos-button";
-import { LabelActions } from "../label/label-actions";
-import { VerifiedFieldsForm } from "../label/verified-fields-form";
-import { SourceChip } from "./source-chip";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { LoadingRing } from "@/components/loading-ring";
+import { FormSkeleton } from "@/components/loading-skeleton";
+import { CapturePhotosButton } from "@/components/scan/capture-photos-button";
+import { LabelActions } from "@/components/scan/label/label-actions";
+import { VerifiedFieldsForm } from "@/components/scan/label/verified-fields-form";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
@@ -18,6 +15,10 @@ import { useLabelForm } from "@/lib/label/use-label-form";
 import type { MuseumSearchStage } from "@/lib/museum-search/flow";
 import type { MuseumSearchController } from "@/lib/museum-search/use-museum-search";
 import { useSaveResult } from "@/lib/result/use-save-result";
+
+import type { Id } from "../../../../convex/_generated/dataModel";
+import type { LabelFlowDisplay } from "../../../../convex/lib/validators";
+import { SourceChip } from "./source-chip";
 
 const STAGE_TEXT: Record<MuseumSearchStage, string> = {
   exhibitions: "Looking up current exhibitions",
@@ -108,7 +109,7 @@ function MuseumSearchResult({
   }
 
   const contribution =
-    capture && capture.venueId && canShareLabel(form)
+    capture?.venueId && canShareLabel(form)
       ? { scanId, capture, state: form, museumSearchUpdatedAt: confirmedAt }
       : undefined;
   const input = {

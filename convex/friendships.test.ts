@@ -1,14 +1,16 @@
 import { expect, it } from "vitest";
+
 import { api, internal } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
+import { harness } from "./test.helpers";
 
 const conflict = { data: { code: "conflict" } };
+
 it("derives the actor and restricts each pending transition to its participant", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
   const guest = await seedDevice(t);
   await expect(
     guest.as.mutation(api.friendships.request, {
@@ -50,10 +52,11 @@ it("derives the actor and restricts each pending transition to its participant",
     }),
   ).toMatchObject({ state: "none", revision: 2 });
 });
+
 it("serializes concurrent reverse requests without duplicate edges or implicit acceptance", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
   const result = await Promise.allSettled([
     a.as.mutation(api.friendships.request, {
       profileId: b.profileId,
@@ -70,10 +73,11 @@ it("serializes concurrent reverse requests without duplicate edges or implicit a
   expect(rows[0].state).toBe("pending");
   expect(rows[0].firstProfileId < rows[0].secondProfileId).toBe(true);
 });
+
 it("keeps revocation revisions and rejects delayed writes across remove and block/unblock", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
   await befriend(a, b);
   await a.as.mutation(api.friendships.remove, {
     profileId: b.profileId,
@@ -128,10 +132,10 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
 });
 
 it("enforces the 200-friend cap for both participants and concurrent acceptances", async () => {
-  const t = harness({ transactionLimits: true }),
-    a = await socialUser(t),
-    b = await socialUser(t),
-    c = await socialUser(t);
+  const t = harness({ transactionLimits: true });
+  const a = await socialUser(t);
+  const b = await socialUser(t);
+  const c = await socialUser(t);
   const { canonicalPair } = await import("./lib/friendships");
   await t.run(async (ctx) => {
     for (let i = 0; i < 199; i++) {
@@ -194,13 +198,14 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
     }),
   ).rejects.toMatchObject({ data: { code: "friend_limit" } });
 });
+
 it("keeps account request and change quotas separate across devices and leaves revocations available", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t),
-    c = await socialUser(t),
-    sibling = await seedDevice(t);
-  await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: a.accountId }));
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
+  const c = await socialUser(t);
+  const sibling = await seedDevice(t);
+  await t.run((ctx) => ctx.db.patch("devices", sibling.deviceId, { accountId: a.accountId }));
   let revision = 0;
   for (let i = 0; i < 20; i++) {
     const requested = await a.as.mutation(api.friendships.request, {
@@ -235,10 +240,11 @@ it("keeps account request and change quotas separate across devices and leaves r
     blockRevision: 0,
   });
 });
+
 it("limits other relationship changes to 60 per minute", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
   for (let i = 0; i < 30; i++) {
     await a.as.mutation(api.friendships.block, {
       profileId: b.profileId,
@@ -260,11 +266,12 @@ it("limits other relationship changes to 60 per minute", async () => {
     data: { code: "rate_limited", name: "relationshipChange" },
   });
 });
+
 it("lets friends drop a moderation-removed profile so it stops holding a friend slot", async () => {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t),
-    reporter = await seedDevice(t);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
+  const reporter = await seedDevice(t);
   await befriend(a, b);
   const reportId = await reporter.as.mutation(api.reports.submit, {
     target: { kind: "profile", profileId: b.profileId },

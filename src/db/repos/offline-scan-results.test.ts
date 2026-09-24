@@ -1,11 +1,12 @@
-import type { NewPendingScan } from "../schema";
 import { confidentScan } from "@/components/scan/result/__fixtures__/scan";
+import type { NewPendingScan } from "@/db/schema";
+
+import { claimLocalJournal } from "./journal-claim";
 import { cacheOfflineResult, offlineResultQuery } from "./offline-scan-results";
 import { deletePendingScan, enqueuePendingScan, updateFeatures } from "./pending-scans";
-import { claimLocalJournal } from "./journal-claim";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 const capture: NewPendingScan = {
   localId: "offline",
@@ -30,6 +31,7 @@ it("keeps cached results scoped to their owner and follows a claimed journal", a
   await deletePendingScan(capture.localId, "account:offline");
   expect(await offlineResultQuery(capture.localId, "account:offline")).toEqual([]);
 });
+
 it("discards a cached match when a new crop changes the recognition input", async () => {
   await enqueuePendingScan(capture);
   await cacheOfflineResult(capture.localId, confidentScan);

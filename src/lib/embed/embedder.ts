@@ -1,10 +1,9 @@
-import { reportError } from "@/lib/observability";
-import model from "../../../shared/model/model-version.json";
-
-import { getCoremlEmbed } from "../../../modules/coreml-embed/src";
-import type { CoremlEmbed, WarmUpResult } from "../../../modules/coreml-embed/src";
 import type { Embedder } from "@/lib/capture/stages";
 import { filePath } from "@/lib/file-uri";
+import { reportError } from "@/lib/observability";
+import model from "@/shared/model/model-version.json";
+
+import { getCoremlEmbed, type CoremlEmbed, type WarmUpResult } from "../../../modules/coreml-embed/src";
 
 export type ModelEmbedder = Embedder & { warmUp(): Promise<WarmUpResult> };
 

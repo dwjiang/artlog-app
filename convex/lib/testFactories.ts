@@ -1,11 +1,11 @@
-import { insertVector } from "./vectorStore";
 import model from "../../shared/model/model-version.json";
+import { encodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import type { Harness, SignedIn } from "../test.helpers";
-import { encodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
 import { registerMuseumObject } from "./museumWorkIdentity";
 import { storeOrb } from "./orbStorage";
+import { insertVector } from "./vectorStore";
 
 type TestCtx = MutationCtx & Pick<ActionCtx, "storage">;
 
@@ -122,7 +122,7 @@ export async function seedArtworkWithObject(
       ...options.placement,
     });
   }
-  const embeddingId = (await ctx.db.get(vectorId))!.embeddingId;
+  const { embeddingId } = (await ctx.db.get("vectors", vectorId))!;
   return { artworkId, objectId, vectorId, embeddingId };
 }
 

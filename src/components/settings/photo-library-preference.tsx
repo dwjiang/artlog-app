@@ -7,10 +7,10 @@ import { reportError } from "@/lib/observability";
 import { getSaveToPhotos, setSaveToPhotos } from "@/lib/settings/save-to-photos";
 
 export function PhotoLibraryPreference() {
-  const [enabled, setEnabled] = useState(true),
-    [loaded, setLoaded] = useState(false),
-    [denied, setDenied] = useState(false),
-    [error, setError] = useState<string>();
+  const [enabled, setEnabled] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const [error, setError] = useState<string>();
   const saving = useRef(false);
   useEffect(() => {
     let active = true;

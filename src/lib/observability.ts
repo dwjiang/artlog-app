@@ -112,15 +112,15 @@ function redact(value: string): string {
     return "Convex argument validation failed";
   }
   return value
-    .replace(/data:[^\s]+/gi, "[image data]")
-    .replace(/(?:https?|file|ph):\/\/[^\s"'<>]+/gi, "[url]")
-    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
-    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[token]")
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
-    .replace(/\b(token|secret|password|authorization|nonce|assertionBase64)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
-    .replace(/"(token|secret|password|authorization|nonce|assertionBase64)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"')
-    .replace(/\bFailed query:[\s\S]*/gi, "Database query failed")
-    .replace(/\bparams:[\s\S]*/gi, "params: [redacted]")
+    .replaceAll(/data:[^\s]+/gi, "[image data]")
+    .replaceAll(/(?:https?|file|ph):\/\/[^\s"'<>]+/gi, "[url]")
+    .replaceAll(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
+    .replaceAll(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[token]")
+    .replaceAll(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
+    .replaceAll(/\b(token|secret|password|authorization|nonce|assertionBase64)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replaceAll(/"(token|secret|password|authorization|nonce|assertionBase64)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"')
+    .replaceAll(/\bFailed query:[\s\S]*/gi, "Database query failed")
+    .replaceAll(/\bparams:[\s\S]*/gi, "params: [redacted]")
     .slice(0, 1_000);
 }
 

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+
 import { CollectionHeader } from "./collection-header";
 
 const mockPush = jest.fn();

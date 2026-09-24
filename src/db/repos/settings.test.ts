@@ -1,7 +1,7 @@
 import * as repo from "./settings";
 
-jest.mock("../client", () => ({
-  db: jest.requireActual("../test-db").createTestDatabase(),
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 it("stores, overwrites and removes settings by key", async () => {

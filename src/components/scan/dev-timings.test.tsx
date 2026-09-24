@@ -4,7 +4,7 @@ import { DevTimings, formatCaptureTimings } from "./dev-timings";
 
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 it("lists the total and each recorded stage in milliseconds", async () => {

@@ -1,8 +1,10 @@
-import { flushCollectionMedia } from "../account/collection-sync";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { getNetworkStateAsync } from "expo-network";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { captureOwner, subscribeOwner } from "../account/owner-store";
+
+import { flushCollectionMedia } from "@/lib/account/collection-sync";
+import { captureOwner, subscribeOwner } from "@/lib/account/owner-store";
+
 import { createWallRepository } from "./wall-repository";
 import { createWallTransport } from "./wall-transport";
 

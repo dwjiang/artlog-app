@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Image } from "expo-image";
+import type { ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
+
 import { Gallery } from "@/constants/theme";
-import { ThemedText as Text } from "./themed-text";
+
 import { GalleryButton } from "./collection/gallery-button";
+import { ThemedText as Text } from "./themed-text";
 
 export function EmptyState({
   title,

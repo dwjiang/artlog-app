@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, internal } from "./_generated/api";
 import model from "../shared/model/model-version.json";
+import { api, internal } from "./_generated/api";
 import { completion } from "./lib/labelFixtures";
 import { seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -44,7 +44,7 @@ async function fixture() {
     t,
     user,
     artworkId,
-    artwork: () => t.run((ctx) => ctx.db.get(artworkId)),
+    artwork: () => t.run((ctx) => ctx.db.get("artworks", artworkId)),
   };
 }
 
@@ -258,7 +258,9 @@ it.each([false, true])(
     }
     finish();
     await generating;
-    expect((await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview).toBe(reviewed ? undefined : true);
+    expect((await t.run((ctx) => ctx.db.get("artworks", work.artworkId)))?.factSheetNeedsReview).toBe(
+      reviewed ? undefined : true,
+    );
     expect((await user.as.query(api.scans.get, { scanId }))?.docent).toBeUndefined();
   },
 );

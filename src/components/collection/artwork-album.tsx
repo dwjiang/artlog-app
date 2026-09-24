@@ -1,20 +1,22 @@
-import { reportError } from "@/lib/observability";
-import { LoadingImage } from "@/components/loading-image";
-import { EmptyState, EmptySymbol } from "../empty-state";
-import { GalleryButton } from "./gallery-button";
-import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+
+import { EmptyState, EmptySymbol } from "@/components/empty-state";
+import { LoadingImage } from "@/components/loading-image";
+import { ImageSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
-import { captureFileUri } from "@/lib/files/photos";
-import { NativeSegmentedPicker } from "./native-segmented-picker";
-import { ImageSkeleton } from "@/components/loading-skeleton";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
+
+import { GalleryButton } from "./gallery-button";
+import { NativeSegmentedPicker } from "./native-segmented-picker";
 
 export function ArtworkAlbum({
   work,
@@ -46,7 +48,7 @@ export function ArtworkAlbum({
       && (scope === "all" || row.visitLocalId === visitId),
   );
   const lastPage = Math.max(0, rows.length - 1);
-  if (requestedPhoto && (photos.updatedAt || rows.length)) {
+  if (requestedPhoto && (photos.updatedAt || rows.length > 0)) {
     setPage(
       Math.max(
         0,
@@ -54,7 +56,9 @@ export function ArtworkAlbum({
       ),
     );
     setRequestedPhoto(undefined);
-  } else if (page > lastPage) setPage(lastPage);
+  } else if (page > lastPage) {
+    setPage(lastPage);
+  }
   const selectedPhoto = rows[Math.min(page, lastPage)];
   const museum = work.institution || work.venueName;
   const imageHeight =
@@ -67,10 +71,10 @@ export function ArtworkAlbum({
   };
   return (
     <View style={{ gap: 8 }}>
-      {!rows.length && !photos.updatedAt && !photos.error ? (
+      {rows.length === 0 && !photos.updatedAt && !photos.error ? (
         <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
       ) : (
-        !rows.length
+        rows.length === 0
         && (photos.error ? (
           <Text accessibilityRole="alert" style={styles.secondary}>
             Photos couldn’t load. Close and reopen this artwork to try again.
@@ -89,7 +93,7 @@ export function ArtworkAlbum({
           </View>
         ))
       )}
-      {!!rows.length && (
+      {rows.length > 0 && (
         <View style={{ marginHorizontal: -20 }}>
           <ScrollView
             ref={gallery}
@@ -285,7 +289,7 @@ export function ArtworkAlbum({
           ]}
         />
       )}
-      {!rows.length && !!photos.updatedAt && !photos.error && (
+      {rows.length === 0 && !!photos.updatedAt && !photos.error && (
         <EmptyState
           inset={false}
           title={scope === "visit" ? "No photos from this visit yet." : "No photos yet."}

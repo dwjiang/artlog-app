@@ -12,7 +12,7 @@ export function findSavedRecognition(ctx: QueryCtx, saveId: Id<"collections">) {
 export async function deleteSavedRecognition(ctx: MutationCtx, saveId: Id<"collections">) {
   const row = await findSavedRecognition(ctx, saveId);
   if (!row) return;
-  await ctx.db.delete(row._id);
+  await ctx.db.delete("savedRecognition", row._id);
   await deleteOrbIfUnreferenced(ctx, row.orbStorageId);
 }
 
@@ -26,7 +26,7 @@ export async function mergeSavedRecognition(
   if (await findSavedRecognition(ctx, targetId)) {
     await deleteSavedRecognition(ctx, sourceId);
   } else {
-    await ctx.db.patch(source._id, {
+    await ctx.db.patch("savedRecognition", source._id, {
       saveId: targetId,
       candidateIds: [],
       saveUpdatedAt: undefined,

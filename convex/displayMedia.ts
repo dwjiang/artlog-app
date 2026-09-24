@@ -1,9 +1,9 @@
-import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { ConvexError, v } from "convex/values";
-import { reportBackendError } from "./lib/observability";
+
 import { catalogMedia, validateMedia, wallItemMediaContext } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import { httpAction, internalMutation, internalQuery } from "./_generated/server";
+import { ownedAlbumPhoto } from "./lib/albumMedia";
 import {
   contributionSource,
   isCurrentAsset,
@@ -11,6 +11,7 @@ import {
   revokeContributionMedia,
   revokeSaveMedia,
 } from "./lib/displayMedia";
+import { reportBackendError } from "./lib/observability";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import schema from "./schema";
 import { serveSharedMedia } from "./sharedMedia";
@@ -25,8 +26,8 @@ export const registerCatalog = internalMutation({
   returns: v.id("mediaAssets"),
   handler: async (ctx, { saveId, objectId, source, imageRightsEvidence }) => {
     validateMedia(source);
-    const save = await ctx.db.get(saveId);
-    const object = await ctx.db.get(objectId);
+    const save = await ctx.db.get("collections", saveId);
+    const object = await ctx.db.get("objects", objectId);
     if (
       !imageRightsEvidence.trim()
       || imageRightsEvidence.length > 4096
@@ -67,7 +68,7 @@ export const registerCatalog = internalMutation({
         (key) => current[key] === source[key],
       );
     if (!same) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("mediaAssets", existing._id, {
         source,
         provenance,
         createdAt: Date.now(),
@@ -82,7 +83,7 @@ export const beginPreparation = internalMutation({
   args: { saveId: v.id("collections") },
   returns: v.union(schema.doc("mediaAssets"), v.null()),
   handler: async (ctx, { saveId }) => {
-    const save = await ctx.db.get(saveId);
+    const save = await ctx.db.get("collections", saveId);
     if (!save || save.deletedAt !== undefined || (await resolveDisplayAsset(ctx, save))) {
       return null;
     }
@@ -112,7 +113,7 @@ export const beginPreparation = internalMutation({
       provenance: { kind: "contribution", ...source },
       createdAt: Date.now(),
     });
-    return ctx.db.get(id);
+    return ctx.db.get("mediaAssets", id);
   },
 });
 export const attach = internalMutation({
@@ -124,8 +125,8 @@ export const attach = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, { assetId, storageId, width, height }) => {
-    const asset = await ctx.db.get(assetId);
-    const save = asset ? await ctx.db.get(asset.saveId) : null;
+    const asset = await ctx.db.get("mediaAssets", assetId);
+    const save = asset ? await ctx.db.get("collections", asset.saveId) : null;
     const source = save ? await contributionSource(ctx, save) : null;
     if (
       !asset
@@ -144,7 +145,7 @@ export const attach = internalMutation({
     }
     const metadata = { ...asset.source, width, height };
     validateMedia(metadata);
-    await ctx.db.patch(assetId, { source: metadata, storageId });
+    await ctx.db.patch("mediaAssets", assetId, { source: metadata, storageId });
     return true;
   },
 });

@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { StrictMode } from "react";
-import { switchOwner } from "../account/owner-store";
+
+import { switchOwner } from "@/lib/account/owner-store";
+
 import { useWallRepository } from "./use-wall-repository";
 
 let mockToken = "token-a";

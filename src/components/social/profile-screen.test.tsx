@@ -1,8 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
 import type { ReactNode } from "react";
-import { ProfileScreen } from "./profile-screen";
+
 import type { SharedVisit } from "@/lib/social/types";
+
+import { ProfileScreen } from "./profile-screen";
+
 const mockPages = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
@@ -23,7 +26,7 @@ jest.mock("expo-router", () => ({
   Stack: { Screen: () => null },
   useRouter: () => ({ push: jest.fn() }),
 }));
-jest.mock("../collection/wall-gallery", () => ({ WallGallery: () => null }));
+jest.mock("@/components/collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => {
   const { Text } = jest.requireActual("react-native");
   return {
@@ -71,12 +74,14 @@ beforeEach(() => {
   mockRelationship = { state: "none", blocked: false };
   mockVisits = [];
 });
+
 it("requests authorized public visits for strangers", async () => {
   await render(<ProfileScreen profileId="friend" />);
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
   expect(screen.getByText("No shared visits yet.")).toBeOnTheScreen();
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: "friend" });
 });
+
 it("requests only the selected friend’s shared visits and stops after a block", async () => {
   mockRelationship = { state: "accepted", blocked: false };
   const view = await render(<ProfileScreen profileId="friend" />);
@@ -87,6 +92,7 @@ it("requests only the selected friend’s shared visits and stops after a block"
   await view.rerender(<ProfileScreen profileId="friend" />);
   expect(mockPages.mock.calls.at(-1)[1]).toBe("skip");
 });
+
 it("keeps the full header when switching between Wall and Visits", async () => {
   await render(<ProfileScreen profileId="friend" />);
   const header = () => [
@@ -103,11 +109,13 @@ it("keeps the full header when switching between Wall and Visits", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
   header().forEach((element) => expect(element).toBeOnTheScreen());
 });
+
 it("offers Share beside Edit profile on your own profile", async () => {
   await render(<ProfileScreen profileId="owner" />);
   expect(screen.getByRole("button", { name: "Edit profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
 });
+
 it("uses the same shared visit card as Home", async () => {
   mockVisits = [
     {

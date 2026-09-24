@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
 
-import { getSetting, setSetting } from "@/db/repos/settings";
 import { DevTimings } from "@/components/scan/dev-timings";
+import { getSetting, setSetting } from "@/db/repos/settings";
+
 import { DevTools } from "./dev-tools";
 
 const mockSignPayload = jest.fn();
@@ -14,7 +15,7 @@ const mockRunOrbParityCheck = jest.fn();
 
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("convex/react", () => ({ useMutation: () => mockAssertSmoke }));
 jest.mock("@/lib/app-attest", () => ({

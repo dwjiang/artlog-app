@@ -1,10 +1,10 @@
 import { eq, like } from "drizzle-orm";
 
-import { db } from "../client";
-import { settings } from "../schema";
+import { db } from "@/db/client";
+import { settings } from "@/db/schema";
 
 export async function getSetting(key: string): Promise<string | undefined> {
-  const row = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, key)).get();
+  const row = db.select({ value: settings.value }).from(settings).where(eq(settings.key, key)).get();
   return row?.value;
 }
 

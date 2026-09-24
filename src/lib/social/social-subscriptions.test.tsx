@@ -1,8 +1,9 @@
 import { renderHook } from "@testing-library/react-native";
 import { ConvexProvider, type ConvexReactClient } from "convex/react";
+
 import { api } from "../../../convex/_generated/api";
-import { useCursorPages, useSocialQuery } from "./use-social-query";
 import type { SharedVisit } from "./types";
+import { useCursorPages, useSocialQuery } from "./use-social-query";
 
 jest.mock("./use-query-refresh", () => ({
   useQueryRefresh: () => ({ refreshing: false, refresh: jest.fn() }),

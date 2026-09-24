@@ -1,8 +1,9 @@
-import { getMeasurementUnits, setMeasurementUnits, subscribeMeasurementUnits } from "./measurement-units";
 import { removeSetting, setSetting } from "@/db/repos/settings";
 
+import { getMeasurementUnits, setMeasurementUnits, subscribeMeasurementUnits } from "./measurement-units";
+
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 beforeEach(async () => {

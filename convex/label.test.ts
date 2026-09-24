@@ -120,18 +120,22 @@ async function fixture(venue: MuseumOverrides | null = MET) {
   const user = await seedDevice(t);
   const venueId = venue ? await t.run((ctx) => seedMuseum(ctx, venue)) : undefined;
   const scanId = await seedScan(t, user.deviceId, venueId);
-  const stored = async () => (await t.run((ctx) => ctx.db.get(scanId)))?.labelFlow;
+  const stored = async () => (await t.run((ctx) => ctx.db.get("scans", scanId)))?.labelFlow;
   const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   return { t, user, venueId, scanId, stored, spend };
 }
 
 describe("scan restarts during label requests", () => {
-  it.each(["fetchQr", "readLabel", "verifyLabel"] as const)(
-    "rejects an obsolete %s result without changing the restarted scan",
-    async (action) => {
+  it.each([
+    { action: "fetchQr", tokenFactoryCalls: undefined },
+    { action: "readLabel", tokenFactoryCalls: 2 },
+    { action: "verifyLabel", tokenFactoryCalls: 1 },
+  ] as const)(
+    "rejects an obsolete $action result without changing the restarted scan",
+    async ({ action, tokenFactoryCalls }) => {
       const { t, user, scanId, stored, spend } = await fixture();
-      const original = (await t.run((ctx) => ctx.db.get(scanId)))!;
-      await t.run((ctx) => ctx.db.patch(scanId, { status: "failed" }));
+      const original = (await t.run((ctx) => ctx.db.get("scans", scanId)))!;
+      await t.run((ctx) => ctx.db.patch("scans", scanId, { status: "failed" }));
       let beginFetch!: () => void;
       let resumeFetch!: () => void;
       const started = new Promise<void>((resolve) => {
@@ -164,9 +168,6 @@ describe("scan restarts during label requests", () => {
                 scanId,
                 fields: { title: "Water Lilies", artist: "Claude Monet" },
               });
-      const rejected = expect(pending).rejects.toMatchObject({
-        data: { code: "scan_restarted" },
-      });
       await started;
       const restarted = await t.mutation(internal.scans.create, {
         deviceId: user.deviceId,
@@ -179,11 +180,11 @@ describe("scan restarts during label requests", () => {
       });
       expect(restarted.scan).toMatchObject({ _id: scanId, generation: 1 });
       resumeFetch();
-      await rejected;
+      await expect(pending).rejects.toMatchObject({
+        data: { code: "scan_restarted" },
+      });
       expect(await stored()).toBeUndefined();
-      if (action === "readLabel") {
-        expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
-      }
+      expect((await spend())?.tokenFactoryCalls).toBe(tokenFactoryCalls);
     },
   );
 });
@@ -699,15 +700,14 @@ describe("verifyLabel", () => {
         "Water Lilies": wikidataSearchWaterLilies,
         "Claude Monet": wikidataSearchMonet,
       });
-      if (evidence === "qr") {
-        await user.as.action(api.label.fetchQr, { scanId, url: sourceUrl });
-      } else {
-        const first = await user.as.action(api.label.verifyLabel, {
-          scanId,
-          fields: { title: fields.title, artist: fields.artist },
-        });
-        expect(first.wikidataId).toBe("Q7973309");
-      }
+      const first =
+        evidence === "qr"
+          ? await user.as.action(api.label.fetchQr, { scanId, url: sourceUrl })
+          : await user.as.action(api.label.verifyLabel, {
+              scanId,
+              fields: { title: fields.title, artist: fields.artist },
+            });
+      expect(first.wikidataId).toBe(evidence === "qr" ? undefined : "Q7973309");
       const result = await user.as.action(api.label.verifyLabel, {
         scanId,
         fields,
@@ -765,8 +765,9 @@ describe("verifyLabel", () => {
         const response = structuredClone(wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")));
         const artist = response.entities.Q296 as WikidataEntity | undefined;
         if (artist?.claims) {
-          if (occupation === "missing") delete artist.claims.P106;
-          else {
+          if (occupation === "missing") {
+            delete artist.claims.P106;
+          } else {
             artist.claims.P106 = [{ mainsnak: { datavalue: { value: { id: "Q5" } } } }];
           }
         }

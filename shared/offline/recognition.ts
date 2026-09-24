@@ -1,16 +1,16 @@
 import type { Id } from "../../convex/_generated/dataModel";
-import type { MuseumEntry, OfflineResult } from "./types";
-import { decodeOrbFeatures } from "../orb/features";
 import { MAX_CANDIDATES, runPipeline } from "../../convex/lib/identifyPipeline";
 import model from "../model/model-version.json";
+import { decodeOrbFeatures } from "../orb/features";
+import type { MuseumEntry, OfflineResult } from "./types";
 
 type ResultCandidate = NonNullable<OfflineResult["best"]>;
 
 export function similarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || !a.length) return -1;
-  let dot = 0,
-    aa = 0,
-    bb = 0;
+  if (a.length !== b.length || a.length === 0) return -1;
+  let dot = 0;
+  let aa = 0;
+  let bb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     aa += a[i] ** 2;
@@ -41,7 +41,7 @@ export function recognizeEntries(
   },
   entries: MuseumEntry[],
 ): OfflineResult | undefined {
-  if (payload.modelVersion !== model.modelVersion || !entries.length) return;
+  if (payload.modelVersion !== model.modelVersion || entries.length === 0) return;
   const { decision } = runPipeline({
     query: decodeOrbFeatures(payload.descriptors, payload.keypoints),
     candidates: entries.map((entry) => entry.candidate),
@@ -63,7 +63,7 @@ export function recognizeEntries(
     institution: candidate.institution,
     gallery: candidate.placement?.venueId === payload.venueId ? candidate.placement?.gallery : undefined,
   });
-  const artwork = decision.best.candidate.artwork;
+  const { artwork } = decision.best.candidate;
   return {
     outcome: "confident",
     best: display(decision.best),

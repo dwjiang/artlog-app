@@ -1,12 +1,10 @@
-import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-import model from "../shared/model/model-version.json";
-import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
 import { albumPhoto, albumEncounter } from "../shared/collection/album";
 import { journalOwner, journalVisit, journalSave } from "../shared/journal/contracts";
+import model from "../shared/model/model-version.json";
 import {
   wallLayout,
   relationshipState,
@@ -18,6 +16,8 @@ import {
   reportReview,
   removal,
 } from "../shared/social/contracts";
+import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
+import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
 import {
   candidateSignal,
   challengePurpose,
@@ -144,6 +144,7 @@ export default defineSchema({
     revertCompletedAt: v.optional(v.number()),
   })
     .index("by_key", ["key"])
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- docent.load and artworks.enrichment take the oldest eligible object's page and thumbnail
     .index("by_artworkId", ["artworkId"])
     .index("by_artworkId_ownerId", ["artworkId", "ownerId"])
     .index("by_owner_accession", ["ownerId", "accession"])
@@ -166,6 +167,7 @@ export default defineSchema({
     closedByProposalId: v.optional(v.id("placementProposals")),
     exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
   })
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- loadCurrentPlacement and enrich onView let the oldest placement win ties
     .index("by_objectId", ["objectId"])
     .index("by_object_venue_source", ["objectId", "venueId", "source"])
     .index("by_venueId", ["venueId"]),
@@ -191,6 +193,7 @@ export default defineSchema({
     revertedAt: v.optional(v.number()),
   })
     .index("by_object_venue", ["objectId", "proposedVenueId"])
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- placements.listProposals pages newest first
     .index("by_status", ["status"])
     .index("by_status_readyForReview", ["status", "readyForReview"]),
 
@@ -347,6 +350,7 @@ export default defineSchema({
     indexedObjectId: v.optional(v.id("objects")),
     createdAt: v.number(),
   })
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- contributions.mine lists the newest first
     .index("by_deviceId", ["deviceId"])
     .index("by_scanId", ["scanId"])
     .index("by_cropStorageId", ["cropStorageId"])
@@ -386,7 +390,7 @@ export default defineSchema({
   })
     .index("by_rejectedObjectId", ["rejectedObjectId"])
     .index("by_device_object", ["deviceId", "rejectedObjectId"])
-    .index("by_scanId", ["scanId"])
+    .index("by_scan_object", ["scanId", "rejectedObjectId"])
     .index("by_venueId", ["venueId"])
     .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId", "createdAt"])
     .index("by_resolution_object_venue_multiView", ["resolution.kind", "resolution.objectId", "venueId", "multiViewAt"])
@@ -514,9 +518,7 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_device_localId", ["deviceId", "localId"])
-    .index("by_deviceId", ["deviceId"]),
+  }).index("by_device_localId", ["deviceId", "localId"]),
 
   devices: defineTable({
     // Set by attestDevice once Apple has verified the key; absent until then.
@@ -615,7 +617,6 @@ export default defineSchema({
     changeVersion: v.number(),
   })
     .index("by_owner_localId", ["owner", "localId"])
-    .index("by_saveId", ["saveId"])
     .index("by_save_deletedAt", ["saveId", "deletedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"])
     .index("by_storageId", ["storageId"]),
@@ -756,6 +757,7 @@ export default defineSchema({
   })
     .index("by_publication_profile", ["publicationId", "profileId"])
     .index("by_profile", ["profileId"])
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- visitReactions.listLikes pages newest first
     .index("by_publication", ["publicationId"]),
   visitComments: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -784,7 +786,6 @@ export default defineSchema({
     createdAt: v.number(),
     revokedAt: v.optional(v.number()),
   })
-    .index("by_saveId", ["saveId"])
     .index("by_save_kind", ["saveId", "source.kind"])
     .index("by_storageId", ["storageId"])
     .index("by_contribution_revoked", ["provenance.contributionId", "revokedAt"]),

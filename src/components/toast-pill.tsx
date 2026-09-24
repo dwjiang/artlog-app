@@ -1,6 +1,8 @@
-import { LoadingRing } from "./loading-ring";
 import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+
+import { LoadingRing } from "./loading-ring";
 import { ThemedText } from "./themed-text";
 
 export function ToastPill({

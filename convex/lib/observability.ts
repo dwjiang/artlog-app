@@ -10,6 +10,8 @@ import {
 } from "@sentry/core";
 import { ConvexError } from "convex/values";
 
+import { env } from "../_generated/server";
+
 const expectedCodes = new Set([
   "spend_cap",
   "rate_limited",
@@ -168,7 +170,7 @@ function transportFor(dsn: string): Transport | undefined {
 
 export async function reportBackendError(error: unknown, operation: string): Promise<string | null> {
   try {
-    const dsn = process.env.SENTRY_DSN;
+    const dsn = env.SENTRY_DSN;
     if (!dsn) return null;
     const { code, reason } = errorData(error);
     if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
@@ -189,7 +191,7 @@ export async function reportBackendError(error: unknown, operation: string): Pro
       timestamp: Date.now() / 1000,
       platform: "javascript",
       level: "error",
-      environment: process.env.SENTRY_ENVIRONMENT ?? "backend",
+      environment: env.SENTRY_ENVIRONMENT ?? "backend",
       tags: {
         runtime: "convex",
         operation,

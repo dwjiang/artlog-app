@@ -1,5 +1,5 @@
-import type { TavilySearchResponse } from "./tavily";
 import { websiteUrl } from "./collectionSiteProbe";
+import type { TavilySearchResponse } from "./tavily";
 import type { SearchCandidate } from "./validators";
 import { allowedVenueUrl } from "./venueFetch";
 
@@ -24,7 +24,7 @@ export function exhibitionCandidates(response: TavilySearchResponse, hosts: stri
       return image?.protocol === "https:" && !NON_IMAGE.test(image.pathname + image.search) ? [image.href] : [];
     });
     const imageUrls = [...new Set(images)].slice(0, MAX_EXHIBITION_IMAGES);
-    if (!imageUrls.length) continue;
+    if (imageUrls.length === 0) continue;
     candidates.push({
       sourceUrl: page.href,
       imageUrls,

@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 
 export const socialStyles = StyleSheet.create({

@@ -1,5 +1,3 @@
-import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
-import { withErrorReporting } from "./lib/observability";
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { contributionPayload } from "../shared/attestation/attested-payloads";
@@ -7,13 +5,18 @@ import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from "../shared/orb/features";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
+import { removeContribution } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
 import { decodeQuery } from "./identify";
+import { contributionGroup } from "./lib/agreement";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { cosine } from "./lib/cosine";
 import { FIELD_NAMES } from "./lib/labelVerify";
+import { withErrorReporting } from "./lib/observability";
 import { storeOrb } from "./lib/orbStorage";
 import { limitDevice } from "./lib/rateLimits";
+import { recognitionPartition } from "./lib/recognitionEligibility";
+import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
 import {
   contributionRejectedReason,
   type ContributionField,
@@ -21,12 +24,9 @@ import {
   type LabelFieldName,
   type LabelFlow,
 } from "./lib/validators";
-import schema from "./schema";
-import { removeContribution } from "./contributionRemoval";
-import { contributionGroup } from "./lib/agreement";
-import { recognitionPartition } from "./lib/recognitionEligibility";
-import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
 import { isVenueOptedOut } from "./lib/venueOptOut";
+import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
+import schema from "./schema";
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
 export const DUPLICATE_COSINE = 0.995;
@@ -138,7 +138,7 @@ export const checkDuplicatePage = internalQuery({
   returns: duplicatePage,
   handler: async (ctx, { scanId, generation, cursor }): Promise<DuplicatePage> => {
     const device = await requireDevice(ctx);
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
     }
@@ -183,7 +183,7 @@ async function validateSubmission(
   submitted: SubmittedFields,
   cropStorageId: Id<"_storage">,
 ): Promise<{ flow: LabelFlow; fields: ContributionFields }> {
-  const venue = scan.venueId ? await ctx.db.get(scan.venueId) : null;
+  const venue = scan.venueId ? await ctx.db.get("museums", scan.venueId) : null;
   if (!venue || (await isVenueOptedOut(ctx, venue))) {
     throw new ConvexError({ code: "invalid_venue" });
   }
@@ -228,7 +228,7 @@ export const authorize = internalMutation({
         fields: args.fields,
       }),
     });
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
     }
@@ -270,11 +270,11 @@ export const findGroupPage = internalQuery({
   returns: groupPage,
   handler: async (ctx, { scanId, fields, cursor }): Promise<GroupPage> => {
     const device = await requireDevice(ctx);
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId || !scan.labelFlow) {
       throw new ConvexError({ code: "invalid_scan" });
     }
-    const venue = await ctx.db.get(scan.venueId);
+    const venue = await ctx.db.get("museums", scan.venueId);
     const revision = venue?.contributionRevision ?? 0;
     const candidate = {
       venueId: scan.venueId,
@@ -326,7 +326,7 @@ export const commit = internalMutation({
   handler: async (ctx, args): Promise<ContributionResult> => {
     const { scanId, cropStorageId } = args;
     const device = await requireDevice(ctx);
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
     }
@@ -356,7 +356,7 @@ export const commit = internalMutation({
     if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
       throw new ConvexError({ code: "bad_orb_file" });
     }
-    const venue = (await ctx.db.get(scan.venueId))!;
+    const venue = (await ctx.db.get("museums", scan.venueId))!;
     if ((venue.contributionRevision ?? 0) !== args.venueRevision) {
       throw new ConvexError({ code: "contributions_changed" });
     }
@@ -400,12 +400,12 @@ export const commit = internalMutation({
       createdAt: Date.now(),
     });
     if (!duplicate) {
-      await publishContribution(ctx, (await ctx.db.get(contributionId))!, args.groupObjectId);
+      await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!, args.groupObjectId);
     }
-    await ctx.db.patch(venue._id, {
+    await ctx.db.patch("museums", venue._id, {
       contributionRevision: (venue.contributionRevision ?? 0) + 1,
     });
-    await ctx.db.patch(device._id, { lastContributionId: contributionId });
+    await ctx.db.patch("devices", device._id, { lastContributionId: contributionId });
     return duplicate
       ? { contributionId, status: "rejected", reason: "duplicate" }
       : { contributionId, status: "tentative" };
@@ -436,7 +436,7 @@ export const contribute = action({
       });
       if (authorization.kind === "existing") return authorization.result;
       const { scan, vector } = authorization;
-      let previousContributionId = authorization.previousContributionId;
+      let { previousContributionId } = authorization;
       const matches = await ctx.vectorSearch("embeddings", "by_vector", {
         vector,
         limit: 3,
@@ -516,7 +516,7 @@ export const withdraw = mutation({
   returns: v.null(),
   handler: async (ctx, { contributionId }) => {
     const device = await requireDevice(ctx);
-    const row = await ctx.db.get(contributionId);
+    const row = await ctx.db.get("contributions", contributionId);
     if (!row || row.deviceId !== device._id) {
       throw new ConvexError({ code: "contribution_not_found" });
     }

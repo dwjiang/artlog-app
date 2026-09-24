@@ -1,6 +1,5 @@
 import { AppState } from "react-native";
 
-import type { Id } from "../../../convex/_generated/dataModel";
 import { db } from "@/db/client";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
 import { enqueuePendingScan, deletePendingScan } from "@/db/repos/pending-scans";
@@ -8,6 +7,8 @@ import { softDeleteSavedWork } from "@/db/repos/saved-works";
 import { listSettings, removeSetting } from "@/db/repos/settings";
 import { artworkPhotos, savedWorks } from "@/db/schema";
 import { switchOwner } from "@/lib/account/owner-store";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { contributeLabel } from "./contribute";
 import { formStateFromFlow } from "./fields";
 import { flushPendingShares, shareSavedLabel, startPendingShareFlusher } from "./share-saved-label";
@@ -15,7 +16,7 @@ import { flushPendingShares, shareSavedLabel, startPendingShareFlusher } from ".
 const mockNetworkState = jest.fn();
 const mockNetworkListener = jest.fn();
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("./contribute", () => ({
   contributeLabel: jest.fn(),
@@ -28,8 +29,8 @@ jest.mock("expo-network", () => ({
 
 const owner = "device:test-installation";
 const scanId = "scan-1" as Id<"scans">;
-const descriptors = new Uint8Array([1, 2, 3]).buffer,
-  keypoints = new Uint8Array([4, 5]).buffer;
+const descriptors = new Uint8Array([1, 2, 3]).buffer;
+const keypoints = new Uint8Array([4, 5]).buffer;
 const state = formStateFromFlow({
   stage: "verified",
   moderation: "clear",
@@ -141,8 +142,8 @@ it("reuses an in-flight attempt for the same scan instead of contributing twice"
       finish = resolve;
     }),
   );
-  const first = shareSavedLabel(input, "saved-1"),
-    second = shareSavedLabel(input, "saved-1");
+  const first = shareSavedLabel(input, "saved-1");
+  const second = shareSavedLabel(input, "saved-1");
   await Promise.resolve();
   finish(outcome);
   expect(await Promise.all([first, second])).toEqual([{ result: outcome }, { result: outcome }]);

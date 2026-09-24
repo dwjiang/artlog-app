@@ -13,26 +13,26 @@ export type PreparedPainting = {
   cropSize: number;
 };
 
-export interface Warper {
+export type Warper = {
   warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<PreparedPainting | null>;
-}
+};
 
-export interface Triage {
+export type Triage = {
   check(cropUri: string): Promise<{ ok: true } | { ok: false; reason: "blur" | "glare"; message: string }>;
-}
+};
 
-export interface Embedder {
+export type Embedder = {
   embed(cropUri: string): Promise<Float32Array>;
   modelVersion: string;
-}
+};
 
-export interface OrbExtractor {
+export type OrbExtractor = {
   extract(cropUri: string): Promise<{
     descriptors: ArrayBuffer;
     keypoints: ArrayBuffer;
     count: number;
   }>;
-}
+};
 
 export type IdentifyResponse = FunctionReturnType<typeof api.identify.identify>;
 export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, "scope"> & {
@@ -62,13 +62,13 @@ export type CaptureResult = (
 ) & { timings: CaptureTimings };
 
 /** The local capture store: every capture is persisted before any network call. */
-export interface CaptureStore {
+export type CaptureStore = {
   /** Moves the photo and crop into place and inserts the row; `identifying` claims it for the inline identify. */
   enqueue(payload: CapturePayload, status: "queued" | "identifying"): Promise<void>;
   recordResult(localId: string, response: IdentifyResponse, owner?: string): Promise<void>;
   /** Returns the row to the queue after the inline identify failed, so the flusher retries it. */
   requeue(localId: string, error: string, owner?: string): Promise<void>;
-}
+};
 
 export type CaptureDependencies = {
   warper: Warper;

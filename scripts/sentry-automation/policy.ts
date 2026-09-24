@@ -6,7 +6,7 @@ export const SHA = /^[a-f0-9]{40}$/;
 export const ISSUE = /^ARTLOG-APP-[A-Z0-9]+$/;
 export const BRANCH = /^sentry-fix\/artlog-app-[a-z0-9]+$/;
 
-export interface Pull {
+export type Pull = {
   number: number;
   title: string;
   body: string | null;
@@ -16,15 +16,15 @@ export interface Pull {
   labels: { name: string }[];
   head: { ref: string; sha: string; repo: { full_name: string } | null };
   base: { ref: string };
-}
+};
 
-export interface State {
+export type State = {
   issue: string;
   issueId: string;
   rounds: number;
   reviewedHead: string;
   verdict: "pass" | "changes_requested";
-}
+};
 
 export function eligiblePull(pull: Pull): boolean {
   return (

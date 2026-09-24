@@ -7,17 +7,20 @@ it("formats calendar dates without shifting the visit into another day", () => {
   expect(visitDate("2026-02-30", "en-US")).toBe("Date unavailable");
   expect(visitDate("invalid")).toBe("Date unavailable");
 });
+
 it("uses first and last initials without inventing a photo", () => {
   expect(initials("  Alex River Chen ")).toBe("AC");
   expect(initials("李")).toBe("李");
   expect(initials("")).toBe("?");
 });
+
 it("enforces existing search limits before sending a request", () => {
   expect(peopleSearch("a")).toBeUndefined();
   expect(peopleSearch("a".repeat(201))).toBeUndefined();
   expect(peopleSearch(Array(17).fill("word").join(" "))).toBeUndefined();
   expect(peopleSearch(" Alex  Chen ")).toBe("alex chen");
 });
+
 it.each([
   ["none", null, false, ["request"]],
   ["pending", "me", false, ["cancel"]],

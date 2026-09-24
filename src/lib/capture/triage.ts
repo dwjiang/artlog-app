@@ -2,6 +2,7 @@ import type { Mat } from "react-native-fast-opencv";
 
 import type { FastOpenCV } from "@/lib/image/opencv";
 import { withGray } from "@/lib/image/read-crop";
+
 import type { Triage } from "./stages";
 
 /** Metrics are measured on the gray crop downscaled to this square size. */

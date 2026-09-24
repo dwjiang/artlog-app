@@ -1,5 +1,6 @@
-import { MuseumDownloadsController, type DownloadDependencies } from "./controller";
 import type { MuseumManifest } from "@/shared/offline/types";
+
+import { MuseumDownloadsController, type DownloadDependencies } from "./controller";
 import { downloadProgress, sortMuseums } from "./model";
 
 const pack: MuseumManifest = {
@@ -68,6 +69,7 @@ it("only becomes ready after all chunks and previews have been persisted, includ
     completed: 3,
   });
 });
+
 it("pauses an in-flight transfer and resumes from the last completed chunk", async () => {
   const { controller, deps } = fixture();
   const part = deferred();
@@ -84,6 +86,7 @@ it("pauses an in-flight transfer and resumes from the last completed chunk", asy
   await controller.start(pack);
   expect(deps.download.mock.calls.map((call) => (call as unknown[])[1])).toEqual([0, 1, 1, 2]);
 });
+
 it("coalesces repeated download taps while checking connectivity", async () => {
   const { controller, deps } = fixture();
   const network = deferred();
@@ -91,13 +94,14 @@ it("coalesces repeated download taps while checking connectivity", async () => {
     await network.promise;
     return true;
   });
-  const first = controller.start(pack),
-    second = controller.start(pack);
+  const first = controller.start(pack);
+  const second = controller.start(pack);
   network.resolve();
   await Promise.all([first, second]);
   expect(deps.manifest).toHaveBeenCalledTimes(1);
   expect(deps.download).toHaveBeenCalledTimes(3);
 });
+
 it("cancellation cannot be undone by an in-flight transfer finishing later", async () => {
   const { controller, deps } = fixture();
   const part = deferred();
@@ -110,6 +114,7 @@ it("cancellation cannot be undone by an in-flight transfer finishing later", asy
   expect(controller.getSnapshot().downloads[pack.id]).toBeUndefined();
   expect(deps.remove).toHaveBeenCalledWith("museum-1-v1");
 });
+
 it("failed updates keep the complete package usable; cancelling the update restores ready status", async () => {
   const { controller, deps } = fixture();
   await controller.start(pack);
@@ -128,6 +133,7 @@ it("failed updates keep the complete package usable; cancelling the update resto
   });
   expect(deps.remove).not.toHaveBeenCalledWith("museum-1-v1");
 });
+
 it("a completed update swaps packages before cleaning up the previous version", async () => {
   const { controller, deps } = fixture();
   await controller.start(pack);
@@ -138,6 +144,7 @@ it("a completed update swaps packages before cleaning up the previous version", 
   await controller.checkForUpdate(pack);
   expect(deps.remove).toHaveBeenCalledWith("museum-1-v1");
 });
+
 it("does not start offline, and insufficient space leaves a resumable download", async () => {
   const { controller, deps } = fixture();
   deps.online.mockResolvedValue(false);
@@ -153,6 +160,7 @@ it("does not start offline, and insufficient space leaves a resumable download",
   });
   expect(deps.download).not.toHaveBeenCalled();
 });
+
 it("reports lost connectivity instead of an empty catalog", async () => {
   const { controller, deps } = fixture();
   deps.online.mockResolvedValue(false);
@@ -164,6 +172,7 @@ it("reports lost connectivity instead of an empty catalog", async () => {
   });
   expect(deps.catalog).not.toHaveBeenCalled();
 });
+
 it("removes only the requested museum and retains other downloads and the catalog", async () => {
   const { controller, deps } = fixture();
   await controller.refresh();
@@ -176,6 +185,7 @@ it("removes only the requested museum and retains other downloads and the catalo
   expect(controller.getSnapshot().catalog).toEqual([pack]);
   expect(deps.remove.mock.calls).toEqual([["museum-1-v1"]]);
 });
+
 it("filters names and cities and sorts by real size, name, or distance", () => {
   const other = {
     ...pack,

@@ -1,10 +1,11 @@
-import { reportError } from "@/lib/observability";
 import type { ConvexReactClient } from "convex/react";
+
+import { signPayload } from "@/lib/attested-write";
+import { reportError } from "@/lib/observability";
+import { rejectionPayload } from "@/shared/attestation/attested-payloads";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { rejectionPayload } from "../../../shared/attestation/attested-payloads";
-import { signPayload } from "@/lib/attested-write";
 
 const labelRejections = new Map<Id<"scans">, Promise<Id<"feedback"> | null>>();
 

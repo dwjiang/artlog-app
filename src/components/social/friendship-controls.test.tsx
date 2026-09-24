@@ -1,12 +1,14 @@
-import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import type { SocialSession } from "@/lib/social/use-social-session";
+import { Alert } from "react-native";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
+import type { SocialSession } from "@/lib/social/use-social-session";
+
 import { CompactFriendshipControls, FriendshipControls } from "./friendship-controls";
 
-const mockPush = jest.fn(),
-  mockAct = jest.fn(),
-  mockUseFriendship = jest.fn();
+const mockPush = jest.fn();
+const mockAct = jest.fn();
+const mockUseFriendship = jest.fn();
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));

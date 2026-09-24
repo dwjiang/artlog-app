@@ -1,5 +1,5 @@
-import type { Doc } from "../_generated/dataModel";
 import type { JournalVenue } from "../../shared/journal/venue";
+import type { Doc } from "../_generated/dataModel";
 
 export function projectJournalVenue(venue: Doc<"museums">): JournalVenue {
   return {

@@ -1,17 +1,19 @@
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
-import { SavedWorkImage } from "../collection/saved-work-image";
-import { formatVisitDate, placeIdentity } from "@/lib/journal/history";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
+import { FlatList, Pressable, ScrollView, View } from "react-native";
+
+import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
-import { EmptyState, EmptySymbol } from "../empty-state";
-import { GalleryButton } from "../collection/gallery-button";
-import { router, Stack, useLocalSearchParams } from "expo-router";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { formatVisitDate, placeIdentity } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import { visitCounts, visitsAtPlace } from "@/lib/journal/visit-summaries";
+
 import { VisitGlobe } from "./visit-globe";
 import { VisitRow } from "./visit-timeline";
 import { VisitMessage, VisitPage } from "./visit-ui";
@@ -39,7 +41,7 @@ export function VisitPlaceScreen() {
             {error ? "Visits could not load." : "Loading visits…"}
           </VisitMessage>
         </VisitPage>
-      ) : !matches.length ? (
+      ) : matches.length === 0 ? (
         <VisitPage>
           <EmptyState
             inset={false}

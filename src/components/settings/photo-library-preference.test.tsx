@@ -3,10 +3,11 @@ import { getPermissionsAsync } from "expo-media-library";
 
 import * as settings from "@/db/repos/settings";
 import { getSaveToPhotos } from "@/lib/settings/save-to-photos";
+
 import { PhotoLibraryPreference } from "./photo-library-preference";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
 beforeEach(() => settings.removeSetting("save-originals-to-photos"));

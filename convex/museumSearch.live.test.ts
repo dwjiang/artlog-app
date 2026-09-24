@@ -5,14 +5,15 @@
 //   MUSEUM_SEARCH_LIVE=1 MUSEUM_SEARCH_LIVE_VENUE_ID=<museums id> npx vitest run convex/museumSearch.live.test.ts
 import { execFileSync } from "node:child_process";
 import { stdout } from "node:process";
+
 import { ConvexHttpClient } from "convex/browser";
 import { expect, it } from "vitest";
 
 import model from "../shared/model/model-version.json";
-import { api } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
+import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { testVector } from "./lib/testFactories";
 
 function tavilySpent(): number {

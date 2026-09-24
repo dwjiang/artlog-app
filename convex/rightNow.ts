@@ -28,11 +28,11 @@ export const load = internalQuery({
   },
   returns: v.object({ region: v.union(v.string(), v.null()) }),
   handler: async (ctx, { scanId, deviceId, venueId }) => {
-    const scan = await ctx.db.get(scanId);
+    const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== deviceId) {
       throw new ConvexError({ code: "scan_not_found" });
     }
-    const venue = venueId ? await ctx.db.get(venueId) : null;
+    const venue = venueId ? await ctx.db.get("museums", venueId) : null;
     return { region: venue?.region ?? null };
   },
 });
@@ -40,9 +40,9 @@ export const load = internalQuery({
 type Waiting = { scanId: Id<"scans">; generation: number };
 
 async function applyCard(ctx: MutationCtx, target: Waiting, card: RightNowCard): Promise<void> {
-  const scan = await ctx.db.get(target.scanId);
+  const scan = await ctx.db.get("scans", target.scanId);
   if (scan && scan.generation === target.generation && scan.status === "identified") {
-    await ctx.db.patch(scan._id, { rightNow: card, updatedAt: Date.now() });
+    await ctx.db.patch("scans", scan._id, { rightNow: card, updatedAt: Date.now() });
   }
 }
 
@@ -78,7 +78,7 @@ export const claim = internalMutation({
     if (row?.pendingAt !== undefined && row.pendingAt > now - PENDING_MS) {
       const queue = row.waiting ?? [];
       if (!queue.some((entry) => entry.scanId === scanId)) {
-        await ctx.db.patch(row._id, {
+        await ctx.db.patch("artistContext", row._id, {
           waiting: [...queue, { scanId, generation }],
         });
       }
@@ -86,7 +86,7 @@ export const claim = internalMutation({
     }
     const claimId = crypto.randomUUID();
     if (row) {
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch("artistContext", row._id, {
         pendingAt: now,
         claimId,
         waiting: [{ scanId, generation }],
@@ -123,7 +123,7 @@ export const write = internalMutation({
       .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
       .unique();
     if (!row || row.claimId !== claimId) return false;
-    await ctx.db.patch(row._id, {
+    await ctx.db.patch("artistContext", row._id, {
       text: card?.text ?? "",
       sourceUrl: card?.sourceUrl ?? "",
       sourceLabel: card?.sourceLabel ?? "",
@@ -151,9 +151,10 @@ export const release = internalMutation({
       .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
       .unique();
     if (!row || row.claimId !== claimId) return null;
-    if (row.fetchedAt === 0) await ctx.db.delete(row._id);
-    else {
-      await ctx.db.patch(row._id, {
+    if (row.fetchedAt === 0) {
+      await ctx.db.delete("artistContext", row._id);
+    } else {
+      await ctx.db.patch("artistContext", row._id, {
         pendingAt: undefined,
         claimId: undefined,
         waiting: undefined,

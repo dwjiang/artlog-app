@@ -1,20 +1,21 @@
 import { Button, Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import { accessibilityLabel, contentShape, font, frame, shapes } from "@expo/ui/swift-ui/modifiers";
-import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 
-import { Gallery, SettingsOutline } from "@/constants/theme";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ProfileAvatar } from "@/components/social/profile-avatar";
+import { ThemedText } from "@/components/themed-text";
+import { Gallery, SettingsOutline } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
-import { api } from "../../../convex/_generated/api";
-import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSocialQuery } from "@/lib/social/use-social-query";
-import { ProfileAvatar } from "../social/profile-avatar";
-import { ThemedText } from "../themed-text";
+import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
 
 export function SettingsScreen() {
   const { fontScale } = useWindowDimensions();

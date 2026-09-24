@@ -11,9 +11,9 @@ export function usernameCandidates(name: string, count = 20): string[] {
   const suffixRoom = 1 + String(count).length;
   const base = name
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replaceAll(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replaceAll(/[^a-z0-9]+/g, "-")
     .replace(/^-+/, "")
     .slice(0, LIMITS.usernameMax - suffixRoom)
     .replace(/-+$/, "");

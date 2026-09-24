@@ -1,5 +1,7 @@
 import { act, render } from "@testing-library/react-native";
+
 import { offerProfileSetup, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
+
 import { ProfileSetupPrompt } from "./profile-setup-prompt";
 
 const mockPush = jest.fn();

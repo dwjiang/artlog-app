@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
 
-import { DatabaseGate } from "./database-gate";
 import { reportError } from "@/lib/observability";
+
+import { DatabaseGate } from "./database-gate";
 
 const mockState: { success: boolean; error?: Error } = { success: false };
 

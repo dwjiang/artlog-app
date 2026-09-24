@@ -2,17 +2,19 @@ import { useQueries, type RequestForQueries } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
+
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { useDeviceReady } from "@/lib/use-device-ready";
-import { useListening } from "@/lib/audio/use-listening";
-import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
 import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
-import { openPlayer } from "./mini-player";
+import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
+import { useListening } from "@/lib/audio/use-listening";
+import { useDeviceReady } from "@/lib/use-device-ready";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
+import { openPlayer } from "./mini-player";
 
 export function ListenActions({
   artworkId,
@@ -48,7 +50,7 @@ export function ListenActions({
   const audio = useListening();
   const facts = data?.narrationFacts ?? [];
   const cachedDuration = useCachedNarrationDuration(data?.narrationRenderId);
-  if (!data || !facts.length) return null;
+  if (!data || facts.length === 0) return null;
   const work: ListeningWork = {
     artworkId,
     title,

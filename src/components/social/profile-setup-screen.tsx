@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../../convex/_generated/api";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -18,6 +18,8 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate } from "./social-state";
 
@@ -38,8 +40,8 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   const [created, setCreated] = useState(false);
   const [finished, setFinished] = useState(false);
   const [savedName, setSavedName] = useState("");
-  const photoDraft = useRef<string>(undefined),
-    mounted = useRef(true);
+  const photoDraft = useRef<string>(undefined);
+  const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -268,7 +270,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
               placeholderTextColor={Gallery.muted}
               onChangeText={(value) => {
                 setError(undefined);
-                setUsername(value.toLowerCase().replace(/\s+/g, ""));
+                setUsername(value.toLowerCase().replaceAll(/\s+/g, ""));
               }}
               maxLength={LIMITS.usernameMax}
               editable={!busy}

@@ -1,6 +1,6 @@
-import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import type { IndexRange, NamedTableInfo, Query } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
+
 import { pagination, type JournalOwner } from "../../shared/journal/contracts";
 import { isCalendarDate, isRevision, isUuid, LIMITS, utf8Bytes } from "../../shared/journal/limits";
 import {
@@ -8,14 +8,15 @@ import {
   publicProfile,
   sharedVisitCard,
   sharedPhotoSelection,
-  sharedSelection,
+  type sharedSelection,
   validateSelection,
 } from "../../shared/social/contracts";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
+import { resolveDisplayAsset } from "./displayMedia";
 import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
 import { projectProfile, projectSharedVisitCard } from "./projections";
-import { resolveDisplayAsset } from "./displayMedia";
 
 export const publicationHeader = v.object({
   audience: visitAudience,
@@ -113,7 +114,7 @@ export async function header(
   profile: Doc<"profiles">,
   visit: Doc<"visits">,
 ): Promise<Infer<typeof publicationHeader>> {
-  const venue = await ctx.db.get(visit.venueId);
+  const venue = await ctx.db.get("museums", visit.venueId);
   return {
     audience: publication.audience,
     artworkCount: (await publicationItems(ctx, publication._id)).length,
@@ -202,12 +203,12 @@ export async function projectArtworkPage(
     .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id).gt("position", start))
     .take(LIMITS.selectedSaves + 1);
   const page: Infer<typeof sharedVisitCard>[] = [];
-  let position = start,
-    consumed = 0,
-    bytes = 0;
+  let position = start;
+  let consumed = 0;
+  let bytes = 0;
   for (const item of items) {
     if (page.length >= numItems || !(await readHeadroom(ctx))) break;
-    const save = await ctx.db.get(item.saveId);
+    const save = await ctx.db.get("collections", item.saveId);
     if (
       save
       && save.deletedAt === undefined
@@ -217,7 +218,7 @@ export async function projectArtworkPage(
       await requireMembership(ctx, save, visit);
       const card = await projectVisitAlbum(ctx, item, save, publication.postId);
       const size = utf8Bytes(card);
-      if (page.length && bytes + size > PAGE_BYTES) break;
+      if (page.length > 0 && bytes + size > PAGE_BYTES) break;
       page.push(card);
       bytes += size;
     }
@@ -331,5 +332,5 @@ export async function projectVisitAlbum(
       }
     }
   }
-  return photos.length ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos } : card;
+  return photos.length > 0 ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos } : card;
 }

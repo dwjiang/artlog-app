@@ -70,7 +70,7 @@ function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic
     const rows: WidgetText[] = [];
     function append(value: string, size: number, family: string, gap: number, maxLines: number) {
       const lines = wrap(value, size, family, width, maxLines);
-      if (!lines.length) return;
+      if (lines.length === 0) return;
       height += gap;
       for (const text of lines) {
         rows.push({
@@ -115,7 +115,7 @@ function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic
       .filter((row) => row.family === "Anton")
       .map((row) => row.text)
       .join(" ");
-    if (value.height <= maxHeight && wholeTitle === art.title.trim().replace(/\s+/g, " ")) {
+    if (value.height <= maxHeight && wholeTitle === art.title.trim().replaceAll(/\s+/g, " ")) {
       return value;
     }
   }
@@ -144,8 +144,8 @@ export function paintingLayout(
         );
   const height = Math.min(bounds.height - thickness * 2, (bounds.width - thickness * 2) / aspect);
   const width = height * aspect;
-  const x = bounds.x + (bounds.width - width) / 2,
-    y = bounds.y + (bounds.height - height) / 2;
+  const x = bounds.x + (bounds.width - width) / 2;
+  const y = bounds.y + (bounds.height - height) / 2;
   return {
     image: { uri: art.uri, x, y, width, height },
     rectangles: thickness
@@ -185,8 +185,8 @@ export function widgetLayout(art: PreparedWidgetArtwork, settings: WidgetSetting
       ...paintingLayout(art, { x: 20, y: 20, width: 118, height: 118 }, settings, true),
     };
   }
-  const panoramic = art.aspect > 2.25,
-    hasCaption = settings.caption !== "none";
+  const panoramic = art.aspect > 2.25;
+  const hasCaption = settings.caption !== "none";
   const text = hasCaption ? caption(art, settings, panoramic) : { rows: [], height: 0 };
   const artHeight =
     panoramic && hasCaption

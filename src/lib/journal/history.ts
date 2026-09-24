@@ -1,6 +1,7 @@
-import type { Visit } from "../../db/schema";
+import type { Visit } from "@/db/schema";
+import countryNames from "@/shared/journal/country-names.json";
+
 import { compareText, matchesSearch, searchTerm } from "./query";
-import countryNames from "../../../shared/journal/country-names.json";
 
 export type JournalVisit = Visit & {
   city?: string | null;

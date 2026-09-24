@@ -1,6 +1,6 @@
+import type { JournalOwner, JournalSave } from "../../shared/journal/contracts";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { JournalOwner, JournalSave } from "../../shared/journal/contracts";
 
 async function increment(
   ctx: MutationCtx,
@@ -17,7 +17,7 @@ async function increment(
       )
       .unique();
     if (score) {
-      await ctx.db.patch(score._id, {
+      await ctx.db.patch("leaderboardScores", score._id, {
         score: Math.max(0, score.score + amount),
       });
     } else if (amount > 0) {
@@ -43,7 +43,7 @@ export async function recordVisitScore(
       .query("visits")
       .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date))
       .take(2);
-  if (previousDay && !(await onDay(previousDay)).length) {
+  if (previousDay && (await onDay(previousDay)).length === 0) {
     await increment(ctx, owner.accountId, "visits", previousDay, -1);
   }
   if ((await onDay(day)).length === 1) {
@@ -70,10 +70,10 @@ export async function recordArtworkScore(
   const other = matches.find((row) => row.localId !== save.localId);
   const firstMonth = (row?: JournalSave | null) => {
     const dates = [other, row].flatMap((entry) => (entry && entry.deletedAt === undefined ? [entry.savedAt] : []));
-    return dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 7) : undefined;
+    return dates.length > 0 ? new Date(Math.min(...dates)).toISOString().slice(0, 7) : undefined;
   };
-  const before = firstMonth(previous),
-    after = firstMonth(save);
+  const before = firstMonth(previous);
+  const after = firstMonth(save);
   if (before === after) return;
   if (before) await increment(ctx, owner.accountId, "artworks", before, -1);
   if (after) await increment(ctx, owner.accountId, "artworks", after, 1);

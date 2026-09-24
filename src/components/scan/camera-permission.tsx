@@ -1,12 +1,13 @@
-import { reportError } from "@/lib/observability";
-import { LoadingRing } from "@/components/loading-ring";
 import { useState, type ReactNode } from "react";
 import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { useCameraPermission } from "react-native-vision-camera";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
+import { reportError } from "@/lib/observability";
 
 /** `notice` is the capture's own retry message, shown here because the camera overlay that normally carries it is not mounted. */
 export function CameraPermission({

@@ -1,15 +1,17 @@
-import { signInRoute } from "@/lib/account/sign-in-context";
 import { router } from "expo-router";
 import { Pressable, View, useWindowDimensions } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
-import { api } from "../../../convex/_generated/api";
-import { ProfileAvatar } from "../social/profile-avatar";
-import { Gallery } from "@/constants/theme";
-import { useSocialSession } from "@/lib/social/use-social-session";
-import { useSocialQuery } from "@/lib/social/use-social-query";
-import { GalleryIconButton } from "./gallery-icon-button";
-import { useLocalOwner } from "@/lib/account/owner-store";
+
 import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { ProfileAvatar } from "@/components/social/profile-avatar";
+import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery } from "@/constants/theme";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { signInRoute } from "@/lib/account/sign-in-context";
+import { useSocialQuery } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
+import { GalleryIconButton } from "./gallery-icon-button";
 
 export function CollectionHeader({
   artworkCount = 0,

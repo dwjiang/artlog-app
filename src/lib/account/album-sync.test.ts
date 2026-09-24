@@ -1,19 +1,21 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import * as Sentry from "@sentry/react-native";
+
 import { db } from "@/db/client";
-import { insertSavedWork } from "@/db/repos/saved-works";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { insertSavedWork } from "@/db/repos/saved-works";
 import { artworkPhotos, artworkEncounters, savedWorks, settings } from "@/db/schema";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { syncArtworkAlbums } from "./album-sync";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
-const mockMutation = jest.fn(),
-  mockUpload = jest.fn(),
-  mockDownload = jest.fn(),
-  mockRemove = jest.fn();
-jest.mock("../convex-client", () => ({
+const mockMutation = jest.fn();
+const mockUpload = jest.fn();
+const mockDownload = jest.fn();
+const mockRemove = jest.fn();
+jest.mock("@/lib/convex-client", () => ({
   convex: { mutation: (...args: unknown[]) => mockMutation(...args) },
 }));
 jest.mock("./photo-transfer", () => ({

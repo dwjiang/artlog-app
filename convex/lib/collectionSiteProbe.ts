@@ -46,7 +46,7 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   );
   for (const match of rawLinks) {
     try {
-      const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(), page);
+      const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replaceAll("&amp;", "&").trim(), page);
       if (link) links.push(link);
     } catch {
       /* Malformed markup is not a probe target. */
@@ -80,7 +80,7 @@ export async function probeCollectionSite(website: string): Promise<CollectionSi
   const pending = PATHS.map((path) => new URL(path, root));
   const visited = new Set<string>();
   let retryable = false;
-  while (pending.length && visited.size < 6) {
+  while (pending.length > 0 && visited.size < 6) {
     const url = pending.shift()!;
     if (visited.has(url.href)) continue;
     visited.add(url.href);

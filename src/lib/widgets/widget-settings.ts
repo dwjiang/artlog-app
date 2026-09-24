@@ -80,13 +80,13 @@ export const widgetSettingsKey = (owner: string) => `widgets:${owner}`;
 export function readWidgetSettings(value?: string): WidgetSettings {
   try {
     const parsed = JSON.parse(value ?? "{}");
-    const source = parsed.source;
+    const { source } = parsed;
     return {
       source:
         source
         && (source.kind === "visit" || source.kind === "artwork")
         && typeof source.id === "string"
-        && source.id.length
+        && source.id.length > 0
           ? { kind: source.kind, id: source.id }
           : defaultWidgetSettings.source,
       color: widgetColors.some((option) => option.value === parsed.color) ? parsed.color : "paper",

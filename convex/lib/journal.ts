@@ -1,5 +1,5 @@
-import { recordArtworkScore, recordVisitScore } from "./leaderboard";
 import { ConvexError } from "convex/values";
+
 import {
   type JournalOwner,
   type JournalSave,
@@ -9,6 +9,7 @@ import {
 } from "../../shared/journal/contracts";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { recordArtworkScore, recordVisitScore } from "./leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion } from "./ownership";
 import { invalidateDeletedSave, clearEmptyNoteVisibility } from "./publicationAccess";
 
@@ -20,7 +21,7 @@ export async function upsertJournalVisit(
 ) {
   validateVisit(input);
   const existing = await findOwnedVisit(ctx, owner, input.localId);
-  const venue = await ctx.db.get(input.venueId);
+  const venue = await ctx.db.get("museums", input.venueId);
   if (!venue) throw new ConvexError({ code: "invalid_venue" });
   if (existing && existing.venueId !== input.venueId) {
     throw new ConvexError({ code: "invalid_visit" });
@@ -44,7 +45,7 @@ export async function upsertJournalVisit(
     changeVersion: await nextChangeVersion(ctx, owner),
   };
   const id = existing?._id ?? (await ctx.db.insert("visits", fields));
-  if (existing) await ctx.db.patch(id, fields);
+  if (existing) await ctx.db.patch("visits", id, fields);
   if (
     existing
     && (existing.visitedOn !== input.visitedOn
@@ -55,7 +56,7 @@ export async function upsertJournalVisit(
       .withIndex("by_visitId", (q) => q.eq("visitId", id))
       .unique();
     if (publication) {
-      await ctx.db.patch(publication._id, {
+      await ctx.db.patch("sharedVisits", publication._id, {
         visitedOn: input.visitedOn,
         ...(input.visibility === "private" ? { status: "private" as const } : {}),
         publicationRevision: publication.publicationRevision + 1,
@@ -64,7 +65,7 @@ export async function upsertJournalVisit(
     }
   }
   await recordVisitScore(ctx, owner, input.venueId, input.visitedOn, existing?.visitedOn);
-  return (await ctx.db.get(id))!;
+  return (await ctx.db.get("visits", id))!;
 }
 export async function upsertJournalSave(
   ctx: MutationCtx,
@@ -82,14 +83,14 @@ export async function upsertJournalSave(
     throw new ConvexError({ code: "invalid_save" });
   }
   if (existing?.deletedAt !== undefined) return existing;
-  if (input.venueId && !(await ctx.db.get(input.venueId))) {
+  if (input.venueId && !(await ctx.db.get("museums", input.venueId))) {
     throw new ConvexError({ code: "invalid_venue" });
   }
-  const object = input.objectId ? await ctx.db.get(input.objectId) : null;
+  const object = input.objectId ? await ctx.db.get("objects", input.objectId) : null;
   if (input.objectId && !object) {
     throw new ConvexError({ code: "invalid_object" });
   }
-  if (input.artworkId && !(await ctx.db.get(input.artworkId))) {
+  if (input.artworkId && !(await ctx.db.get("artworks", input.artworkId))) {
     throw new ConvexError({ code: "invalid_artwork" });
   }
   if (object && input.artworkId && object.artworkId !== input.artworkId) {
@@ -118,7 +119,7 @@ export async function upsertJournalSave(
       ...stamps,
     }));
   if (existing) {
-    await ctx.db.patch(id, {
+    await ctx.db.patch("collections", id, {
       snapshot: input.snapshot,
       note: input.note,
       deletedAt: input.deletedAt,
@@ -137,7 +138,7 @@ export async function upsertJournalSave(
       changeVersion: await nextChangeVersion(ctx, owner),
     });
   }
-  const row = (await ctx.db.get(id))!;
+  const row = (await ctx.db.get("collections", id))!;
   await recordArtworkScore(ctx, owner, row, existing);
   if (row.deletedAt !== undefined) await invalidateDeletedSave(ctx, row);
   else if (!row.note?.trim()) await clearEmptyNoteVisibility(ctx, row._id);

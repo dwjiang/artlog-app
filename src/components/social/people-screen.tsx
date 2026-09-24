@@ -1,25 +1,27 @@
-import { CompactFriendshipControls } from "./friendship-controls";
-import { SocialInvitation } from "./social-invitation";
-import { GalleryButton } from "../collection/gallery-button";
-import { SearchEmptyState } from "../empty-state";
-import { socialStyles } from "./social-styles";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
+
+import { CollectionSearchField } from "@/components/collection/collection-search-field";
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { SearchEmptyState } from "@/components/empty-state";
+import { ListSkeleton } from "@/components/loading-skeleton";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { peopleSearch } from "@/lib/social/presentation";
 import type { PublicProfile, Relationship } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { LIMITS } from "@/shared/journal/limits";
-import { PageFooter, SocialGate, SocialState } from "./social-state";
-import { NativeSegmentedPicker } from "../collection/native-segmented-picker";
-import { ThemedText as Text } from "@/components/themed-text";
-import { ProfileIdentity } from "./visit-card";
-import { CollectionSearchField } from "../collection/collection-search-field";
-import { ListSkeleton } from "@/components/loading-skeleton";
+
+import { api } from "../../../convex/_generated/api";
 import { FriendsInvitation } from "./friends-invitation";
+import { CompactFriendshipControls } from "./friendship-controls";
+import { SocialInvitation } from "./social-invitation";
+import { PageFooter, SocialGate, SocialState } from "./social-state";
+import { socialStyles } from "./social-styles";
+import { ProfileIdentity } from "./visit-card";
 
 type BrowsedProfile = PublicProfile & { relationship?: Relationship };
 const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) => result;

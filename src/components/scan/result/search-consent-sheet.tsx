@@ -1,11 +1,11 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
-import { reportError } from "@/lib/observability";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
 
 export const SEARCH_CONSENT_TITLE = "Look in the museum’s collection?";

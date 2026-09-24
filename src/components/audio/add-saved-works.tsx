@@ -1,17 +1,20 @@
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useConvex } from "convex/react";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
+
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
+import { Gallery } from "@/constants/theme";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
-import { captureFileUri } from "@/lib/files/photos";
 import { useListening } from "@/lib/audio/use-listening";
+import { captureFileUri } from "@/lib/files/photos";
+
+import { api } from "../../../convex/_generated/api";
 import { ArtworkThumbnail } from "./artwork-thumbnail";
-import { Gallery } from "@/constants/theme";
+
 export function AddSavedWorks() {
   const owner = useLocalOwner();
   const { data, updatedAt, error: loadError } = useLiveQuery(listSavedWorks(owner), [owner]);
@@ -63,7 +66,7 @@ export function AddSavedWorks() {
           {error}
         </Text>
       )}
-      {!works.length && (
+      {works.length === 0 && (
         <Text themeColor="textSecondary">
           {loadError
             ? "Saved artworks couldn’t load."

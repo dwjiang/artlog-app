@@ -380,6 +380,7 @@ describe("accession title verification", () => {
   const venue = {
     accessionUrlPattern: "https://www.metmuseum.org/art/{accession}",
   };
+
   it("does not identify an artwork from an artist with a conflicting given name", async () => {
     const html = jsonLdPage.replaceAll("Claude Monet", "Pieter Brueghel the Younger");
     fetchMock.mockResolvedValueOnce(new Response(html));

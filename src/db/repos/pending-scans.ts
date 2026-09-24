@@ -1,8 +1,6 @@
 import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-import { getLocalOwner } from "../../lib/account/owner-store";
-import { db } from "../client";
+import { db } from "@/db/client";
 import {
   artworkPhotos,
   offlineScanResults,
@@ -10,7 +8,10 @@ import {
   type NewPendingScan,
   type PendingScan,
   type PendingScanStatus,
-} from "../schema";
+} from "@/db/schema";
+import { getLocalOwner } from "@/lib/account/owner-store";
+
+import type { Id } from "../../../convex/_generated/dataModel";
 import { requireVisitMembership } from "./visit-membership";
 
 export const MAX_IDENTIFY_ATTEMPTS = 5;

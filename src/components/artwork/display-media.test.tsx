@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+
 import { DisplayMedia } from "./display-media";
 
 jest.mock("expo-image", () => {
@@ -54,6 +55,7 @@ it("sizes eligible catalog images by dimensions and allows normal caching", asyn
   });
   expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
 });
+
 it("serves derivatives through the context route from memory only", async () => {
   await render(<DisplayMedia media={derivative} label="Saved title" width={100} />);
   const image = screen.getByRole("image", { name: "Saved title" });
@@ -61,6 +63,7 @@ it("serves derivatives through the context route from memory only", async () => 
   expect(image.props.cachePolicy).toBe("memory");
   expect(image.props.source.uri).toBe("https://test.convex.site/display-media?kind=wallItem&itemId=item-a");
 });
+
 it("renders accessible square placeholders for absent and broken images and recovers for a new source", async () => {
   const view = await render(
     <DisplayMedia media={{ kind: "placeholder", width: 1, height: 1 }} label="Saved title" width={100} />,
@@ -77,6 +80,7 @@ it("renders accessible square placeholders for absent and broken images and reco
   );
   expect(screen.getByRole("image", { name: "Saved title" })).toBeOnTheScreen();
 });
+
 it("serves shared visits with optional credentials and requires them only for previews", async () => {
   const media = {
     ...derivative,

@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
+
 import { api } from "./_generated/api";
-import { harness } from "./test.helpers";
 import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
+import { harness } from "./test.helpers";
 
 it("defaults publishing to public and exposes notes only after publishing the visit", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner, 0);
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner, 0);
   const input = {
     visibility: "public" as const,
     localId: draft.visit.localId,
@@ -37,10 +38,10 @@ it("defaults publishing to public and exposes notes only after publishing the vi
 });
 
 it("makes the whole visit private, hiding its notes and artworks from detail, profile history, and feeds", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner, 1);
-  await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Visit memory" }));
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner, 1);
+  await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection: "Visit memory" }));
   const selection = {
     ...draft.selection,
     audience: "public" as const,
@@ -90,9 +91,9 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
 });
 
 it("refuses a stale note preview and keeps edits unpublished until an updated publish", async () => {
-  const t = harness(),
-    owner = await socialUser(t),
-    draft = await socialVisit(t, owner, 0);
+  const t = harness();
+  const owner = await socialUser(t);
+  const draft = await socialVisit(t, owner, 0);
   const input = {
     visibility: "public" as const,
     localId: draft.visit.localId,

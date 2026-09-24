@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+
 import { useVisitView } from "./use-visit-view";
+
 const mockSettings = new Map<string, string>();
 let mockPending: Promise<string | undefined> | undefined;
 jest.mock("@/db/repos/settings", () => ({
@@ -11,6 +13,7 @@ jest.mock("@/db/repos/settings", () => ({
 afterEach(() => {
   mockPending = undefined;
 });
+
 it("defaults to Globe once read and remembers the selection for its local owner", async () => {
   const first = await renderHook(() => useVisitView("a"));
   await waitFor(() => expect(first.result.current.mode).toBe("globe"));
@@ -22,6 +25,7 @@ it("defaults to Globe once read and remembers the selection for its local owner"
   const other = await renderHook(() => useVisitView("b"));
   await waitFor(() => expect(other.result.current.mode).toBe("globe"));
 });
+
 it("reports no mode until the preference is read, unless the user picks one first", async () => {
   mockPending = new Promise(() => {});
   const view = await renderHook(() => useVisitView("c"));
@@ -29,6 +33,7 @@ it("reports no mode until the preference is read, unless the user picks one firs
   await act(() => view.result.current.changeMode("list"));
   expect(view.result.current.mode).toBe("list");
 });
+
 it("starts at Globe and stops writing the selected view when remembering is disabled", async () => {
   mockSettings.set("remember-visit-view:no-memory", "false");
   mockSettings.set("visit-view:no-memory", "list");

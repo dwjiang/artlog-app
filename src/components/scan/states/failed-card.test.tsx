@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import { FailedCard, RETRY_BUTTON } from "./failed-card";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
+
+import { FailedCard, RETRY_BUTTON } from "./failed-card";
 
 it("explains a server code in plain words and offers a retry for a scan still on this phone", async () => {
   const onRetry = jest.fn();

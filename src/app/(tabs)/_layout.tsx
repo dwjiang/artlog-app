@@ -1,14 +1,14 @@
-import { MiniPlayer } from "@/components/audio/mini-player";
-import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useNavigation } from "expo-router";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
 
-import { VisitBar } from "@/components/visits/visit-bar";
+import { MiniPlayer } from "@/components/audio/mini-player";
 import { TabBarVisibility } from "@/components/tab-bar-visibility";
+import { VisitBar } from "@/components/visits/visit-bar";
 import { BottomTabInset, Gallery } from "@/constants/theme";
+import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useVenue } from "@/lib/venue/use-venue";
 import { activeVisit } from "@/lib/venue/venue-reducer";
 

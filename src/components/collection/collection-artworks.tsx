@@ -1,23 +1,24 @@
-import { GalleryButton } from "./gallery-button";
-import { signInRoute } from "@/lib/account/sign-in-context";
-import { SearchEmptyState } from "../empty-state";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { FlatList, View, useWindowDimensions } from "react-native";
+
+import { ChoiceMenu } from "@/components/choice-menu";
+import { SearchEmptyState } from "@/components/empty-state";
+import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
+import { VisitSkeleton } from "@/components/loading-skeleton";
+import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import type { useCollectionData } from "@/lib/collection/use-collection-data";
+import { cropSyncing } from "@/lib/account/photo-sync";
+import { signInRoute } from "@/lib/account/sign-in-context";
 import { artistSections } from "@/lib/collection/artist-sections";
 import { filterWorks } from "@/lib/collection/search";
+import type { useCollectionData } from "@/lib/collection/use-collection-data";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
-import { SocialState } from "../social/social-state";
+
+import { GalleryButton } from "./gallery-button";
 import { SavedWorkImage } from "./saved-work-image";
-import { cropSyncing } from "@/lib/account/photo-sync";
 import { WorkLink } from "./work-link";
-import { VisitSkeleton } from "@/components/loading-skeleton";
-import { ChoiceMenu } from "../choice-menu";
-import { CollectionEmptyState } from "../guest/collection-empty-state";
 
 type Work = ReturnType<typeof useCollectionData>["works"][number];
 type Row =
@@ -74,7 +75,7 @@ export function CollectionArtworks({
   if (controls) {
     rows.push({ key: "controls", kind: "element", element: controls });
   }
-  const initialLoading = loading && !error && !works.length;
+  const initialLoading = loading && !error && works.length === 0;
   if (!initialLoading && works.length > 0) {
     rows.push({
       key: "count",
@@ -127,7 +128,7 @@ export function CollectionArtworks({
   }
   const empty = initialLoading ? (
     <VisitSkeleton heading={false} label="Opening collection…" />
-  ) : filtered.length ? undefined : error ? (
+  ) : filtered.length > 0 ? undefined : error ? (
     <SocialState
       title="Couldn’t load your collection."
       detail="Your saved collection is still on this iPhone. Try opening it again."

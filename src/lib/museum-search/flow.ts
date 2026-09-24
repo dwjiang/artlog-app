@@ -1,13 +1,14 @@
-import { reportError, addBreadcrumb } from "@/lib/observability";
 import type { FunctionArgs } from "convex/server";
+
+import type { ScanFeatures } from "@/lib/capture/features";
+import type { ImageCheckDeps } from "@/lib/label/image-check";
+import { errorMessage } from "@/lib/network-error";
+import { reportError, addBreadcrumb } from "@/lib/observability";
+import { getMuseumSearchConsent } from "@/lib/settings/museum-search";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay, MuseumSearchDisplay } from "../../../convex/lib/validators";
-import type { ScanFeatures } from "@/lib/capture/features";
-import type { ImageCheckDeps } from "@/lib/label/image-check";
-import { errorMessage } from "@/lib/network-error";
-import { getMuseumSearchConsent } from "@/lib/settings/museum-search";
 import { checkCandidates } from "./candidate-check";
 
 export type MuseumSearchStage = "exhibitions" | "check" | "done" | "none";
@@ -48,10 +49,10 @@ type Input = {
   api: MuseumSearchApi;
   images: ImageCheckDeps;
   inputSize: number;
-  getCapture(localId: string): Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
+  getCapture: (localId: string) => Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
   stored?: MuseumSearchDisplay;
-  canContinue(): boolean;
-  onStage?(stage: MuseumSearchStage): void;
+  canContinue: () => boolean;
+  onStage?: (stage: MuseumSearchStage) => void;
 };
 
 export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome> {

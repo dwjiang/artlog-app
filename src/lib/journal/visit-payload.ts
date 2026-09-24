@@ -1,6 +1,8 @@
 import type { FunctionArgs } from "convex/server";
+
+import type { NewVisit } from "@/db/schema";
+
 import type { api } from "../../../convex/_generated/api";
-import type { NewVisit } from "../../db/schema";
 
 export type VisitPayload = FunctionArgs<typeof api.visits.upsertJournal>["visit"];
 

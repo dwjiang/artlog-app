@@ -39,9 +39,9 @@ export function switchOwner(owner: string, scope?: string): void {
   for (const listener of listeners) listener();
 }
 export function captureOwner() {
-  const owner = getLocalOwner(),
-    version = generation,
-    ownerVersion = ownerGeneration;
+  const owner = getLocalOwner();
+  const version = generation;
+  const ownerVersion = ownerGeneration;
   return {
     owner,
     scope: serverScope,

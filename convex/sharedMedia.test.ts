@@ -1,15 +1,16 @@
 import { expect, it } from "vitest";
+
 import { api, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
-import { harness } from "./test.helpers";
 import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { serveSharedMedia } from "./sharedMedia";
+import { harness } from "./test.helpers";
 
 async function fixture() {
-  const t = harness(),
-    a = await socialUser(t),
-    b = await socialUser(t),
-    draft = await socialVisit(t, a, 1);
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
+  const draft = await socialVisit(t, a, 1);
   const asset = await socialDerivative(t, a, draft.saves[0].id);
   const previewContext = {
     kind: "sharedVisitPreview" as const,
@@ -40,6 +41,7 @@ async function fixture() {
   };
   return { t, a, b, draft, asset, previewContext, transport, publish };
 }
+
 it("displays eligible draft media only to the owner without publishing or exposing storage IDs", async () => {
   const { t, a, b, draft, asset, previewContext, transport } = await fixture();
   const preview = await a.as.query(api.sharedVisits.preview, draft.selection);
@@ -57,13 +59,14 @@ it("displays eligible draft media only to the owner without publishing or exposi
   expect(denied.headers.get("Cache-Control")).toBe("private, no-store");
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });
+
 it("serves public media without friendship and rechecks publication, selection, and media eligibility", async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();
   const context = await publish();
   expect((await serveSharedMedia(transport(b), context)).status).toBe(200);
-  await t.run((ctx) => ctx.db.patch(asset.id, { revokedAt: 1 }));
+  await t.run((ctx) => ctx.db.patch("mediaAssets", asset.id, { revokedAt: 1 }));
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
-  await t.run((ctx) => ctx.db.patch(asset.id, { revokedAt: undefined }));
+  await t.run((ctx) => ctx.db.patch("mediaAssets", asset.id, { revokedAt: undefined }));
   await a.as.mutation(api.sharedVisits.publish, {
     ...draft.selection,
     saveLocalIds: [],
@@ -76,12 +79,13 @@ it("serves public media without friendship and rechecks publication, selection, 
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
 });
+
 it("denies an owner-photo pointer and a publication revoked during the storage fetch", async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();
   const context = await publish();
   await befriend(a, b);
   const pointer = await t.run(async (ctx) => {
-    const save = (await ctx.db.get(draft.saves[0].id))!;
+    const save = (await ctx.db.get("collections", draft.saves[0].id))!;
     return ctx.db.insert("artworkPhotos", {
       owner: save.owner,
       saveId: save._id,
@@ -95,7 +99,7 @@ it("denies an owner-photo pointer and a publication revoked during the storage f
     });
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
-  await t.run((ctx) => ctx.db.delete(pointer));
+  await t.run((ctx) => ctx.db.delete("artworkPhotos", pointer));
   const response = await serveSharedMedia(
     {
       ...transport(b),
@@ -112,6 +116,7 @@ it("denies an owner-photo pointer and a publication revoked during the storage f
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ code: "not_found" });
 });
+
 it("revokes media when an author is removed even while its publication remains active", async () => {
   const { t, a, b, transport, publish } = await fixture();
   const context = await publish();
@@ -128,11 +133,12 @@ it("revokes media when an author is removed even while its publication remains a
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
 });
+
 it("checks current contribution consent and never serves the source crop as a derivative", async () => {
   const { t, a, b, asset, transport, publish } = await fixture();
   const context = await publish();
   await befriend(a, b);
-  await t.run((ctx) => ctx.db.patch(asset.contributionId, { displayMediaRevokedAt: Date.now() }));
+  await t.run((ctx) => ctx.db.patch("contributions", asset.contributionId, { displayMediaRevokedAt: Date.now() }));
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
   expect(
     (
@@ -143,10 +149,10 @@ it("checks current contribution consent and never serves the source crop as a de
     ).artwork.media.kind,
   ).toBe("placeholder");
   await t.run(async (ctx) => {
-    await ctx.db.patch(asset.contributionId, {
+    await ctx.db.patch("contributions", asset.contributionId, {
       displayMediaRevokedAt: undefined,
     });
-    await ctx.db.patch(asset.id, { storageId: asset.sourceStorageId });
+    await ctx.db.patch("mediaAssets", asset.id, { storageId: asset.sourceStorageId });
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
 });

@@ -1,10 +1,10 @@
 import type { Mat } from "react-native-fast-opencv";
 
-import { DESCRIPTOR_BYTES, encodeOrbFeatures } from "@/shared/orb/features";
-import model from "../../../shared/model/model-version.json";
-
 import type { FastOpenCV } from "@/lib/image/opencv";
 import { withGray } from "@/lib/image/read-crop";
+import model from "@/shared/model/model-version.json";
+import { DESCRIPTOR_BYTES, encodeOrbFeatures } from "@/shared/orb/features";
+
 import { packKeypoints, type Keypoint } from "./pack";
 
 export type OrbDetection = {

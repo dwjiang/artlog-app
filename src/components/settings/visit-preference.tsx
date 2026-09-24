@@ -1,18 +1,19 @@
-import { reportError } from "@/lib/observability";
 import { Switch } from "@expo/ui";
 import { useEffect, useRef, useState } from "react";
+
 import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 
 export function VisitPreference() {
   return <OwnedPreference key={useLocalOwner()} />;
 }
 function OwnedPreference() {
   const owner = useLocalOwner();
-  const [remember, setRemember] = useState(true),
-    [loaded, setLoaded] = useState(false),
-    [error, setError] = useState<string>();
+  const [remember, setRemember] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string>();
   const saving = useRef(false);
   useEffect(() => {
     let active = true;

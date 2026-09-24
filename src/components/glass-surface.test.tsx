@@ -1,7 +1,8 @@
 import { act, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
-import { ThemedText } from "./themed-text";
+
 import { GlassSurface } from "./glass-surface";
+import { ThemedText } from "./themed-text";
 
 jest.mock("expo-glass-effect", () => ({
   isLiquidGlassAvailable: () => true,

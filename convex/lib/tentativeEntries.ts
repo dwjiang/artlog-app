@@ -1,10 +1,10 @@
-import { readEmbedding, requireEmbedding } from "../scanEmbeddings";
-import { insertVector, readVector } from "./vectorStore";
 import { ConvexError } from "convex/values";
+
 import model from "../../shared/model/model-version.json";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
+import { readEmbedding, requireEmbedding } from "../scanEmbeddings";
 import { AGREEMENT_MIN_COSINE, contributionGroup, REPLAY_COSINE, verifiedAccession } from "./agreement";
 import { cosine } from "./cosine";
 import {
@@ -13,6 +13,7 @@ import {
   eligibleObjectRecord,
   recognitionPartition,
 } from "./recognitionEligibility";
+import { insertVector, readVector } from "./vectorStore";
 
 const ANCHOR_PAGE = 25;
 const REPLAY_CHECK_VECTORS = 32;
@@ -24,7 +25,7 @@ export function earlier(a: Doc<"contributions">, b: Doc<"contributions"> | null)
 // The displayed reference can be withdrawn or banned before its rebuild runs. The oldest surviving
 // backer anchors the group meanwhile, so a concurrent submission joins the entry instead of forking it.
 async function eligibleAnchor(ctx: QueryCtx, object: Doc<"objects">): Promise<Doc<"contributions"> | null> {
-  const source = object.sourceContributionId ? await ctx.db.get(object.sourceContributionId) : null;
+  const source = object.sourceContributionId ? await ctx.db.get("contributions", object.sourceContributionId) : null;
   if (await eligibleContribution(ctx, source)) return source;
   const rows = await ctx.db
     .query("contributions")
@@ -90,13 +91,13 @@ export async function applyReference(
   ) {
     throw new ConvexError({ code: "reference_descriptors_required" });
   }
-  await ctx.db.patch(object.artworkId, {
+  await ctx.db.patch("artworks", object.artworkId, {
     title: source.fields.title.value,
     artist: source.fields.artist.value,
     date: source.fields.date?.value,
     retiredAt: undefined,
   });
-  await ctx.db.patch(object._id, {
+  await ctx.db.patch("objects", object._id, {
     sourceContributionId: source._id,
     sourceId: source._id,
     thumbnailStorageId: source.cropStorageId,
@@ -110,14 +111,14 @@ export async function applyReference(
       verifiedAccession: accession,
     },
   });
-  const scan = source.scanId ? await ctx.db.get(source.scanId) : null;
+  const scan = source.scanId ? await ctx.db.get("scans", source.scanId) : null;
   const placement = await ctx.db
     .query("placements")
     .withIndex("by_object_venue_source", (q) =>
       q.eq("objectId", object._id).eq("venueId", source.venueId).eq("source", "contribution"),
     )
     .unique();
-  if (placement) await ctx.db.patch(placement._id, { gallery: scan?.gallery });
+  if (placement) await ctx.db.patch("placements", placement._id, { gallery: scan?.gallery });
   const reference = await ctx.db
     .query("descriptors")
     .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
@@ -131,8 +132,9 @@ export async function applyReference(
     inputSize: model.inputSize,
     extractedFrom: `contribution:${source._id}`,
   };
-  if (reference) await ctx.db.replace(reference._id, fields);
-  else {
+  if (reference) {
+    await ctx.db.replace("descriptors", reference._id, fields);
+  } else {
     await ctx.db.insert("descriptors", fields);
     await bumpCounter(ctx, "descriptors", 1);
   }
@@ -145,7 +147,7 @@ export async function publishContribution(
 ): Promise<Id<"objects">> {
   const issue = await contributionRightsIssue(ctx, row);
   if (issue) throw new ConvexError({ code: issue });
-  let object = groupObjectId ? await ctx.db.get(groupObjectId) : null;
+  let object = groupObjectId ? await ctx.db.get("objects", groupObjectId) : null;
   const vector = await requireEmbedding(ctx, row.embeddingId);
   const anchor = object ? await compatibleAnchor(ctx, { ...row, vector }, object) : null;
   if (object && !anchor) {
@@ -182,8 +184,8 @@ export async function publishContribution(
       calibratorPenalty: 0,
       reverted: false,
     });
-    object = (await ctx.db.get(objectId))!;
-    const scan = row.scanId ? await ctx.db.get(row.scanId) : null;
+    object = (await ctx.db.get("objects", objectId))!;
+    const scan = row.scanId ? await ctx.db.get("scans", row.scanId) : null;
     await ctx.db.insert("placements", {
       identityStatus: "tentative",
       objectId,
@@ -197,7 +199,7 @@ export async function publishContribution(
     await bumpCounter(ctx, "objects", 1);
     await bumpCounter(ctx, "placements", 1);
   }
-  await ctx.db.patch(row._id, { indexedObjectId: object._id });
+  await ctx.db.patch("contributions", row._id, { indexedObjectId: object._id });
   await insertVector(ctx, {
     objectId: object._id,
     modelVersion: row.modelVersion,
@@ -209,7 +211,7 @@ export async function publishContribution(
   await bumpCounter(ctx, "vectors", 1);
   const source = anchor && earlier(anchor, row) ? anchor : row;
   await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
-  await ctx.db.patch(object._id, {
+  await ctx.db.patch("objects", object._id, {
     supportRevision: (object.supportRevision ?? 0) + 1,
   });
   return object._id;

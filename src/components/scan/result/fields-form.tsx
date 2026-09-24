@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { FieldInput } from "../field-input";
+import { FieldInput } from "@/components/scan/field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { SNAPSHOT_FIELDS, type SnapshotDraft, type SnapshotField } from "@/lib/result/snapshot";

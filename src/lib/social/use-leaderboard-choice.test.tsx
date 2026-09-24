@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+
 import { getSetting, setSetting } from "@/db/repos/settings";
+
 import { useLeaderboardChoice } from "./use-leaderboard-choice";
 
 jest.mock("@/db/repos/settings", () => ({

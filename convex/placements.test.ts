@@ -1,14 +1,14 @@
-import { readVector } from "./lib/vectorStore";
 import { afterEach, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
+import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { runPipeline } from "./lib/identifyPipeline";
 import { loadOrb } from "./lib/orbStorage";
-import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { loadCurrentPlacement } from "./lib/placements";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
+import { readVector } from "./lib/vectorStore";
 import { proposePlacementFromScan } from "./placements";
 import { harness } from "./test.helpers";
 
@@ -66,7 +66,7 @@ async function fixture(multiplicity: Doc<"artworks">["multiplicity"] = "unique")
         vector: testVector(1 - deviceIndex / 10),
       });
       await proposePlacementFromScan(ctx, {
-        scan: (await ctx.db.get(scanId))!,
+        scan: (await ctx.db.get("scans", scanId))!,
         objectId: seeded.objectId,
         proposedVenueId: seeded.venueId,
         deviceId: users[deviceIndex].deviceId,
@@ -117,7 +117,7 @@ it("a replay cannot manufacture the second day of evidence", async () => {
   vi.mocked(Date.now).mockReturnValue(NOW + DAY);
   await t.run(async (ctx) =>
     proposePlacementFromScan(ctx, {
-      scan: (await ctx.db.get(scanId))!,
+      scan: (await ctx.db.get("scans", scanId))!,
       deviceId: users[0].deviceId,
       objectId,
       proposedVenueId: venueId,
@@ -153,7 +153,7 @@ it("approval requires readiness, while a human may reject weak evidence", async 
 
 it("approving a move closes active placements elsewhere and preserves ownership, future windows, and saved snapshots", async () => {
   const { t, ready, objectId, venueId, home, savedId } = await fixture();
-  const before = await t.run((ctx) => ctx.db.get(savedId));
+  const before = await t.run((ctx) => ctx.db.get("collections", savedId));
   const futureId = await t.run((ctx) =>
     ctx.db.insert("placements", {
       identityStatus: "established",
@@ -182,11 +182,11 @@ it("approving a move closes active placements elsewhere and preserves ownership,
     onView: true,
     from: NOW + DAY,
   });
-  expect(await t.run((ctx) => ctx.db.get(futureId))).not.toHaveProperty("closedAt");
-  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placements", futureId))).not.toHaveProperty("closedAt");
+  expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
     ownerId: home,
   });
-  expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(before);
+  expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(before);
   expect(
     await t.query(internal.identify.loadCandidates, {
       embeddingIds: [(await t.run((ctx) => ctx.db.query("vectors").first()))!.embeddingId],
@@ -200,7 +200,7 @@ it.each(["multiple", "unknown"] as const)(
   "approving %s creates a physical object with its own scan vectors and leaves the original intact",
   async (multiplicity) => {
     const { t, ready, objectId, artworkId, home, venueId, users, savedId } = await fixture(multiplicity);
-    const before = await t.run((ctx) => ctx.db.get(savedId));
+    const before = await t.run((ctx) => ctx.db.get("collections", savedId));
     const p = await ready();
     expect(p.kind).toBe("new_object");
     await t.mutation(internal.placements.reviewPlacement, {
@@ -293,7 +293,7 @@ it.each(["multiple", "unknown"] as const)(
           .unique(),
       ),
     ).toMatchObject({ venueId: home, source: "feed" });
-    expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(before);
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       objects: 1,
       placements: 1,
@@ -310,7 +310,7 @@ it.each(["row", "file"])("refuses to index a new physical object without its ref
       .query("descriptors")
       .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
       .unique())!;
-    if (missing === "row") await ctx.db.delete(reference._id);
+    if (missing === "row") await ctx.db.delete("descriptors", reference._id);
     else await ctx.storage.delete(reference.storageId);
   });
   await expect(
@@ -345,7 +345,7 @@ it("uses recorded scan times for delayed and out-of-order proposal submissions",
   vi.mocked(Date.now).mockReturnValue(NOW + DAY);
   await t.run(async (ctx) =>
     proposePlacementFromScan(ctx, {
-      scan: (await ctx.db.get(delayed))!,
+      scan: (await ctx.db.get("scans", delayed))!,
       deviceId: users[1].deviceId,
       objectId,
       proposedVenueId: venueId,
@@ -358,7 +358,7 @@ it("uses recorded scan times for delayed and out-of-order proposal submissions",
     readyForReview: false,
   });
   // Review recomputes the interval even if the stored summary is wrong.
-  await t.run((ctx) => ctx.db.patch(p._id, { firstSeenAt: NOW - DAY, readyForReview: true }));
+  await t.run((ctx) => ctx.db.patch("placementProposals", p._id, { firstSeenAt: NOW - DAY, readyForReview: true }));
   await expect(
     t.mutation(internal.placements.reviewPlacement, {
       proposalId: p._id,
@@ -386,7 +386,7 @@ it("retains both ends of the observation window when the older scan arrives last
   await propose(1, NOW + DAY);
   await t.run(async (ctx) =>
     proposePlacementFromScan(ctx, {
-      scan: (await ctx.db.get(older))!,
+      scan: (await ctx.db.get("scans", older))!,
       deviceId: users[0].deviceId,
       objectId,
       proposedVenueId: venueId,
@@ -417,7 +417,7 @@ it("keeps approval within transaction limits after 2100 repeat scans", async () 
           },
         });
         await proposePlacementFromScan(ctx, {
-          scan: (await ctx.db.get(scanId))!,
+          scan: (await ctx.db.get("scans", scanId))!,
           deviceId: users[0].deviceId,
           objectId,
           proposedVenueId: venueId,
@@ -441,7 +441,7 @@ it("keeps approval within transaction limits after 2100 repeat scans", async () 
 it("device reversion restores the home placement without changing the saved snapshot", async () => {
   vi.useFakeTimers();
   const { t, ready, users, objectId, home, savedId } = await fixture();
-  const before = await t.run((ctx) => ctx.db.get(savedId));
+  const before = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
   await t.mutation(internal.placements.reviewPlacement, {
     proposalId: p._id,
@@ -456,11 +456,11 @@ it("device reversion restores the home placement without changing the saved snap
   expect(await t.run((ctx) => loadCurrentPlacement(ctx, objectId, NOW + DAY))).toMatchObject({
     venueId: home,
   });
-  expect(await t.run((ctx) => ctx.db.get(p._id))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placementProposals", p._id))).toMatchObject({
     status: "promoted",
     revertedAt: expect.any(Number),
   });
-  expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(before);
+  expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(before);
 });
 
 it.each(["device", "venue"] as const)(
@@ -490,7 +490,7 @@ it.each(["device", "venue"] as const)(
           },
         });
         await proposePlacementFromScan(ctx, {
-          scan: (await ctx.db.get(scanId))!,
+          scan: (await ctx.db.get("scans", scanId))!,
           deviceId: device.deviceId,
           objectId,
           proposedVenueId: nextVenue,
@@ -543,13 +543,13 @@ it.each([
   async ({ source, expiredHome }) => {
     vi.useFakeTimers();
     const { t, ready, users, objectId, home, savedId } = await fixture();
-    const saved = await t.run((ctx) => ctx.db.get(savedId));
+    const saved = await t.run((ctx) => ctx.db.get("collections", savedId));
     const temporaryVenue = await t.run(async (ctx) => {
       const homePlacement = (await ctx.db
         .query("placements")
         .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
         .unique())!;
-      await ctx.db.patch(homePlacement._id, {
+      await ctx.db.patch("placements", homePlacement._id, {
         source,
         to: expiredHome ? NOW + 2 * DAY : undefined,
       });
@@ -565,7 +565,7 @@ it.each([
       decision: "approve",
       reviewer: "curator",
     });
-    const object = (await t.run((ctx) => ctx.db.get(objectId)))!;
+    const object = (await t.run((ctx) => ctx.db.get("objects", objectId)))!;
     await t.mutation(internal.checklists.ingestChecklist, {
       venueKey: "temporary-exhibition",
       works: [{ objectKey: object.key }],
@@ -588,16 +588,15 @@ it.each([
       });
     }
     const after = await t.run((ctx) => loadCurrentPlacement(ctx, objectId, end + 1));
-    if (expiredHome) expect(after).toBeNull();
-    else expect(after).toMatchObject({ venueId: home });
-    expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(saved);
+    expect(after?.venueId ?? null).toBe(expiredHome ? null : home);
+    expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(saved);
   },
 );
 
 it("venue opt-out undoes a corpus-object move while preserving the corpus and saved snapshot", async () => {
   vi.useFakeTimers();
   const { t, ready, objectId, home, venueId, savedId } = await fixture();
-  const saved = await t.run((ctx) => ctx.db.get(savedId));
+  const saved = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
   await t.mutation(internal.placements.reviewPlacement, {
     proposalId: p._id,
@@ -610,16 +609,16 @@ it("venue opt-out undoes a corpus-object move while preserving the corpus and sa
       requester: "museum",
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(await t.run((ctx) => ctx.db.get(optOutId))).toHaveProperty("appliedAt");
+    expect(await t.run((ctx) => ctx.db.get("optOuts", optOutId))).toHaveProperty("appliedAt");
     expect(await t.run((ctx) => loadCurrentPlacement(ctx, objectId, NOW + DAY))).toMatchObject({
       venueId: home,
     });
   }
-  expect(await t.run((ctx) => ctx.db.get(p._id))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placementProposals", p._id))).toMatchObject({
     status: "promoted",
     revertedAt: expect.any(Number),
   });
-  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
     source: "corpus",
     reverted: false,
   });
@@ -631,7 +630,7 @@ it("venue opt-out undoes a corpus-object move while preserving the corpus and sa
         .collect(),
     ),
   ).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(saved);
+  expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(saved);
 });
 
 it("venue opt-out rolls back every move across placement pages", async () => {
@@ -670,11 +669,11 @@ it("venue opt-out rolls back every move across placement pages", async () => {
         from: NOW + DAY,
         proposalId,
       });
-      await ctx.db.patch(previous._id, {
+      await ctx.db.patch("placements", previous._id, {
         closedAt: NOW + DAY,
         closedByProposalId: proposalId,
       });
-      await ctx.db.patch(proposalId, {
+      await ctx.db.patch("placementProposals", proposalId, {
         promotion: { placementId, closedPlacementIds: [previous._id] },
       });
       rows.push({ objectId, proposalId });
@@ -686,19 +685,19 @@ it("venue opt-out rolls back every move across placement pages", async () => {
     requester: "museum",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(optOutId))).toHaveProperty("appliedAt");
+  expect(await t.run((ctx) => ctx.db.get("optOuts", optOutId))).toHaveProperty("appliedAt");
   for (const { objectId, proposalId } of moved) {
     expect(await t.run((ctx) => loadCurrentPlacement(ctx, objectId, NOW + DAY))).toMatchObject({
       venueId: home,
     });
-    expect(await t.run((ctx) => ctx.db.get(proposalId))).toHaveProperty("revertedAt");
+    expect(await t.run((ctx) => ctx.db.get("placementProposals", proposalId))).toHaveProperty("revertedAt");
   }
 });
 
 it("device reversion preserves a subsequent feed update and closes the revoked move", async () => {
   vi.useFakeTimers();
   const { t, ready, users, objectId, savedId } = await fixture();
-  const saved = await t.run((ctx) => ctx.db.get(savedId));
+  const saved = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
   await t.mutation(internal.placements.reviewPlacement, {
     proposalId: p._id,
@@ -707,7 +706,7 @@ it("device reversion preserves a subsequent feed update and closes the revoked m
   });
   const later = await t.run(async (ctx) => ({
     venueId: await seedMuseum(ctx, { key: "later-feed-venue" }),
-    object: (await ctx.db.get(objectId))!,
+    object: (await ctx.db.get("objects", objectId))!,
   }));
   await t.mutation(internal.ingest.upsertPlacements, {
     rows: [
@@ -731,10 +730,10 @@ it("device reversion preserves a subsequent feed update and closes the revoked m
   expect(await t.run((ctx) => loadCurrentPlacement(ctx, objectId, NOW + DAY))).toMatchObject({
     venueId: later.venueId,
   });
-  const revoked = (await t.run((ctx) => ctx.db.get(p._id)))!;
+  const revoked = (await t.run((ctx) => ctx.db.get("placementProposals", p._id)))!;
   expect(revoked.revertedAt).toEqual(expect.any(Number));
-  expect(await t.run((ctx) => ctx.db.get(revoked.promotion!.placementId))).toHaveProperty("closedAt");
-  expect(await t.run((ctx) => ctx.db.get(savedId))).toEqual(saved);
+  expect(await t.run((ctx) => ctx.db.get("placements", revoked.promotion!.placementId))).toHaveProperty("closedAt");
+  expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(saved);
 });
 
 it("replaces a rejected scan with fresh independent evidence in a ready pending proposal", async () => {
@@ -742,12 +741,14 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
   for (let i = 0; i < 3; i++) await propose(i);
   const p = (await proposal())!;
   await t.run(async (ctx) => {
-    const scan = (await ctx.db.get(p.scanIds[0]))!;
+    const scan = (await ctx.db.get("scans", p.scanIds[0]))!;
     await ctx.db.insert("feedback", {
       scanId: scan._id,
       deviceId: scan.deviceId,
       venueId: scan.venueId,
-      embeddingId: await ctx.db.insert("scanEmbeddings", { vector: (await ctx.db.get(scan.embeddingId))!.vector }),
+      embeddingId: await ctx.db.insert("scanEmbeddings", {
+        vector: (await ctx.db.get("scanEmbeddings", scan.embeddingId))!.vector,
+      }),
       modelVersion: scan.modelVersion,
       rejectedObjectId: objectId,
       score: 0.9,
@@ -784,7 +785,7 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
 it("recomputes the agreement window after removing missing evidence and can become ready again", async () => {
   const { t, ready, propose, proposal } = await fixture();
   const p = await ready();
-  await t.run((ctx) => ctx.db.delete(p.scanIds[0]));
+  await t.run((ctx) => ctx.db.delete("scans", p.scanIds[0]));
   await propose(2, NOW + DAY);
   expect(await proposal()).toMatchObject({
     readyForReview: false,
@@ -838,13 +839,13 @@ it("refuses approval when an evidence device is banned or the object has been re
     decision: "approve" as const,
     reviewer: "curator",
   };
-  await t.run((ctx) => ctx.db.patch(users[0].deviceId, { banned: true }));
+  await t.run((ctx) => ctx.db.patch("devices", users[0].deviceId, { banned: true }));
   await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "invalid_proposal_evidence" },
   });
   await t.run(async (ctx) => {
-    await ctx.db.patch(users[0].deviceId, { banned: false });
-    await ctx.db.patch(objectId, { reverted: true });
+    await ctx.db.patch("devices", users[0].deviceId, { banned: false });
+    await ctx.db.patch("objects", objectId, { reverted: true });
   });
   await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "object_not_found" },
@@ -876,7 +877,7 @@ it("lists proposals by status with pagination and supports the existing ready qu
 it("refuses stale evidence and rolls back approval if a scan no longer identifies the work", async () => {
   const { t, ready } = await fixture("multiple");
   const p = await ready();
-  await t.run((ctx) => ctx.db.patch(p.scanIds[0], { outcome: "miss", best: undefined }));
+  await t.run((ctx) => ctx.db.patch("scans", p.scanIds[0], { outcome: "miss", best: undefined }));
   await expect(
     t.mutation(internal.placements.reviewPlacement, {
       proposalId: p._id,
@@ -885,7 +886,7 @@ it("refuses stale evidence and rolls back approval if a scan no longer identifie
     }),
   ).rejects.toMatchObject({ data: { code: "invalid_proposal_evidence" } });
   expect(await t.run((ctx) => ctx.db.query("objects").collect())).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.db.get(p._id))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placementProposals", p._id))).toMatchObject({
     status: "pending",
   });
 });
@@ -897,8 +898,8 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
     const rejected = await seedArtworkWithObject(ctx);
     const ids = [];
     for (const scanId of p.scanIds) {
-      const scan = (await ctx.db.get(scanId))!;
-      await ctx.db.patch(scanId, {
+      const scan = (await ctx.db.get("scans", scanId))!;
+      await ctx.db.patch("scans", scanId, {
         best: {
           identityStatus: "established" as const,
           objectId: rejected.objectId,
@@ -911,7 +912,9 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
           scanId,
           deviceId: scan.deviceId,
           venueId: scan.venueId,
-          embeddingId: await ctx.db.insert("scanEmbeddings", { vector: (await ctx.db.get(scan.embeddingId))!.vector }),
+          embeddingId: await ctx.db.insert("scanEmbeddings", {
+            vector: (await ctx.db.get("scanEmbeddings", scan.embeddingId))!.vector,
+          }),
           modelVersion: scan.modelVersion,
           rejectedObjectId: rejected.objectId,
           score: 0.9,
@@ -928,7 +931,7 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
     }
     return ids;
   });
-  await t.run((ctx) => ctx.db.patch(feedbackIds[0], { resolution: { kind: "unresolved" } }));
+  await t.run((ctx) => ctx.db.patch("feedback", feedbackIds[0], { resolution: { kind: "unresolved" } }));
   const args = {
     proposalId: p._id,
     decision: "approve" as const,
@@ -938,12 +941,12 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
     data: { code: "invalid_proposal_evidence" },
   });
   await t.run((ctx) =>
-    ctx.db.patch(feedbackIds[0], {
+    ctx.db.patch("feedback", feedbackIds[0], {
       resolution: { kind: "runner_up", objectId },
     }),
   );
   await t.mutation(internal.placements.reviewPlacement, args);
-  expect(await t.run((ctx) => ctx.db.get(p._id))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placementProposals", p._id))).toMatchObject({
     status: "promoted",
   });
 });
@@ -1006,7 +1009,7 @@ it.each(["unique", "multiple"] as const)(
       deviceIds: [users[1].deviceId, users[2].deviceId],
     });
     expect(surviving.revertedAt).toBeUndefined();
-    const placement = (await t.run((ctx) => ctx.db.get(approved.promotion!.placementId)))!;
+    const placement = (await t.run((ctx) => ctx.db.get("placements", approved.promotion!.placementId)))!;
     expect(placement.closedAt).toBeUndefined();
     expect(placement.identityStatus).toBe("established");
     expect(await t.run((ctx) => loadCurrentPlacement(ctx, placement.objectId, NOW + DAY))).toMatchObject({ venueId });
@@ -1022,15 +1025,15 @@ it("reverses a reviewed new object when surviving evidence no longer qualifies",
     decision: "approve",
     reviewer: "curator",
   });
-  const approved = (await t.run((ctx) => ctx.db.get(row._id)))!;
-  const placement = (await t.run((ctx) => ctx.db.get(approved.promotion!.placementId)))!;
+  const approved = (await t.run((ctx) => ctx.db.get("placementProposals", row._id)))!;
+  const placement = (await t.run((ctx) => ctx.db.get("placements", approved.promotion!.placementId)))!;
   await t.mutation(internal.revert.revertDevice, {
     deviceId: users[0].deviceId,
     reason: "abuse",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(row._id))).toHaveProperty("revertedAt");
-  expect(await t.run((ctx) => ctx.db.get(placement.objectId))).toMatchObject({
+  expect(await t.run((ctx) => ctx.db.get("placementProposals", row._id))).toHaveProperty("revertedAt");
+  expect(await t.run((ctx) => ctx.db.get("objects", placement.objectId))).toMatchObject({
     reverted: true,
   });
   expect(

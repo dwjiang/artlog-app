@@ -1,7 +1,8 @@
-import { reportError } from "@/lib/observability";
 import { useEffect, useState } from "react";
-import { onVenueMetadataChange, venueMetadataForIds } from "../venue/venue-db";
-import type { VenueRow } from "../venue/resolve";
+
+import { reportError } from "@/lib/observability";
+import type { VenueRow } from "@/lib/venue/resolve";
+import { onVenueMetadataChange, venueMetadataForIds } from "@/lib/venue/venue-db";
 
 type Loaded = { owner: string; read: Set<string>; rows: Map<string, VenueRow> };
 

@@ -4,7 +4,7 @@ import { CaptureContextButton } from "./capture-context-button";
 
 const mockPush = jest.fn();
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => jest.requireActual("react").useEffect(callback, [callback]),

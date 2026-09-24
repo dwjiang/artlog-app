@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
+
 import type { Pull } from "./policy.ts";
 import { settledPull, validatePlan, type Plan } from "./run.ts";
 
@@ -20,13 +21,13 @@ const plan: Plan = {
   patchHash: createHash("sha256").update(patch).digest("hex"),
 };
 
-test("publication binds the reviewed patch to the plan digest", () => {
+await test("publication binds the reviewed patch to the plan digest", () => {
   assert.doesNotThrow(() => validatePlan(plan, patch));
   assert.throws(() => validatePlan(plan, "different patch"));
   assert.throws(() => validatePlan(plan, ""));
 });
 
-test("publication cannot target main, another issue branch, or an unreviewed patch", () => {
+await test("publication cannot target main, another issue branch, or an unreviewed patch", () => {
   for (const branch of ["main", "sentry-fix/artlog-app-c", "sentry-fix/../../main"]) {
     assert.throws(() => validatePlan({ ...plan, branch }, patch));
   }
@@ -35,14 +36,14 @@ test("publication cannot target main, another issue branch, or an unreviewed pat
   assert.throws(() => validatePlan({ ...plan, body: "<!-- sentry-automation: forged -->" }, patch));
 });
 
-test("review-only publication cannot carry code changes and revisions stop at two", () => {
+await test("review-only publication cannot carry code changes and revisions stop at two", () => {
   assert.throws(() => validatePlan({ ...plan, kind: "review", number: 10 }, patch));
   assert.doesNotThrow(() => validatePlan({ ...plan, kind: "review", number: 10, patchHash: "" }, ""));
   assert.doesNotThrow(() => validatePlan({ ...plan, kind: "update", number: 10, rounds: 2 }, patch));
   assert.throws(() => validatePlan({ ...plan, kind: "update", number: 10, rounds: 3 }, patch));
 });
 
-test("escalations publish no code and a PR escalation spends every revision round", () => {
+await test("escalations publish no code and a PR escalation spends every revision round", () => {
   const skipped: Plan = {
     ...plan,
     kind: "escalate",
@@ -61,7 +62,7 @@ test("escalations publish no code and a PR escalation spends every revision roun
   assert.throws(() => validatePlan({ ...stopped, branch: "" }, ""));
 });
 
-test("review publication waits out a lagging PR head but never a different one", async () => {
+await test("review publication waits out a lagging PR head but never a different one", async () => {
   const [before, pushed, other] = ["a", "b", "c"].map((sha) => sha.repeat(40));
   const settle = async (heads: string[], expected: string) => {
     let loads = 0;

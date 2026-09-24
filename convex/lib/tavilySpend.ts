@@ -2,8 +2,8 @@ import { ConvexError } from "convex/values";
 
 import { internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
-import { search, type TavilySearchRequest, type TavilySearchResponse } from "./tavily";
 import { reportBackendError } from "./observability";
+import { search, type TavilySearchRequest, type TavilySearchResponse } from "./tavily";
 
 // One credit is reserved atomically before dispatch and reconciled from the reported
 // usage. Returns null when the cap is reached, the key is missing, or the search fails; the caller

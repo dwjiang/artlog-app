@@ -1,7 +1,3 @@
-import { socialErrorMessage } from "../../../shared/social/errors";
-import { prepareCaptureVisit } from "../journal/capture-visit";
-import { museumDay } from "../journal/visit-date";
-import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
 import { useConvexAuth, useQuery } from "convex/react";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
@@ -10,9 +6,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import { getPoiSearch } from "../../../modules/poi-search/src";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import {
   findVisitOnDay,
@@ -23,11 +16,19 @@ import {
   upsertVisit,
 } from "@/db/repos/visits";
 import type { NewVisit, Visit } from "@/db/schema";
-import { signPayload } from "@/lib/attested-write";
 import { flushJournal } from "@/lib/account/collection-sync";
+import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
+import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
+import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
+import { museumDay } from "@/lib/journal/visit-date";
 import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+import { socialErrorMessage } from "@/shared/social/errors";
+
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { getPoiSearch } from "../../../modules/poi-search/src";
 import { refreshVenueTableInBackground } from "./refresh";
 import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from "./resolve";
 import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from "./venue-db";
@@ -59,32 +60,32 @@ export const POI_RADIUS_M = 300;
 export const SCAN_FIX_TIMEOUT_MS = 3000;
 
 export type VenueController = {
-  subscribe(listener: () => void): () => void;
-  getState(): VenueState;
-  getContext(): VenueContext;
+  subscribe: (listener: () => void) => () => void;
+  getState: () => VenueState;
+  getContext: () => VenueContext;
   /** Restores the open visit from the local store; stale or ended visits are closed instead. */
-  hydrate(): Promise<void>;
+  hydrate: () => Promise<void>;
   /** One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit. */
-  resolve(): Promise<VenueContext>;
+  resolve: () => Promise<VenueContext>;
   /** The context a scan carries: a fresh resolution when it is quick, else the last known one, with the open visit when the phone is at its museum. */
-  resolveForScan(capturedAt: number): Promise<VenueContext>;
+  resolveForScan: (capturedAt: number) => Promise<VenueContext>;
   /** A tap in the sheet resolves that museum; MapKit places are confirmed on the server first. The visit starts with the first save. */
-  confirm(option: VenueOption, signal?: AbortSignal): Promise<void>;
-  dismiss(): void;
+  confirm: (option: VenueOption, signal?: AbortSignal) => Promise<void>;
+  dismiss: () => void;
   /** Swiping the location prompt away declines it like `dismiss`, unless a museum resolved while it was open. */
-  declinePrompt(): void;
+  declinePrompt: () => void;
   /** Closes the open visit only while it is still `localId`; saving a stale end-visit review is otherwise a no-op. */
-  end(localId: string): Promise<void>;
+  end: (localId: string) => Promise<void>;
   /** Whether a save at this museum joins or starts its visit unless the person chooses otherwise; false for the rest of the day after "End visit" there. */
-  visitByDefault(venueId: Id<"museums">, at?: number): boolean;
+  visitByDefault: (venueId: Id<"museums">, at?: number) => boolean;
   /**
    * The visit a save at this museum links to: the one on the books for the capture's day (today only while it is still
    * open), stretched to cover the shutter, or a new one dated by the capture.
    */
-  visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit>;
+  visitForSave: (venueId: Id<"museums">, capturedAt: number) => Promise<CurrentVisit>;
   /** Flushes persisted visit starts and ends without blocking local resolution. */
-  syncRemoteVisit(): Promise<void>;
-  appStateChanged(status: AppStateStatus): void;
+  syncRemoteVisit: () => Promise<void>;
+  appStateChanged: (status: AppStateStatus) => void;
 };
 
 function parseSetting<T>(value: string | undefined): T | undefined {
@@ -114,7 +115,7 @@ async function joinVisit(row: Visit, capturedAt: number, owner: string, open: bo
     ...(startedAt !== row.startedAt ? { startedAt } : {}),
     ...(endedAt !== row.endedAt ? { endedAt } : {}),
   };
-  if (Object.keys(fields).length) await patchVisit(row.localId, fields, owner);
+  if (Object.keys(fields).length > 0) await patchVisit(row.localId, fields, owner);
   return currentVisit({ ...row, startedAt });
 }
 
@@ -316,14 +317,14 @@ export function createVenueController(): VenueController {
 
   function visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit> {
     const ownership = captureOwner();
-    const owner = ownership.owner;
+    const { owner } = ownership;
     const checkOwner = () => {
       if (!ownership.isCurrent()) throw new Error("Journal owner changed");
     };
     return updateLocally(async () => {
       checkOwner();
       const current = state.visit;
-      if (current && current.venueId === venueId && isVisitToday(current, capturedAt)) {
+      if (current?.venueId === venueId && isVisitToday(current, capturedAt)) {
         if (capturedAt >= current.startedAt) return current;
         // The capture waited for its save: the visit began with this shutter.
         await patchVisit(current.localId, { startedAt: capturedAt }, owner);
@@ -370,7 +371,7 @@ export function createVenueController(): VenueController {
         }
         await setSetting(currentVisitKey(owner), visit.localId);
         if (ownership.isCurrent()) {
-          const picked = state.picked;
+          const { picked } = state;
           dispatch({ type: "visitStarted", visit });
           // A visit taking over drops the pick from the list; a relaunch must not restore it.
           if (state.picked !== picked) await saveAnswers(owner, state);
@@ -409,7 +410,7 @@ export function createVenueController(): VenueController {
 
   async function hydrate(): Promise<void> {
     const ownership = captureOwner();
-    const owner = ownership.owner;
+    const { owner } = ownership;
     const localId = await getSetting(currentVisitKey(owner));
     const row = localId ? await getVisit(localId, owner) : undefined;
     const endedId = await getSetting(endedVisitKey(owner));
@@ -585,7 +586,7 @@ export function createVenueController(): VenueController {
   }
 
   async function end(localId: string): Promise<void> {
-    const visit = state.visit;
+    const { visit } = state;
     if (!visit || visit.localId !== localId) return;
     await endVisit(visit, Date.now(), true);
   }

@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 
+import { env } from "../_generated/server";
 import { fetchText, userAgent } from "./politeFetch";
 
 const ENDPOINT = "https://api.tavily.com/search";
@@ -74,7 +75,7 @@ export function parseSearchResponse(json: unknown): TavilySearchResponse {
 
 // Keep search cost and source scope predictable: basic depth, auto parameters off, domain filtering.
 export async function search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
-  const apiKey = process.env.TAVILY_API_KEY;
+  const apiKey = env.TAVILY_API_KEY;
   if (!apiKey) throw new ConvexError({ code: "search_unconfigured" });
   const body = {
     query: request.query,

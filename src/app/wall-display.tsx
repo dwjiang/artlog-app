@@ -1,7 +1,8 @@
-import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { Gallery } from "@/constants/theme";
+
 import { WallDisplayScreen } from "@/components/collection/wall-display-screen";
+import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
+import { Gallery } from "@/constants/theme";
 
 export default function WallDisplayRoute() {
   const { savedId } = useLocalSearchParams<{ savedId: string }>();

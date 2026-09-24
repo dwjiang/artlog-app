@@ -1,10 +1,10 @@
-import { LoadingImage } from "@/components/loading-image";
 import { useState } from "react";
 import { View } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
-import { initials } from "@/lib/social/presentation";
 
+import { LoadingImage } from "@/components/loading-image";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { initials } from "@/lib/social/presentation";
 
 export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; photoUrl?: string; size?: number }) {
   const [failed, setFailed] = useState<string>();

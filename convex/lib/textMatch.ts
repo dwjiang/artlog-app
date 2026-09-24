@@ -14,9 +14,9 @@ const NAME_QUALIFIERS: Record<string, string> = {
 export function normalizeText(value: string): string {
   return value
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replaceAll(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
@@ -27,7 +27,7 @@ export function tokenSet(value: string): Set<string> {
 export function jaccard(a: string, b: string): number {
   const left = tokenSet(a);
   const right = tokenSet(b);
-  if (!left.size || !right.size) return 0;
+  if (left.size === 0 || right.size === 0) return 0;
   let shared = 0;
   for (const token of left) if (right.has(token)) shared++;
   return shared / (left.size + right.size - shared);
@@ -101,7 +101,7 @@ export function personMatches(a: string, b: string): boolean {
   }
   const left = personNameTokens(a);
   const right = personNameTokens(b);
-  if (!left.length || !right.length) return false;
+  if (left.length === 0 || right.length === 0) return false;
   if (jaccard(left.join(" "), right.join(" ")) === 1) return true;
   const last = left[left.length - 1];
   if (last !== right[right.length - 1] || last.length < 3) return false;

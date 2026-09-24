@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { SavedWorkScreen } from "./saved-work-screen";
-import { PhotoEditorScreen } from "./photo-editor-screen";
-import { IdentifyArtworkScreen } from "./identify-artwork-screen";
+
 import { editSavedWork } from "@/db/repos/saved-works";
+
+import { IdentifyArtworkScreen } from "./identify-artwork-screen";
+import { PhotoEditorScreen } from "./photo-editor-screen";
+import { SavedWorkScreen } from "./saved-work-screen";
 
 jest.mock("@/lib/collection/saved-recognition", () => ({
   identifySavedArtwork: jest.fn(),

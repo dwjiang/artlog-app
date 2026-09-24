@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
-import type { Id } from "../../../convex/_generated/dataModel";
+
 import type { SavedWork } from "@/db/schema";
-import { SavedRecognition } from "./saved-recognition";
 import { identifySavedArtwork, acceptSavedRecognition } from "@/lib/collection/saved-recognition";
+
+import type { Id } from "../../../convex/_generated/dataModel";
+import { SavedRecognition } from "./saved-recognition";
 
 jest.mock("@/lib/collection/saved-recognition", () => ({
   identifySavedArtwork: jest.fn(),
@@ -11,8 +13,8 @@ jest.mock("@/lib/collection/saved-recognition", () => ({
   savedRecognitionError: () => "Connect to the internet and try identifying again.",
 }));
 const work = { owner: "device:mine", localId: "saved", title: "Unidentified artwork" } as SavedWork;
-const onAccepted = jest.fn(),
-  onBusyChange = jest.fn();
+const onAccepted = jest.fn();
+const onBusyChange = jest.fn();
 const result = {
   attempt: 2,
   outcome: "soft",

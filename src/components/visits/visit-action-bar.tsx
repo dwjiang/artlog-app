@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { GalleryButton } from "../collection/gallery-button";
 
 export function VisitActionBar({
   endingVisit,

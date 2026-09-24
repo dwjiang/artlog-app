@@ -1,29 +1,31 @@
-import { ListenActions } from "@/components/audio/listen-actions";
-import { captureFileUri } from "@/lib/files/photos";
-import { reportError } from "@/lib/observability";
-import { LoadingRing } from "@/components/loading-ring";
-import { ThemedText as Text } from "@/components/themed-text";
-import { randomUUID } from "expo-crypto";
-import { Image } from "expo-image";
 import { Host, Switch } from "@expo/ui";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { randomUUID } from "expo-crypto";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { ArtworkEnrichment } from "./artwork-enrichment";
-import { NoteEditor } from "./note-editor";
+
+import { ListenActions } from "@/components/audio/listen-actions";
+import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { useLocalOwner } from "@/lib/account/owner-store";
-import { selectSavedWork } from "@/db/repos/saved-works";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { captureFileUri } from "@/lib/files/photos";
+import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { nextWallLayout } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
+
 import { ArtworkAlbum } from "./artwork-album";
-import { GalleryButton } from "./gallery-button";
 import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from "./artwork-encounters";
+import { ArtworkEnrichment } from "./artwork-enrichment";
 import { ArtworkQueryState } from "./artwork-query-state";
+import { GalleryButton } from "./gallery-button";
+import { NoteEditor } from "./note-editor";
 
 export type SavedWorkScreenProps = {
   savedId: string;
@@ -85,8 +87,8 @@ function SavedArtwork({
   photoId?: string;
   editNote?: boolean;
 }) {
-  const router = useRouter(),
-    wall = useCollectionWall([work]);
+  const router = useRouter();
+  const wall = useCollectionWall([work]);
   const { encounters, loading: loadingEncounters, error: encounterError } = useArtworkEncounters(work);
   const currentEncounter = encounters.find(({ visit }) => visit.localId === visitId);
   const { data: photos } = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);

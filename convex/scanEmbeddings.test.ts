@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import { seedDevice, testVector } from "./lib/testFactories";
@@ -18,6 +19,6 @@ it("stores a scan's embedding separately and reuses it on an idempotent retry", 
   const retry = await t.mutation(internal.scans.create, args);
   expect(first.scan).not.toHaveProperty("vector");
   expect(retry.scan.embeddingId).toBe(first.scan.embeddingId);
-  expect((await t.run((ctx) => ctx.db.get(first.scan.embeddingId)))?.vector).toEqual(args.vector);
+  expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", first.scan.embeddingId)))?.vector).toEqual(args.vector);
   expect(await t.run((ctx) => ctx.db.query("scanEmbeddings").collect())).toHaveLength(1);
 });

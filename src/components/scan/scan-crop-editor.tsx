@@ -1,13 +1,15 @@
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect } from "react";
+
 import type { PendingScan } from "@/db/schema";
 import { saveEditedScanCrop } from "@/lib/capture/edit-crop";
 import { flushQueue } from "@/lib/queue/queue";
+
 import { CropEditor } from "./crop-editor";
 
 export function ScanCropEditor({ capture, onCancel }: { capture: PendingScan; onCancel: () => void }) {
-  const router = useRouter(),
-    navigation = useNavigation();
+  const router = useRouter();
+  const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({ title: "Adjust crop", gestureEnabled: false });
     return () => navigation.setOptions({ title: "", gestureEnabled: true });

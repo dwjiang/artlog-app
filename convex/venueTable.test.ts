@@ -47,15 +47,15 @@ describe("venue table publication", () => {
   });
 
   it.each([
-    { rowCount: 0, version: 1 },
-    { rowCount: 150_001, version: 1 },
-    { rowCount: 1.5, version: 1 },
-    { rowCount: 1, version: 0 },
-    { rowCount: 1, version: 1.5 },
-  ])("rejects invalid metadata %j", async (metadata) => {
+    [{ rowCount: 0, version: 1 }, "must contain 1–150,000 rows"],
+    [{ rowCount: 150_001, version: 1 }, "must contain 1–150,000 rows"],
+    [{ rowCount: 1.5, version: 1 }, "must contain 1–150,000 rows"],
+    [{ rowCount: 1, version: 0 }, "version must be a positive integer"],
+    [{ rowCount: 1, version: 1.5 }, "version must be a positive integer"],
+  ])("rejects invalid metadata %j", async (metadata, message) => {
     const t = harness();
     const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["SQLite fixture"])));
-    await expect(t.mutation(internal.venueTable.publish, { storageId, ...metadata })).rejects.toThrow();
+    await expect(t.mutation(internal.venueTable.publish, { storageId, ...metadata })).rejects.toThrow(message);
     expect(await t.query(api.venueTable.latest)).toBeNull();
   });
 

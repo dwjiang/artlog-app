@@ -1,13 +1,14 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+
 import { childEnvironment, command } from "./services.ts";
 
 export const directory = resolve(".context/sentry-automation");
-export interface Assessment {
+export type Assessment = {
   status: "pass" | "changes_requested" | "skip";
   title: string;
   body: string;
-}
+};
 const schema = {
   type: "object",
   additionalProperties: false,

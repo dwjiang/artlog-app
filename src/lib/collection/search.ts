@@ -1,6 +1,6 @@
 import type { ArtworkEncounter, SavedWork, Visit } from "@/db/schema";
-import { normalizeSearch } from "../../../shared/journal/limits";
-import { compareText, matchesSearch, searchTerm } from "../journal/query";
+import { compareText, matchesSearch, searchTerm } from "@/lib/journal/query";
+import { normalizeSearch } from "@/shared/journal/limits";
 
 type Searchable = Pick<SavedWork, "title" | "artist" | "institution">
   & Partial<Pick<SavedWork, "date" | "venueName">> & {

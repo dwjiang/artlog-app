@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 
+import { env } from "../_generated/server";
 import { fetchText, userAgent } from "./politeFetch";
 
 const BASE_URL = "https://api.tokenfactory.nebius.com/v1";
@@ -67,7 +68,7 @@ function parseCompletion<T>(body: string, parse: (value: unknown) => T | null, c
 }
 
 export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJsonResponse<T>> {
-  const apiKey = process.env.NEBIUS_API_KEY;
+  const apiKey = env.NEBIUS_API_KEY;
   if (!apiKey) throw new ConvexError({ code: "model_unconfigured", calls: 0 });
   const init: RequestInit = {
     method: "POST",

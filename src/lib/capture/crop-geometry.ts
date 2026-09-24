@@ -10,8 +10,8 @@ export const wholePhoto: Quad = [
 
 export function validCrop(quad: Quad): boolean {
   return quad.every(([x, y], i) => {
-    const b = quad[(i + 1) % 4],
-      c = quad[(i + 2) % 4];
+    const b = quad[(i + 1) % 4];
+    const c = quad[(i + 2) % 4];
     return (
       Number.isFinite(x)
       && Number.isFinite(y)
@@ -33,8 +33,8 @@ export function moveCropCorner(quad: Quad, index: number, x: number, y: number):
 
 export function fitPhoto(photo: FrameSize, frame: FrameSize) {
   const scale = Math.min(frame.width / photo.width, frame.height / photo.height);
-  const width = photo.width * scale,
-    height = photo.height * scale;
+  const width = photo.width * scale;
+  const height = photo.height * scale;
   return {
     width,
     height,

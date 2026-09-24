@@ -38,7 +38,7 @@ const ACCESSION_WITH_CUE =
 const ACCESSION_BARE = /\b((?:1[5-9]|20)\d{2}\.\d{1,4}(?:\.\d{1,4})?)\b/;
 
 export function decodeEntities(value: string): string {
-  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
+  return value.replaceAll(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
     if (code[0] === "#") {
       const point = code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
       return Number.isFinite(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
@@ -73,7 +73,7 @@ function jsonLdNodes(html: string): Record<string, unknown>[] {
       continue;
     }
     const queue: unknown[] = Array.isArray(parsed) ? [...parsed] : [parsed];
-    while (queue.length) {
+    while (queue.length > 0) {
       const node = queue.shift();
       if (!node || typeof node !== "object") continue;
       const record = node as Record<string, unknown>;
@@ -115,10 +115,10 @@ export function jsonLdUrls(value: unknown): string[] {
 export function visibleText(html: string): string {
   return decodeEntities(
     html
-      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " "),
-  ).replace(/\s+/g, " ");
+      .replaceAll(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replaceAll(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replaceAll(/<[^>]+>/g, " "),
+  ).replaceAll(/\s+/g, " ");
 }
 
 const BOILERPLATE = /<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi;
@@ -154,7 +154,7 @@ function findAccession(body: string): string | undefined {
 export function extractPage(html: string): ExtractedPage {
   const meta = metaTags(html);
   const pageTitle = decodeEntities(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
-    .replace(/\s+/g, " ")
+    .replaceAll(/\s+/g, " ")
     .trim();
   const imageUrls: string[] = [];
   const fields: PageFields = {};
@@ -176,7 +176,7 @@ export function extractPage(html: string): ExtractedPage {
   fields.artist ??= meta.get("author");
   fields.title ??= artworkPageTitle(meta.get("og:title") ?? pageTitle, fields.artist) || undefined;
   fields.accession ??= findAccession(body);
-  if (!imageUrls.length) {
+  if (imageUrls.length === 0) {
     const value = meta.get("og:image:secure_url") ?? meta.get("og:image") ?? meta.get("twitter:image");
     if (value) imageUrls.push(value);
   }

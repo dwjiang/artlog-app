@@ -1,7 +1,7 @@
-import { LoadingRing } from "@/components/loading-ring";
 import { useEffect, type PropsWithChildren } from "react";
 import { StyleSheet } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Gallery, Spacing } from "@/constants/theme";

@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+
 import {
   GUIDE_MAX_WORDS,
   GUIDE_MODEL,
@@ -15,9 +16,8 @@ import {
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, env } from "./_generated/server";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
-import { limitDevice, limitKey } from "./lib/rateLimits";
 import {
   narrationCurrent,
   narrationEntry,
@@ -25,6 +25,7 @@ import {
   renderedNarration,
   type RenderedNarration,
 } from "./lib/narrationCache";
+import { limitDevice, limitKey } from "./lib/rateLimits";
 import { chatJson } from "./lib/tokenFactory";
 import { docentSentence, factSheetEntry, type DocentSentence } from "./lib/validators";
 
@@ -45,12 +46,12 @@ export const claim = internalMutation({
   }),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
-    const artwork = await ctx.db.get(args.artworkId);
+    const artwork = await ctx.db.get("artworks", args.artworkId);
     if (!artwork || artwork.retiredAt || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
       throw new ConvexError({ code: "narration_unavailable" });
     }
     const facts = guideResearch(artwork.factSheet ?? []);
-    if (!facts.length) throw new ConvexError({ code: "narration_unavailable" });
+    if (facts.length === 0) throw new ConvexError({ code: "narration_unavailable" });
     const opening = guideOpening(artwork);
     const audio = await renderedNarration(ctx, artwork);
     if (audio) return { facts, opening, owned: false, audio };
@@ -70,8 +71,10 @@ export const claim = internalMutation({
     };
     if (entry) {
       if (entry.storageId) await ctx.storage.delete(entry.storageId);
-      await ctx.db.replace(entry._id, fields);
-    } else await ctx.db.insert("narrationAudio", fields);
+      await ctx.db.replace("narrationAudio", entry._id, fields);
+    } else {
+      await ctx.db.insert("narrationAudio", fields);
+    }
     return { facts, opening, owned: true, audio: null };
   },
 });
@@ -80,7 +83,7 @@ export const rendered = internalQuery({
   args: { artworkId: v.id("artworks") },
   returns: v.union(audio, v.null()),
   handler: async (ctx, { artworkId }) => {
-    const artwork = await ctx.db.get(artworkId);
+    const artwork = await ctx.db.get("artworks", artworkId);
     return artwork ? renderedNarration(ctx, artwork) : null;
   },
 });
@@ -101,10 +104,11 @@ export const finish = internalMutation({
     const entry = await narrationEntry(ctx, args.artworkId);
     if (!entry || entry.claim !== args.claim) {
       if (args.audio) await ctx.storage.delete(args.audio.storageId);
-    } else if (args.audio) await ctx.db.patch(entry._id, args.audio);
-    else {
+    } else if (args.audio) {
+      await ctx.db.patch("narrationAudio", entry._id, args.audio);
+    } else {
       if (entry.storageId) await ctx.storage.delete(entry.storageId);
-      await ctx.db.delete(entry._id);
+      await ctx.db.delete("narrationAudio", entry._id);
     }
     return null;
   },
@@ -119,7 +123,7 @@ export const clear = internalMutation({
     let cleared = 0;
     for await (const entry of ctx.db.query("narrationAudio")) {
       if (entry.storageId) await ctx.storage.delete(entry.storageId);
-      await ctx.db.delete(entry._id);
+      await ctx.db.delete("narrationAudio", entry._id);
       cleared++;
     }
     return cleared;
@@ -150,8 +154,8 @@ export const render = action({
     if (audio) return audio;
     let storageId: Id<"_storage"> | undefined;
     try {
-      const key = process.env.OPENAI_API_KEY;
-      if (!key || !process.env.NEBIUS_API_KEY) {
+      const key = env.OPENAI_API_KEY;
+      if (!key || !env.NEBIUS_API_KEY) {
         throw new ConvexError({ code: "narration_not_configured" });
       }
       const day = await ctx.runMutation(internal.spend.reserve, {
@@ -172,7 +176,7 @@ export const render = action({
         problems = unsupportedLines(lines, facts).map(
           (line) => `The support "${line.support}" is not verbatim in the facts cited for "${line.sentence}".`,
         );
-        if (problems.length) return null;
+        if (problems.length > 0) return null;
         const guide = validateGuide(
           [
             { sentence: opening, factIds: [] },

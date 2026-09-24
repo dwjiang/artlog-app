@@ -1,6 +1,7 @@
+import { countryName } from "@/lib/journal/history";
 import regions from "@/shared/sources/regions.json";
+
 import type { VenueRow } from "./resolve";
-import { countryName } from "../journal/history";
 
 type Region = { name: string; country?: string };
 export function venueLocation(venue: VenueRow) {

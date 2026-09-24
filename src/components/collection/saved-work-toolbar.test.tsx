@@ -1,11 +1,13 @@
-import { Alert } from "react-native";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { scheduleRemoval } from "@/lib/collection/pending-removals";
+import { Alert } from "react-native";
+
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
+import { scheduleRemoval } from "@/lib/collection/pending-removals";
+
 import { SavedWorkToolbar } from "./saved-work-toolbar";
 
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("../../db/test-db").createTestDatabase(),
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/collection/pending-removals", () => ({
   scheduleRemoval: jest.fn(),
@@ -17,8 +19,8 @@ const mockShare = jest.fn(async (_uri: string, _options: object) => {});
 jest.mock("expo-sharing", () => ({
   shareAsync: (uri: string, options: object) => mockShare(uri, options),
 }));
-const mockBack = jest.fn(),
-  mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   const Button = ({

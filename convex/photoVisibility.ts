@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+
 import { LIMITS } from "../shared/journal/limits";
 import { query } from "./_generated/server";
 import { findOwnedSave, requireJournalOwner, requireMembership } from "./lib/ownership";
@@ -46,7 +47,7 @@ export const forArtwork = query({
       .take(101);
     for (const item of selections) {
       if (item.saveLocalId !== save.localId) continue;
-      const publication = await ctx.db.get(item.publicationId);
+      const publication = await ctx.db.get("sharedVisits", item.publicationId);
       const access = publication && (await readablePublication(ctx, publication, publication.profileId));
       if (!access) continue;
       try {

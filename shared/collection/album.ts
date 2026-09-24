@@ -1,4 +1,5 @@
 import { ConvexError, type Infer, v } from "convex/values";
+
 import { isTimestamp, isUuid, LIMITS } from "../journal/limits";
 
 export const photoKind = v.union(v.literal("full"), v.literal("detail"), v.literal("label"));

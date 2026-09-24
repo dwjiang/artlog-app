@@ -1,20 +1,21 @@
 import { Image } from "expo-image";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { ThemedText as Text } from "@/components/themed-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
+import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
+
 import { WallArtwork } from "./wall-artwork";
 
 export function WallGallery({
   pieces,
   color,
   width,
-  minHeight = pieces.length ? 580 : 440,
+  minHeight = pieces.length > 0 ? 580 : 440,
   editing = false,
   onSelect,
   onMove,
@@ -80,10 +81,10 @@ function Hanging({
   onSelect: (piece: WallPiece) => void;
   onMove?: (id: string, layout: WallLayout) => void;
 }) {
-  const offsetX = useSharedValue(0),
-    offsetY = useSharedValue(0),
-    dragging = useSharedValue(false);
-  const layout = piece.layout;
+  const offsetX = useSharedValue(0);
+  const offsetY = useSharedValue(0);
+  const dragging = useSharedValue(false);
+  const { layout } = piece;
   const scale = useSharedValue(1);
   useEffect(() => {
     scale.set(1);

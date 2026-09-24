@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
-import type { LabelFlowDisplay } from "../../../../convex/lib/validators";
-
-import { VerifiedFieldsForm } from "./verified-fields-form";
 import { formStateFromFlow } from "@/lib/label/fields";
+
+import type { LabelFlowDisplay } from "../../../../convex/lib/validators";
+import { VerifiedFieldsForm } from "./verified-fields-form";
 
 const flow: LabelFlowDisplay = {
   stage: "verified",

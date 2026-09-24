@@ -10,7 +10,7 @@ export const recordVerifiedIdentity = internalMutation({
   handler: async (ctx, { sub, email, nonce }) => {
     const device = await requireDevice(ctx);
     await consumeChallenge(ctx, device, nonce, "apple");
-    await ctx.db.patch(device._id, {
+    await ctx.db.patch("devices", device._id, {
       appleLinkProof: { sub, email, expiresAt: Date.now() + 5 * 60_000 },
     });
     return null;

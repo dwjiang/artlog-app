@@ -31,9 +31,9 @@ export function CropCorners({
       />
       <View style={{ position: "absolute", ...photo }}>
         {corners.map(([x, y], i) => {
-          const next = corners[(i + 1) % 4],
-            dx = (next[0] - x) * photo.width,
-            dy = (next[1] - y) * photo.height;
+          const next = corners[(i + 1) % 4];
+          const dx = (next[0] - x) * photo.width;
+          const dy = (next[1] - y) * photo.height;
           return (
             <View
               key={`edge-${i}`}
