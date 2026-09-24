@@ -15,6 +15,7 @@ export type CardHeaderProps = {
   artworkTitle?: string;
   loading?: boolean;
   kind: ResultKind;
+  probability?: number;
   onNotRight?: () => void;
   onAdjustCrop?: () => void;
 };
@@ -32,6 +33,7 @@ export function CardHeader({
   artworkTitle,
   loading = false,
   kind,
+  probability,
   onNotRight,
   onAdjustCrop,
 }: CardHeaderProps) {
@@ -89,7 +91,7 @@ export function CardHeader({
       </View>
       {kind !== "loading" && (
         <View style={styles.status}>
-          <ConfidenceChip kind={kind} />
+          <ConfidenceChip kind={kind} probability={probability} />
           {onNotRight && (
             <Pressable accessibilityRole="button" onPress={onNotRight} hitSlop={8} style={styles.correction}>
               <ThemedText variant="secondary" themeColor="accent">

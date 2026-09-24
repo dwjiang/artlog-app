@@ -2,11 +2,10 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+import { formatConfidence } from "@/lib/result/confidence";
 import type { ResultKind } from "@/lib/result/state";
 
-// Product voice: a soft match is a "Maybe", never presented as fact. The calibrator
-// probability stays off this chip: its confident threshold sits near 0.14, so the
-// number would contradict the word in either direction.
+// Product voice: a soft match is a "Maybe", never presented as fact.
 export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   confident: "Match",
   soft: "Maybe",
@@ -15,15 +14,26 @@ export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   failed: "Identification failed",
 };
 
-export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: StyleProp<ViewStyle> }) {
+export function ConfidenceChip({
+  kind,
+  probability,
+  style,
+}: {
+  kind: ResultKind;
+  probability?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const label = CONFIDENCE_LABELS[kind];
   if (!label) return null;
-  const hasMatch = kind === "confident";
+  const named = kind === "confident" || kind === "soft";
+  const confidence = named ? formatConfidence(probability) : undefined;
   return (
     <View
+      accessible
+      accessibilityLabel={confidence ? `${label}, ${confidence}` : label}
       style={[
         styles.chip,
-        hasMatch && styles.match,
+        kind === "confident" && styles.match,
         kind === "soft" && {
           backgroundColor: "#FFF0D5",
           borderColor: "#C68A24",
@@ -34,12 +44,20 @@ export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: Styl
       <ThemedText type="smallBold" style={kind === "failed" ? styles.failed : undefined}>
         {label}
       </ThemedText>
+      {confidence && (
+        <ThemedText type="small" style={styles.confidence}>
+          {confidence}
+        </ThemedText>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: Spacing.one,
     paddingHorizontal: Spacing.compact,
     paddingVertical: Spacing.one,
     borderRadius: 3,
@@ -47,4 +65,5 @@ const styles = StyleSheet.create({
   },
   match: { backgroundColor: Gallery.highlight },
   failed: { color: Gallery.destructive },
+  confidence: { fontVariant: ["tabular-nums"] },
 });

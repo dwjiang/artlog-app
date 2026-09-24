@@ -382,6 +382,7 @@ it("shows a soft match as a maybe with the suggestions and the label button", as
   results.set("scans:get", softScan);
   await render(result());
   expect(await screen.findByText("Maybe")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Maybe, 62% confidence")).toBeOnTheScreen();
   expect(screen.getByText("12% confidence")).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
@@ -474,9 +475,11 @@ it("fills the fields from a suggestion picked on a soft card without sending fee
   await fireEvent.press(await screen.findByRole("button", { name: /^Haystacks, Claude Monet/ }));
   await openDetails();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("Haystacks");
-  expect(screen.getByText("Maybe")).toBeOnTheScreen();
-  expect(screen.queryByText("12% confidence")).toBeNull();
-  expect(screen.getByText("62% confidence")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Maybe, 12% confidence")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet, 62% confidence$/ }),
+  ).toBeOnTheScreen();
   expect(client.mutation).not.toHaveBeenCalled();
 });
 

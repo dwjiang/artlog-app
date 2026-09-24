@@ -1,7 +1,9 @@
 import { formatConfidence } from "./confidence";
 
 it.each([
-  [0, "0% confidence"],
+  [0, "1% confidence"],
+  [0.000024, "1% confidence"],
+  [0.005, "1% confidence"],
   [0.31, "31% confidence"],
   [0.626, "63% confidence"],
   [1, "100% confidence"],
