@@ -40,3 +40,22 @@ test("review-only publication cannot carry code changes and revisions stop at tw
   assert.doesNotThrow(() => validatePlan({ ...plan, kind: "update", number: 10, rounds: 2 }, patch));
   assert.throws(() => validatePlan({ ...plan, kind: "update", number: 10, rounds: 3 }, patch));
 });
+
+test("escalations publish no code and a PR escalation spends every revision round", () => {
+  const skipped: Plan = {
+    ...plan,
+    kind: "escalate",
+    branch: "",
+    review: { status: "skip", title: "", body: "" },
+    patchHash: "",
+  };
+  assert.doesNotThrow(() => validatePlan(skipped, ""));
+  assert.throws(() => validatePlan(skipped, patch));
+  assert.throws(() => validatePlan({ ...skipped, branch: "sentry-fix/artlog-app-b" }, ""));
+  assert.throws(() => validatePlan({ ...skipped, headSha: "b".repeat(40) }, ""));
+
+  const stopped = { ...skipped, number: 10, branch: "sentry-fix/artlog-app-b", headSha: "b".repeat(40), rounds: 2 };
+  assert.doesNotThrow(() => validatePlan(stopped, ""));
+  assert.throws(() => validatePlan({ ...stopped, rounds: 1 }, ""));
+  assert.throws(() => validatePlan({ ...stopped, branch: "" }, ""));
+});

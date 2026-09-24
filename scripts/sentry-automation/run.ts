@@ -16,6 +16,7 @@ import {
   productionEvidence,
   readState,
   stateMarker,
+  type GithubItem,
   type Pull,
   type State,
 } from "./policy.ts";
@@ -33,7 +34,7 @@ interface Comment {
   user: { login: string };
 }
 export interface Plan {
-  kind: "none" | "create" | "update" | "review";
+  kind: "none" | "create" | "update" | "review" | "escalate";
   mainSha: string;
   headSha: string;
   branch: string;
@@ -94,6 +95,17 @@ function empty(mainSha: string, body: string): Plan {
   };
 }
 
+function escalation(
+  mainSha: string,
+  fix: Assessment,
+  problem: string,
+  target: Pick<Plan, "headSha" | "branch" | "number" | "issue" | "issueId" | "rounds">,
+): Plan {
+  return { ...empty(mainSha, `${problem}\n\n${fix.body}`), ...target, kind: "escalate", title: fix.title };
+}
+
+const allGithubItems = () => githubPages<GithubItem>("issues?state=all&sort=updated&direction=desc");
+
 async function sentry<T>(path: string, params: Record<string, string>): Promise<T> {
   return request<T>(`https://sentry.io/api/0/${path}?${new URLSearchParams(params)}`, required("SENTRY_AUTH_TOKEN"));
 }
@@ -126,6 +138,18 @@ function capturePatch(): string {
   return patch;
 }
 
+// Dead ends become escalations so later runs move on. Failing checks still fail the run instead:
+// a broken main or a flaky test would otherwise escalate every issue.
+function proposal(fix: Assessment): { patch: string } | { problem: string } {
+  if (fix.status !== "pass") return { problem: "The fixer found no supported fix." };
+  try {
+    const patch = capturePatch();
+    return patch ? { patch } : { problem: "The fixer reported a fix but changed no files." };
+  } catch (error) {
+    return { problem: (error as Error).message };
+  }
+}
+
 function checks(): string[] {
   const commands = [
     ["exec", "--", "tsc", "--noEmit"],
@@ -143,6 +167,7 @@ function checks(): string[] {
 async function prepare(): Promise<void> {
   const mainSha = git("rev-parse", "origin/main");
   const pulls = await githubPages<Pull>("pulls?state=all&sort=updated&direction=desc");
+  const tracked = await allGithubItems();
   const issues = await sentry<Issue[]>(`organizations/${ORGANIZATION}/issues/`, {
     project: PROJECT,
     environment: "production",
@@ -199,13 +224,22 @@ async function prepare(): Promise<void> {
       const evidence = await events(issueId);
       if (!evidence.length) continue;
       const fix = runAgent("fix", { issue, events: evidence, review: botComments.at(-1) }, mainSha);
-      if (fix.status !== "pass") {
-        save(empty(mainSha, `Skipped revision for ${issue}: insufficient evidence or no supported fix.`));
-        summary(`Skipped revision for ${issue}: insufficient evidence or no supported fix.`);
+      const revision = proposal(fix);
+      if ("problem" in revision) {
+        save(
+          escalation(mainSha, fix, revision.problem, {
+            headSha: pull.head.sha,
+            branch: pull.head.ref,
+            number: pull.number,
+            issue,
+            issueId,
+            rounds: 2,
+          }),
+        );
+        summary(`Stopping automatic revisions for PR #${pull.number}: ${revision.problem}`);
         return;
       }
-      patch = capturePatch();
-      if (!patch) continue;
+      patch = revision.patch;
       validation = checks();
       body = fix.body;
     }
@@ -238,20 +272,26 @@ async function prepare(): Promise<void> {
 
   git("checkout", "--detach", mainSha);
   for (const issue of issues) {
-    if (issueAlreadyTracked(issue.shortId, pulls)) continue;
+    if (issueAlreadyTracked(issue.shortId, tracked)) continue;
     const evidence = await events(issue.id);
     if (!evidence.length) continue;
     const fix = runAgent("fix", { issue: issue.shortId, url: issueUrl(issue.id), events: evidence }, mainSha);
-    if (fix.status !== "pass") {
-      save(empty(mainSha, `Skipped ${issue.shortId}: no supported fix. Inspect the run locally before retrying.`));
-      summary(`Skipped ${issue.shortId}: no supported fix; no PR created.`);
+    const change = proposal(fix);
+    if ("problem" in change) {
+      save(
+        escalation(mainSha, fix, change.problem, {
+          headSha: mainSha,
+          branch: "",
+          number: 0,
+          issue: issue.shortId,
+          issueId: issue.id,
+          rounds: 0,
+        }),
+      );
+      summary(`Skipped ${issue.shortId}: ${change.problem} Escalating to a GitHub issue.`);
       return;
     }
-    const patch = capturePatch();
-    if (!patch) {
-      save(empty(mainSha, `No change needed for ${issue.shortId}.`));
-      return;
-    }
+    const { patch } = change;
     const validation = checks();
     const review = runAgent("review", { issue: issue.shortId, checks: validation, proposedFix: fix.body }, mainSha);
     if (capturePatch() !== patch) throw new Error("Reviewer changed the working tree");
@@ -282,15 +322,16 @@ async function prepare(): Promise<void> {
 
 export function validatePlan(plan: Plan, patch: string): void {
   if (
-    !["none", "create", "update", "review"].includes(plan.kind)
+    !["none", "create", "update", "review", "escalate"].includes(plan.kind)
     || !SHA.test(plan.mainSha)
     || !SHA.test(plan.headSha)
   ) {
     throw new Error("Invalid publication plan");
   }
   if (plan.kind === "none") return;
+  const escalatesIssue = plan.kind === "escalate" && plan.number === 0;
   if (
-    !BRANCH.test(plan.branch)
+    !(escalatesIssue ? plan.branch === "" : BRANCH.test(plan.branch))
     || !ISSUE.test(plan.issue)
     || !/^\d+$/.test(plan.issueId)
     || !Number.isInteger(plan.number)
@@ -303,10 +344,11 @@ export function validatePlan(plan: Plan, patch: string): void {
     || typeof plan.body !== "string"
     || plan.body.length > 20_000
     || plan.body.includes("sentry-automation:")
-    || !["pass", "changes_requested"].includes(plan.review?.status)
-    || typeof plan.review.body !== "string"
-    || plan.review.body.length > 15_000
-    || plan.review.body.includes("sentry-automation:")
+    || (plan.kind !== "escalate"
+      && (!["pass", "changes_requested"].includes(plan.review?.status)
+        || typeof plan.review.body !== "string"
+        || plan.review.body.length > 15_000
+        || plan.review.body.includes("sentry-automation:")))
   ) {
     throw new Error("Invalid publication fields");
   }
@@ -319,7 +361,17 @@ export function validatePlan(plan: Plan, patch: string): void {
   ) {
     throw new Error("Invalid new PR");
   }
-  if (plan.kind !== "create" && plan.number < 1) throw new Error("Invalid existing PR");
+  // A PR escalation spends the remaining rounds so later reviews never restart automatic revisions.
+  if (
+    plan.kind === "escalate"
+    && (patch
+      || plan.patchHash
+      || plan.rounds !== (escalatesIssue ? 0 : 2)
+      || (escalatesIssue && plan.headSha !== plan.mainSha))
+  ) {
+    throw new Error("Invalid escalation");
+  }
+  if (plan.kind !== "create" && !escalatesIssue && plan.number < 1) throw new Error("Invalid existing PR");
   if (
     ["create", "update"].includes(plan.kind)
     && (!patch || patch.length > 500_000 || sha256(patch) !== plan.patchHash)
@@ -327,6 +379,39 @@ export function validatePlan(plan: Plan, patch: string): void {
     throw new Error("Invalid patch");
   }
   if (plan.kind === "review" && patch) throw new Error("Review cannot publish a patch");
+}
+
+async function ensureLabels(): Promise<void> {
+  const labels = await githubPages<{ name: string }>("labels");
+  for (const name of LABELS) {
+    if (!labels.some((label) => label.name === name)) await github("labels", "POST", { name, color: "7057ff" });
+  }
+}
+
+async function escalate(plan: Plan, pull: Pull | null): Promise<void> {
+  if (pull) {
+    const state: State = {
+      issue: plan.issue,
+      issueId: plan.issueId,
+      rounds: plan.rounds,
+      reviewedHead: plan.headSha,
+      verdict: "changes_requested",
+    };
+    await github(`issues/${pull.number}/comments`, "POST", {
+      body: `**Automatic revision skipped.** ${plan.body}\n\nAutomatic revisions have stopped; this PR needs a human.\n\n${stateMarker(state)}`,
+    });
+    summary(`Stopped automatic revisions: https://github.com/${REPOSITORY}/pull/${pull.number}`);
+    return;
+  }
+  await ensureLabels();
+  const issue = await github<{ html_url: string }>("issues", "POST", {
+    title: `Sentry ${plan.issue}: automatic fix skipped${plan.title ? ` — ${plan.title}` : ""}`.slice(0, 160),
+    body:
+      `Production Sentry issue: [${plan.issue}](${issueUrl(plan.issueId)})\n\n${plan.body}\n\n`
+      + "Scheduled runs never retry a Sentry issue that any PR or issue mentions. Delete this issue to allow another automatic attempt.",
+    labels: LABELS,
+  });
+  summary(`Escalated ${plan.issue} for a human: ${issue.html_url}`);
 }
 
 async function publish(): Promise<void> {
@@ -340,19 +425,22 @@ async function publish(): Promise<void> {
   const main = await github<{ object: { sha: string } }>("git/ref/heads/main");
   if (main.object.sha !== plan.mainSha) throw new Error("Main changed after analysis; start a new run");
   let pull: Pull | null = null;
-  if (plan.kind === "create") {
-    const pulls = await githubPages<Pull>("pulls?state=all&sort=updated&direction=desc");
-    if (issueAlreadyTracked(plan.issue, pulls)) throw new Error("Another PR already tracks this Sentry issue");
-    const refs = await github<{ ref: string }[]>(`git/matching-refs/heads/${plan.branch}`);
-    if (refs.some((ref) => ref.ref === `refs/heads/${plan.branch}`)) {
-      throw new Error("Target branch already exists; refusing overwrite");
+  if (plan.number === 0) {
+    if (issueAlreadyTracked(plan.issue, await allGithubItems())) {
+      throw new Error("Another PR or issue already tracks this Sentry issue");
+    }
+    if (plan.kind === "create") {
+      const refs = await github<{ ref: string }[]>(`git/matching-refs/heads/${plan.branch}`);
+      if (refs.some((ref) => ref.ref === `refs/heads/${plan.branch}`)) {
+        throw new Error("Target branch already exists; refusing overwrite");
+      }
     }
   } else {
     pull = await github<Pull>(`pulls/${plan.number}`);
     if (!eligiblePull(pull) || pull.head.sha !== plan.headSha || pull.head.ref !== plan.branch) {
       throw new Error("PR changed or is no longer eligible");
     }
-    if (plan.kind === "update") {
+    if (plan.kind === "update" || plan.kind === "escalate") {
       const owned = readState(pull.body ?? "");
       const comments = await githubPages<Comment>(`issues/${pull.number}/comments`);
       const previous = latestState(
@@ -366,7 +454,7 @@ async function publish(): Promise<void> {
         || !previous
         || previous.issue !== plan.issue
         || previous.issueId !== plan.issueId
-        || previous.rounds + 1 !== plan.rounds
+        || (plan.kind === "update" && previous.rounds + 1 !== plan.rounds)
         || previous.rounds >= 2
         || previous.reviewedHead !== plan.headSha
         || previous.verdict !== "changes_requested"
@@ -374,6 +462,10 @@ async function publish(): Promise<void> {
         throw new Error("Revision is no longer authorized");
       }
     }
+  }
+  if (plan.kind === "escalate") {
+    await escalate(plan, pull);
+    return;
   }
   let reviewedHead = plan.headSha;
   if (plan.kind === "create" || plan.kind === "update") {
@@ -429,10 +521,7 @@ async function publish(): Promise<void> {
     verdict: plan.review.status === "pass" ? "pass" : "changes_requested",
   };
   if (plan.kind === "create") {
-    const labels = await githubPages<{ name: string }>("labels");
-    for (const name of LABELS) {
-      if (!labels.some((label) => label.name === name)) await github("labels", "POST", { name, color: "7057ff" });
-    }
+    await ensureLabels();
     pull = await github<Pull>("pulls", "POST", {
       title: plan.title,
       head: plan.branch,

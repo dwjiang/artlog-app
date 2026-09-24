@@ -36,10 +36,12 @@ export function eligiblePull(pull: Pull): boolean {
   );
 }
 
-export function issueAlreadyTracked(issue: string, pulls: Pull[]): boolean {
+export type GithubItem = Pick<Pull, "title" | "body">;
+
+export function issueAlreadyTracked(issue: string, items: GithubItem[]): boolean {
   if (!ISSUE.test(issue)) throw new Error("Invalid Sentry issue identifier");
   const pattern = new RegExp(`\\b${issue}\\b`);
-  return pulls.some((pull) => pattern.test(`${pull.title}\n${pull.body ?? ""}`));
+  return items.some((item) => pattern.test(`${item.title}\n${item.body ?? ""}`));
 }
 
 export function stateMarker(state: State): string {

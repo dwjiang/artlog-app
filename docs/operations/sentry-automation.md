@@ -1,6 +1,6 @@
 # Scheduled Sentry fixes
 
-The **Sentry fixes** GitHub Actions workflow runs daily at 09:00 America/Los_Angeles once merged into `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
+The **Sentry fixes** GitHub Actions workflow runs every 6 hours (03:00, 09:00, 15:00 and 21:00 America/Los_Angeles) once merged into `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
 
 ## Setup
 
@@ -14,7 +14,7 @@ Keep this repository private. Add these repository Actions secrets:
 
 Enable **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**. That GitHub setting enables PR creation; this workflow never submits an approval or merges a PR. Its default token permissions remain read-only; only the publication job has repository write permissions.
 
-Manually merge the setup PR. In **Actions → Sentry fixes → Run workflow**, keep **dry_run** checked for the first run. It verifies a subscription model call, GitHub reads, Sentry's production issue query, and the event query when an issue exists. It also tests the credential refresh write-back. Then start a new manual run with **dry_run** unchecked to test the full workflow. The daily schedule performs a full run.
+Manually merge the setup PR. In **Actions → Sentry fixes → Run workflow**, keep **dry_run** checked for the first run. It verifies a subscription model call, GitHub reads, Sentry's production issue query, and the event query when an issue exists. It also tests the credential refresh write-back. Then start a new manual run with **dry_run** unchecked to test the full workflow. Scheduled runs are full runs.
 
 To pause the schedule, disable the workflow in the Actions UI. GitHub schedules can be delayed; the workflow is not an incident paging system.
 
@@ -22,9 +22,11 @@ To pause the schedule, disable the workflow in the Actions UI. GitHub schedules 
 
 The analysis job has read-only GitHub permissions. It checks up to 100 unresolved issues in `daniel-jiang/artlog-app`, scoped to the last 24 hours and `environment=production`. Individual event samples must independently confirm production, the issue ID and timestamp. Errors never cause the query to broaden to other environments. Ensure each production Convex deployment sets `SENTRY_ENVIRONMENT=production`; development deployments must use another value. The iOS SDK already tags `__DEV__` as development.
 
-The job considers existing PR reviews/revisions first, then attempts at most one new issue. Any existing PR, including a human or closed PR, mentioning that issue prevents another fix PR. Review targets require both `agent-generated` and `sentry-fix`, the `sentry-fix/artlog-app-*` branch convention, `main` as base and a head in this repository. Unlabeled human PRs are never reviewed or modified.
+Each run takes one outcome: existing PR reviews/revisions first, otherwise the most frequent untracked issue. Any existing PR or GitHub issue mentioning a Sentry issue, including human and closed ones, prevents another attempt. Review targets require both `agent-generated` and `sentry-fix`, the `sentry-fix/artlog-app-*` branch convention, `main` as base and a head in this repository. Unlabeled human PRs are never reviewed or modified.
 
 A fresh Codex session reviews the proposed diff independently. It runs sequentially after the fixer, so the sessions share the subscription login without concurrent token rotation. The publication job has no Codex or Sentry credentials and runs no candidate build scripts. It validates the patch, rechecks PR eligibility and commit IDs, creates a draft PR or updates an eligible automation PR, and posts the review tied to the exact commit. New PR bodies also contain the initial review, so findings remain visible if comment publication fails.
+
+When the fixer finds no supported fix, changes nothing, or edits paths the policy below rejects, the run escalates instead: it opens a labeled GitHub issue that names the Sentry issue, or comments on the PR and spends its remaining revision rounds. Later runs therefore move on to the next issue. Delete an escalation issue to allow another automatic attempt. Failing checks fail the run instead, so a broken `main` or flaky test cannot escalate every issue; the next run retries.
 
 Automatic revisions apply only to draft PRs created by `github-actions[bot]` with this workflow's state marker and an outstanding automated review. A round is reserved in the PR body before each update. At most two revision attempts are allowed; failures may consume a round. Further changes require a human. Independent review of later human edits remains possible, but there is no automatic merge, ready-for-review transition, deployment or Sentry resolution.
 
