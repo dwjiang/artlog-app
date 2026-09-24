@@ -145,11 +145,6 @@ Use `--verify-fraction 1` for an explicit full readback, or another fraction in
 `(0, 1]`. A failed readback is not cached. Counts must still match the full
 baseline plus input overlap calculation.
 
-The vector schema now separates `vectors` identities from `embeddings` and
-`tentativeEmbeddings` payloads. Deploy to a fresh database, or reset and reseed
-the pre-release deployment before using it; old inline-vector rows are incompatible.
-Start a new import checkpoint after a reset.
-
 Full imports use `push --in "$SCRATCH_DIR/merged" --full` and require every shard
 from a full build; pilots and exported subsets are refused. The
 [full production upload](../../docs/todos/production-upload/README.md) remains deferred.

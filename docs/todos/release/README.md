@@ -1,12 +1,17 @@
 # Production release
 
-**Status: backend ready; TestFlight release outstanding.** See the dated
+**Status: production backend outdated; TestFlight release outstanding.** See the dated
 [deployment state, configuration, and targeting instructions](../../operations/production.md).
 EAS builds and submissions require an explicit request under the
 [project guide](../../../AGENTS.md).
 
 ## Release tasks
 
+- [ ] Deploy the current backend to production. It still runs code from before
+      #82 (2026-09-16): its rows lack `identityStatus` and vector partitions and
+      keep embeddings inline, so the deploy needs a one-off in-place conversion like
+      dev's on 2026-09-24. Set `LABEL_MODEL`, `OPENAI_API_KEY`, and `SENTRY_DSN`
+      there too; production only has the retired `LABEL_VL_MODEL`.
 - [ ] Remove `devices.assertSmoke` and its Settings caller; retain development
       tools only under `__DEV__`. Run the affected tests, TypeScript, and lint.
 - [ ] Configure the EAS production environment with
