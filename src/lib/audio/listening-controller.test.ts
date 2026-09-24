@@ -13,7 +13,6 @@ const track = (id: string): ListeningTrack => ({
   },
 });
 class Player implements AudioHandle {
-  volume = 1;
   callback?: (value: Playback) => void;
   play = jest.fn();
   pause = jest.fn();

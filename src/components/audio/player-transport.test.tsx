@@ -2,16 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { PlayerTransport } from "./player-transport";
 
 const mockSeek = jest.fn();
-const mockVolume = jest.fn();
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({
     position: 12,
     duration: 120,
-    volume: 0.8,
     phase: "ready",
     playing: false,
     rate: 1,
-    controller: { seek: mockSeek, setVolume: mockVolume },
+    controller: { seek: mockSeek },
   }),
 }));
 jest.mock("@react-native-community/slider", () => {
@@ -42,24 +40,12 @@ it("seeks when accessibility changes the value without a touch gesture", async (
   expect(mockSeek).toHaveBeenCalledWith(18);
 });
 
-it("changes volume continuously while the volume bar is dragged", async () => {
-  await render(<PlayerTransport view="player" onView={jest.fn()} />);
-  const slider = screen.getByRole("adjustable", { name: "Narration volume" });
-  await fireEvent(slider, "valueChange", 0.4);
-  await fireEvent(slider, "valueChange", 0.6);
-  expect(mockVolume.mock.calls).toEqual([[0.4], [0.6]]);
-});
-
-it("supports VoiceOver adjustments for position and volume", async () => {
+it("supports VoiceOver adjustments for position", async () => {
   await render(<PlayerTransport view="player" onView={jest.fn()} />);
   await fireEvent(screen.getByRole("adjustable", { name: "Narration position" }), "accessibilityAction", {
     nativeEvent: { actionName: "increment" },
   });
   expect(mockSeek).toHaveBeenCalledWith(27);
-  await fireEvent(screen.getByRole("adjustable", { name: "Narration volume" }), "accessibilityAction", {
-    nativeEvent: { actionName: "decrement" },
-  });
-  expect(mockVolume.mock.calls[0][0]).toBeCloseTo(0.7);
 });
 
 it("marks transcript selection and returns to the artwork when tapped again", async () => {

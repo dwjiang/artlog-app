@@ -55,7 +55,6 @@ beforeEach(() => {
     waiting: false,
     pauseBetween: true,
     rate: 1,
-    volume: 1,
     revision: 0,
   };
 });
