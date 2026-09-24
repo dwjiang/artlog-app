@@ -56,6 +56,7 @@ export function ArtworkAlbum({
     setRequestedPhoto(undefined);
   } else if (page > lastPage) setPage(lastPage);
   const selectedPhoto = rows[Math.min(page, lastPage)];
+  const museum = work.institution || work.venueName;
   const imageHeight =
     selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
       ? Math.max(44, Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)))
@@ -178,10 +179,23 @@ export function ArtworkAlbum({
           {work.artist || "Artist unknown"}
           {work.date ? `, ${work.date}` : ""}
         </Text>
-        {(work.medium || work.institution || work.venueName) && (
+        {!!work.medium && (
           <Text selectable style={styles.medium}>
-            {[work.medium, work.institution || work.venueName].filter(Boolean).join(" · ")}
+            {work.medium}
           </Text>
+        )}
+        {!!museum && (
+          <View style={styles.museum}>
+            <Image
+              source="sf:building.columns"
+              tintColor={Gallery.muted}
+              style={styles.museumIcon}
+              accessible={false}
+            />
+            <Text selectable style={[styles.medium, { flexShrink: 1 }]}>
+              {museum}
+            </Text>
+          </View>
         )}
       </View>
       {children}
@@ -331,4 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   medium: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
+  museum: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  // Centers the icon on the first text line so it stays put when a long name wraps.
+  museumIcon: { width: 15, height: 15, marginTop: 3.5 },
 });
