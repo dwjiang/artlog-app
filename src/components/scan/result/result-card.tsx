@@ -1,4 +1,5 @@
 import { ListenActions } from "@/components/audio/listen-actions";
+import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -119,10 +120,23 @@ export function ResultCard({
                   {draft.date ? ` · ${draft.date}` : ""}
                 </ThemedText>
               )}
-              {view.kind === "confident" && (
+              {view.kind === "confident" && !!draft.medium && (
                 <ThemedText variant="metadata" themeColor="textSecondary">
-                  {[draft.medium, draft.institution].filter(Boolean).join(" · ")}
+                  {draft.medium}
                 </ThemedText>
+              )}
+              {view.kind === "confident" && !!draft.institution && (
+                <View style={styles.museum}>
+                  <Image
+                    source="sf:building.columns"
+                    tintColor={Gallery.muted}
+                    style={styles.museumIcon}
+                    accessible={false}
+                  />
+                  <ThemedText variant="metadata" themeColor="textSecondary" style={{ flexShrink: 1 }}>
+                    {draft.institution}
+                  </ThemedText>
+                </View>
               )}
             </>
           )}
@@ -246,6 +260,9 @@ const styles = StyleSheet.create({
   },
   identity: { gap: 2 },
   workTitle: { fontSize: 20, lineHeight: 24, fontWeight: "600" },
+  museum: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
+  // Centers the icon on the first text line so it stays put when a long name wraps.
+  museumIcon: { width: 12, height: 12, marginTop: 3 },
   section: { gap: 4 },
   save: {
     paddingHorizontal: 20,

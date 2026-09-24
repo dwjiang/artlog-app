@@ -161,3 +161,14 @@ it("keeps the selected visit for new photos and offers the complete album", asyn
   expect(screen.getByText("Museum view 1")).toBeOnTheScreen();
   expect(screen.queryByText("No photos from this visit yet.")).toBeNull();
 });
+
+it("shows the museum on its own line under the medium, falling back to the visit venue", async () => {
+  const view = await render(
+    <ArtworkAlbum work={{ ...work, medium: "Oil on canvas", institution: "Musée d'Orsay", venueName: "The Met" }} />,
+  );
+  expect(screen.getByText("Oil on canvas")).toBeOnTheScreen();
+  expect(screen.getByText("Musée d'Orsay")).toBeOnTheScreen();
+  expect(screen.queryByText("The Met")).toBeNull();
+  await view.rerender(<ArtworkAlbum work={{ ...work, institution: "", venueName: "The Met" }} />);
+  expect(screen.getByText("The Met")).toBeOnTheScreen();
+});
