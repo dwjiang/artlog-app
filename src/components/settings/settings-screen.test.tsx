@@ -2,29 +2,17 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { Alert } from "react-native";
 
-import { setSetting } from "@/db/repos/settings";
-
 import { SettingsDetailScreen } from "./settings-detail-screen";
 import { SettingsScreen } from "./settings-screen";
 
 const mockPush = jest.fn();
-const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
 const mockDelete = jest.fn();
 let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null | undefined = null;
-let mockReady = true;
 let mockBusy = false;
 let mockSessionStatus = "ready";
 let mockOffline = false;
-const contribution = {
-  contributionId: "contribution-1",
-  status: "tentative",
-  fields: {
-    title: { value: "Water Lilies" },
-    artist: { value: "Claude Monet" },
-  },
-};
 
 jest.mock("./leaderboard-preference", () => ({
   LeaderboardPreference: () => null,
@@ -41,19 +29,10 @@ jest.mock("@/lib/social/use-social-query", () => ({
     data: mockAccount?.linked ? { name: "Alex", username: "alex" } : undefined,
   }),
 }));
-jest.mock("expo-network", () => ({
-  useNetworkState: () => ({
-    isConnected: !mockOffline,
-    isInternetReachable: !mockOffline,
-  }),
-}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
-jest.mock("@/lib/use-device-ready", () => ({
-  useDeviceReady: () => mockReady,
-}));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
 jest.mock("expo-apple-authentication", () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 },
@@ -80,12 +59,11 @@ jest.mock("@/lib/account/use-account", () => ({
 }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true }),
-  useMutation: () => mockWithdraw,
+  useMutation: () => jest.fn(),
   useQuery: (fn: unknown, args: unknown) => {
     if (args === "skip") return undefined;
     const name = jest.requireActual("convex/server").getFunctionName(fn);
     if (name === "health:ping") return { modelVersion: "test" };
-    if (name === "contributions:mine") return [contribution];
     return undefined;
   },
 }));
@@ -107,11 +85,9 @@ beforeEach(async () => {
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   jest.clearAllMocks();
   mockAccount = null;
-  mockReady = true;
   mockBusy = false;
   mockSessionStatus = "ready";
   mockOffline = false;
-  mockWithdraw.mockResolvedValue(null);
 });
 
 it("shows grouped settings and opens the matching detail", async () => {
@@ -122,6 +98,7 @@ it("shows grouped settings and opens the matching detail", async () => {
     expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
   }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Contributions" })).toBeNull();
   for (const [label, section] of [
     ["General", "general"],
     ["Visits", "visits"],
@@ -178,38 +155,6 @@ it("keeps privacy and About details accessible", async () => {
   }
 });
 
-it("shares confirmed works automatically even when an old local preference was off", async () => {
-  await setSetting("sharing-default", "false");
-  await render(<SettingsDetailScreen section="contributions" />);
-  expect(screen.queryByRole("switch")).toBeNull();
-  expect(screen.getByText(/Saving a confirmed work shares/)).toBeOnTheScreen();
-  expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
-});
-
-it("opens contributions and withdraws the selected work", async () => {
-  await render(<SettingsDetailScreen section="contributions" />);
-  expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
-  expect(screen.getByText("Shared · Tentative")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Withdraw" }));
-  await confirmDestructive();
-  expect(mockWithdraw).toHaveBeenCalledWith({
-    contributionId: "contribution-1",
-  });
-  expect(screen.getByText("Withdrawn")).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull();
-});
-
-it("keeps withdrawal retryable when the network fails", async () => {
-  mockWithdraw.mockRejectedValueOnce(new Error("offline"));
-  await render(<SettingsDetailScreen section="contributions" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Withdraw" }));
-  await confirmDestructive();
-  expect(screen.getByRole("alert")).toHaveTextContent(/Couldn't withdraw/);
-  await fireEvent.press(screen.getByRole("button", { name: "Withdraw" }));
-  await confirmDestructive();
-  expect(screen.getByText("Withdrawn")).toBeOnTheScreen();
-});
-
 it("opens contextual sign-in while keeping the guest journal available", async () => {
   await render(<SettingsScreen />);
   expect(screen.getByText("Saved on this iPhone")).toBeOnTheScreen();
@@ -255,20 +200,4 @@ it("offers profile creation from account settings when the account has no profil
   expect(screen.queryByRole("button", { name: "Edit profile" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Create profile" }));
   expect(mockPush).toHaveBeenLastCalledWith("/create-profile");
-});
-
-it("shows pending contributions before device registration completes", async () => {
-  mockReady = false;
-  await setSetting("sharing-default", "false");
-  await render(<SettingsDetailScreen section="contributions" />);
-  expect(screen.getByLabelText("Loading contributions…")).toBeOnTheScreen();
-});
-
-it("reports contributions as unavailable offline instead of loading indefinitely", async () => {
-  mockReady = false;
-  mockOffline = true;
-  await render(<SettingsDetailScreen section="contributions" />);
-  expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(screen.getByText("Connect to see your contributions.")).toBeOnTheScreen();
-  expect(screen.queryByLabelText("Loading contributions…")).toBeNull();
 });

@@ -26,7 +26,7 @@ export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => v
         ],
         [
           "Helping other visitors",
-          "Saving a confirmed work contributes its label details, numeric fingerprint and a small artwork crop to the shared index. You can withdraw these in Contributions.",
+          "Saving a confirmed work contributes its label details, numeric fingerprint and a small artwork crop to the shared index.",
         ],
         [
           "Your location",
