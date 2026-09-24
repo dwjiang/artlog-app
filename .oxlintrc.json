@@ -60,8 +60,8 @@
       }
     },
     {
-      // Convex functions read real server env vars; Metro's static inlining does not apply.
-      "files": ["convex/**"],
+      // Server functions and Node scripts read runtime env vars without Metro's inlining.
+      "files": ["convex/**", "scripts/sentry-automation/**"],
       "rules": { "expo/no-dynamic-env-var": "off" }
     },
     {
