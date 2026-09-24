@@ -19,6 +19,7 @@ import type { MuseumSummary } from "@/shared/offline/types";
 import { Gallery, Fonts } from "@/constants/theme";
 import { ToastLayer } from "@/components/toast";
 import { LoadingRing } from "@/components/loading-ring";
+import { ThemedText } from "@/components/themed-text";
 import { showToast } from "@/lib/ui/toast";
 import { museumDownloads, previewUri } from "@/lib/museum-downloads/storage";
 import { useMuseumDownloads } from "@/lib/museum-downloads/use-museum-downloads";
@@ -179,12 +180,12 @@ export function MuseumDownloadsScreen() {
             }}
             ListHeaderComponent={
               <>
-                <Text
+                <ThemedText
                   accessibilityRole="header"
                   style={[styles.title, fontScale > 1.4 && { fontSize: 28, lineHeight: 34 }]}
                 >
                   Museum{"\n"}downloads
-                </Text>
+                </ThemedText>
                 <View style={styles.searchRow}>
                   <View style={styles.search}>
                     <DownloadIcon name="magnifyingglass" size={16} color={Gallery.muted} />
